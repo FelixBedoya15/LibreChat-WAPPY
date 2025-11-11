@@ -37,7 +37,7 @@ services:
     command: mongod --noauth
     networks:
       # 1. Fuerza el servicio API a usar la red definida
-      - librechat_network
+      - dokploy-network
   meilisearch:
     container_name: chat-meilisearch
     image: getmeili/meilisearch:v1.12.3
@@ -51,7 +51,7 @@ services:
       - ./meili_data_v1.12:/meili_data
     networks:
       # 1. Fuerza el servicio API a usar la red definida
-      - librechat_network
+      - dokploy-network
   vectordb:
     container_name: vectordb
     image: pgvector/pgvector:0.8.0-pg15-trixie
@@ -64,7 +64,7 @@ services:
       - pgdata2:/var/lib/postgresql/data
     networks:
       # 1. Fuerza el servicio API a usar la red definida
-      - librechat_network
+      - dokploy-network
   rag_api:
     container_name: rag_api
     image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
@@ -78,12 +78,12 @@ services:
       - .env
     networks:
       # 1. Fuerza el servicio API a usar la red definida
-      - librechat_network
+      - dokploy-network
 
 volumes:
   pgdata2:
   mongodb_data:
 
 networks:
-  librechat_network:
-    driver: bridge
+  dokploy-network:
+    external: true
