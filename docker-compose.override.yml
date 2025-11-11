@@ -22,6 +22,11 @@
 # ---------------------------------------------------
 
 # Agregamos el bind mount para el código fuente (./) a /app
+version: '3.4'
+services:
+  # === 1. SERVICIO DE LA API (Cambios de Código) ===
+  api:
+    # Agregamos el bind mount para el código fuente (./) a /app
     volumes:
       - type: bind
         source: ./
