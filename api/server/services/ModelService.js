@@ -139,7 +139,7 @@ const fetchModels = async ({
 const fetchOpenAIModels = async (opts, _models = []) => {
   let models = _models.slice() ?? [];
   let apiKey = openAIApiKey;
-  const openaiBaseURL = 'https://api.openai.com/v1';
+  const openaiBaseURL = 'https://api.chatanywhere.tech/v1';
   let baseURL = openaiBaseURL;
   let reverseProxyUrl = process.env.OPENAI_REVERSE_PROXY;
 
