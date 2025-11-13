@@ -3,6 +3,8 @@
 
 services:
   api:
+    env_file:
+      - .env
     container_name: LibreChat
     ports:
       - "${PORT}:${PORT}"
