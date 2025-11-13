@@ -30,8 +30,8 @@ services:
         source: ./.env
         target: /app/.env
       - type: bind
-        source: ./librechat.yaml
-        target: /app/librechat.yaml
+        source: ./
+        target: /app
       - ./images:/app/client/public/images
       - ./uploads:/app/uploads
       - ./logs:/app/logs
