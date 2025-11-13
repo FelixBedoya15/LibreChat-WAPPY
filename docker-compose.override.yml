@@ -31,9 +31,9 @@ services:
       - .env
     # Agregamos el bind mount para el código fuente (./) a /app
     volumes:
-      - type: bind
-        source: ./
-        target: /app
+      #- type: bind
+      #  source: ./
+      #  target: /app
       # MANTENER los bind mounts ya definidos en el .yml, si quieres asegurar que no se pierdan
       # aunque docker compose ya debería fusionar los volúmenes correctamente.
       # Para estar 100% seguros y si tienes problemas de fusión de volúmenes:
