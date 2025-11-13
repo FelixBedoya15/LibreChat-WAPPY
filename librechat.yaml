@@ -229,6 +229,7 @@ endpoints:
       baseURL: "http://72.60.124.130:11434" 
       models:
         default: [
+          "qwen3:0.6b",
           "llama2",
           "mistral",
           "codellama",
