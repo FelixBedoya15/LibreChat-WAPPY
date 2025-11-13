@@ -229,7 +229,7 @@ endpoints:
       baseURL: "http://ollama:11434/v1/" 
       models:
         default: [
-          "qwen3:0.6b",
+          "deepseek-r1:1.5b",
           "llama2",
           "mistral",
           "codellama",
