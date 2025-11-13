@@ -9,7 +9,9 @@ services:
     depends_on:
       - mongodb
       - rag_api
-    image: ghcr.io/danny-avila/librechat-dev:latest
+    build: # <--- ¡CAMBIO CLAVE! Instruye a Docker a construir la imagen
+      context: . # Indica que use el directorio actual (la raíz de tu repo)
+      dockerfile: Dockerfile # Indica el archivo a usar para construir
     restart: always
     user: "${UID}:${GID}"
     extra_hosts:
@@ -27,6 +29,7 @@ services:
       - ./images:/app/client/public/images
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - ./librechat.yaml:/app/librechat.yaml
   mongodb:
     container_name: chat-mongodb
     image: mongo:4.4.18
@@ -67,7 +70,9 @@ services:
       - dokploy-network
   rag_api:
     container_name: rag_api
-    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
+    build: # <--- ¡CAMBIO CLAVE!
+      context: ./rag-api # <--- **IMPORTANTE: AJUSTA ESTA RUTA**
+      dockerfile: Dockerfile
     environment:
       - DB_HOST=vectordb
       - RAG_PORT=${RAG_PORT:-8000}
