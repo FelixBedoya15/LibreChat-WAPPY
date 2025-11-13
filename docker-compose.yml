@@ -10,8 +10,8 @@ services:
       - mongodb
       - rag_api
     build: # <--- ¡CAMBIO CLAVE! Instruye a Docker a construir la imagen
-       context: . # Indica que use el directorio actual (la raíz de tu repo)
-       dockerfile: Dockerfile # Indica el archivo a usar para construir
+      context: . # Indica que use el directorio actual (la raíz de tu repo)
+      dockerfile: Dockerfile # Indica el archivo a usar para construir
     restart: always
     user: "${UID}:${GID}"
     extra_hosts:
