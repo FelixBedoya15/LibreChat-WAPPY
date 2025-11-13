@@ -26,16 +26,16 @@ services:
       - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
       - ALLOW_INSECURE_LOCAL_IP=true
     volumes:
-      #- type: bind
-      #  source: ./.env
-      #  target: /app/.env
+      - type: bind
+        source: ./.env
+        target: /app/.env
       #- type: bind
       #  source: ./
       #  target: /app
       - ./images:/app/client/public/images
       - ./uploads:/app/uploads
       - ./logs:/app/logs
-      # - ./librechat.yaml:/app/librechat.yaml
+      - ./librechat.yaml:/app/librechat.yaml
   mongodb:
     container_name: chat-mongodb
     image: mongo:4.4.18
