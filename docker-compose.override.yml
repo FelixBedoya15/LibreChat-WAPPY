@@ -44,9 +44,7 @@ services:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
       # Si también quieres usar el archivo de configuración librechat.yaml (opcional, como en tu ejemplo)
-      # type: bind
-      #  source: ./librechat.yaml
-      #  target: /app/librechat.yaml
+      - ./librechat.yaml:/app/librechat.yaml
       
   # === 2. SERVICIO DE MONGODB (Persistencia de Datos) ===
   mongodb:
