@@ -9,9 +9,9 @@ services:
     depends_on:
       - mongodb
       - rag_api
-    build: # <--- ¡CAMBIO CLAVE! Instruye a Docker a construir la imagen
-      context: . # Indica que use el directorio actual (la raíz de tu repo)
-      dockerfile: Dockerfile # Indica el archivo a usar para construir
+    build:
+      context: .
+      dockerfile: Dockerfile.multi # Usando Dockerfile.multi para mejor rendimiento
     restart: always
     user: "${UID}:${GID}"
     extra_hosts:
@@ -70,9 +70,9 @@ services:
       - dokploy-network
   rag_api:
     container_name: rag_api
-    build: # <--- ¡CAMBIO CLAVE!
-       context: ./rag-api # <--- **IMPORTANTE: AJUSTA ESTA RUTA**
-       dockerfile: Dockerfile
+    build:
+      context: ./rag-api
+      dockerfile: Dockerfile
     environment:
       - DB_HOST=vectordb
       - RAG_PORT=${RAG_PORT:-8000}
