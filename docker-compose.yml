@@ -26,12 +26,12 @@ services:
       - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
       - ALLOW_INSECURE_LOCAL_IP=true
     volumes:
-      - type: bind
-        source: ./.env
-        target: /app/.env
-      - type: bind
-        source: ./
-        target: /app
+      #- type: bind
+      #  source: ./.env
+      #  target: /app/.env
+      #- type: bind
+      #  source: ./
+      #  target: /app
       - ./images:/app/client/public/images
       - ./uploads:/app/uploads
       - ./logs:/app/logs
