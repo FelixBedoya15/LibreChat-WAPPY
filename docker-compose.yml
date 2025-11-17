@@ -32,10 +32,12 @@ services:
       #- type: bind
       #  source: ./
       #  target: /app
-      - ./images:/app/client/public/images
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
-      - ./librechat.yaml:/app/librechat.yaml
+      #- ./images:/app/client/public/images
+      #- ./uploads:/app/uploads
+      #- ./logs:/app/logs
+      #- ./librechat.yaml:/app/librechat.yaml
+      - librechat_uploads:/app/uploads
+      - librechat_logs:/app/logs
     networks:
       # 1. Fuerza el servicio API a usar la red definida
       - dokploy-network
@@ -62,7 +64,8 @@ services:
       - MEILI_NO_ANALYTICS=true
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
     volumes:
-      - ./meili_data_v1.12:/meili_data
+      # - ./meili_data_v1.12:/meili_data
+      - meili_data_v1.12:/meili_data
     networks:
       # 1. Fuerza el servicio API a usar la red definida
       - dokploy-network
@@ -97,6 +100,9 @@ services:
 volumes:
   pgdata2:
   mongodb_data:
+  librechat_uploads:
+  librechat_logs:
+  meili_data_v1.12:
 
 networks:
   dokploy-network:
