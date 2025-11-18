@@ -31,6 +31,8 @@ services:
         target: /app/.env
       - librechat_uploads:/app/uploads
       - librechat_logs:/app/logs
+    networks:
+      - dokploy-network
   mongodb:
     container_name: chat-mongodb
     image: mongo:4.4.18
@@ -40,6 +42,8 @@ services:
        - mongodb_data:/data/db
     #  - ./data-node:/data/db
     command: mongod --noauth
+    networks:
+      - dokploy-network
   meilisearch:
     container_name: chat-meilisearch
     image: getmeili/meilisearch:v1.12.3
@@ -52,6 +56,8 @@ services:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
     volumes:
       - meili_data_v1.12:/meili_data
+    networks:
+      - dokploy-network
   vectordb:
     container_name: vectordb
     image: pgvector/pgvector:0.8.0-pg15-trixie
@@ -62,6 +68,8 @@ services:
     restart: always
     volumes:
       - pgdata2:/var/lib/postgresql/data
+    networks:
+      - dokploy-network
   rag_api:
     container_name: rag_api
     image: ghcr.io/danny-avila/librechat-rag-api-dev:latest
@@ -73,6 +81,8 @@ services:
       - vectordb
     env_file:
       - .env
+    networks:
+      - dokploy-network
 
 volumes:
   pgdata2:
@@ -81,4 +91,6 @@ volumes:
   librechat_logs:
   meili_data_v1.12:
 
-
+networks:
+  dokploy-network:
+    external: true
