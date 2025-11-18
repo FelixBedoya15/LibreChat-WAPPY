@@ -228,14 +228,14 @@ endpoints:
       # use 'host.docker.internal' instead of localhost if running LibreChat in a docker container
       baseURL: "http://ollama:11434/v1/" 
       models:
-        default: #[
-         # "deepseek-r1:1.5b",
-         # "llama2",
-         # "mistral",
-         # "codellama",
-         # "dolphin-mixtral",
-         # "mistral-openorca"
-         # ]
+        default: [
+          "deepseek-r1:1.5b",
+          "llama2",
+          "mistral",
+          "codellama",
+          "dolphin-mixtral",
+          "mistral-openorca"
+          ]
         # fetching list of models is supported but the `name` field must start
         # with `ollama` (case-insensitive), as it does in this example.
         fetch: true
