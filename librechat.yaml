@@ -435,8 +435,8 @@ webSearch:
 #   
 #   # Search providers
   # serperApiKey: '${SERPER_API_KEY}'
-  searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
-  # searxngInstanceUrl: "https://searxng.wappy-ia.com/search"
+  # searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
+  searxngInstanceUrl: "https://searxng.wappy-ia.com/search"
   # searxngApiKey: '${SEARXNG_API_KEY}' # Commented out as SearXNG does not require an API key
   searchProvider: "searxng" # Explicitly set SearXNG as the search provider
 #   
