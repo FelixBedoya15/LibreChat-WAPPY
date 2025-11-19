@@ -434,9 +434,11 @@ webSearch:
 #   cohereApiKey: '${COHERE_API_KEY}'
 #   
 #   # Search providers
-  serperApiKey: '${SERPER_API_KEY}'
+  # serperApiKey: '${SERPER_API_KEY}'
   searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
-  searxngApiKey: '${SEARXNG_API_KEY}'
+  # searxngInstanceUrl: "https://searxng.wappy-ia.com/search"
+  # searxngApiKey: '${SEARXNG_API_KEY}' # Commented out as SearXNG does not require an API key
+  searchProvider: "searxng" # Explicitly set SearXNG as the search provider
 #   
 #   # Content scrapers
 #   firecrawlApiKey: '${FIRECRAWL_API_KEY}'
