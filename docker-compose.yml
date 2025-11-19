@@ -90,7 +90,7 @@ services:
 
   reranker:
     container_name: chat-reranker
-    image: kalaspuffar/simple-reranker:latest
+    image: yohaneslont/simple-reranker:latest
     restart: always
     environment:
       # Usamos este modelo porque es rápido y no bloquea tu servidor
