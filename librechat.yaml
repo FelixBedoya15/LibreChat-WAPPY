@@ -458,7 +458,7 @@ endpoints:
 #     id: "your-memory-agent-id"
 #     # Option 2: Define agent inline
 #     # provider: "openai"
-#     # model: "gpt-4o-mini"
+#     # model: "gpt-4o-mini."
 #     # instructions: "You are a memory management assistant. Store and manage user information accurately."
 #     # model_parameters:
 #     #   temperature: 0.1
