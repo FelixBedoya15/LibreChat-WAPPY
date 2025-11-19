@@ -88,18 +88,6 @@ services:
     networks:
       - dokploy-network
 
-  reranker:
-    container_name: chat-reranker
-    image: ghcr.io/intake24/fastapi-reranker:latest
-    restart: always
-    environment:
-      # Usamos este modelo porque es rápido y no bloquea tu servidor
-      - RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
-    ports:
-      - "8085:8080"
-    networks:
-      - dokploy-network
-
 volumes:
   pgdata2:
   mongodb_data:
