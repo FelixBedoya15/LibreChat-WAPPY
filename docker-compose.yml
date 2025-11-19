@@ -27,9 +27,9 @@ services:
       - ALLOW_INSECURE_LOCAL_IP=true
       - SEARXNG_INSTANCE_URL=${SEARXNG_INSTANCE_URL}
     volumes:
-      - type: bind
-        source: ./.env
-        target: /app/.env
+      #- type: bind
+      #  source: ./.env
+      #  target: /app/.env
       - librechat_uploads:/app/uploads
       - librechat_logs:/app/logs
       - librechat_images:/app/client/public/images
