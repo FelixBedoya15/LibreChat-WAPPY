@@ -32,6 +32,7 @@ interface:
   # Note: This setting does not disable the Agents File Search Capability.
   # To disable the Agents Capability, see the Agents Endpoint configuration instead.
   fileSearch: true
+  webSearch: true # Enable web search for the main chat
   # Privacy policy settings
   privacyPolicy:
     externalUrl: 'https://grupowappy.com'
