@@ -244,7 +244,7 @@ endpoints:
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
-      modelDisplayLabel: "Ollama"
+      modelDisplayLabel: "Wappy"
     # Groq Example
     #- name: 'groq'
     #  apiKey: '${GROQ_API_KEY}'
