@@ -223,15 +223,15 @@ endpoints:
   #   # (optional) Agent Capabilities available to all users. Omit the ones you wish to exclude. Defaults to list below.
   #   capabilities: ["execute_code", "file_search", "actions", "tools"]
   custom:
-    - name: "Ollama"
+    - name: "Wappy"
       apiKey: "ollama"
       # use 'host.docker.internal' instead of localhost if running LibreChat in a docker container
       baseURL: "http://ollama:11434/v1/" 
       models:
         default: [
           "deepseek-r1:1.5b",
-          "llama2",
-          "mistral",
+          "gemma3:4b",
+          "qwen3-vl:4b",
           "codellama",
           "dolphin-mixtral",
           "mistral-openorca"
