@@ -32,6 +32,7 @@ services:
       - librechat_uploads:/app/uploads
       - librechat_logs:/app/logs
       - librechat_images:/app/client/public/images
+
     networks:
       - dokploy-network
   mongodb:
@@ -90,7 +91,7 @@ volumes:
   mongodb_data:
   librechat_uploads:
   librechat_logs:
-  librechat_images: # <-- New named volume
+  librechat_images:
   meili_data_v1.12:
 
 networks:
