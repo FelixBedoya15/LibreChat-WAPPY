@@ -434,7 +434,7 @@ webSearch:
 #   
 #   # Search providers
   serperApiKey: '${SERPER_API_KEY}'
-  searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
+  searxngInstanceUrl: ''https://searxng.wappy-ia.com/search''
   searxngApiKey: '${SEARXNG_API_KEY}'
 #   
 #   # Content scrapers
