@@ -438,7 +438,7 @@ webSearch:
   # searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
   searxngInstanceUrl: "https://searxng.wappy-ia.com/search"
   # searxngApiKey: '${SEARXNG_API_KEY}' # Commented out as SearXNG does not require an API key
-  searchProvider: "searxng" # Explicitly set SearXNG as the search provider
+  # searchProvider: "searxng" # Explicitly set SearXNG as the search provider
 #   
 #   # Content scrapers
 #   firecrawlApiKey: '${FIRECRAWL_API_KEY}'
