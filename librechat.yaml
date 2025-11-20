@@ -426,7 +426,7 @@ endpoints:
 # # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/assistants_endpoint
 
 # Web Search Configuration (optional)
-webSearch:
+#webSearch:
 #   # Jina Reranking Configuration
 #   jinaApiKey: '${JINA_API_KEY}'  # Your Jina API key
 #   jinaApiUrl: '${JINA_API_URL}'  # Custom Jina API URL (optional, defaults to https://api.jina.ai/v1/rerank)
@@ -436,9 +436,9 @@ webSearch:
 #   
 #   # Search providers
   # serperApiKey: '${SERPER_API_KEY}'
-  searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
+  #searxngInstanceUrl: '${SEARXNG_INSTANCE_URL}'
   # searxngApiKey: '${SEARXNG_API_KEY}' # Commented out as SearXNG does not require an API key
-  searchProvider: "searxng" # Explicitly set SearXNG as the search provider
+  #searchProvider: "searxng" # Explicitly set SearXNG as the search provider
 #   
 #   # Content scrapers
 #   firecrawlApiKey: '${FIRECRAWL_API_KEY}'
