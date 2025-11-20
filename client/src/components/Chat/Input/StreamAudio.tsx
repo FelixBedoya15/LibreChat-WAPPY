@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import type { TMessage } from 'librechat-data-provider';
 import { useCustomAudioRef, MediaSourceAppender, usePauseGlobalAudio } from '~/hooks/Audio';
-import { getLatestText, logger } from '~/utils';
+import { getAllContentText, logger } from '~/utils';
 import { useAuthContext } from '~/hooks';
 import { globalAudioId } from '~/common';
 import store from '~/store';
@@ -48,7 +48,7 @@ export default function StreamAudio({ index = 0 }) {
   );
 
   useEffect(() => {
-    const latestText = getLatestText(latestMessage);
+    const latestText = getAllContentText(latestMessage);
 
     const shouldFetch = !!(
       token != null &&
@@ -78,7 +78,7 @@ export default function StreamAudio({ index = 0 }) {
           setGlobalAudioURL(null);
         }
 
-        let cacheKey = latestMessage?.text ?? '';
+        let cacheKey = latestText;
         const cache = await caches.open('tts-responses');
         const cachedResponse = await cache.match(cacheKey);
 
