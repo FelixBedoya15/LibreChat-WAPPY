@@ -213,7 +213,7 @@ endpoints:
   #   # (optional) Max recursion depth for agents, defaults to 25
       maxRecursionLimit: 100
   #   # (optional) Disable the builder interface for agents
-      disableBuilder: true
+      disableBuilder: false
   #   # (optional) Supported agent IDs, only these agents will be available
   #   # (optional) Maximum total citations to include in agent responses, defaults to 30
       maxCitations: 50
