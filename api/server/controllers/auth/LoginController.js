@@ -8,7 +8,12 @@ const loginController = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    if (req.user.isApproved === false) {
+    if (req.user.accountStatus === 'pending') {
+      return res.status(403).json({ message: 'Account pending approval' });
+    }
+
+    // Legacy check for isApproved (migration support)
+    if (req.user.accountStatus === undefined && req.user.isApproved === false) {
       return res.status(403).json({ message: 'Account pending approval' });
     }
 

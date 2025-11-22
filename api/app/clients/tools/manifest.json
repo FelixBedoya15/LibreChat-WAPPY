@@ -179,5 +179,19 @@
         "description": "Provide your Flux API key from your user profile."
       }
     ]
+  },
+  {
+    "name": "Google Image Gen",
+    "pluginKey": "google-image-gen",
+    "toolkit": true,
+    "description": "Generate images using Google's Imagen models.",
+    "icon": "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg",
+    "authConfig": [
+      {
+        "authField": "GOOGLE_API_KEY",
+        "label": "Google API Key",
+        "description": "Your Google API Key (if not using Service Account)."
+      }
+    ]
   }
 ]

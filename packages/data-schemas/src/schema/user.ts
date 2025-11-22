@@ -141,9 +141,10 @@ const userSchema = new Schema<IUser>(
       },
       default: {},
     },
-    isApproved: {
-      type: Boolean,
-      default: false,
+    accountStatus: {
+      type: String,
+      enum: ['active', 'pending', 'inactive'],
+      default: 'pending',
     },
     /** Field for external source identification (for consistency with TPrincipal schema) */
     idOnTheSource: {

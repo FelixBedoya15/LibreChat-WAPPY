@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { requireJwtAuth } = require('~/server/middleware');
 const { requireAdmin } = require('~/server/middleware/roles/admin');
-const { getPendingUsers, approveUser } = require('~/server/controllers/AdminController');
+const { getAllUsers, createUser, updateUser, deleteUser } = require('~/server/controllers/AdminController');
 
-router.get('/users/pending', requireJwtAuth, requireAdmin, getPendingUsers);
-router.post('/users/approve', requireJwtAuth, requireAdmin, approveUser);
+router.get('/users', requireJwtAuth, requireAdmin, getAllUsers);
+router.post('/users/create', requireJwtAuth, requireAdmin, createUser);
+router.post('/users/update', requireJwtAuth, requireAdmin, updateUser);
+router.post('/users/delete', requireJwtAuth, requireAdmin, deleteUser);
 
 module.exports = router;

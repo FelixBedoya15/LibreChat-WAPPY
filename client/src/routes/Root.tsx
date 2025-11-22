@@ -20,6 +20,7 @@ import { TermsAndConditionsModal } from '~/components/ui';
 import { Nav, MobileNav } from '~/components/Nav';
 import { useHealthCheck } from '~/data-provider';
 import { Banner } from '~/components/Banners';
+import InactiveAccount from '~/components/Auth/InactiveAccount';
 
 export default function Root() {
   const [showTerms, setShowTerms] = useState(false);
@@ -62,6 +63,11 @@ export default function Root() {
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  const { user } = useAuthContext();
+  if (user?.accountStatus === 'inactive') {
+    return <InactiveAccount />;
   }
 
   return (
