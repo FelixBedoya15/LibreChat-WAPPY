@@ -62,31 +62,28 @@ class GoogleImageTools extends Tool {
 
             let userApiKey = null;
 
-            // 1. Try to get user key if configured as user_provided
-            if (isUserProvided) {
-                if (this.userId) {
-                    try {
-                        userApiKey = await getUserKey({ userId: this.userId, name: 'google' });
-                    } catch (e) {
-                        // Key might not exist
-                    }
-                } else if (this.req?.user?.id) {
-                    try {
-                        userApiKey = await getUserKey({ userId: this.req.user.id, name: 'google' });
-                    } catch (e) {
-                        // Key might not exist
-                    }
+            // 1. If user_provided, ALWAYS try to get user's saved key
+            if (isUserProvided && this.userId) {
+                try {
+                    userApiKey = await getUserKey({ userId: this.userId, name: 'google' });
+                    console.log('[google_image_gen] Retrieved user key from database');
+                } catch (e) {
+                    console.log('[google_image_gen] No user key found in database:', e.message);
                 }
             }
 
             // 2. If not user_provided or user key not found, check if GOOGLE_KEY has a value
             if (!userApiKey && GOOGLE_KEY && GOOGLE_KEY !== 'user_provided') {
                 userApiKey = GOOGLE_KEY;
+                console.log('[google_image_gen] Using GOOGLE_KEY from env');
             }
 
             // 3. Fallback to GOOGLE_API_KEY (common alternative) if still no key
             if (!userApiKey) {
                 userApiKey = process.env.GOOGLE_API_KEY;
+                if (userApiKey) {
+                    console.log('[google_image_gen] Using GOOGLE_API_KEY from env');
+                }
             }
 
             if (!userApiKey && !this.override) {
