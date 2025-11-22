@@ -1,4 +1,4 @@
-const checkAdmin = require('./admin');
+const { requireAdmin: checkAdmin } = require('./admin');
 
 module.exports = {
   checkAdmin,
