@@ -65,8 +65,17 @@ class GoogleImageTools extends Tool {
             // 1. If user_provided, ALWAYS try to get user's saved key
             if (isUserProvided && this.userId) {
                 try {
-                    userApiKey = await getUserKey({ userId: this.userId, name: 'google' });
+                    const userKeyData = await getUserKey({ userId: this.userId, name: 'google' });
                     console.log('[google_image_gen] Retrieved user key from database');
+
+                    // User keys are stored as JSON objects, need to parse and extract
+                    try {
+                        const parsedKey = typeof userKeyData === 'string' ? JSON.parse(userKeyData) : userKeyData;
+                        userApiKey = parsedKey.GOOGLE_API_KEY || parsedKey;
+                    } catch (parseError) {
+                        // If it's not JSON, use it directly
+                        userApiKey = userKeyData;
+                    }
                 } catch (e) {
                     console.log('[google_image_gen] No user key found in database:', e.message);
                 }
