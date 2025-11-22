@@ -57,25 +57,41 @@ class GoogleImageTools extends Tool {
         }
 
         try {
-            // Get user's Google API key (same one used for Gemini chat)
-            let userApiKey;
-            try {
-                if (!this.override && this.userId) {
-                    userApiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
-                } else if (!this.override && this.req?.user?.id) {
-                    userApiKey = await getUserKey({ userId: this.req.user.id, name: EModelEndpoint.google });
+            // Logic mirrored from api/server/services/Endpoints/google/initialize.js
+            const { GOOGLE_KEY } = process.env;
+            const isUserProvided = GOOGLE_KEY === 'user_provided';
+
+            let userApiKey = null;
+
+            // 1. Try to get user key if configured as user_provided
+            if (isUserProvided) {
+                if (this.userId) {
+                    try {
+                        userApiKey = await getUserKey({ userId: this.userId, name: 'google' });
+                    } catch (e) {
+                        // Key might not exist
+                    }
+                } else if (this.req?.user?.id) {
+                    try {
+                        userApiKey = await getUserKey({ userId: this.req.user.id, name: 'google' });
+                    } catch (e) {
+                        // Key might not exist
+                    }
                 }
-            } catch (err) {
-                // If getUserKey fails (e.g. no key found), we will try env var
             }
 
-            // Fallback to system environment variable if no user key found
+            // 2. If not user_provided or user key not found, check if GOOGLE_KEY has a value
+            if (!userApiKey && GOOGLE_KEY && GOOGLE_KEY !== 'user_provided') {
+                userApiKey = GOOGLE_KEY;
+            }
+
+            // 3. Fallback to GOOGLE_API_KEY (common alternative) if still no key
             if (!userApiKey) {
                 userApiKey = process.env.GOOGLE_API_KEY;
             }
 
             if (!userApiKey && !this.override) {
-                throw new Error('Google API Key not configured. Please add your Google API Key in Settings or configure GOOGLE_API_KEY in .env.');
+                throw new Error('Google API Key not configured. Please add your Google API Key in Settings or configure GOOGLE_KEY/GOOGLE_API_KEY in .env.');
             }
 
             // Log masked key for debugging
