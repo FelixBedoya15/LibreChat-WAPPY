@@ -177,6 +177,13 @@ class GoogleImageTools extends Tool {
             let debugInfo = `User ID: ${this.userId || 'undefined'}`;
             const keyStatus = process.env.GOOGLE_API_KEY ? 'System Key Present' : 'System Key Missing';
 
+            // Handle rate limiting
+            if (error.response?.status === 429 || error.message?.includes('429')) {
+                return this.returnValue(
+                    'Google API rate limit reached. Please wait a moment and try again. This usually resolves within 1-2 minutes.'
+                );
+            }
+
             if (error.message?.includes('API key not valid')) {
                 return this.returnValue(
                     `Invalid or expired Google API Key. Please update your API key in Settings.\nDebug: ${debugInfo}, KeyStatus: ${keyStatus}`
