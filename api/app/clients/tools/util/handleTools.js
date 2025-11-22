@@ -35,6 +35,7 @@ const {
   createYouTubeTools,
   TavilySearchResults,
   createOpenAIImageTools,
+  createGoogleImageTools,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -216,6 +217,12 @@ const loadTools = async ({
         imageOutputType,
         fileStrategy,
         imageFiles,
+      });
+    },
+    'google-image-gen': async (_toolContextMap) => {
+      return createGoogleImageTools({
+        req: options.req,
+        imageOutputType,
       });
     },
   };
@@ -448,10 +455,10 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
           config.type === 'all'
             ? await createMCPTools(mcpParams)
             : await createMCPTool({
-                ...mcpParams,
-                availableTools,
-                toolKey: config.toolKey,
-              });
+              ...mcpParams,
+              availableTools,
+              toolKey: config.toolKey,
+            });
 
         if (Array.isArray(mcpTool)) {
           loadedTools.push(...mcpTool);
