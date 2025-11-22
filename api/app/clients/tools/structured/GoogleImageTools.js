@@ -1,7 +1,7 @@
 const { z } = require('zod');
 const { v4 } = require('uuid');
+const axios = require('axios');
 const { Tool } = require('@langchain/core/tools');
-const { GoogleGenerativeAI: GenAI } = require('@google/generative-ai');
 const { getUserKey } = require('~/server/services/UserService');
 const { ContentTypes, EImageOutputType, EModelEndpoint } = require('librechat-data-provider');
 
@@ -103,11 +103,10 @@ class GoogleImageTools extends Tool {
             const maskedKey = userApiKey ? `${userApiKey.substring(0, 4)}...${userApiKey.substring(userApiKey.length - 4)}` : 'undefined';
             console.log(`[google_image_gen] Using API Key: ${maskedKey}`);
 
-            // Use Google Generative AI library (same as GoogleClient.js)
-            const genAI = new GenAI(userApiKey);
-            const generativeModel = genAI.getGenerativeModel({ model });
+            // Use REST API v1 (not v1beta, which doesn't support this model)
+            const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${userApiKey}`;
 
-            const requestOptions = {
+            const requestBody = {
                 contents: [
                     {
                         parts: [
@@ -117,12 +116,17 @@ class GoogleImageTools extends Tool {
                         ],
                     },
                 ],
-                // Gemini 2.0 Flash doesn't support Imagen 3.0 specific parameters
-                // Keep generationConfig minimal for compatibility
             };
 
-            const result = await generativeModel.generateContent(requestOptions);
-            const response = await result.response;
+            console.log(`[google_image_gen] Calling URL: ${url.replace(userApiKey, 'KEY_HIDDEN')}`);
+
+            const res = await axios.post(url, requestBody, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const response = res.data;
             const candidates = response.candidates;
 
             if (!candidates || candidates.length === 0) {
