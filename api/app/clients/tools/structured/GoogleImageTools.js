@@ -19,7 +19,7 @@ class GoogleImageTools extends Tool {
         this.req = fields.req;
         this.override = fields.override ?? false;
 
-        this.name = 'google_image_gen';
+        this.name = 'google-image-gen';
         this.description =
             "Generates images using Google's Imagen model based on a text prompt. Uses the same Google API Key configured for Gemini chat.";
 
