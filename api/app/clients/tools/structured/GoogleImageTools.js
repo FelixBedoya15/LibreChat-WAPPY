@@ -1,7 +1,6 @@
 const axios = require('axios');
 const { v4 } = require('uuid');
 const { tool } = require('@langchain/core/tools');
-const { logger } = require('@librechat/data-schemas');
 const { logAxiosError } = require('@librechat/api');
 const { ContentTypes, EImageOutputType, EModelEndpoint } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
