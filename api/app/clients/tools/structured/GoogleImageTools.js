@@ -103,8 +103,8 @@ class GoogleImageTools extends Tool {
             const maskedKey = userApiKey ? `${userApiKey.substring(0, 4)}...${userApiKey.substring(userApiKey.length - 4)}` : 'undefined';
             console.log(`[google_image_gen] Using API Key: ${maskedKey}`);
 
-            // Use REST API v1beta for preview models
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${userApiKey}`;
+            // Use REST API v1alpha for preview models (matches working Python implementation)
+            const url = `https://generativelanguage.googleapis.com/v1alpha/models/${model}:generateContent?key=${userApiKey}`;
 
             const requestBody = {
                 contents: [
