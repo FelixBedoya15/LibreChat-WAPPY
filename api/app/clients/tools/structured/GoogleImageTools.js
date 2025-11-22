@@ -1,13 +1,12 @@
 const { z } = require('zod');
-const axios = require('axios');
 const { v4 } = require('uuid');
 const { Tool } = require('@langchain/core/tools');
-const { logAxiosError } = require('@librechat/api');
-const { ContentTypes, EImageOutputType, EModelEndpoint } = require('librechat-data-provider');
+const { GoogleGenerativeAI: GenAI } = require('@google/generative-ai');
 const { getUserKey } = require('~/server/services/UserService');
+const { ContentTypes, EImageOutputType, EModelEndpoint } = require('librechat-data-provider');
 
 const displayMessage =
-    "The tool displayed an image. All generated images are already plainly visible, so don't repeat the descriptions in detail. Do not list download links as they are available in the UI already. The user may download the images by clicking on them, but do not mention anything about downloading to the user.";
+    "Google Imagen displayed an image. All generated images are already plainly visible, so don't repeat the descriptions in detail. Do not list download links as they are available in the UI already. The user may download the images by clicking on them, but do not mention anything about downloading to the user.";
 
 class GoogleImageTools extends Tool {
     constructor(fields = {}) {
@@ -98,12 +97,11 @@ class GoogleImageTools extends Tool {
             const maskedKey = userApiKey ? `${userApiKey.substring(0, 4)}...${userApiKey.substring(userApiKey.length - 4)}` : 'undefined';
             console.log(`[google_image_gen] Using API Key: ${maskedKey}`);
 
-            // Use Generative Language API
-            // Adding key as query param as well, as some endpoints prefer it
-            const url =
-                'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + userApiKey;
+            // Use Google Generative AI library (same as GoogleClient.js)
+            const genAI = new GenAI(userApiKey);
+            const generativeModel = genAI.getGenerativeModel({ model });
 
-            const requestBody = {
+            const requestOptions = {
                 contents: [
                     {
                         parts: [
@@ -121,15 +119,9 @@ class GoogleImageTools extends Tool {
                 },
             };
 
-            const res = await axios.post(url, requestBody, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    // Keeping header just in case, though query param usually takes precedence
-                    'x-goog-api-key': userApiKey,
-                },
-            });
-
-            const candidates = res.data.candidates;
+            const result = await generativeModel.generateContent(requestOptions);
+            const response = await result.response;
+            const candidates = response.candidates;
 
             if (!candidates || candidates.length === 0) {
                 return this.returnValue('No images returned from Google API.');
@@ -160,42 +152,30 @@ class GoogleImageTools extends Tool {
                 return this.returnValue('Failed to process images from Google API response.');
             }
 
-            const response = [
+            const responseMsg = [
                 {
                     type: ContentTypes.TEXT,
                     text: displayMessage + `\n\ngenerated_image_ids: ${JSON.stringify(file_ids)}`,
                 },
             ];
 
-            return [response, { content, file_ids }];
+            return [responseMsg, { content, file_ids }];
         } catch (error) {
             const message = '[google_image_gen] Problem generating the image:';
             // Log detailed error for debugging
-            if (error.response) {
-                console.error('[google_image_gen] API Error Data:', JSON.stringify(error.response.data, null, 2));
-            }
-            logAxiosError({ error, message });
+            console.error(message, error);
 
             let debugInfo = `User ID: ${this.userId || 'undefined'}`;
-            try {
-                // Re-attempt retrieval just for debug info construction if needed, 
-                // or rely on what we captured in the try block if we moved variables out.
-                // Since variables are scoped to try block, we can't access userApiKey here easily 
-                // without refactoring. 
-                // Let's just return the error message from Google which is most important, 
-                // PLUS the status of the key.
-            } catch (e) { }
+            const keyStatus = process.env.GOOGLE_API_KEY ? 'System Key Present' : 'System Key Missing';
 
-            if (error.response?.status === 401) {
+            if (error.message?.includes('API key not valid')) {
                 return this.returnValue(
-                    'Invalid or expired Google API Key. Please update your API key in Settings.',
+                    `Invalid or expired Google API Key. Please update your API key in Settings.\nDebug: ${debugInfo}, KeyStatus: ${keyStatus}`
                 );
             }
 
-            if (error.response?.status === 400) {
-                const errorDetails = error.response.data?.error?.message || 'Bad Request';
-                // Check if we can infer key status
-                const keyStatus = process.env.GOOGLE_API_KEY ? 'System Key Present' : 'System Key Missing';
+            if (error.message?.includes('400')) {
+                const errorDetails = error.message || 'Bad Request';
                 return this.returnValue(`Google API Error (400): ${errorDetails}. \nDebug: ${debugInfo}, KeyStatus: ${keyStatus}`);
             }
 
