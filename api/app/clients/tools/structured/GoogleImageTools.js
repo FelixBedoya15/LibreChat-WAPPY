@@ -31,9 +31,9 @@ class GoogleImageTools extends Tool {
                 .default('1:1')
                 .describe('Aspect ratio of the generated image.'),
             model: z
-                .enum(['gemini-2.0-flash-exp', 'imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'])
-                .default('gemini-2.0-flash-exp')
-                .describe('Model to use for generation. Use gemini-2.0-flash-exp for free preview.'),
+                .enum(['gemini-2.0-flash-preview-image-generation', 'imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'])
+                .default('gemini-2.0-flash-preview-image-generation')
+                .describe('Model to use for generation. Use gemini-2.0-flash-preview-image-generation for free preview.'),
         });
     }
 
@@ -50,7 +50,7 @@ class GoogleImageTools extends Tool {
     }
 
     async _call(input) {
-        const { prompt, n = 1, aspectRatio = '1:1', model = 'gemini-2.0-flash-exp' } = input;
+        const { prompt, n = 1, aspectRatio = '1:1', model = 'gemini-2.0-flash-preview-image-generation' } = input;
 
         if (!prompt) {
             throw new Error('Missing required field: prompt');
