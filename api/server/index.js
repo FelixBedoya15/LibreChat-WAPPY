@@ -124,6 +124,46 @@ const startServer = async () => {
     await configureSocialLogins(app);
   }
 
+  // Debug: Check which routes are undefined
+  const routeChecks = [
+    ['oauth', routes.oauth],
+    ['auth', routes.auth],
+    ['actions', routes.actions],
+    ['keys', routes.keys],
+    ['user', routes.user],
+    ['search', routes.search],
+    ['edit', routes.edit],
+    ['messages', routes.messages],
+    ['convos', routes.convos],
+    ['presets', routes.presets],
+    ['prompts', routes.prompts],
+    ['categories', routes.categories],
+    ['tokenizer', routes.tokenizer],
+    ['endpoints', routes.endpoints],
+    ['balance', routes.balance],
+    ['models', routes.models],
+    ['plugins', routes.plugins],
+    ['config', routes.config],
+    ['assistants', routes.assistants],
+    ['staticRoute', routes.staticRoute],
+    ['share', routes.share],
+    ['roles', routes.roles],
+    ['agents', routes.agents],
+    ['banner', routes.banner],
+    ['memories', routes.memories],
+    ['accessPermissions', routes.accessPermissions],
+    ['tags', routes.tags],
+    ['mcp', routes.mcp],
+    ['admin', routes.admin],
+  ];
+
+  for (const [name, route] of routeChecks) {
+    if (!route) {
+      logger.error(`ROUTE ERROR: routes.${name} is undefined!`);
+      throw new Error(`Route ${name} is undefined`);
+    }
+  }
+
   app.use('/oauth', routes.oauth);
   /* API Endpoints */
   app.use('/api/auth', routes.auth);
