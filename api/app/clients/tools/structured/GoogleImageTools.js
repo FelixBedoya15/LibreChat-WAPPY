@@ -59,26 +59,33 @@ class GoogleImageTools extends Tool {
         try {
             // Get user's Google API key (same one used for Gemini chat)
             let userApiKey;
-            if (!this.override && this.userId) {
-                userApiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
-                if (!userApiKey) {
-                    throw new Error(
-                        'Google API Key not configured. Please add your Google API Key in Settings.',
-                    );
-                }
-            } else if (!this.override) {
-                if (this.req?.user?.id) {
+            try {
+                if (!this.override && this.userId) {
+                    userApiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
+                } else if (!this.override && this.req?.user?.id) {
                     userApiKey = await getUserKey({ userId: this.req.user.id, name: EModelEndpoint.google });
                 }
+            } catch (err) {
+                // If getUserKey fails (e.g. no key found), we will try env var
+            }
+
+            // Fallback to system environment variable if no user key found
+            if (!userApiKey) {
+                userApiKey = process.env.GOOGLE_API_KEY;
             }
 
             if (!userApiKey && !this.override) {
-                throw new Error('Google API Key not configured or User ID missing.');
+                throw new Error('Google API Key not configured. Please add your Google API Key in Settings or configure GOOGLE_API_KEY in .env.');
             }
 
+            // Log masked key for debugging
+            const maskedKey = userApiKey ? `${userApiKey.substring(0, 4)}...${userApiKey.substring(userApiKey.length - 4)}` : 'undefined';
+            console.log(`[google_image_gen] Using API Key: ${maskedKey}`);
+
             // Use Generative Language API
+            // Adding key as query param as well, as some endpoints prefer it
             const url =
-                'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+                'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + userApiKey;
 
             const requestBody = {
                 contents: [
@@ -101,6 +108,7 @@ class GoogleImageTools extends Tool {
             const res = await axios.post(url, requestBody, {
                 headers: {
                     'Content-Type': 'application/json',
+                    // Keeping header just in case, though query param usually takes precedence
                     'x-goog-api-key': userApiKey,
                 },
             });
