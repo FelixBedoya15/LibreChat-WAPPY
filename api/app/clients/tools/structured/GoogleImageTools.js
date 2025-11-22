@@ -176,6 +176,16 @@ class GoogleImageTools extends Tool {
             }
             logAxiosError({ error, message });
 
+            let debugInfo = `User ID: ${this.userId || 'undefined'}`;
+            try {
+                // Re-attempt retrieval just for debug info construction if needed, 
+                // or rely on what we captured in the try block if we moved variables out.
+                // Since variables are scoped to try block, we can't access userApiKey here easily 
+                // without refactoring. 
+                // Let's just return the error message from Google which is most important, 
+                // PLUS the status of the key.
+            } catch (e) { }
+
             if (error.response?.status === 401) {
                 return this.returnValue(
                     'Invalid or expired Google API Key. Please update your API key in Settings.',
@@ -184,11 +194,13 @@ class GoogleImageTools extends Tool {
 
             if (error.response?.status === 400) {
                 const errorDetails = error.response.data?.error?.message || 'Bad Request';
-                return this.returnValue(`Google API Error (400): ${errorDetails}`);
+                // Check if we can infer key status
+                const keyStatus = process.env.GOOGLE_API_KEY ? 'System Key Present' : 'System Key Missing';
+                return this.returnValue(`Google API Error (400): ${errorDetails}. \nDebug: ${debugInfo}, KeyStatus: ${keyStatus}`);
             }
 
             return this.returnValue(
-                `Something went wrong when trying to generate the image with Google: ${error.message}`,
+                `Something went wrong when trying to generate the image with Google: ${error.message}`
             );
         }
     }
