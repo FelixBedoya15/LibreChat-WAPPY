@@ -37,6 +37,7 @@ RUN \
     npm ci --no-audit
 
 COPY --chown=node:node . .
+RUN rm -f .env
 
 RUN \
     # React client build

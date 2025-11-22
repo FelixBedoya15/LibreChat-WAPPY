@@ -37,13 +37,13 @@ services:
       # MANTENER los bind mounts ya definidos en el .yml, si quieres asegurar que no se pierdan
       # aunque docker compose ya debería fusionar los volúmenes correctamente.
       # Para estar 100% seguros y si tienes problemas de fusión de volúmenes:
-      - type: bind
-        source: ./.env
-        target: /app/.env
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      #- type: bind
+      #  source: ./.env
+      #  target: /app/.env
+      #- ./uploads:/app/uploads
+      #- ./logs:/app/logs
       # Si también quieres usar el archivo de configuración librechat.yaml (opcional, como en tu ejemplo)
-      - ./librechat.yaml:/app/librechat.yaml
+      #- ./librechat.yaml:/app/librechat.yaml
       
   # === 2. SERVICIO DE MONGODB (Persistencia de Datos) ===
   mongodb:
