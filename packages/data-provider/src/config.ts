@@ -77,7 +77,7 @@ type SchemaShape<T> = T extends z.ZodObject<infer U> ? U : never;
 
 // Helper type to determine the default value or undefined based on whether the field has a default
 type DefaultValue<T> =
-  T extends z.ZodDefault<z.ZodTypeAny> ? ReturnType<T['_def']['defaultValue']> : undefined;
+  T extends z.ZodDefault<z.ZodTypeAny> ? z.infer<T> : undefined;
 
 // Extract default values or undefined from the schema shape
 type ExtractDefaults<T> = {
@@ -101,7 +101,7 @@ export function getSchemaDefaults<Schema extends z.AnyZodObject>(
   });
 
   // Create the object with the right types
-  return Object.fromEntries(entries) as ExtractDefaults<SchemaShape<Schema>>;
+  return (Object as any).fromEntries(entries) as ExtractDefaults<SchemaShape<Schema>>;
 }
 
 export const modelConfigSchema = z

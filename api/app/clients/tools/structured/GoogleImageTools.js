@@ -4,7 +4,7 @@ const { tool } = require('@langchain/core/tools');
 const { logger } = require('@librechat/data-schemas');
 const { logAxiosError } = require('@librechat/api');
 const { ContentTypes, EImageOutputType } = require('librechat-data-provider');
-const { GoogleAuth } = require('google-auth-library');
+const { google } = require('googleapis');
 
 const displayMessage =
     "The tool displayed an image. All generated images are already plainly visible, so don't repeat the descriptions in detail. Do not list download links as they are available in the UI already. The user may download the images by clicking on them, but do not mention anything about downloading to the user.";
@@ -26,7 +26,7 @@ function createGoogleImageTools(fields = {}) {
     const imageOutputType = fields.imageOutputType || EImageOutputType.PNG;
 
     // Initialize Google Auth
-    const auth = new GoogleAuth({
+    const auth = new google.auth.GoogleAuth({
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
     });
 
