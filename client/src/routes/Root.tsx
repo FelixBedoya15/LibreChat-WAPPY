@@ -30,7 +30,7 @@ export default function Root() {
     return savedNavVisible !== null ? JSON.parse(savedNavVisible) : true;
   });
 
-  const { isAuthenticated, logout } = useAuthContext();
+  const { isAuthenticated, logout, user } = useAuthContext();
 
   // Global health check - runs once per authenticated session
   useHealthCheck(isAuthenticated);
@@ -65,7 +65,6 @@ export default function Root() {
     return null;
   }
 
-  const { user } = useAuthContext();
   if (user?.accountStatus === 'inactive') {
     return <InactiveAccount />;
   }
