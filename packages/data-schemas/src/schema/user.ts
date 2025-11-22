@@ -141,6 +141,10 @@ const userSchema = new Schema<IUser>(
       },
       default: {},
     },
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
     /** Field for external source identification (for consistency with TPrincipal schema) */
     idOnTheSource: {
       type: String,

@@ -21,7 +21,9 @@ import {
   Data,
   Balance,
   Account,
+  Admin,
 } from './SettingsTabs';
+import { useAuthContext } from '~/hooks/AuthContext';
 import usePersonalizationAccess from '~/hooks/usePersonalizationAccess';
 import { useLocalize, TranslationKeys } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
@@ -30,6 +32,7 @@ import { cn } from '~/utils';
 export default function Settings({ open, onOpenChange }: TDialogProps) {
   const isSmallScreen = useMediaQuery('(max-width: 767px)');
   const { data: startupConfig } = useGetStartupConfig();
+  const { user } = useAuthContext();
   const localize = useLocalize();
   const [activeTab, setActiveTab] = useState(SettingsTabValues.GENERAL);
   const tabRefs = useRef({});
@@ -45,6 +48,7 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
       SettingsTabValues.DATA,
       ...(startupConfig?.balance?.enabled ? [SettingsTabValues.BALANCE] : []),
       SettingsTabValues.ACCOUNT,
+      ...(user?.role === 'admin' ? [SettingsTabValues.ADMIN] : []),
     ];
     const currentIndex = tabs.indexOf(activeTab);
 
@@ -73,55 +77,64 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
     icon: React.JSX.Element;
     label: TranslationKeys;
   }[] = [
-    {
-      value: SettingsTabValues.GENERAL,
-      icon: <GearIcon />,
-      label: 'com_nav_setting_general',
-    },
-    {
-      value: SettingsTabValues.CHAT,
-      icon: <MessageSquare className="icon-sm" />,
-      label: 'com_nav_setting_chat',
-    },
-    {
-      value: SettingsTabValues.COMMANDS,
-      icon: <Command className="icon-sm" />,
-      label: 'com_nav_commands',
-    },
-    {
-      value: SettingsTabValues.SPEECH,
-      icon: <SpeechIcon className="icon-sm" />,
-      label: 'com_nav_setting_speech',
-    },
-    ...(hasAnyPersonalizationFeature
-      ? [
+      {
+        value: SettingsTabValues.GENERAL,
+        icon: <GearIcon />,
+        label: 'com_nav_setting_general',
+      },
+      {
+        value: SettingsTabValues.CHAT,
+        icon: <MessageSquare className="icon-sm" />,
+        label: 'com_nav_setting_chat',
+      },
+      {
+        value: SettingsTabValues.COMMANDS,
+        icon: <Command className="icon-sm" />,
+        label: 'com_nav_commands',
+      },
+      {
+        value: SettingsTabValues.SPEECH,
+        icon: <SpeechIcon className="icon-sm" />,
+        label: 'com_nav_setting_speech',
+      },
+      ...(hasAnyPersonalizationFeature
+        ? [
           {
             value: SettingsTabValues.PERSONALIZATION,
             icon: <PersonalizationIcon />,
             label: 'com_nav_setting_personalization' as TranslationKeys,
           },
         ]
-      : []),
-    {
-      value: SettingsTabValues.DATA,
-      icon: <DataIcon />,
-      label: 'com_nav_setting_data',
-    },
-    ...(startupConfig?.balance?.enabled
-      ? [
+        : []),
+      {
+        value: SettingsTabValues.DATA,
+        icon: <DataIcon />,
+        label: 'com_nav_setting_data',
+      },
+      ...(startupConfig?.balance?.enabled
+        ? [
           {
             value: SettingsTabValues.BALANCE,
             icon: <DollarSign size={18} />,
             label: 'com_nav_setting_balance' as TranslationKeys,
           },
         ]
-      : ([] as { value: SettingsTabValues; icon: React.JSX.Element; label: TranslationKeys }[])),
-    {
-      value: SettingsTabValues.ACCOUNT,
-      icon: <UserIcon />,
-      label: 'com_nav_setting_account',
-    },
-  ];
+        : ([] as { value: SettingsTabValues; icon: React.JSX.Element; label: TranslationKeys }[])),
+      {
+        value: SettingsTabValues.ACCOUNT,
+        icon: <UserIcon />,
+        label: 'com_nav_setting_account',
+      },
+      ...(user?.role === 'admin'
+        ? [
+          {
+            value: SettingsTabValues.ADMIN,
+            icon: <GearIcon />, // Reusing GearIcon or finding another one
+            label: 'Admin' as TranslationKeys,
+          },
+        ]
+        : []),
+    ];
 
   const handleTabChange = (value: string) => {
     setActiveTab(value as SettingsTabValues);
@@ -251,6 +264,11 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
                     <Tabs.Content value={SettingsTabValues.ACCOUNT} tabIndex={-1}>
                       <Account />
                     </Tabs.Content>
+                    {user?.role === 'admin' && (
+                      <Tabs.Content value={SettingsTabValues.ADMIN} tabIndex={-1}>
+                        <Admin />
+                      </Tabs.Content>
+                    )}
                   </div>
                 </Tabs.Root>
               </div>
