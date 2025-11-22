@@ -117,38 +117,38 @@ function createGoogleImageTools(fields = {}) {
         },
         {
             name: 'google_image_gen',
-            description: 'Generates images using Google\\'s Imagen model based on a text prompt.Uses the same Google API Key configured for Gemini chat.',
+            description: 'Generates images using Google\'s Imagen model based on a text prompt. Uses the same Google API Key configured for Gemini chat.',
             schema: {
-        type: 'object',
-        properties: {
-            prompt: {
-                type: 'string',
-                description: 'The text prompt to generate the image from.',
+                type: 'object',
+                properties: {
+                    prompt: {
+                        type: 'string',
+                        description: 'The text prompt to generate the image from.',
+                    },
+                    n: {
+                        type: 'integer',
+                        description: 'Number of images to generate (1-4).',
+                        default: 1,
+                    },
+                    aspectRatio: {
+                        type: 'string',
+                        description: 'Aspect ratio of the generated image.',
+                        enum: ['1:1', '16:9', '9:16', '3:4', '4:3'],
+                        default: '1:1',
+                    },
+                    model: {
+                        type: 'string',
+                        description: 'Imagen model to use.',
+                        enum: ['imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'],
+                        default: 'imagen-3.0-generate-001',
+                    },
+                },
+                required: ['prompt'],
             },
-            n: {
-                type: 'integer',
-                description: 'Number of images to generate (1-4).',
-                default: 1,
-            },
-            aspectRatio: {
-                type: 'string',
-                description: 'Aspect ratio of the generated image.',
-                enum: ['1:1', '16:9', '9:16', '3:4', '4:3'],
-                default: '1:1',
-            },
-            model: {
-                type: 'string',
-                description: 'Imagen model to use.',
-                enum: ['imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'],
-                default: 'imagen-3.0-generate-001',
-            },
-        },
-        required: ['prompt'],
-    },
         }
     );
 
-return [googleImageGenTool];
+    return [googleImageGenTool];
 }
 
 module.exports = createGoogleImageTools;
