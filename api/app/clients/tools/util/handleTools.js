@@ -35,7 +35,7 @@ const {
   createYouTubeTools,
   TavilySearchResults,
   createOpenAIImageTools,
-  createGoogleImageTools,
+  GoogleImageTools,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -179,7 +179,10 @@ const loadTools = async ({
     'stable-diffusion': StructuredSD,
     'azure-ai-search': StructuredACS,
     traversaal_search: TraversaalSearch,
+    'azure-ai-search': StructuredACS,
+    traversaal_search: TraversaalSearch,
     tavily_search_results_json: TavilySearchResults,
+    'google-image-gen': GoogleImageTools,
   };
 
   const customConstructors = {
@@ -219,12 +222,6 @@ const loadTools = async ({
         imageFiles,
       });
     },
-    'google-image-gen': async (_toolContextMap) => {
-      return createGoogleImageTools({
-        req: options.req,
-        imageOutputType,
-      });
-    },
   };
 
   const requestedTools = {};
@@ -247,6 +244,7 @@ const loadTools = async ({
     flux: imageGenOptions,
     dalle: imageGenOptions,
     'stable-diffusion': imageGenOptions,
+    'google-image-gen': imageGenOptions,
   };
 
   /** @type {Record<string, string>} */
