@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
-import { SettingsTabValues } from 'librechat-data-provider';
+import { SettingsTabValues, SystemRoles } from 'librechat-data-provider';
 import { MessageSquare, Command, DollarSign } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import {
@@ -48,7 +48,7 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
       SettingsTabValues.DATA,
       ...(startupConfig?.balance?.enabled ? [SettingsTabValues.BALANCE] : []),
       SettingsTabValues.ACCOUNT,
-      ...(user?.role === 'admin' ? [SettingsTabValues.ADMIN] : []),
+      ...(user?.role === SystemRoles.ADMIN ? [SettingsTabValues.ADMIN] : []),
     ];
     const currentIndex = tabs.indexOf(activeTab);
 
@@ -125,7 +125,7 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
         icon: <UserIcon />,
         label: 'com_nav_setting_account',
       },
-      ...(user?.role === 'admin'
+      ...(user?.role === SystemRoles.ADMIN
         ? [
           {
             value: SettingsTabValues.ADMIN,
@@ -264,7 +264,7 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
                     <Tabs.Content value={SettingsTabValues.ACCOUNT} tabIndex={-1}>
                       <Account />
                     </Tabs.Content>
-                    {user?.role === 'admin' && (
+                    {user?.role === SystemRoles.ADMIN && (
                       <Tabs.Content value={SettingsTabValues.ADMIN} tabIndex={-1}>
                         <Admin />
                       </Tabs.Content>
