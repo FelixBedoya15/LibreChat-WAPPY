@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { useToastContext } from '~/Providers/ToastContext';
+import { useToastContext } from '@librechat/client';
 import axios from 'axios';
 
 export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useToastContext } from '~/Providers/ToastContext';
+import { useToastContext } from '@librechat/client';
 import axios from 'axios';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
