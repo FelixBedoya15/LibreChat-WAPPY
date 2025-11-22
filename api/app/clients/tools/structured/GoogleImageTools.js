@@ -117,12 +117,8 @@ class GoogleImageTools extends Tool {
                         ],
                     },
                 ],
-                generationConfig: {
-                    responseMimeType: 'image/' + this.imageOutputType,
-                    responseModality: 'image',
-                    aspectRatio: aspectRatio,
-                    numberOfImages: Math.min(Math.max(1, n), 4),
-                },
+                // Gemini 2.0 Flash doesn't support Imagen 3.0 specific parameters
+                // Keep generationConfig minimal for compatibility
             };
 
             const result = await generativeModel.generateContent(requestOptions);
