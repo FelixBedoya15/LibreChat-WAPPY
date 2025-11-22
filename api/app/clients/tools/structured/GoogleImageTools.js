@@ -31,9 +31,9 @@ class GoogleImageTools extends Tool {
                 .default('1:1')
                 .describe('Aspect ratio of the generated image.'),
             model: z
-                .enum(['imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'])
-                .default('imagen-3.0-generate-001')
-                .describe('Imagen model to use.'),
+                .enum(['gemini-2.0-flash-exp', 'imagen-3.0-generate-001', 'imagen-3.0-fast-generate-001'])
+                .default('gemini-2.0-flash-exp')
+                .describe('Model to use for generation. Use gemini-2.0-flash-exp for free preview.'),
         });
     }
 
@@ -50,7 +50,7 @@ class GoogleImageTools extends Tool {
     }
 
     async _call(input) {
-        const { prompt, n = 1, aspectRatio = '1:1', model = 'imagen-3.0-generate-001' } = input;
+        const { prompt, n = 1, aspectRatio = '1:1', model = 'gemini-2.0-flash-exp' } = input;
 
         if (!prompt) {
             throw new Error('Missing required field: prompt');
@@ -58,7 +58,6 @@ class GoogleImageTools extends Tool {
 
         try {
             // Get user's Google API key (same one used for Gemini chat)
-            // If override is true (during loading), we might not have req/userId, so skip key check
             let userApiKey;
             if (!this.override && this.userId) {
                 userApiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
@@ -68,10 +67,6 @@ class GoogleImageTools extends Tool {
                     );
                 }
             } else if (!this.override) {
-                // If not overriding and no userId, we can't fetch key.
-                // But handleTools should provide userId.
-                // If we are here without userId and not overriding, it's an error.
-                // However, for safety, let's check if we have req.user.id
                 if (this.req?.user?.id) {
                     userApiKey = await getUserKey({ userId: this.req.user.id, name: EModelEndpoint.google });
                 }
@@ -81,7 +76,7 @@ class GoogleImageTools extends Tool {
                 throw new Error('Google API Key not configured or User ID missing.');
             }
 
-            // Use Generative Language API (same as Gemini chat)
+            // Use Generative Language API
             const url =
                 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
 
@@ -98,7 +93,6 @@ class GoogleImageTools extends Tool {
                 generationConfig: {
                     responseMimeType: 'image/' + this.imageOutputType,
                     responseModality: 'image',
-                    // Imagen 3 specific parameters
                     aspectRatio: aspectRatio,
                     numberOfImages: Math.min(Math.max(1, n), 4),
                 },
@@ -114,7 +108,7 @@ class GoogleImageTools extends Tool {
             const candidates = res.data.candidates;
 
             if (!candidates || candidates.length === 0) {
-                return this.returnValue('No images returned from Google Imagen.');
+                return this.returnValue('No images returned from Google API.');
             }
 
             const content = [];
@@ -139,7 +133,7 @@ class GoogleImageTools extends Tool {
             }
 
             if (content.length === 0) {
-                return this.returnValue('Failed to process images from Google Imagen response.');
+                return this.returnValue('Failed to process images from Google API response.');
             }
 
             const response = [
@@ -152,6 +146,10 @@ class GoogleImageTools extends Tool {
             return [response, { content, file_ids }];
         } catch (error) {
             const message = '[google_image_gen] Problem generating the image:';
+            // Log detailed error for debugging
+            if (error.response) {
+                console.error('[google_image_gen] API Error Data:', JSON.stringify(error.response.data, null, 2));
+            }
             logAxiosError({ error, message });
 
             if (error.response?.status === 401) {
@@ -160,8 +158,13 @@ class GoogleImageTools extends Tool {
                 );
             }
 
+            if (error.response?.status === 400) {
+                const errorDetails = error.response.data?.error?.message || 'Bad Request';
+                return this.returnValue(`Google API Error (400): ${errorDetails}`);
+            }
+
             return this.returnValue(
-                `Something went wrong when trying to generate the image with Google Imagen: ${error.message}`,
+                `Something went wrong when trying to generate the image with Google: ${error.message}`,
             );
         }
     }
