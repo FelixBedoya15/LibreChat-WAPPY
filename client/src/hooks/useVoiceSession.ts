@@ -68,15 +68,20 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     /**
      * Start Audio Capture
      */
+    const inputAnalyserRef = useRef<AnalyserNode | null>(null);
+
+    /**
+     * Start Audio Capture
+     */
     const startAudioCapture = async () => {
         try {
-            // Relaxed constraints to avoid OverconstrainedError
-            // Request 16kHz audio if possible, but we must handle whatever we get
-            // Note: AudioContext sampleRate is the critical part for processing
+            console.log('[VoiceSession] Starting audio capture...');
+
+            // 1. Get Microphone Stream
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
-                    sampleRate: 16000, // Try to request 16kHz from hardware
+                    sampleRate: 16000,
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
@@ -85,49 +90,64 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             });
             streamRef.current = stream;
 
-            // Create AudioContext at 16kHz explicitly
-            // This ensures the processing graph runs at 16kHz
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
-                sampleRate: 16000,
-            });
-            audioContextRef.current = audioContext;
+            // 2. Initialize or Reuse AudioContext
+            let audioContext = audioContextRef.current;
+            if (!audioContext || audioContext.state === 'closed') {
+                console.log('[VoiceSession] Creating new AudioContext (16kHz)');
+                audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+                    sampleRate: 16000,
+                });
+                audioContextRef.current = audioContext;
 
-            // Load AudioWorklet Module
-            const workletCode = `
-                class PCMProcessor extends AudioWorkletProcessor {
-                    process(inputs, outputs, parameters) {
-                        const input = inputs[0];
-                        if (input.length > 0) {
-                            const inputChannel = input[0];
-                            // Convert Float32 to Int16
-                            const int16Data = new Int16Array(inputChannel.length);
-                            for (let i = 0; i < inputChannel.length; i++) {
-                                const s = Math.max(-1, Math.min(1, inputChannel[i]));
-                                int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                // Load AudioWorklet Module ONLY when creating context
+                const workletCode = `
+                    class PCMProcessor extends AudioWorkletProcessor {
+                        process(inputs, outputs, parameters) {
+                            const input = inputs[0];
+                            if (input.length > 0) {
+                                const inputChannel = input[0];
+                                const int16Data = new Int16Array(inputChannel.length);
+                                for (let i = 0; i < inputChannel.length; i++) {
+                                    const s = Math.max(-1, Math.min(1, inputChannel[i]));
+                                    int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                                }
+                                this.port.postMessage(int16Data.buffer);
                             }
-                            this.port.postMessage(int16Data.buffer);
+                            return true;
                         }
-                        return true;
                     }
+                    registerProcessor('pcm-processor', PCMProcessor);
+                `;
+
+                const blob = new Blob([workletCode], { type: 'application/javascript' });
+                const workletUrl = URL.createObjectURL(blob);
+
+                try {
+                    await audioContext.audioWorklet.addModule(workletUrl);
+                    console.log('[VoiceSession] AudioWorklet module loaded');
+                } finally {
+                    URL.revokeObjectURL(workletUrl);
                 }
-                registerProcessor('pcm-processor', PCMProcessor);
-            `;
-
-            const blob = new Blob([workletCode], { type: 'application/javascript' });
-            const workletUrl = URL.createObjectURL(blob);
-
-            try {
-                await audioContext.audioWorklet.addModule(workletUrl);
-            } finally {
-                URL.revokeObjectURL(workletUrl);
+            } else if (audioContext.state === 'suspended') {
+                console.log('[VoiceSession] Resuming AudioContext');
+                await audioContext.resume();
             }
 
+            // 3. Create Audio Graph
             const source = audioContext.createMediaStreamSource(stream);
             const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
 
+            // Input Analyser for Visualization
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            inputAnalyserRef.current = analyser;
+
+            // Connect: Source -> Analyser -> Worklet -> Gain(0) -> Destination
+            source.connect(analyser);
+            analyser.connect(workletNode);
+
             workletNode.port.onmessage = (event) => {
                 if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                    // Convert ArrayBuffer to Base64
                     const bytes = new Uint8Array(event.data);
                     let binary = '';
                     for (let i = 0; i < bytes.byteLength; i++) {
@@ -142,20 +162,22 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 }
             };
 
-            source.connect(workletNode);
-
-            // Keep worklet alive with a silent gain node
+            // Keep worklet alive
             const gainNode = audioContext.createGain();
             gainNode.gain.value = 0;
             workletNode.connect(gainNode);
             gainNode.connect(audioContext.destination);
 
             workletNodeRef.current = workletNode;
-            setStatus('listening');
+
+            // Only set status to listening if we are already connected/ready
+            // (Avoid overriding 'connecting' status if called too early)
+            if (status === 'ready' || status === 'speaking') {
+                setStatus('listening');
+            }
 
         } catch (error: any) {
             console.error('[VoiceSession] Error starting audio capture:', error);
-            // Provide more specific error message
             let errorMessage = 'Failed to access microphone';
             if (error.name === 'NotAllowedError') errorMessage = 'Microphone permission denied';
             if (error.name === 'NotFoundError') errorMessage = 'No microphone found';
@@ -165,6 +187,18 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             options.onError?.(`${errorMessage}: ${error.message}`);
         }
     };
+
+    /**
+     * Get current input volume (0-1)
+     */
+    const getInputVolume = useCallback(() => {
+        if (!inputAnalyserRef.current) return 0;
+        const dataArray = new Uint8Array(inputAnalyserRef.current.frequencyBinCount);
+        inputAnalyserRef.current.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        // Normalize and apply a slight boost curve
+        return Math.min(1, (average / 128));
+    }, []);
 
     /**
      * Stop Audio Capture
@@ -355,5 +389,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         disconnect,
         sendVideoFrame,
         changeVoice,
+        getInputVolume,
     };
 };
