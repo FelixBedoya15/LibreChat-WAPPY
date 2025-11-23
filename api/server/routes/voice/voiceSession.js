@@ -95,6 +95,13 @@ class VoiceSession {
                 }
                 break;
 
+            case 'video':
+                // Forward video frame to Gemini
+                if (data && data.image) {
+                    this.geminiClient.sendVideo(data.image);
+                }
+                break;
+
             case 'config':
                 // Update session configuration
                 if (data.voice) {

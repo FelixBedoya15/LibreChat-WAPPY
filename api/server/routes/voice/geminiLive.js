@@ -84,7 +84,7 @@ class GeminiLiveClient {
 
     /**
      * Send audio chunk to Gemini
-     * @param {string} audioData - Base64 encoded PCM audio
+     * @param {string} audioData - Base64 encoded PCM audio (16kHz, 1 channel, 16-bit)
      */
     sendAudio(audioData) {
         if (!this.connected) {
@@ -98,6 +98,30 @@ class GeminiLiveClient {
                     {
                         mimeType: 'audio/pcm',
                         data: audioData,
+                    },
+                ],
+            },
+        };
+
+        this.send(message);
+    }
+
+    /**
+     * Send video frame to Gemini
+     * @param {string} base64Image - Base64 encoded JPEG image
+     */
+    sendVideo(base64Image) {
+        if (!this.connected) {
+            logger.warn('[GeminiLive] Cannot send video, not connected');
+            return;
+        }
+
+        const message = {
+            realtimeInput: {
+                mediaChunks: [
+                    {
+                        mimeType: 'image/jpeg',
+                        data: base64Image,
                     },
                 ],
             },

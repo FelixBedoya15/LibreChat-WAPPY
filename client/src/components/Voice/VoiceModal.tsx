@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type FC } from 'react';
-import { X, Mic, MicOff } from 'lucide-react';
+import { X, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
@@ -14,13 +14,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
     const localize = useLocalize();
     const [selectedVoice, setSelectedVoice] = useState('sol');
     const [isMuted, setIsMuted] = useState(false);
+    const [isCameraOn, setIsCameraOn] = useState(false);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
     const [statusText, setStatusText] = useState('');
 
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
-    const audioQueueRef = useRef<AudioBuffer[]>([]);
 
     // Voice session WebSocket
     const {
@@ -29,9 +30,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
         status,
         connect,
         disconnect,
-        sendAudio,
+        sendVideoFrame,
         changeVoice,
-        interrupt,
     } = useVoiceSession({
         onAudioReceived: handleAudioReceived,
         onTextReceived: handleTextReceived,
@@ -66,92 +66,67 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (isOpen && !isConnected && !isConnecting) {
             connect();
-            startAudioCapture();
         }
 
         return () => {
             if (isConnected) {
-                stopAudioCapture();
+                stopCamera();
                 disconnect();
             }
         };
     }, [isOpen]);
 
-    /**
-     * Start capturing audio from microphone
-     */
-    const startAudioCapture = async () => {
+    // Handle Camera
+    const startCamera = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                },
-            });
-
-            // Setup audio context for visualization
-            const audioContext = new AudioContext({ sampleRate: 16000 });
-            audioContextRef.current = audioContext;
-
-            const source = audioContext.createMediaStreamSource(stream);
-            const analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            source.connect(analyser);
-
-            // Monitor audio amplitude for visualization
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            const updateAmplitude = () => {
-                if (!isOpen) return;
-
-                analyser.getByteFrequencyData(dataArray);
-                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-                setAudioAmplitude(average / 255);
-
-                requestAnimationFrame(updateAmplitude);
-            };
-            updateAmplitude();
-
-            // Setup MediaRecorder for audio chunks
-            const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus',
-            });
-            mediaRecorderRef.current = mediaRecorder;
-
-            mediaRecorder.ondataavailable = async (event) => {
-                if (event.data.size > 0 && !isMuted) {
-                    // Convert to base64 and send
-                    const arrayBuffer = await event.data.arrayBuffer();
-                    const base64 = btoa(
-                        String.fromCharCode(...new Uint8Array(arrayBuffer))
-                    );
-                    sendAudio(base64);
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
                 }
-            };
+            });
 
-            // Send audio chunks every 100ms
-            mediaRecorder.start(100);
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play();
+            }
+
+            setIsCameraOn(true);
+
+            // Start sending frames
+            videoIntervalRef.current = setInterval(() => {
+                if (videoRef.current && isConnected) {
+                    sendVideoFrame(videoRef.current);
+                }
+            }, 1000); // 1 FPS is enough for "Live" context usually, can increase if needed
 
         } catch (error) {
-            console.error('[VoiceModal] Error starting audio capture:', error);
-            handleError('No se pudo acceder al micrófono');
+            console.error('[VoiceModal] Error starting camera:', error);
+            handleError('No se pudo acceder a la cámara');
         }
     };
 
-    /**
-     * Stop audio capture
-     */
-    const stopAudioCapture = () => {
-        if (mediaRecorderRef.current) {
-            mediaRecorderRef.current.stop();
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-            mediaRecorderRef.current = null;
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
         }
 
-        if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
+        if (videoIntervalRef.current) {
+            clearInterval(videoIntervalRef.current);
+            videoIntervalRef.current = null;
+        }
+
+        setIsCameraOn(false);
+    };
+
+    const toggleCamera = () => {
+        if (isCameraOn) {
+            stopCamera();
+        } else {
+            startCamera();
         }
     };
 
@@ -172,8 +147,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
             }
 
             // Decode audio and play
+            // Note: decodeAudioData is async and might overlap. 
+            // For production, a proper AudioWorklet or queueing system is better to avoid glitches.
+            // But for now, let's trust the browser's scheduling.
             audioContextRef.current.decodeAudioData(bytes.buffer).then((audioBuffer) => {
                 playAudio(audioBuffer);
+                // Update amplitude visualization (fake it based on audio presence)
+                setAudioAmplitude(0.5);
+                setTimeout(() => setAudioAmplitude(0), audioBuffer.duration * 1000);
             });
 
         } catch (error) {
@@ -249,12 +230,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
             {/* Main content */}
             <div className="relative flex flex-col items-center justify-center w-full h-full p-8">
                 {/* Status text */}
-                <div className="absolute top-12 text-center">
+                <div className="absolute top-12 text-center z-10">
                     <p className="text-lg text-text-secondary">{statusText}</p>
                 </div>
 
+                {/* Video Preview (Hidden if off, or shown as background/overlay) */}
+                <video
+                    ref={videoRef}
+                    className={`absolute inset-0 w-full h-full object-cover opacity-30 transition-opacity duration-500 ${isCameraOn ? 'block' : 'hidden'}`}
+                    muted
+                    playsInline
+                />
+
                 {/* Voice orb */}
-                <div className="flex-1 flex items-center justify-center">
+                <div className="flex-1 flex items-center justify-center z-10">
                     <div onClick={handleOrbClick} className="cursor-pointer">
                         <VoiceOrb
                             status={status === 'ready' ? 'idle' : status}
@@ -272,30 +261,46 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Controls */}
-                <div className="absolute bottom-12 flex items-center space-x-6">
+                <div className="absolute bottom-12 flex items-center space-x-6 z-10">
+                    {/* Camera toggle */}
+                    <button
+                        onClick={toggleCamera}
+                        className={`p-4 rounded-full transition-all ${isCameraOn
+                            ? 'bg-white text-black hover:bg-gray-200'
+                            : 'bg-surface-secondary hover:bg-surface-hover text-text-primary'
+                            }`}
+                        aria-label={isCameraOn ? 'Apagar cámara' : 'Encender cámara'}
+                    >
+                        {isCameraOn ? (
+                            <Video className="w-6 h-6" />
+                        ) : (
+                            <VideoOff className="w-6 h-6" />
+                        )}
+                    </button>
+
                     {/* Mute/unmute button */}
                     <button
                         onClick={toggleMute}
                         className={`p-4 rounded-full transition-all ${isMuted
-                            ? 'bg-red-500 hover:bg-red-600'
-                            : 'bg-surface-secondary hover:bg-surface-hover'
+                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                            : 'bg-surface-secondary hover:bg-surface-hover text-text-primary'
                             }`}
                         aria-label={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
                     >
                         {isMuted ? (
-                            <MicOff className="w-6 h-6 text-white" />
+                            <MicOff className="w-6 h-6" />
                         ) : (
-                            <Mic className="w-6 h-6 text-text-primary" />
+                            <Mic className="w-6 h-6" />
                         )}
                     </button>
 
                     {/* Close button */}
                     <button
                         onClick={onClose}
-                        className="p-4 rounded-full bg-surface-secondary hover:bg-surface-hover transition-colors"
+                        className="p-4 rounded-full bg-surface-secondary hover:bg-surface-hover transition-colors text-text-primary"
                         aria-label="Cerrar modo de voz"
                     >
-                        <X className="w-6 h-6 text-text-primary" />
+                        <X className="w-6 h-6" />
                     </button>
                 </div>
             </div>
