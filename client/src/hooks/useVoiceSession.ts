@@ -71,18 +71,27 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const startAudioCapture = async () => {
         try {
             // Relaxed constraints to avoid OverconstrainedError
+            // Request 16kHz audio if possible, but we must handle whatever we get
+            // Note: AudioContext sampleRate is the critical part for processing
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
+                    sampleRate: 16000, // Try to request 16kHz from hardware
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
-                    // Do NOT force sampleRate here, let AudioContext handle resampling
-                }
+                },
+                video: false
             });
             streamRef.current = stream;
 
-            const audioContext = await initAudioContext();
+            // Create AudioContext at 16kHz explicitly
+            // This ensures the processing graph runs at 16kHz
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+                sampleRate: 16000,
+            });
+            audioContextRef.current = audioContext;
+
             const source = audioContext.createMediaStreamSource(stream);
             const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
 
