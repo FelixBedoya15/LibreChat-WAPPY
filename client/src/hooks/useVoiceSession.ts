@@ -92,6 +92,36 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             });
             audioContextRef.current = audioContext;
 
+            // Load AudioWorklet Module
+            const workletCode = `
+                class PCMProcessor extends AudioWorkletProcessor {
+                    process(inputs, outputs, parameters) {
+                        const input = inputs[0];
+                        if (input.length > 0) {
+                            const inputChannel = input[0];
+                            // Convert Float32 to Int16
+                            const int16Data = new Int16Array(inputChannel.length);
+                            for (let i = 0; i < inputChannel.length; i++) {
+                                const s = Math.max(-1, Math.min(1, inputChannel[i]));
+                                int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                            }
+                            this.port.postMessage(int16Data.buffer);
+                        }
+                        return true;
+                    }
+                }
+                registerProcessor('pcm-processor', PCMProcessor);
+            `;
+
+            const blob = new Blob([workletCode], { type: 'application/javascript' });
+            const workletUrl = URL.createObjectURL(blob);
+
+            try {
+                await audioContext.audioWorklet.addModule(workletUrl);
+            } finally {
+                URL.revokeObjectURL(workletUrl);
+            }
+
             const source = audioContext.createMediaStreamSource(stream);
             const workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
 
