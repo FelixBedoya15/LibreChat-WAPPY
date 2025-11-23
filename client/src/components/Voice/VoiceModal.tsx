@@ -142,6 +142,11 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                 audioContextRef.current = new AudioContext({ sampleRate: 24000 });
             }
 
+            // Resume context if suspended (common browser policy)
+            if (audioContextRef.current.state === 'suspended') {
+                audioContextRef.current.resume();
+            }
+
             // Decode base64 to binary
             const binaryString = atob(audioData);
             const len = binaryString.length;
@@ -150,18 +155,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                 bytes[i] = binaryString.charCodeAt(i);
             }
 
-            // Convert PCM 16-bit LE to Float32
-            // Gemini sends 16-bit PCM, usually at 24kHz
-            const int16Data = new Int16Array(bytes.buffer);
-            const float32Data = new Float32Array(int16Data.length);
+            // Convert PCM 16-bit LE to Float32 using DataView for explicit endianness
+            const dataView = new DataView(bytes.buffer);
+            const float32Data = new Float32Array(len / 2);
 
-            for (let i = 0; i < int16Data.length; i++) {
-                float32Data[i] = int16Data[i] / 32768.0;
+            for (let i = 0; i < len / 2; i++) {
+                const int16 = dataView.getInt16(i * 2, true); // true = Little Endian
+                float32Data[i] = int16 / 32768.0;
             }
 
             // Create AudioBuffer
             const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
+
+            console.log(`[VoiceModal] Received audio chunk: ${float32Data.length} samples`);
 
             // Add to queue
             setAudioQueue(prev => [...prev, audioBuffer]);
@@ -189,17 +196,31 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
         setIsPlaying(true);
         const source = audioContextRef.current.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioContextRef.current.destination);
+
+        // Connect to analyzer for visualization
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyser.connect(audioContextRef.current.destination);
+
+        // Visualize output audio
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateAmplitude = () => {
+            if (!isPlaying) return;
+            analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            // Boost the visual amplitude a bit
+            setAudioAmplitude(Math.min(1, (average / 255) * 2));
+            requestAnimationFrame(updateAmplitude);
+        };
+        requestAnimationFrame(updateAmplitude);
 
         source.onended = () => {
             setIsPlaying(false);
+            setAudioAmplitude(0); // Reset amplitude
         };
 
         source.start();
-
-        // Visualization
-        setAudioAmplitude(0.5);
-        setTimeout(() => setAudioAmplitude(0), audioBuffer.duration * 1000);
     }
 
     /**
