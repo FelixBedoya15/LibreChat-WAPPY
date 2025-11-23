@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const EventEmitter = require('events');
 const logger = require('~/config/winston');
 const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
@@ -7,8 +8,9 @@ const { EModelEndpoint } = require('librechat-data-provider');
  * Gemini Live API WebSocket client
  * Handles bidirectional audio streaming with Gemini
  */
-class GeminiLiveClient {
+class GeminiLiveClient extends EventEmitter {
     constructor(apiKey, config = {}) {
+        super();
         this.apiKey = apiKey;
         this.config = {
             model: config.model || 'gemini-2.5-flash-native-audio-preview-09-2025',
