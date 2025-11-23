@@ -28,6 +28,7 @@ const keys = require('./keys');
 const user = require('./user');
 const mcp = require('./mcp');
 const admin = require('./admin');
+const voice = require('./voice');
 
 module.exports = {
   auth,
@@ -60,4 +61,5 @@ module.exports = {
   mcp,
   admin,
   actions,
+  voice,
 };

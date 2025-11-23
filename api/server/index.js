@@ -155,6 +155,7 @@ const startServer = async () => {
     ['tags', routes.tags],
     ['mcp', routes.mcp],
     ['admin', routes.admin],
+    ['voice', routes.voice],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -196,6 +197,7 @@ const startServer = async () => {
   app.use('/api/tags', routes.tags);
   app.use('/api/mcp', routes.mcp);
   app.use('/api/admin', routes.admin);
+  app.use('/api/voice', routes.voice);
 
   app.use(ErrorController);
 
@@ -214,7 +216,7 @@ const startServer = async () => {
     res.send(updatedIndexHtml);
   });
 
-  app.listen(port, host, async () => {
+  const server = app.listen(port, host, async () => {
     if (host === '0.0.0.0') {
       logger.info(
         `Server listening on all interfaces at port ${port}. Use http://localhost:${port} to access it`,
@@ -227,6 +229,10 @@ const startServer = async () => {
     await initializeOAuthReconnectManager();
     await checkMigrations();
   });
+
+  // Setup WebSocket server for voice conversations
+  const setupVoiceWebSocket = require('./voiceWebSocket');
+  setupVoiceWebSocket(server);
 };
 
 startServer();

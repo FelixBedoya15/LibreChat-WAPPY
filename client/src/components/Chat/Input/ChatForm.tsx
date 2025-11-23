@@ -33,6 +33,7 @@ import SendButton from './SendButton';
 import EditBadges from './EditBadges';
 import BadgeRow from './BadgeRow';
 import Mention from './Mention';
+import { VoiceModeButton, VoiceModal } from '~/components/Voice';
 import store from '~/store';
 
 const ChatForm = memo(({ index = 0 }: { index?: number }) => {
@@ -62,6 +63,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const [showMentionPopover, setShowMentionPopover] = useRecoilState(
     store.showMentionPopoverFamily(index),
   );
+  const [showVoiceModal, setShowVoiceModal] = useRecoilState(store.showVoiceModal);
 
   const { requiresKey } = useRequiresKey();
   const methods = useChatFormContext();
@@ -327,6 +329,11 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                   isSubmitting={isSubmitting}
                 />
               )}
+              {/* Voice Mode Button */}
+              <VoiceModeButton
+                onClick={() => setShowVoiceModal(true)}
+                disabled={disableInputs || isNotAppendable}
+              />
               <div className={`${isRTL ? 'ml-2' : 'mr-2'}`}>
                 {(isSubmitting || isSubmittingAdded) && (showStopButton || showStopAdded) ? (
                   <StopButton stop={handleStopGenerating} setShowStopButton={setShowStopButton} />
@@ -345,6 +352,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           </div>
         </div>
       </div>
+      {/* Voice Modal */}
+      <VoiceModal isOpen={showVoiceModal} onClose={() => setShowVoiceModal(false)} />
     </form>
   );
 });
