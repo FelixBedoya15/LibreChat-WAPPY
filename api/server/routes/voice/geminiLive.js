@@ -55,6 +55,35 @@ class GeminiLiveClient {
                     this.connected = false;
                 });
 
+                this.ws.on('message', (data) => {
+                    try {
+                        const response = JSON.parse(data);
+                        // logger.debug('[GeminiLive] Received message:', Object.keys(response)); // Too noisy for production but good for debug
+
+                        if (response.serverContent) {
+                            if (response.serverContent.modelTurn) {
+                                const parts = response.serverContent.modelTurn.parts;
+                                for (const part of parts) {
+                                    if (part.inlineData && part.inlineData.mimeType.startsWith('audio/')) {
+                                        // Audio received
+                                        const audioData = part.inlineData.data;
+                                        this.emit('audio', audioData);
+                                    }
+                                }
+                            }
+
+                            if (response.serverContent.turnComplete) {
+                                logger.info('[GeminiLive] Turn complete');
+                            }
+                        } else {
+                            // Log other message types for debugging
+                            logger.info('[GeminiLive] Received non-content message:', Object.keys(response));
+                        }
+                    } catch (error) {
+                        logger.error('[GeminiLive] Error parsing message:', error);
+                    }
+                });
+
             } catch (error) {
                 logger.error('[GeminiLive] Connection error:', error);
                 reject(error);
@@ -86,10 +115,6 @@ class GeminiLiveClient {
         logger.info(`[GeminiLive] Setup sent with voice: ${this.config.voice}`);
     }
 
-    /**
-     * Send audio chunk to Gemini
-     * @param {string} audioData - Base64 encoded PCM audio (16kHz, 1 channel, 16-bit)
-     */
     /**
      * Send audio chunk to Gemini
      * @param {string} audioData - Base64 encoded PCM audio (16kHz, 1 channel, 16-bit)
