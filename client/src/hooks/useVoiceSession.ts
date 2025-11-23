@@ -32,7 +32,35 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         if (audioContextRef.current) return audioContextRef.current;
 
         const audioContext = new AudioContext({ sampleRate: 16000 });
-        await audioContext.audioWorklet.addModule('/audio-processor.js');
+
+        // AudioWorklet code embedded as string to avoid loading issues
+        const workletCode = `
+            class PCMProcessor extends AudioWorkletProcessor {
+                process(inputs, outputs, parameters) {
+                    const input = inputs[0];
+                    if (!input || !input.length) return true;
+                    const channelData = input[0];
+                    const pcmData = new Int16Array(channelData.length);
+                    for (let i = 0; i < channelData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, channelData[i]));
+                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+                    this.port.postMessage(pcmData.buffer, [pcmData.buffer]);
+                    return true;
+                }
+            }
+            registerProcessor('pcm-processor', PCMProcessor);
+        `;
+
+        const blob = new Blob([workletCode], { type: 'application/javascript' });
+        const workletUrl = URL.createObjectURL(blob);
+
+        try {
+            await audioContext.audioWorklet.addModule(workletUrl);
+        } finally {
+            URL.revokeObjectURL(workletUrl);
+        }
+
         audioContextRef.current = audioContext;
         return audioContext;
     };
@@ -42,13 +70,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      */
     const startAudioCapture = async () => {
         try {
+            // Relaxed constraints to avoid OverconstrainedError
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
-                    sampleRate: 16000,
                     channelCount: 1,
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
+                    // Do NOT force sampleRate here, let AudioContext handle resampling
                 }
             });
             streamRef.current = stream;
@@ -75,21 +104,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             };
 
             source.connect(workletNode);
-            workletNode.connect(audioContext.destination); // Necessary to keep the processor alive? Usually not for input only, but sometimes yes.
-            // Actually, for input-only worklets, we don't need to connect to destination if we don't want to hear ourselves.
-            // But we need to keep the graph active. connecting to destination might cause feedback loop if not careful.
-            // Better to not connect to destination if we don't want playback.
-            // source.connect(workletNode); 
-            // workletNodeRef.current = workletNode;
 
-            // To keep it alive without outputting audio:
-            // workletNode.connect(audioContext.destination); 
-            // But we mute the destination? No.
-            // Chrome requires the node to be connected to destination or have a parameter being automated to run.
-            // Let's try connecting but maybe we need to mute it?
-            // Actually, getUserMedia stream -> Worklet -> (Processing) -> PostMessage.
-            // If we connect to destination, the user will hear themselves.
-            // We can create a GainNode with gain 0.
+            // Keep worklet alive with a silent gain node
             const gainNode = audioContext.createGain();
             gainNode.gain.value = 0;
             workletNode.connect(gainNode);
@@ -98,9 +114,16 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             workletNodeRef.current = workletNode;
             setStatus('listening');
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('[VoiceSession] Error starting audio capture:', error);
-            options.onError?.('Failed to access microphone');
+            // Provide more specific error message
+            let errorMessage = 'Failed to access microphone';
+            if (error.name === 'NotAllowedError') errorMessage = 'Microphone permission denied';
+            if (error.name === 'NotFoundError') errorMessage = 'No microphone found';
+            if (error.name === 'NotReadableError') errorMessage = 'Microphone is busy';
+            if (error.name === 'OverconstrainedError') errorMessage = 'Microphone constraints not satisfied';
+
+            options.onError?.(`${errorMessage}: ${error.message}`);
         }
     };
 
