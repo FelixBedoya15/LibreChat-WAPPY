@@ -63,14 +63,18 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
     }, [status]);
 
     // Connect on mount, disconnect on unmount
-    // Connect on mount, disconnect on unmount
     useEffect(() => {
         connect();
         return () => {
             stopCamera();
             disconnect();
         };
-    }, [connect, disconnect]);
+    }, []); // Empty dependency array to run only once on mount
+
+    const handleClose = () => {
+        disconnect();
+        onClose();
+    };
 
     // Handle Camera
     const startCamera = async () => {
