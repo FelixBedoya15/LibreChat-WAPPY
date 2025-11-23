@@ -11,8 +11,8 @@ class GeminiLiveClient {
     constructor(apiKey, config = {}) {
         this.apiKey = apiKey;
         this.config = {
-            model: config.model || 'gemini-2.5-flash-native-audio-preview-09-2025',
-            voice: config.voice || 'Sol',
+            model: config.model || 'gemini-2.0-flash-exp',
+            voice: config.voice || 'Puck',
             language: config.language || 'es-ES',
             ...config,
         };
@@ -27,7 +27,7 @@ class GeminiLiveClient {
     async connect() {
         return new Promise((resolve, reject) => {
             try {
-                const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
+                const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
 
                 this.ws = new WebSocket(endpoint);
 
@@ -50,8 +50,8 @@ class GeminiLiveClient {
                     reject(error);
                 });
 
-                this.ws.on('close', () => {
-                    logger.info('[GeminiLive] WebSocket closed');
+                this.ws.on('close', (code, reason) => {
+                    logger.info(`[GeminiLive] WebSocket closed. Code: ${code}, Reason: ${reason}`);
                     this.connected = false;
                 });
 

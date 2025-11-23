@@ -139,7 +139,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
-        // Don't close AudioContext, reuse it
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
     };
 
     /**
