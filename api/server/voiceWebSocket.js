@@ -1,6 +1,7 @@
+```javascript
 const WebSocket = require('ws');
 const url = require('url');
-const { verifyJWT } = require('~/server/middleware');
+const jwt = require('jsonwebtoken');
 const { createSession } = require('./routes/voice/voiceSession');
 const logger = require('~/config/winston');
 
@@ -40,12 +41,14 @@ function setupVoiceWebSocket(server) {
                 return;
             }
 
-            // Verify JWT token
+            // Verify JWT token using JWT_REFRESH_SECRET (same as LibreChat)
             let user;
             try {
-                user = await verifyJWT(token);
+                const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+                user = { id: payload.id };
+                logger.info('[WebSocket] Token verified for user:', user.id);
             } catch (error) {
-                logger.error('[WebSocket] Token verification failed:', error);
+                logger.error('[WebSocket] Token verification failed:', error.message);
                 ws.close(1008, 'Invalid token');
                 return;
             }
@@ -56,13 +59,13 @@ function setupVoiceWebSocket(server) {
                 return;
             }
 
-            logger.info(`[WebSocket] User authenticated: ${user.id}`);
+            logger.info(`[WebSocket] User authenticated: ${ user.id } `);
 
             // Create voice session
             const result = await createSession(ws, user.id);
 
             if (!result.success) {
-                logger.error(`[WebSocket] Failed to create session: ${result.error}`);
+                logger.error(`[WebSocket] Failed to create session: ${ result.error } `);
                 ws.send(JSON.stringify({
                     type: 'error',
                     data: { message: result.error },
@@ -71,7 +74,7 @@ function setupVoiceWebSocket(server) {
                 return;
             }
 
-            logger.info(`[WebSocket] Voice session created for user: ${user.id}`);
+            logger.info(`[WebSocket] Voice session created for user: ${ user.id } `);
 
             // Send ready message
             ws.send(JSON.stringify({
