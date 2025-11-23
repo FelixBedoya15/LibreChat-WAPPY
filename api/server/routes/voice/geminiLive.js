@@ -68,6 +68,9 @@ class GeminiLiveClient {
                                         // Audio received
                                         const audioData = part.inlineData.data;
                                         this.emit('audio', audioData);
+                                    } else if (part.text) {
+                                        // Text received (log it to see if Gemini is responding in text)
+                                        logger.info('[GeminiLive] Received text response:', part.text);
                                     }
                                 }
                             }
@@ -98,12 +101,12 @@ class GeminiLiveClient {
         const setupMessage = {
             setup: {
                 model: `models/${this.config.model}`,
-                generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: {
-                                voiceName: this.config.voice,
+                generation_config: {
+                    response_modalities: ['AUDIO'],
+                    speech_config: {
+                        voice_config: {
+                            prebuilt_voice_config: {
+                                voice_name: this.config.voice,
                             },
                         },
                     },
@@ -111,8 +114,8 @@ class GeminiLiveClient {
             },
         };
 
+        logger.info('[GeminiLive] Sending setup message:', JSON.stringify(setupMessage, null, 2));
         this.send(setupMessage);
-        logger.info(`[GeminiLive] Setup sent with voice: ${this.config.voice}`);
     }
 
     /**
@@ -121,10 +124,10 @@ class GeminiLiveClient {
      */
     sendAudio(audioData) {
         const message = {
-            realtimeInput: {
-                mediaChunks: [
+            realtime_input: {
+                media_chunks: [
                     {
-                        mimeType: 'audio/pcm;rate=16000',
+                        mime_type: 'audio/pcm;rate=16000',
                         data: audioData,
                     },
                 ],
@@ -140,10 +143,10 @@ class GeminiLiveClient {
      */
     sendVideo(base64Image) {
         const message = {
-            realtimeInput: {
-                mediaChunks: [
+            realtime_input: {
+                media_chunks: [
                     {
-                        mimeType: 'image/jpeg',
+                        mime_type: 'image/jpeg',
                         data: base64Image,
                     },
                 ],
