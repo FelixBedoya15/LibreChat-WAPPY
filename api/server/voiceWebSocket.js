@@ -40,17 +40,32 @@ function setupVoiceWebSocket(server) {
                 return;
             }
 
-            // Verify JWT token using JWT_REFRESH_SECRET (same as LibreChat)
-            let user;
+            // Verify token
+            // Try JWT_SECRET first (Access Token)
+            let decoded;
             try {
-                const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-                user = { id: payload.id };
-                logger.info('[WebSocket] Token verified for user:', user.id);
-            } catch (error) {
-                logger.error('[WebSocket] Token verification failed:', error.message);
-                ws.close(1008, 'Invalid token');
+                decoded = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                // Try JWT_REFRESH_SECRET (Refresh Token) as fallback
+                try {
+                    decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+                } catch (err2) {
+                    logger.error('[WebSocket] Token verification failed:', err2.message);
+                    ws.close(1008, 'Authentication failed');
+                    return;
+                }
+            }
+
+            if (!decoded) {
+                logger.error('[WebSocket] Token verification failed: Unable to decode');
+                ws.close(1008, 'Authentication failed');
                 return;
             }
+
+            const userId = decoded.id;
+            let user = { id: userId }; // Define user object here
+            logger.info('[WebSocket] Token verified for user:', user.id);
+
 
             if (!user || !user.id) {
                 logger.warn('[WebSocket] Invalid user from token');
