@@ -103,15 +103,8 @@ class GeminiLiveClient extends EventEmitter {
         const setupMessage = {
             setup: {
                 model: `models/${this.config.model}`,
-                generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: {
-                                voiceName: this.config.voice,
-                            },
-                        },
-                    },
+                generation_config: {
+                    response_modalities: ['AUDIO'],
                 },
             },
         };
