@@ -103,12 +103,12 @@ class GeminiLiveClient extends EventEmitter {
         const setupMessage = {
             setup: {
                 model: `models/${this.config.model}`,
-                generation_config: {
-                    response_modalities: ['AUDIO'],
-                    speech_config: {
-                        voice_config: {
-                            prebuilt_voice_config: {
-                                voice_name: this.config.voice,
+                generationConfig: {
+                    responseModalities: ['AUDIO'],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: {
+                                voiceName: this.config.voice,
                             },
                         },
                     },
@@ -126,10 +126,10 @@ class GeminiLiveClient extends EventEmitter {
      */
     sendAudio(audioData) {
         const message = {
-            realtime_input: {
-                media_chunks: [
+            realtimeInput: {
+                mediaChunks: [
                     {
-                        mime_type: 'audio/pcm;rate=16000',
+                        mimeType: 'audio/pcm;rate=16000',
                         data: audioData,
                     },
                 ],
@@ -145,10 +145,10 @@ class GeminiLiveClient extends EventEmitter {
      */
     sendVideo(base64Image) {
         const message = {
-            realtime_input: {
-                media_chunks: [
+            realtimeInput: {
+                mediaChunks: [
                     {
-                        mime_type: 'image/jpeg',
+                        mimeType: 'image/jpeg',
                         data: base64Image,
                     },
                 ],
