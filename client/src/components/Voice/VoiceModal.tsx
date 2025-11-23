@@ -245,7 +245,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm">
             {/* Main content */}
             <div className="relative flex flex-col items-center justify-center w-full h-full p-8">
                 {/* Status text */}
@@ -254,17 +254,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Voice orb */}
-                <div className="flex-1 flex items-center justify-center cursor-pointer" onClick={handleOrbClick}>
-                    {showVoiceSelector ? (
-                        <VoiceSelector
-                            selectedVoice={selectedVoice}
-                            onVoiceChange={handleVoiceChange}
-                        />
-                    ) : (
+                <div className="flex-1 flex items-center justify-center">
+                    <div onClick={handleOrbClick} className="cursor-pointer">
                         <VoiceOrb
                             status={status === 'ready' ? 'idle' : status}
                             amplitude={audioAmplitude}
                         />
+                    </div>
+                    {showVoiceSelector && (
+                        <div className="absolute">
+                            <VoiceSelector
+                                selectedVoice={selectedVoice}
+                                onVoiceChange={handleVoiceChange}
+                            />
+                        </div>
                     )}
                 </div>
 
@@ -274,8 +277,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                     <button
                         onClick={toggleMute}
                         className={`p-4 rounded-full transition-all ${isMuted
-                                ? 'bg-red-500 hover:bg-red-600'
-                                : 'bg-surface-secondary hover:bg-surface-hover'
+                            ? 'bg-red-500 hover:bg-red-600'
+                            : 'bg-surface-secondary hover:bg-surface-hover'
                             }`}
                         aria-label={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
                     >

@@ -37,6 +37,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             const host = window.location.host;
             const wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token)}`;
 
+            console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
@@ -62,8 +63,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 setStatus('idle');
             };
 
-            ws.onclose = () => {
-                console.log('[VoiceSession] WebSocket closed');
+            ws.onclose = (event) => {
+                console.log('[VoiceSession] WebSocket closed:', event.code, event.reason);
                 setIsConnected(false);
                 setIsConnecting(false);
                 setStatus('idle');
