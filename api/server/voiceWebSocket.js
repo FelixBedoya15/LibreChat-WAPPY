@@ -1,4 +1,3 @@
-```javascript
 const WebSocket = require('ws');
 const url = require('url');
 const jwt = require('jsonwebtoken');
@@ -59,13 +58,13 @@ function setupVoiceWebSocket(server) {
                 return;
             }
 
-            logger.info(`[WebSocket] User authenticated: ${ user.id } `);
+            logger.info(`[WebSocket] User authenticated: ${user.id}`);
 
             // Create voice session
             const result = await createSession(ws, user.id);
 
             if (!result.success) {
-                logger.error(`[WebSocket] Failed to create session: ${ result.error } `);
+                logger.error(`[WebSocket] Failed to create session: ${result.error}`);
                 ws.send(JSON.stringify({
                     type: 'error',
                     data: { message: result.error },
@@ -74,7 +73,7 @@ function setupVoiceWebSocket(server) {
                 return;
             }
 
-            logger.info(`[WebSocket] Voice session created for user: ${ user.id } `);
+            logger.info(`[WebSocket] Voice session created for user: ${user.id}`);
 
             // Send ready message
             ws.send(JSON.stringify({
