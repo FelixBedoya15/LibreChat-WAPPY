@@ -146,12 +146,17 @@ class VoiceSession {
 
                         // Text response (transcription or thinking)
                         if (part.text) {
+                            // Commented out to prevent text from interfering with voice mode
+                            // and to ensure "Live" feel.
+                            /*
                             this.sendToClient({
                                 type: 'text',
                                 data: {
                                     text: part.text,
                                 },
                             });
+                            */
+                            logger.debug('[VoiceSession] Received text from Gemini (ignored):', part.text);
                         }
                     }
                 }

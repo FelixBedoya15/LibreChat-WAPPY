@@ -130,6 +130,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
         }
     };
 
+    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+
     /**
      * Handle received audio from Gemini
      */
@@ -139,28 +142,43 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                 audioContextRef.current = new AudioContext({ sampleRate: 24000 });
             }
 
-            // Decode base64 to audio buffer
+            // Decode base64 to binary
             const binaryString = atob(audioData);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
 
-            // Decode audio and play
-            // Note: decodeAudioData is async and might overlap. 
-            // For production, a proper AudioWorklet or queueing system is better to avoid glitches.
-            // But for now, let's trust the browser's scheduling.
-            audioContextRef.current.decodeAudioData(bytes.buffer).then((audioBuffer) => {
-                playAudio(audioBuffer);
-                // Update amplitude visualization (fake it based on audio presence)
-                setAudioAmplitude(0.5);
-                setTimeout(() => setAudioAmplitude(0), audioBuffer.duration * 1000);
-            });
+            // Convert PCM 16-bit LE to Float32
+            // Gemini sends 16-bit PCM, usually at 24kHz
+            const int16Data = new Int16Array(bytes.buffer);
+            const float32Data = new Float32Array(int16Data.length);
+
+            for (let i = 0; i < int16Data.length; i++) {
+                float32Data[i] = int16Data[i] / 32768.0;
+            }
+
+            // Create AudioBuffer
+            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+            audioBuffer.getChannelData(0).set(float32Data);
+
+            // Add to queue
+            setAudioQueue(prev => [...prev, audioBuffer]);
 
         } catch (error) {
-            console.error('[VoiceModal] Error playing audio:', error);
+            console.error('[VoiceModal] Error processing audio:', error);
         }
     }
+
+    // Process Audio Queue
+    useEffect(() => {
+        if (!isPlaying && audioQueue.length > 0 && audioContextRef.current) {
+            const buffer = audioQueue[0];
+            setAudioQueue(prev => prev.slice(1));
+            playAudio(buffer);
+        }
+    }, [audioQueue, isPlaying]);
 
     /**
      * Play audio buffer
@@ -168,10 +186,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
     function playAudio(audioBuffer: AudioBuffer) {
         if (!audioContextRef.current) return;
 
+        setIsPlaying(true);
         const source = audioContextRef.current.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
+
+        source.onended = () => {
+            setIsPlaying(false);
+        };
+
         source.start();
+
+        // Visualization
+        setAudioAmplitude(0.5);
+        setTimeout(() => setAudioAmplitude(0), audioBuffer.duration * 1000);
     }
 
     /**
