@@ -37,6 +37,10 @@ class GeminiLiveClient {
 
                     // Send initial setup message
                     this.sendSetup();
+
+                    // Flush any buffered messages (audio/video sent while connecting)
+                    this.flushBuffer();
+
                     resolve();
                 });
 
@@ -86,12 +90,11 @@ class GeminiLiveClient {
      * Send audio chunk to Gemini
      * @param {string} audioData - Base64 encoded PCM audio (16kHz, 1 channel, 16-bit)
      */
+    /**
+     * Send audio chunk to Gemini
+     * @param {string} audioData - Base64 encoded PCM audio (16kHz, 1 channel, 16-bit)
+     */
     sendAudio(audioData) {
-        if (!this.connected) {
-            logger.warn('[GeminiLive] Cannot send audio, not connected');
-            return;
-        }
-
         const message = {
             realtimeInput: {
                 mediaChunks: [
@@ -111,11 +114,6 @@ class GeminiLiveClient {
      * @param {string} base64Image - Base64 encoded JPEG image
      */
     sendVideo(base64Image) {
-        if (!this.connected) {
-            logger.warn('[GeminiLive] Cannot send video, not connected');
-            return;
-        }
-
         const message = {
             realtimeInput: {
                 mediaChunks: [
@@ -134,10 +132,30 @@ class GeminiLiveClient {
      * Send message to Gemini WebSocket
      */
     send(message) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN && this.connected) {
             this.ws.send(JSON.stringify(message));
         } else {
-            logger.warn('[GeminiLive] WebSocket not ready to send');
+            // Buffer message if not connected yet
+            if (!this.messageBuffer) {
+                this.messageBuffer = [];
+            }
+            // Limit buffer size to prevent memory leaks (e.g. 5 seconds of audio approx 50 chunks)
+            if (this.messageBuffer.length < 100) {
+                this.messageBuffer.push(message);
+            }
+        }
+    }
+
+    /**
+     * Flush buffered messages
+     */
+    flushBuffer() {
+        if (this.messageBuffer && this.messageBuffer.length > 0) {
+            logger.info(`[GeminiLive] Flushing ${this.messageBuffer.length} buffered messages`);
+            while (this.messageBuffer.length > 0) {
+                const message = this.messageBuffer.shift();
+                this.send(message);
+            }
         }
     }
 
