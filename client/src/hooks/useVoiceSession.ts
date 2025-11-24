@@ -105,15 +105,24 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     class PCMProcessor extends AudioWorkletProcessor {
                         process(inputs, outputs, parameters) {
                             const input = inputs[0];
-                            if (input.length > 0) {
-                                const inputChannel = input[0];
-                                const int16Data = new Int16Array(inputChannel.length);
-                                for (let i = 0; i < inputChannel.length; i++) {
-                                    const s = Math.max(-1, Math.min(1, inputChannel[i]));
-                                    int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                                // Buffer slightly more data to reduce choppy audio (e.g. 2048 samples)
+                                if (inputChannel.length >= 2048) {
+                                    const int16Data = new Int16Array(inputChannel.length);
+                                    for (let i = 0; i < inputChannel.length; i++) {
+                                        const s = Math.max(-1, Math.min(1, inputChannel[i]));
+                                        int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                                    }
+                                    this.port.postMessage(int16Data.buffer);
+                                } else {
+                                     // If buffer is small, still send it but maybe we can accumulate in a future improvement
+                                     // For now, let's stick to sending what we get but ensure process handles it well
+                                     const int16Data = new Int16Array(inputChannel.length);
+                                     for (let i = 0; i < inputChannel.length; i++) {
+                                         const s = Math.max(-1, Math.min(1, inputChannel[i]));
+                                         int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                                     }
+                                     this.port.postMessage(int16Data.buffer);
                                 }
-                                this.port.postMessage(int16Data.buffer);
-                            }
                             return true;
                         }
                     }
