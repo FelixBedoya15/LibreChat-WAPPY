@@ -51,14 +51,27 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     // ... (useEffect for status text remains same)
 
-    // Connect on mount, disconnect on unmount
+    // Connect when modal opens, disconnect when it closes
     useEffect(() => {
-        // Initialize AudioContext on mount (user interaction likely triggered modal open)
+        if (!isOpen) {
+            // Modal is closed, ensure disconnection
+            disconnect();
+            stopCamera();
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+            return;
+        }
+
+        // Modal is open, initialize AudioContext and connect
         if (!audioContextRef.current) {
             audioContextRef.current = new AudioContext({ sampleRate: 24000 });
         }
 
         connect();
+
+        // Cleanup when modal closes or component unmounts
         return () => {
             stopCamera();
             disconnect();
@@ -67,7 +80,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 audioContextRef.current = null;
             }
         };
-    }, []);
+    }, [isOpen]); // ← NOW DEPENDS ON isOpen!
 
     const handleClose = () => {
         stopCamera();
