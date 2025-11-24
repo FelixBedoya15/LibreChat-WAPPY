@@ -2,8 +2,7 @@ import { memo, useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { useWatch } from 'react-hook-form';
 import { TextareaAutosize } from '@librechat/client';
 import { useRecoilState, useRecoilValue } from 'recoil';
-import { Constants, isAssistantsEndpoint, isAgentsEndpoint, QueryKeys } from 'librechat-data-provider';
-import { useQueryClient } from '@tanstack/react-query';
+import { Constants, isAssistantsEndpoint, isAgentsEndpoint } from 'librechat-data-provider';
 import {
   useChatContext,
   useChatFormContext,
@@ -42,7 +41,6 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   useFocusChatEffect(textAreaRef);
   const localize = useLocalize();
-  const queryClient = useQueryClient();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [, setIsScrollable] = useState(false);
@@ -360,12 +358,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId}
         onConversationUpdated={() => {
-          // Refresh messages when voice session saves new messages
-          if (conversationId && conversationId !== 'new') {
-            // Invalidate messages query to trigger refetch
-            queryClient.invalidateQueries({ queryKey: [QueryKeys.messages, conversationId] });
-            console.log('[ChatForm] Refreshed messages for conversation:', conversationId);
-          }
+          // Trigger refresh of messages
+          // TODO: Implement auto-refresh when voice messages are saved
         }}
       />
     </form>
