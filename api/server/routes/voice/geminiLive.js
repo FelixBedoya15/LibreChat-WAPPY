@@ -105,6 +105,20 @@ class GeminiLiveClient extends EventEmitter {
                 model: `models/${this.config.model}`,
                 generationConfig: {
                     responseModalities: ['AUDIO'],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: {
+                                voiceName: this.config.voice || 'Puck',
+                            },
+                        },
+                    },
+                },
+                systemInstruction: {
+                    parts: [
+                        {
+                            text: 'You are a helpful assistant. You must always respond with audio. Speak clearly and concisely.',
+                        },
+                    ],
                 },
             },
         };
