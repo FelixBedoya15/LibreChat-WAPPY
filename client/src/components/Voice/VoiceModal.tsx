@@ -39,7 +39,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     } = useVoiceSession({
         conversationId,
         onAudioReceived: (audioData) => {
-            playAudio(audioData);
+            handleAudioReceived(audioData);
         },
         onTextReceived: handleTextReceived,
         onStatusChange: handleStatusChange,
