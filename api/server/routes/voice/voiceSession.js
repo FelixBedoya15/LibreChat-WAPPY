@@ -26,6 +26,7 @@ class VoiceSession {
         this.geminiClient = null;
         this.isActive = false;
         this.currentTurnText = ''; // Accumulate text for the current turn
+        this.userTranscriptionText = ''; // Accumulate user transcription
         this.aiResponseText = ''; // Accumulate AI response text
 
         logger.info(`[VoiceSession] Created for user: ${userId}`);
@@ -82,6 +83,40 @@ class VoiceSession {
                     audioData: audioData,
                 },
             });
+        });
+
+        // Listen for USER transcription from Gemini
+        this.geminiClient.on('userTranscription', (text) => {
+            logger.info('[VoiceSession] User transcription received:', text);
+            // Accumulate user text for later saving
+            this.userTranscriptionText += text;
+        });
+
+        // Listen for AI TEXT response
+        this.geminiClient.on('aiText', (text) => {
+            logger.info('[VoiceSession] AI text response received:', text);
+            // Accumulate AI text
+            this.aiResponseText += text;
+            // Send to client in real-time
+            this.sendToClient({ type: 'text', text });
+        });
+
+        // Listen for turn complete
+        this.geminiClient.on('turnComplete', async () => {
+            logger.info('[VoiceSession] Turn complete');
+            this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
+
+            // Save user transcription if we accumulated any
+            if (this.userTranscriptionText.trim()) {
+                await this.saveUserMessage(this.userTranscriptionText.trim());
+                this.userTranscriptionText = ''; // Reset after saving
+            }
+
+            // Save AI response if we accumulated any
+            if (this.aiResponseText.trim()) {
+                await this.saveAiMessage(this.aiResponseText.trim());
+                this.aiResponseText = ''; // Reset after saving
+            }
         });
 
         // Handle client disconnect
@@ -149,54 +184,15 @@ class VoiceSession {
      * Handle message from Gemini
      */
     handleGeminiMessage(message) {
+        // This method is now largely deprecated as event listeners handle most of the logic.
+        // It remains for backward compatibility or specific cases not covered by new events.
         try {
-            // Extract audio response if present
-            if (message.serverContent) {
-                const { modelTurn } = message.serverContent;
-
-                if (modelTurn && modelTurn.parts) {
-                    for (const part of modelTurn.parts) {
-                        // Audio response
-                        // Audio response is now handled by the 'audio' event listener
-                        // which correctly handles variable MIME types (e.g. audio/pcm;rate=24000)
-
-                        // Text response (transcription or thinking)
-                        if (part.text) {
-                            // Accumulate text for AI response
-                            this.aiResponseText += part.text;
-                            logger.debug('[VoiceSession] Received AI text:', part.text);
-                        }
-                    }
-                }
-            }
-
             // Check for User Transcription (often in a different part of the response object)
             // Based on API behavior, we need to inspect where input transcription lands.
             // For now, we log everything to find it.
             if (message.serverContent && !message.serverContent.modelTurn) {
                 logger.debug('[VoiceSession] Non-modelTurn content:', JSON.stringify(message.serverContent));
             }
-
-            // Handle setup complete
-            if (message.setupComplete) {
-                this.sendToClient({ type: 'status', data: { status: 'ready' } });
-            }
-
-            // Handle turn complete
-            if (message.serverContent && message.serverContent.turnComplete) {
-                this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
-
-                // Refine transcription if we have text (User)
-                // Note: Currently we are not receiving user transcription from Gemini in this flow
-                // We need to rely on client-side transcription or enable it in Gemini
-
-                // Save AI Response
-                if (this.aiResponseText) {
-                    this.saveAiMessage(this.aiResponseText);
-                    this.aiResponseText = '';
-                }
-            }
-
         } catch (error) {
             logger.error('[VoiceSession] Error handling Gemini message:', error);
         }
@@ -332,6 +328,62 @@ class VoiceSession {
                     isRefined: false
                 }
             });
+        }
+    }
+
+    /**
+     * Save User Message to database
+     */
+    async saveUserMessage(text) {
+        if (!text) return;
+
+        try {
+            let conversationId = this.conversationId;
+            let isNewConversation = false;
+
+            // If conversation doesn't exist, create a new one
+            if (!conversationId || conversationId === 'new') {
+                conversationId = uuidv4();
+                this.conversationId = conversationId;
+                isNewConversation = true;
+                logger.info(`[VoiceSession] Generated new conversationId for user message: ${conversationId}`);
+            }
+
+            const messageId = uuidv4();
+            const messageData = {
+                messageId,
+                conversationId,
+                text: text,
+                content: [{ type: 'text', text: text }],
+                user: this.userId,
+                sender: 'User',
+                isCreatedByUser: true,
+                endpoint: EModelEndpoint.google,
+                model: this.config.model,
+            };
+
+            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
+
+            if (savedMessage) {
+                await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
+                logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+
+                // If new conversation, notify client
+                if (isNewConversation) {
+                    this.sendToClient({
+                        type: 'conversationId',
+                        data: { conversationId: this.conversationId }
+                    });
+                }
+
+                // Notify client to refresh chat
+                this.sendToClient({
+                    type: 'conversationUpdated',
+                    data: { conversationId: this.conversationId }
+                });
+            }
+        } catch (error) {
+            logger.error('[VoiceSession] Error saving user message:', error);
         }
     }
 

@@ -60,14 +60,17 @@ class GeminiLiveClient extends EventEmitter {
                 this.ws.on('message', (data) => {
                     try {
                         const response = JSON.parse(data);
-                        logger.info(`[GeminiLive] RAW Response: ${JSON.stringify(response, null, 2)}`); // Fixed logging format
+                        logger.debug(`[GeminiLive] RAW Response: ${JSON.stringify(response, null, 2)}`);
 
                         if (response.serverContent) {
-                            // Log full serverContent to find user transcription
-                            logger.debug(`[GeminiLive] Full serverContent keys: ${Object.keys(response.serverContent)}`);
-                            if (response.serverContent.turnComplete) {
-                                logger.debug(`[GeminiLive] TurnComplete details: ${JSON.stringify(response.serverContent.turnComplete, null, 2)}`);
+                            // 1. Handle USER TRANSCRIPTION (from audio input)
+                            const userText = response.serverContent.outputTranscription?.text;
+                            if (userText) {
+                                logger.info('[GeminiLive] User transcription:', userText);
+                                this.emit('userTranscription', userText);
                             }
+
+                            // 2. Handle AI AUDIO + TEXT RESPONSE (modelTurn)
                             if (response.serverContent.modelTurn) {
                                 const parts = response.serverContent.modelTurn.parts;
                                 for (const part of parts) {
@@ -76,18 +79,22 @@ class GeminiLiveClient extends EventEmitter {
                                         const audioData = part.inlineData.data;
                                         this.emit('audio', audioData);
                                     } else if (part.text) {
-                                        // Text received (log it to see if Gemini is responding in text)
-                                        logger.info('[GeminiLive] Received text response:', part.text);
+                                        // AI Text response (if enabled with TEXT modality)
+                                        logger.info('[GeminiLive] AI text response:', part.text);
+                                        this.emit('aiText', part.text);
                                     }
                                 }
                             }
 
+                            // 3. Handle TURN COMPLETE
                             if (response.serverContent.turnComplete) {
-                                logger.info('[GeminiLive] Turn complete');
+                                this.emit('turnComplete');
                             }
-                        } else {
-                            // Log other message types for debugging
-                            logger.info('[GeminiLive] Received non-content message:', Object.keys(response));
+
+                            // Debug logging for unexpected content
+                            if (!response.serverContent.modelTurn && !response.serverContent.outputTranscription) {
+                                logger.debug('[GeminiLive] Unknown serverContent:', JSON.stringify(response.serverContent));
+                            }
                         }
                     } catch (error) {
                         logger.error('[GeminiLive] Error parsing message:', error);
