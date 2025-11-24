@@ -70,6 +70,16 @@ class VoiceSession {
             this.handleGeminiMessage(message);
         });
 
+        // Handle audio events from Gemini (cleaner and handles MIME types correctly)
+        this.geminiClient.on('audio', (audioData) => {
+            this.sendToClient({
+                type: 'audio',
+                data: {
+                    audioData: audioData,
+                },
+            });
+        });
+
         // Handle client disconnect
         this.clientWs.on('close', () => {
             logger.info(`[VoiceSession] Client disconnected: ${this.userId}`);
@@ -143,16 +153,8 @@ class VoiceSession {
                 if (modelTurn && modelTurn.parts) {
                     for (const part of modelTurn.parts) {
                         // Audio response
-                        if (part.inlineData && part.inlineData.mimeType === 'audio/pcm') {
-                            logger.debug('[VoiceSession] Received audio response from Gemini');
-                            this.sendToClient({
-                                type: 'audio',
-                                data: {
-                                    audioData: part.inlineData.data,
-                                    mimeType: part.inlineData.mimeType,
-                                },
-                            });
-                        }
+                        // Audio response is now handled by the 'audio' event listener
+                        // which correctly handles variable MIME types (e.g. audio/pcm;rate=24000)
 
                         // Text response (transcription or thinking)
                         if (part.text) {
