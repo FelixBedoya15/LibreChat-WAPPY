@@ -104,18 +104,26 @@ class VoiceSession {
         // Listen for turn complete
         this.geminiClient.on('turnComplete', async () => {
             logger.info('[VoiceSession] Turn complete');
+            logger.info('[VoiceSession] Accumulated user text length:', this.userTranscriptionText.length);
+            logger.info('[VoiceSession] Accumulated AI text length:', this.aiResponseText.length);
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
 
             // Save user transcription if we accumulated any
             if (this.userTranscriptionText.trim()) {
+                logger.info('[VoiceSession] Saving user message with text:', this.userTranscriptionText.substring(0, 100) + '...');
                 await this.saveUserMessage(this.userTranscriptionText.trim());
                 this.userTranscriptionText = ''; // Reset after saving
+            } else {
+                logger.warn('[VoiceSession] No user transcription to save (empty or whitespace)');
             }
 
             // Save AI response if we accumulated any
             if (this.aiResponseText.trim()) {
+                logger.info('[VoiceSession] Saving AI message with text:', this.aiResponseText.substring(0, 100) + '...');
                 await this.saveAiMessage(this.aiResponseText.trim());
                 this.aiResponseText = ''; // Reset after saving
+            } else {
+                logger.warn('[VoiceSession] No AI response to save (empty or whitespace)');
             }
         });
 
