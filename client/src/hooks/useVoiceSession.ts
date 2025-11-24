@@ -103,26 +103,34 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 // Load AudioWorklet Module ONLY when creating context
                 const workletCode = `
                     class PCMProcessor extends AudioWorkletProcessor {
+                        constructor() {
+                            super();
+                            this.bufferSize = 2048; // Send ~128ms chunks at 16kHz
+                            this.buffer = new Float32Array(this.bufferSize);
+                            this.bufferIndex = 0;
+                        }
+
                         process(inputs, outputs, parameters) {
                             const input = inputs[0];
-                                // Buffer slightly more data to reduce choppy audio (e.g. 2048 samples)
-                                if (inputChannel.length >= 2048) {
-                                    const int16Data = new Int16Array(inputChannel.length);
-                                    for (let i = 0; i < inputChannel.length; i++) {
-                                        const s = Math.max(-1, Math.min(1, inputChannel[i]));
-                                        int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                            if (!input || !input.length) return true;
+                            
+                            const inputChannel = input[0];
+                            
+                            for (let i = 0; i < inputChannel.length; i++) {
+                                this.buffer[this.bufferIndex++] = inputChannel[i];
+                                
+                                // When buffer is full, flush it
+                                if (this.bufferIndex >= this.bufferSize) {
+                                    const int16Data = new Int16Array(this.bufferSize);
+                                    for (let j = 0; j < this.bufferSize; j++) {
+                                        const s = Math.max(-1, Math.min(1, this.buffer[j]));
+                                        int16Data[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                                     }
+                                    
                                     this.port.postMessage(int16Data.buffer);
-                                } else {
-                                     // If buffer is small, still send it but maybe we can accumulate in a future improvement
-                                     // For now, let's stick to sending what we get but ensure process handles it well
-                                     const int16Data = new Int16Array(inputChannel.length);
-                                     for (let i = 0; i < inputChannel.length; i++) {
-                                         const s = Math.max(-1, Math.min(1, inputChannel[i]));
-                                         int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                                     }
-                                     this.port.postMessage(int16Data.buffer);
+                                    this.bufferIndex = 0;
                                 }
+                            }
                             return true;
                         }
                     }
