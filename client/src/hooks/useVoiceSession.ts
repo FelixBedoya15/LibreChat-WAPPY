@@ -29,6 +29,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const streamRef = useRef<MediaStream | null>(null);
     const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const isMutedRef = useRef(false);
+    const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Safety timeout for auto-unmute
 
     /**
      * Initialize Audio Context and Worklet
@@ -347,6 +348,21 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 if (message.data.audioData) {
                     options.onAudioReceived?.(message.data.audioData);
                     setStatus('speaking');
+
+                    // AUTO-MUTE: Mute microphone when AI starts speaking
+                    // This prevents feedback loop where mic captures AI audio from speakers
+                    console.log('[VoiceSession] AI speaking - auto-muting microphone');
+                    isMutedRef.current = true;
+
+                    // Safety: Auto-unmute after 10 seconds if status doesn't change
+                    if (autoMuteTimeoutRef.current) {
+                        clearTimeout(autoMuteTimeoutRef.current);
+                    }
+                    autoMuteTimeoutRef.current = setTimeout(() => {
+                        console.log('[VoiceSession] Safety auto-unmute timeout');
+                        isMutedRef.current = false;
+                        autoMuteTimeoutRef.current = null; // Clear ref after timeout
+                    }, 10000);
                 }
                 break;
 
@@ -361,6 +377,16 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 if (newStatus === 'ready') setStatus('ready');
                 else if (newStatus === 'listening') setStatus('listening');
                 options.onStatusChange?.(newStatus);
+
+                // AUTO-UNMUTE: Unmute when AI finishes speaking
+                if (newStatus === 'listening' || newStatus === 'turn_complete') {
+                    console.log('[VoiceSession] AI finished speaking - auto-unmuting microphone');
+                    isMutedRef.current = false;
+                    if (autoMuteTimeoutRef.current) {
+                        clearTimeout(autoMuteTimeoutRef.current);
+                        autoMuteTimeoutRef.current = null;
+                    }
+                }
                 break;
 
             case 'interrupted':
