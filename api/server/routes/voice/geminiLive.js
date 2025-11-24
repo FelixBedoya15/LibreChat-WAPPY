@@ -65,13 +65,13 @@ class GeminiLiveClient extends EventEmitter {
                         if (response.serverContent) {
                             // 1. Handle USER TRANSCRIPTION (from audio input)
                             if (response.serverContent.outputTranscription) {
-                                logger.debug('[GeminiLive] outputTranscription object:', JSON.stringify(response.serverContent.outputTranscription));
+                                logger.info('[GeminiLive] outputTranscription object:', JSON.stringify(response.serverContent.outputTranscription));
                                 const userText = response.serverContent.outputTranscription.text;
                                 if (userText && userText.trim()) {
                                     logger.info('[GeminiLive] User transcription:', userText);
                                     this.emit('userTranscription', userText);
                                 } else {
-                                    logger.warn('[GeminiLive] outputTranscription exists but text is empty or undefined');
+                                    logger.info('[GeminiLive] outputTranscription exists but text is empty or undefined. userText value:', userText);
                                 }
                             }
 
