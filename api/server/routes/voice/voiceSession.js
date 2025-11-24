@@ -97,7 +97,19 @@ class VoiceSession {
         // Listen for AI TEXT response
         this.geminiClient.on('aiText', (text) => {
             logger.info(`[VoiceSession] AI text response received: "${text}"`);
-            // Accumulate AI text
+
+            // FILTER OUT "THINKING" TEXT (starts with ** in markdown or is in English)
+            // Skip if it's a "thinking" response (Gemini's internal thoughts)
+            const trimmedText = text.trim();
+            const isThinking = trimmedText.startsWith('**') ||
+                trimmedText.match(/^(Considering|Analyzing|Evaluating|Determining|Acknowledging)/i);
+
+            if (isThinking) {
+                logger.info('[VoiceSession] Skipping AI "thinking" text (not user-facing)');
+                return; // Don't accumulate or send thinking text
+            }
+
+            // Accumulate only real user-facing AI text
             this.aiResponseText += text;
             // Send to client in real-time with correct format
             this.sendToClient({
