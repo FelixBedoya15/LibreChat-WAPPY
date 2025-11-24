@@ -25,9 +25,11 @@ class VoiceSession {
         this.conversationId = conversationId;
         this.geminiClient = null;
         this.isActive = false;
-        this.currentTurnText = ''; // Accumulate text for the current turn
-        this.userTranscriptionText = ''; // Accumulate user transcription
-        this.aiResponseText = ''; // Accumulate AI response text
+
+        // Text accumulation for saving
+        this.userTranscriptionText = '';
+        this.aiResponseText = '';
+        this.lastMessageId = null; // Track last message ID for parent linking
 
         logger.info(`[VoiceSession] Created for user: ${userId}`);
     }
@@ -111,11 +113,18 @@ class VoiceSession {
             logger.info(`[VoiceSession] Accumulated AI text length: ${this.aiResponseText.length}`);
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
 
+            let messagesSaved = false;
+            let isNewConversation = false;
+
             // Save user transcription if we accumulated any
             if (this.userTranscriptionText.trim()) {
                 const preview = this.userTranscriptionText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
-                await this.saveUserMessage(this.userTranscriptionText.trim());
+                const result = await this.saveUserMessage(this.userTranscriptionText.trim());
+                if (result) {
+                    messagesSaved = true;
+                    isNewConversation = result.isNewConversation;
+                }
                 this.userTranscriptionText = ''; // Reset after saving
             } else {
                 logger.warn(`[VoiceSession] No user transcription to save. Value: "${this.userTranscriptionText}"`);
@@ -126,10 +135,39 @@ class VoiceSession {
                 const preview = this.aiResponseText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving AI message. Preview: "${preview}..."`);
                 await this.saveAiMessage(this.aiResponseText.trim());
+                messagesSaved = true;
                 this.aiResponseText = ''; // Reset after saving
             } else {
                 logger.warn(`[VoiceSession] No AI response to save. Value: "${this.aiResponseText}"`);
             }
+
+            // Only update conversation and notify client ONCE at the end
+            if (messagesSaved) {
+                try {
+                    await saveConvo({ user: { id: this.userId } }, {
+                        conversationId: this.conversationId,
+                        endpoint: EModelEndpoint.google,
+                        model: this.config.model
+                    }, { context: 'VoiceSession - TurnComplete' });
+
+                    // If new conversation, send ID to client
+                    if (isNewConversation) {
+                        this.sendToClient({
+                            type: 'conversationId',
+                            data: { conversationId: this.conversationId }
+                        });
+                    }
+
+                    // Notify client to refresh chat (ONCE)
+                    this.sendToClient({
+                        type: 'conversationUpdated',
+                        data: { conversationId: this.conversationId }
+                    });
+                } catch (error) {
+                    logger.error('[VoiceSession] Error updating conversation:', error);
+                }
+            }
+
             logger.info('[VoiceSession] ========== END TURN ==========');
         });
 
@@ -349,7 +387,7 @@ class VoiceSession {
      * Save User Message to database
      */
     async saveUserMessage(text) {
-        if (!text) return;
+        if (!text) return null;
 
         try {
             let conversationId = this.conversationId;
@@ -367,6 +405,7 @@ class VoiceSession {
             const messageData = {
                 messageId,
                 conversationId,
+                parentMessageId: this.lastMessageId, // Link to previous message in conversation
                 text: text,
                 content: [{ type: 'text', text: text }],
                 user: this.userId,
@@ -376,33 +415,17 @@ class VoiceSession {
                 model: this.config.model,
             };
 
-            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
+            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - User' });
 
             if (savedMessage) {
-                // saveConvo expects only conversation fields, not the full message
-                await saveConvo({ user: { id: this.userId } }, {
-                    conversationId: conversationId,
-                    endpoint: EModelEndpoint.google,
-                    model: this.config.model
-                }, { context: 'VoiceSession' });
+                this.lastMessageId = messageId; // Update for next message
                 logger.info(`[VoiceSession] Saved user message: ${messageId}`);
-
-                // If new conversation, notify client
-                if (isNewConversation) {
-                    this.sendToClient({
-                        type: 'conversationId',
-                        data: { conversationId: this.conversationId }
-                    });
-                }
-
-                // Notify client to refresh chat
-                this.sendToClient({
-                    type: 'conversationUpdated',
-                    data: { conversationId: this.conversationId }
-                });
+                return { isNewConversation, messageId };
             }
+            return null;
         } catch (error) {
             logger.error('[VoiceSession] Error saving user message:', error);
+            return null;
         }
     }
 
@@ -417,6 +440,7 @@ class VoiceSession {
             const messageData = {
                 messageId,
                 conversationId: this.conversationId,
+                parentMessageId: this.lastMessageId, // Link to user message
                 text: text,
                 content: [{ type: 'text', text: text }],
                 user: this.userId,
@@ -426,22 +450,11 @@ class VoiceSession {
                 model: this.config.model,
             };
 
-            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
+            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - AI' });
 
             if (savedMessage) {
-                // saveConvo expects only conversation fields, not the full message  
-                await saveConvo({ user: { id: this.userId } }, {
-                    conversationId: this.conversationId,
-                    endpoint: EModelEndpoint.google,
-                    model: this.config.model
-                }, { context: 'VoiceSession' });
+                this.lastMessageId = messageId; // Update for next message
                 logger.info(`[VoiceSession] Saved AI message: ${messageId}`);
-
-                // Notify client to refresh chat
-                this.sendToClient({
-                    type: 'conversationUpdated',
-                    data: { conversationId: this.conversationId }
-                });
             }
         } catch (error) {
             logger.error('[VoiceSession] Error saving AI message:', error);
