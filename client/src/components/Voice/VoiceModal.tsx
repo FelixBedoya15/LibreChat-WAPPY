@@ -33,6 +33,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
         sendVideoFrame,
         changeVoice,
         getInputVolume,
+        setMuted,
     } = useVoiceSession({
         onAudioReceived: handleAudioReceived,
         onTextReceived: handleTextReceived,
@@ -52,11 +53,74 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
     }, []);
 
     const handleClose = () => {
+        stopCamera();
         disconnect();
         onClose();
     };
 
-    // ... (Camera logic remains same)
+    /**
+     * Start Camera
+     */
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 320 },
+                    height: { ideal: 240 },
+                    frameRate: { ideal: 15 }
+                },
+                audio: false
+            });
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.play();
+            }
+
+            setIsCameraOn(true);
+
+            // Start sending frames
+            videoIntervalRef.current = setInterval(() => {
+                if (videoRef.current) {
+                    sendVideoFrame(videoRef.current);
+                }
+            }, 1000 / 5); // 5 FPS
+
+        } catch (error) {
+            console.error('[VoiceModal] Error starting camera:', error);
+            setStatusText('Error accessing camera');
+            setIsCameraOn(false);
+        }
+    };
+
+    /**
+     * Stop Camera
+     */
+    const stopCamera = () => {
+        if (videoIntervalRef.current) {
+            clearInterval(videoIntervalRef.current);
+            videoIntervalRef.current = null;
+        }
+
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+
+        setIsCameraOn(false);
+    };
+
+    /**
+     * Toggle Camera
+     */
+    const toggleCamera = () => {
+        if (isCameraOn) {
+            stopCamera();
+        } else {
+            startCamera();
+        }
+    };
 
     const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -193,7 +257,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
      * Toggle mute
      */
     const toggleMute = () => {
-        setIsMuted(!isMuted);
+        const newMuted = !isMuted;
+        setIsMuted(newMuted);
+        setMuted(newMuted);
     };
 
     /**
@@ -283,7 +349,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                         {isMuted ? (
                             <MicOff className="w-6 h-6" />
                         ) : (
-                            <Mic className="w-6 h-6" />
+                            <div className="relative">
+                                <Mic className="w-6 h-6" />
+                                {/* Active indicator dot */}
+                                {!isMuted && status === 'listening' && (
+                                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-green-400 transform translate-x-1/2 -translate-y-1/2" />
+                                )}
+                            </div>
                         )}
                     </button>
 

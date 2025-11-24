@@ -22,6 +22,7 @@ class VoiceSession {
         this.config = config;
         this.geminiClient = null;
         this.isActive = false;
+        this.currentTurnText = ''; // Accumulate text for the current turn
 
         logger.info(`[VoiceSession] Created for user: ${userId}`);
     }
@@ -91,14 +92,22 @@ class VoiceSession {
             case 'audio':
                 // Forward audio to Gemini
                 if (data && data.audioData) {
-                    this.geminiClient.sendAudio(data.audioData);
+                    if (this.geminiClient) {
+                        this.geminiClient.sendAudio(data.audioData);
+                    } else {
+                        logger.warn('[VoiceSession] Received audio but Gemini client is not ready');
+                    }
                 }
                 break;
 
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
-                    this.geminiClient.sendVideo(data.image);
+                    if (this.geminiClient) {
+                        this.geminiClient.sendVideo(data.image);
+                    } else {
+                        logger.warn('[VoiceSession] Received video but Gemini client is not ready');
+                    }
                 }
                 break;
 
@@ -146,17 +155,9 @@ class VoiceSession {
 
                         // Text response (transcription or thinking)
                         if (part.text) {
-                            // Commented out to prevent text from interfering with voice mode
-                            // and to ensure "Live" feel.
-                            /*
-                            this.sendToClient({
-                                type: 'text',
-                                data: {
-                                    text: part.text,
-                                },
-                            });
-                            */
-                            logger.debug('[VoiceSession] Received text from Gemini (ignored):', part.text);
+                            // Accumulate text for refinement
+                            this.currentTurnText += part.text;
+                            logger.debug('[VoiceSession] Received text from Gemini (accumulating):', part.text);
                         }
                     }
                 }
@@ -170,6 +171,12 @@ class VoiceSession {
             // Handle turn complete
             if (message.serverContent && message.serverContent.turnComplete) {
                 this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
+
+                // Refine transcription if we have text
+                if (this.currentTurnText) {
+                    this.refineTranscription(this.currentTurnText);
+                    this.currentTurnText = '';
+                }
             }
 
         } catch (error) {
@@ -197,10 +204,60 @@ class VoiceSession {
     }
 
     /**
+     * Refine transcription using Gemini Flash Lite
+     */
+    async refineTranscription(text) {
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-preview-02-05:generateContent?key=${this.apiKey}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Please format the following transcription to be more readable, correcting punctuation and capitalization, but keeping the original meaning and words as much as possible. Do not add any conversational filler. Text: "${text}"`
+                        }]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const refinedText = data.candidates[0].content.parts[0].text;
+
+                this.sendToClient({
+                    type: 'text',
+                    data: {
+                        text: refinedText,
+                        isRefined: true
+                    }
+                });
+
+                logger.debug('[VoiceSession] Transcription refined:', refinedText);
+            }
+        } catch (error) {
+            logger.error('[VoiceSession] Error refining transcription:', error);
+            // Fallback to original text if refinement fails
+            this.sendToClient({
+                type: 'text',
+                data: {
+                    text: text,
+                    isRefined: false
+                }
+            });
+        }
+    }
+
+    /**
      * Stop the session
      */
     stop() {
         this.isActive = false;
+        this.currentTurnText = '';
 
         if (this.geminiClient) {
             this.geminiClient.disconnect();

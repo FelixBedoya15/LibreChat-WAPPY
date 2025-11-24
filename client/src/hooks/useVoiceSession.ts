@@ -24,6 +24,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const isMutedRef = useRef(false);
 
     /**
      * Initialize Audio Context and Worklet
@@ -147,6 +148,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             analyser.connect(workletNode);
 
             workletNode.port.onmessage = (event) => {
+                if (isMutedRef.current) return; // Do not send audio if muted
+
                 if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                     const bytes = new Uint8Array(event.data);
                     let binary = '';
@@ -381,6 +384,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         };
     }, []);
 
+    /**
+     * Mute/Unmute
+     */
+    const setMuted = useCallback((muted: boolean) => {
+        isMutedRef.current = muted;
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -390,5 +400,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         sendVideoFrame,
         changeVoice,
         getInputVolume,
+        setMuted,
     };
 };
