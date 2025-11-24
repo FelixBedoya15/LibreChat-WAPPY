@@ -161,6 +161,16 @@ class VoiceSession {
                             // Accumulate text for refinement
                             this.currentTurnText += part.text;
                             logger.debug('[VoiceSession] Received text from Gemini (accumulating):', part.text);
+
+                            // Send immediate text update to client if needed (optional)
+                            this.sendToClient({
+                                type: 'text',
+                                data: {
+                                    text: part.text,
+                                    isRefined: false,
+                                    isFinal: false
+                                }
+                            });
                         }
                     }
                 }
