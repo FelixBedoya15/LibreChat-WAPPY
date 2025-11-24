@@ -162,12 +162,19 @@ class VoiceSession {
 
                         // Text response (transcription or thinking)
                         if (part.text) {
-                            // Accumulate text for refinement
+                            // Accumulate text for AI response
                             this.aiResponseText += part.text;
-                            logger.debug('[VoiceSession] Received text from Gemini (accumulating):', part.text);
+                            logger.debug('[VoiceSession] Received AI text:', part.text);
                         }
                     }
                 }
+            }
+
+            // Check for User Transcription (often in a different part of the response object)
+            // Based on API behavior, we need to inspect where input transcription lands.
+            // For now, we log everything to find it.
+            if (message.serverContent && !message.serverContent.modelTurn) {
+                logger.debug('[VoiceSession] Non-modelTurn content:', JSON.stringify(message.serverContent));
             }
 
             // Handle setup complete
