@@ -365,7 +365,12 @@ class VoiceSession {
             const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
 
             if (savedMessage) {
-                await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
+                // saveConvo expects only conversation fields, not the full message
+                await saveConvo({ user: { id: this.userId } }, {
+                    conversationId: conversationId,
+                    endpoint: EModelEndpoint.google,
+                    model: this.config.model
+                }, { context: 'VoiceSession' });
                 logger.info(`[VoiceSession] Saved user message: ${messageId}`);
 
                 // If new conversation, notify client
@@ -410,7 +415,12 @@ class VoiceSession {
             const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
 
             if (savedMessage) {
-                await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
+                // saveConvo expects only conversation fields, not the full message  
+                await saveConvo({ user: { id: this.userId } }, {
+                    conversationId: this.conversationId,
+                    endpoint: EModelEndpoint.google,
+                    model: this.config.model
+                }, { context: 'VoiceSession' });
                 logger.info(`[VoiceSession] Saved AI message: ${messageId}`);
 
                 // Notify client to refresh chat

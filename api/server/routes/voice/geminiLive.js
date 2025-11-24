@@ -64,10 +64,15 @@ class GeminiLiveClient extends EventEmitter {
 
                         if (response.serverContent) {
                             // 1. Handle USER TRANSCRIPTION (from audio input)
-                            const userText = response.serverContent.outputTranscription?.text;
-                            if (userText) {
-                                logger.info('[GeminiLive] User transcription:', userText);
-                                this.emit('userTranscription', userText);
+                            if (response.serverContent.outputTranscription) {
+                                logger.debug('[GeminiLive] outputTranscription object:', JSON.stringify(response.serverContent.outputTranscription));
+                                const userText = response.serverContent.outputTranscription.text;
+                                if (userText && userText.trim()) {
+                                    logger.info('[GeminiLive] User transcription:', userText);
+                                    this.emit('userTranscription', userText);
+                                } else {
+                                    logger.warn('[GeminiLive] outputTranscription exists but text is empty or undefined');
+                                }
                             }
 
                             // 2. Handle AI AUDIO + TEXT RESPONSE (modelTurn)
@@ -78,7 +83,7 @@ class GeminiLiveClient extends EventEmitter {
                                         // Audio received
                                         const audioData = part.inlineData.data;
                                         this.emit('audio', audioData);
-                                    } else if (part.text) {
+                                    } else if (part.text && part.text.trim()) {
                                         // AI Text response (if enabled with TEXT modality)
                                         logger.info('[GeminiLive] AI text response:', part.text);
                                         this.emit('aiText', part.text);
