@@ -61,21 +61,13 @@ class GeminiLiveClient extends EventEmitter {
                     try {
                         const response = JSON.parse(data);
 
-                        // Log FULL response when there's serverContent
-                        if (response.serverContent) {
-                            logger.info('[GeminiLive] FULL RAW serverContent:', JSON.stringify(response.serverContent, null, 2));
-                        }
-
                         if (response.serverContent) {
                             // 1. Handle USER TRANSCRIPTION (from audio input)
                             if (response.serverContent.outputTranscription) {
-                                logger.info('[GeminiLive] outputTranscription exists:', JSON.stringify(response.serverContent.outputTranscription, null, 2));
                                 const userText = response.serverContent.outputTranscription.text;
                                 if (userText && userText.trim()) {
-                                    logger.info('[GeminiLive] User transcription:', userText);
+                                    logger.info(`[GeminiLive] User transcription: "${userText}"`);
                                     this.emit('userTranscription', userText);
-                                } else {
-                                    logger.info('[GeminiLive] outputTranscription exists but text is empty. Full object keys:', Object.keys(response.serverContent.outputTranscription));
                                 }
                             }
 
@@ -89,7 +81,7 @@ class GeminiLiveClient extends EventEmitter {
                                         this.emit('audio', audioData);
                                     } else if (part.text && part.text.trim()) {
                                         // AI Text response (if enabled with TEXT modality)
-                                        logger.info('[GeminiLive] AI text response:', part.text);
+                                        logger.info(`[GeminiLive] AI text: "${part.text}"`);
                                         this.emit('aiText', part.text);
                                     }
                                 }
@@ -97,13 +89,14 @@ class GeminiLiveClient extends EventEmitter {
 
                             // 3. Handle TURN COMPLETE
                             if (response.serverContent.turnComplete) {
+                                logger.info('[GeminiLive] ===== TURN COMPLETE =====');
                                 this.emit('turnComplete');
                             }
+                        }
 
-                            // Debug logging for unexpected content
-                            if (!response.serverContent.modelTurn && !response.serverContent.outputTranscription) {
-                                logger.info('[GeminiLive] serverContent without modelTurn or outputTranscription:', JSON.stringify(response.serverContent));
-                            }
+                        // Handle setup complete
+                        if (response.setupComplete) {
+                            logger.info('[GeminiLive] Setup complete');
                         }
                     } catch (error) {
                         logger.error('[GeminiLive] Error parsing message:', error);
