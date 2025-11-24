@@ -109,7 +109,7 @@ class GeminiLiveClient extends EventEmitter {
             setup: {
                 model: `models/${this.config.model}`,
                 generationConfig: {
-                    responseModalities: ['AUDIO', 'TEXT'],
+                    responseModalities: ['AUDIO'],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
@@ -126,8 +126,9 @@ class GeminiLiveClient extends EventEmitter {
                     ],
                 },
                 // Correct placement: outputAudioTranscription is a top-level field in BidiGenerateContentSetup
-                // Sending empty object as per reference repo and error message indicating 'model' field was unknown
-                outputAudioTranscription: {},
+                outputAudioTranscription: {
+                    model: `models/${this.config.model}`,
+                },
             },
         };
 
