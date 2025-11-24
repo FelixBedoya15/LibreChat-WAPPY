@@ -3,7 +3,7 @@ const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
 const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
-const { saveMessage } = require('~/models');
+const { saveMessage, saveConvo } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -263,29 +263,47 @@ class VoiceSession {
                 // Save message to database if conversationId is present
                 if (this.conversationId) {
                     try {
+                        let conversationId = this.conversationId;
+                        let isNewConversation = false;
+
+                        // Generate real UUID if conversationId is 'new'
+                        if (conversationId === 'new') {
+                            conversationId = uuidv4();
+                            isNewConversation = true;
+                            logger.info(`[VoiceSession] Generated new conversationId: ${conversationId}`);
+                        }
+
                         const messageId = uuidv4();
-                        const savedMessage = await saveMessage({ user: { id: this.userId } }, {
+                        const messageData = {
                             messageId,
-                            conversationId: this.conversationId,
+                            conversationId,
                             text: refinedText,
                             content: [{ type: 'text', text: refinedText }],
                             user: this.userId,
                             sender: 'User',
                             isCreatedByUser: true,
-                        }, { context: 'VoiceSession' });
+                            endpoint: EModelEndpoint.google, // Ensure endpoint is set
+                            model: this.config.model,
+                        };
 
-                        logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+                        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
 
-                        // Update conversationId if it was 'new'
-                        if (this.conversationId === 'new' && savedMessage.conversationId && savedMessage.conversationId !== 'new') {
-                            this.conversationId = savedMessage.conversationId;
-                            logger.info(`[VoiceSession] Updated conversationId to: ${this.conversationId}`);
+                        if (savedMessage) {
+                            // Also save/update the conversation
+                            await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
 
-                            // Notify client about the new conversation ID
-                            this.sendToClient({
-                                type: 'conversationId',
-                                data: { conversationId: this.conversationId }
-                            });
+                            logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+
+                            // Update local conversationId and notify client if it was new
+                            if (isNewConversation) {
+                                this.conversationId = conversationId;
+                                this.sendToClient({
+                                    type: 'conversationId',
+                                    data: { conversationId: this.conversationId }
+                                });
+                            }
+                        } else {
+                            logger.error('[VoiceSession] saveMessage returned null/undefined');
                         }
                     } catch (saveError) {
                         logger.error('[VoiceSession] Error saving message:', saveError);
