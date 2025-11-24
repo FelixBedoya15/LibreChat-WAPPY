@@ -84,7 +84,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
                 if (videoRef.current) {
                     sendVideoFrame(videoRef.current);
                 }
-            }, 1000 / 2); // 2 FPS - Balanced for performance and responsiveness
+            }, 1000 / 5); // 5 FPS
 
         } catch (error) {
             console.error('[VoiceModal] Error starting camera:', error);
