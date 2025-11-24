@@ -216,7 +216,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             workletNodeRef.current = null;
         }
         if (audioContextRef.current) {
-            audioContextRef.current.close();
+            if (audioContextRef.current.state !== 'closed') {
+                audioContextRef.current.close().catch(console.error);
+            }
             audioContextRef.current = null;
         }
     };
