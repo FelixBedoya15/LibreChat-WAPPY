@@ -60,7 +60,7 @@ class GeminiLiveClient extends EventEmitter {
                 this.ws.on('message', (data) => {
                     try {
                         const response = JSON.parse(data);
-                        // logger.debug('[GeminiLive] Received message:', Object.keys(response)); // Too noisy for production but good for debug
+                        logger.info('[GeminiLive] RAW Response:', JSON.stringify(response, null, 2)); // TEMPORARY DEBUG log
 
                         if (response.serverContent) {
                             if (response.serverContent.modelTurn) {
@@ -120,6 +120,10 @@ class GeminiLiveClient extends EventEmitter {
                         },
                     ],
                 },
+                // Correct placement: outputAudioTranscription is a top-level field in BidiGenerateContentSetup
+                outputAudioTranscription: {
+                    model: "models/gemini-2.5-flash-native-audio-preview-09-2025" // Optional: specify model if needed, or empty object
+                },
             },
         };
 
@@ -140,9 +144,21 @@ class GeminiLiveClient extends EventEmitter {
                         data: audioData,
                     },
                 ],
+                // Critical for audio + transcription according to reference repo
+                outputAudioTranscription: true,
+                tools: [
+                    {
+                        google_search_retrieval: {
+                            dynamic_retrieval_config: {
+                                mode: "MODE_DYNAMIC",
+                                dynamic_threshold: 0.7,
+                            }
+                        }
+                    }
+                ],
             },
         };
-
+        logger.debug('[GeminiLive] Sending audio chunk with transcription and tools request');
         this.send(message);
     }
 
