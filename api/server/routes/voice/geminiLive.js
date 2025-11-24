@@ -63,6 +63,11 @@ class GeminiLiveClient extends EventEmitter {
                         logger.info(`[GeminiLive] RAW Response: ${JSON.stringify(response, null, 2)}`); // Fixed logging format
 
                         if (response.serverContent) {
+                            // Log full serverContent to find user transcription
+                            logger.debug(`[GeminiLive] Full serverContent keys: ${Object.keys(response.serverContent)}`);
+                            if (response.serverContent.turnComplete) {
+                                logger.debug(`[GeminiLive] TurnComplete details: ${JSON.stringify(response.serverContent.turnComplete, null, 2)}`);
+                            }
                             if (response.serverContent.modelTurn) {
                                 const parts = response.serverContent.modelTurn.parts;
                                 for (const part of parts) {

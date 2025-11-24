@@ -3,6 +3,8 @@ const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
 const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
+const { saveMessage } = require('~/models');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Active voice sessions
@@ -15,11 +17,12 @@ const activeSessions = new Map();
  * Manages a voice conversation session between client and Gemini
  */
 class VoiceSession {
-    constructor(clientWs, userId, apiKey, config = {}) {
+    constructor(clientWs, userId, apiKey, config = {}, conversationId = null) {
         this.clientWs = clientWs;
         this.userId = userId;
         this.apiKey = apiKey;
         this.config = config;
+        this.conversationId = conversationId;
         this.geminiClient = null;
         this.isActive = false;
         this.currentTurnText = ''; // Accumulate text for the current turn
@@ -256,6 +259,25 @@ class VoiceSession {
                 });
 
                 logger.debug('[VoiceSession] Transcription refined:', refinedText);
+
+                // Save message to database if conversationId is present
+                if (this.conversationId) {
+                    try {
+                        const messageId = uuidv4();
+                        await saveMessage({ user: { id: this.userId } }, {
+                            messageId,
+                            conversationId: this.conversationId,
+                            text: refinedText,
+                            content: [{ type: 'text', text: refinedText }],
+                            user: this.userId,
+                            sender: 'User',
+                            isCreatedByUser: true,
+                        }, { context: 'VoiceSession' });
+                        logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+                    } catch (saveError) {
+                        logger.error('[VoiceSession] Error saving message:', saveError);
+                    }
+                }
             }
         } catch (error) {
             logger.error('[VoiceSession] Error refining transcription:', error);
@@ -294,7 +316,7 @@ class VoiceSession {
 /**
  * Create a new voice session for a user
  */
-async function createSession(clientWs, userId) {
+async function createSession(clientWs, userId, conversationId) {
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
@@ -320,7 +342,7 @@ async function createSession(clientWs, userId) {
         }
 
         // Create session
-        const session = new VoiceSession(clientWs, userId, parsedKey);
+        const session = new VoiceSession(clientWs, userId, parsedKey, {}, conversationId);
 
         // Start session
         const result = await session.start();

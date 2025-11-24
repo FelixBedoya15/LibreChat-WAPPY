@@ -353,7 +353,11 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         </div>
       </div>
       {/* Voice Modal */}
-      <VoiceModal isOpen={showVoiceModal} onClose={() => setShowVoiceModal(false)} />
+      <VoiceModal
+        isOpen={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
+        conversationId={conversationId}
+      />
     </form>
   );
 });

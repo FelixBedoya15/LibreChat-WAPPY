@@ -8,9 +8,10 @@ import { useLocalize } from '~/hooks';
 interface VoiceModalProps {
     isOpen: boolean;
     onClose: () => void;
+    conversationId?: string;
 }
 
-const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
+const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId }) => {
     const localize = useLocalize();
     const [selectedVoice, setSelectedVoice] = useState('sol');
     const [isMuted, setIsMuted] = useState(false);
@@ -35,7 +36,10 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose }) => {
         getInputVolume,
         setMuted,
     } = useVoiceSession({
-        onAudioReceived: handleAudioReceived,
+        conversationId,
+        onAudioReceived: (audioData) => {
+            playAudio(audioData);
+        },
         onTextReceived: handleTextReceived,
         onStatusChange: handleStatusChange,
         onError: handleError,

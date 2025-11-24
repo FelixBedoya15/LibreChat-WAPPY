@@ -33,6 +33,7 @@ function setupVoiceWebSocket(server) {
             // Extract token from query or headers
             const params = url.parse(request.url, true).query;
             const token = params.token || request.headers['sec-websocket-protocol'];
+            const conversationId = params.conversationId;
 
             if (!token) {
                 logger.warn('[WebSocket] No token provided');
@@ -76,7 +77,7 @@ function setupVoiceWebSocket(server) {
             logger.info(`[WebSocket] User authenticated: ${user.id}`);
 
             // Create voice session
-            const result = await createSession(ws, user.id);
+            const result = await createSession(ws, user.id, conversationId);
 
             if (!result.success) {
                 logger.error(`[WebSocket] Failed to create session: ${result.error}`);

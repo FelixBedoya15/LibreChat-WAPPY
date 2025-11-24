@@ -11,10 +11,12 @@ interface UseVoiceSessionOptions {
     onTextReceived?: (text: string) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
+    conversationId?: string;
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const { token } = useAuthContext();
+    const { conversationId } = options;
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [status, setStatus] = useState<'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking'>('idle');
@@ -286,7 +288,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token || '')}`;
+            const wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}`;
 
             console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
