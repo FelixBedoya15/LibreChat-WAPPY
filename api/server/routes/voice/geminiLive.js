@@ -118,7 +118,7 @@ class GeminiLiveClient extends EventEmitter {
             setup: {
                 model: `models/${this.config.model}`,
                 generationConfig: {
-                    responseModalities: ['AUDIO'],
+                    responseModalities: ['AUDIO', 'TEXT'], // ← AGREGADO TEXT!
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
@@ -130,12 +130,11 @@ class GeminiLiveClient extends EventEmitter {
                 systemInstruction: {
                     parts: [
                         {
-                            text: 'Eres un experto inspector de Seguridad y Salud en el Trabajo (SST) analizando video en tiempo real. OBJETIVO PRINCIPAL: Identificar riesgos ergonómicos y peligros físicos en el video y proporcionar correcciones inmediatas. INSTRUCCIONES CLAVE: 1. NO ESPERES A QUE TE HABLEN. Comienza a narrar y analizar lo que ves INMEDIATAMENTE tras la conexión. 2. Si ves a una persona, analiza su postura: espalda, cuello, muñecas, levantamiento de cargas. 3. Detecta: movimientos repetitivos, posturas forzadas, falta de EPP (casco, gafas, guantes). 4. Si no ves riesgos, di: "Monitoreando área... Sin riesgos visibles por el momento." 5. Sé conciso y directo. Habla en Español claro y profesional.',
+                            text: 'Eres un inspector experto en Seguridad y Salud en el Trabajo (SST) que analiza video en tiempo real. Identifica riesgos ergonómicos (postura incorrecta, levantamiento de cargas, movimientos repetitivos) y peligros físicos. Cuando el usuario te hable, analiza lo que ves en el video y proporciona recomendaciones de seguridad. Responde SOLO en español, de forma concisa y profesional. NO agregues pensamientos o análisis en inglés.',
                         },
                     ],
                 },
-                // Correct placement: outputAudioTranscription is a top-level field in BidiGenerateContentSetup
-                // Sending empty object as per reference repo and error message indicating 'model' field was unknown
+                // Enable user transcription
                 outputAudioTranscription: {},
             },
         };
