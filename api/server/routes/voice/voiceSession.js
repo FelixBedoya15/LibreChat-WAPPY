@@ -227,8 +227,8 @@ class VoiceSession {
                 })
             });
 
-            const apiKey = await getUserKey(this.userId);
-            logger.info(`[VoiceSession] Retrieved API Key for user ${this.userId}: ${apiKey ? 'Found (ends in ...' + apiKey.slice(-4) + ')' : 'Not Found'}`);
+            const apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
+            logger.debug(`[VoiceSession] Retrieved API Key for refinement: ${apiKey ? 'Success' : 'Failed'}`);
 
             if (!apiKey) {
                 // Handle case where API key is not found, e.g., by sending original text
