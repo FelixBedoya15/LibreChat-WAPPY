@@ -138,6 +138,14 @@ class GeminiLiveClient extends EventEmitter {
                 },
                 // Enable user transcription
                 outputAudioTranscription: {},
+                // VOICE ACTIVITY DETECTION (VAD) - Prevents feedback!
+                // This makes Gemini only process audio when it detects HUMAN VOICE
+                // Ignores AI audio from speakers, ambient noise, and silence
+                realtimeInputConfig: {
+                    automaticActivityDetection: {
+                        enabled: true,
+                    },
+                },
             },
         };
 
