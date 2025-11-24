@@ -108,7 +108,7 @@ class GeminiLiveClient extends EventEmitter {
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
-                                voiceName: this.config.voice || 'Puck',
+                                voiceName: 'Kore',
                             },
                         },
                     },
@@ -116,7 +116,7 @@ class GeminiLiveClient extends EventEmitter {
                 systemInstruction: {
                     parts: [
                         {
-                            text: 'You are a helpful assistant. You must always respond with audio. Speak clearly and concisely.',
+                            text: 'Eres un experto inspector de Seguridad y Salud en el Trabajo (SST) analizando video en tiempo real. OBJETIVO PRINCIPAL: Identificar riesgos ergonómicos y peligros físicos en el video y proporcionar correcciones inmediatas. INSTRUCCIONES CLAVE: 1. NO ESPERES A QUE TE HABLEN. Comienza a narrar y analizar lo que ves INMEDIATAMENTE tras la conexión. 2. Si ves a una persona, analiza su postura: espalda, cuello, muñecas, levantamiento de cargas. 3. Detecta: movimientos repetitivos, posturas forzadas, falta de EPP (casco, gafas, guantes). 4. Si no ves riesgos, di: "Monitoreando área... Sin riesgos visibles por el momento." 5. Sé conciso y directo. Habla en Español claro y profesional.',
                         },
                     ],
                 },
