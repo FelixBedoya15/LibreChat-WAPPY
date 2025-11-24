@@ -29,6 +29,7 @@ class VoiceSession {
         // Text accumulation for saving
         this.userTranscriptionText = '';
         this.aiResponseText = '';
+        this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
 
         logger.info(`[VoiceSession] Created for user: ${userId}`);
@@ -77,20 +78,19 @@ class VoiceSession {
             this.handleGeminiMessage(message);
         });
 
-        // Handle audio events from Gemini (cleaner and handles MIME types correctly)
+        // Listen for AUDIO from Gemini (AI voice response)
         this.geminiClient.on('audio', (audioData) => {
-            this.sendToClient({
-                type: 'audio',
-                data: {
-                    audioData: audioData,
-                },
-            });
+            // Forward audio to client for playback
+            this.sendToClient({ type: 'audio', data: { audioData } });
+
+            // Count audio chunks to know AI responded with voice
+            this.aiAudioChunkCount++;
         });
 
-        // Listen for USER transcription from Gemini
+        // Listen for USER TRANSCRIPTION  
         this.geminiClient.on('userTranscription', (text) => {
             logger.info(`[VoiceSession] User transcription received: "${text}"`);
-            // Accumulate user text for later saving
+            // Accumulate user transcription
             this.userTranscriptionText += text;
         });
 
@@ -102,7 +102,7 @@ class VoiceSession {
             // Send to client in real-time with correct format
             this.sendToClient({
                 type: 'text',
-                data: { text }  // ← Wrapped in data object
+                data: { text }
             });
         });
 
@@ -130,16 +130,24 @@ class VoiceSession {
                 logger.warn(`[VoiceSession] No user transcription to save. Value: "${this.userTranscriptionText}"`);
             }
 
-            // Save AI response if we accumulated any
+            // Save AI response if we accumulated any TEXT
             if (this.aiResponseText.trim()) {
                 const preview = this.aiResponseText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving AI message. Preview: "${preview}..."`);
                 await this.saveAiMessage(this.aiResponseText.trim());
                 messagesSaved = true;
                 this.aiResponseText = ''; // Reset after saving
+            } else if (this.aiAudioChunkCount > 0) {
+                // AI responded with AUDIO but no text - save voice indicator
+                logger.info(`[VoiceSession] AI responded with ${this.aiAudioChunkCount} audio chunks, no text. Saving voice indicator.`);
+                await this.saveAiMessage('🎤 [Respuesta de voz]');
+                messagesSaved = true;
             } else {
-                logger.warn(`[VoiceSession] No AI response to save. Value: "${this.aiResponseText}"`);
+                logger.warn(`[VoiceSession] No AI response to save. Text: "${this.aiResponseText}", Audio chunks: ${this.aiAudioChunkCount}`);
             }
+
+            // Reset audio counter for next turn
+            this.aiAudioChunkCount = 0;
 
             // Only update conversation and notify client ONCE at the end
             if (messagesSaved) {
