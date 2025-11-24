@@ -126,9 +126,8 @@ class GeminiLiveClient extends EventEmitter {
                     ],
                 },
                 // Correct placement: outputAudioTranscription is a top-level field in BidiGenerateContentSetup
-                outputAudioTranscription: {
-                    model: `models/${this.config.model}`,
-                },
+                // Sending empty object as per reference repo and error message indicating 'model' field was unknown
+                outputAudioTranscription: {},
             },
         };
 
