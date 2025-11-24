@@ -87,14 +87,14 @@ class VoiceSession {
 
         // Listen for USER transcription from Gemini
         this.geminiClient.on('userTranscription', (text) => {
-            logger.info('[VoiceSession] User transcription received:', text);
+            logger.info(`[VoiceSession] User transcription received: "${text}"`);
             // Accumulate user text for later saving
             this.userTranscriptionText += text;
         });
 
         // Listen for AI TEXT response
         this.geminiClient.on('aiText', (text) => {
-            logger.info('[VoiceSession] AI text response received:', text);
+            logger.info(`[VoiceSession] AI text response received: "${text}"`);
             // Accumulate AI text
             this.aiResponseText += text;
             // Send to client in real-time
@@ -103,28 +103,31 @@ class VoiceSession {
 
         // Listen for turn complete
         this.geminiClient.on('turnComplete', async () => {
-            logger.info('[VoiceSession] Turn complete');
-            logger.info('[VoiceSession] Accumulated user text length:', this.userTranscriptionText.length);
-            logger.info('[VoiceSession] Accumulated AI text length:', this.aiResponseText.length);
+            logger.info('[VoiceSession] ========== TURN COMPLETE ==========');
+            logger.info(`[VoiceSession] Accumulated user text length: ${this.userTranscriptionText.length}`);
+            logger.info(`[VoiceSession] Accumulated AI text length: ${this.aiResponseText.length}`);
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
 
             // Save user transcription if we accumulated any
             if (this.userTranscriptionText.trim()) {
-                logger.info('[VoiceSession] Saving user message with text:', this.userTranscriptionText.substring(0, 100) + '...');
+                const preview = this.userTranscriptionText.substring(0, 100);
+                logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
                 await this.saveUserMessage(this.userTranscriptionText.trim());
                 this.userTranscriptionText = ''; // Reset after saving
             } else {
-                logger.warn('[VoiceSession] No user transcription to save (empty or whitespace)');
+                logger.warn(`[VoiceSession] No user transcription to save. Value: "${this.userTranscriptionText}"`);
             }
 
             // Save AI response if we accumulated any
             if (this.aiResponseText.trim()) {
-                logger.info('[VoiceSession] Saving AI message with text:', this.aiResponseText.substring(0, 100) + '...');
+                const preview = this.aiResponseText.substring(0, 100);
+                logger.info(`[VoiceSession] Saving AI message. Preview: "${preview}..."`);
                 await this.saveAiMessage(this.aiResponseText.trim());
                 this.aiResponseText = ''; // Reset after saving
             } else {
-                logger.warn('[VoiceSession] No AI response to save (empty or whitespace)');
+                logger.warn(`[VoiceSession] No AI response to save. Value: "${this.aiResponseText}"`);
             }
+            logger.info('[VoiceSession] ========== END TURN ==========');
         });
 
         // Handle client disconnect
