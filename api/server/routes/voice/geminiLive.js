@@ -136,8 +136,9 @@ class GeminiLiveClient extends EventEmitter {
                         },
                     ],
                 },
-                // Enable user transcription
-                outputAudioTranscription: {},
+                // CRÍTICO: inputAudioTranscription = transcribe al USUARIO
+                // outputAudioTranscription = transcribe a la IA (NO queremos eso)
+                inputAudioTranscription: {},
             },
         };
 
