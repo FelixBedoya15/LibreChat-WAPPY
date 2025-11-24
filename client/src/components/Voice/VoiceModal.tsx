@@ -9,9 +9,10 @@ interface VoiceModalProps {
     isOpen: boolean;
     onClose: () => void;
     conversationId?: string;
+    onConversationIdUpdate?: (newId: string) => void;
 }
 
-const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId }) => {
+const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate }) => {
     const localize = useLocalize();
     const [selectedVoice, setSelectedVoice] = useState('sol');
     const [isMuted, setIsMuted] = useState(false);
@@ -49,10 +50,19 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId }) =>
 
     // Connect on mount, disconnect on unmount
     useEffect(() => {
+        // Initialize AudioContext on mount (user interaction likely triggered modal open)
+        if (!audioContextRef.current) {
+            audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+        }
+
         connect();
         return () => {
             stopCamera();
             disconnect();
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
         };
     }, []);
 

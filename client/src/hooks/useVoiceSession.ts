@@ -12,6 +12,7 @@ interface UseVoiceSessionOptions {
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
+    onConversationIdUpdate?: (newId: string) => void;
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
@@ -369,6 +370,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             case 'error':
                 options.onError?.(message.data.message);
+                break;
+
+            case 'conversationId':
+                if (message.data.conversationId) {
+                    options.onConversationIdUpdate?.(message.data.conversationId);
+                }
                 break;
         }
     }, [options]);
