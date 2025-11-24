@@ -118,7 +118,9 @@ class GeminiLiveClient extends EventEmitter {
             setup: {
                 model: `models/${this.config.model}`,
                 generationConfig: {
-                    responseModalities: ['AUDIO', 'TEXT'], // ← AGREGADO TEXT!
+                    // CRÍTICO: NO CAMBIAR A ['AUDIO', 'TEXT'] - ROMPE LA IA COMPLETAMENTE
+                    // La IA deja de responder si se agrega 'TEXT' a responseModalities
+                    responseModalities: ['AUDIO'],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
