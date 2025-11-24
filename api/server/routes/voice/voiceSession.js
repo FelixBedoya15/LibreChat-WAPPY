@@ -262,67 +262,68 @@ class VoiceSession {
 
                 // Save message to database if conversationId is present
                 if (this.conversationId) {
-                    const messageId = uuidv4();
-                    const savedMessage = await saveMessage({ user: { id: this.userId } }, {
-                        messageId,
-                        conversationId: this.conversationId,
-                        text: refinedText,
-                        content: [{ type: 'text', text: refinedText }],
-                        user: this.userId,
-                        sender: 'User',
-                        isCreatedByUser: true,
-                    }, { context: 'VoiceSession' });
+                    try {
+                        const messageId = uuidv4();
+                        const savedMessage = await saveMessage({ user: { id: this.userId } }, {
+                            messageId,
+                            conversationId: this.conversationId,
+                            text: refinedText,
+                            content: [{ type: 'text', text: refinedText }],
+                            user: this.userId,
+                            sender: 'User',
+                            isCreatedByUser: true,
+                        }, { context: 'VoiceSession' });
 
-                    logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+                        logger.info(`[VoiceSession] Saved user message: ${messageId}`);
 
-                    // Update conversationId if it was 'new'
-                    if (this.conversationId === 'new' && savedMessage.conversationId && savedMessage.conversationId !== 'new') {
-                        this.conversationId = savedMessage.conversationId;
-                        logger.info(`[VoiceSession] Updated conversationId to: ${this.conversationId}`);
+                        // Update conversationId if it was 'new'
+                        if (this.conversationId === 'new' && savedMessage.conversationId && savedMessage.conversationId !== 'new') {
+                            this.conversationId = savedMessage.conversationId;
+                            logger.info(`[VoiceSession] Updated conversationId to: ${this.conversationId}`);
 
-                        // Notify client about the new conversation ID
-                        this.sendToClient({
-                            type: 'conversationId',
-                            data: { conversationId: this.conversationId }
-                        });
+                            // Notify client about the new conversation ID
+                            this.sendToClient({
+                                type: 'conversationId',
+                                data: { conversationId: this.conversationId }
+                            });
+                        }
+                    } catch (saveError) {
+                        logger.error('[VoiceSession] Error saving message:', saveError);
                     }
-                } catch (saveError) {
-                    logger.error('[VoiceSession] Error saving message:', saveError);
                 }
             }
+        } catch (error) {
+            logger.error('[VoiceSession] Error refining transcription:', error);
+            // Fallback to original text if refinement fails
+            this.sendToClient({
+                type: 'text',
+                data: {
+                    text: text,
+                    isRefined: false
+                }
+            });
         }
-        } catch(error) {
-        logger.error('[VoiceSession] Error refining transcription:', error);
-        // Fallback to original text if refinement fails
-        this.sendToClient({
-            type: 'text',
-            data: {
-                text: text,
-                isRefined: false
-            }
-        });
-    }
-}
-
-/**
- * Stop the session
- */
-stop() {
-    this.isActive = false;
-    this.currentTurnText = '';
-
-    if (this.geminiClient) {
-        this.geminiClient.disconnect();
-        this.geminiClient = null;
     }
 
-    // Remove from active sessions
-    if (activeSessions.has(this.userId)) {
-        activeSessions.delete(this.userId);
-    }
+    /**
+     * Stop the session
+     */
+    stop() {
+        this.isActive = false;
+        this.currentTurnText = '';
 
-    logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
-}
+        if (this.geminiClient) {
+            this.geminiClient.disconnect();
+            this.geminiClient = null;
+        }
+
+        // Remove from active sessions
+        if (activeSessions.has(this.userId)) {
+            activeSessions.delete(this.userId);
+        }
+
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
+    }
 }
 
 /**
