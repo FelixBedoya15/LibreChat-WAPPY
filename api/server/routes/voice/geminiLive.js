@@ -30,7 +30,7 @@ class GeminiLiveClient extends EventEmitter {
         return new Promise((resolve, reject) => {
             try {
                 const endpoint = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
-
+                logger.info(`[GeminiLive] Connecting to endpoint with key ending in: ...${this.apiKey ? this.apiKey.slice(-4) : 'NONE'}`);
                 this.ws = new WebSocket(endpoint);
 
                 this.ws.on('open', () => {
@@ -60,7 +60,7 @@ class GeminiLiveClient extends EventEmitter {
                 this.ws.on('message', (data) => {
                     try {
                         const response = JSON.parse(data);
-                        logger.info('[GeminiLive] RAW Response:', JSON.stringify(response, null, 2)); // TEMPORARY DEBUG log
+                        logger.info(`[GeminiLive] RAW Response: ${JSON.stringify(response, null, 2)}`); // Fixed logging format
 
                         if (response.serverContent) {
                             if (response.serverContent.modelTurn) {

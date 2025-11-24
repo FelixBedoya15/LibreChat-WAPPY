@@ -225,6 +225,21 @@ class VoiceSession {
                 })
             });
 
+            const apiKey = await getUserKey(this.userId);
+            logger.info(`[VoiceSession] Retrieved API Key for user ${this.userId}: ${apiKey ? 'Found (ends in ...' + apiKey.slice(-4) + ')' : 'Not Found'}`);
+
+            if (!apiKey) {
+                // Handle case where API key is not found, e.g., by sending original text
+                this.sendToClient({
+                    type: 'text',
+                    data: {
+                        text: text,
+                        isRefined: false
+                    }
+                });
+                return; // Exit early if no API key
+            }
+
             const data = await response.json();
 
             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
