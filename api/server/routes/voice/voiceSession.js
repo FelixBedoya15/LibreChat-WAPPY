@@ -26,6 +26,7 @@ class VoiceSession {
         this.geminiClient = null;
         this.isActive = false;
         this.currentTurnText = ''; // Accumulate text for the current turn
+        this.aiResponseText = ''; // Accumulate AI response text
 
         logger.info(`[VoiceSession] Created for user: ${userId}`);
     }
@@ -162,7 +163,7 @@ class VoiceSession {
                         // Text response (transcription or thinking)
                         if (part.text) {
                             // Accumulate text for refinement
-                            this.currentTurnText += part.text;
+                            this.aiResponseText += part.text;
                             logger.debug('[VoiceSession] Received text from Gemini (accumulating):', part.text);
                         }
                     }
@@ -178,10 +179,14 @@ class VoiceSession {
             if (message.serverContent && message.serverContent.turnComplete) {
                 this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
 
-                // Refine transcription if we have text
-                if (this.currentTurnText) {
-                    this.refineTranscription(this.currentTurnText);
-                    this.currentTurnText = '';
+                // Refine transcription if we have text (User)
+                // Note: Currently we are not receiving user transcription from Gemini in this flow
+                // We need to rely on client-side transcription or enable it in Gemini
+
+                // Save AI Response
+                if (this.aiResponseText) {
+                    this.saveAiMessage(this.aiResponseText);
+                    this.aiResponseText = '';
                 }
             }
 
@@ -324,11 +329,49 @@ class VoiceSession {
     }
 
     /**
+     * Save AI Message to database
+     */
+    async saveAiMessage(text) {
+        if (!this.conversationId || !text) return;
+
+        try {
+            const messageId = uuidv4();
+            const messageData = {
+                messageId,
+                conversationId: this.conversationId,
+                text: text,
+                content: [{ type: 'text', text: text }],
+                user: this.userId,
+                sender: 'Assistant', // AI Sender
+                isCreatedByUser: false,
+                endpoint: EModelEndpoint.google,
+                model: this.config.model,
+            };
+
+            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
+
+            if (savedMessage) {
+                await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
+                logger.info(`[VoiceSession] Saved AI message: ${messageId}`);
+
+                // Notify client to refresh chat
+                this.sendToClient({
+                    type: 'conversationUpdated',
+                    data: { conversationId: this.conversationId }
+                });
+            }
+        } catch (error) {
+            logger.error('[VoiceSession] Error saving AI message:', error);
+        }
+    }
+
+    /**
      * Stop the session
      */
     stop() {
         this.isActive = false;
         this.currentTurnText = '';
+        this.aiResponseText = '';
 
         if (this.geminiClient) {
             this.geminiClient.disconnect();

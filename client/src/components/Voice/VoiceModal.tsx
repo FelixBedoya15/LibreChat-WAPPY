@@ -10,9 +10,10 @@ interface VoiceModalProps {
     onClose: () => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
+    onConversationUpdated?: () => void;
 }
 
-const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate }) => {
+const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated }) => {
     const localize = useLocalize();
     const [selectedVoice, setSelectedVoice] = useState('sol');
     const [isMuted, setIsMuted] = useState(false);
@@ -38,6 +39,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         setMuted,
     } = useVoiceSession({
         conversationId,
+        onConversationIdUpdate,
+        onConversationUpdated,
         onAudioReceived: (audioData) => {
             handleAudioReceived(audioData);
         },

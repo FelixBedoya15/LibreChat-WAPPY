@@ -357,6 +357,13 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId}
+        onConversationUpdated={() => {
+          // Trigger refresh of messages
+          // This relies on SWR or similar mechanism updating when conversationId is touched or explicit revalidation
+          // For now, we can try to invalidate queries if we had access to mutate
+          // Or simply let the user know, but ideally we want auto-refresh.
+          // Assuming useChatContext has a way to refresh or we can trigger it via navigation/state
+        }}
       />
     </form>
   );
