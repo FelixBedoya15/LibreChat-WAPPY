@@ -97,8 +97,11 @@ class VoiceSession {
             logger.info(`[VoiceSession] AI text response received: "${text}"`);
             // Accumulate AI text
             this.aiResponseText += text;
-            // Send to client in real-time
-            this.sendToClient({ type: 'text', text });
+            // Send to client in real-time with correct format
+            this.sendToClient({
+                type: 'text',
+                data: { text }  // ← Wrapped in data object
+            });
         });
 
         // Listen for turn complete
