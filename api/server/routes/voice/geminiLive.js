@@ -113,13 +113,8 @@ class GeminiLiveClient extends EventEmitter {
                         },
                     },
                 },
-                systemInstruction: {
-                    parts: [
-                        {
-                            text: 'You are a helpful assistant. You must always respond with audio. Speak clearly and concisely.',
-                        },
-                    ],
-                },
+                // Critical for audio + transcription according to reference repo
+                // outputAudioTranscription: {}, 
             },
         };
 

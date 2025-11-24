@@ -144,6 +144,7 @@ class VoiceSession {
                     for (const part of modelTurn.parts) {
                         // Audio response
                         if (part.inlineData && part.inlineData.mimeType === 'audio/pcm') {
+                            logger.debug('[VoiceSession] Received audio response from Gemini');
                             this.sendToClient({
                                 type: 'audio',
                                 data: {
