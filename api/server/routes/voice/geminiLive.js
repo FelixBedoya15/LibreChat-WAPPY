@@ -60,18 +60,22 @@ class GeminiLiveClient extends EventEmitter {
                 this.ws.on('message', (data) => {
                     try {
                         const response = JSON.parse(data);
-                        logger.debug(`[GeminiLive] RAW Response: ${JSON.stringify(response, null, 2)}`);
+
+                        // Log FULL response when there's serverContent
+                        if (response.serverContent) {
+                            logger.info('[GeminiLive] FULL RAW serverContent:', JSON.stringify(response.serverContent, null, 2));
+                        }
 
                         if (response.serverContent) {
                             // 1. Handle USER TRANSCRIPTION (from audio input)
                             if (response.serverContent.outputTranscription) {
-                                logger.info('[GeminiLive] outputTranscription object:', JSON.stringify(response.serverContent.outputTranscription));
+                                logger.info('[GeminiLive] outputTranscription exists:', JSON.stringify(response.serverContent.outputTranscription, null, 2));
                                 const userText = response.serverContent.outputTranscription.text;
                                 if (userText && userText.trim()) {
                                     logger.info('[GeminiLive] User transcription:', userText);
                                     this.emit('userTranscription', userText);
                                 } else {
-                                    logger.info('[GeminiLive] outputTranscription exists but text is empty or undefined. userText value:', userText);
+                                    logger.info('[GeminiLive] outputTranscription exists but text is empty. Full object keys:', Object.keys(response.serverContent.outputTranscription));
                                 }
                             }
 
@@ -98,7 +102,7 @@ class GeminiLiveClient extends EventEmitter {
 
                             // Debug logging for unexpected content
                             if (!response.serverContent.modelTurn && !response.serverContent.outputTranscription) {
-                                logger.debug('[GeminiLive] Unknown serverContent:', JSON.stringify(response.serverContent));
+                                logger.info('[GeminiLive] serverContent without modelTurn or outputTranscription:', JSON.stringify(response.serverContent));
                             }
                         }
                     } catch (error) {
