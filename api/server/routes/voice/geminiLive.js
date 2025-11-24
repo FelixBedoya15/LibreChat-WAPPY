@@ -143,18 +143,6 @@ class GeminiLiveClient extends EventEmitter {
                         data: audioData,
                     },
                 ],
-                // Critical for audio + transcription according to reference repo
-                outputAudioTranscription: true,
-                tools: [
-                    {
-                        google_search_retrieval: {
-                            dynamic_retrieval_config: {
-                                mode: "MODE_DYNAMIC",
-                                dynamic_threshold: 0.7,
-                            }
-                        }
-                    }
-                ],
             },
         };
         logger.debug('[GeminiLive] Sending audio chunk with transcription and tools request');
