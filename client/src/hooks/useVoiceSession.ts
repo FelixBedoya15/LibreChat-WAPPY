@@ -426,13 +426,34 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
      * Disconnect
      */
     const disconnect = useCallback(() => {
+        console.log('[VoiceSession] Disconnecting and cleaning up...');
+
+        // Stop audio capture (cleans: stream, worklet, audioContext)
         stopAudioCapture();
+
+        // Close WebSocket
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
         }
+
+        // Clear timeout if exists
+        if (autoMuteTimeoutRef.current) {
+            clearTimeout(autoMuteTimeoutRef.current);
+            autoMuteTimeoutRef.current = null;
+        }
+
+        // Reset all refs to clean state
+        isMutedRef.current = false;
+        inputAnalyserRef.current = null;
+        videoCanvasRef.current = null;
+
+        // Reset states
         setIsConnected(false);
+        setIsConnecting(false);
         setStatus('idle');
+
+        console.log('[VoiceSession] Cleanup complete, ready for reconnection');
     }, []);
 
     // Cleanup
