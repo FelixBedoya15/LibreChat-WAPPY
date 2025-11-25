@@ -6,6 +6,9 @@ const { logger } = require('@librechat/data-schemas');
 const { genAzureEndpoint } = require('@librechat/api');
 const { extractEnvVariable, STTProviders } = require('librechat-data-provider');
 const { getAppConfig } = require('~/server/services/Config');
+const { getMessages } = require('~/models');
+const { getUserKey } = require('~/server/services/UserService');
+const { EModelEndpoint } = require('librechat-data-provider');
 
 /**
  * Maps MIME types to their corresponding file extensions for audio files.
@@ -285,6 +288,98 @@ class STTService {
   }
 
   /**
+   * Load recent chat history for transcription correction context
+   * @async
+   * @param {string} userId - User ID
+   * @param {string} conversationId - Conversation ID
+   * @returns {Promise<string>} Formatted chat history
+   */
+  async loadChatHistory(userId, conversationId) {
+    try {
+      if (!conversationId || conversationId === 'new') {
+        return '';
+      }
+
+      const messages = await getMessages(
+        {
+          conversationId: conversationId,
+          user: userId,
+        },
+        null,
+        { limit: 5, sort: { createdAt: -1 } },
+      );
+
+      if (!messages || messages.length === 0) {
+        return '';
+      }
+
+      const contextMessages = [...messages].reverse().map((msg) => {
+        const role = msg.isCreatedByUser ? 'Usuario' : 'Asistente';
+        let text = msg.text;
+        if (!text && Array.isArray(msg.content)) {
+          text = msg.content.map((c) => c.text || '').join(' ');
+        }
+        return `${role}: ${text || '[Contenido multimedia]'}`;
+      });
+
+      return contextMessages.join('\n');
+    } catch (error) {
+      logger.error('[STTService] Error loading chat history:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Correct user transcription using Gemini Flash and chat history
+   * @async
+   * @param {string} userText - Raw transcription text
+   * @param {string} chatHistory - Recent chat history for context
+   * @param {string} userId - User ID for API key
+   * @returns {Promise<string>} Corrected transcription
+   */
+  async correctTranscription(userText, chatHistory, userId) {
+    try {
+      const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.0-flash';
+
+      // Get user's Google API key
+      const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
+      if (!apiKey) {
+        logger.warn('[STTService] No Google API key found, skipping transcription correction');
+        return userText;
+      }
+
+      const { GoogleGenerativeAI } = require('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: correctionModelName });
+
+      const contextPrompt = chatHistory
+        ? `\nRecent conversation history:\n${chatHistory}\n`
+        : '';
+
+      const prompt = `
+      Context: The user is speaking to an AI assistant.${contextPrompt}
+      User's raw transcription (may be phonetic or incorrect): "${userText}"
+      
+      Task: Correct the user's transcription based on the conversation context. The history gives clues about what the user likely said.
+      Return ONLY the corrected text. Do not add quotes or explanations.
+      If the transcription seems correct or there's no clear correction, return it as is.
+      `;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const correctedText = response.text().trim();
+
+      logger.info(
+        `[STTService] Transcription correction: "${userText}" -> "${correctedText}"`,
+      );
+      return correctedText;
+    } catch (error) {
+      logger.error('[STTService] Error correcting transcription:', error);
+      return userText; // Fallback to original
+    }
+  }
+
+  /**
    * Processes a speech-to-text request.
    * @async
    * @param {Object} req - The request object.
@@ -306,7 +401,17 @@ class STTService {
     try {
       const [provider, sttSchema] = await this.getProviderSchema(req);
       const language = req.body?.language || '';
-      const text = await this.sttRequest(provider, sttSchema, { audioBuffer, audioFile, language });
+      let text = await this.sttRequest(provider, sttSchema, { audioBuffer, audioFile, language });
+
+      // FASE 7: Transcription Correction using chat history
+      const conversationId = req.body?.conversationId;
+      const userId = req.user?.id;
+
+      if (userId && conversationId) {
+        const chatHistory = await this.loadChatHistory(userId, conversationId);
+        text = await this.correctTranscription(text, chatHistory, userId);
+      }
+
       res.json({ text });
     } catch (error) {
       logger.error('An error occurred while processing the audio:', error);

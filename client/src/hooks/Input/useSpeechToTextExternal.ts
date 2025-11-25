@@ -3,6 +3,7 @@ import { useRecoilState } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import { useSpeechToTextMutation } from '~/data-provider';
 import useGetAudioSettings from './useGetAudioSettings';
+import { useConversation } from '~/hooks/Conversations';
 import store from '~/store';
 
 const useSpeechToTextExternal = (
@@ -16,6 +17,7 @@ const useSpeechToTextExternal = (
   const animationFrameIdRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const { conversation } = useConversation(); // FASE 7: Get conversation for context
 
   const [permission, setPermission] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -124,6 +126,10 @@ const useSpeechToTextExternal = (
       formData.append('audio', audioBlob, `audio.${fileExtension}`);
       if (languageSTT) {
         formData.append('language', languageSTT);
+      }
+      // FASE 7: Send conversationId for transcription correction context
+      if (conversation?.conversationId) {
+        formData.append('conversationId', conversation.conversationId);
       }
       setIsRequestBeingMade(true);
       cleanup();
