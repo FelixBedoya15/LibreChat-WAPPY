@@ -551,7 +551,7 @@ class VoiceSession {
     async correctTranscription(userText, aiResponseText) {
         try {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
-            const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.0-flash';
+            const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.5-flash-lite-preview-09-2025';
             logger.info(`[VoiceSession] Using correction model: ${correctionModelName}`);
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');

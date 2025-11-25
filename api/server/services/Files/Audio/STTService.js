@@ -340,7 +340,7 @@ class STTService {
   async correctTranscription(userText, chatHistory, userId) {
     try {
       logger.info(`[STTService] Starting transcription correction for: "${userText}"`);
-      const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.0-flash';
+      const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.5-flash-lite-preview-09-2025';
       logger.info(`[STTService] Using correction model: ${correctionModelName}`);
 
       // Get user's Google API key
