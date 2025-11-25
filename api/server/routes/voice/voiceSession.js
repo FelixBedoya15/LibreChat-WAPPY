@@ -3,7 +3,7 @@ const logger = require('~/config/winston');
 const GeminiLiveClient = require('./geminiLive');
 const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
-const { saveMessage, saveConvo } = require('~/models');
+const { saveMessage, saveConvo, getMessages } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -41,39 +41,41 @@ class VoiceSession {
      */
     async start() {
         try {
-            // FIX FASE 3: Si estamos en un chat existente, cargar el último messageId
-            // Esto mantiene la cadena de parentMessageId correcta para mensajes verticales
+            // FIX FASE 3 & 5: Cargar historial y último mensaje si es chat existente
             if (this.conversationId && this.conversationId !== 'new') {
                 try {
-                    const Message = require('~/models/Message');
-                    const lastMessage = await Message.findOne({
+                    // Cargar últimos 15 mensajes para contexto
+                    const messages = await getMessages({
                         conversationId: this.conversationId,
                         user: this.userId
-                    })
-                        .sort({ createdAt: -1 })
-                        .select('messageId')
-                        .lean();
+                    }, null, { limit: 15, sort: { createdAt: -1 } });
 
-                    if (lastMessage) {
-                        this.lastMessageId = lastMessage.messageId;
-                        logger.info(`[VoiceSession] Continuing conversation ${this.conversationId}, last messageId: ${this.lastMessageId}`);
+                    if (messages && messages.length > 0) {
+                        // 1. Set lastMessageId (FASE 3 - Mensajes Verticales)
+                        this.lastMessageId = messages[0].messageId;
+                        logger.info(`[VoiceSession] Loaded lastMessageId: ${this.lastMessageId}`);
+
+                        // 2. Build Context (FASE 5 - Memoria)
+                        const contextMessages = [...messages].reverse().map(msg => {
+                            const role = msg.isCreatedByUser ? 'Usuario' : 'Asistente';
+                            let text = msg.text;
+                            if (!text && Array.isArray(msg.content)) {
+                                text = msg.content.map(c => c.text || '').join(' ');
+                            }
+                            return `${role}: ${text || '[Contenido multimedia]'}`;
+                        });
+
+                        this.config.conversationContext = contextMessages.join('\n');
+                        logger.info(`[VoiceSession] Loaded context with ${messages.length} messages`);
                     }
                 } catch (error) {
-                    logger.warn(`[VoiceSession] Could not load last message:`, error.message);
-                    // Continue with null lastMessageId (will work fine for new conversations)
+                    logger.error(`[VoiceSession] Error loading history:`, error);
                 }
             }
 
             // Create Gemini Live client
             this.geminiClient = new GeminiLiveClient(this.apiKey, this.config);
 
-            // Connect to Gemini
-            await this.geminiClient.connect();
-
-            // Setup message handlers
-            this.setupHandlers();
-
-            this.isActive = true;
             logger.info(`[VoiceSession] Started for user: ${this.userId}`);
 
             return { success: true };

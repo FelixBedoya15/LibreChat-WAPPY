@@ -1,6 +1,6 @@
 import { memo, useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { useWatch } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { TextareaAutosize } from '@librechat/client';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { useQueryClient } from '@tanstack/react-query';
@@ -94,9 +94,16 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     () => conversation?.endpointType ?? conversation?.endpoint,
     [conversation?.endpointType, conversation?.endpoint],
   );
+  const { conversationId: urlConversationId } = useParams();
   const conversationId = useMemo(
-    () => conversation?.conversationId ?? Constants.NEW_CONVO,
-    [conversation?.conversationId],
+    () => {
+      // FASE 4 FIX: Prioritize URL param to avoid "infinite new chats" bug
+      if (urlConversationId && urlConversationId !== 'new') {
+        return urlConversationId;
+      }
+      return conversation?.conversationId ?? Constants.NEW_CONVO;
+    },
+    [conversation?.conversationId, urlConversationId],
   );
 
   const isRTL = useMemo(
@@ -335,7 +342,10 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
               )}
               {/* Voice Mode Button */}
               <VoiceModeButton
-                onClick={() => setShowVoiceModal(true)}
+                onClick={() => {
+                  console.log('[ChatForm] Opening Live with conversationId:', conversationId);
+                  setShowVoiceModal(true);
+                }}
                 disabled={disableInputs || isNotAppendable}
                 isActive={showVoiceModal}
               />
