@@ -360,6 +360,12 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId} // Use current conversation
+        onConversationIdUpdate={(newId) => {
+          // When a new conversation is created via voice, update the UI
+          console.log('[ChatForm] Voice created new conversation:', newId);
+          queryClient.invalidateQueries([QueryKeys.messages, newId]);
+          queryClient.invalidateQueries([QueryKeys.allConversations]);
+        }}
         onConversationUpdated={() => {
           // Invalidate messages query to trigger automatic refresh
           if (conversationId) {
