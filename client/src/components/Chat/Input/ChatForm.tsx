@@ -359,7 +359,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
       <VoiceModal
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
-        conversationId={conversationId}
+        conversationId={conversationId} // Use current conversation
         onConversationUpdated={() => {
           // Invalidate messages query to trigger automatic refresh
           if (conversationId) {
