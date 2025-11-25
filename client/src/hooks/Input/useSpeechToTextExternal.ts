@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRecoilState } from 'recoil';
+import { useParams } from 'react-router-dom';
 import { useToastContext } from '@librechat/client';
 import { useSpeechToTextMutation } from '~/data-provider';
 import useGetAudioSettings from './useGetAudioSettings';
-import { useConversation } from '~/hooks/Conversations';
 import store from '~/store';
 
 const useSpeechToTextExternal = (
@@ -17,7 +17,7 @@ const useSpeechToTextExternal = (
   const animationFrameIdRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const { conversation } = useConversation(); // FASE 7: Get conversation for context
+  const { conversation: conversationId } = useParams(); // FASE 7: Get conversationId from URL
 
   const [permission, setPermission] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -128,8 +128,8 @@ const useSpeechToTextExternal = (
         formData.append('language', languageSTT);
       }
       // FASE 7: Send conversationId for transcription correction context
-      if (conversation?.conversationId) {
-        formData.append('conversationId', conversation.conversationId);
+      if (conversationId && conversationId !== 'new') {
+        formData.append('conversationId', conversationId);
       }
       setIsRequestBeingMade(true);
       cleanup();
