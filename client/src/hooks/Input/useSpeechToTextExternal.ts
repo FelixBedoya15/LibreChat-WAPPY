@@ -143,7 +143,10 @@ const useSpeechToTextExternal = (
     const audioContext = new AudioContext();
     const audioStreamSource = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
-    analyser.minDecibels = minDecibels;
+    // Ensure minDecibels is strictly less than maxDecibels (default -30)
+    // If minDecibels is >= -30, it will throw IndexSizeError
+    const safeMinDecibels = Math.min(minDecibels, -31);
+    analyser.minDecibels = safeMinDecibels;
     audioStreamSource.connect(analyser);
 
     const bufferLength = analyser.frequencyBinCount;
