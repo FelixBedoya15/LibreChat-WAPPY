@@ -138,32 +138,42 @@ class VoiceSession {
             let messagesSaved = false;
             let isNewConversation = false;
 
-            // Save user transcription if we accumulated any
+            // CRITICAL: Save user message FIRST, then AI message
+            // This ensures proper parent-child relationship in the message chain
             if (this.userTranscriptionText.trim()) {
                 const preview = this.userTranscriptionText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
+                logger.info(`[VoiceSession] Current lastMessageId before user save: ${this.lastMessageId}`);
+
                 const result = await this.saveUserMessage(this.userTranscriptionText.trim());
                 if (result) {
                     messagesSaved = true;
                     isNewConversation = result.isNewConversation;
+                    logger.info(`[VoiceSession] User message saved. New lastMessageId: ${this.lastMessageId}`);
                 }
                 this.userTranscriptionText = ''; // Reset after saving
             } else {
                 logger.warn(`[VoiceSession] No user transcription to save. Value: "${this.userTranscriptionText}"`);
             }
 
-            // Save AI response if we accumulated any TEXT
+            // Save AI response AFTER user message (uses updated lastMessageId as parent)
             if (this.aiResponseText.trim()) {
                 const preview = this.aiResponseText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving AI message. Preview: "${preview}..."`);
+                logger.info(`[VoiceSession] Current lastMessageId before AI save: ${this.lastMessageId}`);
+
                 await this.saveAiMessage(this.aiResponseText.trim());
                 messagesSaved = true;
+                logger.info(`[VoiceSession] AI message saved. New lastMessageId: ${this.lastMessageId}`);
                 this.aiResponseText = ''; // Reset after saving
             } else if (this.aiAudioChunkCount > 0) {
                 // AI responded with AUDIO but no text - save voice indicator
                 logger.info(`[VoiceSession] AI responded with ${this.aiAudioChunkCount} audio chunks, no text. Saving voice indicator.`);
+                logger.info(`[VoiceSession] Current lastMessageId before AI save: ${this.lastMessageId}`);
+
                 await this.saveAiMessage('🎤 [Respuesta de voz]');
                 messagesSaved = true;
+                logger.info(`[VoiceSession] AI voice indicator saved. New lastMessageId: ${this.lastMessageId}`);
             } else {
                 logger.warn(`[VoiceSession] No AI response to save. Text: "${this.aiResponseText}", Audio chunks: ${this.aiAudioChunkCount}`);
             }
@@ -174,10 +184,13 @@ class VoiceSession {
             // Only update conversation and notify client ONCE at the end
             if (messagesSaved) {
                 try {
+                    // CRITICAL: Update conversation with the LAST message ID (AI's message)
+                    // This ensures the next user message will link to the AI's response
                     await saveConvo({ user: { id: this.userId } }, {
                         conversationId: this.conversationId,
                         endpoint: EModelEndpoint.google,
-                        model: this.config.model
+                        model: this.config.model,
+                        // parentMessageId should be the last AI message for proper chaining
                     }, { context: 'VoiceSession - TurnComplete' });
 
                     // If new conversation, send ID to client
