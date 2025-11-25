@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted';
+    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated';
     data: any;
 }
 
@@ -342,11 +342,20 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     /**
      * Handle incoming WebSocket message
      */
-    const handleMessage = useCallback((message: VoiceMessage) => {
+    // FIX: Use ref to access latest options without reconnecting WebSocket
+    const optionsRef = useRef(options);
+    useEffect(() => {
+        optionsRef.current = options;
+    }, [options]);
+
+    /**
+     * Handle incoming messages from WebSocket
+     */
+    const handleMessage = useCallback(async (message: VoiceMessage) => {
         switch (message.type) {
             case 'audio':
                 if (message.data.audioData) {
-                    options.onAudioReceived?.(message.data.audioData);
+                    optionsRef.current.onAudioReceived?.(message.data.audioData);
                     setStatus('speaking');
 
                     // AUTO-MUTE: Mute microphone when AI starts speaking
@@ -405,8 +414,13 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 break;
 
             case 'conversationUpdated':
-                console.log('[VoiceSession] Conversation updated event received');
-                optionsRef.current.onConversationUpdated?.();
+                console.log('[VoiceSession] Conversation updated event received from WS');
+                if (optionsRef.current.onConversationUpdated) {
+                    console.log('[VoiceSession] Executing onConversationUpdated callback');
+                    optionsRef.current.onConversationUpdated();
+                } else {
+                    console.warn('[VoiceSession] No onConversationUpdated callback defined');
+                }
                 break;
         }
     }, []);
