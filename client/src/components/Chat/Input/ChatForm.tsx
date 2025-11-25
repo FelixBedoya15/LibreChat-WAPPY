@@ -363,9 +363,16 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId} // Use current conversation
         onConversationIdUpdate={(newId) => {
-          // When a new conversation is created via voice, navigate to it and update the UI
-          console.log('[ChatForm] Voice created new conversation:', newId);
-          navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
+          // Only navigate if we were in a NEW chat (not an existing one)
+          const wasNewChat = conversationId === Constants.NEW_CONVO;
+          console.log('[ChatForm] Voice created/updated conversation:', newId, 'wasNewChat:', wasNewChat);
+
+          if (wasNewChat) {
+            // Navigate to the new conversation
+            navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
+          }
+
+          // Always invalidate queries to refresh UI
           queryClient.invalidateQueries([QueryKeys.messages, newId]);
           queryClient.invalidateQueries([QueryKeys.allConversations]);
         }}
