@@ -1,5 +1,6 @@
 import { memo, useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { useWatch } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { TextareaAutosize } from '@librechat/client';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,11 +39,12 @@ import { VoiceModeButton, VoiceModal } from '~/components/Voice';
 import store from '~/store';
 
 const ChatForm = memo(({ index = 0 }: { index?: number }) => {
-  const submitButtonRef = useRef<HTMLButtonElement>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const submitButtonRef = useRef<HTMLButtonElement | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   useFocusChatEffect(textAreaRef);
   const localize = useLocalize();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [, setIsScrollable] = useState(false);
@@ -361,8 +363,9 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId} // Use current conversation
         onConversationIdUpdate={(newId) => {
-          // When a new conversation is created via voice, update the UI
+          // When a new conversation is created via voice, navigate to it and update the UI
           console.log('[ChatForm] Voice created new conversation:', newId);
+          navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
           queryClient.invalidateQueries([QueryKeys.messages, newId]);
           queryClient.invalidateQueries([QueryKeys.allConversations]);
         }}
