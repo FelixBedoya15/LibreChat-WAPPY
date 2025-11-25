@@ -13,7 +13,7 @@ class GeminiLiveClient extends EventEmitter {
         super();
         this.apiKey = apiKey;
         this.config = {
-            model: config.model || 'gemini-2.5-flash-native-audio-preview-09-2025',
+            model: config.model || process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-preview-09-2025',
             voice: config.voice || 'Puck',
             language: config.language || 'es-ES',
             ...config,

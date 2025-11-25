@@ -180,7 +180,13 @@ class VoiceSession {
                 logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
                 logger.info(`[VoiceSession] Current lastMessageId before user save: ${this.lastMessageId}`);
 
-                const result = await this.saveUserMessage(this.userTranscriptionText.trim());
+                // FASE 6: Transcription Correction
+                let textToSave = this.userTranscriptionText.trim();
+                if (this.aiResponseText.trim()) {
+                    textToSave = await this.correctTranscription(textToSave, this.aiResponseText.trim());
+                }
+
+                const result = await this.saveUserMessage(textToSave);
                 if (result) {
                     messagesSaved = true;
                     isNewConversation = result.isNewConversation;
@@ -539,6 +545,38 @@ class VoiceSession {
     /**
      * Stop the session
      */
+    /**
+     * Correct user transcription using Gemini Flash
+     */
+    async correctTranscription(userText, aiResponseText) {
+        try {
+            const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.0-flash';
+            const { GoogleGenerativeAI } = require('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(this.apiKey);
+            const model = genAI.getGenerativeModel({ model: correctionModelName });
+
+            const prompt = `
+            Context: The user is speaking to an AI assistant.
+            AI's response to the user: "${aiResponseText}"
+            User's raw transcription (may be phonetic or incorrect): "${userText}"
+            
+            Task: Correct the user's transcription based on the AI's response. The AI's response gives a strong clue about what the user actually said.
+            Return ONLY the corrected text. Do not add quotes or explanations.
+            If the transcription seems correct or ambiguous, return it as is.
+            `;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const correctedText = response.text().trim();
+
+            logger.info(`[VoiceSession] Transcription correction: "${userText}" -> "${correctedText}"`);
+            return correctedText;
+        } catch (error) {
+            logger.error('[VoiceSession] Error correcting transcription:', error);
+            return userText; // Fallback to original
+        }
+    }
+
     stop() {
         this.isActive = false;
         this.currentTurnText = '';
