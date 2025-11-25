@@ -40,6 +40,26 @@ class VoiceSession {
      */
     async start() {
         try {
+            // CRITICAL FIX: Load the last message ID if opening Live on existing conversation
+            // This maintains continuity between voice sessions
+            if (this.conversationId && this.conversationId !== 'new') {
+                try {
+                    const { getMessages } = require('~/models');
+                    const messages = await getMessages({
+                        conversationId: this.conversationId,
+                        user: this.userId
+                    }, 'messageId', { limit: 1, sort: { createdAt: -1 } });
+
+                    if (messages && messages.length > 0) {
+                        this.lastMessageId = messages[0].messageId;
+                        logger.info(`[VoiceSession] Loaded last messageId: ${this.lastMessageId} for continuing conversation: ${this.conversationId}`);
+                    }
+                } catch (error) {
+                    logger.error(`[VoiceSession] Error loading last message:`, error);
+                    // Continue anyway with null lastMessageId
+                }
+            }
+
             // Create Gemini Live client
             this.geminiClient = new GeminiLiveClient(this.apiKey, this.config);
 
@@ -184,17 +204,18 @@ class VoiceSession {
             // Only update conversation and notify client ONCE at the end
             if (messagesSaved) {
                 try {
-                    // CRITICAL: Pass the last AI message to saveConvo 
-                    // This ensures the conversation knows which message is the latest
-                    // and maintains the correct parent-child chain for linear display
-                    const lastMessage = this.lastAiMessageData || {
+                    // CRITICAL FIX: Don't pass savedMessage directly (contains _id which causes error)
+                    // Extract only the fields that saveConvo needs
+                    const conversationData = {
                         conversationId: this.conversationId,
                         endpoint: EModelEndpoint.google,
                         model: this.config.model,
-                        parentMessageId: this.lastMessageId
+                        // Include the last message ID for proper chaining
+                        messageId: this.lastMessageId,
+                        parentMessageId: this.lastAiMessageData?.parentMessageId
                     };
 
-                    await saveConvo({ user: { id: this.userId } }, lastMessage, { context: 'VoiceSession - TurnComplete' });
+                    await saveConvo({ user: { id: this.userId } }, conversationData, { context: 'VoiceSession - TurnComplete' });
 
                     // If new conversation, send ID to client
                     if (isNewConversation) {
