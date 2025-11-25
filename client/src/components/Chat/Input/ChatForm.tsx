@@ -377,10 +377,10 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           queryClient.invalidateQueries([QueryKeys.allConversations]);
         }}
         onConversationUpdated={() => {
-          // Invalidate messages query to trigger automatic refresh
+          // FASE 1 FIX: Forzar refetch inmediato para mostrar mensajes en tiempo real
           if (conversationId) {
-            console.log('[ChatForm] Invalidating messages cache for:', conversationId);
-            queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
+            console.log('[ChatForm] Forcing immediate refetch for:', conversationId);
+            queryClient.refetchQueries([QueryKeys.messages, conversationId]);
           }
         }}
       />

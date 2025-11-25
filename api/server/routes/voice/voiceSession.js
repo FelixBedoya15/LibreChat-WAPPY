@@ -40,6 +40,29 @@ class VoiceSession {
      */
     async start() {
         try {
+            // FIX FASE 3: Si estamos en un chat existente, cargar el último messageId
+            // Esto mantiene la cadena de parentMessageId correcta para mensajes verticales
+            if (this.conversationId && this.conversationId !== 'new') {
+                try {
+                    const Message = require('~/models/Message');
+                    const lastMessage = await Message.findOne({
+                        conversationId: this.conversationId,
+                        user: this.userId
+                    })
+                        .sort({ createdAt: -1 })
+                        .select('messageId')
+                        .lean();
+
+                    if (lastMessage) {
+                        this.lastMessageId = lastMessage.messageId;
+                        logger.info(`[VoiceSession] Continuing conversation ${this.conversationId}, last messageId: ${this.lastMessageId}`);
+                    }
+                } catch (error) {
+                    logger.warn(`[VoiceSession] Could not load last message:`, error.message);
+                    // Continue with null lastMessageId (will work fine for new conversations)
+                }
+            }
+
             // Create Gemini Live client
             this.geminiClient = new GeminiLiveClient(this.apiKey, this.config);
 
