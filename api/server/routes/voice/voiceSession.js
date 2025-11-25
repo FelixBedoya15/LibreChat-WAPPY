@@ -184,14 +184,17 @@ class VoiceSession {
             // Only update conversation and notify client ONCE at the end
             if (messagesSaved) {
                 try {
-                    // CRITICAL: Update conversation with the LAST message ID (AI's message)
-                    // This ensures the next user message will link to the AI's response
-                    await saveConvo({ user: { id: this.userId } }, {
+                    // CRITICAL: Pass the last AI message to saveConvo 
+                    // This ensures the conversation knows which message is the latest
+                    // and maintains the correct parent-child chain for linear display
+                    const lastMessage = this.lastAiMessageData || {
                         conversationId: this.conversationId,
                         endpoint: EModelEndpoint.google,
                         model: this.config.model,
-                        // parentMessageId should be the last AI message for proper chaining
-                    }, { context: 'VoiceSession - TurnComplete' });
+                        parentMessageId: this.lastMessageId
+                    };
+
+                    await saveConvo({ user: { id: this.userId } }, lastMessage, { context: 'VoiceSession - TurnComplete' });
 
                     // If new conversation, send ID to client
                     if (isNewConversation) {
@@ -497,6 +500,7 @@ class VoiceSession {
 
             if (savedMessage) {
                 this.lastMessageId = messageId; // Update for next message
+                this.lastAiMessageData = savedMessage; // Store for saveConvo
                 logger.info(`[VoiceSession] Saved AI message: ${messageId}`);
             }
         } catch (error) {
