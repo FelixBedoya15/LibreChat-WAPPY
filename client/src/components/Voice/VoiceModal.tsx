@@ -49,7 +49,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         onError: handleError,
     });
 
-    // ... (useEffect for status text remains same)
+    // Track previous isOpen state to detect reopening
+    const prevIsOpenRef = useRef(isOpen);
 
     // Connect on mount, disconnect on unmount
     useEffect(() => {
@@ -69,13 +70,17 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Reconnect when modal reopens
+    // Detect modal reopening (closed → open transition)
     useEffect(() => {
-        if (isOpen && !isConnected && !isConnecting) {
+        const wasOpen = prevIsOpenRef.current;
+        prevIsOpenRef.current = isOpen;
+
+        // Only reconnect if modal was closed and now is opening
+        if (!wasOpen && isOpen && !isConnected && !isConnecting) {
             console.log('[VoiceModal] Modal reopened, reconnecting...');
             connect();
         }
-    }, [isOpen]); // Only depend on isOpen, NOT on connect
+    }, [isOpen, isConnected, isConnecting, connect]);
 
     const handleClose = () => {
         stopCamera();
