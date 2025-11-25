@@ -359,12 +359,31 @@ class STTService {
         : '';
 
       const prompt = `
-      Context: The user is speaking to an AI assistant.${contextPrompt}
-      User's raw transcription (may be phonetic or incorrect): "${userText}"
+      You are a transcription correction expert.
       
-      Task: Correct the user's transcription based on the conversation context. The history gives clues about what the user likely said.
-      Return ONLY the corrected text. Do not add quotes or explanations.
-      If the transcription seems correct or there's no clear correction, return it as is.
+      CONTEXT:
+      - Recent conversation history (for reference ONLY):
+      """
+      ${chatHistory || 'No history available.'}
+      """
+      
+      - User's raw audio transcription (needs correction):
+      """
+      ${userText}
+      """
+      
+      TASK:
+      1. Analyze the user's raw transcription.
+      2. Use the context to understand specific terms (like SST, technical words) or the flow of conversation.
+      3. Correct phonetic errors, misinterpretations, spelling, and punctuation.
+      4. Structure the sentence naturally and grammatically while preserving the original meaning.
+      5. OUTPUT ONLY THE CORRECTED USER TEXT.
+      
+      RULES:
+      - DO NOT include any part of the history/context in your output.
+      - DO NOT add explanations, quotes, or conversational filler.
+      - If the raw transcription is already correct, return it exactly as is.
+      - Keep the same language as the user.
       `;
 
       const result = await model.generateContent(prompt);
