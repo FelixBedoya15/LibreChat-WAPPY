@@ -76,6 +76,13 @@ class VoiceSession {
             // Create Gemini Live client
             this.geminiClient = new GeminiLiveClient(this.apiKey, this.config);
 
+            // Connect to Gemini
+            await this.geminiClient.connect();
+
+            // Setup message handlers
+            this.setupHandlers();
+
+            this.isActive = true;
             logger.info(`[VoiceSession] Started for user: ${this.userId}`);
 
             return { success: true };
