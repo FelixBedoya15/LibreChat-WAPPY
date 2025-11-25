@@ -54,6 +54,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     // Connect on mount, disconnect on unmount
     useEffect(() => {
+        // Don't connect if modal is not open
+        if (!isOpen) return;
+
         // Initialize AudioContext on mount (user interaction likely triggered modal open)
         if (!audioContextRef.current) {
             audioContextRef.current = new AudioContext({ sampleRate: 24000 });
