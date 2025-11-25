@@ -88,28 +88,38 @@ class VoiceSession {
         });
 
         // Listen for USER TRANSCRIPTION  
+        // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
             logger.info(`[VoiceSession] User transcription received: "${text}"`);
-            // Accumulate user transcription
+            // Accumulate user text
             this.userTranscriptionText += text;
+        });
+
+        // Listen for AI transcription (what the AI says)
+        this.geminiClient.on('aiTranscription', (text) => {
+            logger.info(`[VoiceSession] AI transcription received: "${text}"`);
+            // Accumulate AI text
+            this.aiResponseText += text;
         });
 
         // Listen for AI TEXT response
         this.geminiClient.on('aiText', (text) => {
             logger.info(`[VoiceSession] AI text response received: "${text}"`);
 
-            // FILTER OUT "THINKING" TEXT (starts with ** in markdown or is in English)
-            // Skip if it's a "thinking" response (Gemini's internal thoughts)
-            const trimmedText = text.trim();
-            const isThinking = trimmedText.startsWith('**') ||
-                trimmedText.match(/^(Considering|Analyzing|Evaluating|Determining|Acknowledging)/i);
+            // Filter AI "thinking" text - don't accumulate or send to client
+            const shouldSkip = text.startsWith('**') ||
+                text.includes('Considering') ||
+                text.includes('Analyzing') ||
+                text.includes('linguist') ||
+                text.includes('Evaluating') ||
+                text.includes('Reviewing');
 
-            if (isThinking) {
-                logger.info('[VoiceSession] Skipping AI "thinking" text (not user-facing)');
-                return; // Don't accumulate or send thinking text
+            if (shouldSkip) {
+                logger.info(`[VoiceSession] Skipping AI "thinking" text (not user-facing)`);
+                return;
             }
 
-            // Accumulate only real user-facing AI text
+            // Accumulate AI text
             this.aiResponseText += text;
             // Send to client in real-time with correct format
             this.sendToClient({

@@ -61,17 +61,27 @@ class GeminiLiveClient extends EventEmitter {
                     try {
                         const response = JSON.parse(data);
 
+                        // FASE 3 FIX: Separate handling for input vs output transcription
                         if (response.serverContent) {
-                            // 1. Handle USER TRANSCRIPTION (from audio input)
-                            if (response.serverContent.outputTranscription) {
-                                const userText = response.serverContent.outputTranscription.text;
+                            // 1. Handle USER TRANSCRIPTION (from INPUT audio - what user says)
+                            if (response.serverContent.inputTranscription) {
+                                const userText = response.serverContent.inputTranscription.text;
                                 if (userText && userText.trim()) {
-                                    logger.info(`[GeminiLive] User transcription: "${userText}"`);
+                                    logger.info(`[GeminiLive] User transcription (input): "${userText}"`);
                                     this.emit('userTranscription', userText);
                                 }
                             }
 
-                            // 2. Handle AI AUDIO + TEXT RESPONSE (modelTurn)
+                            // 2. Handle AI TRANSCRIPTION (from OUTPUT audio - what AI says)
+                            if (response.serverContent.outputTranscription) {
+                                const aiText = response.serverContent.outputTranscription.text;
+                                if (aiText && aiText.trim()) {
+                                    logger.info(`[GeminiLive] AI transcription (output): "${aiText}"`);
+                                    this.emit('aiTranscription', aiText);
+                                }
+                            }
+
+                            // 3. Handle AI AUDIO + TEXT RESPONSE (modelTurn)
                             if (response.serverContent.modelTurn) {
                                 const parts = response.serverContent.modelTurn.parts;
                                 for (const part of parts) {
@@ -87,7 +97,7 @@ class GeminiLiveClient extends EventEmitter {
                                 }
                             }
 
-                            // 3. Handle TURN COMPLETE
+                            // 4. Handle TURN COMPLETE
                             if (response.serverContent.turnComplete) {
                                 logger.info('[GeminiLive] ===== TURN COMPLETE =====');
                                 this.emit('turnComplete');
