@@ -550,7 +550,10 @@ class VoiceSession {
      */
     async correctTranscription(userText, aiResponseText) {
         try {
+            logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
             const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.0-flash';
+            logger.info(`[VoiceSession] Using correction model: ${correctionModelName}`);
+
             const { GoogleGenerativeAI } = require('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(this.apiKey);
             const model = genAI.getGenerativeModel({ model: correctionModelName });
@@ -569,7 +572,7 @@ class VoiceSession {
             const response = await result.response;
             const correctedText = response.text().trim();
 
-            logger.info(`[VoiceSession] Transcription correction: "${userText}" -> "${correctedText}"`);
+            logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
             return correctedText;
         } catch (error) {
             logger.error('[VoiceSession] Error correcting transcription:', error);

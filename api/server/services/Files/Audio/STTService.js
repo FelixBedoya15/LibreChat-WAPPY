@@ -339,7 +339,9 @@ class STTService {
    */
   async correctTranscription(userText, chatHistory, userId) {
     try {
+      logger.info(`[STTService] Starting transcription correction for: "${userText}"`);
       const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.0-flash';
+      logger.info(`[STTService] Using correction model: ${correctionModelName}`);
 
       // Get user's Google API key
       const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
@@ -370,7 +372,7 @@ class STTService {
       const correctedText = response.text().trim();
 
       logger.info(
-        `[STTService] Transcription correction: "${userText}" -> "${correctedText}"`,
+        `[STTService] Transcription correction result: "${userText}" -> "${correctedText}"`,
       );
       return correctedText;
     } catch (error) {
@@ -402,14 +404,18 @@ class STTService {
       const [provider, sttSchema] = await this.getProviderSchema(req);
       const language = req.body?.language || '';
       let text = await this.sttRequest(provider, sttSchema, { audioBuffer, audioFile, language });
+      logger.info(`[STTService] Initial transcription: "${text}"`);
 
       // FASE 7: Transcription Correction using chat history
       const conversationId = req.body?.conversationId;
       const userId = req.user?.id;
 
       if (userId && conversationId) {
+        logger.info(`[STTService] Attempting correction with conversationId: ${conversationId}`);
         const chatHistory = await this.loadChatHistory(userId, conversationId);
         text = await this.correctTranscription(text, chatHistory, userId);
+      } else {
+        logger.info(`[STTService] Skipping correction. UserId: ${!!userId}, ConversationId: ${conversationId}`);
       }
 
       res.json({ text });
