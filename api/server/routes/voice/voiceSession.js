@@ -32,8 +32,9 @@ class VoiceSession {
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
 
-        logger.info(`[VoiceSession] Created for user: ${userId}`);
+        logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
     }
+
 
     /**
      * Initialize and start the session
