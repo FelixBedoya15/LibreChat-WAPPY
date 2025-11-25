@@ -52,7 +52,9 @@ class VoiceSession {
 
                     if (messages && messages.length > 0) {
                         // 1. Set lastMessageId (FASE 3 - Mensajes Verticales)
-                        this.lastMessageId = messages[0].messageId;
+                        // FIX: Asegurar que tomamos el mensaje más reciente absoluto
+                        const sortedMessages = [...messages].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                        this.lastMessageId = sortedMessages[0].messageId;
                         logger.info(`[VoiceSession] Loaded lastMessageId: ${this.lastMessageId}`);
 
                         // 2. Build Context (FASE 5 - Memoria)

@@ -368,14 +368,14 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             case 'text':
                 if (message.data.text) {
-                    options.onTextReceived?.(message.data.text);
+                    optionsRef.current.onTextReceived?.(message.data.text);
                 }
                 break;
 
             case 'status':
                 const newStatus = message.data.status;
                 setStatus(newStatus);
-                options.onStatusChange?.(newStatus);
+                optionsRef.current.onStatusChange?.(newStatus);
 
                 // AUTO-UNMUTE: Unmute when AI finishes speaking
                 if (newStatus === 'listening' || newStatus === 'turn_complete') {
@@ -391,25 +391,25 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             case 'interrupted':
                 // Handle interruption (stop playback, clear queues)
                 setStatus('listening');
-                options.onStatusChange?.('interrupted');
+                optionsRef.current.onStatusChange?.('interrupted');
                 break;
 
             case 'error':
-                options.onError?.(message.data.message);
+                optionsRef.current.onError?.(message.data.message);
                 break;
 
             case 'conversationId':
                 if (message.data.conversationId) {
-                    options.onConversationIdUpdate?.(message.data.conversationId);
+                    optionsRef.current.onConversationIdUpdate?.(message.data.conversationId);
                 }
                 break;
 
             case 'conversationUpdated':
                 console.log('[VoiceSession] Conversation updated event received');
-                options.onConversationUpdated?.();
+                optionsRef.current.onConversationUpdated?.();
                 break;
         }
-    }, [options]);
+    }, []);
 
     /**
      * Change voice
