@@ -136,10 +136,9 @@ class GeminiLiveClient extends EventEmitter {
                         },
                     ],
                 },
-                // outputAudioTranscription = transcribe lo que la IA dice
-                // SÍ funciona (aunque transcribe a la IA, no al usuario)
-                // inputAudioTranscription = NO funciona (no transcribe nada)
-                outputAudioTranscription: {},
+                // FASE 3: Trying inputAudioTranscription to transcribe USER voice
+                // According to official docs, this should transcribe the user's input
+                inputAudioTranscription: {},
             },
         };
 
