@@ -335,6 +335,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
               <VoiceModeButton
                 onClick={() => setShowVoiceModal(true)}
                 disabled={disableInputs || isNotAppendable}
+                isActive={showVoiceModal}
               />
               <div className={`${isRTL ? 'ml-2' : 'mr-2'}`}>
                 {(isSubmitting || isSubmittingAdded) && (showStopButton || showStopAdded) ? (
