@@ -52,8 +52,24 @@ class VoiceSession {
 
                     if (messages && messages.length > 0) {
                         // 1. Set lastMessageId (FASE 3 - Mensajes Verticales)
-                        this.lastMessageId = messages[0].messageId;
-                        logger.info(`[VoiceSession] Loaded lastMessageId: ${this.lastMessageId}`);
+                        // FIX: Usar consulta directa para asegurar el último mensaje absoluto y evitar ramas
+                        try {
+                            const Message = require('~/models/Message');
+                            const lastMsg = await Message.findOne({
+                                conversationId: this.conversationId,
+                                user: this.userId
+                            }).sort({ createdAt: -1 }).select('messageId').lean();
+
+                            if (lastMsg) {
+                                this.lastMessageId = lastMsg.messageId;
+                                logger.info(`[VoiceSession] Loaded absolute lastMessageId: ${this.lastMessageId}`);
+                            } else {
+                                this.lastMessageId = messages[0].messageId; // Fallback
+                            }
+                        } catch (err) {
+                            this.lastMessageId = messages[0].messageId; // Fallback
+                            logger.warn('[VoiceSession] Error fetching absolute last message, using getMessages result');
+                        }
 
                         // 2. Build Context (FASE 5 - Memoria)
                         const contextMessages = [...messages].reverse().map(msg => {
