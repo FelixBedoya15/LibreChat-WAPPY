@@ -5,6 +5,8 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import useGetAudioSettings from './useGetAudioSettings';
 import store from '~/store';
 
+import { useParams } from 'react-router-dom';
+
 const useSpeechToTextBrowser = (
   setText: (text: string) => void,
   onTranscriptionComplete: (text: string) => void,
@@ -43,6 +45,26 @@ const useSpeechToTextBrowser = (
     lastInterim.current = interimTranscript;
   }, [setText, interimTranscript]);
 
+  const { conversation: conversationId } = useParams();
+
+  const correctTranscription = async (text: string) => {
+    try {
+      const response = await fetch('/api/speech/correct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, conversationId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.text || text;
+      }
+      return text;
+    } catch (error) {
+      console.error('Correction failed', error);
+      return text;
+    }
+  };
+
   useEffect(() => {
     if (finalTranscript == null || finalTranscript === '') {
       return;
@@ -54,9 +76,12 @@ const useSpeechToTextBrowser = (
 
     setText(finalTranscript);
     lastTranscript.current = finalTranscript;
+
     if (autoSendText > -1 && finalTranscript.length > 0) {
-      timeoutRef.current = setTimeout(() => {
-        onTranscriptionComplete(finalTranscript);
+      timeoutRef.current = setTimeout(async () => {
+        const corrected = await correctTranscription(finalTranscript);
+        setText(corrected);
+        onTranscriptionComplete(corrected);
         resetTranscript();
       }, autoSendText * 1000);
     }
@@ -66,7 +91,7 @@ const useSpeechToTextBrowser = (
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [setText, onTranscriptionComplete, resetTranscript, finalTranscript, autoSendText]);
+  }, [setText, onTranscriptionComplete, resetTranscript, finalTranscript, autoSendText, conversationId]);
 
   const toggleListening = () => {
     if (!browserSupportsSpeechRecognition) {

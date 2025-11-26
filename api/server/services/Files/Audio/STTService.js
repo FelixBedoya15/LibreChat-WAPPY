@@ -450,6 +450,38 @@ class STTService {
       }
     }
   }
+
+  /**
+   * Processes a transcription correction request.
+   * @async
+   * @param {Object} req - The request object.
+   * @param {Object} res - The response object.
+   * @returns {Promise<void>}
+   */
+  async processCorrection(req, res) {
+    const { text, conversationId } = req.body;
+    const userId = req.user?.id;
+
+    if (!text) {
+      return res.status(400).json({ message: 'No text provided' });
+    }
+
+    try {
+      let correctedText = text;
+      if (userId && conversationId) {
+        logger.info(`[STTService] Processing correction request for conversationId: ${conversationId}`);
+        const chatHistory = await this.loadChatHistory(userId, conversationId);
+        correctedText = await this.correctTranscription(text, chatHistory, userId);
+      } else {
+        logger.warn('[STTService] Missing userId or conversationId for correction');
+      }
+
+      res.json({ text: correctedText });
+    } catch (error) {
+      logger.error('An error occurred while correcting the transcription:', error);
+      res.status(500).json({ message: 'Error correcting transcription', text });
+    }
+  }
 }
 
 /**
@@ -473,4 +505,16 @@ async function speechToText(req, res) {
   await sttService.processSpeechToText(req, res);
 }
 
-module.exports = { STTService, speechToText };
+/**
+ * Wrapper function for transcription correction.
+ * @async
+ * @param {Object} req - The request object.
+ * @param {Object} res - The response object.
+ * @returns {Promise<void>}
+ */
+async function correctTranscript(req, res) {
+  const sttService = await createSTTService();
+  await sttService.processCorrection(req, res);
+}
+
+module.exports = { STTService, speechToText, correctTranscript };

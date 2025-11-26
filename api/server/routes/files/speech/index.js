@@ -10,6 +10,7 @@ const router = express.Router();
 const { sttIpLimiter, sttUserLimiter } = createSTTLimiters();
 const { ttsIpLimiter, ttsUserLimiter } = createTTSLimiters();
 router.use('/stt', sttIpLimiter, sttUserLimiter, stt);
+router.post('/correct', sttIpLimiter, sttUserLimiter, require('~/server/services/Files/Audio/STTService').correctTranscript);
 router.use('/tts', ttsIpLimiter, ttsUserLimiter, tts);
 
 router.use('/config', customConfigSpeech);
