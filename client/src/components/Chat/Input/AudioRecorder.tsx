@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect } from 'react';
+import { useWatch } from 'react-hook-form';
 import { useToastContext, TooltipAnchor, ListeningIcon, Spinner } from '@librechat/client';
 import { useLocalize, useSpeechToText, useGetAudioSettings } from '~/hooks';
 import { useChatFormContext } from '~/Providers';
@@ -25,7 +26,7 @@ export default function AudioRecorder({
   const { speechToTextEndpoint } = useGetAudioSettings();
 
   const existingTextRef = useRef<string>('');
-  const text = methods.watch('text');
+  const text = useWatch({ control: methods.control, name: 'text' });
 
   // Reset transcript if text is cleared manually while listening
   useEffect(() => {
