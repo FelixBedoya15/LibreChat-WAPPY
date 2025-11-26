@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useToastContext, TooltipAnchor, ListeningIcon, Spinner } from '@librechat/client';
 import { useLocalize, useSpeechToText, useGetAudioSettings } from '~/hooks';
 import { useChatFormContext } from '~/Providers';
@@ -25,6 +25,15 @@ export default function AudioRecorder({
   const { speechToTextEndpoint } = useGetAudioSettings();
 
   const existingTextRef = useRef<string>('');
+  const text = methods.watch('text');
+
+  // Reset transcript if text is cleared manually while listening
+  useEffect(() => {
+    if (isListening && !text) {
+      resetTranscript();
+      existingTextRef.current = '';
+    }
+  }, [text, isListening, resetTranscript]);
 
   const onTranscriptionComplete = useCallback(
     (text: string) => {
@@ -48,6 +57,7 @@ export default function AudioRecorder({
             : text;
         ask({ text: finalText });
         reset({ text: '' });
+        resetTranscript();
         existingTextRef.current = '';
       }
     },
@@ -71,7 +81,7 @@ export default function AudioRecorder({
     [setValue, speechToTextEndpoint],
   );
 
-  const { isListening, isLoading, startRecording, stopRecording } = useSpeechToText(
+  const { isListening, isLoading, startRecording, stopRecording, resetTranscript } = useSpeechToText(
     setText,
     onTranscriptionComplete,
   );

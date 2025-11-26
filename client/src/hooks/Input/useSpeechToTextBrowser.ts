@@ -137,6 +137,7 @@ const useSpeechToTextBrowser = (
     isLoading: false,
     startRecording: toggleListening,
     stopRecording: toggleListening,
+    resetTranscript,
   };
 };
 
