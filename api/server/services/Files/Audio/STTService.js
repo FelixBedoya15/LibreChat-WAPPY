@@ -380,10 +380,11 @@ class STTService {
       5. OUTPUT ONLY THE CORRECTED USER TEXT.
       
       RULES:
-      - DO NOT include any part of the history/context in your output.
-      - DO NOT add explanations, quotes, or conversational filler.
+      - OUTPUT ONLY THE CORRECTED USER TEXT. NO PREAMBLE. NO POSTSCRIPT.
+      - ABSOLUTELY FORBIDDEN to include the "Recent conversation history" in your output.
+      - The history is ONLY for context (understanding acronyms like SST).
+      - If the user text is short (e.g., "Hola"), DO NOT append the history.
       - If the raw transcription is already correct, return it exactly as is.
-      - Keep the same language as the user.
       `;
 
       const result = await model.generateContent(prompt);

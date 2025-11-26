@@ -112,6 +112,7 @@ const useSpeechToTextBrowser = (
 
     if (isListening === true) {
       SpeechRecognition.stopListening();
+      resetTranscript();
     } else {
       SpeechRecognition.startListening({
         language: languageSTT,
