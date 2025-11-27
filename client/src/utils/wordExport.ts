@@ -21,6 +21,9 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     const coverChildren: Paragraph[] = [];
 
     // Add Logo if URL is provided
+    // TODO: Fix ImageRun type compatibility issue
+    // Temporarily disabled to prevent document corruption
+    /*
     if (logoUrl) {
         try {
             const imageResponse = await fetch(logoUrl);
@@ -46,6 +49,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             console.error('Error loading logo:', error);
         }
     }
+    */
 
     // Cover Title
     coverChildren.push(
