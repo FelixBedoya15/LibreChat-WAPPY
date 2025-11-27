@@ -94,7 +94,9 @@ export default function AudioRecorder({
     // Detect message send: text goes from "something" to empty
     if (previousTextRef.current !== '' && currentText === '' && isListening) {
       console.log('[AudioRecorder] 📤 Message sent detected (text cleared), closing microphone');
+      console.log('[AudioRecorder] About to call stopRecording(), isListening:', isListening);
       stopRecording();
+      console.log('[AudioRecorder] stopRecording() called');
     }
 
     // Update previous text
