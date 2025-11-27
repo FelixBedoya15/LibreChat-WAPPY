@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header, Footer, ImageRun, PageNumber, NumberFormat } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header, Footer, ImageRun, PageNumber, NumberFormat, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 import { saveAs } from 'file-saver';
 import { ExportConfig } from '~/hooks/useExportConfig';
 
@@ -75,7 +75,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     );
 
     // --- Content Page ---
-    const contentChildren: Paragraph[] = [];
+    const contentChildren: (Paragraph | Table)[] = [];
 
     // Message Title
     contentChildren.push(
@@ -92,44 +92,126 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
         })
     );
 
-    // Parse Markdown Content (Simple parser with bold support)
+    // Parse Markdown Content (Comprehensive parser)
     const lines = content.split('\n');
+    const contentElements: (Paragraph | Table)[] = [];
 
-    // Helper function to parse bold text in a line
-    const parseBoldText = (text: string): (TextRun | string)[] => {
-        const parts: (TextRun | string)[] = [];
-        const boldRegex = /\*\*(.+?)\*\*/g;
+    let i = 0;
+    let inTable = false;
+    let tableLines: string[] = [];
+
+    // Helper function to parse inline formatting (bold, italic)
+    const parseInline = (text: string): TextRun[] => {
+        const runs: TextRun[] = [];
+        const regex = /(\*\*(.+?)\*\*)|(\*(.+?)\*)/g;
         let lastIndex = 0;
         let match;
 
-        while ((match = boldRegex.exec(text)) !== null) {
-            // Add text before bold
+        while ((match = regex.exec(text)) !== null) {
             if (match.index > lastIndex) {
-                parts.push(text.substring(lastIndex, match.index));
+                runs.push(new TextRun({
+                    text: text.substring(lastIndex, match.index),
+                    font: fontFamily,
+                    size: fontSize * 2,
+                }));
             }
-            // Add bold text
-            parts.push(
-                new TextRun({
-                    text: match[1],
+
+            if (match[1]) {
+                // **bold**
+                runs.push(new TextRun({
+                    text: match[2],
                     bold: true,
                     font: fontFamily,
                     size: fontSize * 2,
-                })
-            );
-            lastIndex = boldRegex.lastIndex;
+                }));
+            } else if (match[3]) {
+                // *italic*
+                runs.push(new TextRun({
+                    text: match[4],
+                    italics: true,
+                    font: fontFamily,
+                    size: fontSize * 2,
+                }));
+            }
+
+            lastIndex = regex.lastIndex;
         }
 
-        // Add remaining text
         if (lastIndex < text.length) {
-            parts.push(text.substring(lastIndex));
+            runs.push(new TextRun({
+                text: text.substring(lastIndex),
+                font: fontFamily,
+                size: fontSize * 2,
+            }));
         }
 
-        return parts.length > 0 ? parts : [text];
+        return runs.length > 0 ? runs : [new TextRun({ text, font: fontFamily, size: fontSize * 2 })];
     };
 
-    lines.forEach((line) => {
-        let text = line.trim();
+    // Helper to create table from markdown
+    const createTable = (lines: string[]): Table => {
+        const rows: TableRow[] = [];
+
+        lines.forEach((line, index) => {
+            // Skip separator line (|:--|:--:|--:|)
+            if (index === 1 && line.includes('--')) {
+                return;
+            }
+
+            const cells = line.split('|')
+                .filter(cell => cell.trim() !== '')
+                .map(cell => cell.trim());
+
+            const tableCells = cells.map(cellText =>
+                new TableCell({
+                    children: [new Paragraph({
+                        children: parseInline(cellText),
+                    })],
+                    width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
+                })
+            );
+
+            rows.push(new TableRow({
+                children: tableCells,
+            }));
+        });
+
+        return new Table({
+            rows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+        });
+    };
+
+    while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // Detect table start
+        if (trimmed.includes('|') && !inTable) {
+            inTable = true;
+            tableLines = [trimmed];
+            i++;
+            continue;
+        }
+
+        // Continue collecting table lines
+        if (inTable) {
+            if (trimmed.includes('|')) {
+                tableLines.push(trimmed);
+                i++;
+                continue;
+            } else {
+                // Table ended
+                inTable = false;
+                contentElements.push(createTable(tableLines));
+                tableLines = [];
+                // Don't increment i, process this line normally
+            }
+        }
+
+        // Process non-table lines
         let headingLevel: any = undefined;
+        let text = trimmed;
 
         // Headings
         if (text.startsWith('# ')) {
@@ -143,38 +225,79 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             text = text.substring(4);
         }
 
+        // Horizontal separator
+        if (text === '---' || text === '***' || text === '___') {
+            contentElements.push(new Paragraph({
+                text: '',
+                border: {
+                    bottom: {
+                        color: '000000',
+                        space: 1,
+                        style: BorderStyle.SINGLE,
+                        size: 6,
+                    },
+                },
+                spacing: { before: 200, after: 200 },
+            }));
+            i++;
+            continue;
+        }
+
         // Code blocks
         if (text.startsWith('```')) {
-            return; // Skip code block markers
+            i++;
+            continue;
         }
 
+        // Empty line
         if (text === '') {
-            contentChildren.push(new Paragraph({ text: '' })); // Empty line
-            return;
+            contentElements.push(new Paragraph({ text: '' }));
+            i++;
+            continue;
         }
 
-        // Parse bold text
-        const parsedParts = parseBoldText(text);
+        // List items
+        const bulletMatch = text.match(/^[-*+]\s+(.+)$/);
+        const numberMatch = text.match(/^\d+\.\s+(.+)$/);
 
-        // Convert to children array
-        const children: (TextRun | string)[] = parsedParts.map(part => {
-            if (typeof part === 'string') {
-                return new TextRun({
-                    text: part,
-                    font: fontFamily,
-                    size: fontSize * 2,
-                });
-            }
-            return part;
-        });
+        if (bulletMatch) {
+            contentElements.push(new Paragraph({
+                children: parseInline(bulletMatch[1]),
+                bullet: { level: 0 },
+                spacing: { after: 100 },
+            }));
+            i++;
+            continue;
+        }
 
-        contentChildren.push(
-            new Paragraph({
-                children: children as TextRun[],
-                heading: headingLevel,
-                spacing: { after: 120 },
-            })
-        );
+        if (numberMatch) {
+            contentElements.push(new Paragraph({
+                children: parseInline(numberMatch[1]),
+                numbering: { reference: 'default-numbering', level: 0 },
+                spacing: { after: 100 },
+            }));
+            i++;
+            continue;
+        }
+
+        // Regular paragraph
+        contentElements.push(new Paragraph({
+            children: parseInline(text),
+            heading: headingLevel,
+            spacing: { after: 120 },
+        }));
+
+        i++;
+    }
+
+    // Add remaining table if any
+    if (inTable && tableLines.length > 0) {
+        contentElements.push(createTable(tableLines));
+    }
+
+    // Convert to contentChildren
+    contentElements.forEach(element => {
+        contentChildren.push(element as any);
     });
     // --- Document Definition ---
     const doc = new Document({
