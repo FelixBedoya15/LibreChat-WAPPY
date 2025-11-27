@@ -33,9 +33,14 @@ export default function useExportConfig() {
         setExportConfig(defaultConfig);
     };
 
+    const setConfig = (config: ExportConfig) => {
+        setExportConfig(config);
+    };
+
     return {
         exportConfig,
         updateConfig,
         resetConfig,
+        setConfig,
     };
 }

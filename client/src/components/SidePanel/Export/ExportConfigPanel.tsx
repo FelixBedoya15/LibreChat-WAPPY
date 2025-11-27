@@ -6,7 +6,7 @@ import { Input, Label, Switch, Button } from '@librechat/client';
 
 export default function ExportConfigPanel() {
     const localize = useLocalize();
-    const { exportConfig, updateConfig, resetConfig } = useExportConfig();
+    const { exportConfig, updateConfig, resetConfig, setConfig } = useExportConfig();
 
     // Draft state for unsaved changes
     const [draftConfig, setDraftConfig] = useState<ExportConfig>(exportConfig);
@@ -17,7 +17,7 @@ export default function ExportConfigPanel() {
     }, [exportConfig]);
 
     const handleSave = () => {
-        updateConfig(draftConfig);
+        setConfig(draftConfig);
     };
 
     const handleCancel = () => {
