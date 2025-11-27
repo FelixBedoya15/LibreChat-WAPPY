@@ -48,6 +48,7 @@ const useSpeechToTextBrowser = (
   const { conversation: conversationId } = useParams();
 
   const correctTranscription = async (text: string) => {
+    console.log('[useSpeechToTextBrowser] Attempting to correct:', text);
     try {
       const response = await fetch('/api/speech/correct', {
         method: 'POST',
@@ -56,11 +57,13 @@ const useSpeechToTextBrowser = (
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('[useSpeechToTextBrowser] Correction result:', data.text);
         return data.text || text;
       }
+      console.warn('[useSpeechToTextBrowser] Correction failed, using original text');
       return text;
     } catch (error) {
-      console.error('Correction failed', error);
+      console.error('[useSpeechToTextBrowser] Correction error:', error);
       return text;
     }
   };
