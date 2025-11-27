@@ -1,18 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocalize } from '~/hooks';
 import useExportConfig from '~/hooks/useExportConfig';
-import { Input, Label, Switch } from '@librechat/client';
+import type { ExportConfig } from '~/hooks/useExportConfig';
+import { Input, Label, Switch, Button } from '@librechat/client';
 
 export default function ExportConfigPanel() {
     const localize = useLocalize();
     const { exportConfig, updateConfig, resetConfig } = useExportConfig();
+
+    // Draft state for unsaved changes
+    const [draftConfig, setDraftConfig] = useState<ExportConfig>(exportConfig);
+
+    const handleSave = () => {
+        updateConfig(draftConfig);
+    };
+
+    const handleCancel = () => {
+        setDraftConfig(exportConfig);
+    };
+
+    const handleReset = () => {
+        resetConfig();
+        setDraftConfig(exportConfig);
+    };
+
+    const hasChanges = JSON.stringify(draftConfig) !== JSON.stringify(exportConfig);
 
     return (
         <div className="flex flex-col gap-4 p-4 text-sm text-text-primary">
             <div className="flex items-center justify-between border-b border-border-light pb-2">
                 <h3 className="text-lg font-medium">Configuración de Exportación</h3>
                 <button
-                    onClick={resetConfig}
+                    onClick={handleReset}
                     className="text-xs text-text-secondary hover:text-text-primary"
                 >
                     Restaurar
@@ -25,8 +44,8 @@ export default function ExportConfigPanel() {
                     <Label htmlFor="coverTitle">Título de Portada</Label>
                     <Input
                         id="coverTitle"
-                        value={exportConfig.coverTitle}
-                        onChange={(e) => updateConfig({ coverTitle: e.target.value })}
+                        value={draftConfig.coverTitle}
+                        onChange={(e) => setDraftConfig({ ...draftConfig, coverTitle: e.target.value })}
                         placeholder="Ej: Reporte de IA"
                     />
                 </div>
@@ -35,8 +54,8 @@ export default function ExportConfigPanel() {
                     <Label htmlFor="logoUrl">URL del Logo (Opcional)</Label>
                     <Input
                         id="logoUrl"
-                        value={exportConfig.logoUrl}
-                        onChange={(e) => updateConfig({ logoUrl: e.target.value })}
+                        value={draftConfig.logoUrl}
+                        onChange={(e) => setDraftConfig({ ...draftConfig, logoUrl: e.target.value })}
                         placeholder="https://ejemplo.com/logo.png"
                     />
                 </div>
@@ -46,8 +65,8 @@ export default function ExportConfigPanel() {
                     <Label htmlFor="documentTitle">Título del Documento (Metadatos)</Label>
                     <Input
                         id="documentTitle"
-                        value={exportConfig.documentTitle}
-                        onChange={(e) => updateConfig({ documentTitle: e.target.value })}
+                        value={draftConfig.documentTitle}
+                        onChange={(e) => setDraftConfig({ ...draftConfig, documentTitle: e.target.value })}
                     />
                 </div>
 
@@ -56,8 +75,8 @@ export default function ExportConfigPanel() {
                         <Label htmlFor="fontFamily">Tipografía</Label>
                         <Input
                             id="fontFamily"
-                            value={exportConfig.fontFamily}
-                            onChange={(e) => updateConfig({ fontFamily: e.target.value })}
+                            value={draftConfig.fontFamily}
+                            onChange={(e) => setDraftConfig({ ...draftConfig, fontFamily: e.target.value })}
                         />
                     </div>
                     <div className="space-y-2">
@@ -65,8 +84,8 @@ export default function ExportConfigPanel() {
                         <Input
                             id="fontSize"
                             type="number"
-                            value={exportConfig.fontSize}
-                            onChange={(e) => updateConfig({ fontSize: Number(e.target.value) })}
+                            value={draftConfig.fontSize}
+                            onChange={(e) => setDraftConfig({ ...draftConfig, fontSize: Number(e.target.value) })}
                         />
                     </div>
                 </div>
@@ -77,8 +96,8 @@ export default function ExportConfigPanel() {
                         id="margins"
                         type="number"
                         step="0.1"
-                        value={exportConfig.margins}
-                        onChange={(e) => updateConfig({ margins: Number(e.target.value) })}
+                        value={draftConfig.margins}
+                        onChange={(e) => setDraftConfig({ ...draftConfig, margins: Number(e.target.value) })}
                     />
                 </div>
 
@@ -87,8 +106,8 @@ export default function ExportConfigPanel() {
                     <Label htmlFor="messageTitle">Título del Mensaje</Label>
                     <Input
                         id="messageTitle"
-                        value={exportConfig.messageTitle}
-                        onChange={(e) => updateConfig({ messageTitle: e.target.value })}
+                        value={draftConfig.messageTitle}
+                        onChange={(e) => setDraftConfig({ ...draftConfig, messageTitle: e.target.value })}
                     />
                 </div>
 
@@ -96,10 +115,30 @@ export default function ExportConfigPanel() {
                     <Label htmlFor="showPagination">Mostrar Paginación</Label>
                     <Switch
                         id="showPagination"
-                        checked={exportConfig.showPagination}
-                        onCheckedChange={(checked) => updateConfig({ showPagination: checked })}
+                        checked={draftConfig.showPagination}
+                        onCheckedChange={(checked) => setDraftConfig({ ...draftConfig, showPagination: checked })}
                     />
                 </div>
+            </div>
+
+            {/* Save/Cancel Buttons */}
+            <div className="flex gap-2 border-t border-border-light pt-4">
+                <Button
+                    onClick={handleSave}
+                    disabled={!hasChanges}
+                    className="flex-1"
+                    variant="default"
+                >
+                    Guardar Cambios
+                </Button>
+                <Button
+                    onClick={handleCancel}
+                    disabled={!hasChanges}
+                    className="flex-1"
+                    variant="outline"
+                >
+                    Cancelar
+                </Button>
             </div>
         </div>
     );

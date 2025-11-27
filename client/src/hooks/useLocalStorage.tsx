@@ -25,7 +25,16 @@ export default function useLocalStorage<T>(key: string, defaultValue: T): [T, (v
       }
 
       const lsi = localStorage.getItem(key);
-      setValue(JSON.parse(lsi ?? ''));
+      if (lsi) {
+        try {
+          setValue(JSON.parse(lsi));
+        } catch (error) {
+          console.error('Error parsing localStorage value:', error);
+          setValue(defaultValue);
+        }
+      } else {
+        setValue(defaultValue);
+      }
     }
 
     window.addEventListener('storage', handler);
