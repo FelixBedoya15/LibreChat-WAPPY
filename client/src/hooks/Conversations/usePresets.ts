@@ -18,7 +18,7 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { NotificationSeverity } from '~/common';
 import useNewConvo from '~/hooks/useNewConvo';
 import { useChatContext } from '~/Providers';
-import { useLocalize } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
 import store from '~/store';
 
 export default function usePresets() {

@@ -2,7 +2,8 @@ import { useRef, useCallback } from 'react';
 import { useRecoilState } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import type { SPPickerConfig } from '~/components/SidePanel/Agents/config';
-import { useLocalize, useAuthContext } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
+import { useAuthContext } from '~/hooks/AuthContext';
 import { useGetStartupConfig } from '~/data-provider';
 import useSharePointToken from './useSharePointToken';
 import store from '~/store';
@@ -374,7 +375,7 @@ export default function useSharePointPicker({
   const isAvailable = startupConfig?.sharePointFilePickerEnabled && isEntraIdUser && !tokenError;
 
   return {
-    openSharePointPicker: isAvailable ? openSharePointPicker : () => {},
+    openSharePointPicker: isAvailable ? openSharePointPicker : () => { },
     closeSharePointPicker: handleDialogClose,
     error: tokenError ? 'Failed to authenticate with SharePoint' : null,
     cleanup,

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import { useTextToSpeechMutation, useVoicesQuery } from '~/data-provider';
-import { useLocalize } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
 import store from '~/store';
 
 const createFormData = (text: string, voice: string) => {

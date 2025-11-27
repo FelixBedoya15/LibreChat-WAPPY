@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { PermissionTypes, PrincipalType, Permissions } from 'librechat-data-provider';
-import { useHasAccess } from '~/hooks';
+import useHasAccess from '~/hooks/Roles/useHasAccess';
 
 /**
  * Hook to check people picker permissions and return the appropriate type filter

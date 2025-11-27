@@ -9,7 +9,9 @@ import {
 } from 'librechat-data-provider/react-query';
 import type { TUpdateUserPlugins, TPlugin, MCPServersResponse } from 'librechat-data-provider';
 import type { ConfigFieldDetail } from '~/common';
-import { useLocalize, useMCPSelect, useMCPConnectionStatus } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
+import useMCPSelect from '~/hooks/MCP/useMCPSelect';
+import useMCPConnectionStatus from '~/hooks/MCP/useMCPConnectionStatus';
 import { useGetStartupConfig } from '~/data-provider';
 
 interface ServerState {
@@ -536,10 +538,10 @@ export function useMCPServerManager({ conversationId }: { conversationId?: strin
             serverData?.authConfig ||
             (serverConfig?.customUserVars
               ? Object.entries(serverConfig.customUserVars).map(([key, config]) => ({
-                  authField: key,
-                  label: config.title,
-                  description: config.description,
-                }))
+                authField: key,
+                label: config.title,
+                description: config.description,
+              }))
               : []),
           authenticated: serverData?.authenticated ?? false,
         };
@@ -561,11 +563,11 @@ export function useMCPServerManager({ conversationId }: { conversationId?: strin
         serverStatus,
         tool: serverData
           ? ({
-              name: serverName,
-              pluginKey: `${Constants.mcp_prefix}${serverName}`,
-              icon: serverData.icon,
-              authenticated: serverData.authenticated,
-            } as TPlugin)
+            name: serverName,
+            pluginKey: `${Constants.mcp_prefix}${serverName}`,
+            icon: serverData.icon,
+            authenticated: serverData.authenticated,
+          } as TPlugin)
           : undefined,
         onConfigClick: handleConfigClick,
         isInitializing: isInitializing(serverName),

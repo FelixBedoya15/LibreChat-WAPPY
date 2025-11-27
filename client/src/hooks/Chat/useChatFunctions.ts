@@ -28,7 +28,7 @@ import store, { useGetEphemeralAgent } from '~/store';
 import { getEndpointField, logger } from '~/utils';
 import useUserKey from '~/hooks/Input/useUserKey';
 import { useNavigate } from 'react-router-dom';
-import { useAuthContext } from '~/hooks';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 const logChatRequest = (request: Record<string, unknown>) => {
   logger.log('=====================================\nAsk function called with:');

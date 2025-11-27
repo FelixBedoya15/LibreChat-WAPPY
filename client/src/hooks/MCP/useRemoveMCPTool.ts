@@ -3,7 +3,7 @@ import { useFormContext } from 'react-hook-form';
 import { Constants } from 'librechat-data-provider';
 import { useToastContext } from '@librechat/client';
 import type { AgentForm } from '~/common';
-import { useLocalize } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
 
 /**
  * Hook for removing MCP tools/servers from an agent

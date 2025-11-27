@@ -20,7 +20,7 @@ import Parameters from '~/components/SidePanel/Parameters/Panel';
 import FilesPanel from '~/components/SidePanel/Files/Panel';
 import MCPPanel from '~/components/SidePanel/MCP/MCPPanel';
 import { useGetStartupConfig } from '~/data-provider';
-import { useHasAccess } from '~/hooks';
+import useHasAccess from '~/hooks/Roles/useHasAccess';
 
 export default function useSideNavLinks({
   hidePanel,

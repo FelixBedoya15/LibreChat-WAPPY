@@ -18,7 +18,10 @@ import type {
 } from 'librechat-data-provider';
 import type { ZodAny } from 'zod';
 import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
-import { useAuthContext, useAgentsMap, useDefaultConvo, useSubmitMessage } from '~/hooks';
+import { useAuthContext } from '~/hooks/AuthContext';
+import useAgentsMap from '~/hooks/Agents/useAgentsMap';
+import useDefaultConvo from '~/hooks/Conversations/useDefaultConvo';
+import useSubmitMessage from '~/hooks/Messages/useSubmitMessage';
 import { useChatContext, useChatFormContext } from '~/Providers';
 import { useGetAgentByIdQuery } from '~/data-provider';
 import store from '~/store';
