@@ -132,6 +132,7 @@ const useSpeechToTextBrowser = (
       console.log('[useSpeechToTextBrowser] Stopping microphone');
       SpeechRecognition.stopListening();
       resetTranscript();
+      setText(''); // Force clear external text state
     } else {
       console.log('[useSpeechToTextBrowser] Starting microphone');
       SpeechRecognition.startListening({
