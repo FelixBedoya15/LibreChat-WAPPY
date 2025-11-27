@@ -13,7 +13,7 @@ export interface ExportConfig {
 
 const defaultConfig: ExportConfig = {
     documentTitle: 'AI Conversation',
-    fontFamily: 'Calibri',
+    fontFamily: 'Book Antiqua',
     fontSize: 12,
     margins: 1,
     logoUrl: '',

@@ -42,7 +42,8 @@ type HoverButtonProps = {
 
 const extractMessageContent = (message: TMessage): string => {
   if (typeof message.content === 'string') {
-    return message.content;
+    // Remove search/citation markers
+    return message.content.replace(/\ue202[^\s]*/g, '').trim();
   }
 
   if (Array.isArray(message.content)) {
@@ -61,10 +62,12 @@ const extractMessageContent = (message: TMessage): string => {
         return '';
       })
       .filter(text => typeof text === 'string' && text.trim() !== '') // Type guard before trim()
-      .join('\n\n'); // Join with double newline for better formatting
+      .join('\n\n') // Join with double newline for better formatting
+      .replace(/\ue202[^\s]*/g, '') // Remove search/citation markers
+      .trim();
   }
 
-  return message.text || '';
+  return (message.text || '').replace(/\ue202[^\s]*/g, '').trim();
 };
 
 const HoverButton = memo(
