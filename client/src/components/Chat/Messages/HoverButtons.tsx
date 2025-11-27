@@ -2,7 +2,10 @@ import React, { useState, useMemo, memo } from 'react';
 import { useRecoilState } from 'recoil';
 import type { TConversation, TMessage, TFeedback } from 'librechat-data-provider';
 import { EditIcon, Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '@librechat/client';
+import { FileDown } from 'lucide-react';
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
+import useExportConfig from '~/hooks/useExportConfig';
+import { exportToWord } from '~/utils/wordExport';
 import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
 import Feedback from './Feedback';
@@ -105,6 +108,24 @@ const HoverButton = memo(
 );
 
 HoverButton.displayName = 'HoverButton';
+
+const ExportButton = ({ message, isLast, localize }: { message: TMessage; isLast: boolean; localize: (key: string) => string }) => {
+  const { exportConfig } = useExportConfig();
+
+  const handleExport = async () => {
+    const content = extractMessageContent(message);
+    await exportToWord(content, exportConfig);
+  };
+
+  return (
+    <HoverButton
+      onClick={handleExport}
+      title="Exportar a Word"
+      icon={<FileDown size="19" />}
+      isLast={isLast}
+    />
+  );
+};
 
 const HoverButtons = ({
   index,
@@ -212,6 +233,15 @@ const HoverButtons = ({
         isLast={isLast}
         className={`ml-0 flex items-center gap-1.5 text-xs ${isSubmitting && isCreatedByUser ? 'md:opacity-0 md:group-hover:opacity-100' : ''}`}
       />
+
+      {/* Export to Word Button */}
+      {!isCreatedByUser && (
+        <ExportButton
+          message={message}
+          isLast={isLast}
+          localize={localize}
+        />
+      )}
 
       {/* Edit Button */}
       {isEditableEndpoint && (
