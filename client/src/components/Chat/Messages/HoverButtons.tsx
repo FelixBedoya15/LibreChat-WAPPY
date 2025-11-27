@@ -54,16 +54,14 @@ const extractMessageContent = (message: TMessage): string => {
         if ('text' in part) {
           return part.text || '';
         }
+        // Skip 'think' blocks - don't export reasoning/thoughts
         if ('think' in part) {
-          const think = part.think;
-          if (typeof think === 'string') {
-            return think;
-          }
-          return think && 'text' in think ? think.text || '' : '';
+          return '';
         }
         return '';
       })
-      .join('');
+      .filter(text => text.trim() !== '') // Remove empty strings
+      .join('\n\n'); // Join with double newline for better formatting
   }
 
   return message.text || '';
