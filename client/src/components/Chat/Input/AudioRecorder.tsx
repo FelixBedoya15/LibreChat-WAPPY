@@ -49,14 +49,9 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
-        // Reset transcript to prevent accumulation in continuous mode
-        if (resetTranscript) {
-          resetTranscript();
-        }
       }
     },
     [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
-    // Note: resetTranscript is intentionally omitted from dependencies as it's a stable function from the hook
   );
 
   const setText = useCallback(
@@ -76,7 +71,7 @@ export default function AudioRecorder({
     [setValue, speechToTextEndpoint],
   );
 
-  const { isListening, isLoading, startRecording, stopRecording, reset: resetTranscript } = useSpeechToText(
+  const { isListening, isLoading, startRecording, stopRecording } = useSpeechToText(
     setText,
     onTranscriptionComplete,
   );

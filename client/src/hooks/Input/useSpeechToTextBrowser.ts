@@ -82,7 +82,8 @@ const useSpeechToTextBrowser = (
         const corrected = await correctTranscription(finalTranscript);
         setText(corrected);
         onTranscriptionComplete(corrected);
-        resetTranscript();
+        // Auto-reset after sending to prevent accumulation
+        manualReset();
       }, autoSendText * 1000);
     }
 
