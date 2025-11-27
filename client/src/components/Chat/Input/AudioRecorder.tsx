@@ -49,6 +49,10 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
+        // Reset transcript to prevent accumulation in continuous mode
+        if (reset) {
+          reset();
+        }
       }
     },
     [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
@@ -71,7 +75,7 @@ export default function AudioRecorder({
     [setValue, speechToTextEndpoint],
   );
 
-  const { isListening, isLoading, startRecording, stopRecording } = useSpeechToText(
+  const { isListening, isLoading, startRecording, stopRecording, reset } = useSpeechToText(
     setText,
     onTranscriptionComplete,
   );

@@ -132,11 +132,22 @@ const useSpeechToTextBrowser = (
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const manualReset = () => {
+    resetTranscript();
+    lastTranscript.current = null;
+    lastInterim.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
   return {
     isListening,
     isLoading: false,
     startRecording: toggleListening,
     stopRecording: toggleListening,
+    reset: manualReset,
   };
 };
 
