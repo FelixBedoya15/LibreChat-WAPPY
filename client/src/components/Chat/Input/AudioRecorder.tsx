@@ -50,13 +50,13 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
-        // Reset transcript using ref (no TDZ error)
-        if (resetTranscriptRef.current) {
-          resetTranscriptRef.current();
+        // Auto-close microphone after sending to prevent accumulation
+        if (isListening) {
+          stopRecording();
         }
       }
     },
-    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
+    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint, isListening, stopRecording],
   );
 
   const setText = useCallback(
@@ -85,6 +85,16 @@ export default function AudioRecorder({
   useEffect(() => {
     resetTranscriptRef.current = resetTranscript || null;
   }, [resetTranscript]);
+
+  // Monitor text field for manual deletions
+  const currentText = getValues('text') || '';
+  useEffect(() => {
+    // If user manually clears the text while mic is on, reset transcript
+    if (currentText === '' && isListening && resetTranscriptRef.current) {
+      console.log('[AudioRecorder] Text cleared while listening, resetting transcript');
+      resetTranscriptRef.current();
+    }
+  }, [currentText, isListening]);
 
   if (!textAreaRef.current) {
     return null;
