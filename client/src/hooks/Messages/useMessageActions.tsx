@@ -19,7 +19,7 @@ import {
 } from '~/Providers';
 import useCopyToClipboard from './useCopyToClipboard';
 import { useAuthContext } from '~/hooks/AuthContext';
-import useLocalize from '~/hooks/useLocalize';
+import { useLocalize } from '~/hooks';
 import store from '~/store';
 
 export type TMessageActions = Pick<

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useToastContext } from '@librechat/client';
-import useLocalize from '~/hooks/useLocalize';
+import { useLocalize } from '~/hooks';
 
 export const useDelayedUploadToast = () => {
   const localize = useLocalize();

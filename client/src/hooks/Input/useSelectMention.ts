@@ -10,7 +10,7 @@ import type {
 } from 'librechat-data-provider';
 import type { MentionOption, ConvoGenerator } from '~/common';
 import { getConvoSwitchLogic, getModelSpecIconURL, removeUnavailableTools, logger } from '~/utils';
-import useDefaultConvo from '~/hooks/Conversations/useDefaultConvo';
+import { useDefaultConvo } from '~/hooks';
 import store from '~/store';
 
 export default function useSelectMention({

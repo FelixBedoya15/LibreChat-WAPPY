@@ -9,9 +9,7 @@ import {
 } from 'librechat-data-provider/react-query';
 import type { TUpdateUserPlugins, TPlugin, MCPServersResponse } from 'librechat-data-provider';
 import type { ConfigFieldDetail } from '~/common';
-import useLocalize from '~/hooks/useLocalize';
-import { useMCPSelect } from '~/hooks/MCP/useMCPSelect';
-import { useMCPConnectionStatus } from '~/hooks/MCP/useMCPConnectionStatus';
+import { useLocalize, useMCPSelect, useMCPConnectionStatus } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
 
 interface ServerState {

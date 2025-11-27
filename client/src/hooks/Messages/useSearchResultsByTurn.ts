@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { TAttachment, Tools, SearchResultData } from 'librechat-data-provider';
-import useLocalize from '~/hooks/useLocalize';
+import { useLocalize } from '~/hooks';
 
 interface FileSource {
   fileId: string;

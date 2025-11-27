@@ -10,7 +10,6 @@ const useSpeechToText = (
   isListening?: boolean;
   stopRecording: () => void | (() => Promise<void>);
   startRecording: () => void | (() => Promise<void>);
-  resetTranscript: () => void;
 } => {
   const { speechToTextEndpoint } = useGetAudioSettings();
   const externalSpeechToText = speechToTextEndpoint === 'external';
@@ -20,7 +19,6 @@ const useSpeechToText = (
     isLoading: speechIsLoadingBrowser,
     startRecording: startSpeechRecordingBrowser,
     stopRecording: stopSpeechRecordingBrowser,
-    resetTranscript: resetTranscriptBrowser,
   } = useSpeechToTextBrowser(setText, onTranscriptionComplete);
 
   const {
@@ -40,14 +38,11 @@ const useSpeechToText = (
     ? stopSpeechRecordingExternal
     : stopSpeechRecordingBrowser;
 
-  const resetTranscript = externalSpeechToText ? () => { } : resetTranscriptBrowser;
-
   return {
     isLoading,
     isListening,
     stopRecording,
     startRecording,
-    resetTranscript,
   };
 };
 
