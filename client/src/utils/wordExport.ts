@@ -95,10 +95,14 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     // Parse Markdown Content (Comprehensive parser)
     // Clean citation markers before processing
     const cleanCitations = content
-        // Remove Unicode private use characters (citation markers)
+        // Remove Unicode private use characters (citation markers) - actual characters
         .replace(/[\uE000-\uF8FF]/g, '')
+        // Remove escaped unicode strings that might appear as text
+        .replace(/\\ue2[0-9a-fA-F]{2}/g, '')
         // Remove standalone patterns like "turn0search7"
-        .replace(/turn\d+(search|ref|image|news|video)\d+/g, '');
+        .replace(/turn\d+(search|ref|image|news|video)\d+/g, '')
+        // Clean up any remaining escaped unicode
+        .replace(/\\u[eE][0-2][0-9a-fA-F]{2}/g, '');
 
     const lines = cleanCitations.split('\n');
     const contentElements: (Paragraph | Table)[] = [];
