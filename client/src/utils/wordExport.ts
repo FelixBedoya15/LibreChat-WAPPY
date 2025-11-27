@@ -21,9 +21,6 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     const coverChildren: Paragraph[] = [];
 
     // Add Logo if URL is provided
-    // TODO: Fix ImageRun type compatibility issue
-    // Temporarily disabled to prevent document corruption
-    /*
     if (logoUrl) {
         try {
             const imageResponse = await fetch(logoUrl);
@@ -49,7 +46,6 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             console.error('Error loading logo:', error);
         }
     }
-    */
 
     // Cover Title
     coverChildren.push(
@@ -96,199 +92,47 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
         })
     );
 
-    // Parse Markdown Content (Enhanced Parser)
+    // Parse Markdown Content (Simple parser - WORKS)
     const lines = content.split('\n');
 
-    let inCodeBlock = false;
-    let listItems: string[] = [];
-    let currentListType: 'bullet' | 'number' | null = null;
-
-    const flushList = () => {
-        if (listItems.length > 0 && currentListType) {
-            // Add list items as separate paragraphs
-            listItems.forEach((item, index) => {
-                contentChildren.push(
-                    new Paragraph({
-                        text: item,
-                        bullet: currentListType === 'bullet' ? { level: 0 } : undefined,
-                        numbering: currentListType === 'number' ? { reference: 'default-numbering', level: 0 } : undefined,
-                        spacing: { after: 100 },
-                        run: {
-                            font: fontFamily,
-                            size: fontSize * 2,
-                        },
-                    })
-                );
-            });
-            listItems = [];
-            currentListType = null;
-        }
-    };
-
-    const parseInlineFormatting = (text: string): TextRun[] => {
-        const runs: TextRun[] = [];
-
-        // Split by bold/italic markers while preserving the structure
-        const parts: { text: string; bold?: boolean; italic?: boolean }[] = [];
-        let currentText = text;
-
-        // Match **bold**, *italic*, __bold__, _italic_, `code`
-        const regex = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(__)(.+?)(__)|(_(.+?)_)|(`(.+?)`)/g;
-        let lastIndex = 0;
-        let match;
-
-        while ((match = regex.exec(currentText)) !== null) {
-            // Add text before match
-            if (match.index > lastIndex) {
-                parts.push({ text: currentText.substring(lastIndex, match.index) });
-            }
-
-            if (match[1]) {
-                // **bold**
-                parts.push({ text: match[2], bold: true });
-            } else if (match[3]) {
-                // *italic*
-                parts.push({ text: match[4], italic: true });
-            } else if (match[5]) {
-                // __bold__
-                parts.push({ text: match[6], bold: true });
-            } else if (match[8]) {
-                // _italic_
-                parts.push({ text: match[9], italic: true });
-            } else if (match[10]) {
-                // `code`
-                parts.push({ text: match[11], bold: false, italic: false });
-            }
-
-            lastIndex = regex.lastIndex;
-        }
-
-        // Add remaining text
-        if (lastIndex < currentText.length) {
-            parts.push({ text: currentText.substring(lastIndex) });
-        }
-
-        // Convert parts to TextRuns
-        parts.forEach(part => {
-            if (part.text) {
-                runs.push(
-                    new TextRun({
-                        text: part.text,
-                        bold: part.bold,
-                        italics: part.italic,
-                        font: fontFamily,
-                        size: fontSize * 2,
-                    })
-                );
-            }
-        });
-
-        return runs.length > 0 ? runs : [new TextRun({ text, font: fontFamily, size: fontSize * 2 })];
-    };
-
-    lines.forEach((line, index) => {
+    lines.forEach((line) => {
         let text = line.trim();
-
-        // Code block markers
-        if (text.startsWith('```')) {
-            inCodeBlock = !inCodeBlock;
-            return;
-        }
-
-        // Skip content inside code blocks
-        if (inCodeBlock) {
-            contentChildren.push(
-                new Paragraph({
-                    text: line, // Preserve formatting
-                    style: 'CodeBlock',
-                    spacing: { after: 80 },
-                    run: {
-                        font: 'Courier New',
-                        size: (fontSize - 1) * 2,
-                    },
-                })
-            );
-            return;
-        }
-
-        // Horizontal separator
-        if (text === '---' || text === '___' || text === '***') {
-            flushList();
-            contentChildren.push(
-                new Paragraph({
-                    text: '',
-                    border: {
-                        bottom: {
-                            color: 'auto',
-                            space: 1,
-                            style: 'single',
-                            size: 6,
-                        },
-                    },
-                    spacing: { before: 200, after: 200 },
-                })
-            );
-            return;
-        }
-
-        // Headers
         let headingLevel: any = undefined;
+
+        // Headings
         if (text.startsWith('# ')) {
             headingLevel = HeadingLevel.HEADING_1;
             text = text.substring(2);
-            flushList();
         } else if (text.startsWith('## ')) {
             headingLevel = HeadingLevel.HEADING_2;
             text = text.substring(3);
-            flushList();
         } else if (text.startsWith('### ')) {
             headingLevel = HeadingLevel.HEADING_3;
             text = text.substring(4);
-            flushList();
         }
 
-        // Lists
-        const bulletMatch = text.match(/^[-*+]\s+(.+)$/);
-        const numberMatch = text.match(/^\d+\.\s+(.+)$/);
-
-        if (bulletMatch) {
-            if (currentListType !== 'bullet') {
-                flushList();
-                currentListType = 'bullet';
-            }
-            listItems.push(bulletMatch[1]);
-            return;
-        } else if (numberMatch) {
-            if (currentListType !== 'number') {
-                flushList();
-                currentListType = 'number';
-            }
-            listItems.push(numberMatch[1]);
-            return;
-        } else {
-            flushList();
+        // Code blocks
+        if (text.startsWith('```')) {
+            return; // Skip code block markers
         }
 
-        // Empty line
         if (text === '') {
-            contentChildren.push(new Paragraph({ text: '' }));
+            contentChildren.push(new Paragraph({ text: '' })); // Empty line
             return;
         }
-
-        // Regular paragraph with inline formatting
-        const runs = parseInlineFormatting(text);
 
         contentChildren.push(
             new Paragraph({
-                children: runs,
+                text: text,
                 heading: headingLevel,
                 spacing: { after: 120 },
+                run: {
+                    font: fontFamily,
+                    size: fontSize * 2,
+                },
             })
         );
     });
-
-    // Flush any remaining list
-    flushList();
     // --- Document Definition ---
     const doc = new Document({
         creator: 'LibreChat AI',
