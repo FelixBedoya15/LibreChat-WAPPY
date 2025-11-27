@@ -111,6 +111,7 @@ const useSpeechToTextBrowser = (
   }, [setText, wrappedOnTranscriptionComplete, finalTranscript, autoSendText, conversationId]);
 
   const toggleListening = () => {
+    console.log('[useSpeechToTextBrowser] toggleListening called, isListening:', isListening);
     if (!browserSupportsSpeechRecognition) {
       showToast({
         message: 'Browser does not support SpeechRecognition',
@@ -128,9 +129,11 @@ const useSpeechToTextBrowser = (
     }
 
     if (isListening === true) {
+      console.log('[useSpeechToTextBrowser] Stopping microphone');
       SpeechRecognition.stopListening();
       resetTranscript();
     } else {
+      console.log('[useSpeechToTextBrowser] Starting microphone');
       SpeechRecognition.startListening({
         language: languageSTT,
         continuous: autoTranscribeAudio,
