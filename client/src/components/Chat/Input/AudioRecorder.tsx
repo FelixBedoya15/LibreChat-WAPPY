@@ -26,7 +26,6 @@ export default function AudioRecorder({
 
   const existingTextRef = useRef<string>('');
   const resetTranscriptRef = useRef<(() => void) | null>(null);
-  const shouldCloseMicRef = useRef(false);
 
   const onTranscriptionComplete = useCallback(
     (text: string) => {
@@ -51,9 +50,11 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
-        // Signal to close microphone (handled in useEffect)
-        console.log('[AudioRecorder] Message sent, setting shouldCloseMicRef to true');
-        shouldCloseMicRef.current = true;
+
+        // Simple reset using ref
+        if (resetTranscriptRef.current) {
+          resetTranscriptRef.current();
+        }
       }
     },
     [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
@@ -85,52 +86,6 @@ export default function AudioRecorder({
   useEffect(() => {
     resetTranscriptRef.current = resetTranscript || null;
   }, [resetTranscript]);
-
-  // Monitor text field for manual deletions
-  const currentText = getValues('text') || '';
-  const previousTextRef = useRef('');
-
-  useEffect(() => {
-    // Detect message send: text goes from "something" to empty
-    if (previousTextRef.current !== '' && currentText === '' && isListening) {
-      console.log('[AudioRecorder] 📤 Message sent detected (text cleared), closing microphone');
-      console.log('[AudioRecorder] About to call stopRecording(), isListening:', isListening);
-
-      // CRITICAL: Reset transcript FIRST to prevent text reappearing
-      if (resetTranscriptRef.current) {
-        console.log('[AudioRecorder] Resetting transcript before closing mic');
-        resetTranscriptRef.current();
-      }
-
-      // Then close microphone
-      stopRecording();
-      console.log('[AudioRecorder] stopRecording() called');
-    }
-
-    // Update previous text
-    previousTextRef.current = currentText;
-  }, [currentText, isListening, stopRecording]);
-
-  useEffect(() => {
-    // If user manually clears the text while mic is on, reset transcript
-    if (currentText === '' && isListening && resetTranscriptRef.current) {
-      console.log('[AudioRecorder] Text manually deleted, resetting transcript');
-      resetTranscriptRef.current();
-    }
-  }, [currentText, isListening]);
-
-  // Auto-close microphone after sending (using ref to avoid TDZ)
-  useEffect(() => {
-    console.log('[AudioRecorder] Auto-close check:', {
-      shouldClose: shouldCloseMicRef.current,
-      isListening,
-    });
-    if (shouldCloseMicRef.current && isListening) {
-      console.log('[AudioRecorder] ✅ Closing microphone after send');
-      stopRecording();
-      shouldCloseMicRef.current = false;
-    }
-  }, [isListening, stopRecording]);
 
   if (!textAreaRef.current) {
     return null;
