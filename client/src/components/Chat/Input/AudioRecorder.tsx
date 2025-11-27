@@ -55,7 +55,7 @@ export default function AudioRecorder({
         }
       }
     },
-    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
+    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint, resetTranscript],
   );
 
   const setText = useCallback(
