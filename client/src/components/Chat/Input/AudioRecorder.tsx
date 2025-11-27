@@ -55,7 +55,8 @@ export default function AudioRecorder({
         }
       }
     },
-    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint, resetTranscript],
+    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
+    // Note: resetTranscript is intentionally omitted from dependencies as it's a stable function from the hook
   );
 
   const setText = useCallback(
