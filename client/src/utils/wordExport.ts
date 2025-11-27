@@ -92,8 +92,40 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
         })
     );
 
-    // Parse Markdown Content (Simple parser - WORKS)
+    // Parse Markdown Content (Simple parser with bold support)
     const lines = content.split('\n');
+
+    // Helper function to parse bold text in a line
+    const parseBoldText = (text: string): (TextRun | string)[] => {
+        const parts: (TextRun | string)[] = [];
+        const boldRegex = /\*\*(.+?)\*\*/g;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = boldRegex.exec(text)) !== null) {
+            // Add text before bold
+            if (match.index > lastIndex) {
+                parts.push(text.substring(lastIndex, match.index));
+            }
+            // Add bold text
+            parts.push(
+                new TextRun({
+                    text: match[1],
+                    bold: true,
+                    font: fontFamily,
+                    size: fontSize * 2,
+                })
+            );
+            lastIndex = boldRegex.lastIndex;
+        }
+
+        // Add remaining text
+        if (lastIndex < text.length) {
+            parts.push(text.substring(lastIndex));
+        }
+
+        return parts.length > 0 ? parts : [text];
+    };
 
     lines.forEach((line) => {
         let text = line.trim();
@@ -121,15 +153,26 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             return;
         }
 
-        contentChildren.push(
-            new Paragraph({
-                text: text,
-                heading: headingLevel,
-                spacing: { after: 120 },
-                run: {
+        // Parse bold text
+        const parsedParts = parseBoldText(text);
+
+        // Convert to children array
+        const children: (TextRun | string)[] = parsedParts.map(part => {
+            if (typeof part === 'string') {
+                return new TextRun({
+                    text: part,
                     font: fontFamily,
                     size: fontSize * 2,
-                },
+                });
+            }
+            return part;
+        });
+
+        contentChildren.push(
+            new Paragraph({
+                children: children as TextRun[],
+                heading: headingLevel,
+                spacing: { after: 120 },
             })
         );
     });
