@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useToastContext, TooltipAnchor, ListeningIcon, Spinner } from '@librechat/client';
 import { useLocalize, useSpeechToText, useGetAudioSettings } from '~/hooks';
 import { useChatFormContext } from '~/Providers';
@@ -25,6 +25,7 @@ export default function AudioRecorder({
   const { speechToTextEndpoint } = useGetAudioSettings();
 
   const existingTextRef = useRef<string>('');
+  const resetTranscriptRef = useRef<(() => void) | null>(null);
 
   const onTranscriptionComplete = useCallback(
     (text: string) => {
@@ -49,13 +50,13 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
-        // Reset transcript after manual send (Enter key)
-        if (resetTranscript) {
-          resetTranscript();
+        // Reset transcript using ref (no TDZ error)
+        if (resetTranscriptRef.current) {
+          resetTranscriptRef.current();
         }
       }
     },
-    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint, resetTranscript],
+    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
   );
 
   const setText = useCallback(
@@ -79,6 +80,11 @@ export default function AudioRecorder({
     setText,
     onTranscriptionComplete,
   );
+
+  // Store resetTranscript in ref to avoid TDZ
+  useEffect(() => {
+    resetTranscriptRef.current = resetTranscript || null;
+  }, [resetTranscript]);
 
   if (!textAreaRef.current) {
     return null;
