@@ -82,8 +82,15 @@ const useSpeechToTextBrowser = (
     [onTranscriptionComplete, resetTranscript],
   );
 
+  const isResettingRef = useRef(false);
+
   useEffect(() => {
     if (finalTranscript == null || finalTranscript === '') {
+      return;
+    }
+
+    // Block updates if we are in the middle of resetting
+    if (isResettingRef.current) {
       return;
     }
 
@@ -130,11 +137,18 @@ const useSpeechToTextBrowser = (
 
     if (isListening === true) {
       console.log('[useSpeechToTextBrowser] Stopping microphone');
+      isResettingRef.current = true; // Block updates
       SpeechRecognition.stopListening();
       resetTranscript();
       setText(''); // Force clear external text state
+
+      // Re-enable updates after a short delay to ensure transcript is cleared
+      setTimeout(() => {
+        isResettingRef.current = false;
+      }, 500);
     } else {
       console.log('[useSpeechToTextBrowser] Starting microphone');
+      isResettingRef.current = false;
       SpeechRecognition.startListening({
         language: languageSTT,
         continuous: autoTranscribeAudio,
@@ -154,6 +168,7 @@ const useSpeechToTextBrowser = (
   }, []);
 
   const manualReset = () => {
+    isResettingRef.current = true;
     resetTranscript();
     setText(''); // Force clear external text state
     lastTranscript.current = null;
@@ -162,6 +177,10 @@ const useSpeechToTextBrowser = (
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    // Re-enable updates
+    setTimeout(() => {
+      isResettingRef.current = false;
+    }, 500);
   };
 
   return {
