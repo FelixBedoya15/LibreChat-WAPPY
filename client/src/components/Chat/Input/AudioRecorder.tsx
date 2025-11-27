@@ -26,6 +26,7 @@ export default function AudioRecorder({
 
   const existingTextRef = useRef<string>('');
   const resetTranscriptRef = useRef<(() => void) | null>(null);
+  const shouldCloseMicRef = useRef(false);
 
   const onTranscriptionComplete = useCallback(
     (text: string) => {
@@ -50,13 +51,11 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
-        // Auto-close microphone after sending to prevent accumulation
-        if (isListening) {
-          stopRecording();
-        }
+        // Signal to close microphone (handled in useEffect)
+        shouldCloseMicRef.current = true;
       }
     },
-    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint, isListening, stopRecording],
+    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
   );
 
   const setText = useCallback(
@@ -95,6 +94,15 @@ export default function AudioRecorder({
       resetTranscriptRef.current();
     }
   }, [currentText, isListening]);
+
+  // Auto-close microphone after sending (using ref to avoid TDZ)
+  useEffect(() => {
+    if (shouldCloseMicRef.current && isListening) {
+      console.log('[AudioRecorder] Closing microphone after send');
+      stopRecording();
+      shouldCloseMicRef.current = false;
+    }
+  }, [isListening, stopRecording]);
 
   if (!textAreaRef.current) {
     return null;
