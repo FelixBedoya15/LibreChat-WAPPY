@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRecoilState } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
@@ -65,6 +65,20 @@ const useSpeechToTextBrowser = (
     }
   };
 
+  // Wrapper that resets transcript after completion callback
+  const wrappedOnTranscriptionComplete = useCallback(
+    (text: string) => {
+      onTranscriptionComplete(text);
+      // CRITICAL: Reset transcript AFTER every message send (manual OR auto)
+      setTimeout(() => {
+        resetTranscript();
+        lastTranscript.current = null;
+        lastInterim.current = null;
+      }, 100);
+    },
+    [onTranscriptionComplete, resetTranscript],
+  );
+
   useEffect(() => {
     if (finalTranscript == null || finalTranscript === '') {
       return;
@@ -81,9 +95,8 @@ const useSpeechToTextBrowser = (
       timeoutRef.current = setTimeout(async () => {
         const corrected = await correctTranscription(finalTranscript);
         setText(corrected);
-        onTranscriptionComplete(corrected);
-        // Auto-reset after sending to prevent accumulation
-        manualReset();
+        // Use wrapped version that auto-resets
+        wrappedOnTranscriptionComplete(corrected);
       }, autoSendText * 1000);
     }
 
@@ -92,7 +105,7 @@ const useSpeechToTextBrowser = (
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [setText, onTranscriptionComplete, resetTranscript, finalTranscript, autoSendText, conversationId]);
+  }, [setText, wrappedOnTranscriptionComplete, finalTranscript, autoSendText, conversationId]);
 
   const toggleListening = () => {
     if (!browserSupportsSpeechRecognition) {
