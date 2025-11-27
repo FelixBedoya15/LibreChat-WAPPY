@@ -60,7 +60,7 @@ const extractMessageContent = (message: TMessage): string => {
         }
         return '';
       })
-      .filter(text => text.trim() !== '') // Remove empty strings
+      .filter(text => typeof text === 'string' && text.trim() !== '') // Type guard before trim()
       .join('\n\n'); // Join with double newline for better formatting
   }
 
