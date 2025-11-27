@@ -41,46 +41,30 @@ type HoverButtonProps = {
 };
 
 const extractMessageContent = (message: TMessage): string => {
-  // Helper to clean citation markers
-  const cleanCitations = (text: string): string => {
-    return text
-      // Remove unicode private use area characters (E000-F8FF) followed by text
-      .replace(/[\uE000-\uF8FF]/g, '')
-      // Remove "turn0search" patterns with numbers
-      .replace(/turn\d+search\d+/g, '')
-      // Remove standalone search markers
-      .replace(/\s*search\d+/g, '')
-      // Clean up extra whitespace
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
   if (typeof message.content === 'string') {
-    return cleanCitations(message.content);
+    return message.content;
   }
 
   if (Array.isArray(message.content)) {
-    return cleanCitations(
-      message.content
-        .map((part) => {
-          if (typeof part === 'string') {
-            return part;
-          }
-          if ('text' in part) {
-            return part.text || '';
-          }
-          // Skip 'think' blocks - don't export reasoning/thoughts
-          if ('think' in part) {
-            return '';
-          }
+    return message.content
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part;
+        }
+        if ('text' in part) {
+          return part.text || '';
+        }
+        // Skip 'think' blocks - don't export reasoning/thoughts
+        if ('think' in part) {
           return '';
-        })
-        .filter(text => typeof text === 'string' && text.trim() !== '')
-        .join('\n\n')
-    );
+        }
+        return '';
+      })
+      .filter(text => typeof text === 'string' && text.trim() !== '')
+      .join('\n\n');
   }
 
-  return cleanCitations(message.text || '');
+  return message.text || '';
 };
 
 const HoverButton = memo(
