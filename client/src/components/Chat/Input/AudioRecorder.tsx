@@ -49,9 +49,13 @@ export default function AudioRecorder({
         ask({ text: finalText });
         reset({ text: '' });
         existingTextRef.current = '';
+        // Reset transcript after manual send (Enter key)
+        if (resetTranscript) {
+          resetTranscript();
+        }
       }
     },
-    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint],
+    [ask, reset, showToast, localize, isSubmitting, speechToTextEndpoint, resetTranscript],
   );
 
   const setText = useCallback(
@@ -71,7 +75,7 @@ export default function AudioRecorder({
     [setValue, speechToTextEndpoint],
   );
 
-  const { isListening, isLoading, startRecording, stopRecording } = useSpeechToText(
+  const { isListening, isLoading, startRecording, stopRecording, reset: resetTranscript } = useSpeechToText(
     setText,
     onTranscriptionComplete,
   );
