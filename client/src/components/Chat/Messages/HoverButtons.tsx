@@ -41,33 +41,46 @@ type HoverButtonProps = {
 };
 
 const extractMessageContent = (message: TMessage): string => {
+  // Helper to clean citation markers
+  const cleanCitations = (text: string): string => {
+    return text
+      // Remove unicode private use area characters (E000-F8FF) followed by text
+      .replace(/[\uE000-\uF8FF]/g, '')
+      // Remove "turn0search" patterns with numbers
+      .replace(/turn\d+search\d+/g, '')
+      // Remove standalone search markers
+      .replace(/\s*search\d+/g, '')
+      // Clean up extra whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   if (typeof message.content === 'string') {
-    // Remove search/citation markers
-    return message.content.replace(/\ue202[^\s]*/g, '').trim();
+    return cleanCitations(message.content);
   }
 
   if (Array.isArray(message.content)) {
-    return message.content
-      .map((part) => {
-        if (typeof part === 'string') {
-          return part;
-        }
-        if ('text' in part) {
-          return part.text || '';
-        }
-        // Skip 'think' blocks - don't export reasoning/thoughts
-        if ('think' in part) {
+    return cleanCitations(
+      message.content
+        .map((part) => {
+          if (typeof part === 'string') {
+            return part;
+          }
+          if ('text' in part) {
+            return part.text || '';
+          }
+          // Skip 'think' blocks - don't export reasoning/thoughts
+          if ('think' in part) {
+            return '';
+          }
           return '';
-        }
-        return '';
-      })
-      .filter(text => typeof text === 'string' && text.trim() !== '') // Type guard before trim()
-      .join('\n\n') // Join with double newline for better formatting
-      .replace(/\ue202[^\s]*/g, '') // Remove search/citation markers
-      .trim();
+        })
+        .filter(text => typeof text === 'string' && text.trim() !== '')
+        .join('\n\n')
+    );
   }
 
-  return (message.text || '').replace(/\ue202[^\s]*/g, '').trim();
+  return cleanCitations(message.text || '');
 };
 
 const HoverButton = memo(
