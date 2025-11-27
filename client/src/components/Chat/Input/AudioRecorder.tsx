@@ -1,7 +1,9 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useToastContext, TooltipAnchor, ListeningIcon, Spinner } from '@librechat/client';
-import { useLocalize, useSpeechToText, useGetAudioSettings } from '~/hooks';
+import useLocalize from '~/hooks/useLocalize';
+import useSpeechToText from '~/hooks/Input/useSpeechToText';
+import useGetAudioSettings from '~/hooks/Input/useGetAudioSettings';
 import { useChatFormContext } from '~/Providers';
 import { globalAudioId } from '~/common';
 import { cn } from '~/utils';
