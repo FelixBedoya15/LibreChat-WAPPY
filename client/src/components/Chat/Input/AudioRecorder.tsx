@@ -96,6 +96,8 @@ export default function AudioRecorder({
       console.log('[AudioRecorder] 📤 Message sent detected (text cleared), closing microphone');
       console.log('[AudioRecorder] About to call stopRecording(), isListening:', isListening);
       stopRecording();
+      // Force clear text to prevent ghost text
+      setValue('text', '', { shouldValidate: true });
       console.log('[AudioRecorder] stopRecording() called');
     }
 

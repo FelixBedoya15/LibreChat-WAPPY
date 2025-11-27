@@ -154,6 +154,7 @@ const useSpeechToTextBrowser = (
 
   const manualReset = () => {
     resetTranscript();
+    setText(''); // Force clear external text state
     lastTranscript.current = null;
     lastInterim.current = null;
     if (timeoutRef.current) {
