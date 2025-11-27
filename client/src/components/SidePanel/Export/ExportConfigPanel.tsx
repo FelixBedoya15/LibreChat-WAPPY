@@ -11,6 +11,11 @@ export default function ExportConfigPanel() {
     // Draft state for unsaved changes
     const [draftConfig, setDraftConfig] = useState<ExportConfig>(exportConfig);
 
+    // Sync draft with saved config when it changes (e.g., after save or component remount)
+    useEffect(() => {
+        setDraftConfig(exportConfig);
+    }, [exportConfig]);
+
     const handleSave = () => {
         updateConfig(draftConfig);
     };
