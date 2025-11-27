@@ -17,7 +17,14 @@ export default function useLocalStorage<T>(key: string, defaultValue: T): [T, (v
       localStorage.setItem(key, JSON.stringify(defaultValue));
     }
 
-    setValue(item ? JSON.parse(item) : defaultValue);
+    try {
+      setValue(item ? JSON.parse(item) : defaultValue);
+    } catch (error) {
+      console.error(`Error parsing localStorage key "${key}":`, error);
+      // Clear corrupted value and use default
+      localStorage.setItem(key, JSON.stringify(defaultValue));
+      setValue(defaultValue);
+    }
 
     function handler(e: StorageEvent) {
       if (e.key !== key) {
