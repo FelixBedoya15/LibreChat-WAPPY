@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type FC } from 'react';
-import { X, Mic, MicOff, Video, VideoOff } from 'lucide-react';
+import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
 import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
@@ -21,6 +21,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
     const [statusText, setStatusText] = useState('');
+
+    const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,13 +96,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     /**
      * Start Camera
      */
-    const startCamera = async () => {
+    const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 320 },
                     height: { ideal: 240 },
-                    frameRate: { ideal: 15 }
+                    frameRate: { ideal: 15 },
+                    facingMode: mode
                 },
                 audio: false
             });
@@ -152,6 +155,22 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             stopCamera();
         } else {
             startCamera();
+        }
+    };
+
+    /**
+     * Switch Camera (Front/Back)
+     */
+    const switchCamera = () => {
+        const newMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newMode);
+
+        if (isCameraOn) {
+            stopCamera();
+            // Small delay to ensure camera is fully stopped before restarting
+            setTimeout(() => {
+                startCamera(newMode);
+            }, 200);
         }
     };
 
@@ -369,6 +388,17 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                             <VideoOff className="w-6 h-6" />
                         )}
                     </button>
+
+                    {/* Switch Camera Button (Only visible when camera is on) */}
+                    {isCameraOn && (
+                        <button
+                            onClick={switchCamera}
+                            className="p-4 rounded-full bg-surface-secondary hover:bg-surface-hover transition-colors text-text-primary"
+                            aria-label="Cambiar cámara"
+                        >
+                            <RefreshCcw className="w-6 h-6" />
+                        </button>
+                    )}
 
                     {/* Mute/unmute button */}
                     <button
