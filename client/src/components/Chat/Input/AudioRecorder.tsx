@@ -95,6 +95,14 @@ export default function AudioRecorder({
     if (previousTextRef.current !== '' && currentText === '' && isListening) {
       console.log('[AudioRecorder] 📤 Message sent detected (text cleared), closing microphone');
       console.log('[AudioRecorder] About to call stopRecording(), isListening:', isListening);
+
+      // CRITICAL: Reset transcript FIRST to prevent text reappearing
+      if (resetTranscriptRef.current) {
+        console.log('[AudioRecorder] Resetting transcript before closing mic');
+        resetTranscriptRef.current();
+      }
+
+      // Then close microphone
       stopRecording();
       console.log('[AudioRecorder] stopRecording() called');
     }
