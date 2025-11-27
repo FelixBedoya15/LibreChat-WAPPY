@@ -18,7 +18,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     const marginTwips = margins * 1440;
 
     // --- Cover Page ---
-    const coverChildren: (Paragraph | Table)[] = [];
+    const coverChildren: Paragraph[] = [];
 
     // Add Logo if URL is provided
     if (logoUrl) {
@@ -31,7 +31,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 new Paragraph({
                     children: [
                         new ImageRun({
-                            data: imageBuffer,
+                            data: new Uint8Array(imageBuffer),
                             transformation: {
                                 width: 200,
                                 height: 200,
