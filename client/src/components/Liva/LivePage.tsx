@@ -14,6 +14,7 @@ const LivePage = () => {
         startAnalysis,
         stopAnalysis,
         sendVideoFrame,
+        sendTextMessage,
         analysisResult,
         error,
         isConnected,
@@ -156,6 +157,17 @@ const LivePage = () => {
             stopAnalysis();
         }
     }, [isAutoAnalyzing, isStreaming, conversationId, isConnected, isConnecting, startAnalysis, stopAnalysis]);
+
+    // Effect to send initial prompt when connected
+    useEffect(() => {
+        if (isConnected && isAutoAnalyzing) {
+            // Give a small delay to ensure backend is ready
+            const timer = setTimeout(() => {
+                sendTextMessage("Analyze this video stream for occupational risks. Be concise. List findings.");
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isConnected, isAutoAnalyzing, sendTextMessage]);
 
     // Effect to stream video frames
     useEffect(() => {

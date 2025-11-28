@@ -485,6 +485,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         isMutedRef.current = muted;
     }, []);
 
+    /**
+     * Send Text Message
+     */
+    const sendTextMessage = useCallback((text: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'message',
+            data: { text }
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -492,6 +503,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         connect,
         disconnect,
         sendVideoFrame,
+        sendTextMessage,
         changeVoice,
         getInputVolume,
         setMuted,

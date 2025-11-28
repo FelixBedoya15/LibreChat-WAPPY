@@ -13,6 +13,7 @@ export const useLiveAnalysis = ({ conversationId }: UseLiveAnalysisProps = {}) =
         connect,
         disconnect,
         sendVideoFrame,
+        sendTextMessage,
         status,
         isConnected,
         isConnecting
@@ -44,6 +45,7 @@ export const useLiveAnalysis = ({ conversationId }: UseLiveAnalysisProps = {}) =
         startAnalysis,
         stopAnalysis,
         sendVideoFrame,
+        sendTextMessage,
         analysisResult,
         error,
         isConnected,
