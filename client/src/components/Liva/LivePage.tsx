@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
 import LiveEditor from './Editor/LiveEditor';
+import { Video, VideoOff, RefreshCcw } from 'lucide-react';
 
 const LivePage = () => {
     const localize = useLocalize();
@@ -145,19 +146,27 @@ const LivePage = () => {
                         </div>
                     )}
 
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-6 z-20">
+                        {/* Toggle Camera */}
                         <button
                             onClick={handleToggleCamera}
-                            className={`rounded px-4 py-2 text-white shadow-lg ${isStreaming ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                            className={`p-4 rounded-full transition-all shadow-lg ${isStreaming
+                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                : 'bg-white text-black hover:bg-gray-200'
+                                }`}
+                            title={isStreaming ? "Stop Camera" : "Start Camera"}
                         >
-                            {isStreaming ? 'STOP CAMERA' : 'START CAMERA'}
+                            {isStreaming ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
                         </button>
+
+                        {/* Switch Camera */}
                         {isStreaming && (
                             <button
                                 onClick={handleSwitchCamera}
-                                className="rounded px-4 py-2 bg-gray-700 text-white shadow-lg hover:bg-gray-600"
+                                className="p-4 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white transition-all shadow-lg border border-white/30"
+                                title="Switch Camera"
                             >
-                                Switch Cam ({facingMode === 'user' ? 'Front' : 'Rear'})
+                                <RefreshCcw className="w-6 h-6" />
                             </button>
                         )}
                     </div>
