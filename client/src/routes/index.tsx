@@ -20,7 +20,7 @@ import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
 import Search from './Search';
 import Root from './Root';
-import LivaPage from '~/components/Liva/LivaPage';
+import LivePage from '~/components/Liva/LivePage';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -129,8 +129,8 @@ export const router = createBrowserRouter(
               ),
             },
             {
-              path: 'liva',
-              element: <LivaPage />,
+              path: 'live',
+              element: <LivePage />,
             },
           ],
         },

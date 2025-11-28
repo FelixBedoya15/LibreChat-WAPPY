@@ -1,10 +1,30 @@
-import React, { useState } from 'react';
-import { useLocalize } from '~/hooks';
 
-const LivaPage = () => {
+import React, { useState } from 'react';
+import { useLocalize, useNewConvo } from '~/hooks';
+
+const LivePage = () => {
     const localize = useLocalize();
+    const { newConversation } = useNewConvo();
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    const handleSave = () => {
+        const reportContent = `
+# Informe de Riesgos Laborales
+    ** Fecha:** ${new Date().toLocaleDateString()}
+** Ubicación:** [Detectando ubicación...]
+
+## Hallazgos
+    * Riesgo detectado en video en vivo.
+* Análisis pendiente de confirmación.
+
+(Este informe fue generado automáticamente por el módulo LIVE)
+    `;
+
+        newConversation({
+            state: { initialMessage: reportContent },
+        });
+    };
 
     return (
         <div className="flex h-full w-full flex-row overflow-hidden bg-white dark:bg-gray-900">
@@ -12,7 +32,7 @@ const LivaPage = () => {
             <div className="flex w-1/2 flex-col border-r border-gray-200 dark:border-gray-700">
                 <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                        LIVA - Live Intelligent Video Assessment
+                        LIVE - Intelligent Video Assessment
                     </h2>
                     <div className="flex items-center gap-2">
                         <span className="flex h-3 w-3 rounded-full bg-red-500"></span>
@@ -56,7 +76,10 @@ const LivaPage = () => {
                         <button className="rounded px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">
                             Export Word
                         </button>
-                        <button className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700">
+                        <button
+                            onClick={handleSave}
+                            className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
+                        >
                             Save
                         </button>
                     </div>
@@ -96,4 +119,4 @@ const LivaPage = () => {
     );
 };
 
-export default LivaPage;
+export default LivePage;

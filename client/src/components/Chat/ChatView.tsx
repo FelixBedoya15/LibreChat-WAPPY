@@ -1,8 +1,8 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { Constants, buildTree } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
@@ -53,6 +53,17 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   useSSE(rootSubmission, chatHelpers, false);
   useSSE(addedSubmission, addedChatHelpers, true);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (conversationId === Constants.NEW_CONVO && location.state?.initialMessage) {
+      const { initialMessage } = location.state;
+      // Clear the state to prevent re-submission
+      window.history.replaceState({}, document.title);
+      chatHelpers.ask({ text: initialMessage });
+    }
+  }, [conversationId, location.state, chatHelpers]);
 
   const methods = useForm<ChatFormValues>({
     defaultValues: { text: '' },

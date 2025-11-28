@@ -74,6 +74,7 @@ const useNewConvo = (index = 0) => {
         keepAddedConvos?: boolean,
         disableFocus?: boolean,
         _disableParams?: boolean,
+        state: Record<string, unknown> = {},
       ) => {
         const modelsConfig = modelsData ?? modelsQuery.data;
         const { endpoint = null } = conversation;
@@ -84,9 +85,9 @@ const useNewConvo = (index = 0) => {
           // endpoint matches or is null (to allow endpoint change),
           // and buildDefaultConversation is true
           defaultPreset &&
-          !preset &&
-          (defaultPreset.endpoint === endpoint || !endpoint) &&
-          buildDefaultConversation
+            !preset &&
+            (defaultPreset.endpoint === endpoint || !endpoint) &&
+            buildDefaultConversation
             ? defaultPreset
             : preset;
 
@@ -197,14 +198,14 @@ const useNewConvo = (index = 0) => {
             document.title = appTitle;
           }
           const path = `/c/${Constants.NEW_CONVO}${getParams()}`;
-          navigate(path, { state: { focusChat: true } });
+          navigate(path, { state: { focusChat: true, ...state } });
           return;
         }
 
         const path = `/c/${conversation.conversationId}${getParams()}`;
         navigate(path, {
           replace: true,
-          state: disableFocus ? {} : { focusChat: true },
+          state: { ...(disableFocus ? {} : { focusChat: true }), ...state },
         });
       },
     [endpointsConfig, defaultPreset, assistantsListMap, modelsQuery.data],
@@ -220,6 +221,7 @@ const useNewConvo = (index = 0) => {
       keepLatestMessage = false,
       keepAddedConvos = false,
       disableParams,
+      state = {},
     }: {
       template?: Partial<TConversation>;
       preset?: Partial<TPreset>;
@@ -229,6 +231,7 @@ const useNewConvo = (index = 0) => {
       keepLatestMessage?: boolean;
       keepAddedConvos?: boolean;
       disableParams?: boolean;
+      state?: Record<string, unknown>;
     } = {}) {
       pauseGlobalAudio();
       if (!saveBadgesState) {
@@ -305,8 +308,10 @@ const useNewConvo = (index = 0) => {
         buildDefault,
         keepLatestMessage,
         keepAddedConvos,
+
         disableFocus,
         disableParams,
+        state,
       );
     },
     [
