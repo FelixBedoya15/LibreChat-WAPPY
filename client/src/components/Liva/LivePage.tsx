@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import { Video, Save } from 'lucide-react';
 import { useNewConvo } from '~/hooks';
 
 const LivePage = () => {
-    const { setHeaderTitle } = useOutletContext<{ setHeaderTitle: (title: string) => void }>();
     const [editorContent, setEditorContent] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const { newConversation } = useNewConvo();
-
-    useEffect(() => {
-        setHeaderTitle('Live Analysis');
-    }, [setHeaderTitle]);
 
     const handleStartAnalysis = () => {
         setIsModalOpen(true);
