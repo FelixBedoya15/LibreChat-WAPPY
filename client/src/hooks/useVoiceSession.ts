@@ -60,13 +60,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         wsRef.current = null;
     };
 
-} catch (error) {
-    console.error('[VoiceSession] Connection error:', error);
-    setIsConnecting(false);
-    setStatus('idle');
-    options.onError?.('Failed to connect');
-}
-    }, [isConnected, isConnecting, token, options]);
+
+}, [isConnected, isConnecting, token, options]);
 
 /**
  * Handle incoming WebSocket message
