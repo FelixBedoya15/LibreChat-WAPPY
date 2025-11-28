@@ -132,6 +132,10 @@ export const router = createBrowserRouter(
               path: 'live',
               element: <LivePage />,
             },
+            {
+              path: 'liva',
+              element: <Navigate to="/live" replace={true} />,
+            },
           ],
         },
       ],
