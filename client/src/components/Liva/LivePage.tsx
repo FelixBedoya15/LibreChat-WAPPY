@@ -22,6 +22,7 @@ const LivePage = () => {
         status
     } = useLiveAnalysis({
         conversationId,
+        disableAudio: true,
         onConversationIdUpdate: (newId) => {
             console.log("LivePage: Updating conversation ID to:", newId);
             setConversationId(newId);
@@ -140,17 +141,9 @@ const LivePage = () => {
             stopAnalysis();
         } else {
             // Start Analysis
-            if (!conversationId) {
-                // Create conversation first if needed
-                newConversation({
-                    state: { initialMessage: "Please analyze the video feed for occupational risks and describe any hazards you see." },
-                });
-                // Wait for conversationId update?
-                // useNewConvo usually updates URL or state.
-                // We might need to wait for the next render where conversationId is set.
-                // For now, let's assume if we trigger newConversation, the user might need to click Play again or we rely on effect.
-                // Actually, let's just set isAutoAnalyzing to true, and let the effect handle the start when conversationId is ready.
-            }
+            // We don't need to create a conversation manually via newConversation() 
+            // because useVoiceSession will handle the connection with conversationId='new'
+            // and the backend will assign a real ID.
             setIsAutoAnalyzing(true);
         }
     };
