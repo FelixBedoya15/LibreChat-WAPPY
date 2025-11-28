@@ -263,7 +263,7 @@ const LivePage = () => {
         let intervalId: NodeJS.Timeout;
         if (isAutoAnalyzing && isStreaming && isConnected) {
             intervalId = setInterval(() => {
-                if (videoRef.current) {
+                if (videoRef.current && videoRef.current.readyState >= 2) { // HAVE_CURRENT_DATA
                     sendVideoFrame(videoRef.current);
                 }
             }, 200); // 5 FPS
@@ -322,7 +322,7 @@ const LivePage = () => {
                         autoPlay
                         playsInline
                         muted
-                        className={`w - full h - full object - cover ${isStreaming ? 'block' : 'hidden'} `}
+                        className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`}
                     />
 
                     {!isStreaming && (
