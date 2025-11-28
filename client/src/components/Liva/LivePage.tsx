@@ -97,9 +97,6 @@ const LivePage = () => {
                         Risk Assessment Report
                     </h2>
                     <div className="flex gap-2">
-                        <button className="rounded px-3 py-1 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">
-                            Export Word
-                        </button>
                         <button
                             onClick={handleSave}
                             className="rounded bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
