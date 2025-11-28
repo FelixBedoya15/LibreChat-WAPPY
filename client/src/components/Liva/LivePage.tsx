@@ -1,28 +1,33 @@
 
 import React, { useState } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
+import LiveEditor from './Editor/LiveEditor';
 
 const LivePage = () => {
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [editorContent, setEditorContent] = useState('');
+
+    const initialReportContent = `
+<h1>Informe de Riesgos Laborales</h1>
+<p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
+<p><strong>Ubicación:</strong> [Detectando ubicación...]</p>
+<h2>Hallazgos</h2>
+<ul>
+  <li>Riesgo detectado en video en vivo.</li>
+  <li>Análisis pendiente de confirmación.</li>
+</ul>
+<p><em>(Este informe fue generado automáticamente por el módulo LIVE)</em></p>
+  `;
 
     const handleSave = () => {
-        const reportContent = `
-# Informe de Riesgos Laborales
-    ** Fecha:** ${new Date().toLocaleDateString()}
-** Ubicación:** [Detectando ubicación...]
-
-## Hallazgos
-    * Riesgo detectado en video en vivo.
-* Análisis pendiente de confirmación.
-
-(Este informe fue generado automáticamente por el módulo LIVE)
-    `;
+        // Use editorContent if available, otherwise fallback to initial (though onUpdate should catch it)
+        const contentToSave = editorContent || initialReportContent;
 
         newConversation({
-            state: { initialMessage: reportContent },
+            state: { initialMessage: contentToSave },
         });
     };
 
@@ -85,34 +90,13 @@ const LivePage = () => {
                     </div>
                 </div>
 
-                {/* Editor Toolbar Placeholder */}
-                <div className="border-b border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800">
-                    <div className="flex gap-2">
-                        <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"><b>B</b></button>
-                        <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"><i>I</i></button>
-                        <button className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"><u>U</u></button>
-                        <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
-                        <button className="flex items-center gap-1 rounded bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300">
-                            ✨ AI Edit
-                        </button>
-                    </div>
-                </div>
-
-                {/* Editor Content Placeholder */}
-                <div className="flex-1 overflow-y-auto p-8">
-                    <div className="mx-auto max-w-2xl min-h-[500px] rounded border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                        <h1 className="text-2xl font-bold mb-4">Informe de Riesgos Laborales</h1>
-                        <p className="text-gray-600 dark:text-gray-300">
-                            Fecha: {new Date().toLocaleDateString()}
-                        </p>
-                        <p className="text-gray-600 dark:text-gray-300 mb-6">
-                            Ubicación: [Detectando ubicación...]
-                        </p>
-                        <hr className="my-4 border-gray-200 dark:border-gray-700" />
-                        <p className="text-gray-500 italic">
-                            Start the video stream to automatically detect and document risks here...
-                        </p>
-                    </div>
+                {/* Editor Content */}
+                <div className="flex-1 overflow-hidden p-4 bg-gray-50 dark:bg-gray-800">
+                    <LiveEditor
+                        initialContent={initialReportContent}
+                        onUpdate={setEditorContent}
+                        onAIEdit={() => console.log('AI Edit clicked')}
+                    />
                 </div>
             </div>
         </div>
