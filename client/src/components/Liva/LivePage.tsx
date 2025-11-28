@@ -7,7 +7,20 @@ const LivePage = () => {
     // Force rebuild timestamp: 2025-11-28
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
-    const { analyzeImage, isAnalyzing, analysisResult, error } = useLiveAnalysis();
+    // Use 'new' as conversationId for now, or manage it via state if we need to persist it
+    const [conversationId, setConversationId] = useState('new');
+
+    const {
+        startAnalysis,
+        stopAnalysis,
+        sendVideoFrame,
+        analysisResult,
+        error,
+        isConnected,
+        isConnecting,
+        status
+    } = useLiveAnalysis({ conversationId });
+
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
@@ -18,7 +31,7 @@ const LivePage = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const initialReportContent = `
-    < h1 > Informe de Riesgos Laborales</h1 >
+<h1>Informe de Riesgos Laborales</h1>
 <p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
 <p><strong>Ubicación:</strong> [Detectando ubicación...]</p>
 <h2>Hallazgos</h2>
@@ -27,7 +40,7 @@ const LivePage = () => {
   <li>Análisis pendiente de confirmación.</li>
 </ul>
 <p><em>(Este informe fue generado automáticamente por el módulo LIVE)</em></p>
-`;
+  `;
 
     const htmlToMarkdown = (html: string) => {
         return html
@@ -93,6 +106,7 @@ const LivePage = () => {
                     videoRef.current.srcObject = null;
                 }
                 setIsAutoAnalyzing(false);
+                stopAnalysis();
             }
         };
 
@@ -103,7 +117,7 @@ const LivePage = () => {
                 currentStream.getTracks().forEach(track => track.stop());
             }
         };
-    }, [isStreaming, facingMode]);
+    }, [isStreaming, facingMode, stopAnalysis]);
 
     const handleToggleCamera = () => {
         setIsStreaming(prev => !prev);
@@ -113,51 +127,63 @@ const LivePage = () => {
         setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
     };
 
-    const handleCapture = () => {
-        if (videoRef.current && canvasRef.current && isStreaming) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    canvas.toBlob((blob) => {
-                        if (blob) {
-                            analyzeImage(blob, video.videoWidth, video.videoHeight);
-                        }
-                    }, 'image/jpeg');
-                }
+    const toggleAutoAnalysis = () => {
+        if (isAutoAnalyzing) {
+            setIsAutoAnalyzing(false);
+            stopAnalysis();
+        } else {
+            // Start Analysis
+            if (!conversationId) {
+                // Create conversation first if needed
+                newConversation({
+                    state: { initialMessage: "Please analyze the video feed for occupational risks and describe any hazards you see." },
+                });
+                // Wait for conversationId update?
+                // useNewConvo usually updates URL or state.
+                // We might need to wait for the next render where conversationId is set.
+                // For now, let's assume if we trigger newConversation, the user might need to click Play again or we rely on effect.
+                // Actually, let's just set isAutoAnalyzing to true, and let the effect handle the start when conversationId is ready.
             }
+            setIsAutoAnalyzing(true);
         }
     };
 
-    const toggleAutoAnalysis = () => {
-        setIsAutoAnalyzing(prev => !prev);
-    };
+    // Effect to start/stop analysis based on state
+    useEffect(() => {
+        if (isAutoAnalyzing && isStreaming && conversationId && !isConnected && !isConnecting) {
+            startAnalysis();
+        } else if ((!isAutoAnalyzing || !isStreaming) && isConnected) {
+            stopAnalysis();
+        }
+    }, [isAutoAnalyzing, isStreaming, conversationId, isConnected, isConnecting, startAnalysis, stopAnalysis]);
 
-    // Auto-analysis interval
+    // Effect to stream video frames
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
-        if (isAutoAnalyzing && isStreaming) {
-            // Stop if error occurred
-            if (error) {
-                setIsAutoAnalyzing(false);
-                return;
-            }
-
-            // Capture immediately on start
-            handleCapture();
-
+        if (isAutoAnalyzing && isStreaming && isConnected) {
             intervalId = setInterval(() => {
-                if (!isAnalyzing) { // Only capture if previous analysis is done
-                    handleCapture();
+                if (videoRef.current) {
+                    sendVideoFrame(videoRef.current);
                 }
-            }, 5000); // Analyze every 5 seconds
+            }, 200); // 5 FPS
         }
         return () => clearInterval(intervalId);
-    }, [isAutoAnalyzing, isStreaming, isAnalyzing, error]);
+    }, [isAutoAnalyzing, isStreaming, isConnected, sendVideoFrame]);
+
+    // Effect to update report with analysis result
+    useEffect(() => {
+        if (analysisResult) {
+            // Append or update editor content
+            // For now, just append to a "Live Analysis" section or replace findings
+            const newContent = `
+<h1>Informe de Riesgos Laborales</h1>
+<p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
+<h2>Análisis en Vivo</h2>
+<p>${analysisResult}</p>
+`;
+            setEditorContent(newContent);
+        }
+    }, [analysisResult]);
 
     return (
         <div className="flex h-full w-full flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900">
@@ -244,25 +270,23 @@ const LivePage = () => {
                 <div className="h-1/3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800 overflow-y-auto">
                     <h3 className="mb-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">Real-time Risk Alerts</h3>
                     <div className="space-y-2">
-                        {isAnalyzing && (
+                        {isAutoAnalyzing && isConnected && (
                             <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200 flex items-center gap-2">
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                Analyzing video frame...
+                                Analyzing video stream...
                             </div>
                         )}
-
-                        {analysisResult ? (
-                            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200 whitespace-pre-wrap">
+                        {!isAutoAnalyzing && !analysisResult && (
+                            <div className="text-sm text-gray-500 italic">
+                                Click the Play button to start auto-analysis.
+                            </div>
+                        )}
+                        {error && (
+                            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200">
                                 <strong>Analysis Result:</strong>
                                 <br />
-                                {analysisResult}
+                                {error}
                             </div>
-                        ) : (
-                            !isAnalyzing && (
-                                <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-200">
-                                    ⚠️ Waiting for analysis. Click the Play button to start auto-analysis.
-                                </div>
-                            )
                         )}
                     </div>
                 </div>
