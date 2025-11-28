@@ -199,6 +199,26 @@ class GeminiLiveClient extends EventEmitter {
     }
 
     /**
+     * Send text message to Gemini
+     * @param {string} text - Text message
+     */
+    sendText(text) {
+        const message = {
+            client_content: {
+                turns: [
+                    {
+                        role: "user",
+                        parts: [{ text: text }]
+                    }
+                ],
+                turn_complete: true
+            }
+        };
+        logger.debug(`[GeminiLive] Sending text: "${text}"`);
+        this.send(message);
+    }
+
+    /**
      * Send message to Gemini WebSocket
      */
     send(message) {
