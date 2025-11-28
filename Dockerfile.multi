@@ -60,8 +60,8 @@ COPY --from=data-provider-build /app/packages/data-provider/dist /app/packages/d
 COPY --from=client-package-build /app/packages/client/dist /app/packages/client/dist
 COPY --from=client-package-build /app/packages/client/src /app/packages/client/src
 ENV NODE_OPTIONS="--max-old-space-size=2048"
-RUN npm run build
-RUN ls -la /app/client/dist || echo "dist not found"
+# Cache bust: 2025-11-28-debug-1
+RUN npm run build && ls -la dist
 
 # API setup (including client dist)
 FROM base-min AS api-build
