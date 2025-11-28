@@ -61,6 +61,7 @@ COPY --from=client-package-build /app/packages/client/dist /app/packages/client/
 COPY --from=client-package-build /app/packages/client/src /app/packages/client/src
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
+RUN ls -la /app/client/dist || echo "dist not found"
 
 # API setup (including client dist)
 FROM base-min AS api-build
