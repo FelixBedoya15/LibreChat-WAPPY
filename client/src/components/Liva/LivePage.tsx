@@ -178,12 +178,19 @@ const LivePage = () => {
                     }
 
                     const stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: facingMode }
+                        video: {
+                            facingMode: facingMode,
+                            width: { ideal: 320 },
+                            height: { ideal: 240 },
+                            frameRate: { ideal: 15 }
+                        },
+                        audio: false
                     });
                     currentStream = stream;
 
                     if (videoRef.current) {
                         videoRef.current.srcObject = stream;
+                        videoRef.current.play().catch(e => console.error("Error playing video:", e));
                     }
                 } catch (error) {
                     console.error("Error accessing camera:", error);
@@ -226,9 +233,6 @@ const LivePage = () => {
             stopAnalysis();
         } else {
             // Start Analysis
-            // We don't need to create a conversation manually via newConversation() 
-            // because useVoiceSession will handle the connection with conversationId='new'
-            // and the backend will assign a real ID.
             setIsAutoAnalyzing(true);
         }
     };
@@ -247,8 +251,9 @@ const LivePage = () => {
         if (isConnected && isAutoAnalyzing) {
             // Give a small delay to ensure backend is ready
             const timer = setTimeout(() => {
-                sendTextMessage("Analyze this video stream for occupational risks. Be concise. List findings.");
-            }, 1000);
+                console.log("LivePage: Sending initial analysis prompt");
+                sendTextMessage("Describe what you see in the video first. Then, identify any specific occupational risks. If the environment looks safe, say so. Be concise.");
+            }, 2000); // Increased delay to 2s to ensure video frames are received
             return () => clearTimeout(timer);
         }
     }, [isConnected, isAutoAnalyzing, sendTextMessage]);
