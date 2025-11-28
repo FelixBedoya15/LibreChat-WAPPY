@@ -77,6 +77,24 @@ export default function Parameters() {
 
       const updatedConversation = { ...prev };
 
+      // Load saved parameters from localStorage
+      if (prev.endpoint && prev.model) {
+        try {
+          const storageKey = `librechat_model_params_${prev.endpoint}_${prev.model}`;
+          const savedParamsStr = localStorage.getItem(storageKey);
+          if (savedParamsStr) {
+            const savedParams = JSON.parse(savedParamsStr);
+            Object.keys(savedParams).forEach((key) => {
+              if (paramKeys.has(key)) {
+                updatedConversation[key] = savedParams[key];
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Error loading model parameters from localStorage', e);
+        }
+      }
+
       const conversationKeys = Object.keys(updatedConversation);
       const updatedKeys: string[] = [];
       conversationKeys.forEach((key) => {

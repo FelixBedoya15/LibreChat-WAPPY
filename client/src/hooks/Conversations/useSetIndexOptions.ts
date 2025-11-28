@@ -53,11 +53,27 @@ const useSetIndexOptions: TUseSetOptions = (preset = false) => {
     }
 
     setConversation(
-      (prevState) =>
-        tConvoUpdateSchema.parse({
+      (prevState) => {
+        const newState = tConvoUpdateSchema.parse({
           ...prevState,
           ...update,
-        }) as TConversation,
+        }) as TConversation;
+
+        // Save to localStorage for persistence
+        if (prevState?.endpoint && prevState?.model) {
+          try {
+            const storageKey = `librechat_model_params_${prevState.endpoint}_${prevState.model}`;
+            const existingParams = localStorage.getItem(storageKey);
+            const params = existingParams ? JSON.parse(existingParams) : {};
+            params[param] = newValue;
+            localStorage.setItem(storageKey, JSON.stringify(params));
+          } catch (e) {
+            console.error('Error saving model parameters to localStorage', e);
+          }
+        }
+
+        return newState;
+      }
     );
   };
 
