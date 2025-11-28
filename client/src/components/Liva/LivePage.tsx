@@ -123,16 +123,18 @@ const LivePage = () => {
                 </div>
 
                 {/* Video Player Placeholder */}
+                {/* Video Player Placeholder */}
                 <div className="relative flex-1 bg-black overflow-hidden group">
-                    {isStreaming ? (
-                        <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
+                    {/* Always render video to ensure ref is populated, hide when not streaming */}
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`}
+                    />
+
+                    {!isStreaming && (
                         <div className="absolute inset-0 flex items-center justify-center text-gray-400">
                             <div className="text-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -148,7 +150,7 @@ const LivePage = () => {
                             onClick={handleToggleCamera}
                             className={`rounded px-4 py-2 text-white shadow-lg ${isStreaming ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                         >
-                            {isStreaming ? 'Disconnect' : 'Connect Camera'}
+                            {isStreaming ? 'STOP CAMERA' : 'START CAMERA'}
                         </button>
                         {isStreaming && (
                             <button
