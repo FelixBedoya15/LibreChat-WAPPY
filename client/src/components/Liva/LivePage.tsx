@@ -1,19 +1,13 @@
-
 import React, { useState } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
-import { useAIEdit } from '~/hooks/Liva/useAIEdit';
 import LiveEditor from './Editor/LiveEditor';
-import { EModelEndpoint } from 'librechat-data-provider';
 
 const LivePage = () => {
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
-    const { editContent, isGenerating } = useAIEdit();
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
-    const [model, setModel] = useState<string>('');
-    const [endpoint, setEndpoint] = useState<EModelEndpoint | string>(EModelEndpoint.google);
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>
@@ -54,24 +48,6 @@ const LivePage = () => {
         newConversation({
             state: { initialMessage: markdownContent },
         });
-    };
-
-    const handleAIEdit = async (prompt: string) => {
-        if (!editorContent) return;
-        if (!model) {
-            // You might want to show a toast here, but for now just return or log
-            console.warn('No model selected for AI Edit');
-            return;
-        }
-        const newContent = await editContent(editorContent, prompt, model, endpoint as string);
-        if (newContent) {
-            setEditorContent(newContent);
-        }
-    };
-
-    const handleModelSelect = (newModel: string, newEndpoint: string) => {
-        setModel(newModel);
-        setEndpoint(newEndpoint);
     };
 
     return (
@@ -138,11 +114,6 @@ const LivePage = () => {
                     <LiveEditor
                         initialContent={editorContent || initialReportContent}
                         onUpdate={setEditorContent}
-                        onAIEdit={handleAIEdit}
-                        isGenerating={isGenerating}
-                        model={model}
-                        endpoint={endpoint}
-                        onModelSelect={handleModelSelect}
                     />
                 </div>
             </div>

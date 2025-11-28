@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { EModelEndpoint } from 'librechat-data-provider';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -9,14 +8,9 @@ import Toolbar from './Toolbar';
 interface LiveEditorProps {
     initialContent?: string;
     onUpdate?: (content: string) => void;
-    onAIEdit?: (prompt: string) => Promise<void>;
-    isGenerating?: boolean;
-    model?: string;
-    endpoint?: EModelEndpoint | string;
-    onModelSelect?: (model: string, endpoint: string) => void;
 }
 
-const LiveEditor = ({ initialContent = '', onUpdate, onAIEdit, isGenerating, model, endpoint, onModelSelect }: LiveEditorProps) => {
+const LiveEditor = ({ initialContent = '', onUpdate }: LiveEditorProps) => {
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -48,14 +42,7 @@ const LiveEditor = ({ initialContent = '', onUpdate, onAIEdit, isGenerating, mod
 
     return (
         <div className="flex flex-col h-full border border-gray-200 rounded-lg overflow-hidden bg-white dark:border-gray-700 dark:bg-gray-900 shadow-sm">
-            <Toolbar
-                editor={editor}
-                onAIEdit={onAIEdit}
-                isGenerating={isGenerating}
-                model={model}
-                endpoint={endpoint}
-                onModelSelect={onModelSelect}
-            />
+            <Toolbar editor={editor} />
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
                 <EditorContent editor={editor} />
             </div>

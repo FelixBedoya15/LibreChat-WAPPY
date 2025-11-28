@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import {
@@ -9,23 +8,14 @@ import {
     ListOrdered,
     Heading1,
     Heading2,
-    Sparkles
 } from 'lucide-react';
 import { cn } from '~/utils';
-import AIEditControl from './AIEditControl';
-import LiveModelSelector from './LiveModelSelector';
-import { EModelEndpoint } from 'librechat-data-provider';
 
 interface ToolbarProps {
     editor: Editor | null;
-    onAIEdit?: (prompt: string) => Promise<void>;
-    isGenerating?: boolean;
-    model?: string;
-    endpoint?: EModelEndpoint | string;
-    onModelSelect?: (model: string, endpoint: string) => void;
 }
 
-const Toolbar = ({ editor, onAIEdit, isGenerating, model, endpoint, onModelSelect }: ToolbarProps) => {
+const Toolbar = ({ editor }: ToolbarProps) => {
     if (!editor) {
         return null;
     }
@@ -111,15 +101,6 @@ const Toolbar = ({ editor, onAIEdit, isGenerating, model, endpoint, onModelSelec
             >
                 <ListOrdered className="w-4 h-4" />
             </button>
-
-            <div className="flex items-center gap-1 border-l border-gray-200 pl-2 dark:border-gray-700">
-                {onModelSelect && model && endpoint && (
-                    <LiveModelSelector model={model} endpoint={endpoint} onModelSelect={onModelSelect} />
-                )}
-                {onAIEdit && (
-                    <AIEditControl onAIEdit={onAIEdit} isGenerating={isGenerating} />
-                )}
-            </div>
         </div>
     );
 };
