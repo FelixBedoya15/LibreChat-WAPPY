@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { useRecoilState, useRecoilValue } from 'recoil';
+import { useToastContext } from '@librechat/client';
 import store from '~/store';
 
 const useLocationSystem = () => {
+    const { showToast } = useToastContext();
     const enableLocation = useRecoilValue(store.enableLocation);
     const [userLocation, setUserLocation] = useRecoilState(store.userLocation);
 
@@ -14,24 +16,45 @@ const useLocationSystem = () => {
 
         if (!navigator.geolocation) {
             console.warn('Geolocation is not supported by this browser.');
+            showToast({ message: 'Geolocation is not supported by this browser', status: 'error' });
             return;
         }
 
+        // Check if permission is already denied to avoid spamming or silent fails
+        // Note: 'permissions' API is not supported in all browsers, so we keep it simple for now
+        // but we will add a toast to let the user know we are trying.
+
         const success = (position: GeolocationPosition) => {
             const { latitude, longitude } = position.coords;
-            setUserLocation(`User Location: Latitude ${latitude}, Longitude ${longitude}`);
+            const locationString = `User Location: Latitude ${latitude}, Longitude ${longitude}`;
+            setUserLocation(locationString);
+            console.log('Location acquired:', locationString);
+            // Optional: Notify success only once or debug
+            // showToast({ message: 'Location acquired', status: 'success' }); 
         };
 
         const error = (err: GeolocationPositionError) => {
             console.warn(`Geolocation error: ${err.code} - ${err.message}`);
+            let message = 'Error fetching location';
+            if (err.code === err.PERMISSION_DENIED) {
+                message = 'Location permission denied. Please enable it in your browser settings.';
+            } else if (err.code === err.POSITION_UNAVAILABLE) {
+                message = 'Location information is unavailable.';
+            } else if (err.code === err.TIMEOUT) {
+                message = 'The request to get user location timed out.';
+            }
+            showToast({ message, status: 'error' });
         };
 
-        navigator.geolocation.getCurrentPosition(success, error);
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+        };
 
-        // Optional: Watch position for updates
-        // const watchId = navigator.geolocation.watchPosition(success, error);
-        // return () => navigator.geolocation.clearWatch(watchId);
-    }, [enableLocation, setUserLocation]);
+        navigator.geolocation.getCurrentPosition(success, error, options);
+
+    }, [enableLocation, setUserLocation, showToast]);
 
     return userLocation;
 };
