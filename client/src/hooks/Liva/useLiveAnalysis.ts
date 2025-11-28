@@ -5,9 +5,10 @@ interface UseLiveAnalysisProps {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     disableAudio?: boolean;
+    onAudioReceived?: (audioData: string) => void;
 }
 
-export const useLiveAnalysis = ({ conversationId, onConversationIdUpdate, disableAudio }: UseLiveAnalysisProps = {}) => {
+export const useLiveAnalysis = ({ conversationId, onConversationIdUpdate, disableAudio, onAudioReceived }: UseLiveAnalysisProps = {}) => {
     const [analysisResult, setAnalysisResult] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export const useLiveAnalysis = ({ conversationId, onConversationIdUpdate, disabl
     } = useVoiceSession({
         conversationId,
         disableAudio,
+        onAudioReceived,
         onTextReceived: (text) => {
             console.log("LiveAnalysis: Text received:", text);
             setAnalysisResult(prev => prev + text);

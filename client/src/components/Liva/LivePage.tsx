@@ -10,6 +10,10 @@ const LivePage = () => {
     // Use 'new' as conversationId for now, or manage it via state if we need to persist it
     const [conversationId, setConversationId] = useState('new');
 
+    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
+
     const {
         startAnalysis,
         stopAnalysis,
@@ -26,8 +30,89 @@ const LivePage = () => {
         onConversationIdUpdate: (newId) => {
             console.log("LivePage: Updating conversation ID to:", newId);
             setConversationId(newId);
+        },
+        onAudioReceived: (audioData) => {
+            handleAudioReceived(audioData);
         }
     });
+
+    // Initialize AudioContext on mount
+    useEffect(() => {
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        return () => {
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+        };
+    }, []);
+
+    /**
+     * Handle received audio from Gemini
+     */
+    function handleAudioReceived(audioData: string) {
+        try {
+            if (!audioContextRef.current) {
+                audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            }
+
+            if (audioContextRef.current.state === 'suspended') {
+                audioContextRef.current.resume();
+            }
+
+            const binaryString = atob(audioData);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const dataView = new DataView(bytes.buffer);
+            const float32Data = new Float32Array(len / 2);
+
+            for (let i = 0; i < len / 2; i++) {
+                const int16 = dataView.getInt16(i * 2, true);
+                float32Data[i] = int16 / 32768.0;
+            }
+
+            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+            audioBuffer.getChannelData(0).set(float32Data);
+
+            setAudioQueue(prev => [...prev, audioBuffer]);
+
+        } catch (error) {
+            console.error('[LivePage] Error processing audio:', error);
+        }
+    }
+
+    // Process Audio Queue
+    useEffect(() => {
+        if (!isPlaying && audioQueue.length > 0 && audioContextRef.current) {
+            const buffer = audioQueue[0];
+            setAudioQueue(prev => prev.slice(1));
+            playAudio(buffer);
+        }
+    }, [audioQueue, isPlaying]);
+
+    /**
+     * Play audio buffer
+     */
+    function playAudio(audioBuffer: AudioBuffer) {
+        if (!audioContextRef.current) return;
+
+        setIsPlaying(true);
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContextRef.current.destination);
+
+        source.onended = () => {
+            setIsPlaying(false);
+        };
+
+        source.start();
+    }
 
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
