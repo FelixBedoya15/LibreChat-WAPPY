@@ -135,6 +135,12 @@ class VoiceSession {
             logger.info(`[VoiceSession] AI transcription received: "${text}"`);
             // Accumulate AI text
             this.aiResponseText += text;
+
+            // Send to client in real-time so it can be displayed
+            this.sendToClient({
+                type: 'text',
+                data: { text }
+            });
         });
 
         // Listen for AI TEXT response
