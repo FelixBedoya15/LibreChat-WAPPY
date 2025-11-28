@@ -8,6 +8,8 @@ const LivePage = () => {
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
+    const [isStreaming, setIsStreaming] = useState(false);
+    const videoRef = React.useRef<HTMLVideoElement>(null);
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>
@@ -50,6 +52,31 @@ const LivePage = () => {
         });
     };
 
+    const handleToggleCamera = async () => {
+        if (isStreaming) {
+            // Stop streaming
+            if (videoRef.current && videoRef.current.srcObject) {
+                const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+                tracks.forEach(track => track.stop());
+                videoRef.current.srcObject = null;
+            }
+            setIsStreaming(false);
+        } else {
+            // Start streaming
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+                setIsStreaming(true);
+            } catch (error) {
+                console.error("Error accessing camera:", error);
+                // You might want to show a toast here
+                alert("Could not access camera. Please ensure permissions are granted.");
+            }
+        }
+    };
+
     return (
         <div className="flex h-full w-full flex-row overflow-hidden bg-white dark:bg-gray-900">
             {/* Left Panel: Video Stream & Alerts */}
@@ -59,23 +86,41 @@ const LivePage = () => {
                         LIVE - Intelligent Video Assessment
                     </h2>
                     <div className="flex items-center gap-2">
-                        <span className="flex h-3 w-3 rounded-full bg-red-500"></span>
-                        <span className="text-sm font-medium text-red-500">Live</span>
+                        <span className={`flex h-3 w-3 rounded-full ${isStreaming ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                        <span className={`text-sm font-medium ${isStreaming ? 'text-green-500' : 'text-red-500'}`}>
+                            {isStreaming ? 'Live' : 'Offline'}
+                        </span>
                     </div>
                 </div>
 
                 {/* Video Player Placeholder */}
-                <div className="relative flex-1 bg-black">
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                        <div className="text-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            <p>Video Stream Placeholder</p>
-                            <button className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                                Connect Camera
-                            </button>
+                <div className="relative flex-1 bg-black overflow-hidden group">
+                    {isStreaming ? (
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                            <div className="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <p>Video Stream Offline</p>
+                            </div>
                         </div>
+                    )}
+
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <button
+                            onClick={handleToggleCamera}
+                            className={`rounded px-4 py-2 text-white shadow-lg ${isStreaming ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        >
+                            {isStreaming ? 'Disconnect Camera' : 'Connect Camera'}
+                        </button>
                     </div>
                 </div>
 
