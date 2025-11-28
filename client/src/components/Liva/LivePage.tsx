@@ -27,12 +27,32 @@ const LivePage = () => {
 <p><em>(Este informe fue generado automáticamente por el módulo LIVE)</em></p>
   `;
 
+    const htmlToMarkdown = (html: string) => {
+        return html
+            .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+            .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+            .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
+            .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+            .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+            .replace(/<b>(.*?)<\/b>/g, '**$1**')
+            .replace(/<em>(.*?)<\/em>/g, '*$1*')
+            .replace(/<i>(.*?)<\/i>/g, '*$1*')
+            .replace(/<ul>/g, '')
+            .replace(/<\/ul>/g, '\n')
+            .replace(/<li>(.*?)<\/li>/g, '- $1\n')
+            .replace(/<br\s*\/?>/g, '\n')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/<[^>]*>/g, '') // Remove remaining tags
+            .trim();
+    };
+
     const handleSave = () => {
         // Use editorContent if available, otherwise fallback to initial (though onUpdate should catch it)
         const contentToSave = editorContent || initialReportContent;
+        const markdownContent = htmlToMarkdown(contentToSave);
 
         newConversation({
-            state: { initialMessage: contentToSave },
+            state: { initialMessage: markdownContent },
         });
     };
 

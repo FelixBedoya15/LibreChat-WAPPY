@@ -42,7 +42,7 @@ const LiveEditor = ({ initialContent = '', onUpdate, onAIEdit, isGenerating, mod
         if (editor && initialContent && editor.getHTML() !== initialContent) {
             // Only update if content is significantly different to avoid cursor jumps
             // For now, we'll assume initialContent is only set once or we handle it carefully
-            // editor.commands.setContent(initialContent);
+            editor.commands.setContent(initialContent);
         }
     }, [initialContent, editor]);
 
