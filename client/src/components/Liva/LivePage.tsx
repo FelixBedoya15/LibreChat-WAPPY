@@ -20,7 +20,13 @@ const LivePage = () => {
         isConnected,
         isConnecting,
         status
-    } = useLiveAnalysis({ conversationId });
+    } = useLiveAnalysis({
+        conversationId,
+        onConversationIdUpdate: (newId) => {
+            console.log("LivePage: Updating conversation ID to:", newId);
+            setConversationId(newId);
+        }
+    });
 
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -185,6 +191,7 @@ const LivePage = () => {
     // Effect to update report with analysis result
     useEffect(() => {
         if (analysisResult) {
+            console.log("LivePage: Updating editor content with:", analysisResult);
             // Append or update editor content
             // For now, just append to a "Live Analysis" section or replace findings
             const newContent = `
