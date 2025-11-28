@@ -24,13 +24,28 @@ const useLocationSystem = () => {
         // Note: 'permissions' API is not supported in all browsers, so we keep it simple for now
         // but we will add a toast to let the user know we are trying.
 
-        const success = (position: GeolocationPosition) => {
+        const success = async (position: GeolocationPosition) => {
             const { latitude, longitude } = position.coords;
-            const locationString = `User Location: Latitude ${latitude}, Longitude ${longitude}`;
-            setUserLocation(locationString);
-            console.log('Location acquired:', locationString);
-            // Optional: Notify success only once or debug
-            // showToast({ message: 'Location acquired', status: 'success' }); 
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                const data = await response.json();
+
+                if (data && data.address) {
+                    const { country, city, town, village, state } = data.address;
+                    const locationName = city || town || village || state || 'Unknown Location';
+                    const locationString = `User Location: ${country}, ${locationName} (Lat: ${latitude}, Long: ${longitude})`;
+                    setUserLocation(locationString);
+                    console.log('Location acquired:', locationString);
+                } else {
+                    const locationString = `User Location: Latitude ${latitude}, Longitude ${longitude}`;
+                    setUserLocation(locationString);
+                }
+            } catch (error) {
+                console.error('Error fetching address:', error);
+                const locationString = `User Location: Latitude ${latitude}, Longitude ${longitude}`;
+                setUserLocation(locationString);
+            }
         };
 
         const error = (err: GeolocationPositionError) => {
