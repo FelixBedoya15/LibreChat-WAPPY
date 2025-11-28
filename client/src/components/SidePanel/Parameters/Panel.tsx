@@ -66,6 +66,10 @@ export default function Parameters() {
     const paramKeys = new Set(
       parameters.filter((setting) => setting != null).map((setting) => setting.key),
     );
+
+    if (paramKeys.size === 0) {
+      return;
+    }
     setConversation((prev) => {
       if (!prev) {
         return prev;

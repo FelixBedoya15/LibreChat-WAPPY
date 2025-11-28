@@ -10,7 +10,16 @@ export default function useSearchApiKeyForm({
   onSubmit?: () => void;
   onRevoke?: () => void;
 }) {
-  const methods = useForm<SearchApiKeyFormData>();
+  const methods = useForm<SearchApiKeyFormData>({
+    defaultValues: (() => {
+      try {
+        const saved = localStorage.getItem('librechat_web_search_config');
+        return saved ? JSON.parse(saved) : undefined;
+      } catch (e) {
+        return undefined;
+      }
+    })(),
+  });
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const badgeTriggerRef = useRef<HTMLInputElement>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -20,6 +29,7 @@ export default function useSearchApiKeyForm({
   const onSubmitHandler = useCallback(
     (data: SearchApiKeyFormData) => {
       installTool(data);
+      localStorage.setItem('librechat_web_search_config', JSON.stringify(data));
       setIsDialogOpen(false);
       onSubmit?.();
     },
@@ -28,6 +38,7 @@ export default function useSearchApiKeyForm({
 
   const handleRevokeApiKey = useCallback(() => {
     reset();
+    localStorage.removeItem('librechat_web_search_config');
     removeTool();
     setIsDialogOpen(false);
     onRevoke?.();

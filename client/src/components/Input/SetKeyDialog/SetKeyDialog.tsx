@@ -84,6 +84,7 @@ const RevokeKeysButton = ({
       return;
     }
 
+    localStorage.removeItem(`librechat_user_key_${endpoint}`);
     setDialogOpen(false);
   };
 
@@ -160,7 +161,13 @@ const SetKeyDialog = ({
 }) => {
   const methods = useForm({
     defaultValues: {
-      apiKey: '',
+      apiKey: (() => {
+        try {
+          return localStorage.getItem(`librechat_user_key_${endpoint}`) || '';
+        } catch (e) {
+          return '';
+        }
+      })(),
       baseURL: '',
       azureOpenAIApiKey: '',
       azureOpenAIApiInstanceName: '',
@@ -173,7 +180,13 @@ const SetKeyDialog = ({
     },
   });
 
-  const [userKey, setUserKey] = useState('');
+  const [userKey, setUserKey] = useState(() => {
+    try {
+      return localStorage.getItem(`librechat_user_key_${endpoint}`) || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const [expiresAtLabel, setExpiresAtLabel] = useState(EXPIRY.TWELVE_HOURS.label);
   const { getExpiry, saveUserKey } = useUserKey(endpoint);
@@ -199,6 +212,7 @@ const SetKeyDialog = ({
     const saveKey = (key: string) => {
       try {
         saveUserKey(key, expiresAt);
+        localStorage.setItem(`librechat_user_key_${endpoint}`, key);
         showToast({
           message: localize('com_ui_save_key_success'),
           status: NotificationSeverity.SUCCESS,
@@ -295,8 +309,8 @@ const SetKeyDialog = ({
             {expiryTime === 'never'
               ? localize('com_endpoint_config_key_never_expires')
               : `${localize('com_endpoint_config_key_encryption')} ${new Date(
-                  expiryTime ?? 0,
-                ).toLocaleString()}`}
+                expiryTime ?? 0,
+              ).toLocaleString()}`}
           </small>
           <Dropdown
             label="Expires "
