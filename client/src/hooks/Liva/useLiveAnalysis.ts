@@ -8,11 +8,14 @@ export const useLiveAnalysis = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
+    const [error, setError] = useState<string | null>(null);
+
     const uploadFileMutation = useUploadFileMutation();
 
-    const analyzeImage = useCallback(async (imageBlob: Blob) => {
+    const analyzeImage = useCallback(async (imageBlob: Blob, width: number, height: number) => {
         setIsAnalyzing(true);
         setAnalysisResult(null);
+        setError(null);
 
         try {
             // 1. Upload Image
@@ -20,9 +23,12 @@ export const useLiveAnalysis = () => {
             formData.append('file', imageBlob, 'capture.jpg');
             // Use a default endpoint for upload, e.g., google since we use Gemini
             formData.append('endpoint', EModelEndpoint.google);
+            formData.append('width', width.toString());
+            formData.append('height', height.toString());
 
             const uploadResponse = await uploadFileMutation.mutateAsync(formData);
             console.log('Upload Response:', uploadResponse);
+            /* @ts-ignore */
             const file_id = uploadResponse.file_id || uploadResponse.id;
 
             if (!file_id) {
@@ -57,7 +63,8 @@ export const useLiveAnalysis = () => {
             });
 
             if (!response.ok) {
-                throw new Error(`Analysis failed: ${response.statusText}`);
+                const errText = await response.text();
+                throw new Error(`Analysis failed: ${response.status} ${errText}`);
             }
 
             // 3. Handle Response (Simple text accumulation for now)
@@ -100,7 +107,9 @@ export const useLiveAnalysis = () => {
 
         } catch (error) {
             console.error("Live Analysis Error:", error);
-            setAnalysisResult("Error analyzing image.");
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setAnalysisResult(`Error: ${errorMessage}`);
+            setError(errorMessage);
         } finally {
             setIsAnalyzing(false);
         }
@@ -110,5 +119,6 @@ export const useLiveAnalysis = () => {
         analyzeImage,
         isAnalyzing,
         analysisResult,
+        error,
     };
 };

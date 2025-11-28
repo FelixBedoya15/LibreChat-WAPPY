@@ -7,7 +7,7 @@ const LivePage = () => {
     // Force rebuild timestamp: 2025-11-28
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
-    const { analyzeImage, isAnalyzing, analysisResult } = useLiveAnalysis();
+    const { analyzeImage, isAnalyzing, analysisResult, error } = useLiveAnalysis();
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
@@ -125,7 +125,7 @@ const LivePage = () => {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     canvas.toBlob((blob) => {
                         if (blob) {
-                            analyzeImage(blob);
+                            analyzeImage(blob, video.videoWidth, video.videoHeight);
                         }
                     }, 'image/jpeg');
                 }
@@ -141,6 +141,12 @@ const LivePage = () => {
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
         if (isAutoAnalyzing && isStreaming) {
+            // Stop if error occurred
+            if (error) {
+                setIsAutoAnalyzing(false);
+                return;
+            }
+
             // Capture immediately on start
             handleCapture();
 
@@ -151,7 +157,7 @@ const LivePage = () => {
             }, 5000); // Analyze every 5 seconds
         }
         return () => clearInterval(intervalId);
-    }, [isAutoAnalyzing, isStreaming, isAnalyzing]);
+    }, [isAutoAnalyzing, isStreaming, isAnalyzing, error]);
 
     return (
         <div className="flex h-full w-full flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900">
@@ -199,8 +205,8 @@ const LivePage = () => {
                         <button
                             onClick={handleToggleCamera}
                             className={`p-4 rounded-full backdrop-blur-sm transition-all shadow-lg border border-white/30 text-white ${isStreaming
-                                    ? 'bg-red-500/80 hover:bg-red-600/80'
-                                    : 'bg-white/20 hover:bg-white/30'
+                                ? 'bg-red-500/80 hover:bg-red-600/80'
+                                : 'bg-white/20 hover:bg-white/30'
                                 }`}
                             title={isStreaming ? "Stop Camera" : "Start Camera"}
                         >
@@ -212,8 +218,8 @@ const LivePage = () => {
                             <button
                                 onClick={toggleAutoAnalysis}
                                 className={`p-4 rounded-full backdrop-blur-sm transition-all shadow-lg border border-white/30 text-white ${isAutoAnalyzing
-                                        ? 'bg-green-500/80 hover:bg-green-600/80 animate-pulse'
-                                        : 'bg-white/20 hover:bg-white/30'
+                                    ? 'bg-green-500/80 hover:bg-green-600/80 animate-pulse'
+                                    : 'bg-white/20 hover:bg-white/30'
                                     }`}
                                 title={isAutoAnalyzing ? "Stop Analysis" : "Start Auto Analysis"}
                             >
