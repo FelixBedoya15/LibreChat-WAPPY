@@ -14,6 +14,8 @@ interface LiveModelSelectorProps {
 
 export default function LiveModelSelector({ model, endpoint, onModelSelect }: LiveModelSelectorProps) {
     const { data: startupConfig } = useGetStartupConfig();
+    console.log('LiveModelSelector startupConfig:', startupConfig);
+    console.log('LiveModelSelector props:', { model, endpoint });
 
     // Mock conversation object based on props
     const conversation = useMemo(() => ({

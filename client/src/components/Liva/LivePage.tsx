@@ -12,8 +12,8 @@ const LivePage = () => {
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
-    const [model, setModel] = useState<string>('gpt-4o');
-    const [endpoint, setEndpoint] = useState<EModelEndpoint | string>(EModelEndpoint.openAI);
+    const [model, setModel] = useState<string>('gemini-2.5-flash-lite');
+    const [endpoint, setEndpoint] = useState<EModelEndpoint | string>(EModelEndpoint.google);
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>

@@ -1,12 +1,16 @@
 import { useState } from 'react';
+import { useSetRecoilState } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useGetStartupConfig } from '~/data-provider';
 import { EModelEndpoint } from 'librechat-data-provider';
+import { NotificationSeverity } from '~/common';
+import store from '~/store';
 
 export const useAIEdit = () => {
     const { token } = useAuthContext();
     const { data: startupConfig } = useGetStartupConfig();
     const [isGenerating, setIsGenerating] = useState(false);
+    const setToastState = useSetRecoilState(store.toastState);
 
     const editContent = async (currentContent: string, prompt: string, model: string, endpoint: string) => {
         setIsGenerating(true);
@@ -51,12 +55,10 @@ Please provide the updated content in HTML format, maintaining the structure. Do
             });
 
             if (!response.ok) {
-                throw new Error(`AI Edit failed: ${response.statusText}`);
+                const errorText = await response.text();
+                console.error('AI Edit failed:', response.status, response.statusText, errorText);
+                throw new Error(`AI Edit failed: ${response.statusText} - ${errorText}`);
             }
-
-            // The response from EditController is a stream or a final JSON depending on implementation.
-            // EditController uses sendEvent which sends SSE.
-            // We need to handle SSE or just read the stream.
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
@@ -67,7 +69,8 @@ Please provide the updated content in HTML format, maintaining the structure. Do
                     const { done, value } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value);
-                    // Parse SSE events
+                    console.log('AI Edit Chunk:', chunk); // Debug logging
+
                     const lines = chunk.split('\n');
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
@@ -78,22 +81,30 @@ Please provide the updated content in HTML format, maintaining the structure. Do
                                 if (data.text) {
                                     resultText += data.text;
                                 } else if (data.message?.content) {
-                                    // Some endpoints return full message object
-                                    // This depends on how EditController formats the event
+                                    resultText += data.message.content;
+                                } else if (data.choices?.[0]?.delta?.content) {
+                                    resultText += data.choices[0].delta.content;
                                 }
                             } catch (e) {
-                                // Ignore parse errors for partial chunks
+                                console.warn('Error parsing chunk:', e);
                             }
                         }
                     }
                 }
             }
 
+            console.log('AI Edit Final Result:', resultText);
             return resultText || 'Error: No response generated.';
 
         } catch (error) {
             console.error('AI Edit error:', error);
-            return currentContent; // Return original on error
+            setToastState({
+                open: true,
+                message: `AI Edit Failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                severity: NotificationSeverity.ERROR,
+                showIcon: true,
+            });
+            return currentContent;
         } finally {
             setIsGenerating(false);
         }
