@@ -12,7 +12,7 @@ const LivePage = () => {
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
-    const [model, setModel] = useState<string>('gemini-2.5-flash-lite');
+    const [model, setModel] = useState<string>('');
     const [endpoint, setEndpoint] = useState<EModelEndpoint | string>(EModelEndpoint.google);
 
     const initialReportContent = `
@@ -58,6 +58,11 @@ const LivePage = () => {
 
     const handleAIEdit = async (prompt: string) => {
         if (!editorContent) return;
+        if (!model) {
+            // You might want to show a toast here, but for now just return or log
+            console.warn('No model selected for AI Edit');
+            return;
+        }
         const newContent = await editContent(editorContent, prompt, model, endpoint as string);
         if (newContent) {
             setEditorContent(newContent);
