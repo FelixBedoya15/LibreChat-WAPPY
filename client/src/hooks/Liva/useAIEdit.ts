@@ -8,13 +8,12 @@ export const useAIEdit = () => {
     const { data: startupConfig } = useGetStartupConfig();
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const editContent = async (currentContent: string, prompt: string) => {
+    const editContent = async (currentContent: string, prompt: string, model: string, endpoint: string) => {
         setIsGenerating(true);
         try {
-            // Default to OpenAI for now, or get from config
-            // In a real app, we should respect the user's selected model
-            const model = 'gpt-4o';
-            const endpoint = EModelEndpoint.openAI;
+            // Use provided model and endpoint
+            // const model = 'gpt-4o';
+            // const endpoint = EModelEndpoint.openAI;
 
             const text = `
 You are an AI assistant helping to edit a risk assessment report.

@@ -13,7 +13,7 @@ import { CustomMenu as Menu } from './CustomMenu';
 import DialogManager from './DialogManager';
 import { useLocalize } from '~/hooks';
 
-function ModelSelectorContent() {
+export function ModelSelectorContent() {
   const localize = useLocalize();
 
   const {

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { useAIEdit } from '~/hooks/Liva/useAIEdit';
 import LiveEditor from './Editor/LiveEditor';
+import { EModelEndpoint } from 'librechat-data-provider';
 
 const LivePage = () => {
     const localize = useLocalize();
@@ -11,6 +12,8 @@ const LivePage = () => {
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
+    const [model, setModel] = useState<string>('gpt-4o');
+    const [endpoint, setEndpoint] = useState<EModelEndpoint | string>(EModelEndpoint.openAI);
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>
@@ -35,10 +38,15 @@ const LivePage = () => {
 
     const handleAIEdit = async (prompt: string) => {
         if (!editorContent) return;
-        const newContent = await editContent(editorContent, prompt);
+        const newContent = await editContent(editorContent, prompt, model, endpoint as string);
         if (newContent) {
             setEditorContent(newContent);
         }
+    };
+
+    const handleModelSelect = (newModel: string, newEndpoint: string) => {
+        setModel(newModel);
+        setEndpoint(newEndpoint);
     };
 
     return (
@@ -107,6 +115,9 @@ const LivePage = () => {
                         onUpdate={setEditorContent}
                         onAIEdit={handleAIEdit}
                         isGenerating={isGenerating}
+                        model={model}
+                        endpoint={endpoint}
+                        onModelSelect={handleModelSelect}
                     />
                 </div>
             </div>
