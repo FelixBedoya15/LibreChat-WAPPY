@@ -20,30 +20,19 @@ export const useAIEdit = () => {
             // const endpoint = EModelEndpoint.openAI;
 
             const text = `
-You are an AI assistant helping to edit a risk assessment report.
+You are an expert editor helping to refine a risk assessment report.
 Current Content:
 ${currentContent}
 
 User Instruction:
 ${prompt}
 
-Please provide the updated content in HTML format, maintaining the structure. Do not include markdown code blocks, just the HTML.
+CRITICAL OUTPUT RULES:
+1. Return ONLY the updated HTML content.
+2. Do NOT use markdown code blocks (like \`\`\`html).
+3. Do NOT include any conversational text, explanations, or preambles.
+4. Maintain the original HTML structure (h1, h2, p, ul, etc.).
       `.trim();
-
-            const payload = {
-                text,
-                conversationId: 'new', // Use 'new' for temporary context
-                endpointOption: {
-                    endpoint,
-                    model,
-                    modelOptions: {
-                        model,
-                        temperature: 0.7,
-                    },
-                },
-                isContinued: false,
-                parentMessageId: '00000000-0000-0000-0000-000000000000', // Dummy parent ID
-            };
 
             const response = await fetch(`/api/edit/${endpoint}`, {
                 method: 'POST',
@@ -51,7 +40,15 @@ Please provide the updated content in HTML format, maintaining the structure. Do
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    text,
+                    model,
+                    endpoint,
+                    stream: true,
+                    conversationId: 'new',
+                    parentMessageId: '00000000-0000-0000-0000-000000000000',
+                    isContinued: false,
+                }),
             });
 
             if (!response.ok) {
@@ -93,8 +90,16 @@ Please provide the updated content in HTML format, maintaining the structure. Do
                 }
             }
 
-            console.log('AI Edit Final Result:', resultText);
-            return resultText || 'Error: No response generated.';
+            console.log('AI Edit Final Result (Raw):', resultText);
+
+            // Clean up response: remove markdown code blocks if present
+            let cleanText = resultText.trim();
+            if (cleanText.startsWith('```')) {
+                cleanText = cleanText.replace(/^```(?:html)?\n?/, '').replace(/\n?```$/, '');
+            }
+
+            console.log('AI Edit Final Result (Clean):', cleanText);
+            return cleanText || 'Error: No response generated.';
 
         } catch (error) {
             console.error('AI Edit error:', error);
