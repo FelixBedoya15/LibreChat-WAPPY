@@ -4,6 +4,7 @@ import LiveEditor from './Editor/LiveEditor';
 import { Video, VideoOff, RefreshCcw } from 'lucide-react';
 
 const LivePage = () => {
+    // Force rebuild timestamp: 2025-11-28
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
     // Placeholder for split view state
