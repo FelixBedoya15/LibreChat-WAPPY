@@ -29,6 +29,13 @@ const toggleSwitchConfigs = [
     hoverCardText: undefined,
     key: 'hideSidePanel',
   },
+  {
+    stateAtom: store.enableLocation,
+    localizationKey: 'com_nav_enable_location',
+    switchId: 'enableLocation',
+    hoverCardText: undefined,
+    key: 'enableLocation',
+  },
 ];
 
 export const ThemeSelector = ({

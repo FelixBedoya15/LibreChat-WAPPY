@@ -70,6 +70,7 @@ export default function useChatFunctions({
   const { getExpiry } = useUserKey(immutableConversation?.endpoint ?? '');
   const setShowStopButton = useSetRecoilState(store.showStopButtonByIndex(index));
   const resetLatestMultiMessage = useResetRecoilState(store.latestMessageFamily(index + 1));
+  const userLocation = useRecoilValue(store.userLocation);
 
   const ask: TAskFunction = (
     {
@@ -125,6 +126,10 @@ export default function useChatFunctions({
         text: conversation.promptPrefix,
         user,
       });
+    }
+
+    if (userLocation) {
+      conversation.promptPrefix = (conversation.promptPrefix || '') + `\n\nSystem Note: ${userLocation}`;
     }
 
     // construct the query message

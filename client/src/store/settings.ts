@@ -15,6 +15,7 @@ const staticAtoms = {
     default: SettingsViews.default,
   }),
   showPopover: atom<boolean>({ key: 'showPopover', default: false }),
+  userLocation: atom<string | null>({ key: 'userLocation', default: null }),
 };
 
 const localStorageAtoms = {
@@ -25,6 +26,7 @@ const localStorageAtoms = {
     LocalStorageKeys.ENABLE_USER_MSG_MARKDOWN,
     true,
   ),
+  enableLocation: atomWithLocalStorage('enableLocation', false),
 
   // Chat settings
   enterToSend: atomWithLocalStorage('enterToSend', true),

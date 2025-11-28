@@ -10,6 +10,7 @@ import {
   useAuthContext,
   useLocalStorage,
   useNavScrolling,
+  useLocationSystem,
 } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Conversations } from '~/components/Conversations';
@@ -61,6 +62,7 @@ const Nav = memo(
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
     const [showLoading, setShowLoading] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
+    useLocationSystem();
 
     const hasAccessToBookmarks = useHasAccess({
       permissionType: PermissionTypes.BOOKMARKS,
