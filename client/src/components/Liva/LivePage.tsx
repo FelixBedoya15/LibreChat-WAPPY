@@ -1,4 +1,3 @@
-```javascript
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocalize, useNewConvo, useLiveAnalysis } from '~/hooks';
 import LiveEditor from './Editor/LiveEditor';
@@ -166,8 +165,8 @@ const LivePage = () => {
                         LIVE - Intelligent Video Assessment
                     </h2>
                     <div className="flex items-center gap-2">
-                        <span className={`flex h - 3 w - 3 rounded - full ${ isStreaming ? 'bg-green-500 animate-pulse' : 'bg-red-500' } `}></span>
-                        <span className={`text - sm font - medium ${ isStreaming ? 'text-green-500' : 'text-red-500' } `}>
+                        <span className={`flex h - 3 w - 3 rounded - full ${isStreaming ? 'bg-green-500 animate-pulse' : 'bg-red-500'} `}></span>
+                        <span className={`text - sm font - medium ${isStreaming ? 'text-green-500' : 'text-red-500'} `}>
                             {isStreaming ? 'Live' : 'Offline'}
                         </span>
                     </div>
@@ -181,7 +180,7 @@ const LivePage = () => {
                         autoPlay
                         playsInline
                         muted
-                        className={`w - full h - full object - cover ${ isStreaming ? 'block' : 'hidden' } `}
+                        className={`w - full h - full object - cover ${isStreaming ? 'block' : 'hidden'} `}
                     />
 
                     {!isStreaming && (
@@ -199,11 +198,10 @@ const LivePage = () => {
                         {/* Toggle Camera */}
                         <button
                             onClick={handleToggleCamera}
-                            className={`p - 4 rounded - full transition - all shadow - lg ${
-    isStreaming
-        ? 'bg-red-500 hover:bg-red-600 text-white'
-        : 'bg-white text-black hover:bg-gray-200'
-} `}
+                            className={`p - 4 rounded - full transition - all shadow - lg ${isStreaming
+                                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                                    : 'bg-white text-black hover:bg-gray-200'
+                                } `}
                             title={isStreaming ? "Stop Camera" : "Start Camera"}
                         >
                             {isStreaming ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
@@ -213,11 +211,10 @@ const LivePage = () => {
                         {isStreaming && (
                             <button
                                 onClick={toggleAutoAnalysis}
-                                className={`p - 5 rounded - full transition - all shadow - lg border - 4 border - white / 50 ${
-    isAutoAnalyzing
-        ? 'bg-green-500 hover:bg-green-600 text-white animate-pulse'
-        : 'bg-white text-black hover:bg-gray-100 hover:scale-105'
-} `}
+                                className={`p - 5 rounded - full transition - all shadow - lg border - 4 border - white / 50 ${isAutoAnalyzing
+                                        ? 'bg-green-500 hover:bg-green-600 text-white animate-pulse'
+                                        : 'bg-white text-black hover:bg-gray-100 hover:scale-105'
+                                    } `}
                                 title={isAutoAnalyzing ? "Stop Analysis" : "Start Auto Analysis"}
                             >
                                 {isAutoAnalyzing ? <Square className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current" />}
