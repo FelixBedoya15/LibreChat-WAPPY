@@ -9,6 +9,7 @@ const LivePage = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
     const videoRef = React.useRef<HTMLVideoElement>(null);
 
     const initialReportContent = `
@@ -52,29 +53,57 @@ const LivePage = () => {
         });
     };
 
-    const handleToggleCamera = async () => {
-        if (isStreaming) {
-            // Stop streaming
-            if (videoRef.current && videoRef.current.srcObject) {
-                const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-                tracks.forEach(track => track.stop());
-                videoRef.current.srcObject = null;
-            }
-            setIsStreaming(false);
-        } else {
-            // Start streaming
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
+    // Robust camera handling with useEffect
+    React.useEffect(() => {
+        let currentStream: MediaStream | null = null;
+
+        const startCamera = async () => {
+            if (isStreaming) {
+                try {
+                    // Stop any existing tracks first
+                    if (videoRef.current && videoRef.current.srcObject) {
+                        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+                        tracks.forEach(track => track.stop());
+                    }
+
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: facingMode }
+                    });
+                    currentStream = stream;
+
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (error) {
+                    console.error("Error accessing camera:", error);
+                    alert("Could not access camera. Please ensure permissions are granted.");
+                    setIsStreaming(false);
                 }
-                setIsStreaming(true);
-            } catch (error) {
-                console.error("Error accessing camera:", error);
-                // You might want to show a toast here
-                alert("Could not access camera. Please ensure permissions are granted.");
+            } else {
+                // Cleanup if not streaming
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+                    tracks.forEach(track => track.stop());
+                    videoRef.current.srcObject = null;
+                }
             }
-        }
+        };
+
+        startCamera();
+
+        return () => {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [isStreaming, facingMode]);
+
+    const handleToggleCamera = () => {
+        setIsStreaming(prev => !prev);
+    };
+
+    const handleSwitchCamera = () => {
+        setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
     };
 
     return (
@@ -114,13 +143,21 @@ const LivePage = () => {
                         </div>
                     )}
 
-                    <div className="absolute bottom-4 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <button
                             onClick={handleToggleCamera}
                             className={`rounded px-4 py-2 text-white shadow-lg ${isStreaming ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                         >
-                            {isStreaming ? 'Disconnect Camera' : 'Connect Camera'}
+                            {isStreaming ? 'Disconnect' : 'Connect Camera'}
                         </button>
+                        {isStreaming && (
+                            <button
+                                onClick={handleSwitchCamera}
+                                className="rounded px-4 py-2 bg-gray-700 text-white shadow-lg hover:bg-gray-600"
+                            >
+                                Switch Cam ({facingMode === 'user' ? 'Front' : 'Rear'})
+                            </button>
+                        )}
                     </div>
                 </div>
 
