@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
-import { useLocalize, useNewConvo } from '~/hooks';
+```javascript
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocalize, useNewConvo, useLiveAnalysis } from '~/hooks';
 import LiveEditor from './Editor/LiveEditor';
-import { Video, VideoOff, RefreshCcw } from 'lucide-react';
+import { Video, VideoOff, RefreshCcw, Camera, Loader2, Play, Square } from 'lucide-react';
 
 const LivePage = () => {
     // Force rebuild timestamp: 2025-11-28
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
+    const { analyzeImage, isAnalyzing, analysisResult } = useLiveAnalysis();
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [isAutoAnalyzing, setIsAutoAnalyzing] = useState(false);
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
-    const videoRef = React.useRef<HTMLVideoElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const initialReportContent = `
-<h1>Informe de Riesgos Laborales</h1>
+    < h1 > Informe de Riesgos Laborales</h1 >
 <p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
 <p><strong>Ubicación:</strong> [Detectando ubicación...]</p>
 <h2>Hallazgos</h2>
@@ -24,7 +28,7 @@ const LivePage = () => {
   <li>Análisis pendiente de confirmación.</li>
 </ul>
 <p><em>(Este informe fue generado automáticamente por el módulo LIVE)</em></p>
-  `;
+`;
 
     const htmlToMarkdown = (html: string) => {
         return html
@@ -56,7 +60,7 @@ const LivePage = () => {
     };
 
     // Robust camera handling with useEffect
-    React.useEffect(() => {
+    useEffect(() => {
         let currentStream: MediaStream | null = null;
 
         const startCamera = async () => {
@@ -80,6 +84,7 @@ const LivePage = () => {
                     console.error("Error accessing camera:", error);
                     alert("Could not access camera. Please ensure permissions are granted.");
                     setIsStreaming(false);
+                    setIsAutoAnalyzing(false);
                 }
             } else {
                 // Cleanup if not streaming
@@ -88,6 +93,7 @@ const LivePage = () => {
                     tracks.forEach(track => track.stop());
                     videoRef.current.srcObject = null;
                 }
+                setIsAutoAnalyzing(false);
             }
         };
 
@@ -108,23 +114,65 @@ const LivePage = () => {
         setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
     };
 
+    const handleCapture = () => {
+        if (videoRef.current && canvasRef.current && isStreaming) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            analyzeImage(blob);
+                        }
+                    }, 'image/jpeg');
+                }
+            }
+        }
+    };
+
+    const toggleAutoAnalysis = () => {
+        setIsAutoAnalyzing(prev => !prev);
+    };
+
+    // Auto-analysis interval
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout;
+        if (isAutoAnalyzing && isStreaming) {
+            // Capture immediately on start
+            handleCapture();
+
+            intervalId = setInterval(() => {
+                if (!isAnalyzing) { // Only capture if previous analysis is done
+                    handleCapture();
+                }
+            }, 5000); // Analyze every 5 seconds
+        }
+        return () => clearInterval(intervalId);
+    }, [isAutoAnalyzing, isStreaming, isAnalyzing]);
+
     return (
-        <div className="flex h-full w-full flex-row overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex h-full w-full flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900">
+            {/* Hidden Canvas for Capture */}
+            <canvas ref={canvasRef} className="hidden" />
+
             {/* Left Panel: Video Stream & Alerts */}
-            <div className="flex w-1/2 flex-col border-r border-gray-200 dark:border-gray-700">
+            <div className="flex w-full md:w-1/2 h-1/2 md:h-full flex-col border-r border-gray-200 dark:border-gray-700">
                 <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                         LIVE - Intelligent Video Assessment
                     </h2>
                     <div className="flex items-center gap-2">
-                        <span className={`flex h-3 w-3 rounded-full ${isStreaming ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                        <span className={`text-sm font-medium ${isStreaming ? 'text-green-500' : 'text-red-500'}`}>
+                        <span className={`flex h - 3 w - 3 rounded - full ${ isStreaming ? 'bg-green-500 animate-pulse' : 'bg-red-500' } `}></span>
+                        <span className={`text - sm font - medium ${ isStreaming ? 'text-green-500' : 'text-red-500' } `}>
                             {isStreaming ? 'Live' : 'Offline'}
                         </span>
                     </div>
                 </div>
 
-                {/* Video Player Placeholder */}
                 {/* Video Player Placeholder */}
                 <div className="relative flex-1 bg-black overflow-hidden group">
                     {/* Always render video to ensure ref is populated, hide when not streaming */}
@@ -133,7 +181,7 @@ const LivePage = () => {
                         autoPlay
                         playsInline
                         muted
-                        className={`w-full h-full object-cover ${isStreaming ? 'block' : 'hidden'}`}
+                        className={`w - full h - full object - cover ${ isStreaming ? 'block' : 'hidden' } `}
                     />
 
                     {!isStreaming && (
@@ -151,14 +199,30 @@ const LivePage = () => {
                         {/* Toggle Camera */}
                         <button
                             onClick={handleToggleCamera}
-                            className={`p-4 rounded-full transition-all shadow-lg ${isStreaming
-                                ? 'bg-red-500 hover:bg-red-600 text-white'
-                                : 'bg-white text-black hover:bg-gray-200'
-                                }`}
+                            className={`p - 4 rounded - full transition - all shadow - lg ${
+    isStreaming
+        ? 'bg-red-500 hover:bg-red-600 text-white'
+        : 'bg-white text-black hover:bg-gray-200'
+} `}
                             title={isStreaming ? "Stop Camera" : "Start Camera"}
                         >
                             {isStreaming ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
                         </button>
+
+                        {/* Auto Analyze Toggle */}
+                        {isStreaming && (
+                            <button
+                                onClick={toggleAutoAnalysis}
+                                className={`p - 5 rounded - full transition - all shadow - lg border - 4 border - white / 50 ${
+    isAutoAnalyzing
+        ? 'bg-green-500 hover:bg-green-600 text-white animate-pulse'
+        : 'bg-white text-black hover:bg-gray-100 hover:scale-105'
+} `}
+                                title={isAutoAnalyzing ? "Stop Analysis" : "Start Auto Analysis"}
+                            >
+                                {isAutoAnalyzing ? <Square className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current" />}
+                            </button>
+                        )}
 
                         {/* Switch Camera */}
                         {isStreaming && (
@@ -174,18 +238,35 @@ const LivePage = () => {
                 </div>
 
                 {/* Real-time Alerts Panel */}
-                <div className="h-1/3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+                <div className="h-1/3 border-t border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800 overflow-y-auto">
                     <h3 className="mb-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">Real-time Risk Alerts</h3>
                     <div className="space-y-2">
-                        <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-200">
-                            ⚠️ Waiting for video stream to start analysis...
-                        </div>
+                        {isAnalyzing && (
+                            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200 flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Analyzing video frame...
+                            </div>
+                        )}
+
+                        {analysisResult ? (
+                            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200 whitespace-pre-wrap">
+                                <strong>Analysis Result:</strong>
+                                <br />
+                                {analysisResult}
+                            </div>
+                        ) : (
+                            !isAnalyzing && (
+                                <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-200">
+                                    ⚠️ Waiting for analysis. Click the Play button to start auto-analysis.
+                                </div>
+                            )
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Right Panel: Document Editor */}
-            <div className="flex w-1/2 flex-col bg-white dark:bg-gray-900">
+            <div className="flex w-full md:w-1/2 h-1/2 md:h-full flex-col bg-white dark:bg-gray-900">
                 <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                         Risk Assessment Report
