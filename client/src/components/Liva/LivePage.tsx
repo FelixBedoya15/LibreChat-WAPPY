@@ -198,10 +198,10 @@ const LivePage = () => {
                         {/* Toggle Camera */}
                         <button
                             onClick={handleToggleCamera}
-                            className={`p - 4 rounded - full transition - all shadow - lg ${isStreaming
-                                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                                    : 'bg-white text-black hover:bg-gray-200'
-                                } `}
+                            className={`p-4 rounded-full backdrop-blur-sm transition-all shadow-lg border border-white/30 text-white ${isStreaming
+                                    ? 'bg-red-500/80 hover:bg-red-600/80'
+                                    : 'bg-white/20 hover:bg-white/30'
+                                }`}
                             title={isStreaming ? "Stop Camera" : "Start Camera"}
                         >
                             {isStreaming ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
@@ -211,13 +211,13 @@ const LivePage = () => {
                         {isStreaming && (
                             <button
                                 onClick={toggleAutoAnalysis}
-                                className={`p - 5 rounded - full transition - all shadow - lg border - 4 border - white / 50 ${isAutoAnalyzing
-                                        ? 'bg-green-500 hover:bg-green-600 text-white animate-pulse'
-                                        : 'bg-white text-black hover:bg-gray-100 hover:scale-105'
-                                    } `}
+                                className={`p-4 rounded-full backdrop-blur-sm transition-all shadow-lg border border-white/30 text-white ${isAutoAnalyzing
+                                        ? 'bg-green-500/80 hover:bg-green-600/80 animate-pulse'
+                                        : 'bg-white/20 hover:bg-white/30'
+                                    }`}
                                 title={isAutoAnalyzing ? "Stop Analysis" : "Start Auto Analysis"}
                             >
-                                {isAutoAnalyzing ? <Square className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current" />}
+                                {isAutoAnalyzing ? <Square className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                             </button>
                         )}
 
