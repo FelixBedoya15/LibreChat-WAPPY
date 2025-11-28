@@ -1,6 +1,6 @@
 import React, { useContext, useCallback } from 'react';
 import Cookies from 'js-cookie';
-import { useRecoilState } from 'recoil';
+import { useRecoilState, useRecoilValue } from 'recoil';
 import { Dropdown, ThemeContext } from '@librechat/client';
 import ArchivedChats from './ArchivedChats';
 import ToggleSwitch from '../ToggleSwitch';
@@ -140,6 +140,22 @@ export const LangSelector = ({
   );
 };
 
+
+const LocationStatus = () => {
+  const enableLocation = useRecoilValue(store.enableLocation);
+  const userLocation = useRecoilValue(store.userLocation);
+  const localize = useLocalize();
+
+  if (!enableLocation) return null;
+
+  return (
+    <div className="mb-4 rounded-md border border-border-light bg-surface-secondary p-3 text-xs text-text-secondary">
+      <div className="font-bold mb-1">{localize('com_nav_enable_location')}:</div>
+      <div>{userLocation || 'Detecting location... (Check browser permissions)'}</div>
+    </div>
+  );
+};
+
 function General() {
   const { theme, setTheme } = useContext(ThemeContext);
 
@@ -186,6 +202,8 @@ function General() {
           />
         </div>
       ))}
+      {/* Debugging/Verification: Show current location if enabled */}
+      <LocationStatus />
       <div className="pb-3">
         <ArchivedChats />
       </div>

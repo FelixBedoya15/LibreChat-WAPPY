@@ -129,7 +129,11 @@ export default function useChatFunctions({
     }
 
     if (userLocation) {
-      conversation.promptPrefix = (conversation.promptPrefix || '') + `\n\nSystem Note: ${userLocation}`;
+      const locationNote = `\n\nSystem Note: ${userLocation}`;
+      // Append only if not already present to avoid duplication
+      if (!conversation.promptPrefix?.includes(locationNote.trim())) {
+        conversation.promptPrefix = (conversation.promptPrefix || '') + locationNote;
+      }
     }
 
     // construct the query message
