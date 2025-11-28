@@ -8,10 +8,11 @@ import Toolbar from './Toolbar';
 interface LiveEditorProps {
     initialContent?: string;
     onUpdate?: (content: string) => void;
-    onAIEdit?: () => void;
+    onAIEdit?: (prompt: string) => Promise<void>;
+    isGenerating?: boolean;
 }
 
-const LiveEditor = ({ initialContent = '', onUpdate, onAIEdit }: LiveEditorProps) => {
+const LiveEditor = ({ initialContent = '', onUpdate, onAIEdit, isGenerating }: LiveEditorProps) => {
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -43,7 +44,7 @@ const LiveEditor = ({ initialContent = '', onUpdate, onAIEdit }: LiveEditorProps
 
     return (
         <div className="flex flex-col h-full border border-gray-200 rounded-lg overflow-hidden bg-white dark:border-gray-700 dark:bg-gray-900 shadow-sm">
-            <Toolbar editor={editor} onAIEdit={onAIEdit} />
+            <Toolbar editor={editor} onAIEdit={onAIEdit} isGenerating={isGenerating} />
             <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
                 <EditorContent editor={editor} />
             </div>

@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
 import { useLocalize, useNewConvo } from '~/hooks';
+import { useAIEdit } from '~/hooks/Liva/useAIEdit';
 import LiveEditor from './Editor/LiveEditor';
 
 const LivePage = () => {
     const localize = useLocalize();
     const { newConversation } = useNewConvo();
+    const { editContent, isGenerating } = useAIEdit();
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [editorContent, setEditorContent] = useState('');
@@ -29,6 +31,14 @@ const LivePage = () => {
         newConversation({
             state: { initialMessage: contentToSave },
         });
+    };
+
+    const handleAIEdit = async (prompt: string) => {
+        if (!editorContent) return;
+        const newContent = await editContent(editorContent, prompt);
+        if (newContent) {
+            setEditorContent(newContent);
+        }
     };
 
     return (
@@ -93,9 +103,10 @@ const LivePage = () => {
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden p-4 bg-gray-50 dark:bg-gray-800">
                     <LiveEditor
-                        initialContent={initialReportContent}
+                        initialContent={editorContent || initialReportContent}
                         onUpdate={setEditorContent}
-                        onAIEdit={() => console.log('AI Edit clicked')}
+                        onAIEdit={handleAIEdit}
+                        isGenerating={isGenerating}
                     />
                 </div>
             </div>

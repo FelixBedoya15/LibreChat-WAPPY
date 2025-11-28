@@ -11,13 +11,15 @@ import {
     Sparkles
 } from 'lucide-react';
 import { cn } from '~/utils';
+import AIEditControl from './AIEditControl';
 
 interface ToolbarProps {
     editor: Editor | null;
-    onAIEdit?: () => void;
+    onAIEdit?: (prompt: string) => Promise<void>;
+    isGenerating?: boolean;
 }
 
-const Toolbar = ({ editor, onAIEdit }: ToolbarProps) => {
+const Toolbar = ({ editor, onAIEdit, isGenerating }: ToolbarProps) => {
     if (!editor) {
         return null;
     }
@@ -106,13 +108,9 @@ const Toolbar = ({ editor, onAIEdit }: ToolbarProps) => {
 
             <div className="flex-grow" />
 
-            <button
-                onClick={onAIEdit}
-                className="flex items-center gap-1.5 rounded bg-purple-100 px-3 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 transition-colors"
-            >
-                <Sparkles className="w-3.5 h-3.5" />
-                AI Edit
-            </button>
+            {onAIEdit && (
+                <AIEditControl onAIEdit={onAIEdit} isGenerating={isGenerating} />
+            )}
         </div>
     );
 };
