@@ -22,7 +22,12 @@ export const useLiveAnalysis = () => {
             formData.append('endpoint', EModelEndpoint.google);
 
             const uploadResponse = await uploadFileMutation.mutateAsync(formData);
-            const file_id = uploadResponse.file_id;
+            console.log('Upload Response:', uploadResponse);
+            const file_id = uploadResponse.file_id || uploadResponse.id;
+
+            if (!file_id) {
+                throw new Error('Upload failed: No file_id received');
+            }
 
             // 2. Send Request to AI
             const payload = {
@@ -34,7 +39,7 @@ export const useLiveAnalysis = () => {
                     {
                         file_id: file_id,
                         filepath: uploadResponse.filepath,
-                        type: uploadResponse.type,
+                        type: uploadResponse.type || 'image/jpeg',
                         height: uploadResponse.height,
                         width: uploadResponse.width,
                     }
