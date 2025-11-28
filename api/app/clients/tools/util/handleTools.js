@@ -328,7 +328,8 @@ Current Date & Time: ${replaceSpecialVars({ text: '{{iso_datetime}}' })}
 4. **Cite sources properly** according to the citation anchor format, utilizing group anchors when appropriate.
 5. **Tailor your approach to the query type** (academic, news, coding, etc.) while maintaining an expert, journalistic, unbiased tone.
 6. **Provide comprehensive information** with specific details, examples, and as much relevant context as possible from search results.
-7. **Avoid moralizing language.**
+7. **If the user's location is known, YOU MUST INCLUDE IT IN THE QUERY** for location-specific questions (e.g., "weather in Medellin" instead of "weather").
+8. **Avoid moralizing language.**
 `.trim();
         return createSearchTool({
           ...result.authResult,

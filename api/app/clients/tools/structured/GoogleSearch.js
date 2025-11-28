@@ -26,7 +26,7 @@ class GoogleSearchResults extends Tool {
     this.kwargs = fields?.kwargs ?? {};
     this.name = 'google';
     this.description =
-      'A search engine optimized for comprehensive, accurate, and trusted results. Useful for when you need to answer questions about current events.';
+      'A search engine optimized for comprehensive, accurate, and trusted results. Useful for when you need to answer questions about current events. If the user\'s location is known, YOU MUST INCLUDE IT IN THE QUERY for location-specific questions (e.g., "weather in Medellin" instead of "weather").';
 
     this.schema = z.object({
       query: z.string().min(1).describe('The search query string.'),
@@ -49,8 +49,7 @@ class GoogleSearchResults extends Tool {
     const { query, max_results = 5 } = validationResult.data;
 
     const response = await fetch(
-      `https://www.googleapis.com/customsearch/v1?key=${this.apiKey}&cx=${
-        this.searchEngineId
+      `https://www.googleapis.com/customsearch/v1?key=${this.apiKey}&cx=${this.searchEngineId
       }&q=${encodeURIComponent(query)}&num=${max_results}`,
       {
         method: 'GET',
