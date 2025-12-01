@@ -172,7 +172,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 if (videoRef.current && videoRef.current.readyState >= 2) {
                     sendVideoFrame(videoRef.current);
                 }
-            }, 200); // 5 FPS
+            }, 100); // 10 FPS for better precision
 
         } catch (error) {
             console.error('[LiveAnalysisModal] Error starting camera:', error);
