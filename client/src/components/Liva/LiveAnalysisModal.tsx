@@ -259,6 +259,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         nextStartTimeRef.current += buffer.duration;
     }
 
+    const clearAudioQueue = () => {
+        if (audioContextRef.current) {
+            audioContextRef.current.suspend().then(() => {
+                nextStartTimeRef.current = 0;
+                audioContextRef.current?.resume();
+            });
+        }
+    };
+
     if (!isOpen) return null;
 
     return (

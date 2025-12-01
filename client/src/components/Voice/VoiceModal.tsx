@@ -289,7 +289,30 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
         // Update next start time
         nextStartTimeRef.current += buffer.duration;
+
+        // Keep track of sources to stop them if needed
+        // (Simplified: we rely on context.suspend or close for full stop, but for voice change we might want to be more granular.
+        // For now, clearing the queue state is enough if we weren't using scheduleAudio directly.
+        // With scheduleAudio, we can't easily cancel scheduled nodes without tracking them.
+        // FIX: To clear audio immediately, we can suspend and resume the context or close/reopen.)
     }
+
+    /**
+     * Clear audio queue and stop playback
+     */
+    const clearAudioQueue = () => {
+        if (audioContextRef.current) {
+            // Suspend and resume to cancel scheduled events is one way, but closing is cleaner for a full reset
+            // Or just let it play out? No, user wants immediate change.
+            // Easiest: Close and recreate context, or just accept the latency of one buffer.
+            // Better: Track the current source node?
+            // Let's try suspending the context briefly.
+            audioContextRef.current.suspend().then(() => {
+                nextStartTimeRef.current = 0;
+                audioContextRef.current?.resume();
+            });
+        }
+    };
 
     /**
      * Handle received text (transcription)
@@ -327,6 +350,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
      */
     const handleVoiceChange = (voiceId: string) => {
         setSelectedVoice(voiceId);
+        clearAudioQueue(); // Stop current voice immediately
         changeVoice(voiceId);
         setShowVoiceSelector(false);
     };

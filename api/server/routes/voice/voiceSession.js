@@ -563,7 +563,7 @@ class VoiceSession {
     async correctTranscription(userText, aiResponseText) {
         try {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
-            const correctionModelName = process.env.TRANSCRIPTION_CORRECTION_MODEL || 'gemini-2.5-flash-lite-preview-09-2025';
+            const correctionModelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Requested by user
             logger.info(`[VoiceSession] Using correction model: ${correctionModelName}`);
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -571,32 +571,25 @@ class VoiceSession {
             const model = genAI.getGenerativeModel({ model: correctionModelName });
 
             const prompt = `
-            You are a transcription correction expert.
+            Act as a spelling and grammar corrector for a voice transcription.
             
-            CONTEXT:
-            - Recent conversation history (for reference ONLY):
+            CONTEXT (Previous conversation):
             """
-            ${aiResponseText}
+            ${this.config.conversationContext || ''}
+            AI Last Response: ${aiResponseText}
             """
             
-            - User's raw audio transcription (needs correction):
+            RAW TRANSCRIPTION (Needs correction):
             """
             ${userText}
             """
             
-            TASK:
-            1. Analyze the user's raw transcription.
-            2. Use the context to understand specific terms (like SST, technical words) or the flow of conversation.
-            3. Correct phonetic errors, misinterpretations, spelling, and punctuation.
-            4. Structure the sentence naturally and grammatically while preserving the original meaning.
-            5. OUTPUT ONLY THE CORRECTED USER TEXT.
-            
-            RULES:
-            - OUTPUT ONLY THE CORRECTED USER TEXT. NO PREAMBLE. NO POSTSCRIPT.
-            - ABSOLUTELY FORBIDDEN to include the "Recent conversation history" in your output.
-            - The history is ONLY for context (understanding acronyms like SST).
-            - If the user text is short (e.g., "Hola"), DO NOT append the history.
-            - If the raw transcription is already correct, return it exactly as is.
+            INSTRUCTIONS:
+            1. Correct phonetic errors (e.g., "Comprece" -> "Comprendo" or "Cómprese", depending on context).
+            2. Fix capitalization and punctuation.
+            3. Keep the intent and meaning exactly the same.
+            4. If the text is in Spanish, keep it in Spanish.
+            5. OUTPUT ONLY THE CORRECTED TEXT. NO EXPLANATIONS.
             `;
 
             const result = await model.generateContent(prompt);
