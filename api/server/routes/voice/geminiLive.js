@@ -134,7 +134,7 @@ class GeminiLiveClient extends EventEmitter {
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
-                                voiceName: 'Kore',
+                                voiceName: this.config.voice || 'Puck',
                             },
                         },
                     },
