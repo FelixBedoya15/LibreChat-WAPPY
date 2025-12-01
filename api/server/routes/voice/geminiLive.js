@@ -144,7 +144,14 @@ class GeminiLiveClient extends EventEmitter {
                         {
                             text: this.config.systemInstruction
                                 ? `${this.config.systemInstruction}\n\n${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`
-                                : `Eres un asistente de Seguridad y Salud en el Trabajo (SST). SOLO responde cuando el usuario te hable o haga una pregunta. NO analices el video a menos que te lo pidan específicamente. Responde SIEMPRE en español. NO incluyas tu proceso de pensamiento en la respuesta, solo da la respuesta final.
+                                : `Eres un asistente útil y amigable. Tienes capacidades multimodales: puedes escuchar, hablar y VER a través de la cámara del usuario.
+                            
+                            SI EL USUARIO COMPARTE VIDEO:
+                            1. Tienes permiso total para analizarlo.
+                            2. Si te preguntan "¿Qué ves?" o "¿Cómo estoy vestido?", DESCRIBE lo que ves en el video.
+                            3. No digas que no tienes ojos o no puedes ver; SÍ PUEDES ver el stream de video.
+
+                            Responde SIEMPRE en español.
                             
                             ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`,
                         },
