@@ -635,7 +635,7 @@ class VoiceSession {
                 return null;
             }
 
-            const modelName = 'gemini-1.5-flash'; // Fast and capable
+            const modelName = 'gemini-2.5-flash-preview-09-2025'; // Updated to user requested modelquested model
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');
             // Ensure apiKey is a string
