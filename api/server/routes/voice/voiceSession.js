@@ -32,6 +32,10 @@ class VoiceSession {
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
 
+        // Parallel Report Generation
+        this.lastFrame = null;
+        this.reportInterval = null;
+
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
     }
 
@@ -85,6 +89,10 @@ class VoiceSession {
             this.setupHandlers();
 
             this.isActive = true;
+
+            // Start Parallel Report Generator
+            this.startReportGenerator();
+
             logger.info(`[VoiceSession] Started for user: ${this.userId}`);
 
             return { success: true };
@@ -292,6 +300,9 @@ class VoiceSession {
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
+                    // Store for parallel report generation
+                    this.lastFrame = data.image;
+
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
                     } else {
@@ -617,23 +628,105 @@ class VoiceSession {
         }
     }
 
-    stop() {
-        this.isActive = false;
-        this.currentTurnText = '';
-        this.aiResponseText = '';
+    // Remove from active sessions
+    if(activeSessions.has(this.userId)) {
+    activeSessions.delete(this.userId);
+}
 
-        if (this.geminiClient) {
-            this.geminiClient.disconnect();
-            this.geminiClient = null;
-        }
-
-        // Remove from active sessions
-        if (activeSessions.has(this.userId)) {
-            activeSessions.delete(this.userId);
-        }
-
-        logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
+this.stopReportGenerator();
+logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
     }
+
+/**
+ * Start the parallel report generator
+ */
+startReportGenerator() {
+    if (this.reportInterval) clearInterval(this.reportInterval);
+
+    logger.info('[VoiceSession] Starting Parallel Report Generator');
+
+    // Generate report every 10 seconds
+    this.reportInterval = setInterval(() => {
+        this.generateReport();
+    }, 10000);
+}
+
+/**
+ * Stop the parallel report generator
+ */
+stopReportGenerator() {
+    if (this.reportInterval) {
+        clearInterval(this.reportInterval);
+        this.reportInterval = null;
+    }
+}
+
+    /**
+     * Generate structured report from latest video frame
+     */
+    async generateReport() {
+    if (!this.lastFrame) return;
+
+    try {
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(this.apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite-preview-02-05' });
+
+        const prompt = `
+            Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
+            Genera un "Análisis de Trabajo Seguro (ATS)" basado en la imagen proporcionada.
+            
+            ESTRUCTURA OBLIGATORIA (Markdown):
+            
+            # Análisis de Trabajo Seguro (ATS) - Reporte en Vivo
+            
+            ## 1. Descripción del Entorno
+            (Breve descripción técnica del área y condiciones).
+            
+            ## 2. Matriz de Riesgos (Tabla)
+            | Peligro Identificado | Riesgo Asociado | Probabilidad | Consecuencia | Nivel |
+            |---|---|---|---|---|
+            | ... | ... | ... | ... | ... |
+            
+            ## 3. Controles Recomendados (Tabla)
+            | Riesgo | Control de Ingeniería | Control Administrativo | EPP |
+            |---|---|---|---|---|
+            | ... | ... | ... | ... | ... |
+            
+            IMPORTANTE:
+            - Sé conciso y directo.
+            - Usa tablas Markdown obligatoriamente.
+            - Si no hay riesgos visibles, indícalo claramente.
+            `;
+
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    data: this.lastFrame,
+                    mimeType: 'image/jpeg'
+                }
+            }
+        ]);
+
+        const response = await result.response;
+        const reportText = response.text();
+
+        logger.info('[VoiceSession] Generated Parallel Report');
+
+        // Send to client as the main text content
+        this.sendToClient({
+            type: 'text',
+            data: { text: reportText }
+        });
+
+        // Update aiResponseText for saving later
+        this.aiResponseText = reportText;
+
+    } catch (error) {
+        logger.error('[VoiceSession] Error generating parallel report:', error);
+    }
+}
 }
 
 /**

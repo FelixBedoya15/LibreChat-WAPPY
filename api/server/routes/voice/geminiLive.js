@@ -128,8 +128,9 @@ class GeminiLiveClient extends EventEmitter {
             setup: {
                 model: `models/${this.config.model}`,
                 generationConfig: {
-                    // Enable both AUDIO and TEXT to support conversational voice + structured report
-                    responseModalities: ['AUDIO', 'TEXT'],
+                    // CRÍTICO: NO CAMBIAR A ['AUDIO', 'TEXT'] - ROMPE LA IA COMPLETAMENTE
+                    // La IA deja de responder si se agrega 'TEXT' a responseModalities
+                    responseModalities: ['AUDIO'],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
