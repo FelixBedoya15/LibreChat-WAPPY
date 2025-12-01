@@ -76,6 +76,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         sendTextMessage,
         setMuted,
         changeVoice,
+        getInputVolume,
     } = useLiveAnalysisSession(sessionOptions);
 
     // Connection Delay Logic
