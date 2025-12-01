@@ -689,26 +689,48 @@ class VoiceSession {
             Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
             Genera un "Análisis de Trabajo Seguro (ATS)" basado en la imagen proporcionada.
             
-            ESTRUCTURA OBLIGATORIA (Markdown):
+            ESTRUCTURA OBLIGATORIA (HTML):
+            Genera el reporte en formato HTML limpio (sin etiquetas <html> o <body>, solo el contenido).
             
-            # Análisis de Trabajo Seguro (ATS) - Reporte en Vivo
+            <h1>Análisis de Trabajo Seguro (ATS) - Reporte en Vivo</h1>
             
-            ## 1. Descripción del Entorno
-            (Breve descripción técnica del área y condiciones).
+            <h2>1. Descripción del Entorno</h2>
+            <p>(Breve descripción técnica del área y condiciones).</p>
             
-            ## 2. Matriz de Riesgos (Tabla)
-            | Peligro Identificado | Riesgo Asociado | Probabilidad | Consecuencia | Nivel |
-            |---|---|---|---|---|
-            | ... | ... | ... | ... | ... |
+            <h2>2. Matriz de Riesgos</h2>
+            <table border="1" style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Peligro Identificado</th>
+                        <th>Riesgo Asociado</th>
+                        <th>Probabilidad</th>
+                        <th>Consecuencia</th>
+                        <th>Nivel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Filas de la tabla aquí -->
+                </tbody>
+            </table>
             
-            ## 3. Controles Recomendados (Tabla)
-            | Riesgo | Control de Ingeniería | Control Administrativo | EPP |
-            |---|---|---|---|---|
-            | ... | ... | ... | ... | ... |
+            <h2>3. Controles Recomendados</h2>
+            <table border="1" style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Riesgo</th>
+                        <th>Control de Ingeniería</th>
+                        <th>Control Administrativo</th>
+                        <th>EPP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Filas de la tabla aquí -->
+                </tbody>
+            </table>
             
             IMPORTANTE:
             - Sé conciso y directo.
-            - Usa tablas Markdown obligatoriamente.
+            - Usa HTML válido.
             - Si no hay riesgos visibles, indícalo claramente.
             `;
 

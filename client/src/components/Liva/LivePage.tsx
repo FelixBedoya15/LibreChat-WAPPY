@@ -16,7 +16,8 @@ const LivePage = () => {
 
     const handleTextReceived = (text: string) => {
         console.log("LivePage: Text received from AI:", text);
-        setEditorContent(prev => prev + text);
+        // Replace content with the new full report
+        setEditorContent(text);
     };
 
     const initialReportContent = `
