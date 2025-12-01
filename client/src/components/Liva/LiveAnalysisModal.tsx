@@ -214,9 +214,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setMuted(newMuted);
     };
 
-    // Audio Playback Logic
-    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]);
-    const [isPlaying, setIsPlaying] = useState(false);
+    // Audio Playback Logic with Jitter Buffer
+    const nextStartTimeRef = useRef<number>(0);
+    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]); // Keep for visualizer if needed, or remove if unused
 
     function handleAudioReceived(audioData: string) {
         try {
@@ -234,28 +234,29 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
             const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
-            setAudioQueue(prev => [...prev, audioBuffer]);
+
+            scheduleAudio(audioBuffer);
         } catch (error) {
             console.error('[LiveAnalysisModal] Error processing audio:', error);
         }
     }
 
-    useEffect(() => {
-        if (!isPlaying && audioQueue.length > 0 && audioContextRef.current) {
-            const buffer = audioQueue[0];
-            setAudioQueue(prev => prev.slice(1));
-            playAudio(buffer);
-        }
-    }, [audioQueue, isPlaying]);
-
-    function playAudio(buffer: AudioBuffer) {
+    function scheduleAudio(buffer: AudioBuffer) {
         if (!audioContextRef.current) return;
-        setIsPlaying(true);
+
+        const currentTime = audioContextRef.current.currentTime;
+        // If next start time is in the past (gap in speech), reset to now + small buffer
+        if (nextStartTimeRef.current < currentTime) {
+            nextStartTimeRef.current = currentTime + 0.05; // 50ms jitter buffer
+        }
+
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
         source.connect(audioContextRef.current.destination);
-        source.onended = () => setIsPlaying(false);
-        source.start();
+        source.start(nextStartTimeRef.current);
+
+        // Update next start time
+        nextStartTimeRef.current += buffer.duration;
     }
 
     if (!isOpen) return null;

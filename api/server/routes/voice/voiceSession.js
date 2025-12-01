@@ -33,6 +33,9 @@ class VoiceSession {
         this.lastMessageId = null; // Track last message ID for parent linking
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
+
+        // Setup client handlers once
+        this.setupClientHandlers();
     }
 
 
@@ -81,8 +84,8 @@ class VoiceSession {
             // Connect to Gemini
             await this.geminiClient.connect();
 
-            // Setup message handlers
-            this.setupHandlers();
+            // Setup message handlers for Gemini
+            this.setupGeminiHandlers();
 
             this.isActive = true;
             logger.info(`[VoiceSession] Started for user: ${this.userId}`);
@@ -95,9 +98,9 @@ class VoiceSession {
     }
 
     /**
-     * Setup message handlers between client and Gemini
+     * Setup message handlers for Client (Once)
      */
-    setupHandlers() {
+    setupClientHandlers() {
         // Handle messages from client
         this.clientWs.on('message', async (data) => {
             try {
@@ -107,7 +110,12 @@ class VoiceSession {
                 logger.error('[VoiceSession] Error handling client message:', error);
             }
         });
+    }
 
+    /**
+     * Setup message handlers between Gemini and Server
+     */
+    setupGeminiHandlers() {
         // Handle messages from Gemini
         this.geminiClient.onMessage((message) => {
             this.handleGeminiMessage(message);
@@ -296,9 +304,11 @@ class VoiceSession {
             case 'config':
                 // Update session configuration
                 if (data.voice) {
+                    logger.info(`[VoiceSession] Config update received. New voice: ${data.voice}`);
                     this.config.voice = data.voice;
                     // Reconnect with new voice
                     await this.reconnect();
+                    logger.info(`[VoiceSession] Reconnected with voice: ${this.config.voice}`);
                 }
                 break;
 
