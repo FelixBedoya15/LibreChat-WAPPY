@@ -89,22 +89,42 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             // Send initial prompt after a delay to ensure video is ready
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
-                // Comprehensive prompt for Risk Analysis
+                // Comprehensive prompt for Risk Analysis with Strict Structure
                 sendTextMessage(`
-                    Actúa como un Experto Senior en Prevención de Riesgos Laborales y Seguridad Industrial.
-                    Tu misión es realizar una "Investigación Exhaustiva" del entorno que ves en el video.
-                    
-                    INSTRUCCIONES:
-                    1. ANALIZA visualmente todo el entorno: maquinaria, trabajadores, EPP (Equipos de Protección Personal), señalización, orden y limpieza.
-                    2. IDENTIFICA peligros potenciales y riesgos inminentes.
-                    3. DESCRIBE tus hallazgos detalladamente en el reporte.
-                    4. HABLA conmigo (Audio) para explicarme lo que ves y hacerme preguntas si necesitas aclarar algo.
-                    5. Si no ves riesgos, confirma que el área es segura pero menciona qué elementos revisaste.
-                    
+                    Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
+                    Tu misión es realizar una "Investigación Exhaustiva" del entorno en video y generar un INFORME TÉCNICO FORMAL.
+
+                    INSTRUCCIONES DE SALIDA:
+                    1. **AUDIO (Voz):** Háblame como un colega experto. Explica tus hallazgos, menciona los riesgos críticos y sé directivo. Puedes ser conversacional en el audio.
+                    2. **TEXTO (Reporte):** Genera EXCLUSIVAMENTE el contenido del informe en formato Markdown.
+                       - NO incluyas saludos, despedidas ni preguntas en el texto ("¿Desea algo más?").
+                       - El texto debe ser puramente técnico y objetivo.
+
+                    ESTRUCTURA OBLIGATORIA DEL REPORTE (Markdown):
+
+                    # Análisis de Trabajo Seguro (ATS)
+
+                    ## 1. Descripción del Entorno
+                    (Descripción detallada de maquinaria, personal, condiciones ambientales, orden y aseo).
+
+                    ## 2. Análisis Técnico
+                    (Evaluación profunda de condiciones inseguras y actos subestándar observados).
+
+                    ## 3. Matriz de Identificación y Valoración de Riesgos
+                    | Peligro | Riesgo | Probabilidad (Alta/Media/Baja) | Consecuencia | Nivel de Riesgo |
+                    |---|---|---|---|---|
+                    | (Ej: Cable suelto) | (Ej: Caída a nivel) | Media | Lesión leve | Medio |
+                    | ... | ... | ... | ... | ... |
+
+                    ## 4. Jerarquía de Controles
+                    | Riesgo Identificado | Eliminación / Sustitución | Controles de Ingeniería | Controles Administrativos | EPP Requerido |
+                    |---|---|---|---|---|
+                    | ... | ... | ... | ... | ... |
+
                     IMPORTANTE:
-                    - Sé proactivo. No esperes a que yo pregunte.
-                    - Tu respuesta de voz debe ser profesional y directiva.
-                    - Tu respuesta de texto (que va al reporte) debe ser técnica y estructurada.
+                    - DEBES usar tablas Markdown para las secciones 3 y 4.
+                    - Sé riguroso en la valoración.
+                    - Si no ves riesgos graves, documenta los riesgos leves o ergonómicos presentes.
                 `);
             }, 2000);
 
