@@ -22,6 +22,7 @@ import store from '~/store';
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
 const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
+const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -168,6 +169,10 @@ const Nav = memo(
               <div className="mt-1.5" />
               <Suspense fallback={null}>
                 <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} />
+              </Suspense>
+              <div className="mt-1.5" />
+              <Suspense fallback={null}>
+                <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
               </Suspense>
             </>
           )}

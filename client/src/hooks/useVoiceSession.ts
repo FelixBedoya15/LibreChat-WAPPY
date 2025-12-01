@@ -14,11 +14,13 @@ interface UseVoiceSessionOptions {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onConversationUpdated?: () => void;
+    disableAudio?: boolean;
+    mode?: 'chat' | 'live_analysis';
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const { token } = useAuthContext();
-    const { conversationId } = options;
+    const { conversationId, disableAudio } = options;
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [status, setStatus] = useState<'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking'>('idle');
@@ -29,51 +31,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const streamRef = useRef<MediaStream | null>(null);
     const videoCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const isMutedRef = useRef(false);
-    const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Safety timeout for auto-unmute
-
-    /**
-     * Initialize Audio Context and Worklet
-     */
-    const initAudioContext = async () => {
-        if (audioContextRef.current) return audioContextRef.current;
-
-        const audioContext = new AudioContext({ sampleRate: 16000 });
-
-        // AudioWorklet code embedded as string to avoid loading issues
-        const workletCode = `
-            class PCMProcessor extends AudioWorkletProcessor {
-                process(inputs, outputs, parameters) {
-                    const input = inputs[0];
-                    if (!input || !input.length) return true;
-                    const channelData = input[0];
-                    const pcmData = new Int16Array(channelData.length);
-                    for (let i = 0; i < channelData.length; i++) {
-                        const s = Math.max(-1, Math.min(1, channelData[i]));
-                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                    }
-                    this.port.postMessage(pcmData.buffer, [pcmData.buffer]);
-                    return true;
-                }
-            }
-            registerProcessor('pcm-processor', PCMProcessor);
-        `;
-
-        const blob = new Blob([workletCode], { type: 'application/javascript' });
-        const workletUrl = URL.createObjectURL(blob);
-
-        try {
-            await audioContext.audioWorklet.addModule(workletUrl);
-        } finally {
-            URL.revokeObjectURL(workletUrl);
-        }
-
-        audioContextRef.current = audioContext;
-        return audioContext;
-    };
-
-    /**
-     * Start Audio Capture
-     */
+    const autoMuteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const inputAnalyserRef = useRef<AnalyserNode | null>(null);
 
     /**
@@ -196,7 +154,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             workletNodeRef.current = workletNode;
 
             // Only set status to listening if we are already connected/ready
-            // (Avoid overriding 'connecting' status if called too early)
             if (status === 'ready' || status === 'speaking') {
                 setStatus('listening');
             }
@@ -221,7 +178,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         const dataArray = new Uint8Array(inputAnalyserRef.current.frequencyBinCount);
         inputAnalyserRef.current.getByteFrequencyData(dataArray);
         const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        // Normalize and apply a slight boost curve
         return Math.min(1, (average / 128));
     }, []);
 
@@ -259,8 +215,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        // Resize canvas to a reasonable size for AI (e.g., 640x480 or smaller)
-        // Gemini handles various sizes, but smaller is faster.
         const width = 320;
         const height = 240;
 
@@ -269,7 +223,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
         context.drawImage(videoElement, 0, 0, width, height);
 
-        // Get JPEG base64
         const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
 
         wsRef.current.send(JSON.stringify({
@@ -291,7 +244,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}`;
+            const wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}&mode=${encodeURIComponent(options.mode || 'chat')}`;
 
             console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
@@ -303,8 +256,9 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 setIsConnecting(false);
                 setStatus('ready');
 
-                // Start audio capture immediately upon connection for "Live" feel
-                await startAudioCapture();
+                if (!disableAudio) {
+                    await startAudioCapture();
+                }
             };
 
             ws.onmessage = (event) => {
@@ -337,11 +291,8 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
             setStatus('idle');
             options.onError?.('Failed to connect');
         }
-    }, [isConnected, isConnecting, token, options]);
+    }, [isConnected, isConnecting, token, conversationId, disableAudio, options]); // Added deps
 
-    /**
-     * Handle incoming WebSocket message
-     */
     // FIX: Use ref to access latest options without reconnecting WebSocket
     const optionsRef = useRef(options);
     useEffect(() => {
@@ -358,19 +309,16 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                     optionsRef.current.onAudioReceived?.(message.data.audioData);
                     setStatus('speaking');
 
-                    // AUTO-MUTE: Mute microphone when AI starts speaking
-                    // This prevents feedback loop where mic captures AI audio from speakers
                     console.log('[VoiceSession] AI speaking - auto-muting microphone');
                     isMutedRef.current = true;
 
-                    // Safety: Auto-unmute after 10 seconds if status doesn't change
                     if (autoMuteTimeoutRef.current) {
                         clearTimeout(autoMuteTimeoutRef.current);
                     }
                     autoMuteTimeoutRef.current = setTimeout(() => {
                         console.log('[VoiceSession] Safety auto-unmute timeout');
                         isMutedRef.current = false;
-                        autoMuteTimeoutRef.current = null; // Clear ref after timeout
+                        autoMuteTimeoutRef.current = null;
                     }, 10000);
                 }
                 break;
@@ -386,7 +334,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 setStatus(newStatus);
                 optionsRef.current.onStatusChange?.(newStatus);
 
-                // AUTO-UNMUTE: Unmute when AI finishes speaking
                 if (newStatus === 'listening' || newStatus === 'turn_complete') {
                     console.log('[VoiceSession] AI finished speaking - auto-unmuting microphone');
                     isMutedRef.current = false;
@@ -398,7 +345,6 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
                 break;
 
             case 'interrupted':
-                // Handle interruption (stop playback, clear queues)
                 setStatus('listening');
                 optionsRef.current.onStatusChange?.('interrupted');
                 break;
@@ -442,27 +388,22 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const disconnect = useCallback(() => {
         console.log('[VoiceSession] Disconnecting and cleaning up...');
 
-        // Stop audio capture (cleans: stream, worklet, audioContext)
         stopAudioCapture();
 
-        // Close WebSocket
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
         }
 
-        // Clear timeout if exists
         if (autoMuteTimeoutRef.current) {
             clearTimeout(autoMuteTimeoutRef.current);
             autoMuteTimeoutRef.current = null;
         }
 
-        // Reset all refs to clean state
         isMutedRef.current = false;
         inputAnalyserRef.current = null;
         videoCanvasRef.current = null;
 
-        // Reset states
         setIsConnected(false);
         setIsConnecting(false);
         setStatus('idle');
@@ -485,6 +426,17 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         isMutedRef.current = muted;
     }, []);
 
+    /**
+     * Send Text Message
+     */
+    const sendTextMessage = useCallback((text: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        wsRef.current.send(JSON.stringify({
+            type: 'message',
+            data: { text }
+        }));
+    }, []);
+
     return {
         isConnected,
         isConnecting,
@@ -492,6 +444,7 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         connect,
         disconnect,
         sendVideoFrame,
+        sendTextMessage,
         changeVoice,
         getInputVolume,
         setMuted,
