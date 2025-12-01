@@ -142,13 +142,14 @@ class VoiceSession {
         // Listen for AI transcription (what the AI says)
         this.geminiClient.on('aiTranscription', (text) => {
             logger.info(`[VoiceSession] AI transcription received: "${text}"`);
-            // Accumulate AI text (for history/context)
-            // Note: We might want to separate "spoken" text from "report" text in history too
-            // For now, we just log it or maybe append to a separate buffer if needed.
 
-            // Send to client as 'transcript' (captions), NOT 'text' (report)
+            // Determine message type based on mode
+            // In 'live_analysis', we send 'transcript' so it doesn't clutter the report
+            // In 'chat', we send 'text' so it appears as a chat bubble
+            const messageType = this.config.mode === 'live_analysis' ? 'transcript' : 'text';
+
             this.sendToClient({
-                type: 'transcript',
+                type: messageType,
                 data: { text }
             });
         });
