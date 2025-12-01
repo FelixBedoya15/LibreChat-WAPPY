@@ -229,6 +229,14 @@ class VoiceSession {
                 logger.warn(`[VoiceSession] No AI response to save. Text: "${this.aiResponseText}", Audio chunks: ${this.aiAudioChunkCount}`);
             }
 
+            // TRIGGER REPORT GENERATION (Second Brain)
+            // We use the accumulated context + current turn
+            const currentTurnContext = `User: ${this.userTranscriptionText}\nAI: ${this.aiResponseText}`;
+            this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
+
+            // Generate report asynchronously (don't block)
+            this.generateReport(this.config.conversationContext);
+
             // Reset audio counter for next turn
             this.aiAudioChunkCount = 0;
 
@@ -601,6 +609,63 @@ class VoiceSession {
         } catch (error) {
             logger.error('[VoiceSession] Error correcting transcription:', error);
             return userText; // Fallback to original
+        }
+    }
+
+    /**
+     * Generate Formal Report using Gemini Flash
+     */
+    async generateReport(conversationContext) {
+        try {
+            logger.info('[VoiceSession] Generating formal report...');
+            const modelName = 'gemini-1.5-flash'; // Fast and capable
+
+            const { GoogleGenerativeAI } = require('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(this.apiKey);
+            const model = genAI.getGenerativeModel({ model: modelName });
+
+            const prompt = `
+            You are a Safety Reporting Assistant.
+            
+            CONTEXT (Conversation History):
+            """
+            ${conversationContext}
+            """
+            
+            TASK:
+            Based on the conversation above, generate a FORMAL RISK ASSESSMENT REPORT in HTML format.
+            The report should summarize the findings discussed in the conversation.
+            
+            OUTPUT FORMAT (HTML):
+            - Use <h2>, <h3>, <p>, <ul>, <li>.
+            - Use <table> with border="1" style="border-collapse: collapse; width: 100%;" for matrices.
+            - SECTIONS:
+              1. Description of Environment
+              2. Technical Analysis (Unsafe conditions/acts)
+              3. Risk Matrix (Table: Hazard, Risk, Probability, Consequence, Level)
+              4. Hierarchy of Controls (Table: Risk, Elimination, Engineering, Admin, PPE)
+            
+            IMPORTANT:
+            - Output ONLY the HTML. No markdown code blocks.
+            - If information is missing for a section, state "Not observed yet" or infer from context if reasonable.
+            - Keep it professional and technical.
+            `;
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+
+            logger.info(`[VoiceSession] Report generated (${reportHtml.length} chars)`);
+
+            this.sendToClient({
+                type: 'report',
+                data: { html: reportHtml }
+            });
+
+            return reportHtml;
+        } catch (error) {
+            logger.error('[VoiceSession] Error generating report:', error);
+            return null;
         }
     }
 

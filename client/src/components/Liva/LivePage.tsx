@@ -15,9 +15,13 @@ const LivePage = () => {
     };
 
     const handleTextReceived = (text: string) => {
-        console.log("LivePage: Text received from AI:", text);
-        // Append content to the report
-        setEditorContent(prev => prev + text);
+        // console.log("LivePage: Text received (ignored for editor):", text);
+        // We ignore conversational text for the editor now, as we rely on the 'Second Brain' report.
+    };
+
+    const handleReportReceived = (html: string) => {
+        console.log("LivePage: Full Report received");
+        setEditorContent(html);
     };
 
     const initialReportContent = `
@@ -85,6 +89,7 @@ const LivePage = () => {
                 conversationId={conversationId}
                 onConversationIdUpdate={setConversationId}
                 onTextReceived={handleTextReceived}
+                onReportReceived={handleReportReceived}
             />
         </div>
     );

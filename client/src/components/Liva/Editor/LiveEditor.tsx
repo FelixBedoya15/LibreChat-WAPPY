@@ -59,7 +59,7 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate }) => 
             </div>
             <div
                 ref={editorRef}
-                className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none"
+                className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full"
                 contentEditable
                 onInput={handleInput}
                 suppressContentEditableWarning={true}

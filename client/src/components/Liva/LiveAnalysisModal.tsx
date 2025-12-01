@@ -13,10 +13,11 @@ interface LiveAnalysisModalProps {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onTextReceived?: (text: string) => void;
+    onReportReceived?: (html: string) => void;
     onConversationUpdated?: () => void; // Added this prop based on the instruction's destructuring
 }
 
-const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onConversationUpdated }) => {
+const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onReportReceived, onConversationUpdated }) => {
     const localize = useLocalize();
     const voiceLiveAnalysis = useRecoilValue(store.voiceLiveAnalysis);
     const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
@@ -46,6 +47,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onTextReceived: (text: string) => {
             // Forward AI text to parent (LivePage) to update report
             onTextReceived?.(text);
+        },
+        onReportReceived: (html: string) => {
+            onReportReceived?.(html);
         },
         onStatusChange: (newStatus: string) => {
             console.log('[LiveAnalysisModal] Status:', newStatus);

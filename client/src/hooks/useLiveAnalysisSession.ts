@@ -9,6 +9,7 @@ interface VoiceMessage {
 interface UseLiveAnalysisSessionOptions {
     onAudioReceived?: (audioData: string) => void;
     onTextReceived?: (text: string) => void;
+    onReportReceived?: (html: string) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
@@ -331,6 +332,13 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             case 'text':
                 if (message.data.text) {
                     optionsRef.current.onTextReceived?.(message.data.text);
+                }
+                break;
+
+            case 'report':
+                if (message.data.html) {
+                    console.log('[LiveAnalysisSession] Report received');
+                    optionsRef.current.onReportReceived?.(message.data.html);
                 }
                 break;
 
