@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'reac
 import { useRecoilValue } from 'recoil';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
 import store from '~/store';
+import VoiceOrb from '../Voice/VoiceOrb';
+import VoiceSelector from '../Voice/VoiceSelector';
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize } from '~/hooks';
 
@@ -23,6 +25,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [statusText, setStatusText] = useState('Initializing...');
     const [isReady, setIsReady] = useState(false); // New state for connection delay
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+    const [showVoiceSelector, setShowVoiceSelector] = useState(false);
+    const [audioAmplitude, setAudioAmplitude] = useState(0);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -106,6 +110,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             }
         };
     }, [isOpen]); // Connect when opened
+
+    // Ensure voice is updated when connected
+    useEffect(() => {
+        if (isOpen && isConnected && selectedVoice !== voiceLiveAnalysis) {
+            console.log('[LiveAnalysisModal] Syncing voice with global setting:', voiceLiveAnalysis);
+            setSelectedVoice(voiceLiveAnalysis);
+            changeVoice(voiceLiveAnalysis);
+        }
+    }, [isOpen, isConnected, voiceLiveAnalysis, changeVoice]);
 
     // Auto-start camera and send initial prompt when connected
     useEffect(() => {
@@ -234,6 +247,37 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     // Audio Playback Logic with Jitter Buffer
     const nextStartTimeRef = useRef<number>(0);
     const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]); // Keep for visualizer if needed, or remove if unused
+    const outputAnalyserRef = useRef<AnalyserNode | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+
+    // Unified Animation Loop
+    useEffect(() => {
+        const updateAmplitude = () => {
+            let vol = 0;
+
+            if (status === 'speaking' && outputAnalyserRef.current) {
+                // Visualize Output (Gemini)
+                const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
+                outputAnalyserRef.current.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                vol = Math.min(1, (average / 255) * 2);
+            } else if (status === 'listening' || status === 'ready') {
+                // Visualize Input (User)
+                vol = getInputVolume();
+            }
+
+            setAudioAmplitude(vol);
+            animationFrameRef.current = requestAnimationFrame(updateAmplitude);
+        };
+
+        updateAmplitude();
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+        };
+    }, [status, getInputVolume]);
 
     function handleAudioReceived(audioData: string) {
         try {
@@ -269,7 +313,16 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
-        source.connect(audioContextRef.current.destination);
+
+        // Create/Reuse Analyser
+        if (!outputAnalyserRef.current) {
+            const analyser = audioContextRef.current.createAnalyser();
+            analyser.fftSize = 256;
+            outputAnalyserRef.current = analyser;
+            analyser.connect(audioContextRef.current.destination);
+        }
+
+        source.connect(outputAnalyserRef.current);
         source.start(nextStartTimeRef.current);
 
         // Update next start time
@@ -285,24 +338,40 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
     };
 
+    const handleVoiceChange = (voiceId: string) => {
+        setSelectedVoice(voiceId);
+        // Update global store (if we had a setter for live analysis voice, but we only read it. 
+        // Assuming we should update it or just local state? 
+        // For now, let's just change the voice in session)
+        changeVoice(voiceId);
+        setShowVoiceSelector(false);
+    };
+
+    const handleOrbClick = () => {
+        if (status === 'ready' || status === 'idle' || status === 'listening') {
+            setShowVoiceSelector(!showVoiceSelector);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="relative bg-black rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[80vh]">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="relative w-full h-full bg-black/40 backdrop-blur-xl flex flex-col overflow-hidden">
 
-                {/* Loading Overlay */}
+                {/* Loading Overlay - Minimalist */}
                 {(!isReady && isOpen) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
-                        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="text-lg font-medium text-white">Conectando...</p>
-                        <p className="text-sm text-gray-400">Preparando análisis en vivo</p>
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
+                        <div className="bg-black/40 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 shadow-lg">
+                            <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-white font-medium text-sm">Conectando...</span>
+                        </div>
                     </div>
                 )}
 
                 {/* Status */}
-                <div className="absolute top-8 text-center z-10 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
-                    <p className="text-lg text-white font-medium">{statusText || 'Connecting...'}</p>
+                <div className="absolute top-12 text-center z-10 w-full px-4">
+                    <p className="text-xl font-medium text-white/90 tracking-wide">{statusText || 'Ready'}</p>
                 </div>
 
                 {/* Video Fullscreen with Opacity for Transparency */}
@@ -313,23 +382,41 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     playsInline
                 />
 
+                {/* Voice Orb & Selector */}
+                <div className="flex-1 flex items-center justify-center z-10">
+                    <div onClick={handleOrbClick} className="cursor-pointer">
+                        <VoiceOrb
+                            status={status === 'ready' ? 'idle' : status}
+                            amplitude={audioAmplitude}
+                        />
+                    </div>
+                    {showVoiceSelector && (
+                        <div className="absolute">
+                            <VoiceSelector
+                                selectedVoice={selectedVoice}
+                                onVoiceChange={handleVoiceChange}
+                            />
+                        </div>
+                    )}
+                </div>
+
                 {/* Controls */}
-                <div className="absolute bottom-12 flex items-center space-x-6 z-20 bg-black/40 p-4 rounded-full backdrop-blur-md border border-white/10">
-                    <button onClick={toggleCamera} className={`p-4 rounded-full transition-all ${isCameraOn ? 'bg-white text-black' : 'bg-gray-800 text-white'}`}>
+                <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center space-x-8 z-20">
+                    <button onClick={toggleCamera} className={`p-4 rounded-full transition-all duration-300 ${isCameraOn ? 'bg-white text-black shadow-lg scale-110' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'}`}>
                         {isCameraOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
                     </button>
 
                     {isCameraOn && (
-                        <button onClick={switchCamera} className="p-4 rounded-full bg-gray-800 text-white hover:bg-gray-700 transition-colors">
+                        <button onClick={switchCamera} className="p-4 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all">
                             <RefreshCcw className="w-6 h-6" />
                         </button>
                     )}
 
-                    <button onClick={toggleMute} className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-500 text-white' : 'bg-white text-black'}`}>
+                    <button onClick={toggleMute} className={`p-4 rounded-full transition-all duration-300 ${isMuted ? 'bg-red-500/80 hover:bg-red-600 text-white shadow-lg' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'}`}>
                         {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
                     </button>
 
-                    <button onClick={handleClose} className="p-4 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors">
+                    <button onClick={handleClose} className="p-4 rounded-full bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 backdrop-blur-md transition-all">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
