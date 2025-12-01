@@ -30,6 +30,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         connect,
         disconnect,
         sendVideoFrame,
+        sendTextMessage,
         setMuted,
     } = useVoiceSession({
         conversationId,
@@ -80,17 +81,36 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         };
     }, [isOpen]); // Connect when opened
 
-    // Auto-start camera when connected
+    // Auto-start camera and send initial prompt when connected
     useEffect(() => {
         if (isConnected && isOpen) {
             startCamera();
 
             // Send initial prompt after a delay to ensure video is ready
-            // We rely on the user speaking now, but we can send a "hello" or context prompt if needed.
-            // For now, we let the user initiate or just let the video stream.
-            // Actually, the user wants it to be conversational.
+            const timer = setTimeout(() => {
+                console.log("[LiveAnalysisModal] Sending initial analysis prompt");
+                // Comprehensive prompt for Risk Analysis
+                sendTextMessage(`
+                    Actúa como un Experto Senior en Prevención de Riesgos Laborales y Seguridad Industrial.
+                    Tu misión es realizar una "Investigación Exhaustiva" del entorno que ves en el video.
+                    
+                    INSTRUCCIONES:
+                    1. ANALIZA visualmente todo el entorno: maquinaria, trabajadores, EPP (Equipos de Protección Personal), señalización, orden y limpieza.
+                    2. IDENTIFICA peligros potenciales y riesgos inminentes.
+                    3. DESCRIBE tus hallazgos detalladamente en el reporte.
+                    4. HABLA conmigo (Audio) para explicarme lo que ves y hacerme preguntas si necesitas aclarar algo.
+                    5. Si no ves riesgos, confirma que el área es segura pero menciona qué elementos revisaste.
+                    
+                    IMPORTANTE:
+                    - Sé proactivo. No esperes a que yo pregunte.
+                    - Tu respuesta de voz debe ser profesional y directiva.
+                    - Tu respuesta de texto (que va al reporte) debe ser técnica y estructurada.
+                `);
+            }, 2000);
+
+            return () => clearTimeout(timer);
         }
-    }, [isConnected, isOpen]);
+    }, [isConnected, isOpen, sendTextMessage]);
 
     const handleClose = () => {
         stopCamera();
@@ -212,17 +232,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
             <div className="relative flex flex-col items-center justify-center w-full h-full p-4">
                 {/* Status */}
                 <div className="absolute top-8 text-center z-10 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
                     <p className="text-lg text-white font-medium">{statusText || 'Connecting...'}</p>
                 </div>
 
-                {/* Video Fullscreen */}
+                {/* Video Fullscreen with Opacity for Transparency */}
                 <video
                     ref={videoRef}
-                    className={`absolute inset-0 w-full h-full object-cover ${isCameraOn ? 'block' : 'hidden'}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isCameraOn ? 'opacity-50' : 'opacity-0 hidden'}`}
                     muted
                     playsInline
                 />
