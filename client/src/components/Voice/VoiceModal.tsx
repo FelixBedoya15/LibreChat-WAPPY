@@ -217,6 +217,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         };
     }, [status, isPlaying, getInputVolume]);
 
+    // Audio Playback Logic with Jitter Buffer
+    const nextStartTimeRef = useRef<number>(0);
+
     /**
      * Handle received audio from Gemini
      */
@@ -248,31 +251,24 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
 
-            setAudioQueue(prev => [...prev, audioBuffer]);
+            scheduleAudio(audioBuffer);
 
         } catch (error) {
             console.error('[VoiceModal] Error processing audio:', error);
         }
     }
 
-    // Process Audio Queue
-    useEffect(() => {
-        if (!isPlaying && audioQueue.length > 0 && audioContextRef.current) {
-            const buffer = audioQueue[0];
-            setAudioQueue(prev => prev.slice(1));
-            playAudio(buffer);
-        }
-    }, [audioQueue, isPlaying]);
-
-    /**
-     * Play audio buffer
-     */
-    function playAudio(audioBuffer: AudioBuffer) {
+    function scheduleAudio(buffer: AudioBuffer) {
         if (!audioContextRef.current) return;
 
-        setIsPlaying(true);
+        const currentTime = audioContextRef.current.currentTime;
+        // If next start time is in the past (gap in speech), reset to now + small buffer
+        if (nextStartTimeRef.current < currentTime) {
+            nextStartTimeRef.current = currentTime + 0.05; // 50ms jitter buffer
+        }
+
         const source = audioContextRef.current.createBufferSource();
-        source.buffer = audioBuffer;
+        source.buffer = buffer;
 
         // Create/Reuse Analyser
         if (!outputAnalyserRef.current) {
@@ -288,7 +284,11 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setIsPlaying(false);
         };
 
-        source.start();
+        setIsPlaying(true);
+        source.start(nextStartTimeRef.current);
+
+        // Update next start time
+        nextStartTimeRef.current += buffer.duration;
     }
 
     /**

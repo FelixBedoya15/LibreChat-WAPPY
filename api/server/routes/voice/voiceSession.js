@@ -178,6 +178,8 @@ class VoiceSession {
             logger.info(`[VoiceSession] Accumulated AI text length: ${this.aiResponseText.length}`);
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
 
+            logger.info(`[VoiceSession] Turn Complete. UserText: "${this.userTranscriptionText}", AIResponse: "${this.aiResponseText}"`);
+
             let messagesSaved = false;
             let isNewConversation = false;
 
