@@ -624,10 +624,32 @@ class VoiceSession {
     async generateReport(conversationContext) {
         try {
             logger.info('[VoiceSession] Generating formal report...');
+            logger.info(`[VoiceSession] Context length: ${conversationContext ? conversationContext.length : 0}`);
+
+            if (!conversationContext || conversationContext.length < 10) {
+                logger.warn('[VoiceSession] Context too short, skipping report generation');
+                this.sendToClient({
+                    type: 'report',
+                    data: { html: '<p class="text-yellow-600">No hay suficiente información para generar el informe aún. Continúe la conversación.</p>' }
+                });
+                return null;
+            }
+
             const modelName = 'gemini-1.5-flash'; // Fast and capable
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(this.apiKey);
+            // Ensure apiKey is a string
+            let key = this.apiKey;
+            if (typeof key === 'object') {
+                key = key.GOOGLE_API_KEY || JSON.stringify(key);
+            }
+            // If key is still object or invalid, try to parse or log error
+            if (!key || typeof key !== 'string') {
+                logger.error(`[VoiceSession] Invalid API Key for report generation: ${typeof key}`);
+                // Try to get key again?
+            }
+
+            const genAI = new GoogleGenerativeAI(key);
             const model = genAI.getGenerativeModel({ model: modelName });
 
             const prompt = `
@@ -657,6 +679,7 @@ class VoiceSession {
             - Keep it professional and technical.
             `;
 
+            logger.info('[VoiceSession] Sending prompt to Gemini Flash...');
             const result = await model.generateContent(prompt);
             const response = await result.response;
             const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
@@ -671,6 +694,11 @@ class VoiceSession {
             return reportHtml;
         } catch (error) {
             logger.error('[VoiceSession] Error generating report:', error);
+            // Send error state to client so it doesn't hang
+            this.sendToClient({
+                type: 'report',
+                data: { html: '<p class="text-red-500">Error generando el informe. Por favor intente nuevamente.</p>' }
+            });
             return null;
         }
     }
