@@ -14,10 +14,57 @@ const LivePage = () => {
         setIsModalOpen(true);
     };
 
+    // Simple Markdown to HTML parser for the specific report format
+    const parseMarkdownToHtml = (markdown: string) => {
+        let html = markdown;
+
+        // 1. Headers
+        html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+        html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+        html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+
+        // 2. Bold
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        // 3. Tables (Basic implementation for standard Markdown tables)
+        // Find table blocks
+        const tableRegex = /\|(.+)\|\n\|([-:| ]+)\|\n((?:\|.*\|\n?)*)/g;
+
+        html = html.replace(tableRegex, (match, header, separator, body) => {
+            const headers = header.split('|').filter(h => h.trim()).map(h => `<th>${h.trim()}</th>`).join('');
+            const rows = body.trim().split('\n').map(row => {
+                const cells = row.split('|').filter(c => c.trim() !== '').map(c => `<td>${c.trim()}</td>`).join('');
+                return `<tr>${cells}</tr>`;
+            }).join('');
+
+            return `<table style="width:100%; border-collapse: collapse; border: 1px solid #ddd;">
+                        <thead><tr>${headers}</tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>`;
+        });
+
+        // 4. Paragraphs / Line breaks (for non-HTML lines)
+        // Wrap lines that are not headers or tables in <p> or add <br>
+        // This is a bit tricky, so we'll just replace remaining newlines with <br> 
+        // ensuring we don't break the HTML we just created.
+
+        // A safer approach for the remaining text:
+        // We can't just replace \n globally because it might break the table HTML structure we just built.
+        // But since we built the table HTML as a single string (mostly), we can try to target text blocks.
+
+        // For now, let's just handle double newlines as paragraphs
+        html = html.replace(/\n\n/g, '<br/><br/>');
+        // And single newlines as <br/> if they are not inside tags (simplified)
+        // html = html.replace(/\n/g, '<br/>'); // This might be too aggressive
+
+        return html;
+    };
+
     const handleTextReceived = (text: string) => {
         console.log("LivePage: Text received from AI:", text);
-        // Replace content with the new full report
-        setEditorContent(text);
+        // Parse Markdown to HTML before setting
+        const htmlContent = parseMarkdownToHtml(text);
+        setEditorContent(htmlContent);
     };
 
     const initialReportContent = `
