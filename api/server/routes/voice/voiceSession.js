@@ -302,17 +302,6 @@ class VoiceSession {
                 }
                 break;
 
-            case 'message':
-                // Handle text message from client
-                if (data && data.text) {
-                    if (this.geminiClient) {
-                        this.geminiClient.sendText(data.text);
-                    } else {
-                        logger.warn('[VoiceSession] Received text but Gemini client is not ready');
-                    }
-                }
-                break;
-
             case 'interrupt':
                 // User interrupted, stop current Gemini response
                 // TODO: Implement interrupt logic
