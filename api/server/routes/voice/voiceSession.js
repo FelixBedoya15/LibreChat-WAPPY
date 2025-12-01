@@ -234,6 +234,12 @@ class VoiceSession {
             const currentTurnContext = `User: ${this.userTranscriptionText}\nAI: ${this.aiResponseText}`;
             this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
 
+            // Notify client that report is being generated
+            this.sendToClient({
+                type: 'report',
+                data: { html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>' }
+            });
+
             // Generate report asynchronously (don't block)
             this.generateReport(this.config.conversationContext);
 

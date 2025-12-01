@@ -63,7 +63,7 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate }) => 
                 contentEditable
                 onInput={handleInput}
                 suppressContentEditableWarning={true}
-                style={{ minHeight: '100%' }}
+                style={{ minHeight: '100%', maxWidth: '100%' }}
             />
         </div>
     );

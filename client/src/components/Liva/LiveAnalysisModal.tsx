@@ -67,7 +67,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived]);
 
     // Live Analysis session WebSocket (Dedicated)
     const {
