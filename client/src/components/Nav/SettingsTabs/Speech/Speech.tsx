@@ -13,6 +13,7 @@ import {
   VoiceDropdown,
   PlaybackRate,
 } from './TTS';
+import GeminiVoiceSelector from './GeminiVoiceSelector';
 import {
   AutoTranscribeAudioSwitch,
   LanguageSTTDropdown,
@@ -53,6 +54,8 @@ function Speech() {
   const [languageTTS, setLanguageTTS] = useRecoilState<string>(store.languageTTS);
   const [automaticPlayback, setAutomaticPlayback] = useRecoilState(store.automaticPlayback);
   const [playbackRate, setPlaybackRate] = useRecoilState(store.playbackRate);
+  const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
+  const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
 
   const updateSetting = useCallback(
     (key: string, newValue: string | number) => {
@@ -75,6 +78,8 @@ function Speech() {
         languageTTS: { value: languageTTS, setFunc: setLanguageTTS },
         automaticPlayback: { value: automaticPlayback, setFunc: setAutomaticPlayback },
         playbackRate: { value: playbackRate, setFunc: setPlaybackRate },
+        voiceChatGeneral: { value: voiceChatGeneral, setFunc: setVoiceChatGeneral },
+        voiceLiveAnalysis: { value: voiceLiveAnalysis, setFunc: setVoiceLiveAnalysis },
       };
 
       const setting = settings[key];
@@ -119,6 +124,8 @@ function Speech() {
       setLanguageTTS,
       setAutomaticPlayback,
       setPlaybackRate,
+      setVoiceChatGeneral,
+      setVoiceLiveAnalysis,
     ],
   );
 
@@ -234,6 +241,20 @@ function Speech() {
             <PlaybackRate />
           </div>
           <CacheTTSSwitch />
+          <div className="h-px bg-border-medium" role="none" />
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-text-primary">Configuración de Gemini Live</h3>
+            <GeminiVoiceSelector
+              label="Voz Chat General"
+              selectedVoice={voiceChatGeneral}
+              onVoiceChange={(v) => updateSetting('voiceChatGeneral', v)}
+            />
+            <GeminiVoiceSelector
+              label="Voz Análisis en Vivo"
+              selectedVoice={voiceLiveAnalysis}
+              onVoiceChange={(v) => updateSetting('voiceLiveAnalysis', v)}
+            />
+          </div>
         </div>
       </Tabs.Content>
     </Tabs.Root>

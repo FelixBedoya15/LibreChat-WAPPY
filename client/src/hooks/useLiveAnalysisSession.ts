@@ -15,11 +15,12 @@ interface UseLiveAnalysisSessionOptions {
     onConversationIdUpdate?: (newId: string) => void;
     onConversationUpdated?: () => void;
     disableAudio?: boolean;
+    initialVoice?: string;
 }
 
 export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = {}) => {
     const { token } = useAuthContext();
-    const { conversationId, disableAudio } = options;
+    const { conversationId, disableAudio, initialVoice } = options;
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [status, setStatus] = useState<'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking'>('idle');
@@ -244,7 +245,11 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
             // Use dedicated /ws/live endpoint
-            const wsUrl = `${protocol}//${host}/ws/live?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}`;
+            let wsUrl = `${protocol}//${host}/ws/live?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}`;
+
+            if (initialVoice) {
+                wsUrl += `&initialVoice=${encodeURIComponent(initialVoice)}`;
+            }
 
             console.log('[LiveAnalysisSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type FC } from 'react';
+import { useRecoilValue } from 'recoil';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
+import store from '~/store';
 import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize } from '~/hooks';
 
@@ -9,10 +11,13 @@ interface LiveAnalysisModalProps {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onTextReceived?: (text: string) => void;
+    onConversationUpdated?: () => void; // Added this prop based on the instruction's destructuring
 }
 
-const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived }) => {
+const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onConversationUpdated }) => {
     const localize = useLocalize();
+    const voiceLiveAnalysis = useRecoilValue(store.voiceLiveAnalysis);
+    const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true); // Default to ON for analysis
     const [statusText, setStatusText] = useState('');
@@ -21,6 +26,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const wasOpenRef = useRef(false); // To track if the modal was previously open
 
     // Live Analysis session WebSocket (Dedicated)
     const {
@@ -32,10 +38,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         sendVideoFrame,
         sendTextMessage,
         setMuted,
+        changeVoice,
     } = useLiveAnalysisSession({
         conversationId,
         onConversationIdUpdate,
         disableAudio: false,
+        initialVoice: voiceLiveAnalysis, // Pass the initial voice from the store
         // mode: 'live_analysis', // Mode is now hardcoded in the dedicated hook/server
         onAudioReceived: (audioData) => {
             handleAudioReceived(audioData);

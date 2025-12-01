@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type FC } from 'react';
+import { useRecoilValue } from 'recoil';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
+import store from '~/store';
 import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
 import { useVoiceSession } from '~/hooks/useVoiceSession';
@@ -15,7 +17,8 @@ interface VoiceModalProps {
 
 const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated }) => {
     const localize = useLocalize();
-    const [selectedVoice, setSelectedVoice] = useState('sol');
+    const voiceChatGeneral = useRecoilValue(store.voiceChatGeneral);
+    const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(false);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
@@ -84,8 +87,10 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         if (!wasOpen && isOpen && !isConnected && !isConnecting) {
             console.log('[VoiceModal] Modal reopened, reconnecting...');
             connect();
+            // Ensure voice is updated on reconnect
+            changeVoice(voiceChatGeneral);
         }
-    }, [isOpen, isConnected, isConnecting, connect]);
+    }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]);
 
     const handleClose = () => {
         stopCamera();
