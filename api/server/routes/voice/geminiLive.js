@@ -148,12 +148,11 @@ class GeminiLiveClient extends EventEmitter {
                         },
                     ],
                 },
-                // FASE 3: Using output transcription for chat text
-                // inputAudioTranscription removed to reduce latency
+                // FASE 3: Using BOTH transcriptions simultaneously
+                // inputAudioTranscription = transcribes user's voice
                 // outputAudioTranscription = transcribes AI's voice
-                outputAudioTranscription: {
-                    model: "gemini-2.0-flash-exp"
-                },
+                inputAudioTranscription: {},
+                outputAudioTranscription: {},
             },
         };
 
