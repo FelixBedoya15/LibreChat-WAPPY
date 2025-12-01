@@ -1,4 +1,3 @@
-```javascript
 import React from 'react';
 import { Dropdown } from '@librechat/client';
 
@@ -33,4 +32,3 @@ export default function GeminiVoiceSelector({ selectedVoice, onVoiceChange, labe
     </div>
   );
 }
-```
