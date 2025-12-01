@@ -136,33 +136,43 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                     INSTRUCCIONES DE SALIDA:
                     1. **AUDIO (Voz):** Háblame como un colega experto. Explica tus hallazgos, menciona los riesgos críticos y sé directivo. Puedes ser conversacional en el audio.
-                    2. **TEXTO (Reporte):** Genera EXCLUSIVAMENTE el contenido del informe en formato Markdown.
-                       - NO incluyas saludos, despedidas ni preguntas en el texto ("¿Desea algo más?").
-                       - El texto debe ser puramente técnico y objetivo.
+                    2. **TEXTO (Reporte):** Genera EXCLUSIVAMENTE el contenido del informe en formato HTML.
+                       - NO incluyas saludos, despedidas ni preguntas en el texto.
+                       - Usa etiquetas HTML semánticas: <h2>, <h3>, <p>, <ul>, <li>, <strong>.
+                       - PARA LAS TABLAS: Usa <table>, <thead>, <tbody>, <tr>, <th>, <td> con bordes (style="border-collapse: collapse; width: 100%;").
+                       - El texto debe ser un documento formal listo para guardar.
 
-                    ESTRUCTURA OBLIGATORIA DEL REPORTE (Markdown):
+                    ESTRUCTURA OBLIGATORIA DEL REPORTE (HTML):
 
-                    # Análisis de Trabajo Seguro (ATS)
+                    <h2>Análisis de Trabajo Seguro (ATS)</h2>
 
-                    ## 1. Descripción del Entorno
-                    (Descripción detallada de maquinaria, personal, condiciones ambientales, orden y aseo).
+                    <h3>1. Descripción del Entorno</h3>
+                    <p>(Descripción detallada...)</p>
 
-                    ## 2. Análisis Técnico
-                    (Evaluación profunda de condiciones inseguras y actos subestándar observados).
+                    <h3>2. Análisis Técnico</h3>
+                    <p>(Evaluación profunda...)</p>
 
-                    ## 3. Matriz de Identificación y Valoración de Riesgos
-                    | Peligro | Riesgo | Probabilidad (Alta/Media/Baja) | Consecuencia | Nivel de Riesgo |
-                    |---|---|---|---|---|
-                    | (Ej: Cable suelto) | (Ej: Caída a nivel) | Media | Lesión leve | Medio |
-                    | ... | ... | ... | ... | ... |
+                    <h3>3. Matriz de Identificación y Valoración de Riesgos</h3>
+                    <table border="1" style="border-collapse: collapse; width: 100%;">
+                      <thead>
+                        <tr><th>Peligro</th><th>Riesgo</th><th>Probabilidad</th><th>Consecuencia</th><th>Nivel de Riesgo</th></tr>
+                      </thead>
+                      <tbody>
+                        <!-- Filas de la matriz -->
+                      </tbody>
+                    </table>
 
-                    ## 4. Jerarquía de Controles
-                    | Riesgo Identificado | Eliminación / Sustitución | Controles de Ingeniería | Controles Administrativos | EPP Requerido |
-                    |---|---|---|---|---|
-                    | ... | ... | ... | ... | ... |
+                    <h3>4. Jerarquía de Controles</h3>
+                    <table border="1" style="border-collapse: collapse; width: 100%;">
+                      <thead>
+                        <tr><th>Riesgo Identificado</th><th>Eliminación / Sustitución</th><th>Controles de Ingeniería</th><th>Controles Administrativos</th><th>EPP Requerido</th></tr>
+                      </thead>
+                      <tbody>
+                        <!-- Filas de controles -->
+                      </tbody>
+                    </table>
 
                     IMPORTANTE:
-                    - DEBES usar tablas Markdown para las secciones 3 y 4.
                     - Sé riguroso en la valoración.
                     - Si no ves riesgos graves, documenta los riesgos leves o ergonómicos presentes.
                 `);
