@@ -34,6 +34,7 @@ function setupLiveAnalysisWebSocket(server) {
             const params = url.parse(request.url, true).query;
             const token = params.token || request.headers['sec-websocket-protocol'];
             const conversationId = params.conversationId;
+            const initialVoice = params.initialVoice;
 
             if (!token) {
                 logger.warn('[LiveAnalysisWS] No token provided');
@@ -80,6 +81,10 @@ function setupLiveAnalysisWebSocket(server) {
                 
                 Responde SIEMPRE en español.`
             };
+
+            if (initialVoice) {
+                config.voice = initialVoice;
+            }
 
             // Create voice session with forced config
             const result = await createSession(ws, userId, conversationId, config);
