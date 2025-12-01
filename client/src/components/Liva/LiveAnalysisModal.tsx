@@ -20,7 +20,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true); // Default to ON for analysis
-    const [statusText, setStatusText] = useState('');
+    const [statusText, setStatusText] = useState('Initializing...');
+    const [isReady, setIsReady] = useState(false); // New state for connection delay
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -72,6 +73,19 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setMuted,
         changeVoice,
     } = useLiveAnalysisSession(sessionOptions);
+
+    // Connection Delay Logic
+    useEffect(() => {
+        if (isOpen && isConnected) {
+            setIsReady(false);
+            const timer = setTimeout(() => {
+                setIsReady(true);
+            }, 3000); // 3 seconds delay
+            return () => clearTimeout(timer);
+        } else {
+            setIsReady(false);
+        }
+    }, [isOpen, isConnected]);
 
     // Connect on mount if open
     useEffect(() => {
@@ -275,7 +289,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="relative flex flex-col items-center justify-center w-full h-full p-4">
+            <div className="relative bg-black rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-[80vh]">
+
+                {/* Loading Overlay */}
+                {(!isReady && isOpen) && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                        <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p className="text-lg font-medium text-white">Conectando...</p>
+                        <p className="text-sm text-gray-400">Preparando análisis en vivo</p>
+                    </div>
+                )}
+
                 {/* Status */}
                 <div className="absolute top-8 text-center z-10 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
                     <p className="text-lg text-white font-medium">{statusText || 'Connecting...'}</p>

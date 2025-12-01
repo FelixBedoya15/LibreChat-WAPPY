@@ -69,40 +69,7 @@ const VoiceOrb: FC<VoiceOrbProps> = ({ status, amplitude = 0.5, className = '' }
             ctx.arc(centerX, centerY, dynamicRadius, 0, Math.PI * 2);
             ctx.fill();
 
-            // Draw pulsing rings for active states
-            if (status !== 'idle') {
-                const ringCount = 3;
-                for (let i = 0; i < ringCount; i++) {
-                    const ringPhase = phase + (i * Math.PI * 2 / ringCount);
-                    const ringRadius = dynamicRadius + 10 + (20 * Math.sin(ringPhase));
-                    const opacity = 0.2 - (i * 0.05);
-
-                    ctx.strokeStyle = status === 'listening' ? `rgba(59, 130, 246, ${opacity})` :
-                        status === 'thinking' ? `rgba(251, 191, 36, ${opacity})` :
-                            status === 'speaking' ? `rgba(34, 197, 94, ${opacity})` :
-                                `rgba(147, 51, 234, ${opacity})`;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-            }
-
-            // Draw audio waveform for speaking
-            if (status === 'speaking' && amplitude > 0.1) {
-                const waveCount = 8;
-                for (let i = 0; i < waveCount; i++) {
-                    const angle = (Math.PI * 2 * i / waveCount) + phase;
-                    const distance = dynamicRadius + 20 + (amplitude * 40 * Math.sin(phase * 3));
-                    const x = centerX + Math.cos(angle) * distance;
-                    const y = centerY + Math.sin(angle) * distance;
-
-                    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
-                    ctx.beginPath();
-                    ctx.arc(x, y, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
+            // Removed pulsing rings and particles as requested for cleaner UI
 
             animationFrameRef.current = requestAnimationFrame(animate);
         };

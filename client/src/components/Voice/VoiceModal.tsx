@@ -18,7 +18,9 @@ interface VoiceModalProps {
 const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated }) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
+    // Initialize with global state, but ensure we listen to updates
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
+    const [isReady, setIsReady] = useState(false); // New state for connection delay
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(false);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
@@ -100,6 +102,19 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             changeVoice(voiceChatGeneral);
         }
     }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]); // Removed selectedVoice from deps to avoid loop
+
+    // Connection Delay Logic
+    useEffect(() => {
+        if (isOpen && isConnected) {
+            setIsReady(false);
+            const timer = setTimeout(() => {
+                setIsReady(true);
+            }, 3000); // 3 seconds delay
+            return () => clearTimeout(timer);
+        } else {
+            setIsReady(false);
+        }
+    }, [isOpen, isConnected]);
 
     const handleClose = () => {
         stopCamera();
@@ -378,8 +393,18 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm">
             {/* Main content */}
-            <div className="relative flex flex-col items-center justify-center w-full h-full p-8">
-                {/* Status text */}
+            <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[600px]">
+
+                {/* Loading Overlay */}
+                {(!isReady && isOpen) && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm">
+                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">Conectando...</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Estableciendo conexión segura</p>
+                    </div>
+                )}
+
+                {/* Header */}text */}
                 <div className="absolute top-12 text-center z-10">
                     <p className="text-lg text-text-secondary">{statusText}</p>
                 </div>
