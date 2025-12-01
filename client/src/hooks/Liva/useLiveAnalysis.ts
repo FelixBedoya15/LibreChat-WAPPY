@@ -3,11 +3,9 @@ import { useVoiceSession } from '../useVoiceSession';
 
 interface UseLiveAnalysisProps {
     conversationId?: string;
-    onConversationIdUpdate?: (newId: string) => void;
-    disableAudio?: boolean;
 }
 
-export const useLiveAnalysis = ({ conversationId, onConversationIdUpdate, disableAudio }: UseLiveAnalysisProps = {}) => {
+export const useLiveAnalysis = ({ conversationId }: UseLiveAnalysisProps = {}) => {
     const [analysisResult, setAnalysisResult] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
 
@@ -15,20 +13,13 @@ export const useLiveAnalysis = ({ conversationId, onConversationIdUpdate, disabl
         connect,
         disconnect,
         sendVideoFrame,
-        sendTextMessage,
         status,
         isConnected,
         isConnecting
     } = useVoiceSession({
         conversationId,
-        disableAudio,
         onTextReceived: (text) => {
-            console.log("LiveAnalysis: Text received:", text);
             setAnalysisResult(prev => prev + text);
-        },
-        onConversationIdUpdate: (newId) => {
-            console.log("LiveAnalysis: Conversation ID updated:", newId);
-            onConversationIdUpdate?.(newId);
         },
         onError: (err) => {
             console.error("Live Analysis Error:", err);
@@ -53,7 +44,6 @@ export const useLiveAnalysis = ({ conversationId, onConversationIdUpdate, disabl
         startAnalysis,
         stopAnalysis,
         sendVideoFrame,
-        sendTextMessage,
         analysisResult,
         error,
         isConnected,

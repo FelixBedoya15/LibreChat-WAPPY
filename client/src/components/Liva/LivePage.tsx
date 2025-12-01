@@ -14,20 +14,12 @@ const LivePage = () => {
         startAnalysis,
         stopAnalysis,
         sendVideoFrame,
-        sendTextMessage,
         analysisResult,
         error,
         isConnected,
         isConnecting,
         status
-    } = useLiveAnalysis({
-        conversationId,
-        disableAudio: true,
-        onConversationIdUpdate: (newId) => {
-            console.log("LivePage: Updating conversation ID to:", newId);
-            setConversationId(newId);
-        }
-    });
+    } = useLiveAnalysis({ conversationId });
 
     // Placeholder for split view state
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -141,9 +133,17 @@ const LivePage = () => {
             stopAnalysis();
         } else {
             // Start Analysis
-            // We don't need to create a conversation manually via newConversation() 
-            // because useVoiceSession will handle the connection with conversationId='new'
-            // and the backend will assign a real ID.
+            if (!conversationId) {
+                // Create conversation first if needed
+                newConversation({
+                    state: { initialMessage: "Please analyze the video feed for occupational risks and describe any hazards you see." },
+                });
+                // Wait for conversationId update?
+                // useNewConvo usually updates URL or state.
+                // We might need to wait for the next render where conversationId is set.
+                // For now, let's assume if we trigger newConversation, the user might need to click Play again or we rely on effect.
+                // Actually, let's just set isAutoAnalyzing to true, and let the effect handle the start when conversationId is ready.
+            }
             setIsAutoAnalyzing(true);
         }
     };
@@ -156,17 +156,6 @@ const LivePage = () => {
             stopAnalysis();
         }
     }, [isAutoAnalyzing, isStreaming, conversationId, isConnected, isConnecting, startAnalysis, stopAnalysis]);
-
-    // Effect to send initial prompt when connected
-    useEffect(() => {
-        if (isConnected && isAutoAnalyzing) {
-            // Give a small delay to ensure backend is ready
-            const timer = setTimeout(() => {
-                sendTextMessage("Analyze this video stream for occupational risks. Be concise. List findings.");
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [isConnected, isAutoAnalyzing, sendTextMessage]);
 
     // Effect to stream video frames
     useEffect(() => {
@@ -184,7 +173,6 @@ const LivePage = () => {
     // Effect to update report with analysis result
     useEffect(() => {
         if (analysisResult) {
-            console.log("LivePage: Updating editor content with:", analysisResult);
             // Append or update editor content
             // For now, just append to a "Live Analysis" section or replace findings
             const newContent = `
