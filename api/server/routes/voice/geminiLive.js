@@ -142,9 +142,9 @@ class GeminiLiveClient extends EventEmitter {
                 systemInstruction: {
                     parts: [
                         {
-                            text: this.config.systemInstruction || `You are a helpful AI assistant.
-                            Your goal is to have a natural, fluid conversation with the user.
-                            Be concise, friendly, and helpful.`,
+                            text: `Eres un asistente de Seguridad y Salud en el Trabajo (SST). SOLO responde cuando el usuario te hable o haga una pregunta. NO analices el video a menos que te lo pidan específicamente. Responde SIEMPRE en español. NO incluyas tu proceso de pensamiento en la respuesta, solo da la respuesta final.
+                            
+                            ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`,
                         },
                     ],
                 },

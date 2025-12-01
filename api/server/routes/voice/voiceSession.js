@@ -32,11 +32,6 @@ class VoiceSession {
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
 
-        // Parallel Report Generation
-        this.lastFrame = null;
-        this.frameBuffer = []; // Buffer for multi-frame analysis
-        this.reportInterval = null;
-
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
     }
 
@@ -90,10 +85,6 @@ class VoiceSession {
             this.setupHandlers();
 
             this.isActive = true;
-
-            // Start Parallel Report Generator
-            this.startReportGenerator();
-
             logger.info(`[VoiceSession] Started for user: ${this.userId}`);
 
             return { success: true };
@@ -142,14 +133,12 @@ class VoiceSession {
         // Listen for AI transcription (what the AI says)
         this.geminiClient.on('aiTranscription', (text) => {
             logger.info(`[VoiceSession] AI transcription received: "${text}"`);
+            // Accumulate AI text
+            this.aiResponseText += text;
 
-            // Determine message type based on mode
-            // In 'live_analysis', we send 'transcript' so it doesn't clutter the report
-            // In 'chat', we send 'text' so it appears as a chat bubble
-            const messageType = this.config.mode === 'live_analysis' ? 'transcript' : 'text';
-
+            // Send to client in real-time so it can be displayed
             this.sendToClient({
-                type: messageType,
+                type: 'text',
                 data: { text }
             });
         });
@@ -302,15 +291,6 @@ class VoiceSession {
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
-                    // Store for parallel report generation
-                    this.lastFrame = data.image;
-                    this.frameBuffer.push(data.image);
-
-                    // Limit buffer to avoid memory leaks if generator is slow
-                    if (this.frameBuffer.length > 50) {
-                        this.frameBuffer.shift();
-                    }
-
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
                     } else {
@@ -636,9 +616,6 @@ class VoiceSession {
         }
     }
 
-    /**
-     * Stop the session
-     */
     stop() {
         this.isActive = false;
         this.currentTurnText = '';
@@ -654,148 +631,14 @@ class VoiceSession {
             activeSessions.delete(this.userId);
         }
 
-        this.stopReportGenerator();
         logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
-    }
-
-    /**
-     * Start the parallel report generator
-     */
-    startReportGenerator() {
-        if (!this.config.enableReportGenerator) {
-            logger.info('[VoiceSession] Parallel Report Generator disabled by config');
-            return;
-        }
-
-        if (this.reportInterval) clearInterval(this.reportInterval);
-
-        logger.info('[VoiceSession] Starting Parallel Report Generator');
-
-        // Generate report every 10 seconds
-        this.reportInterval = setInterval(() => {
-            this.generateReport();
-        }, 10000);
-    }
-
-    /**
-     * Stop the parallel report generator
-     */
-    stopReportGenerator() {
-        if (this.reportInterval) {
-            clearInterval(this.reportInterval);
-            this.reportInterval = null;
-        }
-    }
-
-    /**
-     * Generate structured report from buffered video frames (3 frames context)
-     */
-    async generateReport() {
-        // Need at least 1 frame
-        if (!this.frameBuffer || this.frameBuffer.length === 0) return;
-
-        try {
-            const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(this.apiKey);
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite-preview-02-05' });
-
-            // Select 3 frames: Start, Middle, End
-            const totalFrames = this.frameBuffer.length;
-            const framesToAnalyze = [];
-
-            if (totalFrames <= 3) {
-                framesToAnalyze.push(...this.frameBuffer);
-            } else {
-                framesToAnalyze.push(this.frameBuffer[0]); // Start
-                framesToAnalyze.push(this.frameBuffer[Math.floor(totalFrames / 2)]); // Middle
-                framesToAnalyze.push(this.frameBuffer[totalFrames - 1]); // End
-            }
-
-            // Clear buffer after selecting
-            this.frameBuffer = [];
-
-            const prompt = `
-            Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
-            Analiza la SECUENCIA de video (3 fotogramas) para entender el movimiento y contexto.
-            Genera un "Análisis de Trabajo Seguro (ATS)" actualizado.
-            
-            ESTRUCTURA OBLIGATORIA (HTML):
-            Genera HTML limpio para un editor de texto rico (sin <html>, <head>, <body>).
-            
-            <h1>Análisis de Trabajo Seguro (ATS) - Reporte en Vivo</h1>
-            
-            <h2>1. Descripción del Entorno y Actividad</h2>
-            <p>(Describe el entorno y si hay movimiento o cambios entre los fotogramas).</p>
-            
-            <h2>2. Matriz de Riesgos</h2>
-            <table border="1" style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
-                <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="padding: 8px; border: 1px solid #ddd;">Peligro Identificado</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">Riesgo Asociado</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">Probabilidad</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">Consecuencia</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">Nivel</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Filas aquí -->
-                </tbody>
-            </table>
-            
-            <h2>3. Controles Recomendados</h2>
-            <table border="1" style="width:100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="padding: 8px; border: 1px solid #ddd;">Riesgo</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">Control de Ingeniería</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">Control Administrativo</th>
-                        <th style="padding: 8px; border: 1px solid #ddd;">EPP</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Filas aquí -->
-                </tbody>
-            </table>
-            
-            IMPORTANTE:
-            - Usa HTML válido con estilos en línea básicos para las tablas.
-            - Sé técnico y preciso.
-            `;
-
-            // Prepare content parts
-            const contentParts = [prompt];
-            framesToAnalyze.forEach(frame => {
-                contentParts.push({
-                    inlineData: {
-                        data: frame,
-                        mimeType: 'image/jpeg'
-                    }
-                });
-            });
-
-            const result = await model.generateContent(contentParts);
-            const response = await result.response;
-            const reportText = response.text();
-
-            logger.info(`[VoiceSession] Generated Parallel Report from ${framesToAnalyze.length} frames`);
-
-            // Send to client
-            this.sendToClient({
-                type: 'text',
-                data: { text: reportText }
-            });
-
-        } catch (error) {
-            logger.error('[VoiceSession] Error generating parallel report:', error);
-        }
     }
 }
 
 /**
  * Create a new voice session for a user
  */
-async function createSession(clientWs, userId, conversationId, config = {}) {
+async function createSession(clientWs, userId, conversationId) {
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
@@ -821,7 +664,7 @@ async function createSession(clientWs, userId, conversationId, config = {}) {
         }
 
         // Create session
-        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
+        const session = new VoiceSession(clientWs, userId, parsedKey, {}, conversationId);
 
         // Start session
         const result = await session.start();
