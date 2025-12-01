@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type FC } from 'react';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
-import { useVoiceSession } from '~/hooks/useVoiceSession';
+import { useLiveAnalysisSession } from '~/hooks/useLiveAnalysisSession';
 import { useLocalize } from '~/hooks';
 
 interface LiveAnalysisModalProps {
@@ -22,7 +22,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
-    // Voice session WebSocket
+    // Live Analysis session WebSocket (Dedicated)
     const {
         isConnected,
         isConnecting,
@@ -32,11 +32,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         sendVideoFrame,
         sendTextMessage,
         setMuted,
-    } = useVoiceSession({
+    } = useLiveAnalysisSession({
         conversationId,
         onConversationIdUpdate,
-        disableAudio: false, // Enable audio for conversational mode
-        mode: 'live_analysis', // Enable specialized HSE mode
+        disableAudio: false,
+        // mode: 'live_analysis', // Mode is now hardcoded in the dedicated hook/server
         onAudioReceived: (audioData) => {
             handleAudioReceived(audioData);
         },

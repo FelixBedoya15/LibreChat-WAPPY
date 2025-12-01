@@ -232,7 +232,9 @@ const startServer = async () => {
 
   // Setup WebSocket server for voice conversations
   const setupVoiceWebSocket = require('./voiceWebSocket');
+  const setupLiveAnalysisWebSocket = require('./liveAnalysisWebSocket');
   setupVoiceWebSocket(server);
+  setupLiveAnalysisWebSocket(server);
 };
 
 startServer();
