@@ -392,9 +392,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     }
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
             {/* Main content */}
-            <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[600px]">
+            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[600px]">
 
                 {/* Loading Overlay */}
                 {/* Loading Overlay - Minimalist (No background, just centered indicator) */}
@@ -408,8 +408,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 )}
 
                 {/* Header */}
-                <div className="absolute top-12 text-center z-10">
-                    <p className="text-lg text-text-secondary">{statusText}</p>
+                <div className="absolute top-12 text-center z-10 w-full px-4">
+                    <p className="text-xl font-medium text-white/90 tracking-wide">{statusText || 'Ready'}</p>
                 </div>
 
                 {/* Video Preview (Hidden if off, or shown as background/overlay) */}
@@ -443,9 +443,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     {/* Camera toggle */}
                     <button
                         onClick={toggleCamera}
-                        className={`p-4 rounded-full transition-all ${isCameraOn
-                            ? 'bg-white text-black hover:bg-gray-200'
-                            : 'bg-surface-secondary hover:bg-surface-hover text-text-primary'
+                        className={`p-4 rounded-full transition-all duration-300 ${isCameraOn
+                            ? 'bg-white text-black shadow-lg scale-110'
+                            : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
                             }`}
                         aria-label={isCameraOn ? 'Apagar cámara' : 'Encender cámara'}
                     >
@@ -460,7 +460,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     {isCameraOn && (
                         <button
                             onClick={switchCamera}
-                            className="p-4 rounded-full bg-surface-secondary hover:bg-surface-hover transition-colors text-text-primary"
+                            className="p-4 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all"
                             aria-label="Cambiar cámara"
                         >
                             <RefreshCcw className="w-6 h-6" />
@@ -470,9 +470,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     {/* Mute/unmute button */}
                     <button
                         onClick={toggleMute}
-                        className={`p-4 rounded-full transition-all ${isMuted
-                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                            : 'bg-surface-secondary hover:bg-surface-hover text-text-primary'
+                        className={`p-4 rounded-full transition-all duration-300 ${isMuted
+                            ? 'bg-red-500/80 hover:bg-red-600 text-white shadow-lg'
+                            : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
                             }`}
                         aria-label={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
                     >
@@ -492,7 +492,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     {/* Close button */}
                     <button
                         onClick={handleClose}
-                        className="p-4 rounded-full bg-surface-secondary hover:bg-surface-hover transition-colors text-text-primary"
+                        className="p-4 rounded-full bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 backdrop-blur-md transition-all"
                         aria-label="Cerrar modo de voz"
                     >
                         <X className="w-6 h-6" />
