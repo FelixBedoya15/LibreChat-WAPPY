@@ -128,9 +128,8 @@ class GeminiLiveClient extends EventEmitter {
             setup: {
                 model: `models/${this.config.model}`,
                 generationConfig: {
-                    // CRÍTICO: NO CAMBIAR A ['AUDIO', 'TEXT'] - ROMPE LA IA COMPLETAMENTE
-                    // La IA deja de responder si se agrega 'TEXT' a responseModalities
-                    responseModalities: ['AUDIO'],
+                    // Enable both AUDIO and TEXT to support conversational voice + structured report
+                    responseModalities: ['AUDIO', 'TEXT'],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
@@ -142,9 +141,17 @@ class GeminiLiveClient extends EventEmitter {
                 systemInstruction: {
                     parts: [
                         {
-                            text: `Eres un asistente de Seguridad y Salud en el Trabajo (SST). SOLO responde cuando el usuario te hable o haga una pregunta. NO analices el video a menos que te lo pidan específicamente. Responde SIEMPRE en español. NO incluyas tu proceso de pensamiento en la respuesta, solo da la respuesta final.
+                            text: `Eres un Experto Senior en Prevención de Riesgos Laborales (HSE).
+                            Tu misión es realizar investigaciones exhaustivas de entornos laborales mediante video.
                             
-                            ${this.config.conversationContext ? `CONTEXTO DE CONVERSACIÓN PREVIA:\n${this.config.conversationContext}` : ''}`,
+                            MODOS DE RESPUESTA:
+                            1. AUDIO: Sé conversacional, directo y profesional. Explica lo que ves y haz preguntas si es necesario.
+                            2. TEXTO: Genera INFORMES TÉCNICOS ESTRUCTURADOS en Markdown.
+                               - Usa tablas para matrices de riesgo y jerarquía de controles.
+                               - NO incluyas saludos ni preguntas en el texto.
+                               - El texto debe ser un documento formal listo para guardar.
+                            
+                            Responde SIEMPRE en español.`,
                         },
                     ],
                 },
