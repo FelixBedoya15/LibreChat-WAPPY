@@ -15,7 +15,9 @@ interface UseVoiceSessionOptions {
     onConversationIdUpdate?: (newId: string) => void;
     onConversationUpdated?: () => void;
     disableAudio?: boolean;
+    disableAudio?: boolean;
     mode?: 'chat' | 'live_analysis';
+    initialVoice?: string;
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
@@ -244,7 +246,11 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
         try {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}&mode=${encodeURIComponent(options.mode || 'chat')}`;
+            let wsUrl = `${protocol}//${host}/ws/voice?token=${encodeURIComponent(token || '')}&conversationId=${encodeURIComponent(conversationId || '')}&mode=${encodeURIComponent(options.mode || 'chat')}`;
+
+            if (options.initialVoice) {
+                wsUrl += `&initialVoice=${encodeURIComponent(options.initialVoice)}`;
+            }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);

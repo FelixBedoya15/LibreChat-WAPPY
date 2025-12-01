@@ -38,13 +38,14 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         conversationId,
         onConversationIdUpdate,
         onConversationUpdated,
+        initialVoice: voiceChatGeneral, // Pass the persisted voice
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
         onTextReceived: handleTextReceived,
         onStatusChange: handleStatusChange,
         onError: handleError,
-    }), [conversationId, onConversationIdUpdate, onConversationUpdated]);
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral]);
 
     // Voice session WebSocket
     const {
@@ -397,10 +398,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
                 {/* Loading Overlay */}
                 {(!isReady && isOpen) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm">
-                        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p className="text-lg font-medium text-gray-700 dark:text-gray-200">Conectando...</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Estableciendo conexión segura</p>
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-500">
+                        <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
+                        <p className="text-lg font-medium text-white">Conectando...</p>
                     </div>
                 )}
 
