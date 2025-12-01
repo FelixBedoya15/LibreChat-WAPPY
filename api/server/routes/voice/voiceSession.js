@@ -625,8 +625,12 @@ class VoiceSession {
 
 /**
  * Create a new voice session for a user
+ * @param {WebSocket} clientWs
+ * @param {string} userId
+ * @param {string} conversationId
+ * @param {string|Object} configOrVoice - Initial voice name (string) or full config object
  */
-async function createSession(clientWs, userId, conversationId, initialVoice = null) {
+async function createSession(clientWs, userId, conversationId, configOrVoice = null) {
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
@@ -652,10 +656,15 @@ async function createSession(clientWs, userId, conversationId, initialVoice = nu
         }
 
         // Create session
-        const config = {};
-        if (initialVoice) {
-            config.voice = initialVoice;
-            logger.info(`[VoiceSession] Initializing with voice: ${initialVoice}`);
+        let config = {};
+        if (configOrVoice) {
+            if (typeof configOrVoice === 'string') {
+                config.voice = configOrVoice;
+                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice}`);
+            } else if (typeof configOrVoice === 'object') {
+                config = configOrVoice;
+                logger.info(`[VoiceSession] Initializing with custom config`);
+            }
         }
         const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
 
