@@ -142,17 +142,9 @@ class GeminiLiveClient extends EventEmitter {
                 systemInstruction: {
                     parts: [
                         {
-                            text: `Eres un Experto Senior en Prevención de Riesgos Laborales (HSE).
-                            Tu misión es realizar investigaciones exhaustivas de entornos laborales mediante video.
-                            
-                            MODOS DE RESPUESTA:
-                            1. AUDIO: Sé conversacional, directo y profesional. Explica lo que ves y haz preguntas si es necesario.
-                            2. TEXTO: Genera INFORMES TÉCNICOS ESTRUCTURADOS en Markdown.
-                               - Usa tablas para matrices de riesgo y jerarquía de controles.
-                               - NO incluyas saludos ni preguntas en el texto.
-                               - El texto debe ser un documento formal listo para guardar.
-                            
-                            Responde SIEMPRE en español.`,
+                            text: this.config.systemInstruction || `You are a helpful AI assistant.
+                            Your goal is to have a natural, fluid conversation with the user.
+                            Be concise, friendly, and helpful.`,
                         },
                     ],
                 },

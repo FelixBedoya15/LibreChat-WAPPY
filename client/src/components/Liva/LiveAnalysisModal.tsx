@@ -36,6 +36,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         conversationId,
         onConversationIdUpdate,
         disableAudio: false, // Enable audio for conversational mode
+        mode: 'live_analysis', // Enable specialized HSE mode
         onAudioReceived: (audioData) => {
             handleAudioReceived(audioData);
         },

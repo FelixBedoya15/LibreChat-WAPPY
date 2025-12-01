@@ -76,8 +76,29 @@ function setupVoiceWebSocket(server) {
 
             logger.info(`[WebSocket] User authenticated: ${user.id}`);
 
+            const mode = params.mode || 'chat';
+
+            // Create config based on mode
+            const config = {
+                mode,
+                enableReportGenerator: mode === 'live_analysis',
+                systemInstruction: mode === 'live_analysis' ?
+                    `Eres un Experto Senior en Prevención de Riesgos Laborales (HSE).
+                    Tu misión es realizar investigaciones exhaustivas de entornos laborales mediante video.
+                    
+                    MODOS DE RESPUESTA:
+                    1. AUDIO: Sé conversacional, directo y profesional. Explica lo que ves y haz preguntas si es necesario.
+                    2. TEXTO: Genera INFORMES TÉCNICOS ESTRUCTURADOS en Markdown.
+                       - Usa tablas para matrices de riesgo y jerarquía de controles.
+                       - NO incluyas saludos ni preguntas en el texto.
+                       - El texto debe ser un documento formal listo para guardar.
+                    
+                    Responde SIEMPRE en español.` :
+                    undefined // Default system instruction for chat
+            };
+
             // Create voice session
-            const result = await createSession(ws, user.id, conversationId);
+            const result = await createSession(ws, user.id, conversationId, config);
 
             if (!result.success) {
                 logger.error(`[WebSocket] Failed to create session: ${result.error}`);

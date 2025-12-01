@@ -34,6 +34,7 @@ class VoiceSession {
 
         // Parallel Report Generation
         this.lastFrame = null;
+        this.frameBuffer = []; // Buffer for multi-frame analysis
         this.reportInterval = null;
 
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
@@ -302,6 +303,12 @@ class VoiceSession {
                 if (data && data.image) {
                     // Store for parallel report generation
                     this.lastFrame = data.image;
+                    this.frameBuffer.push(data.image);
+
+                    // Limit buffer to avoid memory leaks if generator is slow
+                    if (this.frameBuffer.length > 50) {
+                        this.frameBuffer.shift();
+                    }
 
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
@@ -654,6 +661,11 @@ class VoiceSession {
      * Start the parallel report generator
      */
     startReportGenerator() {
+        if (!this.config.enableReportGenerator) {
+            logger.info('[VoiceSession] Parallel Report Generator disabled by config');
+            return;
+        }
+
         if (this.reportInterval) clearInterval(this.reportInterval);
 
         logger.info('[VoiceSession] Starting Parallel Report Generator');
@@ -675,66 +687,103 @@ class VoiceSession {
     }
 
     /**
-     * Generate structured report from latest video frame
+     * Generate structured report from buffered video frames (3 frames context)
      */
     async generateReport() {
-        if (!this.lastFrame) return;
+        // Need at least 1 frame
+        if (!this.frameBuffer || this.frameBuffer.length === 0) return;
 
         try {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(this.apiKey);
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite-preview-02-05' });
 
+            // Select 3 frames: Start, Middle, End
+            const totalFrames = this.frameBuffer.length;
+            const framesToAnalyze = [];
+
+            if (totalFrames <= 3) {
+                framesToAnalyze.push(...this.frameBuffer);
+            } else {
+                framesToAnalyze.push(this.frameBuffer[0]); // Start
+                framesToAnalyze.push(this.frameBuffer[Math.floor(totalFrames / 2)]); // Middle
+                framesToAnalyze.push(this.frameBuffer[totalFrames - 1]); // End
+            }
+
+            // Clear buffer after selecting
+            this.frameBuffer = [];
+
             const prompt = `
             Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
-            Genera un "Análisis de Trabajo Seguro (ATS)" basado en la imagen proporcionada.
+            Analiza la SECUENCIA de video (3 fotogramas) para entender el movimiento y contexto.
+            Genera un "Análisis de Trabajo Seguro (ATS)" actualizado.
             
-            ESTRUCTURA OBLIGATORIA (Markdown):
+            ESTRUCTURA OBLIGATORIA (HTML):
+            Genera HTML limpio para un editor de texto rico (sin <html>, <head>, <body>).
             
-            # Análisis de Trabajo Seguro (ATS) - Reporte en Vivo
+            <h1>Análisis de Trabajo Seguro (ATS) - Reporte en Vivo</h1>
             
-            ## 1. Descripción del Entorno
-            (Breve descripción técnica del área y condiciones).
+            <h2>1. Descripción del Entorno y Actividad</h2>
+            <p>(Describe el entorno y si hay movimiento o cambios entre los fotogramas).</p>
             
-            ## 2. Matriz de Riesgos
-            | Peligro Identificado | Riesgo Asociado | Probabilidad | Consecuencia | Nivel |
-            |---|---|---|---|---|
-            | ... | ... | ... | ... | ... |
+            <h2>2. Matriz de Riesgos</h2>
+            <table border="1" style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">Peligro Identificado</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Riesgo Asociado</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Probabilidad</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Consecuencia</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Nivel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Filas aquí -->
+                </tbody>
+            </table>
             
-            ## 3. Controles Recomendados
-            | Riesgo | Control de Ingeniería | Control Administrativo | EPP |
-            |---|---|---|---|---|
-            | ... | ... | ... | ... | ... |
+            <h2>3. Controles Recomendados</h2>
+            <table border="1" style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="padding: 8px; border: 1px solid #ddd;">Riesgo</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Control de Ingeniería</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">Control Administrativo</th>
+                        <th style="padding: 8px; border: 1px solid #ddd;">EPP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Filas aquí -->
+                </tbody>
+            </table>
             
             IMPORTANTE:
-            - Sé conciso y directo.
-            - Usa tablas Markdown estándar.
-            - Si no hay riesgos visibles, indícalo claramente.
+            - Usa HTML válido con estilos en línea básicos para las tablas.
+            - Sé técnico y preciso.
             `;
 
-            const result = await model.generateContent([
-                prompt,
-                {
+            // Prepare content parts
+            const contentParts = [prompt];
+            framesToAnalyze.forEach(frame => {
+                contentParts.push({
                     inlineData: {
-                        data: this.lastFrame,
+                        data: frame,
                         mimeType: 'image/jpeg'
                     }
-                }
-            ]);
+                });
+            });
 
+            const result = await model.generateContent(contentParts);
             const response = await result.response;
             const reportText = response.text();
 
-            logger.info('[VoiceSession] Generated Parallel Report');
+            logger.info(`[VoiceSession] Generated Parallel Report from ${framesToAnalyze.length} frames`);
 
-            // Send to client as the main text content
+            // Send to client
             this.sendToClient({
                 type: 'text',
                 data: { text: reportText }
             });
-
-            // DO NOT save to aiResponseText to avoid auto-saving to DB and creating new chats
-            // this.aiResponseText = reportText; 
 
         } catch (error) {
             logger.error('[VoiceSession] Error generating parallel report:', error);
@@ -745,7 +794,7 @@ class VoiceSession {
 /**
  * Create a new voice session for a user
  */
-async function createSession(clientWs, userId, conversationId) {
+async function createSession(clientWs, userId, conversationId, config = {}) {
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
@@ -771,7 +820,7 @@ async function createSession(clientWs, userId, conversationId) {
         }
 
         // Create session
-        const session = new VoiceSession(clientWs, userId, parsedKey, {}, conversationId);
+        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
 
         // Start session
         const result = await session.start();
