@@ -152,9 +152,7 @@ class GeminiLiveClient extends EventEmitter {
                 // inputAudioTranscription = transcribes user's voice
                 // outputAudioTranscription = transcribes AI's voice
                 inputAudioTranscription: {},
-                outputAudioTranscription: {
-                    model: "gemini-2.0-flash-lite-preview-02-05"
-                },
+                outputAudioTranscription: {},
             },
         };
 
