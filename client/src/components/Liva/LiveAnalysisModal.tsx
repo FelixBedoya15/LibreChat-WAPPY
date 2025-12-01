@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type FC } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { useRecoilValue } from 'recoil';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
 import store from '~/store';
@@ -28,31 +28,21 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const audioContextRef = useRef<AudioContext | null>(null);
     const wasOpenRef = useRef(false); // To track if the modal was previously open
 
-    // Live Analysis session WebSocket (Dedicated)
-    const {
-        isConnected,
-        isConnecting,
-        status,
-        connect,
-        disconnect,
-        sendVideoFrame,
-        sendTextMessage,
-        setMuted,
-        changeVoice,
-    } = useLiveAnalysisSession({
+    // Memoize options
+    const sessionOptions = useMemo(() => ({
         conversationId,
         onConversationIdUpdate,
         disableAudio: false,
         initialVoice: voiceLiveAnalysis, // Pass the initial voice from the store
         // mode: 'live_analysis', // Mode is now hardcoded in the dedicated hook/server
-        onAudioReceived: (audioData) => {
+        onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
-        onTextReceived: (text) => {
+        onTextReceived: (text: string) => {
             // Forward AI text to parent (LivePage) to update report
             onTextReceived?.(text);
         },
-        onStatusChange: (newStatus) => {
+        onStatusChange: (newStatus: string) => {
             console.log('[LiveAnalysisModal] Status:', newStatus);
             if (newStatus === 'listening') {
                 setStatusText('Listening...');
@@ -64,11 +54,24 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 setStatusText(newStatus);
             }
         },
-        onError: (err) => {
+        onError: (err: string) => {
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    });
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived]);
+
+    // Live Analysis session WebSocket (Dedicated)
+    const {
+        isConnected,
+        isConnecting,
+        status,
+        connect,
+        disconnect,
+        sendVideoFrame,
+        sendTextMessage,
+        setMuted,
+        changeVoice,
+    } = useLiveAnalysisSession(sessionOptions);
 
     // Connect on mount if open
     useEffect(() => {

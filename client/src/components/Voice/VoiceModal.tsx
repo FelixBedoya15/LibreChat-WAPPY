@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef, type FC } from 'react';
-import { useRecoilValue } from 'recoil';
+import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
+import { useRecoilState } from 'recoil';
 import { X, Mic, MicOff, Video, VideoOff, RefreshCcw } from 'lucide-react';
 import store from '~/store';
 import VoiceOrb from './VoiceOrb';
@@ -17,7 +17,7 @@ interface VoiceModalProps {
 
 const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated }) => {
     const localize = useLocalize();
-    const voiceChatGeneral = useRecoilValue(store.voiceChatGeneral);
+    const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(false);
@@ -31,6 +31,19 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
+    // Memoize options to prevent infinite loop in useEffect
+    const sessionOptions = useMemo(() => ({
+        conversationId,
+        onConversationIdUpdate,
+        onConversationUpdated,
+        onAudioReceived: (audioData: string) => {
+            handleAudioReceived(audioData);
+        },
+        onTextReceived: handleTextReceived,
+        onStatusChange: handleStatusChange,
+        onError: handleError,
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated]);
+
     // Voice session WebSocket
     const {
         isConnected,
@@ -42,17 +55,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         changeVoice,
         getInputVolume,
         setMuted,
-    } = useVoiceSession({
-        conversationId,
-        onConversationIdUpdate,
-        onConversationUpdated,
-        onAudioReceived: (audioData) => {
-            handleAudioReceived(audioData);
-        },
-        onTextReceived: handleTextReceived,
-        onStatusChange: handleStatusChange,
-        onError: handleError,
-    });
+    } = useVoiceSession(sessionOptions);
 
     // Track previous isOpen state to detect reopening
     const prevIsOpenRef = useRef(isOpen);
@@ -90,10 +93,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
 
         // Ensure voice is updated when connected
+        // Only run this if voiceChatGeneral changes externally or on initial connect
         if (isOpen && isConnected && selectedVoice !== voiceChatGeneral) {
+            console.log('[VoiceModal] Syncing voice with global setting:', voiceChatGeneral);
+            setSelectedVoice(voiceChatGeneral);
             changeVoice(voiceChatGeneral);
         }
-    }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral, selectedVoice]);
+    }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]); // Removed selectedVoice from deps to avoid loop
 
     const handleClose = () => {
         stopCamera();
@@ -350,6 +356,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
      */
     const handleVoiceChange = (voiceId: string) => {
         setSelectedVoice(voiceId);
+        setVoiceChatGeneral(voiceId); // Update global store to prevent sync loop
         clearAudioQueue(); // Stop current voice immediately
         changeVoice(voiceId);
         setShowVoiceSelector(false);
