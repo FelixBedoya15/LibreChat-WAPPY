@@ -197,14 +197,6 @@ const LivePage = () => {
         }
     }, [analysisResult]);
 
-    // Debug logging for mount/unmount
-    useEffect(() => {
-        console.log("LivePage: Mounted");
-        return () => {
-            console.log("LivePage: Unmounted");
-        };
-    }, []);
-
     return (
         <div className="flex h-full w-full flex-col md:flex-row overflow-hidden bg-white dark:bg-gray-900">
             {/* Hidden Canvas for Capture */}
