@@ -87,10 +87,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         if (!wasOpen && isOpen && !isConnected && !isConnecting) {
             console.log('[VoiceModal] Modal reopened, reconnecting...');
             connect();
-            // Ensure voice is updated on reconnect
+        }
+
+        // Ensure voice is updated when connected
+        if (isOpen && isConnected && selectedVoice !== voiceChatGeneral) {
             changeVoice(voiceChatGeneral);
         }
-    }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]);
+    }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral, selectedVoice]);
 
     const handleClose = () => {
         stopCamera();

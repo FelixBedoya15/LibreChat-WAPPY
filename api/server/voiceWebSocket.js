@@ -20,9 +20,8 @@ function setupVoiceWebSocket(server) {
             wss.handleUpgrade(request, socket, head, (ws) => {
                 wss.emit('connection', ws, request);
             });
-        } else {
-            socket.destroy();
         }
+        // Do not destroy socket here if path doesn't match, allow other handlers
     });
 
     // Handle WebSocket connections
