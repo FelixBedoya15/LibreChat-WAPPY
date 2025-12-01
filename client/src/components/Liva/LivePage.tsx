@@ -51,16 +51,16 @@ const LivePage = () => {
                 <div className="flex items-center space-x-3">
                     <button
                         onClick={handleStartAnalysis}
-                        className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+                        className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
                     >
-                        <Video className="w-5 h-5 mr-2" />
+                        <Video className="w-4 h-4 mr-2" />
                         Start Live Analysis
                     </button>
                     <button
                         onClick={handleSave}
-                        className="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-sm"
+                        className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
                     >
-                        <Save className="w-5 h-5 mr-2" />
+                        <Save className="w-4 h-4 mr-2" />
                         Save Report
                     </button>
                 </div>
