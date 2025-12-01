@@ -393,8 +393,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            {/* Main content */}
-            <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[600px]">
+            {/* Main content - Fullscreen */}
+            <div className="relative w-full h-full bg-black/40 backdrop-blur-xl flex flex-col overflow-hidden">
 
                 {/* Loading Overlay */}
                 {/* Loading Overlay - Minimalist (No background, just centered indicator) */}
@@ -439,7 +439,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 </div>
 
                 {/* Controls */}
-                <div className="absolute bottom-12 flex items-center space-x-6 z-10">
+                <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center space-x-8 z-20">
                     {/* Camera toggle */}
                     <button
                         onClick={toggleCamera}
