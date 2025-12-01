@@ -397,10 +397,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col h-[600px]">
 
                 {/* Loading Overlay */}
+                {/* Loading Overlay - Minimalist (No background, just centered indicator) */}
                 {(!isReady && isOpen) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-500">
-                        <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
-                        <p className="text-lg font-medium text-white">Conectando...</p>
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
+                        <div className="bg-black/40 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 shadow-lg">
+                            <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-white font-medium text-sm">Conectando...</span>
+                        </div>
                     </div>
                 )}
 

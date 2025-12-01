@@ -626,7 +626,7 @@ class VoiceSession {
 /**
  * Create a new voice session for a user
  */
-async function createSession(clientWs, userId, conversationId) {
+async function createSession(clientWs, userId, conversationId, initialVoice = null) {
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
@@ -652,7 +652,12 @@ async function createSession(clientWs, userId, conversationId) {
         }
 
         // Create session
-        const session = new VoiceSession(clientWs, userId, parsedKey, {}, conversationId);
+        const config = {};
+        if (initialVoice) {
+            config.voice = initialVoice;
+            logger.info(`[VoiceSession] Initializing with voice: ${initialVoice}`);
+        }
+        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
 
         // Start session
         const result = await session.start();

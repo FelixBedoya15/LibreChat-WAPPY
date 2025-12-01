@@ -88,21 +88,7 @@ const VoiceOrb: FC<VoiceOrbProps> = ({ status, amplitude = 0.5, className = '' }
                 }
             }
 
-            // Draw audio waveform for speaking
-            if (status === 'speaking' && amplitude > 0.1) {
-                const waveCount = 8;
-                for (let i = 0; i < waveCount; i++) {
-                    const angle = (Math.PI * 2 * i / waveCount) + phase;
-                    const distance = dynamicRadius + 20 + (amplitude * 40 * Math.sin(phase * 3));
-                    const x = centerX + Math.cos(angle) * distance;
-                    const y = centerY + Math.sin(angle) * distance;
-
-                    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
-                    ctx.beginPath();
-                    ctx.arc(x, y, 3, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
+            // Removed audio waveform particles as requested for cleaner UI
 
             animationFrameRef.current = requestAnimationFrame(animate);
         };
