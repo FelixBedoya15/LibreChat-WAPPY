@@ -628,51 +628,64 @@ class VoiceSession {
         }
     }
 
-    // Remove from active sessions
-    if(activeSessions.has(this.userId)) {
-    activeSessions.delete(this.userId);
-}
+    /**
+     * Stop the session
+     */
+    stop() {
+        this.isActive = false;
+        this.currentTurnText = '';
+        this.aiResponseText = '';
 
-this.stopReportGenerator();
-logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
+        if (this.geminiClient) {
+            this.geminiClient.disconnect();
+            this.geminiClient = null;
+        }
+
+        // Remove from active sessions
+        if (activeSessions.has(this.userId)) {
+            activeSessions.delete(this.userId);
+        }
+
+        this.stopReportGenerator();
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
     }
 
-/**
- * Start the parallel report generator
- */
-startReportGenerator() {
-    if (this.reportInterval) clearInterval(this.reportInterval);
+    /**
+     * Start the parallel report generator
+     */
+    startReportGenerator() {
+        if (this.reportInterval) clearInterval(this.reportInterval);
 
-    logger.info('[VoiceSession] Starting Parallel Report Generator');
+        logger.info('[VoiceSession] Starting Parallel Report Generator');
 
-    // Generate report every 10 seconds
-    this.reportInterval = setInterval(() => {
-        this.generateReport();
-    }, 10000);
-}
-
-/**
- * Stop the parallel report generator
- */
-stopReportGenerator() {
-    if (this.reportInterval) {
-        clearInterval(this.reportInterval);
-        this.reportInterval = null;
+        // Generate report every 10 seconds
+        this.reportInterval = setInterval(() => {
+            this.generateReport();
+        }, 10000);
     }
-}
+
+    /**
+     * Stop the parallel report generator
+     */
+    stopReportGenerator() {
+        if (this.reportInterval) {
+            clearInterval(this.reportInterval);
+            this.reportInterval = null;
+        }
+    }
 
     /**
      * Generate structured report from latest video frame
      */
     async generateReport() {
-    if (!this.lastFrame) return;
+        if (!this.lastFrame) return;
 
-    try {
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(this.apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite-preview-02-05' });
+        try {
+            const { GoogleGenerativeAI } = require('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(this.apiKey);
+            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite-preview-02-05' });
 
-        const prompt = `
+            const prompt = `
             Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
             Genera un "Análisis de Trabajo Seguro (ATS)" basado en la imagen proporcionada.
             
@@ -699,34 +712,34 @@ stopReportGenerator() {
             - Si no hay riesgos visibles, indícalo claramente.
             `;
 
-        const result = await model.generateContent([
-            prompt,
-            {
-                inlineData: {
-                    data: this.lastFrame,
-                    mimeType: 'image/jpeg'
+            const result = await model.generateContent([
+                prompt,
+                {
+                    inlineData: {
+                        data: this.lastFrame,
+                        mimeType: 'image/jpeg'
+                    }
                 }
-            }
-        ]);
+            ]);
 
-        const response = await result.response;
-        const reportText = response.text();
+            const response = await result.response;
+            const reportText = response.text();
 
-        logger.info('[VoiceSession] Generated Parallel Report');
+            logger.info('[VoiceSession] Generated Parallel Report');
 
-        // Send to client as the main text content
-        this.sendToClient({
-            type: 'text',
-            data: { text: reportText }
-        });
+            // Send to client as the main text content
+            this.sendToClient({
+                type: 'text',
+                data: { text: reportText }
+            });
 
-        // Update aiResponseText for saving later
-        this.aiResponseText = reportText;
+            // Update aiResponseText for saving later
+            this.aiResponseText = reportText;
 
-    } catch (error) {
-        logger.error('[VoiceSession] Error generating parallel report:', error);
+        } catch (error) {
+            logger.error('[VoiceSession] Error generating parallel report:', error);
+        }
     }
-}
 }
 
 /**
