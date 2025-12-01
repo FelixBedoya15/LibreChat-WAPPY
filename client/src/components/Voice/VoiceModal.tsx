@@ -404,7 +404,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     </div>
                 )}
 
-                {/* Header */}text */}
+                {/* Header */}
                 <div className="absolute top-12 text-center z-10">
                     <p className="text-lg text-text-secondary">{statusText}</p>
                 </div>
