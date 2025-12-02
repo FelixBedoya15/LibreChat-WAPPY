@@ -288,6 +288,18 @@ html {
   z-index: 0;
 }
 
+.bg-chat-input {
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.dark .bg-chat-input {
+  background-color: rgba(47, 47, 47, 0.85);
+}
+
+.green .bg-chat-input {
+  background-color: rgba(6, 78, 59, 0.85);
+}
+
 .text-token-text-primary {
   color: #171717;
   color: var(--text-primary);

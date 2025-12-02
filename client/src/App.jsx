@@ -13,6 +13,7 @@ import { initializeFontSize } from '~/store/fontSize';
 import { LiveAnnouncer } from '~/a11y';
 import { router } from './routes';
 import FontManager from './components/FontManager';
+import ThemeManager from './components/ThemeManager';
 
 const App = () => {
   const { setError } = useApiErrorBoundary();
