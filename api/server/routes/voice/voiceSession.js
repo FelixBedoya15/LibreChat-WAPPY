@@ -699,6 +699,12 @@ class VoiceSession {
                 [SYSTEM EVENT]: A formal technical report based on this conversation has just been generated and displayed to the user.
                 
                 TASK:
+                1. Interrupt your current thought if needed (or start a new turn).
+                2. Explicitly tell the user (in the language they are speaking) that the report has been updated/generated.
+                3. Provide a very brief, 1-sentence summary of the key risk or finding included in the report.
+                4. Ask if they want to add anything else to the report.
+                `;
+
                 // Send as text input to the model
                 this.client.send([{ text: announcementPrompt }]);
             }
@@ -722,8 +728,8 @@ class VoiceSession {
 
                     await saveMessage(this.userId, reportMessage);
                     this.lastMessageId = messageId; // Update pointer
-                    logger.info(`[VoiceSession] Report saved to DB.MessageId: ${ messageId }`);
-                    
+                    logger.info(`[VoiceSession] Report saved to DB.MessageId: ${messageId}`);
+
                     // Notify client with messageId so it can be updated later
                     this.sendToClient({
                         type: 'report',
@@ -733,8 +739,8 @@ class VoiceSession {
                     logger.error('[VoiceSession] Error saving report to DB:', saveError);
                 }
             } else {
-                 // Fallback if no conversationId yet (should not happen if flow is correct)
-                 this.sendToClient({
+                // Fallback if no conversationId yet (should not happen if flow is correct)
+                this.sendToClient({
                     type: 'report',
                     data: { html: reportHtml }
                 });
@@ -767,7 +773,7 @@ class VoiceSession {
             activeSessions.delete(this.userId);
         }
 
-        logger.info(`[VoiceSession] Stopped for user: ${ this.userId } `);
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
     }
 }
 
@@ -782,7 +788,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
-            logger.warn(`[VoiceSession] User ${ userId } already has active session`);
+            logger.warn(`[VoiceSession] User ${userId} already has active session`);
             const existingSession = activeSessions.get(userId);
             existingSession.stop();
         }
@@ -808,7 +814,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
         if (configOrVoice) {
             if (typeof configOrVoice === 'string') {
                 config.voice = configOrVoice;
-                logger.info(`[VoiceSession] Initializing with voice: ${ configOrVoice } `);
+                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
             } else if (typeof configOrVoice === 'object') {
                 config = configOrVoice;
                 logger.info(`[VoiceSession] Initializing with custom config`);
