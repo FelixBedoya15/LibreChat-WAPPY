@@ -96,6 +96,9 @@ async function updateAccessPermissions(roleName, permissionsUpdate, roleData) {
   for (const [permissionType, permissions] of Object.entries(permissionsUpdate)) {
     if (permissionsSchema.shape && permissionsSchema.shape[permissionType]) {
       updates[permissionType] = removeNullishValues(permissions);
+    } else {
+      logger.warn(`Skipping permission update for '${permissionType}': not found in schema`);
+      logger.debug('Available schema keys:', Object.keys(permissionsSchema.shape || {}));
     }
   }
   if (!Object.keys(updates).length) {
