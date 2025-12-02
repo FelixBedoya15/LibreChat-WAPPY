@@ -20,12 +20,12 @@ class n8nWebhook extends Tool {
         }
 
         this.description =
-            'Triggers an n8n workflow via webhook. Use this tool to send data to n8n for processing, automation, or integration with other services. The input should be a JSON string representing the payload to send.';
+            'ALWAYS use this tool when the user wants to send data to n8n, trigger a webhook, or connect to an external workflow. The "payload" argument is required and can be any text, JSON, or object you want to send.';
 
         this.schema = z.object({
             payload: z
-                .any()
-                .describe('The data to send to the n8n webhook. Can be a JSON object or a string.'),
+                .string()
+                .describe('The JSON string payload to send to the n8n webhook. You must serialize your data into a JSON string.'),
         });
     }
 
