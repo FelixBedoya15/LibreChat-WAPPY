@@ -44,6 +44,22 @@ const getRoleByName = async function (roleName, fieldsToSelect = null) {
 };
 
 /**
+ * Get all roles.
+ * @returns {Promise<IRole[]>} List of all roles.
+ */
+const getRoles = async function () {
+  const cache = getLogStores(CacheKeys.ROLES);
+  try {
+    // We don't cache the list itself for now, or we could.
+    // Simple implementation: fetch all from DB.
+    const roles = await Role.find({}).select('-__v').lean().exec();
+    return roles;
+  } catch (error) {
+    throw new Error(`Failed to retrieve roles: ${error.message}`);
+  }
+};
+
+/**
  * Update role values by name.
  *
  * @param {string} roleName - The name of the role to update.
@@ -253,4 +269,5 @@ module.exports = {
   updateRoleByName,
   migrateRoleSchema,
   updateAccessPermissions,
+  getRoles,
 };

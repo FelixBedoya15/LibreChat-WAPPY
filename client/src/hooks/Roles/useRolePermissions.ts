@@ -26,6 +26,11 @@ export default function useRolePermissions() {
             return false;
         }
 
+        if (!Array.isArray(roleDefinitions)) {
+            console.error('roleDefinitions is not an array:', roleDefinitions);
+            return false;
+        }
+
         const userRoleDef = roleDefinitions.find((r: any) => r.name === user.role);
         if (!userRoleDef) return false;
 
