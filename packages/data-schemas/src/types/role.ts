@@ -51,6 +51,22 @@ export interface IRole extends Document {
     [PermissionTypes.FILE_CITATIONS]?: {
       [Permissions.USE]?: boolean;
     };
+    [PermissionTypes.LIVE_CHAT]?: {
+      [Permissions.USE]?: boolean;
+    };
+    [PermissionTypes.LIVE_ANALYSIS]?: {
+      [Permissions.USE]?: boolean;
+    };
+    [PermissionTypes.ARTIFACTS]?: {
+      [Permissions.USE]?: boolean;
+    };
+    [PermissionTypes.ENDPOINTS]?: {
+      [Permissions.USE]?: boolean;
+      [key: string]: boolean | undefined;
+    };
+    [PermissionTypes.ATTACHMENTS]?: {
+      [Permissions.USE]?: boolean;
+    };
   };
 }
 

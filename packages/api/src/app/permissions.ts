@@ -41,6 +41,16 @@ function hasExplicitConfig(
       return interfaceConfig?.fileSearch !== undefined;
     case PermissionTypes.FILE_CITATIONS:
       return interfaceConfig?.fileCitations !== undefined;
+    case PermissionTypes.LIVE_CHAT:
+      return interfaceConfig?.liveChat !== undefined;
+    case PermissionTypes.LIVE_ANALYSIS:
+      return interfaceConfig?.liveAnalysis !== undefined;
+    case PermissionTypes.ARTIFACTS:
+      return interfaceConfig?.artifacts !== undefined;
+    case PermissionTypes.ENDPOINTS:
+      return interfaceConfig?.endpoints !== undefined;
+    case PermissionTypes.ATTACHMENTS:
+      return interfaceConfig?.attachments !== undefined;
     default:
       return false;
   }
@@ -254,6 +264,43 @@ export async function updateInterfacePermissions({
           loadedInterface.fileCitations,
           defaultPerms[PermissionTypes.FILE_CITATIONS]?.[Permissions.USE],
           defaults.fileCitations,
+        ),
+      },
+      [PermissionTypes.LIVE_CHAT]: {
+        [Permissions.USE]: getPermissionValue(
+          loadedInterface.liveChat,
+          defaultPerms[PermissionTypes.LIVE_CHAT]?.[Permissions.USE],
+          defaults.liveChat,
+        ),
+      },
+      [PermissionTypes.LIVE_ANALYSIS]: {
+        [Permissions.USE]: getPermissionValue(
+          loadedInterface.liveAnalysis,
+          defaultPerms[PermissionTypes.LIVE_ANALYSIS]?.[Permissions.USE],
+          defaults.liveAnalysis,
+        ),
+      },
+      [PermissionTypes.ARTIFACTS]: {
+        [Permissions.USE]: getPermissionValue(
+          loadedInterface.artifacts,
+          defaultPerms[PermissionTypes.ARTIFACTS]?.[Permissions.USE],
+          defaults.artifacts,
+        ),
+      },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: getPermissionValue(
+          loadedInterface.endpoints,
+          defaultPerms[PermissionTypes.ENDPOINTS]?.[Permissions.USE],
+          defaults.endpoints,
+        ),
+        // Add specific endpoints if needed, but for now just USE
+        // We might need to map specific endpoints from config if they exist in interfaceConfig
+      },
+      [PermissionTypes.ATTACHMENTS]: {
+        [Permissions.USE]: getPermissionValue(
+          loadedInterface.attachments,
+          defaultPerms[PermissionTypes.ATTACHMENTS]?.[Permissions.USE],
+          defaults.attachments,
         ),
       },
     };

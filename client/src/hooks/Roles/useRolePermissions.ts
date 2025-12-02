@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRecoilValue } from 'recoil';
-import { store } from '~/store';
+import store from '~/store';
 import { PermissionTypes, Permissions, SystemRoles } from 'librechat-data-provider';
 import axios from 'axios';
 
