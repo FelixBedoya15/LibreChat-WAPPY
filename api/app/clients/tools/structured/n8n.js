@@ -29,6 +29,7 @@ class n8nWebhook extends Tool {
     }
 
     async _call(input) {
+        console.log('[n8n] Tool called with input:', input);
         const validationResult = this.schema.safeParse(input);
         if (!validationResult.success) {
             throw new Error(`Validation failed: ${JSON.stringify(validationResult.error.issues)}`);
