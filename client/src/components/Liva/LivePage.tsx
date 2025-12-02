@@ -3,9 +3,10 @@ import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import { Video, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useNewConvo } from '~/hooks';
+import { useNewConvo, useLocalize } from '~/hooks';
 
 const LivePage = () => {
+    const localize = useLocalize();
     const [editorContent, setEditorContent] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
@@ -101,14 +102,14 @@ const LivePage = () => {
                         className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
                     >
                         <Video className="w-4 h-4 mr-2" />
-                        Start Live Analysis
+                        {localize('com_ui_start_live_analysis')}
                     </button>
                     <button
                         onClick={handleSave}
                         className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
                     >
                         <Save className="w-4 h-4 mr-2" />
-                        Save Report
+                        {localize('com_ui_save_report')}
                     </button>
                 </div>
             </div>
