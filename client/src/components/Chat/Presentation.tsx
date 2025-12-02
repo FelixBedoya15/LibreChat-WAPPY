@@ -74,7 +74,7 @@ export default function Presentation({ children }: { children: React.ReactNode }
             ) : null
           }
         >
-          <main className="flex h-full flex-col overflow-y-auto" role="main">
+          <main className="bg-logo flex h-full flex-col overflow-y-auto" role="main">
             {children}
           </main>
         </SidePanelGroup>

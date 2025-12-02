@@ -266,6 +266,28 @@ html {
   --ring: 150 60% 70%;
 }
 
+.bg-logo {
+  position: relative;
+}
+
+.bg-logo::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/assets/logo-bg.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 300px;
+  /* Adjust size as needed */
+  opacity: 0.05;
+  /* Very translucent */
+  pointer-events: none;
+  z-index: 0;
+}
+
 .text-token-text-primary {
   color: #171717;
   color: var(--text-primary);
