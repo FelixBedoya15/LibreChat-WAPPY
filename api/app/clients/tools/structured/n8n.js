@@ -51,13 +51,21 @@ class n8nWebhook extends Tool {
                 body: JSON.stringify(parsedPayload),
             });
 
-            const responseText = await response.text();
+            const contentType = response.headers.get('content-type');
+            let result;
 
-            if (!response.ok) {
-                throw new Error(`n8n webhook failed with status ${response.status}: ${responseText}`);
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+                result = JSON.stringify(result);
+            } else {
+                result = await response.text();
             }
 
-            return responseText || 'Webhook triggered successfully.';
+            if (!response.ok) {
+                throw new Error(`n8n webhook failed with status ${response.status}: ${result}`);
+            }
+
+            return result || 'Webhook triggered successfully.';
         } catch (error) {
             throw new Error(`Failed to trigger n8n webhook: ${error.message}`);
         }
