@@ -28,6 +28,14 @@ export enum SystemRoles {
    * The default user role
    */
   USER = 'USER',
+  /**
+   * The User Plus role
+   */
+  USER_PLUS = 'USER_PLUS',
+  /**
+   * The User Pro role
+   */
+  USER_PRO = 'USER_PRO',
 }
 
 export const roleSchema = z.object({
@@ -95,6 +103,14 @@ const defaultRolesSchema = z.object({
     name: z.literal(SystemRoles.USER),
     permissions: permissionsSchema,
   }),
+  [SystemRoles.USER_PLUS]: roleSchema.extend({
+    name: z.literal(SystemRoles.USER_PLUS),
+    permissions: permissionsSchema,
+  }),
+  [SystemRoles.USER_PRO]: roleSchema.extend({
+    name: z.literal(SystemRoles.USER_PRO),
+    permissions: permissionsSchema,
+  }),
 });
 
 export const roleDefaults = defaultRolesSchema.parse({
@@ -151,6 +167,52 @@ export const roleDefaults = defaultRolesSchema.parse({
   },
   [SystemRoles.USER]: {
     name: SystemRoles.USER,
+    permissions: {
+      [PermissionTypes.PROMPTS]: {},
+      [PermissionTypes.BOOKMARKS]: {},
+      [PermissionTypes.MEMORIES]: {},
+      [PermissionTypes.AGENTS]: {},
+      [PermissionTypes.MULTI_CONVO]: {},
+      [PermissionTypes.TEMPORARY_CHAT]: {},
+      [PermissionTypes.RUN_CODE]: {},
+      [PermissionTypes.WEB_SEARCH]: {},
+      [PermissionTypes.PEOPLE_PICKER]: {
+        [Permissions.VIEW_USERS]: false,
+        [Permissions.VIEW_GROUPS]: false,
+        [Permissions.VIEW_ROLES]: false,
+      },
+      [PermissionTypes.MARKETPLACE]: {
+        [Permissions.USE]: false,
+      },
+      [PermissionTypes.FILE_SEARCH]: {},
+      [PermissionTypes.FILE_CITATIONS]: {},
+    },
+  },
+  [SystemRoles.USER_PLUS]: {
+    name: SystemRoles.USER_PLUS,
+    permissions: {
+      [PermissionTypes.PROMPTS]: {},
+      [PermissionTypes.BOOKMARKS]: {},
+      [PermissionTypes.MEMORIES]: {},
+      [PermissionTypes.AGENTS]: {},
+      [PermissionTypes.MULTI_CONVO]: {},
+      [PermissionTypes.TEMPORARY_CHAT]: {},
+      [PermissionTypes.RUN_CODE]: {},
+      [PermissionTypes.WEB_SEARCH]: {},
+      [PermissionTypes.PEOPLE_PICKER]: {
+        [Permissions.VIEW_USERS]: false,
+        [Permissions.VIEW_GROUPS]: false,
+        [Permissions.VIEW_ROLES]: false,
+      },
+      [PermissionTypes.MARKETPLACE]: {
+        [Permissions.USE]: false,
+      },
+      [PermissionTypes.FILE_SEARCH]: {},
+      [PermissionTypes.FILE_CITATIONS]: {},
+    },
+  },
+  [SystemRoles.USER_PRO]: {
+    name: SystemRoles.USER_PRO,
     permissions: {
       [PermissionTypes.PROMPTS]: {},
       [PermissionTypes.BOOKMARKS]: {},
