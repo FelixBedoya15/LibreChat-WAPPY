@@ -53,8 +53,23 @@ const rolePermissionsSchema = new Schema(
     [PermissionTypes.FILE_CITATIONS]: {
       [Permissions.USE]: { type: Boolean },
     },
+    [PermissionTypes.LIVE_CHAT]: {
+      [Permissions.USE]: { type: Boolean },
+    },
+    [PermissionTypes.LIVE_ANALYSIS]: {
+      [Permissions.USE]: { type: Boolean },
+    },
+    [PermissionTypes.ARTIFACTS]: {
+      [Permissions.USE]: { type: Boolean },
+    },
+    [PermissionTypes.ENDPOINTS]: {
+      [Permissions.USE]: { type: Boolean },
+    },
+    [PermissionTypes.ATTACHMENTS]: {
+      [Permissions.USE]: { type: Boolean },
+    },
   },
-  { _id: false },
+  { _id: false, strict: false },
 );
 
 const roleSchema: Schema<IRole> = new Schema({
