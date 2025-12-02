@@ -36,6 +36,7 @@ const {
   TavilySearchResults,
   createOpenAIImageTools,
   GoogleImageTools,
+  n8nWebhook,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -183,6 +184,7 @@ const loadTools = async ({
     traversaal_search: TraversaalSearch,
     tavily_search_results_json: TavilySearchResults,
     'google-image-gen': GoogleImageTools,
+    n8n: n8nWebhook,
   };
 
   const customConstructors = {
