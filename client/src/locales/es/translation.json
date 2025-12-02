@@ -584,6 +584,7 @@
   "com_nav_theme_dark": "Oscuro",
   "com_nav_theme_light": "Claro",
   "com_nav_theme_system": "Sistema",
+  "com_nav_theme_green": "Verde",
   "com_nav_tool_dialog": "Herramientas del asistente",
   "com_nav_tool_dialog_agents": "Herramientas del agente",
   "com_nav_tool_dialog_description": "El asistente debe guardarse para que las selecciones de herramientas persistan.",
