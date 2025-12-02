@@ -10,7 +10,7 @@ const {
   peoplePickerPermissionsSchema,
 } = require('librechat-data-provider');
 const { checkAdmin, requireJwtAuth } = require('~/server/middleware');
-const { updateRoleByName, getRoleByName, getRoles } = require('~/models/Role');
+const { updateRoleByName, getRoleByName, getRoles, updateAccessPermissions } = require('~/models/Role');
 
 const router = express.Router();
 router.use(requireJwtAuth);
@@ -114,37 +114,12 @@ router.post('/update', checkAdmin, async (req, res) => {
   }
 
   try {
-    const updatedRole = await updateRoleByName(roleName, updates);
-    res.status(200).send(updatedRole);
-  } catch (error) {
-    res.status(500).send({ message: 'Failed to update role', error: error.message });
-  }
-});
+    if (updates.permissions) {
+      await updateAccessPermissions(roleName, updates.permissions);
+      const updatedRole = await getRoleByName(roleName);
+      return res.status(200).send(updatedRole);
+    }
 
-/**
- * GET /api/roles
- * Get all roles
- */
-router.get('/', async (req, res) => {
-  try {
-    const roles = await getRoles();
-    res.status(200).send(roles);
-  } catch (error) {
-    res.status(500).send({ message: 'Failed to retrieve roles', error: error.message });
-  }
-});
-
-/**
- * POST /api/roles/update
- * Update role permissions (Generic)
- */
-router.post('/update', checkAdmin, async (req, res) => {
-  const { roleName, updates } = req.body;
-  if (!roleName || !updates) {
-    return res.status(400).send({ message: 'Missing roleName or updates' });
-  }
-
-  try {
     const updatedRole = await updateRoleByName(roleName, updates);
     res.status(200).send(updatedRole);
   } catch (error) {
