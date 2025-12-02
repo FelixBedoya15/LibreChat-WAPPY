@@ -9,6 +9,7 @@ class n8nWebhook extends Tool {
 
     constructor(fields = {}) {
         super(fields);
+        console.log('[n8n] Constructor initialized with fields:', Object.keys(fields));
         this.name = 'n8n';
         this.envVarUrl = 'N8N_WEBHOOK_URL';
         this.override = fields.override ?? false;
