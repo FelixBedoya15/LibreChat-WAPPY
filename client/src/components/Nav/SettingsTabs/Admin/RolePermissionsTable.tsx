@@ -101,9 +101,9 @@ export default function RolePermissionsTable() {
     if (loading) return <div>Loading permissions...</div>;
 
     return (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="overflow-x-auto rounded-lg border border-light">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+                <thead className="bg-surface-secondary">
                     <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Feature / Permission</th>
                         {ROLES.map(role => (
@@ -113,17 +113,17 @@ export default function RolePermissionsTable() {
                         ))}
                     </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                <tbody className="bg-surface-primary divide-y divide-gray-200 dark:divide-gray-700">
                     {Object.entries(PERMISSION_LABELS).map(([type, label]) => (
                         <React.Fragment key={type}>
-                            <tr className="bg-gray-50 dark:bg-gray-800">
-                                <td colSpan={ROLES.length + 1} className="px-6 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 uppercase">
+                            <tr className="bg-surface-secondary">
+                                <td colSpan={ROLES.length + 1} className="px-6 py-2 text-xs font-bold text-primary uppercase">
                                     {label}
                                 </td>
                             </tr>
                             {/* Standard USE permission */}
                             <tr>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 pl-10">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary pl-10">
                                     Enable Feature
                                 </td>
                                 {ROLES.map(role => {
@@ -143,7 +143,7 @@ export default function RolePermissionsTable() {
                             {/* Specific Endpoint Toggles */}
                             {type === PermissionTypes.ENDPOINTS && ENDPOINT_KEYS.map(endpoint => (
                                 <tr key={endpoint}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 pl-10">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary pl-10">
                                         {endpoint.charAt(0).toUpperCase() + endpoint.slice(1)}
                                     </td>
                                     {ROLES.map(role => {

@@ -60,9 +60,9 @@ export default function UserManagementTable() {
                 </button>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="overflow-x-auto rounded-lg border border-light">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+                    <thead className="bg-surface-secondary">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Email</th>
@@ -71,12 +71,12 @@ export default function UserManagementTable() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                    <tbody className="bg-surface-primary divide-y divide-gray-200 dark:divide-gray-700">
                         {users.map((user) => (
                             <tr key={user._id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{user.name || user.username}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.email}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{user.role}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{user.name || user.username}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.role}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                     ${user.accountStatus === 'active' ? 'bg-green-100 text-green-800' :

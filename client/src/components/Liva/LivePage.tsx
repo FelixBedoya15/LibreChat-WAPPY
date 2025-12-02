@@ -88,15 +88,15 @@ const LivePage = () => {
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-gray-50 dark:bg-gray-900 relative">
+        <div className="flex h-full w-full flex-col bg-surface-secondary relative">
             {/* Toolbar / Header Actions */}
             <div className="w-full p-4 pb-0">
-                <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+                <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-4 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         {!navVisible && (
                             <OpenSidebar setNavVisible={setNavVisible} className="mr-2 hidden md:flex" />
                         )}
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white hidden md:block">Análisis de Riesgos</h1>
+                        <h1 className="text-2xl font-bold text-primary hidden md:block">Análisis de Riesgos</h1>
                         {lastUpdated && (
                             <span className="text-xs text-green-600 font-medium animate-pulse hidden md:inline">
                                 Actualizado: {lastUpdated.toLocaleTimeString()}
@@ -106,14 +106,14 @@ const LivePage = () => {
                     <div className="flex items-center space-x-3">
                         <button
                             onClick={handleStartAnalysis}
-                            className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
+                            className="flex items-center px-4 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-colors shadow-sm font-medium text-sm"
                         >
                             <Video className="w-4 h-4 mr-2" />
                             {localize('com_ui_start_live_analysis')}
                         </button>
                         <button
                             onClick={handleSave}
-                            className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
+                            className="flex items-center px-4 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-colors shadow-sm font-medium text-sm"
                         >
                             <Save className="w-4 h-4 mr-2" />
                             {localize('com_ui_save_report')}
@@ -123,8 +123,8 @@ const LivePage = () => {
             </div>
 
             {/* Main Content: Full Screen Editor */}
-            <div className="flex-1 overflow-hidden p-4 bg-gray-50 dark:bg-gray-900">
-                <div className="h-full max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="flex-1 overflow-hidden p-4 bg-surface-secondary">
+                <div className="h-full max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg overflow-hidden border border-light">
                     <LiveEditor
                         initialContent={editorContent || initialReportContent}
                         onUpdate={(html) => {

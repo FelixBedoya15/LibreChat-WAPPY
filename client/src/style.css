@@ -300,6 +300,30 @@ html {
   background-color: rgba(6, 95, 70, 0.85);
 }
 
+.bg-surface-primary {
+  background-color: var(--surface-primary);
+}
+
+.bg-surface-secondary {
+  background-color: var(--surface-secondary);
+}
+
+.bg-surface-tertiary {
+  background-color: var(--surface-tertiary);
+}
+
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.border-light {
+  border-color: var(--border-light);
+}
+
 .text-token-text-primary {
   color: #171717;
   color: var(--text-primary);
