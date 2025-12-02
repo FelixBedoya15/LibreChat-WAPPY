@@ -85,32 +85,34 @@ const LivePage = () => {
     };
 
     return (
-        <div className="flex h-full w-full flex-col bg-white dark:bg-gray-900 relative">
+        <div className="flex h-full w-full flex-col bg-gray-50 dark:bg-gray-900 relative">
             {/* Toolbar / Header Actions */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <div className="flex items-center space-x-4">
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Risk Assessment Report</h1>
-                    {lastUpdated && (
-                        <span className="text-xs text-green-600 font-medium animate-pulse">
-                            Actualizado: {lastUpdated.toLocaleTimeString()}
-                        </span>
-                    )}
-                </div>
-                <div className="flex items-center space-x-3">
-                    <button
-                        onClick={handleStartAnalysis}
-                        className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
-                    >
-                        <Video className="w-4 h-4 mr-2" />
-                        {localize('com_ui_start_live_analysis')}
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
-                    >
-                        <Save className="w-4 h-4 mr-2" />
-                        {localize('com_ui_save_report')}
-                    </button>
+            <div className="w-full p-4 pb-0">
+                <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Risk Assessment Report</h1>
+                        {lastUpdated && (
+                            <span className="text-xs text-green-600 font-medium animate-pulse">
+                                Actualizado: {lastUpdated.toLocaleTimeString()}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center space-x-3">
+                        <button
+                            onClick={handleStartAnalysis}
+                            className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
+                        >
+                            <Video className="w-4 h-4 mr-2" />
+                            {localize('com_ui_start_live_analysis')}
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            className="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-full transition-colors shadow-sm font-medium text-sm"
+                        >
+                            <Save className="w-4 h-4 mr-2" />
+                            {localize('com_ui_save_report')}
+                        </button>
+                    </div>
                 </div>
             </div>
 
