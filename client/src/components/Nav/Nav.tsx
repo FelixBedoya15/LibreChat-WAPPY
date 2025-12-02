@@ -10,8 +10,10 @@ import {
   useAuthContext,
   useLocalStorage,
   useNavScrolling,
+  useNavScrolling,
   useLocationSystem,
 } from '~/hooks';
+import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Conversations } from '~/components/Conversations';
 import SearchBar from './SearchBar';
@@ -65,10 +67,15 @@ const Nav = memo(
     const [tags, setTags] = useState<string[]>([]);
     useLocationSystem();
 
+    const { hasPermission } = useRolePermissions();
+
     const hasAccessToBookmarks = useHasAccess({
       permissionType: PermissionTypes.BOOKMARKS,
       permission: Permissions.USE,
-    });
+    }) && hasPermission(PermissionTypes.BOOKMARKS);
+
+    const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
+    const hasAccessToLiveAnalysis = hasPermission(PermissionTypes.LIVE_ANALYSIS);
 
     const search = useRecoilValue(store.search);
 
@@ -161,15 +168,21 @@ const Nav = memo(
     const headerButtons = useMemo(
       () => (
         <>
-          <Suspense fallback={null}>
-            <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
-          </Suspense>
+          {hasAccessToAgents && (
+            <Suspense fallback={null}>
+              <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+            </Suspense>
+          )}
           {hasAccessToBookmarks && (
             <>
               <div className="mt-1.5" />
               <Suspense fallback={null}>
                 <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} />
               </Suspense>
+            </>
+          )}
+          {hasAccessToLiveAnalysis && (
+            <>
               <div className="mt-1.5" />
               <Suspense fallback={null}>
                 <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />

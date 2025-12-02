@@ -17,6 +17,7 @@ const PERMISSION_LABELS = {
     [PermissionTypes.LIVE_CHAT]: 'Live Chat General',
     [PermissionTypes.LIVE_ANALYSIS]: 'Live Analysis',
     [PermissionTypes.ENDPOINTS]: 'Modelos (Endpoints)',
+    [PermissionTypes.ATTACHMENTS]: 'Adjuntar Archivos',
 };
 
 const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy'];

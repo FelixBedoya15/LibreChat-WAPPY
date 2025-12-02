@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { TextareaAutosize } from '@librechat/client';
 import { useRecoilState, useRecoilValue } from 'recoil';
 import { useQueryClient } from '@tanstack/react-query';
-import { Constants, isAssistantsEndpoint, isAgentsEndpoint, QueryKeys } from 'librechat-data-provider';
+import { Constants, isAssistantsEndpoint, isAgentsEndpoint, QueryKeys, PermissionTypes } from 'librechat-data-provider';
 import {
   useChatContext,
   useChatFormContext,
@@ -19,8 +19,10 @@ import {
   useHandleKeyUp,
   useQueryParams,
   useSubmitMessage,
+  useSubmitMessage,
   useFocusChatEffect,
 } from '~/hooks';
+import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { mainTextareaId, BadgeItem } from '~/common';
 import AttachFileChat from './Files/AttachFileChat';
 import FileFormChat from './Files/FileFormChat';
@@ -68,6 +70,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     store.showMentionPopoverFamily(index),
   );
   const [showVoiceModal, setShowVoiceModal] = useRecoilState(store.showVoiceModal);
+  const { hasPermission } = useRolePermissions();
 
   const { requiresKey } = useRequiresKey();
   const methods = useChatFormContext();
@@ -319,7 +322,9 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
               )}
             >
               <div className={`${isRTL ? 'mr-2' : 'ml-2'}`}>
-                <AttachFileChat conversation={conversation} disableInputs={disableInputs} />
+                {hasPermission(PermissionTypes.ATTACHMENTS) && (
+                  <AttachFileChat conversation={conversation} disableInputs={disableInputs} />
+                )}
               </div>
               <BadgeRow
                 showEphemeralBadges={!isAgentsEndpoint(endpoint) && !isAssistantsEndpoint(endpoint)}
@@ -341,14 +346,16 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                 />
               )}
               {/* Voice Mode Button */}
-              <VoiceModeButton
-                onClick={() => {
-                  console.log('[ChatForm] Opening Live with conversationId:', conversationId);
-                  setShowVoiceModal(true);
-                }}
-                disabled={disableInputs || isNotAppendable}
-                isActive={showVoiceModal}
-              />
+              {hasPermission(PermissionTypes.LIVE_CHAT) && (
+                <VoiceModeButton
+                  onClick={() => {
+                    console.log('[ChatForm] Opening Live with conversationId:', conversationId);
+                    setShowVoiceModal(true);
+                  }}
+                  disabled={disableInputs || isNotAppendable}
+                  isActive={showVoiceModal}
+                />
+              )}
               <div className={`${isRTL ? 'ml-2' : 'mr-2'}`}>
                 {(isSubmitting || isSubmittingAdded) && (showStopButton || showStopAdded) ? (
                   <StopButton stop={handleStopGenerating} setShowStopButton={setShowStopButton} />

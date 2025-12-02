@@ -68,6 +68,10 @@ export enum PermissionTypes {
    * Type for Endpoints/Models access
    */
   ENDPOINTS = 'ENDPOINTS',
+  /**
+   * Type for Attachments/File Uploads
+   */
+  ATTACHMENTS = 'ATTACHMENTS',
 }
 
 /**
@@ -185,6 +189,11 @@ export const endpointsPermissionsSchema = z.object({
 }).catchall(z.boolean());
 export type TEndpointsPermissions = z.infer<typeof endpointsPermissionsSchema>;
 
+export const attachmentsPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+});
+export type TAttachmentsPermissions = z.infer<typeof attachmentsPermissionsSchema>;
+
 // Define a single permissions schema that holds all permission types.
 export const permissionsSchema = z.object({
   [PermissionTypes.PROMPTS]: promptPermissionsSchema,
@@ -203,4 +212,5 @@ export const permissionsSchema = z.object({
   [PermissionTypes.LIVE_ANALYSIS]: liveAnalysisPermissionsSchema,
   [PermissionTypes.ARTIFACTS]: artifactsPermissionsSchema,
   [PermissionTypes.ENDPOINTS]: endpointsPermissionsSchema,
+  [PermissionTypes.ATTACHMENTS]: attachmentsPermissionsSchema,
 });

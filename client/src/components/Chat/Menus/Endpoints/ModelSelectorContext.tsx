@@ -13,6 +13,7 @@ import { useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
 import { useGetEndpointsQuery, useListAgentsQuery } from '~/data-provider';
 import { useModelSelectorChatContext } from './ModelSelectorChatContext';
 import useSelectMention from '~/hooks/Input/useSelectMention';
+import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { filterItems } from './utils';
 
 type ModelSelectorContextType = {
@@ -59,6 +60,10 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
   const { data: endpointsConfig } = useGetEndpointsQuery();
   const { endpoint, model, spec, agent_id, assistant_id, conversation, newConversation } =
     useModelSelectorChatContext();
+  const { hasPermission } = useRolePermissions(); // Initialize here as well if needed for specs, but mappedEndpoints is main target.
+  // Actually, I initialized it below for mappedEndpoints. Let's keep it consistent.
+  // But wait, modelSpecs also need filtering if they belong to restricted endpoints.
+
   const modelSpecs = useMemo(() => {
     const specs = startupConfig?.modelSpecs?.list ?? [];
     if (!agentsMap) {
@@ -86,12 +91,24 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     },
   );
 
-  const { mappedEndpoints, endpointRequiresUserKey } = useEndpoints({
+  const { mappedEndpoints: allEndpoints, endpointRequiresUserKey } = useEndpoints({
     agents,
     assistantsMap,
     startupConfig,
     endpointsConfig,
   });
+
+  const { hasEndpointPermission } = useRolePermissions();
+
+  const mappedEndpoints = useMemo(() => {
+    return allEndpoints.filter((endpoint) => {
+      // Check if it's a specific endpoint type that needs permission
+      if (endpoint.value) {
+        return hasEndpointPermission(endpoint.value);
+      }
+      return true;
+    });
+  }, [allEndpoints, hasEndpointPermission]);
 
   const { onSelectEndpoint, onSelectSpec } = useSelectMention({
     // presets,
@@ -113,12 +130,12 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
     agentsMap,
     conversation: endpoint
       ? ({
-          endpoint: endpoint ?? null,
-          model: model ?? null,
-          spec: spec ?? null,
-          agent_id: agent_id ?? null,
-          assistant_id: assistant_id ?? null,
-        } as any)
+        endpoint: endpoint ?? null,
+        model: model ?? null,
+        spec: spec ?? null,
+        agent_id: agent_id ?? null,
+        assistant_id: assistant_id ?? null,
+      } as any)
       : null,
     assistantsMap,
     setSelectedValues,

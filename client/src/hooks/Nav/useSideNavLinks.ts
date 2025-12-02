@@ -22,6 +22,7 @@ import MCPPanel from '~/components/SidePanel/MCP/MCPPanel';
 import ExportConfigPanel from '~/components/SidePanel/Export/ExportConfigPanel';
 import { useGetStartupConfig } from '~/data-provider';
 import { useHasAccess } from '~/hooks';
+import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 
 export default function useSideNavLinks({
   hidePanel,
@@ -38,26 +39,33 @@ export default function useSideNavLinks({
   interfaceConfig: Partial<TInterfaceConfig>;
   endpointsConfig: TEndpointsConfig;
 }) {
+  const { hasPermission } = useRolePermissions();
+
   const hasAccessToPrompts = useHasAccess({
     permissionType: PermissionTypes.PROMPTS,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.PROMPTS);
+
   const hasAccessToBookmarks = useHasAccess({
     permissionType: PermissionTypes.BOOKMARKS,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.BOOKMARKS);
+
   const hasAccessToMemories = useHasAccess({
     permissionType: PermissionTypes.MEMORIES,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.MEMORIES);
+
   const hasAccessToReadMemories = useHasAccess({
     permissionType: PermissionTypes.MEMORIES,
     permission: Permissions.READ,
   });
+
   const hasAccessToAgents = useHasAccess({
     permissionType: PermissionTypes.AGENTS,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.AGENTS);
+
   const hasAccessToCreateAgents = useHasAccess({
     permissionType: PermissionTypes.AGENTS,
     permission: Permissions.CREATE,

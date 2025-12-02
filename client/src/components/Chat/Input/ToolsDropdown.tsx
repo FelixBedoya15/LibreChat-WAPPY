@@ -11,6 +11,7 @@ import {
   defaultAgentCapabilities,
 } from 'librechat-data-provider';
 import { useLocalize, useHasAccess, useAgentCapabilities } from '~/hooks';
+import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import ArtifactsSubMenu from '~/components/Chat/Input/ArtifactsSubMenu';
 import MCPSubMenu from '~/components/Chat/Input/MCPSubMenu';
 import { useGetStartupConfig } from '~/data-provider';
@@ -57,20 +58,24 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
   const { isPinned: isFileSearchPinned, setIsPinned: setIsFileSearchPinned } = fileSearch;
   const { isPinned: isArtifactsPinned, setIsPinned: setIsArtifactsPinned } = artifacts;
 
+  const { hasPermission } = useRolePermissions();
+
   const canUseWebSearch = useHasAccess({
     permissionType: PermissionTypes.WEB_SEARCH,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.WEB_SEARCH);
 
   const canRunCode = useHasAccess({
     permissionType: PermissionTypes.RUN_CODE,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.RUN_CODE);
 
   const canUseFileSearch = useHasAccess({
     permissionType: PermissionTypes.FILE_SEARCH,
     permission: Permissions.USE,
-  });
+  }) && hasPermission(PermissionTypes.FILE_SEARCH);
+
+  const canUseArtifacts = hasPermission(PermissionTypes.ARTIFACTS);
 
   const showWebSearchSettings = useMemo(() => {
     const authTypes = webSearchAuthData?.authTypes ?? [];
@@ -269,7 +274,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     });
   }
 
-  if (artifactsEnabled) {
+  if (artifactsEnabled && canUseArtifacts) {
     dropdownItems.push({
       hideOnClick: false,
       render: (props) => (

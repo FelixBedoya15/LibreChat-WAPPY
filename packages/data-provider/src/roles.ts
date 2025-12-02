@@ -14,6 +14,7 @@ import {
   temporaryChatPermissionsSchema,
   peoplePickerPermissionsSchema,
   fileCitationsPermissionsSchema,
+  attachmentsPermissionsSchema,
 } from './permissions';
 
 /**
@@ -114,6 +115,9 @@ const defaultRolesSchema = z.object({
         'anthropic': z.boolean().default(true),
         'wappy': z.boolean().default(true),
       }).catchall(z.boolean()),
+      [PermissionTypes.ATTACHMENTS]: attachmentsPermissionsSchema.extend({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
     }),
   }),
   [SystemRoles.USER]: roleSchema.extend({
@@ -196,6 +200,9 @@ export const roleDefaults = defaultRolesSchema.parse({
         'anthropic': true,
         'wappy': true,
       },
+      [PermissionTypes.ATTACHMENTS]: {
+        [Permissions.USE]: true,
+      },
     },
   },
   [SystemRoles.USER]: {
@@ -229,6 +236,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'anthropic': true,
         'wappy': true,
       },
+      [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
     },
   },
   [SystemRoles.USER_PLUS]: {
@@ -262,6 +270,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'anthropic': true,
         'wappy': true,
       },
+      [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
     },
   },
   [SystemRoles.USER_PRO]: {
@@ -295,6 +304,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'anthropic': true,
         'wappy': true,
       },
+      [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
     },
   },
 });
