@@ -57,9 +57,11 @@ export default function useRolePermissions() {
         if (endpointsPerms[Permissions.USE] === false) return false;
 
         // Check specific endpoint key (openAI, google, etc.)
-        // If key is missing, default to true or false? 
-        // Based on my roles.ts update, I added them explicitly.
-        return endpointsPerms[endpointKey] === true;
+        // Handle case sensitivity: try exact match first, then lowercase
+        if (endpointsPerms[endpointKey] === true) return true;
+        if (endpointsPerms[endpointKey.toLowerCase()] === true) return true;
+
+        return false;
     };
 
     return { hasPermission, hasEndpointPermission };
