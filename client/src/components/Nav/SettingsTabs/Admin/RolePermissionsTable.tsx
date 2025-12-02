@@ -20,7 +20,7 @@ const PERMISSION_LABELS = {
     [PermissionTypes.ATTACHMENTS]: 'Adjuntar Archivos',
 };
 
-const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy'];
+const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy', 'agents'];
 
 export default function RolePermissionsTable() {
     const { showToast } = useToastContext();

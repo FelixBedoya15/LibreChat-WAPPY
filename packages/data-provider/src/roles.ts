@@ -114,6 +114,7 @@ const defaultRolesSchema = z.object({
         'google': z.boolean().default(true),
         'anthropic': z.boolean().default(true),
         'wappy': z.boolean().default(true),
+        'agents': z.boolean().default(true),
       }).catchall(z.boolean()),
       [PermissionTypes.ATTACHMENTS]: attachmentsPermissionsSchema.extend({
         [Permissions.USE]: z.boolean().default(true),
@@ -199,6 +200,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'google': true,
         'anthropic': true,
         'wappy': true,
+        'agents': true,
       },
       [PermissionTypes.ATTACHMENTS]: {
         [Permissions.USE]: true,
@@ -235,6 +237,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'google': true,
         'anthropic': true,
         'wappy': true,
+        'agents': true,
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
     },
@@ -269,6 +272,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'google': true,
         'anthropic': true,
         'wappy': true,
+        'agents': true,
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
     },
