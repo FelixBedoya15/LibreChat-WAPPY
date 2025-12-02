@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import { Video, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useNewConvo } from '~/hooks';
 
 const LivePage = () => {
@@ -19,9 +20,16 @@ const LivePage = () => {
         // We ignore conversational text for the editor now, as we rely on the 'Second Brain' report.
     };
 
-    const handleReportReceived = (html: string) => {
-        console.log("LivePage: Full Report received");
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+
+    const handleReportReceived = (html: string, messageId?: string) => {
+        console.log("LivePage: Full Report received", messageId);
         setEditorContent(html);
+        setLastUpdated(new Date());
+        if (messageId) {
+            setReportMessageId(messageId);
+        }
     };
 
     const initialReportContent = `
@@ -30,19 +38,49 @@ const LivePage = () => {
 <h2>Análisis en Vivo</h2>
 `;
 
-    const handleSave = () => {
-        const contentToSave = editorContent || initialReportContent;
-        // Simple HTML to Markdown conversion for saving
-        const markdownContent = contentToSave
-            .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
-            .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
-            .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
-            .replace(/<[^>]*>/g, '')
-            .trim();
+    const navigate = useNavigate();
 
-        newConversation({
-            state: { initialMessage: markdownContent },
-        });
+    const handleSave = async () => {
+        if (conversationId && conversationId !== 'new') {
+            // If we have a reportMessageId, we update that specific message with the edited content
+            if (reportMessageId) {
+                try {
+                    const token = localStorage.getItem('token'); // Basic auth retrieval
+                    await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            text: editorContent,
+                            index: 0, // Assuming text is the first part
+                            model: 'gemini-2.5-flash-preview-09-2025' // Optional, but good for tracking
+                        })
+                    });
+                    console.log('Report message updated successfully');
+                } catch (error) {
+                    console.error('Error updating report message:', error);
+                }
+            }
+
+            // Navigate to the existing conversation where the report is now saved (and updated)
+            navigate(`/c/${conversationId}`);
+        } else {
+            // Fallback if no conversation exists (shouldn't happen in live analysis usually)
+            const contentToSave = editorContent || initialReportContent;
+            // Simple HTML to Markdown conversion for saving
+            const markdownContent = contentToSave
+                .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+                .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+                .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+                .replace(/<[^>]*>/g, '')
+                .trim();
+
+            newConversation({
+                state: { initialMessage: markdownContent },
+            });
+        }
     };
 
     return (
@@ -50,7 +88,12 @@ const LivePage = () => {
             {/* Toolbar / Header Actions */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <div className="flex items-center space-x-4">
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Risk Assessment Report</h2>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Risk Assessment Report</h1>
+                    {lastUpdated && (
+                        <span className="text-xs text-green-600 font-medium animate-pulse">
+                            Actualizado: {lastUpdated.toLocaleTimeString()}
+                        </span>
+                    )}
                 </div>
                 <div className="flex items-center space-x-3">
                     <button

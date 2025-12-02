@@ -661,13 +661,14 @@ class VoiceSession {
             """
             
             TASK:
-            Based on the conversation above, generate a FORMAL RISK ASSESSMENT REPORT in HTML format.
-            The report should summarize the findings discussed in the conversation.
+            1. DETECT the language used in the conversation context (e.g., Spanish, English, Portuguese).
+            2. Generate a FORMAL RISK ASSESSMENT REPORT in the DETECTED LANGUAGE.
+            3. The report must summarize the findings discussed in the conversation.
             
             OUTPUT FORMAT (HTML):
             - Use <h2>, <h3>, <p>, <ul>, <li>.
             - Use <table> with border="1" style="border-collapse: collapse; width: 100%;" for matrices.
-            - SECTIONS:
+            - SECTIONS (Translate titles to detected language):
               1. Description of Environment
               2. Technical Analysis (Unsafe conditions/acts)
               3. Risk Matrix (Table: Hazard, Risk, Probability, Consequence, Level)
@@ -675,7 +676,7 @@ class VoiceSession {
             
             IMPORTANT:
             - Output ONLY the HTML. No markdown code blocks.
-            - If information is missing for a section, state "Not observed yet" or infer from context if reasonable.
+            - If information is missing for a section, state "Not observed yet" (translated) or infer from context if reasonable.
             - Keep it professional and technical.
             `;
 
@@ -690,6 +691,54 @@ class VoiceSession {
                 type: 'report',
                 data: { html: reportHtml }
             });
+
+            // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
+            if (this.client && this.isActive) {
+                logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
+                const announcementPrompt = `
+                [SYSTEM EVENT]: A formal technical report based on this conversation has just been generated and displayed to the user.
+                
+                TASK:
+                // Send as text input to the model
+                this.client.send([{ text: announcementPrompt }]);
+            }
+
+            // SAVE REPORT TO DATABASE (Persistence)
+            if (this.conversationId && this.conversationId !== 'new') {
+                try {
+                    const messageId = uuidv4();
+                    const reportMessage = {
+                        messageId,
+                        conversationId: this.conversationId,
+                        parentMessageId: this.lastMessageId, // Link to last message
+                        sender: 'Assistant', // Or 'System'? Assistant is better for chat.
+                        text: reportHtml,
+                        isCreatedByUser: false,
+                        error: false,
+                        model: modelName,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    };
+
+                    await saveMessage(this.userId, reportMessage);
+                    this.lastMessageId = messageId; // Update pointer
+                    logger.info(`[VoiceSession] Report saved to DB.MessageId: ${ messageId }`);
+                    
+                    // Notify client with messageId so it can be updated later
+                    this.sendToClient({
+                        type: 'report',
+                        data: { html: reportHtml, messageId: messageId }
+                    });
+                } catch (saveError) {
+                    logger.error('[VoiceSession] Error saving report to DB:', saveError);
+                }
+            } else {
+                 // Fallback if no conversationId yet (should not happen if flow is correct)
+                 this.sendToClient({
+                    type: 'report',
+                    data: { html: reportHtml }
+                });
+            }
 
             return reportHtml;
         } catch (error) {
@@ -718,7 +767,7 @@ class VoiceSession {
             activeSessions.delete(this.userId);
         }
 
-        logger.info(`[VoiceSession] Stopped for user: ${this.userId}`);
+        logger.info(`[VoiceSession] Stopped for user: ${ this.userId } `);
     }
 }
 
@@ -733,7 +782,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
     try {
         // Check if user already has active session
         if (activeSessions.has(userId)) {
-            logger.warn(`[VoiceSession] User ${userId} already has active session`);
+            logger.warn(`[VoiceSession] User ${ userId } already has active session`);
             const existingSession = activeSessions.get(userId);
             existingSession.stop();
         }
@@ -759,7 +808,7 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
         if (configOrVoice) {
             if (typeof configOrVoice === 'string') {
                 config.voice = configOrVoice;
-                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice}`);
+                logger.info(`[VoiceSession] Initializing with voice: ${ configOrVoice } `);
             } else if (typeof configOrVoice === 'object') {
                 config = configOrVoice;
                 logger.info(`[VoiceSession] Initializing with custom config`);

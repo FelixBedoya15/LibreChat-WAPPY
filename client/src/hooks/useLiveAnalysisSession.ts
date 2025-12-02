@@ -9,7 +9,7 @@ interface VoiceMessage {
 interface UseLiveAnalysisSessionOptions {
     onAudioReceived?: (audioData: string) => void;
     onTextReceived?: (text: string) => void;
-    onReportReceived?: (html: string) => void;
+    onReportReceived?: (html: string, messageId?: string) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
