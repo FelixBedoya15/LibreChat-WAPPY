@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import { Video, Save } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useNewConvo, useLocalize } from '~/hooks';
+import { OpenSidebar } from '~/components/Chat/Menus';
+import type { ContextType } from '~/common';
 
 const LivePage = () => {
     const localize = useLocalize();
+    const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [editorContent, setEditorContent] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
@@ -90,6 +93,9 @@ const LivePage = () => {
             <div className="w-full p-4 pb-0">
                 <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
+                        {!navVisible && (
+                            <OpenSidebar setNavVisible={setNavVisible} className="mr-2" />
+                        )}
                         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Risk Assessment Report</h1>
                         {lastUpdated && (
                             <span className="text-xs text-green-600 font-medium animate-pulse">
