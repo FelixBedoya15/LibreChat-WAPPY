@@ -97,6 +97,23 @@ const defaultRolesSchema = z.object({
       [PermissionTypes.FILE_CITATIONS]: fileCitationsPermissionsSchema.extend({
         [Permissions.USE]: z.boolean().default(true),
       }),
+      [PermissionTypes.LIVE_CHAT]: z.object({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
+      [PermissionTypes.LIVE_ANALYSIS]: z.object({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
+      [PermissionTypes.ARTIFACTS]: z.object({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
+      [PermissionTypes.ENDPOINTS]: z.object({
+        [Permissions.USE]: z.boolean().default(true),
+        // Default endpoints enabled
+        'openAI': z.boolean().default(true),
+        'google': z.boolean().default(true),
+        'anthropic': z.boolean().default(true),
+        'wappy': z.boolean().default(true),
+      }).catchall(z.boolean()),
     }),
   }),
   [SystemRoles.USER]: roleSchema.extend({
@@ -163,6 +180,22 @@ export const roleDefaults = defaultRolesSchema.parse({
       [PermissionTypes.FILE_CITATIONS]: {
         [Permissions.USE]: true,
       },
+      [PermissionTypes.LIVE_CHAT]: {
+        [Permissions.USE]: true,
+      },
+      [PermissionTypes.LIVE_ANALYSIS]: {
+        [Permissions.USE]: true,
+      },
+      [PermissionTypes.ARTIFACTS]: {
+        [Permissions.USE]: true,
+      },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: true,
+        'openAI': true,
+        'google': true,
+        'anthropic': true,
+        'wappy': true,
+      },
     },
   },
   [SystemRoles.USER]: {
@@ -186,6 +219,16 @@ export const roleDefaults = defaultRolesSchema.parse({
       },
       [PermissionTypes.FILE_SEARCH]: {},
       [PermissionTypes.FILE_CITATIONS]: {},
+      [PermissionTypes.LIVE_CHAT]: { [Permissions.USE]: true },
+      [PermissionTypes.LIVE_ANALYSIS]: { [Permissions.USE]: true },
+      [PermissionTypes.ARTIFACTS]: { [Permissions.USE]: true },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: true,
+        'openAI': true,
+        'google': true,
+        'anthropic': true,
+        'wappy': true,
+      },
     },
   },
   [SystemRoles.USER_PLUS]: {
@@ -209,6 +252,16 @@ export const roleDefaults = defaultRolesSchema.parse({
       },
       [PermissionTypes.FILE_SEARCH]: {},
       [PermissionTypes.FILE_CITATIONS]: {},
+      [PermissionTypes.LIVE_CHAT]: { [Permissions.USE]: true },
+      [PermissionTypes.LIVE_ANALYSIS]: { [Permissions.USE]: true },
+      [PermissionTypes.ARTIFACTS]: { [Permissions.USE]: true },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: true,
+        'openAI': true,
+        'google': true,
+        'anthropic': true,
+        'wappy': true,
+      },
     },
   },
   [SystemRoles.USER_PRO]: {
@@ -232,6 +285,16 @@ export const roleDefaults = defaultRolesSchema.parse({
       },
       [PermissionTypes.FILE_SEARCH]: {},
       [PermissionTypes.FILE_CITATIONS]: {},
+      [PermissionTypes.LIVE_CHAT]: { [Permissions.USE]: true },
+      [PermissionTypes.LIVE_ANALYSIS]: { [Permissions.USE]: true },
+      [PermissionTypes.ARTIFACTS]: { [Permissions.USE]: true },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: true,
+        'openAI': true,
+        'google': true,
+        'anthropic': true,
+        'wappy': true,
+      },
     },
   },
 });

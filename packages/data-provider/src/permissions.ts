@@ -52,6 +52,22 @@ export enum PermissionTypes {
    * Type for using the "File Citations" feature in agents
    */
   FILE_CITATIONS = 'FILE_CITATIONS',
+  /**
+   * Type for Live Chat feature
+   */
+  LIVE_CHAT = 'LIVE_CHAT',
+  /**
+   * Type for Live Analysis feature
+   */
+  LIVE_ANALYSIS = 'LIVE_ANALYSIS',
+  /**
+   * Type for Artifacts feature
+   */
+  ARTIFACTS = 'ARTIFACTS',
+  /**
+   * Type for Endpoints/Models access
+   */
+  ENDPOINTS = 'ENDPOINTS',
 }
 
 /**
@@ -144,6 +160,31 @@ export const fileCitationsPermissionsSchema = z.object({
 });
 export type TFileCitationsPermissions = z.infer<typeof fileCitationsPermissionsSchema>;
 
+export const liveChatPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+});
+export type TLiveChatPermissions = z.infer<typeof liveChatPermissionsSchema>;
+
+export const liveAnalysisPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+});
+export type TLiveAnalysisPermissions = z.infer<typeof liveAnalysisPermissionsSchema>;
+
+export const artifactsPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+});
+export type TArtifactsPermissions = z.infer<typeof artifactsPermissionsSchema>;
+
+export const endpointsPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true), // Global switch? Or specific endpoints?
+  // We can add specific endpoints as dynamic keys if needed, but for now let's stick to a generic USE or map specific ones.
+  // The user wants to filter "OpenAI", "Google", etc.
+  // Let's use a record for flexibility or specific keys.
+  // For simplicity in UI, we might want specific keys, but EModelEndpoint is better.
+  // Let's just use a generic object for now to allow any endpoint key.
+}).catchall(z.boolean());
+export type TEndpointsPermissions = z.infer<typeof endpointsPermissionsSchema>;
+
 // Define a single permissions schema that holds all permission types.
 export const permissionsSchema = z.object({
   [PermissionTypes.PROMPTS]: promptPermissionsSchema,
@@ -158,4 +199,8 @@ export const permissionsSchema = z.object({
   [PermissionTypes.MARKETPLACE]: marketplacePermissionsSchema,
   [PermissionTypes.FILE_SEARCH]: fileSearchPermissionsSchema,
   [PermissionTypes.FILE_CITATIONS]: fileCitationsPermissionsSchema,
+  [PermissionTypes.LIVE_CHAT]: liveChatPermissionsSchema,
+  [PermissionTypes.LIVE_ANALYSIS]: liveAnalysisPermissionsSchema,
+  [PermissionTypes.ARTIFACTS]: artifactsPermissionsSchema,
+  [PermissionTypes.ENDPOINTS]: endpointsPermissionsSchema,
 });
