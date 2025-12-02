@@ -24,8 +24,8 @@ class n8nWebhook extends Tool {
 
         this.schema = z.object({
             payload: z
-                .string()
-                .describe('The JSON payload to send to the n8n webhook. Must be a valid JSON string.'),
+                .any()
+                .describe('The data to send to the n8n webhook. Can be a JSON object or a string.'),
         });
     }
 
@@ -37,11 +37,17 @@ class n8nWebhook extends Tool {
         }
 
         const { payload } = validationResult.data;
-        let parsedPayload;
-        try {
-            parsedPayload = JSON.parse(payload);
-        } catch (e) {
-            throw new Error('Invalid JSON payload provided.');
+        let parsedPayload = payload;
+
+        if (typeof payload === 'string') {
+            try {
+                parsedPayload = JSON.parse(payload);
+            } catch (e) {
+                // If it's a simple string, wrap it in an object
+                parsedPayload = { message: payload };
+            }
+        } else if (typeof payload !== 'object' || payload === null) {
+            parsedPayload = { message: String(payload) };
         }
 
         try {
