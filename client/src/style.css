@@ -215,55 +215,55 @@ html {
 
 .green {
   --brand-purple: #047857;
-  --presentation: #022c22;
+  --presentation: #064e3b;
   --text-primary: #ecfdf5;
   --text-secondary: #d1fae5;
   --text-secondary-alt: #a7f3d0;
   --text-tertiary: #6ee7b7;
   --text-warning: #f59e0b;
-  --header-primary: #064e3b;
-  --header-hover: #065f46;
-  --header-button-hover: #065f46;
-  --surface-active: #065f46;
-  --surface-active-alt: #047857;
-  --surface-hover: #064e3b;
-  --surface-hover-alt: #064e3b;
-  --surface-primary: #022c22;
-  --surface-primary-alt: #064e3b;
-  --surface-primary-contrast: #064e3b;
-  --surface-secondary: #065f46;
-  --surface-secondary-alt: #065f46;
-  --surface-tertiary: #047857;
-  --surface-tertiary-alt: #047857;
-  --surface-dialog: #064e3b;
+  --header-primary: #065f46;
+  --header-hover: #047857;
+  --header-button-hover: #047857;
+  --surface-active: #047857;
+  --surface-active-alt: #059669;
+  --surface-hover: #065f46;
+  --surface-hover-alt: #065f46;
+  --surface-primary: #064e3b;
+  --surface-primary-alt: #065f46;
+  --surface-primary-contrast: #065f46;
+  --surface-secondary: #047857;
+  --surface-secondary-alt: #047857;
+  --surface-tertiary: #059669;
+  --surface-tertiary-alt: #059669;
+  --surface-dialog: #065f46;
   --surface-submit: #059669;
   --surface-submit-hover: #10b981;
   --surface-destructive: #b91c1c;
   --surface-destructive-hover: #991b1b;
-  --surface-chat: #064e3b;
-  --border-light: #065f46;
-  --border-medium-alt: #047857;
-  --border-medium: #047857;
-  --border-heavy: #059669;
-  --border-xheavy: #10b981;
+  --surface-chat: #065f46;
+  --border-light: #047857;
+  --border-medium-alt: #059669;
+  --border-medium: #059669;
+  --border-heavy: #10b981;
+  --border-xheavy: #34d399;
 
-  --background: 164 86% 9%;
+  --background: 164 86% 16%;
   --foreground: 150 100% 98%;
-  --card: 164 86% 9%;
+  --card: 164 86% 16%;
   --card-foreground: 150 100% 98%;
   --primary: 150 100% 98%;
-  --primary-foreground: 164 86% 9%;
-  --secondary: 164 70% 15%;
+  --primary-foreground: 164 86% 16%;
+  --secondary: 164 70% 25%;
   --secondary-foreground: 150 100% 98%;
-  --muted: 164 70% 15%;
-  --muted-foreground: 150 60% 70%;
-  --accent: 164 70% 15%;
+  --muted: 164 70% 25%;
+  --muted-foreground: 150 60% 80%;
+  --accent: 164 70% 25%;
   --accent-foreground: 150 100% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 150 100% 98%;
-  --border: 164 70% 15%;
-  --input: 164 70% 15%;
-  --ring: 150 60% 70%;
+  --border: 164 70% 25%;
+  --input: 164 70% 25%;
+  --ring: 150 60% 80%;
 }
 
 .bg-logo {
@@ -297,7 +297,7 @@ html {
 }
 
 .green .bg-chat-input {
-  background-color: rgba(6, 78, 59, 0.85);
+  background-color: rgba(6, 95, 70, 0.85);
 }
 
 .text-token-text-primary {
