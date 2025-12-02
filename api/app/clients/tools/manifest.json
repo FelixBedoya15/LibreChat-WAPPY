@@ -187,5 +187,18 @@
     "description": "Generate images using Google's Imagen models.",
     "icon": "https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg",
     "authConfig": []
+  },
+  {
+    "name": "n8n Webhook",
+    "pluginKey": "n8n",
+    "description": "Trigger n8n workflows via webhook.",
+    "icon": "https://n8n.io/favicon.ico",
+    "authConfig": [
+      {
+        "authField": "N8N_WEBHOOK_URL",
+        "label": "n8n Webhook URL",
+        "description": "The URL of the n8n webhook to trigger."
+      }
+    ]
   }
 ]
