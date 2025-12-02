@@ -53,9 +53,9 @@ const LabelController: React.FC<LabelControllerProps> = ({
       render={({ field }) => (
         <Switch
           {...field}
-          checked={field.value}
+          checked={!!field.value}
           onCheckedChange={field.onChange}
-          value={field.value.toString()}
+          value={field.value?.toString() ?? 'false'}
           aria-label={label}
         />
       )}
@@ -136,6 +136,18 @@ const AdminSettings = () => {
       label: SystemRoles.USER,
       onClick: () => {
         setSelectedRole(SystemRoles.USER);
+      },
+    },
+    {
+      label: SystemRoles.USER_PLUS,
+      onClick: () => {
+        setSelectedRole(SystemRoles.USER_PLUS);
+      },
+    },
+    {
+      label: SystemRoles.USER_PRO,
+      onClick: () => {
+        setSelectedRole(SystemRoles.USER_PRO);
       },
     },
     {
