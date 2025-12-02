@@ -31,7 +31,7 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate }) => 
     const ToolbarButton = ({ icon: Icon, command, value, label }: { icon: any, command: string, value?: string, label: string }) => (
         <button
             onClick={() => execCmd(command, value)}
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-gray-700 dark:text-gray-300"
+            className="p-2 hover:bg-surface-hover rounded transition-colors text-primary"
             title={label}
             type="button"
         >
@@ -42,17 +42,17 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate }) => 
     return (
         <div className="w-full h-full flex flex-col">
             {/* Toolbar */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-2 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-1 items-center sticky top-0 z-10">
+            <div className="bg-surface-secondary p-2 border-b border-light flex flex-wrap gap-1 items-center sticky top-0 z-10">
                 <ToolbarButton icon={Bold} command="bold" label="Bold" />
                 <ToolbarButton icon={Italic} command="italic" label="Italic" />
                 <ToolbarButton icon={Underline} command="underline" label="Underline" />
-                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+                <div className="w-px h-6 bg-border-medium mx-1" />
                 <ToolbarButton icon={Heading1} command="formatBlock" value="H1" label="Heading 1" />
                 <ToolbarButton icon={Heading2} command="formatBlock" value="H2" label="Heading 2" />
-                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+                <div className="w-px h-6 bg-border-medium mx-1" />
                 <ToolbarButton icon={List} command="insertUnorderedList" label="Bullet List" />
                 <ToolbarButton icon={ListOrdered} command="insertOrderedList" label="Numbered List" />
-                <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" />
+                <div className="w-px h-6 bg-border-medium mx-1" />
                 <ToolbarButton icon={AlignLeft} command="justifyLeft" label="Align Left" />
                 <ToolbarButton icon={AlignCenter} command="justifyCenter" label="Align Center" />
                 <ToolbarButton icon={AlignRight} command="justifyRight" label="Align Right" />
