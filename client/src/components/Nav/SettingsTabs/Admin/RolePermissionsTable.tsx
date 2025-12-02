@@ -18,6 +18,7 @@ const PERMISSION_LABELS = {
     [PermissionTypes.LIVE_ANALYSIS]: 'Live Analysis',
     [PermissionTypes.ENDPOINTS]: 'Modelos (Endpoints)',
     [PermissionTypes.ATTACHMENTS]: 'Adjuntar Archivos',
+    [PermissionTypes.PARAMETERS]: 'Parámetros (Temp, Top P, etc)',
 };
 
 const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy', 'agents'];

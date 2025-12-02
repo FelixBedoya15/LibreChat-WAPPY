@@ -72,6 +72,10 @@ export enum PermissionTypes {
    * Type for Attachments/File Uploads
    */
   ATTACHMENTS = 'ATTACHMENTS',
+  /**
+   * Type for Parameters (Temperature, Top P, etc.)
+   */
+  PARAMETERS = 'PARAMETERS',
 }
 
 /**
@@ -194,6 +198,11 @@ export const attachmentsPermissionsSchema = z.object({
 });
 export type TAttachmentsPermissions = z.infer<typeof attachmentsPermissionsSchema>;
 
+export const parametersPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+});
+export type TParametersPermissions = z.infer<typeof parametersPermissionsSchema>;
+
 // Define a single permissions schema that holds all permission types.
 export const permissionsSchema = z.object({
   [PermissionTypes.PROMPTS]: promptPermissionsSchema,
@@ -213,4 +222,5 @@ export const permissionsSchema = z.object({
   [PermissionTypes.ARTIFACTS]: artifactsPermissionsSchema,
   [PermissionTypes.ENDPOINTS]: endpointsPermissionsSchema,
   [PermissionTypes.ATTACHMENTS]: attachmentsPermissionsSchema,
+  [PermissionTypes.PARAMETERS]: parametersPermissionsSchema,
 });

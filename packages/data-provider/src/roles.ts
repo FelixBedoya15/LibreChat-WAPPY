@@ -205,6 +205,9 @@ export const roleDefaults = defaultRolesSchema.parse({
       [PermissionTypes.ATTACHMENTS]: {
         [Permissions.USE]: true,
       },
+      [PermissionTypes.PARAMETERS]: {
+        [Permissions.USE]: true,
+      },
     },
   },
   [SystemRoles.USER]: {
@@ -240,6 +243,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'agents': true,
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
+      [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
     },
   },
   [SystemRoles.USER_PLUS]: {
@@ -275,6 +279,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'agents': true,
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
+      [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
     },
   },
   [SystemRoles.USER_PRO]: {
@@ -309,6 +314,7 @@ export const roleDefaults = defaultRolesSchema.parse({
         'wappy': true,
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
+      [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
     },
   },
 });
