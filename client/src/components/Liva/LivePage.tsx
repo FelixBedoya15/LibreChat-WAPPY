@@ -94,11 +94,11 @@ const LivePage = () => {
                 <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         {!navVisible && (
-                            <OpenSidebar setNavVisible={setNavVisible} className="mr-2" />
+                            <OpenSidebar setNavVisible={setNavVisible} className="mr-2 hidden md:flex" />
                         )}
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Risk Assessment Report</h1>
+                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white hidden md:block">Análisis de Riesgos</h1>
                         {lastUpdated && (
-                            <span className="text-xs text-green-600 font-medium animate-pulse">
+                            <span className="text-xs text-green-600 font-medium animate-pulse hidden md:inline">
                                 Actualizado: {lastUpdated.toLocaleTimeString()}
                             </span>
                         )}
