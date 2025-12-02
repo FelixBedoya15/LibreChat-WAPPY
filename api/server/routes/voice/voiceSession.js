@@ -680,17 +680,28 @@ class VoiceSession {
             - Keep it professional and technical.
             `;
 
-            logger.info('[VoiceSession] Sending prompt to Gemini Flash...');
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            logger.info(`[VoiceSession] Sending prompt to model: ${modelName}`);
+            logger.debug(`[VoiceSession] API Key present: ${!!key}`);
 
-            logger.info(`[VoiceSession] Report generated (${reportHtml.length} chars)`);
+            try {
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-            this.sendToClient({
-                type: 'report',
-                data: { html: reportHtml }
-            });
+                logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
+
+                this.sendToClient({
+                    type: 'report',
+                    data: { html: reportHtml }
+                });
+
+                // ... rest of the function ...
+
+                return reportHtml;
+            } catch (genError) {
+                logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
+                throw genError; // Re-throw to be caught by outer catch
+            }
 
             // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
             if (this.client && this.isActive) {
@@ -752,7 +763,7 @@ class VoiceSession {
             // Send error state to client so it doesn't hang
             this.sendToClient({
                 type: 'report',
-                data: { html: '<p class="text-red-500">Error generando el informe. Por favor intente nuevamente.</p>' }
+                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
             });
             return null;
         }
