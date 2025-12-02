@@ -12,6 +12,7 @@ import { getThemeFromEnv } from './utils/getThemeFromEnv';
 import { initializeFontSize } from '~/store/fontSize';
 import { LiveAnnouncer } from '~/a11y';
 import { router } from './routes';
+import FontManager from './components/FontManager';
 
 const App = () => {
   const { setError } = useApiErrorBoundary();
@@ -37,6 +38,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <RecoilRoot>
         <LiveAnnouncer>
+          <FontManager />
           <ThemeProvider
             // Only pass initialTheme and themeRGB if environment theme exists
             // This allows localStorage values to persist when no env theme is set

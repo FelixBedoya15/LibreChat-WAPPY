@@ -141,6 +141,37 @@ export const LangSelector = ({
 };
 
 
+export const FontSelector = () => {
+  const localize = useLocalize();
+  const [fontFamily, setFontFamily] = useRecoilState(store.fontFamily);
+
+  const fontOptions = [
+    { value: 'system', label: localize('com_nav_font_default') },
+    { value: '8bit', label: localize('com_nav_font_8bit') },
+    { value: 'book-antiqua', label: localize('com_nav_font_book_antiqua') },
+    { value: 'menlo', label: localize('com_nav_font_menlo') },
+  ];
+
+  const labelId = 'font-selector-label';
+
+  return (
+    <div className="flex items-center justify-between">
+      <div id={labelId}>{localize('com_nav_font_family')}</div>
+
+      <Dropdown
+        value={fontFamily}
+        onChange={setFontFamily}
+        options={fontOptions}
+        sizeClasses="w-[180px]"
+        testId="font-selector"
+        className="z-50"
+        aria-labelledby={labelId}
+      />
+    </div>
+  );
+};
+
+
 const LocationStatus = () => {
   const enableLocation = useRecoilValue(store.enableLocation);
   const userLocation = useRecoilValue(store.userLocation);
@@ -191,6 +222,9 @@ function General() {
       </div>
       <div className="pb-3">
         <LangSelector langcode={langcode} onChange={changeLang} />
+      </div>
+      <div className="pb-3">
+        <FontSelector />
       </div>
       {toggleSwitchConfigs.map((config) => (
         <div key={config.key} className="pb-3">
