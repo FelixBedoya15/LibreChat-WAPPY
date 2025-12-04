@@ -737,7 +737,7 @@ class VoiceSession {
                         updatedAt: new Date(),
                     };
 
-                    await saveMessage(this.userId, reportMessage);
+                    await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
                     this.lastMessageId = messageId; // Update pointer
                     logger.info(`[VoiceSession] Report saved to DB.MessageId: ${messageId}`);
 
