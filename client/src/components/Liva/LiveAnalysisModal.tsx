@@ -217,7 +217,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 if (videoRef.current && videoRef.current.readyState >= 2) {
                     sendVideoFrame(videoRef.current);
                 }
-            }, 200); // 5 FPS to prevent model context backlog (Fixes "stale image" issue)
+            }, 500); // 2 FPS (Requested by user)
         } catch (error) {
             console.error('[LiveAnalysisModal] Error starting camera:', error);
             setStatusText('Error accessing camera');
