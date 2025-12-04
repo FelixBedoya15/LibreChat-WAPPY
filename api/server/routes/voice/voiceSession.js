@@ -192,22 +192,26 @@ class VoiceSession {
             logger.info(`[VoiceSession] Accumulated AI text length: ${this.aiResponseText.length}`);
             this.sendToClient({ type: 'status', data: { status: 'turn_complete' } });
 
-            logger.info(`[VoiceSession] Turn Complete. UserText: "${this.userTranscriptionText}", AIResponse: "${this.aiResponseText}"`);
+            // Capture current turn text before clearing
+            const currentUserText = this.userTranscriptionText;
+            const currentAiText = this.aiResponseText;
+
+            logger.info(`[VoiceSession] Turn Complete. UserText: "${currentUserText}", AIResponse: "${currentAiText}"`);
 
             let messagesSaved = false;
             let isNewConversation = false;
 
             // CRITICAL: Save user message FIRST, then AI message
             // This ensures proper parent-child relationship in the message chain
-            if (this.userTranscriptionText.trim()) {
-                const preview = this.userTranscriptionText.substring(0, 100);
+            if (currentUserText.trim()) {
+                const preview = currentUserText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
                 logger.info(`[VoiceSession] Current lastMessageId before user save: ${this.lastMessageId}`);
 
                 // FASE 6: Transcription Correction
-                let textToSave = this.userTranscriptionText.trim();
-                if (this.aiResponseText.trim()) {
-                    textToSave = await this.correctTranscription(textToSave, this.aiResponseText.trim());
+                let textToSave = currentUserText.trim();
+                if (currentAiText.trim()) {
+                    textToSave = await this.correctTranscription(textToSave, currentAiText.trim());
                 }
 
                 const result = await this.saveUserMessage(textToSave);
@@ -218,16 +222,16 @@ class VoiceSession {
                 }
                 this.userTranscriptionText = ''; // Reset after saving
             } else {
-                logger.warn(`[VoiceSession] No user transcription to save. Value: "${this.userTranscriptionText}"`);
+                logger.warn(`[VoiceSession] No user transcription to save. Value: "${currentUserText}"`);
             }
 
             // Save AI response AFTER user message (uses updated lastMessageId as parent)
-            if (this.aiResponseText.trim()) {
-                const preview = this.aiResponseText.substring(0, 100);
+            if (currentAiText.trim()) {
+                const preview = currentAiText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving AI message. Preview: "${preview}..."`);
                 logger.info(`[VoiceSession] Current lastMessageId before AI save: ${this.lastMessageId}`);
 
-                await this.saveAiMessage(this.aiResponseText.trim());
+                await this.saveAiMessage(currentAiText.trim());
                 messagesSaved = true;
                 logger.info(`[VoiceSession] AI message saved. New lastMessageId: ${this.lastMessageId}`);
                 this.aiResponseText = ''; // Reset after saving
@@ -240,12 +244,12 @@ class VoiceSession {
                 messagesSaved = true;
                 logger.info(`[VoiceSession] AI voice indicator saved. New lastMessageId: ${this.lastMessageId}`);
             } else {
-                logger.warn(`[VoiceSession] No AI response to save. Text: "${this.aiResponseText}", Audio chunks: ${this.aiAudioChunkCount}`);
+                logger.warn(`[VoiceSession] No AI response to save. Text: "${currentAiText}", Audio chunks: ${this.aiAudioChunkCount}`);
             }
 
             // TRIGGER REPORT GENERATION (Second Brain)
             // We use the accumulated context + current turn
-            const currentTurnContext = `User: ${this.userTranscriptionText}\nAI: ${this.aiResponseText}`;
+            const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
             this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
 
             // Notify client that report is being generated
