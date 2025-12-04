@@ -725,13 +725,15 @@ class VoiceSession {
             if (this.client && this.isActive) {
                 logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                 const announcementPrompt = `
-                [SYSTEM EVENT]: A formal technical report based on this conversation has just been generated and displayed to the user.
+                [SYSTEM EVENT]: A formal technical report has been generated.
                 
-                TASK:
-                1. Interrupt your current thought if needed (or start a new turn).
-                2. Explicitly tell the user (in the language they are speaking) that the report has been updated/generated.
-                3. Provide a very brief, 1-sentence summary of the key risk or finding included in the report.
-                4. Ask if they want to add anything else to the report.
+                CRITICAL INSTRUCTION:
+                1. DO NOT read the report title.
+                2. DO NOT read the report content.
+                3. ONLY provide a 1-sentence summary of the main risk found.
+                4. Ask if the user wants to save or modify it.
+                
+                Example response: "He generado el informe. El riesgo principal es la falta de casco. ¿Deseas agregar algo más?"
                 `;
 
                 // Send as text input to the model

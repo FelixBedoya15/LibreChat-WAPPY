@@ -338,7 +338,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             case 'report':
                 if (message.data.html) {
                     console.log('[LiveAnalysisSession] Report received');
-                    optionsRef.current.onReportReceived?.(message.data.html);
+                    optionsRef.current.onReportReceived?.(message.data.html, message.data.messageId);
                 }
                 break;
 
