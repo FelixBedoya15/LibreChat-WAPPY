@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import { Video, Save } from 'lucide-react';
