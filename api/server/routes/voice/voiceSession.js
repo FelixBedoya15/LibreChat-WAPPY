@@ -725,15 +725,12 @@ class VoiceSession {
             if (this.client && this.isActive) {
                 logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                 const announcementPrompt = `
-                [SYSTEM EVENT]: A formal technical report has been generated.
+                INSTRUCTION: The report has been generated successfully.
                 
-                CRITICAL INSTRUCTION:
-                1. DO NOT read the report title.
-                2. DO NOT read the report content.
-                3. ONLY provide a 1-sentence summary of the main risk found.
-                4. Ask if the user wants to save or modify it.
+                PLEASE SAY:
+                "He generado el informe técnico. El riesgo principal detectado es [RESUMEN DE 1 FRASE]."
                 
-                Example response: "He generado el informe. El riesgo principal es la falta de casco. ¿Deseas agregar algo más?"
+                DO NOT READ THE REPORT. JUST SAY THE SUMMARY.
                 `;
 
                 // Send as text input to the model
