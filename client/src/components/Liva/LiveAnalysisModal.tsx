@@ -217,231 +217,226 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 if (videoRef.current && videoRef.current.readyState >= 2) {
                     sendVideoFrame(videoRef.current);
                 }
-                videoIntervalRef.current = setInterval(() => {
-                    if (videoRef.current && videoRef.current.readyState >= 2) {
-                        sendVideoFrame(videoRef.current);
-                    }
-                }, 200); // 5 FPS to prevent model context backlog (Fixes "stale image" issue)
-
-            } catch (error) {
-                console.error('[LiveAnalysisModal] Error starting camera:', error);
-                setStatusText('Error accessing camera');
-                setIsCameraOn(false);
-            }
-        };
-
-        const stopCamera = () => {
-            if (videoIntervalRef.current) {
-                clearInterval(videoIntervalRef.current);
-                videoIntervalRef.current = null;
-            }
-            if (videoRef.current && videoRef.current.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
-                stream.getTracks().forEach(track => track.stop());
-                videoRef.current.srcObject = null;
-            }
+            }, 200); // 5 FPS to prevent model context backlog (Fixes "stale image" issue)
+        } catch (error) {
+            console.error('[LiveAnalysisModal] Error starting camera:', error);
+            setStatusText('Error accessing camera');
             setIsCameraOn(false);
-        };
-
-        const toggleCamera = () => {
-            if (isCameraOn) stopCamera();
-            else startCamera();
-        };
-
-        const switchCamera = () => {
-            const newMode = facingMode === 'user' ? 'environment' : 'user';
-            setFacingMode(newMode);
-            if (isCameraOn) {
-                stopCamera();
-                setTimeout(() => startCamera(newMode), 200);
-            }
-        };
-
-        const toggleMute = () => {
-            const newMuted = !isMuted;
-            setIsMuted(newMuted);
-            setMuted(newMuted);
-        };
-
-        // Audio Playback Logic with Jitter Buffer
-        const nextStartTimeRef = useRef<number>(0);
-        const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]); // Keep for visualizer if needed, or remove if unused
-        const outputAnalyserRef = useRef<AnalyserNode | null>(null);
-        const animationFrameRef = useRef<number | null>(null);
-
-        // Unified Animation Loop
-        useEffect(() => {
-            const updateAmplitude = () => {
-                let vol = 0;
-
-                if (status === 'speaking' && outputAnalyserRef.current) {
-                    // Visualize Output (Gemini)
-                    const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
-                    outputAnalyserRef.current.getByteFrequencyData(dataArray);
-                    const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-                    vol = Math.min(1, (average / 255) * 2);
-                } else if (status === 'listening' || status === 'ready') {
-                    // Visualize Input (User)
-                    vol = getInputVolume();
-                }
-
-                setAudioAmplitude(vol);
-                animationFrameRef.current = requestAnimationFrame(updateAmplitude);
-            };
-
-            updateAmplitude();
-
-            return () => {
-                if (animationFrameRef.current) {
-                    cancelAnimationFrame(animationFrameRef.current);
-                }
-            };
-        }, [status, getInputVolume]);
-
-        function handleAudioReceived(audioData: string) {
-            try {
-                if (!audioContextRef.current) return;
-                if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
-
-                const binaryString = atob(audioData);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-
-                const float32Data = new Float32Array(len / 2);
-                const dataView = new DataView(bytes.buffer);
-                for (let i = 0; i < len / 2; i++) float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
-
-                const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
-                audioBuffer.getChannelData(0).set(float32Data);
-
-                scheduleAudio(audioBuffer);
-            } catch (error) {
-                console.error('[LiveAnalysisModal] Error processing audio:', error);
-            }
         }
-
-        function scheduleAudio(buffer: AudioBuffer) {
-            if (!audioContextRef.current) return;
-
-            const currentTime = audioContextRef.current.currentTime;
-            // If next start time is in the past (gap in speech), reset to now + small buffer
-            if (nextStartTimeRef.current < currentTime) {
-                nextStartTimeRef.current = currentTime + 0.05; // 50ms jitter buffer
-            }
-
-            const source = audioContextRef.current.createBufferSource();
-            source.buffer = buffer;
-
-            // Create/Reuse Analyser
-            if (!outputAnalyserRef.current) {
-                const analyser = audioContextRef.current.createAnalyser();
-                analyser.fftSize = 256;
-                outputAnalyserRef.current = analyser;
-                analyser.connect(audioContextRef.current.destination);
-            }
-
-            source.connect(outputAnalyserRef.current);
-            source.start(nextStartTimeRef.current);
-
-            // Update next start time
-            nextStartTimeRef.current += buffer.duration;
-        }
-
-        const clearAudioQueue = () => {
-            if (audioContextRef.current) {
-                audioContextRef.current.suspend().then(() => {
-                    nextStartTimeRef.current = 0;
-                    audioContextRef.current?.resume();
-                });
-            }
-        };
-
-        const handleVoiceChange = (voiceId: string) => {
-            setSelectedVoice(voiceId);
-            // Update global store (if we had a setter for live analysis voice, but we only read it. 
-            // Assuming we should update it or just local state? 
-            // For now, let's just change the voice in session)
-            changeVoice(voiceId);
-            setShowVoiceSelector(false);
-        };
-
-        const handleOrbClick = () => {
-            if (status === 'ready' || status === 'idle' || status === 'listening') {
-                setShowVoiceSelector(!showVoiceSelector);
-            }
-        };
-
-        if (!isOpen) return null;
-
-        return (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                <div className="relative w-full h-full bg-black/40 backdrop-blur-xl flex flex-col overflow-hidden">
-
-                    {/* Loading Overlay - Minimalist */}
-                    {(!isReady && isOpen) && (
-                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
-                            <div className="bg-black/40 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 shadow-lg">
-                                <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-white font-medium text-sm">Conectando...</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Status */}
-                    <div className="absolute top-12 text-center z-10 w-full px-4">
-                        <p className="text-xl font-medium text-white/90 tracking-wide">{statusText || 'Ready'}</p>
-                    </div>
-
-                    {/* Video Fullscreen with Opacity for Transparency */}
-                    <video
-                        ref={videoRef}
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isCameraOn ? 'opacity-50' : 'opacity-0 hidden'}`}
-                        muted
-                        playsInline
-                    />
-
-                    {/* Voice Orb & Selector */}
-                    <div className="flex-1 flex items-center justify-center z-10">
-                        <div onClick={handleOrbClick} className="cursor-pointer">
-                            <VoiceOrb
-                                status={status === 'ready' ? 'idle' : status}
-                                amplitude={audioAmplitude}
-                            />
-                        </div>
-                        {showVoiceSelector && (
-                            <div className="absolute">
-                                <VoiceSelector
-                                    selectedVoice={selectedVoice}
-                                    onVoiceChange={handleVoiceChange}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Controls */}
-                    <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center space-x-8 z-20">
-                        <button onClick={toggleCamera} className={`p-4 rounded-full transition-all duration-300 ${isCameraOn ? 'bg-white text-black shadow-lg scale-110' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'}`}>
-                            {isCameraOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-                        </button>
-
-                        {isCameraOn && (
-                            <button onClick={switchCamera} className="p-4 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all">
-                                <RefreshCcw className="w-6 h-6" />
-                            </button>
-                        )}
-
-                        <button onClick={toggleMute} className={`p-4 rounded-full transition-all duration-300 ${isMuted ? 'bg-red-500/80 hover:bg-red-600 text-white shadow-lg' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'}`}>
-                            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                        </button>
-
-                        <button onClick={handleClose} className="p-4 rounded-full bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 backdrop-blur-md transition-all">
-                            <X className="w-6 h-6" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
     };
 
-    export default LiveAnalysisModal;
+    const stopCamera = () => {
+        if (videoIntervalRef.current) {
+            clearInterval(videoIntervalRef.current);
+            videoIntervalRef.current = null;
+        }
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraOn(false);
+    };
+
+    const toggleCamera = () => {
+        if (isCameraOn) stopCamera();
+        else startCamera();
+    };
+
+    const switchCamera = () => {
+        const newMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newMode);
+        if (isCameraOn) {
+            stopCamera();
+            setTimeout(() => startCamera(newMode), 200);
+        }
+    };
+
+    const toggleMute = () => {
+        const newMuted = !isMuted;
+        setIsMuted(newMuted);
+        setMuted(newMuted);
+    };
+
+    // Audio Playback Logic with Jitter Buffer
+    const nextStartTimeRef = useRef<number>(0);
+    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]); // Keep for visualizer if needed, or remove if unused
+    const outputAnalyserRef = useRef<AnalyserNode | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+
+    // Unified Animation Loop
+    useEffect(() => {
+        const updateAmplitude = () => {
+            let vol = 0;
+
+            if (status === 'speaking' && outputAnalyserRef.current) {
+                // Visualize Output (Gemini)
+                const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
+                outputAnalyserRef.current.getByteFrequencyData(dataArray);
+                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                vol = Math.min(1, (average / 255) * 2);
+            } else if (status === 'listening' || status === 'ready') {
+                // Visualize Input (User)
+                vol = getInputVolume();
+            }
+
+            setAudioAmplitude(vol);
+            animationFrameRef.current = requestAnimationFrame(updateAmplitude);
+        };
+
+        updateAmplitude();
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+        };
+    }, [status, getInputVolume]);
+
+    function handleAudioReceived(audioData: string) {
+        try {
+            if (!audioContextRef.current) return;
+            if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+
+            const binaryString = atob(audioData);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+
+            const float32Data = new Float32Array(len / 2);
+            const dataView = new DataView(bytes.buffer);
+            for (let i = 0; i < len / 2; i++) float32Data[i] = dataView.getInt16(i * 2, true) / 32768.0;
+
+            const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
+            audioBuffer.getChannelData(0).set(float32Data);
+
+            scheduleAudio(audioBuffer);
+        } catch (error) {
+            console.error('[LiveAnalysisModal] Error processing audio:', error);
+        }
+    }
+
+    function scheduleAudio(buffer: AudioBuffer) {
+        if (!audioContextRef.current) return;
+
+        const currentTime = audioContextRef.current.currentTime;
+        // If next start time is in the past (gap in speech), reset to now + small buffer
+        if (nextStartTimeRef.current < currentTime) {
+            nextStartTimeRef.current = currentTime + 0.05; // 50ms jitter buffer
+        }
+
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = buffer;
+
+        // Create/Reuse Analyser
+        if (!outputAnalyserRef.current) {
+            const analyser = audioContextRef.current.createAnalyser();
+            analyser.fftSize = 256;
+            outputAnalyserRef.current = analyser;
+            analyser.connect(audioContextRef.current.destination);
+        }
+
+        source.connect(outputAnalyserRef.current);
+        source.start(nextStartTimeRef.current);
+
+        // Update next start time
+        nextStartTimeRef.current += buffer.duration;
+    }
+
+    const clearAudioQueue = () => {
+        if (audioContextRef.current) {
+            audioContextRef.current.suspend().then(() => {
+                nextStartTimeRef.current = 0;
+                audioContextRef.current?.resume();
+            });
+        }
+    };
+
+    const handleVoiceChange = (voiceId: string) => {
+        setSelectedVoice(voiceId);
+        // Update global store (if we had a setter for live analysis voice, but we only read it. 
+        // Assuming we should update it or just local state? 
+        // For now, let's just change the voice in session)
+        changeVoice(voiceId);
+        setShowVoiceSelector(false);
+    };
+
+    const handleOrbClick = () => {
+        if (status === 'ready' || status === 'idle' || status === 'listening') {
+            setShowVoiceSelector(!showVoiceSelector);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="relative w-full h-full bg-black/40 backdrop-blur-xl flex flex-col overflow-hidden">
+
+                {/* Loading Overlay - Minimalist */}
+                {(!isReady && isOpen) && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
+                        <div className="bg-black/40 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 shadow-lg">
+                            <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-white font-medium text-sm">Conectando...</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Status */}
+                <div className="absolute top-12 text-center z-10 w-full px-4">
+                    <p className="text-xl font-medium text-white/90 tracking-wide">{statusText || 'Ready'}</p>
+                </div>
+
+                {/* Video Fullscreen with Opacity for Transparency */}
+                <video
+                    ref={videoRef}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isCameraOn ? 'opacity-50' : 'opacity-0 hidden'}`}
+                    muted
+                    playsInline
+                />
+
+                {/* Voice Orb & Selector */}
+                <div className="flex-1 flex items-center justify-center z-10">
+                    <div onClick={handleOrbClick} className="cursor-pointer">
+                        <VoiceOrb
+                            status={status === 'ready' ? 'idle' : status}
+                            amplitude={audioAmplitude}
+                        />
+                    </div>
+                    {showVoiceSelector && (
+                        <div className="absolute">
+                            <VoiceSelector
+                                selectedVoice={selectedVoice}
+                                onVoiceChange={handleVoiceChange}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Controls */}
+                <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center space-x-8 z-20">
+                    <button onClick={toggleCamera} className={`p-4 rounded-full transition-all duration-300 ${isCameraOn ? 'bg-white text-black shadow-lg scale-110' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'}`}>
+                        {isCameraOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
+                    </button>
+
+                    {isCameraOn && (
+                        <button onClick={switchCamera} className="p-4 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-all">
+                            <RefreshCcw className="w-6 h-6" />
+                        </button>
+                    )}
+
+                    <button onClick={toggleMute} className={`p-4 rounded-full transition-all duration-300 ${isMuted ? 'bg-red-500/80 hover:bg-red-600 text-white shadow-lg' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'}`}>
+                        {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+                    </button>
+
+                    <button onClick={handleClose} className="p-4 rounded-full bg-white/10 hover:bg-red-500/20 text-white hover:text-red-400 backdrop-blur-md transition-all">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default LiveAnalysisModal;
