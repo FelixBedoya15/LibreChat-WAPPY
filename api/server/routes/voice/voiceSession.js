@@ -737,7 +737,7 @@ class VoiceSession {
                 `;
 
                 // Send as text input to the model
-                this.client.send([{ text: announcementPrompt }]);
+                this.client.sendText(announcementPrompt);
             }
 
             // SAVE REPORT TO DATABASE (Persistence)

@@ -45,6 +45,83 @@ const LivePage = () => {
     const navigate = useNavigate();
 
     const handleSave = async () => {
+        // Helper function to convert HTML to Markdown
+        const convertHtmlToMarkdown = (html: string) => {
+            let markdown = html;
+
+            // Replace block elements with newlines
+            markdown = markdown.replace(/<div[^>]*>/g, '\n');
+            markdown = markdown.replace(/<\/div>/g, '');
+            markdown = markdown.replace(/<p[^>]*>/g, '\n\n');
+            markdown = markdown.replace(/<\/p>/g, '');
+            markdown = markdown.replace(/<br\s*\/?>/g, '\n');
+
+            // Tables
+            // This is a simplified converter. For complex nested tables, a library is recommended.
+            markdown = markdown.replace(/<table[^>]*>(.*?)<\/table>/gs, (match, tableContent) => {
+                let tableMd = '\n';
+                let rows = tableContent.match(/<tr[^>]*>(.*?)<\/tr>/gs) || [];
+
+                rows.forEach((row: string, rowIndex: number) => {
+                    let cells = row.match(/<(td|th)[^>]*>(.*?)<\/\1>/gs) || [];
+                    let rowMd = '|';
+                    let separatorMd = '|';
+
+                    cells.forEach((cell: string) => {
+                        let content = cell.replace(/<(td|th)[^>]*>/, '').replace(/<\/(td|th)>/, '').trim();
+                        // Remove internal tags from cell content for simplicity
+                        content = content.replace(/<[^>]*>/g, '');
+                        rowMd += ` ${content} |`;
+                        separatorMd += ' --- |';
+                    });
+
+                    tableMd += rowMd + '\n';
+
+                    // Add separator after header (first row)
+                    if (rowIndex === 0) {
+                        tableMd += separatorMd + '\n';
+                    }
+                });
+
+                return tableMd + '\n';
+            });
+
+            // Headers
+            markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/g, '# $1\n\n');
+            markdown = markdown.replace(/<h2[^>]*>(.*?)<\/h2>/g, '## $1\n\n');
+            markdown = markdown.replace(/<h3[^>]*>(.*?)<\/h3>/g, '### $1\n\n');
+
+            // Lists
+            markdown = markdown.replace(/<ul[^>]*>/g, '\n');
+            markdown = markdown.replace(/<\/ul>/g, '\n');
+            markdown = markdown.replace(/<ol[^>]*>/g, '\n');
+            markdown = markdown.replace(/<\/ol>/g, '\n');
+            markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
+
+            // Formatting
+            markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
+            markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
+            markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*');
+            markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/g, '*$1*');
+
+            // Clean up remaining tags (like span, etc)
+            markdown = markdown.replace(/<[^>]*>/g, '');
+
+            // Decode HTML entities (basic ones)
+            markdown = markdown.replace(/&nbsp;/g, ' ');
+            markdown = markdown.replace(/&amp;/g, '&');
+            markdown = markdown.replace(/&lt;/g, '<');
+            markdown = markdown.replace(/&gt;/g, '>');
+
+            // Fix multiple newlines (ensure max 2 newlines)
+            markdown = markdown.replace(/\n\s*\n\s*\n/g, '\n\n');
+
+            return markdown.trim();
+        };
+
+        const contentToSave = editorContent || initialReportContent;
+        const markdownContent = convertHtmlToMarkdown(contentToSave);
+
         if (conversationId && conversationId !== 'new') {
             // If we have a reportMessageId, we update that specific message with the edited content
             if (reportMessageId) {
@@ -57,9 +134,9 @@ const LivePage = () => {
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            text: editorContent,
-                            index: 0, // Assuming text is the first part
-                            model: 'gemini-2.5-flash-preview-09-2025' // Optional, but good for tracking
+                            text: markdownContent, // Send converted Markdown
+                            index: 0,
+                            model: 'gemini-2.5-flash-preview-09-2025'
                         })
                     });
                     console.log('Report message updated successfully');
@@ -71,16 +148,6 @@ const LivePage = () => {
             // Navigate to the existing conversation where the report is now saved (and updated)
             navigate(`/c/${conversationId}`);
         } else {
-            // Fallback if no conversation exists (shouldn't happen in live analysis usually)
-            const contentToSave = editorContent || initialReportContent;
-            // Simple HTML to Markdown conversion for saving
-            const markdownContent = contentToSave
-                .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
-                .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
-                .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
-                .replace(/<[^>]*>/g, '')
-                .trim();
-
             newConversation({
                 state: { initialMessage: markdownContent },
             });
