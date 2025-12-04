@@ -27,14 +27,14 @@ const LivePage = () => {
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
 
-    const handleReportReceived = (html: string, messageId?: string) => {
+    const handleReportReceived = useCallback((html: string, messageId?: string) => {
         console.log("LivePage: Full Report received", messageId);
         setEditorContent(html);
         setLastUpdated(new Date());
         if (messageId) {
             setReportMessageId(messageId);
         }
-    };
+    }, []);
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>

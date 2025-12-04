@@ -252,6 +252,12 @@ class VoiceSession {
             const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
             this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
 
+            // Prevent concurrent report generation
+            if (this.isGeneratingReport) {
+                logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
+                return;
+            }
+
             // Notify client that report is being generated
             this.sendToClient({
                 type: 'report',
@@ -259,7 +265,10 @@ class VoiceSession {
             });
 
             // Generate report asynchronously (don't block)
-            this.generateReport(this.config.conversationContext);
+            this.isGeneratingReport = true;
+            this.generateReport(this.config.conversationContext).finally(() => {
+                this.isGeneratingReport = false;
+            });
 
             // Reset audio counter for next turn
             this.aiAudioChunkCount = 0;
