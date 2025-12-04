@@ -171,6 +171,20 @@ class VoiceSession {
             });
         });
 
+        // Listen for Tool Calls
+        this.geminiClient.on('toolCall', (toolCall) => {
+            logger.info('[VoiceSession] Tool Call received:', JSON.stringify(toolCall));
+
+            if (toolCall.functionCalls) {
+                const responses = toolCall.functionCalls.map(fc => ({
+                    id: fc.id,
+                    name: fc.name,
+                    response: { result: "Function execution not implemented on client" }
+                }));
+                this.geminiClient.sendToolResponse(responses);
+            }
+        });
+
         // Listen for turn complete
         this.geminiClient.on('turnComplete', async () => {
             logger.info('[VoiceSession] ========== TURN COMPLETE ==========');

@@ -104,6 +104,12 @@ class GeminiLiveClient extends EventEmitter {
                             }
                         }
 
+                        // 5. Handle TOOL CALL
+                        if (response.toolCall) {
+                            logger.info('[GeminiLive] Tool Call received:', JSON.stringify(response.toolCall));
+                            this.emit('toolCall', response.toolCall);
+                        }
+
                         // Handle setup complete
                         if (response.setupComplete) {
                             logger.info('[GeminiLive] Setup complete');
@@ -118,6 +124,20 @@ class GeminiLiveClient extends EventEmitter {
                 reject(error);
             }
         });
+    }
+
+    /**
+     * Send Tool Response to Gemini
+     * @param {Array} functionResponses - Array of {id, name, response} objects
+     */
+    sendToolResponse(functionResponses) {
+        const message = {
+            toolResponse: {
+                functionResponses: functionResponses
+            }
+        };
+        logger.info('[GeminiLive] Sending tool response:', JSON.stringify(message));
+        this.send(message);
     }
 
     /**
@@ -162,6 +182,8 @@ class GeminiLiveClient extends EventEmitter {
                 // outputAudioTranscription = transcribes AI's voice
                 inputAudioTranscription: {},
                 outputAudioTranscription: {},
+                // Add Tools support
+                tools: this.config.tools || [{ googleSearch: {} }], // Default to Google Search enabled if not specified, or allow passing tools
             },
         };
 
