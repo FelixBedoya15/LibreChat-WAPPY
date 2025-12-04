@@ -224,7 +224,7 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
 
         context.drawImage(videoElement, 0, 0, width, height);
 
-        const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+        const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
 
         wsRef.current.send(JSON.stringify({
             type: 'video',
