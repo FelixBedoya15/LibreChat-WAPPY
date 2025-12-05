@@ -280,168 +280,245 @@ class VoiceSession {
             } else {
                 logger.info('[VoiceSession] Report generation NOT triggered (no keywords found).');
             }
-            this.isGeneratingReport = false;
-        });
 
-        // Reset audio counter for next turn
-        this.aiAudioChunkCount = 0;
 
-        // Only update conversation and notify client ONCE at the end
-        if (messagesSaved) {
-            try {
-                await saveConvo({ user: { id: this.userId } }, {
-                    conversationId: this.conversationId,
-                    endpoint: EModelEndpoint.google,
-                    model: this.config.model
-                }, { context: 'VoiceSession - TurnComplete' });
+            // Reset audio counter for next turn
+            this.aiAudioChunkCount = 0;
 
-                // If new conversation, send ID to client
-                if (isNewConversation) {
+            // Only update conversation and notify client ONCE at the end
+            if (messagesSaved) {
+                try {
+                    await saveConvo({ user: { id: this.userId } }, {
+                        conversationId: this.conversationId,
+                        endpoint: EModelEndpoint.google,
+                        model: this.config.model
+                    }, { context: 'VoiceSession - TurnComplete' });
+
+                    // If new conversation, send ID to client
+                    if (isNewConversation) {
+                        this.sendToClient({
+                            type: 'conversationId',
+                            data: { conversationId: this.conversationId }
+                        });
+                    }
+
+                    // Notify client to refresh chat (ONCE)
                     this.sendToClient({
-                        type: 'conversationId',
+                        type: 'conversationUpdated',
                         data: { conversationId: this.conversationId }
                     });
+                } catch (error) {
+                    logger.error('[VoiceSession] Error updating conversation:', error);
                 }
-
-                // Notify client to refresh chat (ONCE)
-                this.sendToClient({
-                    type: 'conversationUpdated',
-                    data: { conversationId: this.conversationId }
-                });
-            } catch (error) {
-                logger.error('[VoiceSession] Error updating conversation:', error);
             }
-        }
 
-        logger.info('[VoiceSession] ========== END TURN ==========');
-    });
+            logger.info('[VoiceSession] ========== END TURN ==========');
+        });
 
         // Handle client disconnect
         this.clientWs.on('close', () => {
-        logger.info(`[VoiceSession] Client disconnected: ${this.userId}`);
-        this.stop();
-    });
+            logger.info(`[VoiceSession] Client disconnected: ${this.userId}`);
+            this.stop();
+        });
 
-// Handle errors
-this.clientWs.on('error', (error) => {
-    logger.error(`[VoiceSession] Client error:`, error);
-});
+        // Handle errors
+        this.clientWs.on('error', (error) => {
+            logger.error(`[VoiceSession] Client error:`, error);
+        });
     }
 
     /**
      * Handle message from client
      */
     async handleClientMessage(message) {
-    const { type, data } = message;
+        const { type, data } = message;
 
-    switch (type) {
-        case 'audio':
-            // Forward audio to Gemini
-            if (data && data.audioData) {
-                if (this.geminiClient) {
-                    this.geminiClient.sendAudio(data.audioData);
-                } else {
-                    logger.warn('[VoiceSession] Received audio but Gemini client is not ready');
+        switch (type) {
+            case 'audio':
+                // Forward audio to Gemini
+                if (data && data.audioData) {
+                    if (this.geminiClient) {
+                        this.geminiClient.sendAudio(data.audioData);
+                    } else {
+                        logger.warn('[VoiceSession] Received audio but Gemini client is not ready');
+                    }
                 }
-            }
-            break;
+                break;
 
-        case 'video':
-            // Forward video frame to Gemini
-            if (data && data.image) {
-                if (this.geminiClient) {
-                    this.geminiClient.sendVideo(data.image);
-                } else {
-                    logger.warn('[VoiceSession] Received video but Gemini client is not ready');
+            case 'video':
+                // Forward video frame to Gemini
+                if (data && data.image) {
+                    if (this.geminiClient) {
+                        this.geminiClient.sendVideo(data.image);
+                    } else {
+                        logger.warn('[VoiceSession] Received video but Gemini client is not ready');
+                    }
                 }
-            }
-            break;
+                break;
 
-        case 'config':
-            // Update session configuration
-            if (data.voice) {
-                logger.info(`[VoiceSession] Config update received. New voice: ${data.voice}`);
-                this.config.voice = data.voice;
-                // Reconnect with new voice
-                await this.reconnect();
-                logger.info(`[VoiceSession] Reconnected with voice: ${this.config.voice}`);
-            }
-            break;
+            case 'config':
+                // Update session configuration
+                if (data.voice) {
+                    logger.info(`[VoiceSession] Config update received. New voice: ${data.voice}`);
+                    this.config.voice = data.voice;
+                    // Reconnect with new voice
+                    await this.reconnect();
+                    logger.info(`[VoiceSession] Reconnected with voice: ${this.config.voice}`);
+                }
+                break;
 
-        case 'interrupt':
-            // User interrupted, stop current Gemini response
-            // TODO: Implement interrupt logic
-            this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
-            break;
+            case 'interrupt':
+                // User interrupted, stop current Gemini response
+                // TODO: Implement interrupt logic
+                this.sendToClient({ type: 'status', data: { status: 'interrupted' } });
+                break;
 
-        default:
-            logger.warn(`[VoiceSession] Unknown message type: ${type}`);
-    }
-}
-
-/**
- * Handle message from Gemini
- */
-handleGeminiMessage(message) {
-    // This method is now largely deprecated as event listeners handle most of the logic.
-    // It remains for backward compatibility or specific cases not covered by new events.
-    try {
-        // Check for User Transcription (often in a different part of the response object)
-        // Based on API behavior, we need to inspect where input transcription lands.
-        // For now, we log everything to find it.
-        if (message.serverContent && !message.serverContent.modelTurn) {
-            logger.debug('[VoiceSession] Non-modelTurn content:', JSON.stringify(message.serverContent));
+            default:
+                logger.warn(`[VoiceSession] Unknown message type: ${type}`);
         }
-    } catch (error) {
-        logger.error('[VoiceSession] Error handling Gemini message:', error);
     }
-}
 
-/**
- * Send message to client
- */
-sendToClient(message) {
-    if (this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
-        this.clientWs.send(JSON.stringify(message));
+    /**
+     * Handle message from Gemini
+     */
+    handleGeminiMessage(message) {
+        // This method is now largely deprecated as event listeners handle most of the logic.
+        // It remains for backward compatibility or specific cases not covered by new events.
+        try {
+            // Check for User Transcription (often in a different part of the response object)
+            // Based on API behavior, we need to inspect where input transcription lands.
+            // For now, we log everything to find it.
+            if (message.serverContent && !message.serverContent.modelTurn) {
+                logger.debug('[VoiceSession] Non-modelTurn content:', JSON.stringify(message.serverContent));
+            }
+        } catch (error) {
+            logger.error('[VoiceSession] Error handling Gemini message:', error);
+        }
     }
-}
+
+    /**
+     * Send message to client
+     */
+    sendToClient(message) {
+        if (this.clientWs && this.clientWs.readyState === WebSocket.OPEN) {
+            this.clientWs.send(JSON.stringify(message));
+        }
+    }
 
     /**
      * Reconnect with new configuration
      */
     async reconnect() {
-    if (this.geminiClient) {
-        this.geminiClient.disconnect();
+        if (this.geminiClient) {
+            this.geminiClient.disconnect();
+        }
+        await this.start();
     }
-    await this.start();
-}
 
     /**
      * Refine transcription using Gemini Flash Lite
      */
     async refineTranscription(text) {
-    try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-preview-02-05:generateContent?key=${this.apiKey}`;
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite-preview-02-05:generateContent?key=${this.apiKey}`;
 
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: `Please format the following transcription to be more readable, correcting punctuation and capitalization, but keeping the original meaning and words as much as possible. Do not add any conversational filler. Text: "${text}"`
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Please format the following transcription to be more readable, correcting punctuation and capitalization, but keeping the original meaning and words as much as possible. Do not add any conversational filler. Text: "${text}"`
+                        }]
                     }]
-                }]
-            })
-        });
+                })
+            });
 
-        const apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
-        logger.debug(`[VoiceSession] Retrieved API Key for refinement: ${apiKey ? 'Success' : 'Failed'}`);
+            const apiKey = await getUserKey({ userId: this.userId, name: EModelEndpoint.google });
+            logger.debug(`[VoiceSession] Retrieved API Key for refinement: ${apiKey ? 'Success' : 'Failed'}`);
 
-        if (!apiKey) {
-            // Handle case where API key is not found, e.g., by sending original text
+            if (!apiKey) {
+                // Handle case where API key is not found, e.g., by sending original text
+                this.sendToClient({
+                    type: 'text',
+                    data: {
+                        text: text,
+                        isRefined: false
+                    }
+                });
+                return; // Exit early if no API key
+            }
+
+            const data = await response.json();
+
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const refinedText = data.candidates[0].content.parts[0].text;
+
+                this.sendToClient({
+                    type: 'text',
+                    data: {
+                        text: refinedText,
+                        isRefined: true
+                    }
+                });
+
+                logger.debug('[VoiceSession] Transcription refined:', refinedText);
+
+                // Save message to database if conversationId is present
+                if (this.conversationId) {
+                    try {
+                        let conversationId = this.conversationId;
+                        let isNewConversation = false;
+
+                        // Generate real UUID if conversationId is 'new'
+                        if (conversationId === 'new') {
+                            conversationId = uuidv4();
+                            isNewConversation = true;
+                            logger.info(`[VoiceSession] Generated new conversationId: ${conversationId}`);
+                        }
+
+                        const messageId = uuidv4();
+                        const messageData = {
+                            messageId,
+                            conversationId,
+                            text: refinedText,
+                            content: [{ type: 'text', text: refinedText }],
+                            user: this.userId,
+                            sender: 'User',
+                            isCreatedByUser: true,
+                            endpoint: EModelEndpoint.google, // Ensure endpoint is set
+                            model: this.config.model,
+                        };
+
+                        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
+
+                        if (savedMessage) {
+                            // Also save/update the conversation
+                            await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
+
+                            logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+
+                            // Update local conversationId and notify client if it was new
+                            if (isNewConversation) {
+                                this.conversationId = conversationId;
+                                this.sendToClient({
+                                    type: 'conversationId',
+                                    data: { conversationId: this.conversationId }
+                                });
+                            }
+                        } else {
+                            logger.error('[VoiceSession] saveMessage returned null/undefined');
+                        }
+                    } catch (saveError) {
+                        logger.error('[VoiceSession] Error saving message:', saveError);
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error('[VoiceSession] Error refining transcription:', error);
+            // Fallback to original text if refinement fails
             this.sendToClient({
                 type: 'text',
                 data: {
@@ -449,164 +526,86 @@ sendToClient(message) {
                     isRefined: false
                 }
             });
-            return; // Exit early if no API key
         }
-
-        const data = await response.json();
-
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const refinedText = data.candidates[0].content.parts[0].text;
-
-            this.sendToClient({
-                type: 'text',
-                data: {
-                    text: refinedText,
-                    isRefined: true
-                }
-            });
-
-            logger.debug('[VoiceSession] Transcription refined:', refinedText);
-
-            // Save message to database if conversationId is present
-            if (this.conversationId) {
-                try {
-                    let conversationId = this.conversationId;
-                    let isNewConversation = false;
-
-                    // Generate real UUID if conversationId is 'new'
-                    if (conversationId === 'new') {
-                        conversationId = uuidv4();
-                        isNewConversation = true;
-                        logger.info(`[VoiceSession] Generated new conversationId: ${conversationId}`);
-                    }
-
-                    const messageId = uuidv4();
-                    const messageData = {
-                        messageId,
-                        conversationId,
-                        text: refinedText,
-                        content: [{ type: 'text', text: refinedText }],
-                        user: this.userId,
-                        sender: 'User',
-                        isCreatedByUser: true,
-                        endpoint: EModelEndpoint.google, // Ensure endpoint is set
-                        model: this.config.model,
-                    };
-
-                    const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
-
-                    if (savedMessage) {
-                        // Also save/update the conversation
-                        await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
-
-                        logger.info(`[VoiceSession] Saved user message: ${messageId}`);
-
-                        // Update local conversationId and notify client if it was new
-                        if (isNewConversation) {
-                            this.conversationId = conversationId;
-                            this.sendToClient({
-                                type: 'conversationId',
-                                data: { conversationId: this.conversationId }
-                            });
-                        }
-                    } else {
-                        logger.error('[VoiceSession] saveMessage returned null/undefined');
-                    }
-                } catch (saveError) {
-                    logger.error('[VoiceSession] Error saving message:', saveError);
-                }
-            }
-        }
-    } catch (error) {
-        logger.error('[VoiceSession] Error refining transcription:', error);
-        // Fallback to original text if refinement fails
-        this.sendToClient({
-            type: 'text',
-            data: {
-                text: text,
-                isRefined: false
-            }
-        });
     }
-}
 
     /**
      * Save User Message to database
      */
     async saveUserMessage(text) {
-    if (!text) return null;
+        if (!text) return null;
 
-    try {
-        let conversationId = this.conversationId;
-        let isNewConversation = false;
+        try {
+            let conversationId = this.conversationId;
+            let isNewConversation = false;
 
-        // If conversation doesn't exist, create a new one
-        if (!conversationId || conversationId === 'new') {
-            conversationId = uuidv4();
-            this.conversationId = conversationId;
-            isNewConversation = true;
-            logger.info(`[VoiceSession] Generated new conversationId for user message: ${conversationId}`);
+            // If conversation doesn't exist, create a new one
+            if (!conversationId || conversationId === 'new') {
+                conversationId = uuidv4();
+                this.conversationId = conversationId;
+                isNewConversation = true;
+                logger.info(`[VoiceSession] Generated new conversationId for user message: ${conversationId}`);
+            }
+
+            const messageId = uuidv4();
+            const messageData = {
+                messageId,
+                conversationId,
+                parentMessageId: this.lastMessageId, // Link to previous message in conversation
+                text: text,
+                content: [{ type: 'text', text: text }],
+                user: this.userId,
+                sender: 'User',
+                isCreatedByUser: true,
+                endpoint: EModelEndpoint.google,
+                model: this.config.model,
+            };
+
+            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - User' });
+
+            if (savedMessage) {
+                this.lastMessageId = messageId; // Update for next message
+                logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+                return { isNewConversation, messageId };
+            }
+            return null;
+        } catch (error) {
+            logger.error('[VoiceSession] Error saving user message:', error);
+            return null;
         }
-
-        const messageId = uuidv4();
-        const messageData = {
-            messageId,
-            conversationId,
-            parentMessageId: this.lastMessageId, // Link to previous message in conversation
-            text: text,
-            content: [{ type: 'text', text: text }],
-            user: this.userId,
-            sender: 'User',
-            isCreatedByUser: true,
-            endpoint: EModelEndpoint.google,
-            model: this.config.model,
-        };
-
-        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - User' });
-
-        if (savedMessage) {
-            this.lastMessageId = messageId; // Update for next message
-            logger.info(`[VoiceSession] Saved user message: ${messageId}`);
-            return { isNewConversation, messageId };
-        }
-        return null;
-    } catch (error) {
-        logger.error('[VoiceSession] Error saving user message:', error);
-        return null;
     }
-}
 
     /**
      * Save AI Message to database
      */
     async saveAiMessage(text) {
-    if (!this.conversationId || !text) return;
+        if (!this.conversationId || !text) return;
 
-    try {
-        const messageId = uuidv4();
-        const messageData = {
-            messageId,
-            conversationId: this.conversationId,
-            parentMessageId: this.lastMessageId, // Link to user message
-            text: text,
-            content: [{ type: 'text', text: text }],
-            user: this.userId,
-            sender: 'Assistant', // AI Sender
-            isCreatedByUser: false,
-            endpoint: EModelEndpoint.google,
-            model: this.config.model,
-        };
+        try {
+            const messageId = uuidv4();
+            const messageData = {
+                messageId,
+                conversationId: this.conversationId,
+                parentMessageId: this.lastMessageId, // Link to user message
+                text: text,
+                content: [{ type: 'text', text: text }],
+                user: this.userId,
+                sender: 'Assistant', // AI Sender
+                isCreatedByUser: false,
+                endpoint: EModelEndpoint.google,
+                model: this.config.model,
+            };
 
-        const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - AI' });
+            const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - AI' });
 
-        if (savedMessage) {
-            this.lastMessageId = messageId; // Update for next message
-            logger.info(`[VoiceSession] Saved AI message: ${messageId}`);
+            if (savedMessage) {
+                this.lastMessageId = messageId; // Update for next message
+                logger.info(`[VoiceSession] Saved AI message: ${messageId}`);
+            }
+        } catch (error) {
+            logger.error('[VoiceSession] Error saving AI message:', error);
         }
-    } catch (error) {
-        logger.error('[VoiceSession] Error saving AI message:', error);
     }
-}
 
     /**
      * Stop the session
@@ -615,16 +614,16 @@ sendToClient(message) {
      * Correct user transcription using Gemini Flash
      */
     async correctTranscription(userText, aiResponseText) {
-    try {
-        logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
-        const correctionModelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Requested by user
-        logger.info(`[VoiceSession] Using correction model: ${correctionModelName}`);
+        try {
+            logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
+            const correctionModelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Requested by user
+            logger.info(`[VoiceSession] Using correction model: ${correctionModelName}`);
 
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-        const genAI = new GoogleGenerativeAI(this.apiKey);
-        const model = genAI.getGenerativeModel({ model: correctionModelName });
+            const { GoogleGenerativeAI } = require('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(this.apiKey);
+            const model = genAI.getGenerativeModel({ model: correctionModelName });
 
-        const prompt = `
+            const prompt = `
             Act as a spelling and grammar corrector for a voice transcription.
             
             CONTEXT (Previous conversation):
@@ -646,53 +645,53 @@ sendToClient(message) {
             5. OUTPUT ONLY THE CORRECTED TEXT. NO EXPLANATIONS.
             `;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const correctedText = response.text().trim();
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const correctedText = response.text().trim();
 
-        logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
-        return correctedText;
-    } catch (error) {
-        logger.error('[VoiceSession] Error correcting transcription:', error);
-        return userText; // Fallback to original
+            logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
+            return correctedText;
+        } catch (error) {
+            logger.error('[VoiceSession] Error correcting transcription:', error);
+            return userText; // Fallback to original
+        }
     }
-}
 
     /**
      * Generate Formal Report using Gemini Flash
      */
     async generateReport(conversationContext) {
-    try {
-        logger.info('[VoiceSession] Generating formal report...');
-        logger.info(`[VoiceSession] Context length: ${conversationContext ? conversationContext.length : 0}`);
+        try {
+            logger.info('[VoiceSession] Generating formal report...');
+            logger.info(`[VoiceSession] Context length: ${conversationContext ? conversationContext.length : 0}`);
 
-        if (!conversationContext || conversationContext.length < 10) {
-            logger.warn('[VoiceSession] Context too short, skipping report generation');
-            this.sendToClient({
-                type: 'report',
-                data: { html: '<p class="text-yellow-600">No hay suficiente información para generar el informe aún. Continúe la conversación.</p>' }
-            });
-            return null;
-        }
+            if (!conversationContext || conversationContext.length < 10) {
+                logger.warn('[VoiceSession] Context too short, skipping report generation');
+                this.sendToClient({
+                    type: 'report',
+                    data: { html: '<p class="text-yellow-600">No hay suficiente información para generar el informe aún. Continúe la conversación.</p>' }
+                });
+                return null;
+            }
 
-        const modelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Updated to user requested model
+            const modelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Updated to user requested model
 
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
-        // Ensure apiKey is a string
-        let key = this.apiKey;
-        if (typeof key === 'object') {
-            key = key.GOOGLE_API_KEY || JSON.stringify(key);
-        }
-        // If key is still object or invalid, try to parse or log error
-        if (!key || typeof key !== 'string') {
-            logger.error(`[VoiceSession] Invalid API Key for report generation: ${typeof key}`);
-            // Try to get key again?
-        }
+            const { GoogleGenerativeAI } = require('@google/generative-ai');
+            // Ensure apiKey is a string
+            let key = this.apiKey;
+            if (typeof key === 'object') {
+                key = key.GOOGLE_API_KEY || JSON.stringify(key);
+            }
+            // If key is still object or invalid, try to parse or log error
+            if (!key || typeof key !== 'string') {
+                logger.error(`[VoiceSession] Invalid API Key for report generation: ${typeof key}`);
+                // Try to get key again?
+            }
 
-        const genAI = new GoogleGenerativeAI(key);
-        const model = genAI.getGenerativeModel({ model: modelName });
+            const genAI = new GoogleGenerativeAI(key);
+            const model = genAI.getGenerativeModel({ model: modelName });
 
-        const prompt = `
+            const prompt = `
             You are a Safety Reporting Assistant.
             
             CONTEXT (Conversation History):
@@ -720,33 +719,33 @@ sendToClient(message) {
             - Keep it professional and technical.
             `;
 
-        logger.info(`[VoiceSession] Sending prompt to model: ${modelName}`);
-        logger.debug(`[VoiceSession] API Key present: ${!!key}`);
+            logger.info(`[VoiceSession] Sending prompt to model: ${modelName}`);
+            logger.debug(`[VoiceSession] API Key present: ${!!key}`);
 
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            try {
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-            logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
+                logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
 
-            this.sendToClient({
-                type: 'report',
-                data: { html: reportHtml }
-            });
+                this.sendToClient({
+                    type: 'report',
+                    data: { html: reportHtml }
+                });
 
-            // ... rest of the function ...
+                // ... rest of the function ...
 
-            return reportHtml;
-        } catch (genError) {
-            logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
-            throw genError; // Re-throw to be caught by outer catch
-        }
+                return reportHtml;
+            } catch (genError) {
+                logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
+                throw genError; // Re-throw to be caught by outer catch
+            }
 
-        // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
-        if (this.client && this.isActive) {
-            logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
-            const announcementPrompt = `
+            // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
+            if (this.client && this.isActive) {
+                logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
+                const announcementPrompt = `
                 INSTRUCTION: The report has been generated successfully.
                 
                 PLEASE SAY:
@@ -755,76 +754,76 @@ sendToClient(message) {
                 DO NOT READ THE REPORT. JUST SAY THE SUMMARY.
                 `;
 
-            // Send as text input to the model
-            this.client.sendText(announcementPrompt);
-        }
+                // Send as text input to the model
+                this.client.sendText(announcementPrompt);
+            }
 
-        // SAVE REPORT TO DATABASE (Persistence)
-        if (this.conversationId && this.conversationId !== 'new') {
-            try {
-                const messageId = uuidv4();
-                const reportMessage = {
-                    messageId,
-                    conversationId: this.conversationId,
-                    parentMessageId: this.lastMessageId, // Link to last message
-                    sender: 'Assistant', // Or 'System'? Assistant is better for chat.
-                    text: reportHtml,
-                    isCreatedByUser: false,
-                    error: false,
-                    model: modelName,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                };
+            // SAVE REPORT TO DATABASE (Persistence)
+            if (this.conversationId && this.conversationId !== 'new') {
+                try {
+                    const messageId = uuidv4();
+                    const reportMessage = {
+                        messageId,
+                        conversationId: this.conversationId,
+                        parentMessageId: this.lastMessageId, // Link to last message
+                        sender: 'Assistant', // Or 'System'? Assistant is better for chat.
+                        text: reportHtml,
+                        isCreatedByUser: false,
+                        error: false,
+                        model: modelName,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    };
 
-                await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                this.lastMessageId = messageId; // Update pointer
-                logger.info(`[VoiceSession] Report saved to DB.MessageId: ${messageId}`);
+                    await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
+                    this.lastMessageId = messageId; // Update pointer
+                    logger.info(`[VoiceSession] Report saved to DB.MessageId: ${messageId}`);
 
-                // Notify client with messageId so it can be updated later
+                    // Notify client with messageId so it can be updated later
+                    this.sendToClient({
+                        type: 'report',
+                        data: { html: reportHtml, messageId: messageId }
+                    });
+                } catch (saveError) {
+                    logger.error('[VoiceSession] Error saving report to DB:', saveError);
+                }
+            } else {
+                // Fallback if no conversationId yet (should not happen if flow is correct)
                 this.sendToClient({
                     type: 'report',
-                    data: { html: reportHtml, messageId: messageId }
+                    data: { html: reportHtml }
                 });
-            } catch (saveError) {
-                logger.error('[VoiceSession] Error saving report to DB:', saveError);
             }
-        } else {
-            // Fallback if no conversationId yet (should not happen if flow is correct)
+
+            return reportHtml;
+        } catch (error) {
+            logger.error('[VoiceSession] Error generating report:', error);
+            // Send error state to client so it doesn't hang
             this.sendToClient({
                 type: 'report',
-                data: { html: reportHtml }
+                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
             });
+            return null;
+        }
+    }
+
+    stop() {
+        this.isActive = false;
+        this.currentTurnText = '';
+        this.aiResponseText = '';
+
+        if (this.geminiClient) {
+            this.geminiClient.disconnect();
+            this.geminiClient = null;
         }
 
-        return reportHtml;
-    } catch (error) {
-        logger.error('[VoiceSession] Error generating report:', error);
-        // Send error state to client so it doesn't hang
-        this.sendToClient({
-            type: 'report',
-            data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
-        });
-        return null;
+        // Remove from active sessions
+        if (activeSessions.has(this.userId)) {
+            activeSessions.delete(this.userId);
+        }
+
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
     }
-}
-
-stop() {
-    this.isActive = false;
-    this.currentTurnText = '';
-    this.aiResponseText = '';
-
-    if (this.geminiClient) {
-        this.geminiClient.disconnect();
-        this.geminiClient = null;
-    }
-
-    // Remove from active sessions
-    if (activeSessions.has(this.userId)) {
-        activeSessions.delete(this.userId);
-    }
-
-    logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
-}
 }
 
 /**
