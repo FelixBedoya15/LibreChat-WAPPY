@@ -734,89 +734,123 @@ class VoiceSession {
                 let messageId = uuidv4();
                 if (this.conversationId && this.conversationId !== 'new') {
                     try {
-                        const reportMessage = {
-                            messageId,
-                            conversationId: this.conversationId,
-                            parentMessageId: this.lastMessageId, // Link to last message
-                            sender: 'Assistant', // Save as Assistant
-                            text: reportHtml,
-                            content: [{ type: 'text', text: reportHtml }], // CRITICAL: Add content array for compatibility
-                            isCreatedByUser: false,
-                            error: false,
-                            model: modelName,
-                            createdAt: new Date(),
-                            updatedAt: new Date(),
+                        // Helper to convert HTML to Markdown (Basic implementation)
+                        const convertHtmlToMarkdown = (html) => {
+                            let md = html;
+                            md = md.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g, '\n### $1\n');
+                            md = md.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
+                            md = md.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
+                            md = md.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*');
+                            md = md.replace(/<i[^>]*>(.*?)<\/i>/g, '*$1*');
+                            md = md.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
+                            md = md.replace(/<ul[^>]*>/g, '\n');
+                            md = md.replace(/<\/ul>/g, '\n');
+                            md = md.replace(/<p[^>]*>(.*?)<\/p>/g, '\n$1\n');
+                            md = md.replace(/<br\s*\/?>/g, '\n');
+                            md = md.replace(/<[^>]*>/g, ''); // Remove remaining tags
+                            md = md.replace(/&nbsp;/g, ' ');
+                            md = md.replace(/\n\s*\n\s*\n/g, '\n\n'); // Fix excess newlines
+                            return md.trim();
                         };
 
-                        await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                        this.lastMessageId = messageId; // Update pointer
-                        logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
-                    } catch (saveError) {
-                        logger.error('[VoiceSession] Error saving report to DB:', saveError);
-                        // Continue anyway, client will receive report but save might fail if clicked immediately
-                    }
-                }
+                        const reportMarkdown = convertHtmlToMarkdown(reportHtml);
 
-                // Notify client with report AND messageId
-                this.sendToClient({
-                    type: 'report',
-                    data: { html: reportHtml, messageId: messageId }
-                });
+                        // Extract a brief summary for the Voice AI (First 200 chars or first paragraph)
+                        let summaryForVoice = "un informe técnico detallado";
+                        const summaryMatch = reportHtml.match(/<p[^>]*>(.*?)<\/p>/);
+                        if (summaryMatch && summaryMatch[1]) {
+                            summaryForVoice = summaryMatch[1].substring(0, 150) + "...";
+                        }
 
-                // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
-                if (this.client && this.isActive) {
-                    logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
-                    const announcementPrompt = `
+                        // SAVE REPORT TO DATABASE FIRST (Persistence)
+                        // This ensures we have a messageId BEFORE sending to client
+                        let messageId = uuidv4();
+                        if (this.conversationId && this.conversationId !== 'new') {
+                            try {
+                                const reportMessage = {
+                                    messageId,
+                                    conversationId: this.conversationId,
+                                    parentMessageId: this.lastMessageId, // Link to last message
+                                    sender: 'Assistant', // Save as Assistant
+                                    text: reportMarkdown, // SAVE AS MARKDOWN for Chat UI
+                                    content: [{ type: 'text', text: reportMarkdown }], // CRITICAL: Add content array for compatibility
+                                    isCreatedByUser: false,
+                                    error: false,
+                                    model: modelName,
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                };
+
+                                await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
+                                this.lastMessageId = messageId; // Update pointer
+                                logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
+                            } catch (saveError) {
+                                logger.error('[VoiceSession] Error saving report to DB:', saveError);
+                                // Continue anyway, client will receive report but save might fail if clicked immediately
+                            }
+                        }
+
+                        // Notify client with report AND messageId
+                        this.sendToClient({
+                            type: 'report',
+                            data: { html: reportHtml, messageId: messageId }
+                        });
+
+                        // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
+                        if (this.client && this.isActive) {
+                            logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
+                            const announcementPrompt = `
                     [SYSTEM NOTIFICATION]
-                    The technical report has been successfully generated and saved.
+                    The technical report has been successfully generated.
+                    
+                    HERE IS THE SUMMARY OF THE REPORT:
+                    "${summaryForVoice}"
                     
                     YOUR TASK:
-                    Verbally announce this to the user immediately.
+                    Verbally announce this to the user immediately using the summary above.
                     
                     SAY EXACTLY THIS (in Spanish):
-                    "He generado el informe técnico. El riesgo principal detectado es [RESUMEN DE 1 FRASE]."
-                    
-                    DO NOT READ THE FULL REPORT. ONLY SAY THE SUMMARY.
+                    "He generado el informe técnico. Basado en lo que vi: ${summaryForVoice}"
                     `;
 
-                    // Send as text input to the model
-                    this.client.sendText(announcementPrompt);
-                }
+                            // Send as text input to the model
+                            this.client.sendText(announcementPrompt);
+                        }
 
-                return reportHtml;
-            } catch (genError) {
-                logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
-                throw genError;
+                        return reportHtml;
+                    } catch (genError) {
+                        logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
+                        throw genError;
+                    }
+                } catch (error) {
+                    logger.error('[VoiceSession] Error generating report:', error);
+                    // Send error state to client so it doesn't hang
+                    this.sendToClient({
+                        type: 'report',
+                        data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
+                    });
+                    return null;
+                }
             }
-        } catch (error) {
-            logger.error('[VoiceSession] Error generating report:', error);
-            // Send error state to client so it doesn't hang
-            this.sendToClient({
-                type: 'report',
-                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
-            });
-            return null;
-        }
-    }
 
     stop() {
-        this.isActive = false;
-        this.currentTurnText = '';
-        this.aiResponseText = '';
+                this.isActive = false;
+                this.currentTurnText = '';
+                this.aiResponseText = '';
 
-        if (this.geminiClient) {
-            this.geminiClient.disconnect();
-            this.geminiClient = null;
+                if (this.geminiClient) {
+                    this.geminiClient.disconnect();
+                    this.geminiClient = null;
+                }
+
+                // Remove from active sessions
+                if (activeSessions.has(this.userId)) {
+                    activeSessions.delete(this.userId);
+                }
+
+                logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+            }
         }
-
-        // Remove from active sessions
-        if (activeSessions.has(this.userId)) {
-            activeSessions.delete(this.userId);
-        }
-
-        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
-    }
-}
 
 /**
  * Create a new voice session for a user
@@ -826,82 +860,82 @@ class VoiceSession {
  * @param {string|Object} configOrVoice - Initial voice name (string) or full config object
  */
 async function createSession(clientWs, userId, conversationId, configOrVoice = null) {
-    try {
-        // Check if user already has active session
-        if (activeSessions.has(userId)) {
-            logger.warn(`[VoiceSession] User ${userId} already has active session`);
-            const existingSession = activeSessions.get(userId);
-            existingSession.stop();
-        }
+            try {
+                // Check if user already has active session
+                if (activeSessions.has(userId)) {
+                    logger.warn(`[VoiceSession] User ${userId} already has active session`);
+                    const existingSession = activeSessions.get(userId);
+                    existingSession.stop();
+                }
 
-        // Get user's Google API key
-        const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
+                // Get user's Google API key
+                const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
 
-        if (!apiKey) {
-            throw new Error('Google API Key not configured');
-        }
+                if (!apiKey) {
+                    throw new Error('Google API Key not configured');
+                }
 
-        // Parse API key if stored as JSON
-        let parsedKey = apiKey;
-        try {
-            const parsed = JSON.parse(apiKey);
-            parsedKey = parsed.GOOGLE_API_KEY || parsed;
-        } catch (e) {
-            // Key is not JSON, use as-is
-        }
+                // Parse API key if stored as JSON
+                let parsedKey = apiKey;
+                try {
+                    const parsed = JSON.parse(apiKey);
+                    parsedKey = parsed.GOOGLE_API_KEY || parsed;
+                } catch (e) {
+                    // Key is not JSON, use as-is
+                }
 
-        // Create session
-        let config = {};
-        if (configOrVoice) {
-            if (typeof configOrVoice === 'string') {
-                config.voice = configOrVoice;
-                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
-            } else if (typeof configOrVoice === 'object') {
-                config = configOrVoice;
-                logger.info(`[VoiceSession] Initializing with custom config`);
+                // Create session
+                let config = {};
+                if (configOrVoice) {
+                    if (typeof configOrVoice === 'string') {
+                        config.voice = configOrVoice;
+                        logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
+                    } else if (typeof configOrVoice === 'object') {
+                        config = configOrVoice;
+                        logger.info(`[VoiceSession] Initializing with custom config`);
+                    }
+                }
+                const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
+
+                // Start session
+                const result = await session.start();
+
+                if (result.success) {
+                    activeSessions.set(userId, session);
+                    return { success: true, session };
+                } else {
+                    return { success: false, error: result.error };
+                }
+
+            } catch (error) {
+                logger.error('[VoiceSession] Error creating session:', error);
+                return { success: false, error: error.message };
             }
         }
-        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
 
-        // Start session
-        const result = await session.start();
-
-        if (result.success) {
-            activeSessions.set(userId, session);
-            return { success: true, session };
-        } else {
-            return { success: false, error: result.error };
+        /**
+         * Get active session for user
+         */
+        function getSession(userId) {
+            return activeSessions.get(userId);
         }
 
-    } catch (error) {
-        logger.error('[VoiceSession] Error creating session:', error);
-        return { success: false, error: error.message };
-    }
-}
+        /**
+         * Stop session for user
+         */
+        function stopSession(userId) {
+            const session = activeSessions.get(userId);
+            if (session) {
+                session.stop();
+                return true;
+            }
+            return false;
+        }
 
-/**
- * Get active session for user
- */
-function getSession(userId) {
-    return activeSessions.get(userId);
-}
-
-/**
- * Stop session for user
- */
-function stopSession(userId) {
-    const session = activeSessions.get(userId);
-    if (session) {
-        session.stop();
-        return true;
-    }
-    return false;
-}
-
-module.exports = {
-    VoiceSession,
-    createSession,
-    getSession,
-    stopSession,
-    activeSessions,
-};
+        module.exports = {
+            VoiceSession,
+            createSession,
+            getSession,
+            stopSession,
+            activeSessions,
+        };
