@@ -740,6 +740,7 @@ class VoiceSession {
                             parentMessageId: this.lastMessageId, // Link to last message
                             sender: 'Assistant', // Save as Assistant
                             text: reportHtml,
+                            content: [{ type: 'text', text: reportHtml }], // CRITICAL: Add content array for compatibility
                             isCreatedByUser: false,
                             error: false,
                             model: modelName,
@@ -766,12 +767,16 @@ class VoiceSession {
                 if (this.client && this.isActive) {
                     logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                     const announcementPrompt = `
-                    INSTRUCTION: The report has been generated successfully.
+                    [SYSTEM NOTIFICATION]
+                    The technical report has been successfully generated and saved.
                     
-                    PLEASE SAY:
+                    YOUR TASK:
+                    Verbally announce this to the user immediately.
+                    
+                    SAY EXACTLY THIS (in Spanish):
                     "He generado el informe técnico. El riesgo principal detectado es [RESUMEN DE 1 FRASE]."
                     
-                    DO NOT READ THE REPORT. JUST SAY THE SUMMARY.
+                    DO NOT READ THE FULL REPORT. ONLY SAY THE SUMMARY.
                     `;
 
                     // Send as text input to the model
