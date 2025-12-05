@@ -663,9 +663,36 @@ class VoiceSession {
     async generateReport(conversationContext) {
         try {
             logger.info('[VoiceSession] Generating formal report...');
-            logger.info(`[VoiceSession] Context length: ${conversationContext ? conversationContext.length : 0}`);
 
-            if (!conversationContext || conversationContext.length < 10) {
+            // FETCH CONTEXT FROM DB (Source of Truth)
+            // Instead of relying on passed context, we fetch the last 20 messages
+            let dbContext = '';
+            if (this.conversationId && this.conversationId !== 'new') {
+                try {
+                    const messages = await getMessages({
+                        conversationId: this.conversationId,
+                        user: this.userId
+                    }, null, { limit: 20, sort: { createdAt: -1 } });
+
+                    if (messages && messages.length > 0) {
+                        // Messages come in reverse order (newest first), so reverse them back
+                        dbContext = messages.reverse().map(m => {
+                            const role = m.isCreatedByUser ? 'User' : 'AI';
+                            return `${role}: ${m.text}`;
+                        }).join('\n');
+                        logger.info(`[VoiceSession] Fetched ${messages.length} messages from DB for context.`);
+                    }
+                } catch (dbError) {
+                    logger.error('[VoiceSession] Error fetching messages for context:', dbError);
+                }
+            }
+
+            // Fallback to passed context if DB fetch failed or empty
+            const finalContext = dbContext || conversationContext;
+
+            logger.info(`[VoiceSession] Final Context length: ${finalContext ? finalContext.length : 0}`);
+
+            if (!finalContext || finalContext.length < 10) {
                 logger.warn('[VoiceSession] Context too short, skipping report generation');
                 this.sendToClient({
                     type: 'report',
@@ -695,15 +722,18 @@ class VoiceSession {
             You are "Wappy-Audit", an expert Safety Consultant (HSE).
             
             CONTEXT:
-            The user has just finished a conversation about a safety inspection or risk assessment.
+            The following is a conversation between a User and an AI Assistant about a safety inspection.
+            ${finalContext}
             
             TASK:
-            Generate a FORMAL RISK ASSESSMENT REPORT based on the conversation.
+            Generate a FORMAL RISK ASSESSMENT REPORT based ONLY on the conversation above.
+            If the conversation does not contain enough information for a report, state that clearly in the report.
             
             CRITICAL REQUIREMENTS:
             1. **LANGUAGE:** MUST BE IN SPANISH (Español).
             2. **DATE:** Use this date: ${currentDate}.
             3. **FORMAT:** HTML only. NO markdown code blocks (no \`\`\`html).
+            4. **ACCURACY:** Do NOT invent facts. Use only what was discussed.
             
             OUTPUT STRUCTURE (HTML):
             <h2>Informe Técnico de Evaluación de Riesgos</h2>
@@ -800,14 +830,8 @@ class VoiceSession {
                     if (this.client && this.isActive) {
                         logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                         const announcementPrompt = `
-                        [SYSTEM NOTIFICATION]
-                        REPORT GENERATED SUCCESSFULLY.
-                        
-                        YOUR TASK:
-                        Inform the user immediately.
-                        
-                        SAY EXACTLY THIS (in Spanish):
-                        "He generado el informe técnico con fecha de hoy. Puedes revisarlo y editarlo en el panel de la derecha."
+                        System: The report has been generated successfully.
+                        Please announce to the user: "He generado el informe técnico con fecha de hoy. Puedes revisarlo y editarlo en el panel de la derecha."
                         `;
 
                         // Send as text input to the model
