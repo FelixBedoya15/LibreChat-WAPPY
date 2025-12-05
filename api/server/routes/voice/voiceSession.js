@@ -669,25 +669,22 @@ class VoiceSession {
                 logger.warn('[VoiceSession] Context too short, skipping report generation');
                 this.sendToClient({
                     type: 'report',
-                    data: { html: '<p class="text-yellow-600">No hay suficiente información para generar el informe aún. Continúe la conversación.</p>' }
+                    data: { html: '<p>No hay suficiente contexto para generar un informe. Por favor, continúe la conversación.</p>' }
                 });
                 return null;
             }
 
-            const modelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Updated to user requested model
+            // Notify client that generation started
+            this.sendToClient({
+                type: 'status',
+                data: { status: 'generating_report', message: 'Generando informe técnico...' }
+            });
+
+            // Use Gemini Flash for report generation (faster, cheaper)
+            const modelName = 'gemini-2.0-flash-lite-preview-02-05';
+            const key = this.apiKey;
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');
-            // Ensure apiKey is a string
-            let key = this.apiKey;
-            if (typeof key === 'object') {
-                key = key.GOOGLE_API_KEY || JSON.stringify(key);
-            }
-            // If key is still object or invalid, try to parse or log error
-            if (!key || typeof key !== 'string') {
-                logger.error(`[VoiceSession] Invalid API Key for report generation: ${typeof key}`);
-                // Try to get key again?
-            }
-
             const genAI = new GoogleGenerativeAI(key);
             const model = genAI.getGenerativeModel({ model: modelName });
 
@@ -695,18 +692,18 @@ class VoiceSession {
 
             const prompt = `
             SYSTEM INSTRUCTION:
-            You are "Wappy-Audit", an expert Safety Consultant(HSE).
-
-                CONTEXT:
+            You are "Wappy-Audit", an expert Safety Consultant (HSE).
+            
+            CONTEXT:
             The user has just finished a conversation about a safety inspection or risk assessment.
-
-                TASK:
+            
+            TASK:
             Generate a FORMAL RISK ASSESSMENT REPORT based on the conversation.
             
             CRITICAL REQUIREMENTS:
-            1. ** LANGUAGE:** MUST BE IN SPANISH(Español).
-            2. ** DATE:** Use this date: ${currentDate}.
-            3. ** FORMAT:** HTML only.NO markdown code blocks(no \`\`\`html).
+            1. **LANGUAGE:** MUST BE IN SPANISH (Español).
+            2. **DATE:** Use this date: ${currentDate}.
+            3. **FORMAT:** HTML only. NO markdown code blocks (no \`\`\`html).
             
             OUTPUT STRUCTURE (HTML):
             <h2>Informe Técnico de Evaluación de Riesgos</h2>
@@ -736,123 +733,129 @@ class VoiceSession {
             logger.info(`[VoiceSession] Sending prompt to model: ${modelName}`);
             logger.debug(`[VoiceSession] API Key present: ${!!key}`);
 
-            try {
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
-                logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
+            logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
 
-                // SAVE REPORT TO DATABASE FIRST (Persistence)
-                // This ensures we have a messageId BEFORE sending to client
-                let messageId = uuidv4();
-                if (this.conversationId && this.conversationId !== 'new') {
-                    try {
-                        // Helper to convert HTML to Markdown (Basic implementation)
-                        const convertHtmlToMarkdown = (html) => {
-                            let md = html;
-                            md = md.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g, '\n### $1\n');
-                            md = md.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
-                            md = md.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
-                            md = md.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*');
-                            md = md.replace(/<i[^>]*>(.*?)<\/i>/g, '*$1*');
-                            md = md.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
-                            md = md.replace(/<ul[^>]*>/g, '\n');
-                            md = md.replace(/<\/ul>/g, '\n');
-                            md = md.replace(/<p[^>]*>(.*?)<\/p>/g, '\n$1\n');
-                            md = md.replace(/<br\s*\/?>/g, '\n');
-                            md = md.replace(/<table[^>]*>/g, '\n'); // Simple table handling
-                            md = md.replace(/<\/table>/g, '\n');
-                            md = md.replace(/<tr[^>]*>/g, '|');
-                            md = md.replace(/<\/tr>/g, '|\n');
-                            md = md.replace(/<td[^>]*>(.*?)<\/td>/g, ' $1 |');
-                            md = md.replace(/<th[^>]*>(.*?)<\/th>/g, ' **$1** |');
-                            md = md.replace(/<[^>]*>/g, ''); // Remove remaining tags
-                            md = md.replace(/&nbsp;/g, ' ');
-                            md = md.replace(/\n\s*\n\s*\n/g, '\n\n'); // Fix excess newlines
-                            return md.trim();
-                        };
+            // SAVE REPORT TO DATABASE FIRST (Persistence)
+            // This ensures we have a messageId BEFORE sending to client
+            let messageId = uuidv4();
+            if (this.conversationId && this.conversationId !== 'new') {
+                try {
+                    // Helper to convert HTML to Markdown (Basic implementation)
+                    const convertHtmlToMarkdown = (html) => {
+                        let md = html;
+                        md = md.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g, '\n### $1\n');
+                        md = md.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
+                        md = md.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
+                        md = md.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*');
+                        md = md.replace(/<i[^>]*>(.*?)<\/i>/g, '*$1*');
+                        md = md.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
+                        md = md.replace(/<ul[^>]*>/g, '\n');
+                        md = md.replace(/<\/ul>/g, '\n');
+                        md = md.replace(/<p[^>]*>(.*?)<\/p>/g, '\n$1\n');
+                        md = md.replace(/<br\s*\/?>/g, '\n');
+                        md = md.replace(/<table[^>]*>/g, '\n'); // Simple table handling
+                        md = md.replace(/<\/table>/g, '\n');
+                        md = md.replace(/<tr[^>]*>/g, '|');
+                        md = md.replace(/<\/tr>/g, '|\n');
+                        md = md.replace(/<td[^>]*>(.*?)<\/td>/g, ' $1 |');
+                        md = md.replace(/<th[^>]*>(.*?)<\/th>/g, ' **$1** |');
+                        md = md.replace(/<[^>]*>/g, ''); // Remove remaining tags
+                        md = md.replace(/&nbsp;/g, ' ');
+                        md = md.replace(/\n\s*\n\s*\n/g, '\n\n'); // Fix excess newlines
+                        return md.trim();
+                    };
 
-                        const reportMarkdown = convertHtmlToMarkdown(reportHtml);
+                    const reportMarkdown = convertHtmlToMarkdown(reportHtml);
 
-                        const reportMessage = {
-                            messageId,
-                            conversationId: this.conversationId,
-                            parentMessageId: this.lastMessageId, // Link to last message
-                            sender: 'Assistant', // Save as Assistant
-                            text: reportMarkdown, // SAVE AS MARKDOWN for Chat UI
-                            content: [{ type: 'text', text: reportMarkdown }], // CRITICAL: Add content array for compatibility
-                            isCreatedByUser: false,
-                            error: false,
-                            model: modelName,
-                            createdAt: new Date(),
-                            updatedAt: new Date(),
-                        };
-
-                        await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                        this.lastMessageId = messageId; // Update pointer
-                        logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
-
-                        // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
-                        if (this.client && this.isActive) {
-                            logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
-                            const announcementPrompt = `
-                            [SYSTEM NOTIFICATION]
-                            REPORT GENERATED SUCCESSFULLY.
-                            
-                            YOUR TASK:
-                            Inform the user immediately.
-                            
-                            SAY EXACTLY THIS (in Spanish):
-                            "He generado el informe técnico con fecha de hoy. Puedes revisarlo y editarlo en el panel de la derecha."
-                            `;
-
-                            // Send as text input to the model
-                            this.client.sendText(announcementPrompt);
-                        }
-
-                    } catch (saveError) {
-                        logger.error('[VoiceSession] Error saving report to DB:', saveError);
-                        // Continue anyway, client will receive report but save might fail if clicked immediately
+                    // Extract a brief summary for the Voice AI (First 200 chars or first paragraph)
+                    let summaryForVoice = "un informe técnico detallado";
+                    const summaryMatch = reportHtml.match(/<p[^>]*>(.*?)<\/p>/);
+                    if (summaryMatch && summaryMatch[1]) {
+                        summaryForVoice = summaryMatch[1].substring(0, 150) + "...";
                     }
+
+                    const reportMessage = {
+                        messageId,
+                        conversationId: this.conversationId,
+                        parentMessageId: this.lastMessageId, // Link to last message
+                        sender: 'Assistant', // Save as Assistant
+                        text: reportMarkdown, // SAVE AS MARKDOWN for Chat UI
+                        content: [{ type: 'text', text: reportMarkdown }], // CRITICAL: Add content array for compatibility
+                        isCreatedByUser: false,
+                        error: false,
+                        model: modelName,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    };
+
+                    await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
+                    this.lastMessageId = messageId; // Update pointer
+                    logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
+
+                    // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
+                    if (this.client && this.isActive) {
+                        logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
+                        const announcementPrompt = `
+                        [SYSTEM NOTIFICATION]
+                        REPORT GENERATED SUCCESSFULLY.
+                        
+                        YOUR TASK:
+                        Inform the user immediately.
+                        
+                        SAY EXACTLY THIS (in Spanish):
+                        "He generado el informe técnico con fecha de hoy. Puedes revisarlo y editarlo en el panel de la derecha."
+                        `;
+
+                        // Send as text input to the model
+                        this.client.sendText(announcementPrompt);
+                    }
+
+                } catch (saveError) {
+                    logger.error('[VoiceSession] Error saving report to DB:', saveError);
+                    // Continue anyway, client will receive report but save might fail if clicked immediately
                 }
-
-                // Notify client with report AND messageId
-                this.sendToClient({
-                    type: 'report',
-                    data: { html: reportHtml, messageId: messageId }
-                });
-
-                return reportHtml;
-            } catch (error) {
-                logger.error('[VoiceSession] Error generating report:', error);
-                // Send error state to client so it doesn't hang
-                this.sendToClient({
-                    type: 'report',
-                    data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
-                });
-                return null;
-            }
-        }
-
-    stop() {
-            this.isActive = false;
-            this.currentTurnText = '';
-            this.aiResponseText = '';
-
-            if (this.geminiClient) {
-                this.geminiClient.disconnect();
-                this.geminiClient = null;
             }
 
-            // Remove from active sessions
-            if (activeSessions.has(this.userId)) {
-                activeSessions.delete(this.userId);
-            }
+            // Notify client with report AND messageId
+            this.sendToClient({
+                type: 'report',
+                data: { html: reportHtml, messageId: messageId }
+            });
 
-            logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+            return reportHtml;
+        } catch (error) {
+            logger.error('[VoiceSession] Error generating report:', error);
+            // Send error state to client so it doesn't hang
+            this.sendToClient({
+                type: 'report',
+                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
+            });
+            return null;
         }
     }
+
+    stop() {
+        this.isActive = false;
+        this.currentTurnText = '';
+        this.aiResponseText = '';
+
+        if (this.geminiClient) {
+            this.geminiClient.disconnect();
+            this.geminiClient = null;
+        }
+
+        // Remove from active sessions
+        if (activeSessions.has(this.userId)) {
+            activeSessions.delete(this.userId);
+        }
+
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+    }
+}
 
 /**
  * Create a new voice session for a user
