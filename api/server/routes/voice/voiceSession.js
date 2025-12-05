@@ -680,8 +680,8 @@ class VoiceSession {
                 data: { status: 'generating_report', message: 'Generando informe técnico...' }
             });
 
-            // Use Gemini Flash for report generation (faster, cheaper)
-            const modelName = 'gemini-2.0-flash-lite-preview-02-05';
+            // Use Gemini Flash for report generation
+            const modelName = 'gemini-2.5-flash-lite-preview-09-2025';
             const key = this.apiKey;
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');
