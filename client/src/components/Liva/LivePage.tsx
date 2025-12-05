@@ -143,6 +143,27 @@ const LivePage = () => {
                 } catch (error) {
                     console.error('Error updating report message:', error);
                 }
+            } else {
+                // FALLBACK: If no report message ID, send as a NEW message to the conversation
+                try {
+                    const token = localStorage.getItem('token');
+                    await fetch('/api/ask', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            text: markdownContent,
+                            conversationId: conversationId,
+                            model: 'gemini-2.5-flash-preview-09-2025',
+                            endpoint: 'google'
+                        })
+                    });
+                    console.log('Report saved as new message');
+                } catch (error) {
+                    console.error('Error saving report as new message:', error);
+                }
             }
 
             // Navigate to the existing conversation where the report is now saved (and updated)
