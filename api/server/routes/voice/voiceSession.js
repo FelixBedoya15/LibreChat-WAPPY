@@ -780,34 +780,38 @@ class VoiceSession {
 
                 return reportHtml;
             } catch (genError) {
-                logger.error('[VoiceSession] Error generating report:', error);
-                // Send error state to client so it doesn't hang
-                this.sendToClient({
-                    type: 'report',
-                    data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
-                });
-                return null;
+                logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
+                throw genError;
             }
-        }
-
-    stop() {
-            this.isActive = false;
-            this.currentTurnText = '';
-            this.aiResponseText = '';
-
-            if (this.geminiClient) {
-                this.geminiClient.disconnect();
-                this.geminiClient = null;
-            }
-
-            // Remove from active sessions
-            if (activeSessions.has(this.userId)) {
-                activeSessions.delete(this.userId);
-            }
-
-            logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+        } catch (error) {
+            logger.error('[VoiceSession] Error generating report:', error);
+            // Send error state to client so it doesn't hang
+            this.sendToClient({
+                type: 'report',
+                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
+            });
+            return null;
         }
     }
+
+    stop() {
+        this.isActive = false;
+        this.currentTurnText = '';
+        this.aiResponseText = '';
+
+        if (this.geminiClient) {
+            this.geminiClient.disconnect();
+            this.geminiClient = null;
+        }
+
+        // Remove from active sessions
+        if (activeSessions.has(this.userId)) {
+            activeSessions.delete(this.userId);
+        }
+
+        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+    }
+}
 
 /**
  * Create a new voice session for a user
