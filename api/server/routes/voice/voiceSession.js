@@ -729,102 +729,85 @@ class VoiceSession {
 
                 logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
 
+                // SAVE REPORT TO DATABASE FIRST (Persistence)
+                // This ensures we have a messageId BEFORE sending to client
+                let messageId = uuidv4();
+                if (this.conversationId && this.conversationId !== 'new') {
+                    try {
+                        const reportMessage = {
+                            messageId,
+                            conversationId: this.conversationId,
+                            parentMessageId: this.lastMessageId, // Link to last message
+                            sender: 'Assistant', // Save as Assistant
+                            text: reportHtml,
+                            isCreatedByUser: false,
+                            error: false,
+                            model: modelName,
+                            createdAt: new Date(),
+                            updatedAt: new Date(),
+                        };
+
+                        await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
+                        this.lastMessageId = messageId; // Update pointer
+                        logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
+                    } catch (saveError) {
+                        logger.error('[VoiceSession] Error saving report to DB:', saveError);
+                        // Continue anyway, client will receive report but save might fail if clicked immediately
+                    }
+                }
+
+                // Notify client with report AND messageId
                 this.sendToClient({
                     type: 'report',
-                    data: { html: reportHtml }
+                    data: { html: reportHtml, messageId: messageId }
                 });
 
-                // ... rest of the function ...
+                // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
+                if (this.client && this.isActive) {
+                    logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
+                    const announcementPrompt = `
+                    INSTRUCTION: The report has been generated successfully.
+                    
+                    PLEASE SAY:
+                    "He generado el informe técnico. El riesgo principal detectado es [RESUMEN DE 1 FRASE]."
+                    
+                    DO NOT READ THE REPORT. JUST SAY THE SUMMARY.
+                    `;
+
+                    // Send as text input to the model
+                    this.client.sendText(announcementPrompt);
+                }
 
                 return reportHtml;
             } catch (genError) {
-                logger.error(`[VoiceSession] Model generation failed for ${modelName}:`, genError);
-                throw genError; // Re-throw to be caught by outer catch
-            }
-
-            // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
-            if (this.client && this.isActive) {
-                logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
-                const announcementPrompt = `
-                INSTRUCTION: The report has been generated successfully.
-                
-                PLEASE SAY:
-                "He generado el informe técnico. El riesgo principal detectado es [RESUMEN DE 1 FRASE]."
-                
-                DO NOT READ THE REPORT. JUST SAY THE SUMMARY.
-                `;
-
-                // Send as text input to the model
-                this.client.sendText(announcementPrompt);
-            }
-
-            // SAVE REPORT TO DATABASE (Persistence)
-            if (this.conversationId && this.conversationId !== 'new') {
-                try {
-                    const messageId = uuidv4();
-                    const reportMessage = {
-                        messageId,
-                        conversationId: this.conversationId,
-                        parentMessageId: this.lastMessageId, // Link to last message
-                        sender: 'Assistant', // Or 'System'? Assistant is better for chat.
-                        text: reportHtml,
-                        isCreatedByUser: false,
-                        error: false,
-                        model: modelName,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    };
-
-                    await saveMessage({ user: { id: this.userId } }, reportMessage, { context: 'VoiceSession - Report' });
-                    this.lastMessageId = messageId; // Update pointer
-                    logger.info(`[VoiceSession] Report saved to DB.MessageId: ${messageId}`);
-
-                    // Notify client with messageId so it can be updated later
-                    this.sendToClient({
-                        type: 'report',
-                        data: { html: reportHtml, messageId: messageId }
-                    });
-                } catch (saveError) {
-                    logger.error('[VoiceSession] Error saving report to DB:', saveError);
-                }
-            } else {
-                // Fallback if no conversationId yet (should not happen if flow is correct)
+                logger.error('[VoiceSession] Error generating report:', error);
+                // Send error state to client so it doesn't hang
                 this.sendToClient({
                     type: 'report',
-                    data: { html: reportHtml }
+                    data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
                 });
+                return null;
             }
-
-            return reportHtml;
-        } catch (error) {
-            logger.error('[VoiceSession] Error generating report:', error);
-            // Send error state to client so it doesn't hang
-            this.sendToClient({
-                type: 'report',
-                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
-            });
-            return null;
         }
-    }
 
     stop() {
-        this.isActive = false;
-        this.currentTurnText = '';
-        this.aiResponseText = '';
+            this.isActive = false;
+            this.currentTurnText = '';
+            this.aiResponseText = '';
 
-        if (this.geminiClient) {
-            this.geminiClient.disconnect();
-            this.geminiClient = null;
+            if (this.geminiClient) {
+                this.geminiClient.disconnect();
+                this.geminiClient = null;
+            }
+
+            // Remove from active sessions
+            if (activeSessions.has(this.userId)) {
+                activeSessions.delete(this.userId);
+            }
+
+            logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
         }
-
-        // Remove from active sessions
-        if (activeSessions.has(this.userId)) {
-            activeSessions.delete(this.userId);
-        }
-
-        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
     }
-}
 
 /**
  * Create a new voice session for a user
