@@ -726,9 +726,6 @@ class VoiceSession {
                 const result = await model.generateContent(prompt);
                 const response = await result.response;
                 const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
-                const result = await model.generateContent(prompt);
-                const response = await result.response;
-                const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
                 logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
 
@@ -787,126 +784,150 @@ class VoiceSession {
                         if (this.client && this.isActive) {
                             logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                             const announcementPrompt = `
-                    [SYSTEM NOTIFICATION]
-                    The technical report has been successfully generated.
-                    
-                    HERE IS THE SUMMARY OF THE REPORT:
-                    "${summaryForVoice}"
-                    
-                    YOUR TASK:
-                    Verbally announce this to the user immediately using the summary above.
-                    
-                    SAY EXACTLY THIS (in Spanish):
-                    "He generado el informe técnico. Basado en lo que vi: ${summaryForVoice}"
-                    `;
+                            [SYSTEM NOTIFICATION]
+                            The technical report has been successfully generated.
+                            
+                            HERE IS THE SUMMARY OF THE REPORT:
+                            "${summaryForVoice}"
+                            
+                            YOUR TASK:
+                            Verbally announce this to the user immediately using the summary above.
+                            
+                            SAY EXACTLY THIS (in Spanish):
+                            "He generado el informe técnico. Basado en lo que vi: ${summaryForVoice}"
+                            `;
 
-                            return null;
+                            // Send as text input to the model
+                            this.client.sendText(announcementPrompt);
                         }
+
+                    } catch (saveError) {
+                        logger.error('[VoiceSession] Error saving report to DB:', saveError);
+                        // Continue anyway, client will receive report but save might fail if clicked immediately
                     }
+                }
+
+                // Notify client with report AND messageId
+                this.sendToClient({
+                    type: 'report',
+                    data: { html: reportHtml, messageId: messageId }
+                });
+
+                return reportHtml;
+            } catch (error) {
+                logger.error('[VoiceSession] Error generating report:', error);
+                // Send error state to client so it doesn't hang
+                this.sendToClient({
+                    type: 'report',
+                    data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
+                });
+                return null;
+            }
+        }
 
     stop() {
-                        this.isActive = false;
-                        this.currentTurnText = '';
-                        this.aiResponseText = '';
+            this.isActive = false;
+            this.currentTurnText = '';
+            this.aiResponseText = '';
 
-                        if (this.geminiClient) {
-                            this.geminiClient.disconnect();
-                            this.geminiClient = null;
-                        }
+            if (this.geminiClient) {
+                this.geminiClient.disconnect();
+                this.geminiClient = null;
+            }
 
-                        // Remove from active sessions
-                        if (activeSessions.has(this.userId)) {
-                            activeSessions.delete(this.userId);
-                        }
+            // Remove from active sessions
+            if (activeSessions.has(this.userId)) {
+                activeSessions.delete(this.userId);
+            }
 
-                        logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
-                    }
-                }
+            logger.info(`[VoiceSession] Stopped for user: ${this.userId} `);
+        }
+    }
 
-                /**
-                 * Create a new voice session for a user
-                 * @param {WebSocket} clientWs
-                 * @param {string} userId
-                 * @param {string} conversationId
-                 * @param {string|Object} configOrVoice - Initial voice name (string) or full config object
-                 */
-                async function createSession(clientWs, userId, conversationId, configOrVoice = null) {
-                    try {
-                        // Check if user already has active session
-                        if (activeSessions.has(userId)) {
-                            logger.warn(`[VoiceSession] User ${userId} already has active session`);
-                            const existingSession = activeSessions.get(userId);
-                            existingSession.stop();
-                        }
+/**
+ * Create a new voice session for a user
+ * @param {WebSocket} clientWs
+ * @param {string} userId
+ * @param {string} conversationId
+ * @param {string|Object} configOrVoice - Initial voice name (string) or full config object
+ */
+async function createSession(clientWs, userId, conversationId, configOrVoice = null) {
+    try {
+        // Check if user already has active session
+        if (activeSessions.has(userId)) {
+            logger.warn(`[VoiceSession] User ${userId} already has active session`);
+            const existingSession = activeSessions.get(userId);
+            existingSession.stop();
+        }
 
-                        // Get user's Google API key
-                        const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
+        // Get user's Google API key
+        const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
 
-                        if (!apiKey) {
-                            throw new Error('Google API Key not configured');
-                        }
+        if (!apiKey) {
+            throw new Error('Google API Key not configured');
+        }
 
-                        // Parse API key if stored as JSON
-                        let parsedKey = apiKey;
-                        try {
-                            const parsed = JSON.parse(apiKey);
-                            parsedKey = parsed.GOOGLE_API_KEY || parsed;
-                        } catch (e) {
-                            // Key is not JSON, use as-is
-                        }
+        // Parse API key if stored as JSON
+        let parsedKey = apiKey;
+        try {
+            const parsed = JSON.parse(apiKey);
+            parsedKey = parsed.GOOGLE_API_KEY || parsed;
+        } catch (e) {
+            // Key is not JSON, use as-is
+        }
 
-                        // Create session
-                        let config = {};
-                        if (configOrVoice) {
-                            if (typeof configOrVoice === 'string') {
-                                config.voice = configOrVoice;
-                                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
-                            } else if (typeof configOrVoice === 'object') {
-                                config = configOrVoice;
-                                logger.info(`[VoiceSession] Initializing with custom config`);
-                            }
-                        }
-                        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
+        // Create session
+        let config = {};
+        if (configOrVoice) {
+            if (typeof configOrVoice === 'string') {
+                config.voice = configOrVoice;
+                logger.info(`[VoiceSession] Initializing with voice: ${configOrVoice} `);
+            } else if (typeof configOrVoice === 'object') {
+                config = configOrVoice;
+                logger.info(`[VoiceSession] Initializing with custom config`);
+            }
+        }
+        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
 
-                        // Start session
-                        const result = await session.start();
+        // Start session
+        const result = await session.start();
 
-                        if (result.success) {
-                            activeSessions.set(userId, session);
-                            return { success: true, session };
-                        } else {
-                            return { success: false, error: result.error };
-                        }
+        if (result.success) {
+            activeSessions.set(userId, session);
+            return { success: true, session };
+        } else {
+            return { success: false, error: result.error };
+        }
 
-                    } catch (error) {
-                        logger.error('[VoiceSession] Error creating session:', error);
-                        return { success: false, error: error.message };
-                    }
-                }
+    } catch (error) {
+        logger.error('[VoiceSession] Error creating session:', error);
+        return { success: false, error: error.message };
+    }
+}
 
-                /**
-                 * Get active session for user
-                 */
-                function getSession(userId) {
-                    return activeSessions.get(userId);
-                }
+/**
+ * Get active session for user
+ */
+function getSession(userId) {
+    return activeSessions.get(userId);
+}
 
-                /**
-                 * Stop session for user
-                 */
-                function stopSession(userId) {
-                    const session = activeSessions.get(userId);
-                    if (session) {
-                        session.stop();
-                        return true;
-                    }
-                    return false;
-                }
+/**
+ * Stop session for user
+ */
+function stopSession(userId) {
+    const session = activeSessions.get(userId);
+    if (session) {
+        session.stop();
+        return true;
+    }
+    return false;
+}
 
-                module.exports = {
-                    VoiceSession,
-                    createSession,
-                    getSession,
-                    stopSession,
-                    activeSessions,
-                };
+module.exports = {
+    VoiceSession,
+    createSession,
+    getSession,
+    stopSession,
+    activeSessions,
+};
