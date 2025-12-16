@@ -6,6 +6,8 @@ import type { TLoginUser, TStartupConfig } from 'librechat-data-provider';
 import type { TAuthContext } from '~/common';
 import { useResendVerificationEmail, useGetStartupConfig } from '~/data-provider';
 import { useLocalize } from '~/hooks';
+import { Eye, EyeOff } from 'lucide-react';
+
 
 type TLoginFormProps = {
   onSubmit: (data: TLoginUser) => void;
@@ -25,6 +27,8 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
   } = useForm<TLoginUser>();
   const [showResendLink, setShowResendLink] = useState<boolean>(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+
 
   const { data: config } = useGetStartupConfig();
   const useUsernameLogin = config?.ldap?.username;
@@ -119,7 +123,7 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
         <div className="mb-2">
           <div className="relative">
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               id="password"
               autoComplete="current-password"
               aria-label={localize('com_auth_password')}
@@ -141,9 +145,18 @@ const LoginForm: React.FC<TLoginFormProps> = ({ onSubmit, startupConfig, error, 
             >
               {localize('com_auth_password')}
             </label>
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary-alt hover:text-text-primary focus:outline-none"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
           {renderError('password')}
         </div>
+
         {startupConfig.passwordResetEnabled && (
           <a
             href="/forgot-password"
