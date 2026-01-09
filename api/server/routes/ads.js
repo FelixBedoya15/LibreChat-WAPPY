@@ -16,9 +16,9 @@ const { requireAdmin } = require('~/server/middleware/roles/admin');
 router.get('/', requireJwtAuth, getAds);
 
 // Admin routes
-router.get('/admin', requireAdmin, getAllAds);
-router.post('/', requireAdmin, createAd);
-router.put('/:id', requireAdmin, updateAd);
-router.delete('/:id', requireAdmin, deleteAd);
+router.get('/admin', requireJwtAuth, requireAdmin, getAllAds);
+router.post('/', requireJwtAuth, requireAdmin, createAd);
+router.put('/:id', requireJwtAuth, requireAdmin, updateAd);
+router.delete('/:id', requireJwtAuth, requireAdmin, deleteAd);
 
 module.exports = router;

@@ -96,8 +96,9 @@ const Ads = () => {
                 reset();
                 fetchAds();
             } else {
-                console.error('Failed to save ad', await response.text());
-                alert('Error al guardar el anuncio. Verifique la consola.');
+                const errorText = await response.text();
+                console.error('Failed to save ad', errorText);
+                alert(`Error al guardar: ${response.status} ${response.statusText}\n${errorText}`);
             }
         } catch (error) {
             console.error('Error saving ad', error);
