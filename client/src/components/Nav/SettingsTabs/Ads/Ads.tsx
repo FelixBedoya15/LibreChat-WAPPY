@@ -167,6 +167,9 @@ const Ads = () => {
         reset();
     };
 
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+
     if (isEditing) {
         return (
             <div className="flex flex-col gap-4 p-4">
@@ -200,16 +203,85 @@ const Ads = () => {
                         />
                     </div>
                     <div>
-                        <label className="text-sm font-medium">Imágenes (URLs separadas por coma)</label>
-                        <Controller
-                            name="images"
-                            control={control}
-                            rules={{ required: true }}
-                            render={({ field }) => (
-                                <Input {...field} placeholder="https://example.com/img1.jpg, https://..." value={field.value || ''} />
-                            )}
-                        />
-                        {errors.images && <span className="text-red-500 text-xs">Requerido (al menos una URL)</span>}
+                        <label className="text-sm font-medium">Imágenes</label>
+                        <div className="flex flex-col gap-2">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+
+                                    if (!token) {
+                                        alert('No hay sesión activa para subir archivos.');
+                                        return;
+                                    }
+
+                                    setUploading(true);
+                                    try {
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+
+                                        const response = await fetch('/api/files/images', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Authorization': `Bearer ${token}`
+                                            },
+                                            body: formData
+                                        });
+
+                                        if (!response.ok) {
+                                            const errText = await response.text();
+                                            throw new Error(errText || response.statusText);
+                                        }
+
+                                        const data = await response.json();
+                                        // The server returns local path (e.g. "images/user_id/file.jpg")
+                                        // We need to ensure it works as a src.
+                                        // Assuming LibreChat serves 'images/' and 'files/' via its static routes or similar.
+                                        // Usually LibreChat stores strictly, let's use the 'filepath' property or 'url'.
+                                        // Based on inspection, 'filepath' is likely what we want.
+                                        // Let's assume it's like "images/..." which is relative to domain root.
+                                        // We will prefix with / if missing.
+
+                                        let imageUrl = data.filepath;
+                                        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                                            imageUrl = '/' + imageUrl;
+                                        }
+
+                                        const currentImages = control._formValues.images || '';
+                                        const newImages = currentImages ? `${currentImages}, ${imageUrl}` : imageUrl;
+                                        setValue('images', newImages as any);
+
+                                    } catch (error) {
+                                        console.error('Upload Error:', error);
+                                        alert('Error al subir imagen: ' + error);
+                                    } finally {
+                                        setUploading(false);
+                                        if (fileInputRef.current) {
+                                            fileInputRef.current.value = '';
+                                        }
+                                    }
+                                }}
+                            />
+                            <div className="flex gap-2">
+                                <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                                    {uploading ? 'Subiendo...' : 'Subir Imagen'}
+                                </Button>
+                            </div>
+
+                            <Controller
+                                name="images"
+                                control={control}
+                                rules={{ required: true }}
+                                render={({ field }) => (
+                                    <Input {...field} placeholder="URLs de imágenes (o sube una)" value={field.value || ''} />
+                                )}
+                            />
+                            {errors.images && <span className="text-red-500 text-xs">Requerido (al menos una URL)</span>}
+                        </div>
                     </div>
                     <div>
                         <label className="text-sm font-medium">Enlace (Opcional)</label>
