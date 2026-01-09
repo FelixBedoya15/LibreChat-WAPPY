@@ -223,6 +223,20 @@ const Ads = () => {
                                     try {
                                         const formData = new FormData();
                                         formData.append('file', file);
+                                        formData.append('file_id', crypto.randomUUID());
+                                        formData.append('endpoint', 'librechat'); // 'librechat' or 'default' usually maps to local/default config
+
+                                        // Get dimensions
+                                        await new Promise<void>((resolve, reject) => {
+                                            const img = new Image();
+                                            img.onload = () => {
+                                                formData.append('width', img.width.toString());
+                                                formData.append('height', img.height.toString());
+                                                resolve();
+                                            };
+                                            img.onerror = () => reject(new Error('Failed to load image for dimensions'));
+                                            img.src = URL.createObjectURL(file);
+                                        });
 
                                         const response = await fetch('/api/files/images', {
                                             method: 'POST',
@@ -234,18 +248,15 @@ const Ads = () => {
 
                                         if (!response.ok) {
                                             const errText = await response.text();
-                                            throw new Error(errText || response.statusText);
+                                            let errMsg = errText;
+                                            try {
+                                                const jsonErr = JSON.parse(errText);
+                                                if (jsonErr.message) errMsg = jsonErr.message;
+                                            } catch (e) { /* ignore json parse error */ }
+                                            throw new Error(errMsg || response.statusText);
                                         }
 
                                         const data = await response.json();
-                                        // The server returns local path (e.g. "images/user_id/file.jpg")
-                                        // We need to ensure it works as a src.
-                                        // Assuming LibreChat serves 'images/' and 'files/' via its static routes or similar.
-                                        // Usually LibreChat stores strictly, let's use the 'filepath' property or 'url'.
-                                        // Based on inspection, 'filepath' is likely what we want.
-                                        // Let's assume it's like "images/..." which is relative to domain root.
-                                        // We will prefix with / if missing.
-
                                         let imageUrl = data.filepath;
                                         if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
                                             imageUrl = '/' + imageUrl;
