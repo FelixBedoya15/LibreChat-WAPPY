@@ -10,6 +10,7 @@ import NavToggle from '~/components/Nav/NavToggle';
 import { useSidePanelContext } from '~/Providers';
 import { cn, getEndpointField } from '~/utils';
 import Nav from './Nav';
+import AdPanel from './Ads/AdPanel';
 
 const defaultMinSize = 20;
 
@@ -182,6 +183,7 @@ const SidePanel = ({
           defaultActive={defaultActive}
           links={Links}
         />
+        {!isCollapsed && <AdPanel />}
       </ResizablePanel>
     </>
   );

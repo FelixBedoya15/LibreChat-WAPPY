@@ -156,6 +156,7 @@ const startServer = async () => {
     ['mcp', routes.mcp],
     ['admin', routes.admin],
     ['voice', routes.voice],
+    ['ads', routes.ads],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -198,6 +199,7 @@ const startServer = async () => {
   app.use('/api/mcp', routes.mcp);
   app.use('/api/admin', routes.admin);
   app.use('/api/voice', routes.voice);
+  app.use('/api/ads', routes.ads);
 
   app.use(ErrorController);
 

@@ -7,3 +7,4 @@ export { default as Account } from './Account/Account';
 export { default as Commands } from './Commands/Commands';
 export { default as Personalization } from './Personalization';
 export { default as Admin } from './Admin/Admin';
+export { default as Ads } from './Ads/Ads';

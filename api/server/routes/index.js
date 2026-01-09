@@ -29,6 +29,7 @@ const user = require('./user');
 const mcp = require('./mcp');
 const admin = require('./admin');
 const voice = require('./voice');
+const ads = require('./ads');
 
 module.exports = {
   auth,
@@ -62,4 +63,5 @@ module.exports = {
   admin,
   actions,
   voice,
+  ads,
 };

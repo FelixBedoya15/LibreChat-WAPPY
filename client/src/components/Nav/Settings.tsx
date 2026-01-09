@@ -22,6 +22,7 @@ import {
   Balance,
   Account,
   Admin,
+  Ads,
 } from './SettingsTabs';
 import { useAuthContext } from '~/hooks/AuthContext';
 import usePersonalizationAccess from '~/hooks/usePersonalizationAccess';
@@ -131,6 +132,11 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
             value: SettingsTabValues.ADMIN,
             icon: <GearIcon />, // Reusing GearIcon or finding another one
             label: 'Admin' as TranslationKeys,
+          },
+          {
+            value: 'ads' as SettingsTabValues,
+            icon: <DollarSign className="icon-sm" />,
+            label: 'Ads' as TranslationKeys,
           },
         ]
         : []),
@@ -267,6 +273,11 @@ export default function Settings({ open, onOpenChange }: TDialogProps) {
                     {user?.role === SystemRoles.ADMIN && (
                       <Tabs.Content value={SettingsTabValues.ADMIN} tabIndex={-1}>
                         <Admin />
+                      </Tabs.Content>
+                    )}
+                    {user?.role === SystemRoles.ADMIN && (
+                      <Tabs.Content value={'ads'} tabIndex={-1}>
+                        <Ads />
                       </Tabs.Content>
                     )}
                   </div>
