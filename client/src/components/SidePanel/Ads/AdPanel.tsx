@@ -4,13 +4,19 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { useLocalize } from '~/hooks';
 
 const AdPanel: React.FC = () => {
+    const { token } = useAuthContext();
     const [ads, setAds] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchAds = async () => {
+            if (!token) return;
             try {
-                const response = await fetch('/api/ads');
+                const response = await fetch('/api/ads', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     setAds(data);
@@ -23,7 +29,7 @@ const AdPanel: React.FC = () => {
         };
 
         fetchAds();
-    }, []);
+    }, [token]);
 
     if (loading || ads.length === 0) {
         return null;
