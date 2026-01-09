@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { Button, Input } from '@librechat/client';
 import { Trash2, Edit, Plus, X } from 'lucide-react';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useAuthContext } from '~/hooks';
 
 interface Ad {
     _id: string;
@@ -16,6 +16,7 @@ interface Ad {
 
 const Ads = () => {
     const localize = useLocalize();
+    const { token } = useAuthContext(); // Get token from context (might be null initially)
     const [ads, setAds] = useState<Ad[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -36,16 +37,18 @@ const Ads = () => {
     useEffect(() => {
         if (Object.keys(errors).length > 0) {
             console.error('Form Validation Errors:', errors);
-            // Optional: alert user about missing fields
-            // alert('Please fill in all required fields.');
         }
     }, [errors]);
 
     const fetchAds = async () => {
         setLoading(true);
         try {
-            // Use admin endpoint? The plan said /api/ads/admin for all ads
-            const response = await fetch('/api/ads/admin');
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch('/api/ads/admin', { headers }); // Add headers
             if (response.ok) {
                 const data = await response.json();
                 setAds(data);
@@ -60,30 +63,37 @@ const Ads = () => {
     };
 
     useEffect(() => {
-        fetchAds();
-    }, []);
+        if (token) {
+            fetchAds();
+        }
+    }, [token]); // Add token dependency
 
     const onSubmit = async (data: Ad) => {
         console.log('Submitting Ad Data:', data);
         try {
-            // Quick fix for images array from string input (comma separated)
-            // Ideally use a better input for images
             const formattedData = {
                 ...data,
                 images: typeof data.images === 'string' ? (data.images as string).split(',').map((s: string) => s.trim()).filter(Boolean) : data.images
             };
 
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             let response;
             if (currentAd) {
                 response = await fetch(`/api/ads/${currentAd._id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify(formattedData),
                 });
             } else {
                 response = await fetch('/api/ads', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify(formattedData),
                 });
             }
@@ -109,8 +119,13 @@ const Ads = () => {
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this ad?')) return;
         try {
+            const headers: Record<string, string> = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`/api/ads/${id}`, {
                 method: 'DELETE',
+                headers,
             });
             if (response.ok) {
                 fetchAds();
