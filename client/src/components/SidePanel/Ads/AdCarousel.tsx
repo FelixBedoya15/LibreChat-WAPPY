@@ -71,7 +71,13 @@ const AdCarousel: React.FC<AdCarouselProps> = ({ ads }) => {
                             <Button
                                 asChild
                                 className="w-full justify-center gap-2"
-                                onClick={() => window.open(currentAd.link, '_blank')}
+                                onClick={() => {
+                                    let href = currentAd.link || '';
+                                    if (href && !href.startsWith('http') && !href.startsWith('mailto:')) {
+                                        href = `https://${href}`;
+                                    }
+                                    window.open(href, '_blank');
+                                }}
                             >
                                 <span>
                                     {currentAd.ctaText || 'Ver más'} <ExternalLink className="h-4 w-4" />
