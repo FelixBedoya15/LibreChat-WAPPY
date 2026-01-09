@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { Button, Input, InputHelperText } from '@librechat/client';
+import { useForm, Controller } from 'react-hook-form';
+import { Button, Input } from '@librechat/client';
 import { Trash2, Edit, Plus, X } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 
@@ -21,7 +21,25 @@ const Ads = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentAd, setCurrentAd] = useState<Ad | null>(null);
 
-    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<Ad>();
+    const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<Ad>({
+        defaultValues: {
+            title: '',
+            content: '',
+            images: [],
+            link: '',
+            ctaText: '',
+            active: true
+        }
+    });
+
+    // Debugging: Log errors
+    useEffect(() => {
+        if (Object.keys(errors).length > 0) {
+            console.error('Form Validation Errors:', errors);
+            // Optional: alert user about missing fields
+            // alert('Please fill in all required fields.');
+        }
+    }, [errors]);
 
     const fetchAds = async () => {
         setLoading(true);
@@ -31,6 +49,8 @@ const Ads = () => {
             if (response.ok) {
                 const data = await response.json();
                 setAds(data);
+            } else {
+                console.error('Failed to fetch ads:', response.status);
             }
         } catch (error) {
             console.error('Error fetching ads', error);
@@ -44,12 +64,13 @@ const Ads = () => {
     }, []);
 
     const onSubmit = async (data: Ad) => {
+        console.log('Submitting Ad Data:', data);
         try {
             // Quick fix for images array from string input (comma separated)
             // Ideally use a better input for images
             const formattedData = {
                 ...data,
-                images: typeof data.images === 'string' ? (data.images as string).split(',').map((s: string) => s.trim()) : data.images
+                images: typeof data.images === 'string' ? (data.images as string).split(',').map((s: string) => s.trim()).filter(Boolean) : data.images
             };
 
             let response;
@@ -68,15 +89,19 @@ const Ads = () => {
             }
 
             if (response.ok) {
+                console.log('Ad saved successfully');
+                alert('Anuncio guardado correctamente');
                 setIsEditing(false);
                 setCurrentAd(null);
                 reset();
                 fetchAds();
             } else {
-                console.error('Failed to save ad');
+                console.error('Failed to save ad', await response.text());
+                alert('Error al guardar el anuncio. Verifique la consola.');
             }
         } catch (error) {
             console.error('Error saving ad', error);
+            alert('Error de red o servidor al guardar.');
         }
     };
 
@@ -88,6 +113,8 @@ const Ads = () => {
             });
             if (response.ok) {
                 fetchAds();
+            } else {
+                alert('Error deleting ad');
             }
         } catch (error) {
             console.error('Error deleting ad', error);
@@ -107,7 +134,14 @@ const Ads = () => {
 
     const startCreate = () => {
         setCurrentAd(null);
-        reset();
+        reset({
+            title: '',
+            content: '',
+            images: [],
+            link: '',
+            ctaText: '',
+            active: true
+        });
         setIsEditing(true);
     };
 
@@ -126,31 +160,75 @@ const Ads = () => {
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
-                <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+                <form onSubmit={handleSubmit(onSubmit, (e) => console.error('Submit Error:', e))} className="flex flex-col gap-4">
                     <div>
                         <label className="text-sm font-medium">Título</label>
-                        <Input {...register('title', { required: true })} placeholder="Título del anuncio" />
+                        <Controller
+                            name="title"
+                            control={control}
+                            rules={{ required: true }}
+                            render={({ field }) => (
+                                <Input {...field} placeholder="Título del anuncio" value={field.value || ''} />
+                            )}
+                        />
                         {errors.title && <span className="text-red-500 text-xs">Requerido</span>}
                     </div>
                     <div>
                         <label className="text-sm font-medium">Contenido</label>
-                        <Input {...register('content')} placeholder="Descripción corta" />
+                        <Controller
+                            name="content"
+                            control={control}
+                            render={({ field }) => (
+                                <Input {...field} placeholder="Descripción corta" value={field.value || ''} />
+                            )}
+                        />
                     </div>
                     <div>
                         <label className="text-sm font-medium">Imágenes (URLs separadas por coma)</label>
-                        <Input {...register('images', { required: true })} placeholder="https://example.com/img1.jpg, https://..." />
+                        <Controller
+                            name="images"
+                            control={control}
+                            rules={{ required: true }}
+                            render={({ field }) => (
+                                <Input {...field} placeholder="https://example.com/img1.jpg, https://..." value={field.value || ''} />
+                            )}
+                        />
                         {errors.images && <span className="text-red-500 text-xs">Requerido (al menos una URL)</span>}
                     </div>
                     <div>
                         <label className="text-sm font-medium">Enlace (Opcional)</label>
-                        <Input {...register('link')} placeholder="https://..." />
+                        <Controller
+                            name="link"
+                            control={control}
+                            render={({ field }) => (
+                                <Input {...field} placeholder="https://..." value={field.value || ''} />
+                            )}
+                        />
                     </div>
                     <div>
                         <label className="text-sm font-medium">Texto del Botón</label>
-                        <Input {...register('ctaText')} placeholder="Ver más" />
+                        <Controller
+                            name="ctaText"
+                            control={control}
+                            render={({ field }) => (
+                                <Input {...field} placeholder="Ver más" value={field.value || ''} />
+                            )}
+                        />
                     </div>
                     <div className="flex items-center gap-2">
-                        <input type="checkbox" {...register('active')} id="active" />
+                        <Controller
+                            name="active"
+                            control={control}
+                            render={({ field: { onChange, value, ref } }) => (
+                                <input
+                                    type="checkbox"
+                                    id="active"
+                                    onChange={onChange}
+                                    checked={value}
+                                    ref={ref}
+                                />
+                            )}
+                        />
                         <label htmlFor="active" className="text-sm">Activo</label>
                     </div>
                     <div className="flex justify-end gap-2 mt-4">
