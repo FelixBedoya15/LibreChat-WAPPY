@@ -173,12 +173,18 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 .filter(cell => cell.trim() !== '')
                 .map(cell => cell.trim());
 
+            if (cells.length === 0) {
+                return;
+            }
+
+            const widthPercent = cells.length > 0 ? 100 / cells.length : 100;
+
             const tableCells = cells.map(cellText =>
                 new TableCell({
                     children: [new Paragraph({
                         children: parseInline(cellText),
                     })],
-                    width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
+                    width: { size: widthPercent, type: WidthType.PERCENTAGE },
                 })
             );
 
