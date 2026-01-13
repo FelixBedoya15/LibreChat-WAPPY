@@ -36,6 +36,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                                 width: 200,
                                 height: 200,
                             },
+                            type: 'png', // Assumed type for logo, required by types
                         }),
                     ],
                     alignment: AlignmentType.CENTER,
@@ -109,6 +110,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
 
     let i = 0;
     let inTable = false;
+    let inCodeBlock = false;
     let tableLines: string[] = [];
 
     // Helper function to parse inline formatting (bold, italic)
@@ -160,7 +162,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     };
 
     // Helper to create table from markdown
-    const createTable = (lines: string[]): Table => {
+    const createTable = (lines: string[]): Table | undefined => {
         const rows: TableRow[] = [];
 
         lines.forEach((line, index) => {
@@ -177,7 +179,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 return;
             }
 
-            const widthPercent = cells.length > 0 ? 100 / cells.length : 100;
+            const widthPercent = Math.floor(100 / cells.length);
 
             const tableCells = cells.map(cellText =>
                 new TableCell({
@@ -193,6 +195,10 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             }));
         });
 
+        if (rows.length === 0) {
+            return undefined;
+        }
+
         return new Table({
             rows,
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -203,12 +209,50 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
         const line = lines[i];
         const trimmed = line.trim();
 
-        // Detect table start
-        if (trimmed.includes('|') && !inTable) {
-            inTable = true;
-            tableLines = [trimmed];
+        // Check for Code Block toggle
+        if (trimmed.startsWith('```')) {
+            inCodeBlock = !inCodeBlock;
+            // Finish table if we were in one
+            if (inTable) {
+                inTable = false;
+                const table = createTable(tableLines);
+                if (table) {
+                    contentElements.push(table);
+                }
+                tableLines = [];
+            }
             i++;
             continue;
+        }
+
+        // --- Code Block Processing ---
+        if (inCodeBlock) {
+            contentElements.push(new Paragraph({
+                children: [
+                    new TextRun({
+                        text: line, // Preserve indentation for code
+                        font: 'Courier New',
+                        size: fontSize * 2,
+                    })
+                ],
+                spacing: { after: 0, before: 0 },
+            }));
+            i++;
+            continue;
+        }
+
+        // --- Normal Markdown Processing ---
+
+        // Detect table start
+        if (trimmed.includes('|') && !inTable) {
+            // Simple check: must look like a table row (has pipes)
+            const pipeCount = (trimmed.match(/\|/g) || []).length;
+            if (pipeCount >= 1) {
+                inTable = true;
+                tableLines = [trimmed];
+                i++;
+                continue;
+            }
         }
 
         // Continue collecting table lines
@@ -220,7 +264,10 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             } else {
                 // Table ended
                 inTable = false;
-                contentElements.push(createTable(tableLines));
+                const table = createTable(tableLines);
+                if (table) {
+                    contentElements.push(table);
+                }
                 tableLines = [];
                 // Don't increment i, process this line normally
             }
@@ -256,12 +303,6 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 },
                 spacing: { before: 200, after: 200 },
             }));
-            i++;
-            continue;
-        }
-
-        // Code blocks
-        if (text.startsWith('```')) {
             i++;
             continue;
         }
@@ -309,7 +350,10 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
 
     // Add remaining table if any
     if (inTable && tableLines.length > 0) {
-        contentElements.push(createTable(tableLines));
+        const table = createTable(tableLines);
+        if (table) {
+            contentElements.push(table);
+        }
     }
 
     // Convert to contentChildren
