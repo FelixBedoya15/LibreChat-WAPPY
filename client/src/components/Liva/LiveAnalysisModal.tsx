@@ -58,7 +58,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             } else if (newStatus === 'speaking') {
                 setStatusText('AI Speaking...');
             } else if (newStatus === 'thinking') {
-                setStatusText('Analyzing...');
+                setStatusText('Analizando...');
+            } else if (newStatus === 'turn_complete') {
+                setStatusText('Análisis Completado');
             } else {
                 setStatusText(newStatus);
             }
