@@ -93,7 +93,62 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         getInputVolume,
     } = useLiveAnalysisSession(sessionOptions);
 
-    // ... (rest of the code) ...
+    // Connection Delay Logic with Countdown
+    useEffect(() => {
+        if (isOpen && isConnected) {
+            setIsReady(false);
+            setCountdown(10);
+
+            const interval = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) return 1;
+                    return prev - 1;
+                });
+            }, 1000);
+
+            const timer = setTimeout(() => {
+                setIsReady(true);
+                clearInterval(interval);
+            }, 10000); // 10 seconds delay
+
+            return () => {
+                clearTimeout(timer);
+                clearInterval(interval);
+            };
+        } else {
+            setIsReady(false);
+            setCountdown(10);
+        }
+    }, [isOpen, isConnected]);
+
+    // Connect on mount if open
+    useEffect(() => {
+        if (!isOpen) return;
+
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+
+        connect();
+
+        return () => {
+            stopCamera();
+            disconnect();
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+        };
+    }, [isOpen]);
+
+    // Ensure voice is updated when connected
+    useEffect(() => {
+        if (isOpen && isConnected && selectedVoice !== voiceLiveAnalysis) {
+            console.log('[LiveAnalysisModal] Syncing voice with global setting:', voiceLiveAnalysis);
+            setSelectedVoice(voiceLiveAnalysis);
+            changeVoice(voiceLiveAnalysis);
+        }
+    }, [isOpen, isConnected, voiceLiveAnalysis, changeVoice]);
 
     // Auto-start camera and send initial prompt when READY (after countdown)
     useEffect(() => {
