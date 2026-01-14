@@ -163,7 +163,9 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
 
     // Helper to create table from markdown
     const createTable = (lines: string[]): Table | undefined => {
-        const rows: TableRow[] = [];
+        // First pass: parse all rows and find max columns
+        const parsedRows: string[][] = [];
+        let maxColumns = 0;
 
         lines.forEach((line, index) => {
             // Skip separator line (|:--|:--:|--:|)
@@ -172,32 +174,57 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             }
 
             const cells = line.split('|')
-                .filter(cell => cell.trim() !== '')
+                .filter((cell, i, arr) => {
+                    // Filter out empty start/end cells caused by leading/trailing pipes
+                    // Markdown tables often look like | cell | cell |, split gives ["", "cell", "cell", ""]
+                    if ((i === 0 || i === arr.length - 1) && cell.trim() === '') {
+                        return false;
+                    }
+                    return true;
+                })
                 .map(cell => cell.trim());
 
-            if (cells.length === 0) {
-                return;
+            if (cells.length > 0) {
+                if (cells.length > maxColumns) {
+                    maxColumns = cells.length;
+                }
+                parsedRows.push(cells);
             }
+        });
 
-            const widthPercent = Math.floor(100 / cells.length);
+        if (parsedRows.length === 0 || maxColumns === 0) {
+            return undefined;
+        }
 
-            const tableCells = cells.map(cellText =>
-                new TableCell({
+        const widthPercent = Math.floor(100 / maxColumns);
+        const rows: TableRow[] = [];
+
+        // Second pass: create TableRows with padding
+        parsedRows.forEach(cells => {
+            const rowCells: TableCell[] = [];
+
+            // Add actual cells
+            cells.forEach(cellText => {
+                rowCells.push(new TableCell({
                     children: [new Paragraph({
                         children: parseInline(cellText),
                     })],
                     width: { size: widthPercent, type: WidthType.PERCENTAGE },
-                })
-            );
+                }));
+            });
+
+            // Pad with empty cells if needed
+            while (rowCells.length < maxColumns) {
+                rowCells.push(new TableCell({
+                    children: [new Paragraph({ text: '' })],
+                    width: { size: widthPercent, type: WidthType.PERCENTAGE },
+                }));
+            }
 
             rows.push(new TableRow({
-                children: tableCells,
+                children: rowCells,
             }));
         });
-
-        if (rows.length === 0) {
-            return undefined;
-        }
 
         return new Table({
             rows,

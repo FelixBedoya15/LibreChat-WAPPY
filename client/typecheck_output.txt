@@ -1,0 +1,589 @@
+
+> @librechat/frontend@v0.8.1-rc1 typecheck
+> tsc --noEmit
+
+src/a11y/LiveMessage.tsx(19,25): error TS2345: Argument of type 'string' is not assignable to parameter of type 'AnnounceOptions'.
+src/a11y/LiveMessage.tsx(21,22): error TS2345: Argument of type 'string' is not assignable to parameter of type 'AnnounceOptions'.
+src/a11y/LiveMessage.tsx(28,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'AnnounceOptions'.
+src/a11y/LiveMessage.tsx(29,24): error TS2345: Argument of type 'string' is not assignable to parameter of type 'AnnounceOptions'.
+src/components/Agents/AgentCard.tsx(2,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/AgentDetail.tsx(4,68): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/AgentGrid.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/CategoryTabs.tsx(2,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/ErrorDisplay.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/Marketplace.tsx(6,67): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/MarketplaceAdminSettings.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/MarketplaceAdminSettings.tsx(201,27): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Agents/SearchBar.tsx(3,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/tests/ErrorDisplay.spec.tsx(275,28): error TS2322: Type 'null' is not assignable to type 'ApiError'.
+src/components/Agents/tests/VirtualizedAgentGrid.test.tsx(216,7): error TS2571: Object is of type 'unknown'.
+src/components/Agents/tests/VirtualizedAgentGrid.test.tsx(230,7): error TS2571: Object is of type 'unknown'.
+src/components/Agents/tests/VirtualScrollingPerformance.test.tsx(168,7): error TS2571: Object is of type 'unknown'.
+src/components/Agents/VirtualizedAgentGrid.tsx(4,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Agents/VirtualizedAgentGrid.tsx(285,26): error TS2322: Type '(element?: ReactNode) => void' is not assignable to type 'LegacyRef<HTMLDivElement> | undefined'.
+  Type '(element?: ReactNode) => void' is not assignable to type '(instance: HTMLDivElement | null) => void'.
+    Types of parameters 'element' and 'instance' are incompatible.
+      Type 'HTMLDivElement | null' is not assignable to type 'ReactNode'.
+        Type 'HTMLDivElement' is not assignable to type 'ReactNode'.
+          Type 'HTMLDivElement' is missing the following properties from type 'ReactPortal': type, props, key
+src/components/Artifacts/Code.tsx(6,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Artifacts/DownloadArtifact.tsx(4,27): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Artifacts/Mermaid.tsx(2,21): error TS2307: Cannot find module 'mermaid' or its corresponding type declarations.
+src/components/Artifacts/Mermaid.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Artifacts/Mermaid.tsx(4,76): error TS2307: Cannot find module 'react-zoom-pan-pinch' or its corresponding type declarations.
+src/components/Audio/TTS.tsx(5,53): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Audio/Voices.tsx(3,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/__tests__/Login.spec.tsx(179,27): error TS2339: Property 'history' does not exist on type '{ mockUseLoginUser: SpyInstance<UseMutationResult<TLoginResponse, unknown, TLoginUser, unknown>, [options?: MutationOptions<TLoginResponse, TLoginUser, unknown, unknown, void> | undefined], any>; ... 58 more ...; findAllByTestId: (id: Matcher, options?: MatcherOptions | undefined, waitForElementOptions?: waitForOpti...'.
+src/components/Auth/__tests__/LoginForm.spec.tsx(36,3): error TS2353: Object literal may only specify known properties, and 'checkBalance' does not exist in type 'TStartupConfig'.
+src/components/Auth/__tests__/LoginForm.spec.tsx(109,6): error TS2739: Type '{ onSubmit: Mock<any, any, any>; startupConfig: TStartupConfig; }' is missing the following properties from type 'TLoginFormProps': error, setError
+src/components/Auth/__tests__/LoginForm.spec.tsx(117,6): error TS2739: Type '{ onSubmit: Mock<any, any, any>; startupConfig: TStartupConfig; }' is missing the following properties from type 'TLoginFormProps': error, setError
+src/components/Auth/__tests__/LoginForm.spec.tsx(132,6): error TS2739: Type '{ onSubmit: Mock<any, any, any>; startupConfig: TStartupConfig; }' is missing the following properties from type 'TLoginFormProps': error, setError
+src/components/Auth/AuthLayout.tsx(1,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/AuthLayout.tsx(43,25): error TS2345: Argument of type '"com_auth_click_here"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Auth/Login.tsx(3,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/LoginForm.tsx(4,55): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/LoginForm.tsx(21,11): error TS2339: Property 'theme' does not exist on type 'unknown'.
+src/components/Auth/Registration.tsx(4,55): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/Registration.tsx(15,11): error TS2339: Property 'theme' does not exist on type 'unknown'.
+src/components/Auth/RequestPasswordReset.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/ResetPassword.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/SocialLoginRender.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/TwoFactorScreen.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/TwoFactorScreen.tsx(6,81): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Auth/VerifyEmail.tsx(2,40): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Bookmarks/BookmarkEditDialog.tsx(3,78): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Bookmarks/BookmarkEditDialog.tsx(113,58): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Bookmarks/BookmarkForm.tsx(5,75): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Bookmarks/BookmarkItem.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Bookmarks/DeleteBookmarkButton.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Bookmarks/EditBookmarkButton.tsx(2,66): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/AddMultiConvo.tsx(2,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/ChatView.tsx(4,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/ExportAndShareMenu.tsx(5,61): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Header.tsx(2,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Artifacts.tsx(3,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/ArtifactsSubMenu.tsx(3,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/AudioRecorder.tsx(2,72): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/BadgeRow.tsx(11,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/ChatForm.tsx(4,34): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/ChatForm.tsx(324,48): error TS2339: Property 'ATTACHMENTS' does not exist on type 'typeof PermissionTypes'.
+src/components/Chat/Input/ChatForm.tsx(348,46): error TS2339: Property 'LIVE_CHAT' does not exist on type 'typeof PermissionTypes'.
+src/components/Chat/Input/CircleRender.tsx(2,10): error TS2305: Module '"librechat-data-provider"' has no exported member 'ECallState'.
+src/components/Chat/Input/CircleRender.tsx(3,44): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/CodeInterpreter.tsx(3,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/CollapseChat.tsx(2,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/EditBadges.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/EditBadges.tsx(45,21): error TS2345: Argument of type '"com_ui_save_badge_changes"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Input/Files/AttachFile.tsx(2,59): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/AttachFileMenu.tsx(23,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/DragDropModal.tsx(3,44): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/FilePreview.tsx(1,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/FileRow.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/FilesView.tsx(3,74): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/ImagePreview.tsx(4,43): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/Table/Columns.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/Table/DataTable.tsx(35,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/Table/SortFilterHeader.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Files/Table/TemplateTable.tsx(1,37): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/FileSearch.tsx(2,44): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/HeaderOptions.tsx(5,50): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/MCPConfigDialog.tsx(3,66): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/MCPConfigDialog.tsx(97,75): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Input/MCPSelect.tsx(2,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/MCPSubMenu.tsx(4,34): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/Mention.tsx(2,29): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/OptionsPopover.tsx(4,54): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/PopoverButtons.tsx(3,75): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/PromptsCommand.tsx(3,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/SendButton.tsx(4,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/StopButton.tsx(1,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/ToolsDropdown.tsx(4,67): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Input/ToolsDropdown.tsx(78,57): error TS2339: Property 'ARTIFACTS' does not exist on type 'typeof PermissionTypes'.
+src/components/Chat/Input/WebSearch.tsx(3,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Landing.tsx(4,56): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/BookmarkMenu.tsx(8,72): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/Bookmarks/BookmarkMenuItems.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/Endpoints/components/EndpointItem.tsx(3,40): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/HeaderNewChat.tsx(3,52): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/OpenSidebar.tsx(1,48): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/Presets/EditPresetDialog.tsx(12,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/Presets/EditPresetDialog.tsx(221,25): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Menus/Presets/PresetItems.tsx(12,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Menus/PresetsMenu.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(105,49): error TS2322: Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }[]' is not assignable to type 'TAttachment[]'.
+  Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }' is not assignable to type 'TAttachment'.
+    Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }' is not assignable to type 'Partial<Pick<TFile, "filename" | "filepath">> & Pick<TFile, "conversationId"> & TAttachmentMetadata'.
+      Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }' is not assignable to type 'TAttachmentMetadata'.
+        Types of property '[Tools.ui_resources]' are incompatible.
+          Type '{ '0': { type: string; label: string; }; }' is missing the following properties from type 'UIResource[]': length, pop, push, concat, and 35 more.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(148,49): error TS2322: Type '({ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; fields: never[]; }; }; web_search?: undefined; } | { type: Tools; messageId: string; toolCallId: string; conversationId: string; web_search: { ...; }; ui_resources?: undefined; })[]' is not assignable to type 'TAttachment[]'.
+  Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; fields: never[]; }; }; web_search?: undefined; } | { type: Tools; messageId: string; toolCallId: string; conversationId: string; web_search: { ...; }; ui_resources?: undefined; }' is not assignable to type 'TAttachment'.
+    Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; fields: never[]; }; }; web_search?: undefined; }' is not assignable to type 'TAttachment'.
+      Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; fields: never[]; }; }; web_search?: undefined; }' is not assignable to type 'Partial<Pick<TFile, "filename" | "filepath">> & Pick<TFile, "conversationId"> & TAttachmentMetadata'.
+        Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; fields: never[]; }; }; web_search?: undefined; }' is not assignable to type 'TAttachmentMetadata'.
+          Types of property '[Tools.ui_resources]' are incompatible.
+            Type '{ '0': { type: string; fields: never[]; }; }' is missing the following properties from type 'UIResource[]': length, pop, push, concat, and 35 more.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(172,49): error TS2322: Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: never[]; }; }; }[]' is not assignable to type 'TAttachment[]'.
+  Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: never[]; }; }; }' is not assignable to type 'TAttachment'.
+    Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: never[]; }; }; }' is not assignable to type 'Partial<Pick<TFile, "filename" | "filepath">> & Pick<TFile, "conversationId"> & TAttachmentMetadata'.
+      Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: never[]; }; }; }' is not assignable to type 'TAttachmentMetadata'.
+        Types of property '[Tools.ui_resources]' are incompatible.
+          Type '{ '0': { type: string; data: never[]; }; }' is missing the following properties from type 'UIResource[]': length, pop, push, concat, and 35 more.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(228,25): error TS2322: Type '{ name: string; attachments: { type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }[]; args: string; output: string; initialProgress: number; isSubmitting: boolean; }' is not assignable to type '{ initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+  Types of property 'attachments' are incompatible.
+    Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }[]' is not assignable to type 'TAttachment[]'.
+      Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }' is not assignable to type 'TAttachment'.
+        Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }' is not assignable to type 'Partial<Pick<TFile, "filename" | "filepath">> & Pick<TFile, "conversationId"> & TAttachmentMetadata'.
+          Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; label: string; }; }; }' is not assignable to type 'TAttachmentMetadata'.
+            Types of property '[Tools.ui_resources]' are incompatible.
+              Type '{ '0': { type: string; label: string; }; }' is missing the following properties from type 'UIResource[]': length, pop, push, concat, and 35 more.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(293,11): error TS2322: Type '{ auth: string; authDomain: string; progress: number; cancelled: boolean; args: string; name: string; output: string; initialProgress: number; isSubmitting: boolean; }' is not assignable to type 'IntrinsicAttributes & { initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+  Property 'authDomain' does not exist on type 'IntrinsicAttributes & { initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(307,11): error TS2322: Type '{ auth: string; authDomain: string; progress: number; cancelled: boolean; args: string; name: string; output: string; initialProgress: number; isSubmitting: boolean; }' is not assignable to type 'IntrinsicAttributes & { initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+  Property 'authDomain' does not exist on type 'IntrinsicAttributes & { initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(319,49): error TS2322: Type 'undefined' is not assignable to type 'string | Record<string, unknown>'.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(339,49): error TS2322: Type '{ domain: undefined; authDomain: undefined; args: string; name: string; output: string; initialProgress: number; isSubmitting: boolean; }' is not assignable to type 'IntrinsicAttributes & { initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+  Property 'domain' does not exist on type 'IntrinsicAttributes & { initialProgress: number; isSubmitting: boolean; name: string; args: string | Record<string, unknown>; output?: string | null | undefined; attachments?: TAttachment[] | undefined; auth?: string | undefined; expires_at?: number | undefined; }'.
+src/components/Chat/Messages/Content/__tests__/ToolCall.test.tsx(370,49): error TS2322: Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: { deep: { value: string; array: number[]; object: { key: string; }; }; }; }; }; }[]' is not assignable to type 'TAttachment[]'.
+  Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: { deep: { value: string; array: number[]; object: { key: string; }; }; }; }; }; }' is not assignable to type 'TAttachment'.
+    Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: { deep: { value: string; array: number[]; object: { key: string; }; }; }; }; }; }' is not assignable to type 'Partial<Pick<TFile, "filename" | "filepath">> & Pick<TFile, "conversationId"> & TAttachmentMetadata'.
+      Type '{ type: Tools; messageId: string; toolCallId: string; conversationId: string; ui_resources: { '0': { type: string; data: { deep: { value: string; array: number[]; object: { key: string; }; }; }; }; }; }' is not assignable to type 'TAttachmentMetadata'.
+        Types of property '[Tools.ui_resources]' are incompatible.
+          Type '{ '0': { type: string; data: { deep: { value: string; array: number[]; object: { key: string; }; }; }; }; }' is missing the following properties from type 'UIResource[]': length, pop, push, concat, and 35 more.
+src/components/Chat/Messages/Content/DialogImage.tsx(2,66): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/EditMessage.tsx(4,49): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/EditMessage.tsx(198,25): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Messages/Content/Image.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/MarkdownComponents.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/MessageContent.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/Parts/EditTextPart.tsx(3,34): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/Parts/EditTextPart.tsx(207,21): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Messages/Content/Parts/LogLink.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/Parts/OpenAIImageGen/OpenAIImageGen.tsx(2,27): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/Parts/Thinking.tsx(4,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/ProgressText.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/SearchContent.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Content/ToolCall.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Feedback.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/Feedback.tsx(334,25): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Messages/Fork.tsx(6,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/HoverButtons.tsx(4,78): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/Messages/HoverButtons.tsx(240,11): error TS2322: Type '(phraseKey: TranslationKeys, options?: TOptions) => string' is not assignable to type '(key: string) => string'.
+  Types of parameters 'phraseKey' and 'key' are incompatible.
+    Type 'string' is not assignable to type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Chat/Messages/MinimalHoverButtons.tsx(2,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Chat/TemporaryChat.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Conversations/Conversations.tsx(3,40): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Conversations/Convo.tsx(5,48): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Conversations/ConvoOptions/ConvoOptions.tsx(4,57): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Conversations/ConvoOptions/DeleteButton.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Conversations/ConvoOptions/ShareButton.tsx(6,61): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Conversations/ConvoOptions/SharedLinkButton.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Icon.tsx(2,37): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/MessageEndpointIcon.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/MinimalIcon.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/SaveAsPresetDialog.tsx(3,75): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/SaveAsPresetDialog.tsx(87,32): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Endpoints/Settings/Advanced.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Settings/AgentSettings.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Settings/Assistants.tsx(3,68): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Settings/Examples.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Settings/Google.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Settings/OptionHover.tsx(2,51): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Endpoints/Settings/Plugins.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/ActionButton.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/DeleteIconButton.tsx(2,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileDashboardView.tsx(4,10): error TS2305: Module '"../ui"' has no exported member 'Button'.
+src/components/Files/FileList/DataTableFile.tsx(34,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/FileListItem.tsx(2,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/FileListItem2.tsx(3,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/FilePreview.tsx(3,46): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/FileSidePanel.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/FileTableColumns.tsx(3,54): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/FileTableColumns.tsx(71,15): error TS2339: Property 'vectorsAttached' does not exist on type 'TFile'.
+src/components/Files/FileList/FileTableColumns.tsx(106,35): error TS2345: Argument of type 'string | Date | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/Files/FileList/UploadFileButton.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FileList/UploadFileModal.tsx(2,81): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/FilesListView.tsx(6,10): error TS2305: Module '"../ui"' has no exported member 'Button'.
+src/components/Files/FilesSectionSelector.tsx(2,10): error TS2305: Module '"../ui"' has no exported member 'Button'.
+src/components/Files/VectorStore/VectorStoreButton.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/VectorStore/VectorStoreListItem.tsx(3,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/VectorStore/VectorStoreListItem.tsx(29,12): error TS18048: 'vectorStore.file_counts' is possibly 'undefined'.
+src/components/Files/VectorStore/VectorStoreListItem.tsx(29,51): error TS18048: 'vectorStore.bytes' is possibly 'undefined'.
+src/components/Files/VectorStore/VectorStorePreview.tsx(3,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/VectorStore/VectorStoreSidePanel.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Files/VectorStoreView.tsx(4,10): error TS2305: Module '"../ui"' has no exported member 'Button'.
+src/components/Input/Generations/Regenerate.tsx(1,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/Generations/Stop.tsx(1,36): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/Anthropic.tsx(1,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/ChatGPT.tsx(1,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/Google.tsx(1,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/MultiSelectDropDown.tsx(3,62): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/MultiSelectPop.tsx(2,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/OpenAI.tsx(1,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/PluginsByIndex.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/ModelSelect/SelectDropDownPop.tsx(2,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/SetKeyDialog/GoogleConfig.tsx(3,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/SetKeyDialog/InputWithLabel.tsx(2,30): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/SetKeyDialog/SetKeyDialog.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Input/SetKeyDialog/SetKeyDialog.tsx(217,29): error TS2345: Argument of type '"com_ui_save_key_success"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Input/SetKeyDialog/SetKeyDialog.tsx(224,29): error TS2345: Argument of type '"com_ui_save_key_error"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Liva/LivePage.tsx(124,17): error TS2353: Object literal may only specify known properties, and 'state' does not exist in type '{ template?: Partial<TConversation> | undefined; preset?: Partial<{ endpoint: string | null; model?: string | null | undefined; temperature?: number | null | undefined; ... 57 more ...; order?: number | undefined; }> | undefined; ... 5 more ...; disableParams?: boolean | undefined; }'.
+src/components/MCP/CustomUserVarsSection.tsx(3,69): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/MCP/CustomUserVarsSection.tsx(155,64): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/MCP/MCPConfigDialog.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/MCP/MCPServerStatusIcon.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/MCP/ServerInitializationSection.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Messages/Content/CodeBlock.tsx(5,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Messages/Content/Plugin.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Messages/Content/RunCode.tsx(5,42): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/AccountSettings.tsx(5,67): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/AgentMarketplaceButton.tsx(5,39): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/Bookmarks/BookmarkNav.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/ExportConversation/ExportModal.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/LiveAnalysisButton.tsx(4,39): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/Nav.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/Nav.tsx(12,3): error TS2300: Duplicate identifier 'useNavScrolling'.
+src/components/Nav/Nav.tsx(13,3): error TS2300: Duplicate identifier 'useNavScrolling'.
+src/components/Nav/Nav.tsx(78,67): error TS2339: Property 'LIVE_ANALYSIS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/NavToggle.tsx(1,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/NewChat.tsx(5,76): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/Settings.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/Avatar.tsx(18,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/BackupCodesItem.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/DeleteAccount.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/DisableTwoFactorToggle.tsx(4,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/DisplayUsernameMessages.tsx(3,53): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/TwoFactorAuthentication.tsx(12,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/TwoFactorPhases/BackupPhase.tsx(4,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/TwoFactorPhases/DisablePhase.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/TwoFactorPhases/QRPhase.tsx(5,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/TwoFactorPhases/SetupPhase.tsx(4,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Account/TwoFactorPhases/VerifyPhase.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Admin/CreateUserModal.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Admin/CreateUserModal.tsx(30,34): error TS18046: 'error' is of type 'unknown'.
+src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx(38,43): error TS2790: The operand of a 'delete' operator must be optional.
+src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx(46,34): error TS18046: 'error' is of type 'unknown'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(6,46): error TS2339: Property 'USER_PLUS' does not exist on type 'typeof SystemRoles'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(6,69): error TS2339: Property 'USER_PRO' does not exist on type 'typeof SystemRoles'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(16,22): error TS2339: Property 'ARTIFACTS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(17,22): error TS2339: Property 'LIVE_CHAT' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(18,22): error TS2339: Property 'LIVE_ANALYSIS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(19,22): error TS2339: Property 'ENDPOINTS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(20,22): error TS2339: Property 'ATTACHMENTS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(21,22): error TS2339: Property 'PARAMETERS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx(144,55): error TS2339: Property 'ENDPOINTS' does not exist on type 'typeof PermissionTypes'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(39,34): error TS18046: 'error' is of type 'unknown'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(76,43): error TS2339: Property '_id' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(77,116): error TS2339: Property 'name' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(77,129): error TS2339: Property 'username' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(78,106): error TS2339: Property 'email' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(79,106): error TS2339: Property 'role' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(82,28): error TS2339: Property 'accountStatus' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(83,50): error TS2339: Property 'accountStatus' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(85,47): error TS2339: Property 'accountStatus' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx(96,74): error TS2339: Property '_id' does not exist on type 'never'.
+src/components/Nav/SettingsTabs/Ads/Ads.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Balance/AutoRefillSettings.tsx(2,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Balance/TokenCreditsItem.tsx(2,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Chat/Chat.tsx(95,13): error TS2322: Type 'string' is not assignable to type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Nav/SettingsTabs/Chat/Chat.tsx(96,13): error TS2322: Type 'string | undefined' is not assignable to type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1325 more ... | undefined'.
+  Type 'string' is not assignable to type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1325 more ... | undefined'.
+src/components/Nav/SettingsTabs/Chat/ChatDirection.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Chat/FontSizeSelector.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Chat/ForkSettings.tsx(3,56): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Chat/SaveBadgesState.tsx(2,46): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Chat/ShowThinking.tsx(2,46): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Commands/Commands.tsx(2,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/DangerButton.tsx(3,61): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Data/ClearChats.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Data/Data.tsx(2,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Data/DeleteCache.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Data/ImportConversations.tsx(5,57): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Data/RevokeKeys.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Data/SharedLinks.tsx(20,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/General/ArchivedChats.tsx(2,69): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/General/ArchivedChats.tsx(23,37): error TS2322: Type '{ isOpen: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; }' is not assignable to type 'IntrinsicAttributes & { onOpenChange: (isOpen: boolean) => void; }'.
+  Property 'isOpen' does not exist on type 'IntrinsicAttributes & { onOpenChange: (isOpen: boolean) => void; }'.
+src/components/Nav/SettingsTabs/General/ArchivedChatsTable.tsx(17,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/General/General.tsx(4,40): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/General/General.tsx(192,11): error TS2339: Property 'theme' does not exist on type 'unknown'.
+src/components/Nav/SettingsTabs/General/General.tsx(192,18): error TS2339: Property 'setTheme' does not exist on type 'unknown'.
+src/components/Nav/SettingsTabs/General/General.tsx(234,13): error TS2322: Type 'string' is not assignable to type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Nav/SettingsTabs/Personalization.tsx(2,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/GeminiVoiceSelector.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/Speech.tsx(5,50): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/STT/AutoSendTextSelector.tsx(3,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/STT/DecibelSelector.tsx(2,37): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/STT/EngineSTTDropdown.tsx(3,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/STT/LanguageSTTDropdown.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/TTS/EngineTTSDropdown.tsx(3,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/Speech/TTS/PlaybackRate.tsx(3,37): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Nav/SettingsTabs/ToggleSwitch.tsx(3,46): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Plugins/Store/PluginAuthForm.tsx(3,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Plugins/Store/PluginAuthForm.tsx(73,22): error TS2532: Object is possibly 'undefined'.
+src/components/Plugins/Store/PluginAuthForm.tsx(95,25): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Plugins/Store/PluginTooltip.tsx(1,51): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/AdminSettings.tsx(17,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/AdminSettings.tsx(224,40): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Prompts/AdminSettings.tsx(226,29): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Prompts/BackToChat.tsx(3,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Command.tsx(1,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/DeleteVersion.tsx(4,76): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Description.tsx(2,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/AlwaysMakeProd.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/AutoSendPrompt.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/CategorySelector.tsx(4,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/CategorySelector.tsx(7,36): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/ChatGroupItem.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/ChatGroupItem.tsx(37,52): error TS2345: Argument of type '"promptGroup"' is not assignable to parameter of type 'ResourceType'.
+src/components/Prompts/Groups/CreatePromptForm.tsx(3,49): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/DashGroupItem.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/DashGroupItem.tsx(32,52): error TS2345: Argument of type '"promptGroup"' is not assignable to parameter of type 'ResourceType'.
+src/components/Prompts/Groups/DashGroupItem.tsx(142,40): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Prompts/Groups/FilterPrompts.tsx(5,47): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/GroupSidePanel.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/List.tsx(3,34): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/ListCard.tsx(2,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/NoPromptGroup.tsx(1,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/PanelNavigation.tsx(2,39): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/VariableDialog.tsx(4,58): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/Groups/VariableForm.tsx(9,57): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/ManagePrompts.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PreviewLabels.tsx(2,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PreviewPrompt.tsx(1,43): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PromptDetails.tsx(7,23): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PromptEditor.tsx(10,55): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PromptEditor.tsx(70,46): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Prompts/PromptForm.tsx(8,51): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PromptName.tsx(2,58): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PromptVariables.tsx(4,27): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/PromptVersions.tsx(4,43): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/SharePrompt.tsx(10,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/SkeletonForm.tsx(1,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Prompts/VariablesDropdown.tsx(5,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Share/MessageIcon.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Share/ShareView.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SharePoint/SharePointPickerDialog.tsx(8,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Sharing/AccessRolesPicker.tsx(4,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Sharing/GenericGrantAccessDialog.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Sharing/GenericGrantAccessDialog.tsx(389,38): error TS2345: Argument of type '"com_ui_save_changes"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Sharing/GenericGrantAccessDialog.tsx(397,28): error TS2345: Argument of type '"com_ui_save_changes"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Sharing/PeoplePicker/SearchPicker.tsx(5,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Sharing/PeoplePicker/SelectedPrincipalsList.tsx(2,39): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Sharing/PeoplePickerAdminSettings.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Sharing/PeoplePickerAdminSettings.tsx(213,27): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Sharing/PublicSharingToggle.tsx(4,53): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Ads/AdCarousel.tsx(4,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/ActionsInput.tsx(4,42): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/ActionsPanel.tsx(16,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AdminSettings.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AdminSettings.tsx(142,26): error TS2339: Property 'USER_PLUS' does not exist on type 'typeof SystemRoles'.
+src/components/SidePanel/Agents/AdminSettings.tsx(144,37): error TS2339: Property 'USER_PLUS' does not exist on type 'typeof SystemRoles'.
+src/components/SidePanel/Agents/AdminSettings.tsx(148,26): error TS2339: Property 'USER_PRO' does not exist on type 'typeof SystemRoles'.
+src/components/SidePanel/Agents/AdminSettings.tsx(150,37): error TS2339: Property 'USER_PRO' does not exist on type 'typeof SystemRoles'.
+src/components/SidePanel/Agents/AdminSettings.tsx(235,27): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Agents/Advanced/AdvancedButton.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Advanced/AgentChain.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Advanced/AgentHandoffs.tsx(14,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Advanced/MaxAgentSteps.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentAvatar.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentCategorySelector.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentConfig.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentFooter.tsx(1,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentFooter.tsx(58,23): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Agents/AgentPanel.tsx(3,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentPanelSkeleton.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentSelect.tsx(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/AgentTool.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Artifacts.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Code/Action.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx(1,59): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Code/ApiKeyDialog.tsx(99,32): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Agents/Code/Files.tsx(3,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/DeleteButton.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/DuplicateAgent.tsx(2,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/FileContext.tsx(19,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/FileSearch.tsx(5,63): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/FileSearchCheckbox.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/ImageVision.tsx(1,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/ImageVision.tsx(15,9): error TS2322: Type 'Capabilities.image_vision' is not assignable to type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+src/components/SidePanel/Agents/ImageVision.tsx(31,20): error TS2345: Argument of type 'Capabilities.image_vision' is not assignable to parameter of type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+src/components/SidePanel/Agents/ImageVision.tsx(31,58): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: "model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"): unknown', gave the following error.
+    Argument of type 'Capabilities.image_vision' is not assignable to parameter of type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+  Overload 2 of 3, '(names: readonly ("model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens")[]): unknown[]', gave the following error.
+    Argument of type 'import("/Users/venta/Documents/GitHub/LibreChat-WAPPY/packages/data-provider/dist/types/config").Capabilities' is not assignable to parameter of type 'readonly ("model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens")[]'.
+src/components/SidePanel/Agents/Instructions.tsx(4,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/MCPIcon.tsx(2,34): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/MCPInput.tsx(3,59): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/MCPPanel.tsx(16,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/MCPSection.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/MCPTool.tsx(18,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/ModelPanel.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Retrieval.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Retrieval.tsx(24,57): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/components/SidePanel/Agents/Retrieval.tsx(28,16): error TS2345: Argument of type 'Capabilities.retrieval' is not assignable to parameter of type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+src/components/SidePanel/Agents/Retrieval.tsx(37,13): error TS2322: Type 'Capabilities.retrieval' is not assignable to type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+src/components/SidePanel/Agents/Retrieval.tsx(58,37): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/components/SidePanel/Agents/Retrieval.tsx(59,26): error TS2345: Argument of type 'Capabilities.retrieval' is not assignable to parameter of type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+src/components/SidePanel/Agents/Retrieval.tsx(59,61): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: "model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"): unknown', gave the following error.
+    Argument of type 'Capabilities.retrieval' is not assignable to parameter of type '"model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens"'.
+  Overload 2 of 3, '(names: readonly ("model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens")[]): unknown[]', gave the following error.
+    Argument of type 'import("/Users/venta/Documents/GitHub/LibreChat-WAPPY/packages/data-provider/dist/types/config").Capabilities' is not assignable to parameter of type 'readonly ("model" | "agent_ids" | "edges" | "end_after_tools" | "hide_sequential_outputs" | "artifacts" | "recursion_limit" | "category" | "support_contact" | "name" | "id" | "tools" | ... 32 more ... | "model_parameters.max_context_tokens")[]'.
+src/components/SidePanel/Agents/Search/Action.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Search/ApiKeyDialog.tsx(2,52): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Search/ApiKeyDialog.tsx(249,32): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Agents/Search/InputSection.tsx(4,45): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/UnconfiguredMCPTool.tsx(3,79): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/UninitializedMCPTool.tsx(2,79): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Version/__tests__/isActiveVersion.spec.ts(2,15): error TS2614: Module '"../VersionPanel"' has no exported member 'AgentState'. Did you mean to use 'import AgentState from "../VersionPanel"' instead?
+src/components/SidePanel/Agents/Version/__tests__/isActiveVersion.spec.ts(2,27): error TS2614: Module '"../VersionPanel"' has no exported member 'VersionRecord'. Did you mean to use 'import VersionRecord from "../VersionPanel"' instead?
+src/components/SidePanel/Agents/Version/__tests__/VersionContent.spec.tsx(4,10): error TS2614: Module '"../VersionPanel"' has no exported member 'VersionContext'. Did you mean to use 'import VersionContext from "../VersionPanel"' instead?
+src/components/SidePanel/Agents/Version/__tests__/VersionItem.spec.tsx(4,10): error TS2614: Module '"../VersionPanel"' has no exported member 'VersionRecord'. Did you mean to use 'import VersionRecord from "../VersionPanel"' instead?
+src/components/SidePanel/Agents/Version/VersionButton.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Version/VersionContent.tsx(1,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Agents/Version/VersionPanel.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Bookmarks/BookmarkTable.tsx(13,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Bookmarks/BookmarkTableRow.tsx(4,54): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/Action.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/ActionCallback.tsx(5,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/ActionsAuth.tsx(16,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/ActionsAuth.tsx(153,27): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Builder/ActionsInput.tsx(4,42): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/ActionsPanel.tsx(16,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/AppendDateCheckbox.tsx(9,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/AssistantAvatar.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/AssistantConversationStarters.tsx(3,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/AssistantPanel.tsx(3,58): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/AssistantPanel.tsx(209,30): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Builder/AssistantSelect.tsx(3,32): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/AssistantTool.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/Code.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/ContextButton.tsx(8,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/ImageVision.tsx(1,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/MCP.tsx(2,35): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Builder/Retrieval.tsx(12,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Export/ExportConfigPanel.tsx(5,46): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Files/PanelColumns.tsx(3,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Files/PanelTable.tsx(14,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/MCP/MCPPanel.tsx(4,41): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/MCP/MCPPanelSkeleton.tsx(2,26): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Memories/AdminSettings.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Memories/AdminSettings.tsx(211,27): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Memories/MemoryCreateDialog.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Memories/MemoryEditDialog.tsx(11,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Memories/MemoryEditDialog.tsx(195,36): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Memories/MemoryEditDialog.tsx(199,70): error TS2345: Argument of type '"com_ui_save"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/SidePanel/Memories/MemoryViewer.tsx(25,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Nav.tsx(8,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicCheckbox.tsx(4,62): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicCombobox.tsx(3,69): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicDropdown.tsx(3,68): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicInput.tsx(2,59): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicSlider.tsx(4,80): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicSwitch.tsx(3,60): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicTags.tsx(3,81): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/DynamicTextarea.tsx(4,70): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/Parameters/OptionHover.tsx(2,51): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/SidePanel.tsx(3,67): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/SidePanel/SidePanelGroup.tsx(10,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/ThemeManager.tsx(2,30): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/ui/TermsAndConditionsModal.tsx(2,59): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Voice/VoiceModeButton.tsx(2,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Voice/VoiceModeButton.tsx(17,35): error TS2345: Argument of type '"com_nav_voice_mode"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Voice/VoiceModeButton.tsx(18,34): error TS2345: Argument of type '"com_nav_voice_mode"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Voice/VoiceModeButton.tsx(24,38): error TS2345: Argument of type '"com_nav_voice_mode"' is not assignable to parameter of type '"chat_direction_left_to_right" | "chat_direction_right_to_left" | "com_a11y_ai_composing" | "com_a11y_end" | "com_a11y_start" | "com_agents_agent_card_label" | "com_agents_all" | ... 1324 more ... | "com_user_message"'.
+src/components/Web/Citation.tsx(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/components/Web/Sources.tsx(15,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/data-provider/Auth/queries.ts(35,51): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/data-provider/Files/mutations.ts(1,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Audio/MediaSourceAppender.ts(24,18): error TS2345: Argument of type 'ArrayBufferLike' is not assignable to parameter of type 'ArrayBuffer'.
+  Property 'resize' is missing in type 'SharedArrayBuffer' but required in type 'ArrayBuffer'.
+src/hooks/AuthContext.tsx(48,64): error TS2339: Property 'USER_PLUS' does not exist on type 'typeof SystemRoles'.
+src/hooks/AuthContext.tsx(51,63): error TS2339: Property 'USER_PRO' does not exist on type 'typeof SystemRoles'.
+src/hooks/AuthContext.tsx(224,22): error TS2339: Property 'USER_PLUS' does not exist on type 'typeof SystemRoles'.
+src/hooks/AuthContext.tsx(225,22): error TS2339: Property 'USER_PRO' does not exist on type 'typeof SystemRoles'.
+src/hooks/Chat/useChatFunctions.ts(134,12): error TS18047: 'conversation' is possibly 'null'.
+src/hooks/Chat/useChatFunctions.ts(135,9): error TS18047: 'conversation' is possibly 'null'.
+src/hooks/Chat/useChatFunctions.ts(135,38): error TS18047: 'conversation' is possibly 'null'.
+src/hooks/Conversations/useExportConversation.ts(106,62): error TS18048: 'textPart' is possibly 'undefined'.
+src/hooks/Conversations/usePresets.ts(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Endpoint/Icons.tsx(14,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Endpoint/UnknownIcon.tsx(2,43): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Endpoint/UnknownIcon.tsx(13,19): error TS2339: Property 'google' does not exist on type 'typeof KnownEndpoints'.
+src/hooks/Endpoint/UnknownIcon.tsx(19,19): error TS2339: Property 'openai' does not exist on type 'typeof KnownEndpoints'.
+src/hooks/Endpoint/UnknownIcon.tsx(22,19): error TS2339: Property 'qwen' does not exist on type 'typeof KnownEndpoints'.
+src/hooks/Files/useDelayedUploadToast.ts(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Files/useFileHandling.ts(4,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Files/useSharePointDownload.ts(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Files/useSharePointPicker.ts(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Input/useSpeechToTextBrowser.ts(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Input/useSpeechToTextExternal.ts(4,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Input/useTextToSpeechExternal.ts(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/MCP/useMCPServerManager.ts(2,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/MCP/useRemoveMCPTool.ts(4,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Messages/useCopyToClipboard.ts(59,70): error TS18048: 'curr.text' is possibly 'undefined'.
+src/hooks/Messages/useSearchResultsByTurn.ts(45,55): error TS2339: Property 'sources' does not exist on type 'SearchResultData'.
+src/hooks/Nav/useSideNavLinks.ts(2,49): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/Roles/useRolePermissions.ts(53,74): error TS2339: Property 'ENDPOINTS' does not exist on type 'typeof PermissionTypes'.
+src/hooks/ScreenshotContext.tsx(3,38): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/ScreenshotContext.tsx(13,11): error TS2339: Property 'theme' does not exist on type 'unknown'.
+src/hooks/useExportConfig.ts(29,25): error TS2345: Argument of type '(prev: any) => any' is not assignable to parameter of type 'ExportConfig'.
+src/hooks/useLiveAnalysisSession.ts(338,18): error TS2678: Type '"report"' is not comparable to type '"error" | "conversationId" | "text" | "audio" | "status" | "interrupted" | "conversationUpdated"'.
+src/hooks/useLocationSystem.ts(3,33): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/hooks/useVoiceSession.ts(17,5): error TS2300: Duplicate identifier 'disableAudio'.
+src/hooks/useVoiceSession.ts(18,5): error TS2300: Duplicate identifier 'disableAudio'.
+src/routes/ChatRoute.tsx(2,25): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/routes/Layouts/DashBreadcrumb.tsx(17,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/routes/Root.tsx(68,13): error TS2339: Property 'accountStatus' does not exist on type 'TUser'.
+src/routes/RouteErrorBoundary.tsx(2,24): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/routes/Search.tsx(3,42): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/store/fontSize.ts(1,31): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/utils/conversationTags.spec.ts(9,7): error TS2741: Property '_id' is missing in type '{ tag: string; count: number; position: number; description: string; updatedAt: string; createdAt: string; user: string; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(18,7): error TS2741: Property '_id' is missing in type '{ tag: string; count: number; position: number; description: string; updatedAt: string; createdAt: string; user: string; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(27,7): error TS2741: Property '_id' is missing in type '{ tag: string; count: number; position: number; description: string; updatedAt: string; createdAt: string; user: string; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(36,7): error TS2741: Property '_id' is missing in type '{ tag: string; count: number; position: number; description: string; updatedAt: string; createdAt: string; user: string; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(45,7): error TS2741: Property '_id' is missing in type '{ tag: string; count: number; position: number; description: string; updatedAt: string; createdAt: string; user: string; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(54,7): error TS2741: Property '_id' is missing in type '{ tag: string; count: number; position: number; description: string; updatedAt: string; createdAt: string; user: string; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(177,7): error TS2345: Argument of type '{ tag: string; description: string; position: number; updatedAt: string; createdAt: string; user: string; count: number; }' is not assignable to parameter of type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+  Property '_id' is missing in type '{ tag: string; description: string; position: number; updatedAt: string; createdAt: string; user: string; count: number; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/conversationTags.spec.ts(210,7): error TS2345: Argument of type '{ tag: string; description: string; position: number; updatedAt: string; createdAt: string; user: string; count: number; }' is not assignable to parameter of type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+  Property '_id' is missing in type '{ tag: string; description: string; position: number; updatedAt: string; createdAt: string; user: string; count: number; }' but required in type '{ createdAt: string; updatedAt: string; tag: string; _id: string; user: string; count: number; position: number; description?: string | undefined; }'.
+src/utils/files.ts(8,8): error TS2307: Cannot find module '@librechat/client' or its corresponding type declarations.
+src/utils/imageResize.ts(48,22): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+../config/translations/anthropic.ts(3,60): error TS2307: Cannot find module '~/app/clients/prompts/titlePrompts' or its corresponding type declarations.
+../config/translations/anthropic.ts(76,40): error TS2339: Property 'text' does not exist on type 'ContentBlock'.
+  Property 'text' does not exist on type 'ThinkingBlock'.
+../config/translations/embeddings.ts(6,25): error TS2307: Cannot find module '@langchain/community/vectorstores/hnswlib' or its corresponding type declarations.
+../e2e/playwright.config.a11y.ts(16,5): error TS2322: Type '{ SEARCH: string; NODE_ENV: string; EMAIL_HOST: string; TITLE_CONVO: string; SESSION_EXPIRY: string; REFRESH_TOKEN_EXPIRY: string; LOGIN_VIOLATION_SCORE: string; REGISTRATION_VIOLATION_SCORE: string; ... 32 more ...; VITE_LOGGER_FILTER: string; }' is not assignable to type '{ [key: string]: string; }'.
+  Property 'DEV' is incompatible with index signature.
+    Type 'boolean' is not assignable to type 'string'.
+../e2e/playwright.config.local.ts(16,5): error TS2322: Type '{ SEARCH: string; NODE_ENV: string; EMAIL_HOST: string; TITLE_CONVO: string; SESSION_EXPIRY: string; REFRESH_TOKEN_EXPIRY: string; LOGIN_VIOLATION_SCORE: string; REGISTRATION_VIOLATION_SCORE: string; ... 32 more ...; VITE_LOGGER_FILTER: string; }' is not assignable to type '{ [key: string]: string; }'.
+  Property 'DEV' is incompatible with index signature.
+    Type 'boolean' is not assignable to type 'string'.
+../e2e/playwright.config.ts(55,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '{ command: string; port: number; stdout: "pipe"; ignoreHTTPSErrors: true; timeout: number; reuseExistingServer: true; env: { NODE_ENV: string; EMAIL_HOST: string; SEARCH: string; SESSION_EXPIRY: string; ... 9 more ...; VITE_LOGGER_FILTER: string; }; }' is not assignable to type 'TestConfigWebServer | TestConfigWebServer[] | undefined'.
+      Types of property 'env' are incompatible.
+        Type '{ NODE_ENV: string; EMAIL_HOST: string; SEARCH: string; SESSION_EXPIRY: string; ALLOW_REGISTRATION: string; REFRESH_TOKEN_EXPIRY: string; TZ?: string | undefined; BASE_URL: string; MODE: string; ... 4 more ...; VITE_LOGGER_FILTER: string; }' is not assignable to type '{ [key: string]: string; }'.
+          Property 'DEV' is incompatible with index signature.
+            Type 'boolean' is not assignable to type 'string'.
+../e2e/setup/cleanupUser.ts(44,44): error TS2304: Cannot find name 'getModels'.
+../e2e/setup/global-setup.local.ts(2,23): error TS2307: Cannot find module '../config.local' or its corresponding type declarations.
+../e2e/setup/global-teardown.local.ts(1,23): error TS2307: Cannot find module '../config.local' or its corresponding type declarations.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path /Users/venta/Documents/GitHub/LibreChat-WAPPY/client
+npm error workspace @librechat/frontend@v0.8.1-rc1
+npm error location /Users/venta/Documents/GitHub/LibreChat-WAPPY/client
+npm error command failed
+npm error command sh -c tsc --noEmit
