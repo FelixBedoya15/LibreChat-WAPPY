@@ -35,7 +35,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const wasOpenRef = useRef(false);
 
     // NEW: Countdown state
-    const [countdown, setCountdown] = useState(5);
+    const [countdown, setCountdown] = useState(10);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -86,7 +86,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
-            setCountdown(5);
+            setCountdown(10);
 
             const interval = setInterval(() => {
                 setCountdown((prev) => {
@@ -98,7 +98,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             const timer = setTimeout(() => {
                 setIsReady(true);
                 clearInterval(interval);
-            }, 5000); // 5 seconds delay
+            }, 10000); // 10 seconds delay
 
             return () => {
                 clearTimeout(timer);
@@ -106,7 +106,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             };
         } else {
             setIsReady(false);
-            setCountdown(5);
+            setCountdown(10);
         }
     }, [isOpen, isConnected]);
 
