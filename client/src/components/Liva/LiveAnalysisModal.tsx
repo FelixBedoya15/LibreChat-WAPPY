@@ -14,7 +14,7 @@ interface LiveAnalysisModalProps {
     onConversationIdUpdate?: (newId: string) => void;
     onTextReceived?: (text: string) => void;
     onReportReceived?: (html: string) => void;
-    onConversationUpdated?: () => void; // Added this prop based on the instruction's destructuring
+    onConversationUpdated?: () => void;
 }
 
 const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onReportReceived, onConversationUpdated }) => {
@@ -22,9 +22,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const voiceLiveAnalysis = useRecoilValue(store.voiceLiveAnalysis);
     const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
     const [isMuted, setIsMuted] = useState(false);
-    const [isCameraOn, setIsCameraOn] = useState(true); // Default to ON for analysis
+    const [isCameraOn, setIsCameraOn] = useState(true);
     const [statusText, setStatusText] = useState('Initializing...');
-    const [isReady, setIsReady] = useState(false); // New state for connection delay
+    const [isReady, setIsReady] = useState(false);
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
@@ -32,20 +32,20 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
-    const wasOpenRef = useRef(false); // To track if the modal was previously open
+    const wasOpenRef = useRef(false);
 
-    // Memoize options
+    // NEW: Countdown state
+    const [countdown, setCountdown] = useState(5);
+
     const sessionOptions = useMemo(() => ({
         conversationId,
         onConversationIdUpdate,
         disableAudio: false,
-        initialVoice: voiceLiveAnalysis, // Pass the initial voice from the store
-        // mode: 'live_analysis', // Mode is now hardcoded in the dedicated hook/server
+        initialVoice: voiceLiveAnalysis,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
         onTextReceived: (text: string) => {
-            // Forward AI text to parent (LivePage) to update report
             onTextReceived?.(text);
         },
         onReportReceived: (html: string) => {
@@ -69,7 +69,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         },
     }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived]);
 
-    // Live Analysis session WebSocket (Dedicated)
     const {
         isConnected,
         isConnecting,
@@ -83,16 +82,31 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         getInputVolume,
     } = useLiveAnalysisSession(sessionOptions);
 
-    // Connection Delay Logic
+    // Connection Delay Logic with Countdown
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
+            setCountdown(5);
+
+            const interval = setInterval(() => {
+                setCountdown((prev) => {
+                    if (prev <= 1) return 1;
+                    return prev - 1;
+                });
+            }, 1000);
+
             const timer = setTimeout(() => {
                 setIsReady(true);
-            }, 3000); // 3 seconds delay
-            return () => clearTimeout(timer);
+                clearInterval(interval);
+            }, 5000); // 5 seconds delay
+
+            return () => {
+                clearTimeout(timer);
+                clearInterval(interval);
+            };
         } else {
             setIsReady(false);
+            setCountdown(5);
         }
     }, [isOpen, isConnected]);
 
@@ -114,7 +128,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 audioContextRef.current = null;
             }
         };
-    }, [isOpen]); // Connect when opened
+    }, [isOpen]);
 
     // Ensure voice is updated when connected
     useEffect(() => {
@@ -130,10 +144,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         if (isConnected && isOpen) {
             startCamera();
 
-            // Send initial prompt after a delay to ensure video is ready
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
-                // Comprehensive prompt for Risk Analysis with Strict Structure
                 sendTextMessage(`
                     Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
                     Tu misión es realizar una "Investigación Exhaustiva" del entorno en video y generar un INFORME TÉCNICO FORMAL.
@@ -211,13 +223,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
             setIsCameraOn(true);
 
-            // Start sending frames
             if (videoIntervalRef.current) clearInterval(videoIntervalRef.current);
             videoIntervalRef.current = setInterval(() => {
                 if (videoRef.current && videoRef.current.readyState >= 2) {
                     sendVideoFrame(videoRef.current);
                 }
-            }, 500); // 2 FPS (Requested by user)
+            }, 500);
         } catch (error) {
             console.error('[LiveAnalysisModal] Error starting camera:', error);
             setStatusText('Error accessing camera');
@@ -258,25 +269,21 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         setMuted(newMuted);
     };
 
-    // Audio Playback Logic with Jitter Buffer
     const nextStartTimeRef = useRef<number>(0);
-    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]); // Keep for visualizer if needed, or remove if unused
+    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]);
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
 
-    // Unified Animation Loop
     useEffect(() => {
         const updateAmplitude = () => {
             let vol = 0;
 
             if (status === 'speaking' && outputAnalyserRef.current) {
-                // Visualize Output (Gemini)
                 const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
                 outputAnalyserRef.current.getByteFrequencyData(dataArray);
                 const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                 vol = Math.min(1, (average / 255) * 2);
             } else if (status === 'listening' || status === 'ready') {
-                // Visualize Input (User)
                 vol = getInputVolume();
             }
 
@@ -320,15 +327,13 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         if (!audioContextRef.current) return;
 
         const currentTime = audioContextRef.current.currentTime;
-        // If next start time is in the past (gap in speech), reset to now + small buffer
         if (nextStartTimeRef.current < currentTime) {
-            nextStartTimeRef.current = currentTime + 0.05; // 50ms jitter buffer
+            nextStartTimeRef.current = currentTime + 0.05;
         }
 
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
 
-        // Create/Reuse Analyser
         if (!outputAnalyserRef.current) {
             const analyser = audioContextRef.current.createAnalyser();
             analyser.fftSize = 256;
@@ -339,7 +344,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         source.connect(outputAnalyserRef.current);
         source.start(nextStartTimeRef.current);
 
-        // Update next start time
         nextStartTimeRef.current += buffer.duration;
     }
 
@@ -354,9 +358,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     const handleVoiceChange = (voiceId: string) => {
         setSelectedVoice(voiceId);
-        // Update global store (if we had a setter for live analysis voice, but we only read it. 
-        // Assuming we should update it or just local state? 
-        // For now, let's just change the voice in session)
         changeVoice(voiceId);
         setShowVoiceSelector(false);
     };
@@ -373,12 +374,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="relative w-full h-full bg-black/40 backdrop-blur-xl flex flex-col overflow-hidden">
 
-                {/* Loading Overlay - Minimalist */}
+                {/* Loading Overlay - Countdown */}
                 {(!isReady && isOpen) && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none">
-                        <div className="bg-black/40 backdrop-blur-sm px-6 py-3 rounded-full flex items-center gap-3 shadow-lg">
-                            <div className="w-5 h-5 border-2 border-white/80 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-white font-medium text-sm">Conectando...</span>
+                        <div className="text-[12rem] font-bold text-white/30 animate-pulse tracking-tighter select-none">
+                            {countdown}
+                        </div>
+                        <div className="mt-4 bg-black/20 backdrop-blur-sm px-6 py-2 rounded-full flex items-center gap-3">
+                            <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-white/80 font-medium text-sm tracking-widest uppercase">Estableciendo Conexión</span>
                         </div>
                     </div>
                 )}
