@@ -34,6 +34,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const audioContextRef = useRef<AudioContext | null>(null);
     const wasOpenRef = useRef(false);
 
+    // NEW: Countdown state
+    const [countdown, setCountdown] = useState(10);
+
     // NEW: Track if report has been received
     const [hasReceivedReport, setHasReceivedReport] = useState(false);
 
