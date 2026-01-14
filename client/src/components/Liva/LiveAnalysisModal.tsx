@@ -34,8 +34,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const audioContextRef = useRef<AudioContext | null>(null);
     const wasOpenRef = useRef(false);
 
-    // NEW: Countdown state
-    const [countdown, setCountdown] = useState(10);
+    // NEW: Track if report has been received
+    const [hasReceivedReport, setHasReceivedReport] = useState(false);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -49,6 +49,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             onTextReceived?.(text);
         },
         onReportReceived: (html: string) => {
+            setHasReceivedReport(true); // Mark report as received
             onReportReceived?.(html);
         },
         onStatusChange: (newStatus: string) => {
@@ -60,7 +61,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             } else if (newStatus === 'thinking') {
                 setStatusText('Analizando...');
             } else if (newStatus === 'turn_complete') {
-                setStatusText('Análisis Completado');
+                // Only show completion if we actually got the report
+                if (hasReceivedReport) {
+                    setStatusText('Análisis Completado');
+                } else {
+                    setStatusText('Listo'); // Revert to ready if just a normal turn finished
+                }
             } else {
                 setStatusText(newStatus);
             }
@@ -69,7 +75,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport]); // Added hasReceivedReport dependency
 
     const {
         isConnected,
@@ -84,73 +90,18 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         getInputVolume,
     } = useLiveAnalysisSession(sessionOptions);
 
-    // Connection Delay Logic with Countdown
+    // ... (rest of the code) ...
+
+    // Auto-start camera and send initial prompt when READY (after countdown)
     useEffect(() => {
-        if (isOpen && isConnected) {
-            setIsReady(false);
-            setCountdown(10);
-
-            const interval = setInterval(() => {
-                setCountdown((prev) => {
-                    if (prev <= 1) return 1;
-                    return prev - 1;
-                });
-            }, 1000);
-
-            const timer = setTimeout(() => {
-                setIsReady(true);
-                clearInterval(interval);
-            }, 10000); // 10 seconds delay
-
-            return () => {
-                clearTimeout(timer);
-                clearInterval(interval);
-            };
-        } else {
-            setIsReady(false);
-            setCountdown(10);
-        }
-    }, [isOpen, isConnected]);
-
-    // Connect on mount if open
-    useEffect(() => {
-        if (!isOpen) return;
-
-        if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-        }
-
-        connect();
-
-        return () => {
-            stopCamera();
-            disconnect();
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-                audioContextRef.current = null;
-            }
-        };
-    }, [isOpen]);
-
-    // Ensure voice is updated when connected
-    useEffect(() => {
-        if (isOpen && isConnected && selectedVoice !== voiceLiveAnalysis) {
-            console.log('[LiveAnalysisModal] Syncing voice with global setting:', voiceLiveAnalysis);
-            setSelectedVoice(voiceLiveAnalysis);
-            changeVoice(voiceLiveAnalysis);
-        }
-    }, [isOpen, isConnected, voiceLiveAnalysis, changeVoice]);
-
-    // Auto-start camera and send initial prompt when connected
-    useEffect(() => {
-        if (isConnected && isOpen) {
+        if (isConnected && isOpen && isReady) { // Wait for isReady (countdown finished)
             startCamera();
 
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
                 sendTextMessage(`
                     Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
-                    Tu misión es realizar una "Investigación Exhaustiva" del entorno en video y generar un INFORME TÉCNICO FORMAL.
+                    MIRA EL VIDEO AHORA MISMO. Tu misión es realizar una "Investigación Exhaustiva" del entorno visual ACTUAL y generar un INFORME TÉCNICO FORMAL.
 
                     INSTRUCCIONES DE SALIDA:
                     1. **AUDIO (Voz):** Háblame como un colega experto. Explica tus hallazgos, menciona los riesgos críticos y sé directivo. Puedes ser conversacional en el audio.
@@ -165,7 +116,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     <h2>Análisis de Trabajo Seguro (ATS)</h2>
 
                     <h3>1. Descripción del Entorno</h3>
-                    <p>(Descripción detallada...)</p>
+                    <p>(Descripción detallada de lo que ves en el video...)</p>
 
                     <h3>2. Análisis Técnico</h3>
                     <p>(Evaluación profunda...)</p>
@@ -194,11 +145,11 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     - Sé riguroso en la valoración.
                     - Si no ves riesgos graves, documenta los riesgos leves o ergonómicos presentes.
                 `);
-            }, 2000);
+            }, 1000); // Short delay after ready
 
             return () => clearTimeout(timer);
         }
-    }, [isConnected, isOpen, sendTextMessage]);
+    }, [isConnected, isOpen, isReady, sendTextMessage]); // Depend on isReady
 
     const handleClose = () => {
         stopCamera();
