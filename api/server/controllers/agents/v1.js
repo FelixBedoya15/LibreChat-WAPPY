@@ -232,8 +232,8 @@ const updateAgentHandler = async (req, res) => {
     let updatedAgent =
       Object.keys(updateData).length > 0
         ? await updateAgent({ id }, updateData, {
-            updatingUserId: req.user.id,
-          })
+          updatingUserId: req.user.id,
+        })
         : existingAgent;
 
     // Add version count to the response
@@ -669,29 +669,44 @@ const revertAgentVersionHandler = async (req, res) => {
  */
 const getAgentCategories = async (_req, res) => {
   try {
-    const categories = await getCategoriesWithCounts();
-    const promotedCount = await countPromotedAgents();
-    const formattedCategories = categories.map((category) => ({
-      value: category.value,
-      label: category.label,
-      count: category.agentCount,
-      description: category.description,
-    }));
+    // const categories = await getCategoriesWithCounts();
+    // const promotedCount = await countPromotedAgents();
+    // const formattedCategories = categories.map((category) => ({
+    //   value: category.value,
+    //   label: category.label,
+    //   count: category.agentCount,
+    //   description: category.description,
+    // }));
 
-    if (promotedCount > 0) {
-      formattedCategories.unshift({
-        value: 'promoted',
-        label: 'Promoted',
-        count: promotedCount,
-        description: 'Our recommended agents',
-      });
-    }
+    // if (promotedCount > 0) {
+    //   formattedCategories.unshift({
+    //     value: 'promoted',
+    //     label: 'Promoted',
+    //     count: promotedCount,
+    //     description: 'Our recommended agents',
+    //   });
+    // }
 
-    formattedCategories.push({
-      value: 'all',
-      label: 'All',
-      description: 'All available agents',
-    });
+    // formattedCategories.push({
+    //   value: 'all',
+    //   label: 'All',
+    //   description: 'All available agents',
+    // });
+
+    const formattedCategories = [
+      {
+        value: 'profesionales_sst',
+        label: 'Profesionales SST',
+        count: 0,
+        description: 'Categoría para Profesionales SST',
+      },
+      {
+        value: 'asistentes',
+        label: 'Asistentes',
+        count: 0,
+        description: 'Categoría para Asistentes',
+      },
+    ];
 
     res.status(200).json(formattedCategories);
   } catch (error) {
