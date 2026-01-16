@@ -428,17 +428,8 @@ export function replaceSpecialVars({ text, user }: { text: string; user?: t.TUse
   const isoDatetime = dayjs().toISOString();
   result = result.replace(/{{iso_datetime}}/gi, isoDatetime);
 
-  if (user) {
-    const safeUser = user as unknown as any;
-    // Check multiple name fields in likely order of preference
-    const name = safeUser.name || safeUser.username || safeUser.email || 'Usuario';
-    result = result.replace(/{{current_user}}/gi, name);
-
-    // Check for location in various potential paths
-    const location = safeUser.location || (safeUser.profile && safeUser.profile.location);
-    if (location) {
-      result = result.replace(/{{current_location}}/gi, location);
-    }
+  if (user && user.name) {
+    result = result.replace(/{{current_user}}/gi, user.name);
   }
 
   return result;
