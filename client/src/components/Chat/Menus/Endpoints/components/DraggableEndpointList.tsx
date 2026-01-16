@@ -107,13 +107,15 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     drag(drop(ref));
 
     return (
-        <div ref={ref} style={{ opacity }} data-handler-id={handlerId}>
-            <EndpointModelItem
-                modelId={modelId}
-                endpoint={endpoint}
-                isSelected={isSelected}
-            />
-        </div>
+        <EndpointModelItem
+            ref={ref}
+            modelId={modelId}
+            endpoint={endpoint}
+            isSelected={isSelected}
+            style={{ opacity }}
+            data-handler-id={handlerId}
+            className="w-full cursor-move"
+        />
     );
 };
 
