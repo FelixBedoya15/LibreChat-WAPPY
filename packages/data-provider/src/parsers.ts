@@ -435,7 +435,7 @@ export function replaceSpecialVars({ text, user }: { text: string; user?: t.TUse
     result = result.replace(/{{current_user}}/gi, name);
 
     // Check for location in various potential paths
-    const location = safeUser.location || safeUser.profile?.location;
+    const location = safeUser.location || (safeUser.profile && safeUser.profile.location);
     if (location) {
       result = result.replace(/{{current_location}}/gi, location);
     }
