@@ -1293,7 +1293,7 @@
   "com_ui_upload_invalid": "Archivo no válido para subir. Debe ser una imagen que no exceda el límite",
   "com_ui_upload_invalid_var": "Archivo inválido para subir. Debe ser una imagen que no exceda los {{0}} MB",
   "com_ui_upload_ocr_text": "Subir como Texto",
-  "com_ui_upload_provider": "Subir al Proveedor",
+  "com_ui_upload_provider": "Subir Archivo",
   "com_ui_upload_success": "Archivo subido con éxito",
   "com_ui_upload_type": "Seleccionar tipo de carga",
   "com_ui_usage": "Usage",
