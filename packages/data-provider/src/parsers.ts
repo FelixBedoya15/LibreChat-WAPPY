@@ -429,15 +429,13 @@ export function replaceSpecialVars({ text, user }: { text: string; user?: t.TUse
   result = result.replace(/{{iso_datetime}}/gi, isoDatetime);
 
   if (user) {
+    const safeUser = user as unknown as any;
     // Check multiple name fields in likely order of preference
-    const name = user.name || user.username || user.email || 'Usuario';
+    const name = safeUser.name || safeUser.username || safeUser.email || 'Usuario';
     result = result.replace(/{{current_user}}/gi, name);
-  }
 
-  if (user) {
-    // Check for location in various potential paths (flat or profile)
-    // @ts-ignore - user type might not strict define location yet
-    const location = user.location || user.profile?.location;
+    // Check for location in various potential paths
+    const location = safeUser.location || safeUser.profile?.location;
     if (location) {
       result = result.replace(/{{current_location}}/gi, location);
     }
