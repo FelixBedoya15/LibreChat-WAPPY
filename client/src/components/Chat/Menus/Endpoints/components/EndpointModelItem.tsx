@@ -4,15 +4,16 @@ import { isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider'
 import type { Endpoint } from '~/common';
 import { useModelSelectorContext } from '../ModelSelectorContext';
 import { CustomMenuItem as MenuItem } from '../CustomMenu';
+import { cn } from '~/utils';
 
-interface EndpointModelItemProps {
+interface EndpointModelItemProps extends React.HTMLAttributes<HTMLDivElement> {
   modelId: string | null;
   endpoint: Endpoint;
   isSelected: boolean;
 }
 
 export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelItemProps>(
-  ({ modelId, endpoint, isSelected }, ref) => {
+  ({ modelId, endpoint, isSelected, ...props }, ref) => {
     const { handleSelectModel } = useModelSelectorContext();
     let isGlobal = false;
     let modelName = modelId;
@@ -35,9 +36,14 @@ export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelI
 
     return (
       <MenuItem
+        ref={ref}
         key={modelId}
         onClick={() => handleSelectModel(endpoint, modelId ?? '')}
-        className="flex w-full cursor-pointer items-center justify-between rounded-lg px-2 text-sm"
+        className={cn(
+          'flex w-full cursor-pointer items-center justify-between rounded-lg px-2 text-sm',
+          props.className,
+        )}
+        {...props}
       >
         <div className="flex w-full min-w-0 items-center gap-2 px-1 py-1">
           {avatarUrl ? (
@@ -77,13 +83,14 @@ export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelI
       </MenuItem>
     );
   }
+);
 
 export function renderEndpointModels(
-    endpoint: Endpoint | null,
-    models: Array<{ name: string; isGlobal?: boolean }>,
-    selectedModel: string | null,
-    filteredModels?: string[],
-  ) {
+  endpoint: Endpoint | null,
+  models: Array<{ name: string; isGlobal?: boolean }>,
+  selectedModel: string | null,
+  filteredModels?: string[],
+) {
   const modelsToRender = filteredModels || models.map((model) => model.name);
 
   return modelsToRender.map(
