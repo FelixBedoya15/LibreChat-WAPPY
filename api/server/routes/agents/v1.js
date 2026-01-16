@@ -45,6 +45,12 @@ router.use('/actions', configMiddleware, actions);
 router.use('/tools', configMiddleware, tools);
 
 /**
+ * Reorder agents.
+ * @route POST /agents/reorder
+ */
+router.post('/reorder', checkAgentAccess, v1.reorderAgents);
+
+/**
  * Get all agent categories with counts
  * @route GET /agents/categories
  */

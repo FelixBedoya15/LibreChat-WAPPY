@@ -718,6 +718,28 @@ const getAgentCategories = async (_req, res) => {
     });
   }
 };
+const reorderAgents = async (req, res) => {
+  try {
+    const { agents } = req.body;
+    if (!Array.isArray(agents)) {
+      return res.status(400).json({ message: 'Invalid payload: agents must be an array' });
+    }
+
+    const { id: userId } = req.user;
+    const updates = agents.map(({ id, order }) => {
+      // Ensure we only update agents the user has edit access to or owns
+      return updateAgent({ id: id, author: userId }, { order: parseInt(order, 10) });
+    });
+
+    await Promise.all(updates);
+
+    res.status(200).json({ message: 'Agents reordered successfully' });
+  } catch (error) {
+    logger.error('[/Agents/reorder] Error reordering agents:', error);
+    res.status(500).json({ message: 'Failed to reorder agents' });
+  }
+};
+
 module.exports = {
   createAgent: createAgentHandler,
   getAgent: getAgentHandler,
@@ -728,4 +750,5 @@ module.exports = {
   uploadAgentAvatar: uploadAgentAvatarHandler,
   revertAgentVersion: revertAgentVersionHandler,
   getAgentCategories,
+  reorderAgents,
 };

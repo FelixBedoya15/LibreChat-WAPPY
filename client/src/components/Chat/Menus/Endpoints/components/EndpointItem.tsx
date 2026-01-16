@@ -8,9 +8,12 @@ import { CustomMenu as Menu, CustomMenuItem as MenuItem } from '../CustomMenu';
 import { useModelSelectorContext } from '../ModelSelectorContext';
 import { renderEndpointModels } from './EndpointModelItem';
 import { ModelSpecItem } from './ModelSpecItem';
+import { DraggableEndpointList } from './DraggableEndpointList';
 import { filterModels } from '../utils';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { dataService, QueryKeys } from 'librechat-data-provider';
 
 interface EndpointItemProps {
   endpoint: Endpoint;
@@ -67,6 +70,19 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
     setEndpointSearchValue,
     endpointRequiresUserKey,
   } = useModelSelectorContext();
+
+  const queryClient = useQueryClient();
+  const reorderMutation = useMutation(
+    (payload: { agents: { id: string; order: number }[] }) =>
+      dataService.post('/agents/reorder', payload),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries([QueryKeys.endpoints]);
+        queryClient.invalidateQueries([QueryKeys.agents]);
+      },
+    },
+  );
+
   const {
     model: selectedModel,
     endpoint: selectedEndpoint,
@@ -117,12 +133,12 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
   if (endpoint.hasModels) {
     const filteredModels = searchValue
       ? filterModels(
-          endpoint,
-          (endpoint.models || []).map((model) => model.name),
-          searchValue,
-          agentsMap,
-          assistantsMap,
-        )
+        endpoint,
+        (endpoint.models || []).map((model) => model.name),
+        searchValue,
+        agentsMap,
+        assistantsMap,
+      )
       : null;
     const placeholder =
       isAgentsEndpoint(endpoint.value) || isAssistantsEndpoint(endpoint.value)
@@ -160,9 +176,21 @@ export function EndpointItem({ endpoint }: EndpointItemProps) {
               <ModelSpecItem key={spec.name} spec={spec} isSelected={selectedSpec === spec.name} />
             ))}
             {/* Render endpoint models */}
-            {filteredModels
-              ? renderEndpointModels(endpoint, endpoint.models || [], selectedModel, filteredModels)
-              : endpoint.models && renderEndpointModels(endpoint, endpoint.models, selectedModel)}
+            {isAgentsEndpoint(endpoint.value) && !filteredModels ? (
+              <DraggableEndpointList
+                endpoint={endpoint}
+                models={endpoint.models || []}
+                selectedModel={selectedModel}
+                onReorder={(newOrderIds) => {
+                  const agentUpdates = newOrderIds.map((id, index) => ({ id, order: index }));
+                  reorderMutation.mutate({ agents: agentUpdates });
+                }}
+              />
+            ) : (
+              filteredModels
+                ? renderEndpointModels(endpoint, endpoint.models || [], selectedModel, filteredModels)
+                : endpoint.models && renderEndpointModels(endpoint, endpoint.models, selectedModel)
+            )}
           </>
         )}
       </Menu>
