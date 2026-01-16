@@ -430,7 +430,7 @@ export function replaceSpecialVars({ text, user }: { text: string; user?: t.TUse
 
   if (user) {
     // Check multiple name fields in likely order of preference
-    const name = user.name || user.displayName || user.username || user.email || 'Usuario';
+    const name = user.name || user.username || user.email || 'Usuario';
     result = result.replace(/{{current_user}}/gi, name);
   }
 
