@@ -428,8 +428,18 @@ export function replaceSpecialVars({ text, user }: { text: string; user?: t.TUse
   const isoDatetime = dayjs().toISOString();
   result = result.replace(/{{iso_datetime}}/gi, isoDatetime);
 
-  if (user && user.name) {
-    result = result.replace(/{{current_user}}/gi, user.name);
+  if (user) {
+    const name = user.name || user.username || user.email || 'Usuario';
+    result = result.replace(/{{current_user}}/gi, name);
+  }
+
+  if (user) {
+    // Check for location in various potential paths (flat or profile)
+    // @ts-ignore - user type might not strict define location yet
+    const location = user.location || user.profile?.location;
+    if (location) {
+      result = result.replace(/{{current_location}}/gi, location);
+    }
   }
 
   return result;
