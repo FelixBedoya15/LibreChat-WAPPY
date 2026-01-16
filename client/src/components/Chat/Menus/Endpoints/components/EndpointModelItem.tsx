@@ -1,5 +1,5 @@
 import React from 'react';
-import { EarthIcon } from 'lucide-react';
+import { EarthIcon, GripVertical } from 'lucide-react';
 import { isAgentsEndpoint, isAssistantsEndpoint } from 'librechat-data-provider';
 import type { Endpoint } from '~/common';
 import { useModelSelectorContext } from '../ModelSelectorContext';
@@ -10,10 +10,11 @@ interface EndpointModelItemProps extends React.HTMLAttributes<HTMLDivElement> {
   modelId: string | null;
   endpoint: Endpoint;
   isSelected: boolean;
+  dragRef?: React.Ref<HTMLDivElement>;
 }
 
 export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelItemProps>(
-  ({ modelId, endpoint, isSelected, ...props }, ref) => {
+  ({ modelId, endpoint, isSelected, dragRef, ...props }, ref) => {
     const { handleSelectModel } = useModelSelectorContext();
     let isGlobal = false;
     let modelName = modelId;
@@ -46,6 +47,15 @@ export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelI
         {...props}
       >
         <div className="flex w-full min-w-0 items-center gap-2 px-1 py-1">
+          {dragRef && (
+            <div
+              ref={dragRef}
+              className="mr-1 flex cursor-grab items-center justify-center text-text-secondary hover:text-text-primary active:cursor-grabbing"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+          )}
           {avatarUrl ? (
             <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
               <img src={avatarUrl} alt={modelName ?? ''} className="h-full w-full object-cover" />

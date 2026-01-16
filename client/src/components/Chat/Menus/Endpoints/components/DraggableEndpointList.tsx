@@ -93,7 +93,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
         }
     });
 
-    const [{ isDragging }, drag] = useDrag({
+    const [{ isDragging }, drag, preview] = useDrag({
         type: ItemTypes.AGENT,
         item: () => {
             return { id, index };
@@ -104,7 +104,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
     });
 
     const opacity = isDragging ? 0 : 1;
-    drag(drop(ref));
+    preview(drop(ref));
 
     return (
         <EndpointModelItem
@@ -114,7 +114,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({
             isSelected={isSelected}
             style={{ opacity }}
             data-handler-id={handlerId}
-            className="w-full cursor-move"
+            className="w-full"
+            dragRef={drag}
         />
     );
 };
