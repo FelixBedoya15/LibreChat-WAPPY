@@ -600,7 +600,8 @@ const getListAgentsByAccess = async ({
     category: 1,
     support_contact: 1,
     is_promoted: 1,
-  }).sort({ updatedAt: -1, _id: 1 });
+    order: 1,
+  }).sort({ order: 1, updatedAt: -1, _id: 1 });
 
   // Only apply limit if pagination is requested
   if (isPaginated) {

@@ -41,4 +41,5 @@ export type AgentForm = {
   recursion_limit?: number;
   support_contact?: SupportContact;
   category: string;
+  order?: number;
 } & TAgentCapabilities;

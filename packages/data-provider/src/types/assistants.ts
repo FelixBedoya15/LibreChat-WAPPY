@@ -240,6 +240,7 @@ export type Agent = {
   version?: number;
   category?: string;
   support_contact?: SupportContact;
+  order?: number;
 };
 
 export type TAgentsMap = Record<string, Agent | undefined>;
@@ -264,6 +265,7 @@ export type AgentCreateParams = {
   | 'recursion_limit'
   | 'category'
   | 'support_contact'
+  | 'order'
 >;
 
 export type AgentUpdateParams = {
@@ -290,6 +292,7 @@ export type AgentUpdateParams = {
   | 'recursion_limit'
   | 'category'
   | 'support_contact'
+  | 'order'
 >;
 
 export type AgentListParams = {
@@ -483,27 +486,27 @@ export type TextData = (Text & PartMetadata) | undefined;
 
 export type TMessageContentParts =
   | {
-      type: ContentTypes.ERROR;
-      text?: string | TextData;
-      error?: string;
-    }
+    type: ContentTypes.ERROR;
+    text?: string | TextData;
+    error?: string;
+  }
   | { type: ContentTypes.THINK; think?: string | TextData }
   | {
-      type: ContentTypes.TEXT;
-      text?: string | TextData;
-      tool_call_ids?: string[];
-    }
+    type: ContentTypes.TEXT;
+    text?: string | TextData;
+    tool_call_ids?: string[];
+  }
   | {
-      type: ContentTypes.TOOL_CALL;
-      tool_call: (
-        | CodeToolCall
-        | RetrievalToolCall
-        | FileSearchToolCall
-        | FunctionToolCall
-        | Agents.AgentToolCall
-      ) &
-        PartMetadata;
-    }
+    type: ContentTypes.TOOL_CALL;
+    tool_call: (
+      | CodeToolCall
+      | RetrievalToolCall
+      | FileSearchToolCall
+      | FunctionToolCall
+      | Agents.AgentToolCall
+    ) &
+    PartMetadata;
+  }
   | { type: ContentTypes.IMAGE_FILE; image_file: ImageFile & PartMetadata }
   | Agents.AgentUpdate
   | Agents.MessageContentImageUrl;

@@ -189,37 +189,63 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
             createMutation={createMutation}
             avatar={agent?.['avatar'] ?? null}
           />
-          <label className={labelClass} htmlFor="name">
-            {localize('com_ui_name')}
-            <span className="text-red-500">*</span>
-          </label>
-          <Controller
-            name="name"
-            rules={{ required: localize('com_ui_agent_name_is_required') }}
-            control={control}
-            render={({ field }) => (
-              <>
-                <input
-                  {...field}
-                  value={field.value ?? ''}
-                  maxLength={256}
-                  className={inputClass}
-                  id="name"
-                  type="text"
-                  placeholder={localize('com_agents_name_placeholder')}
-                  aria-label="Agent name"
-                />
-                <div
-                  className={cn(
-                    'mt-1 w-56 text-sm text-red-500',
-                    errors.name ? 'visible h-auto' : 'invisible h-0',
-                  )}
-                >
-                  {errors.name ? errors.name.message : ' '}
-                </div>
-              </>
-            )}
-          />
+          <div className="flex gap-4">
+            <div className="flex-grow">
+              <label className={labelClass} htmlFor="name">
+                {localize('com_ui_name')}
+                <span className="text-red-500">*</span>
+              </label>
+              <Controller
+                name="name"
+                rules={{ required: localize('com_ui_agent_name_is_required') }}
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <input
+                      {...field}
+                      value={field.value ?? ''}
+                      maxLength={256}
+                      className={inputClass}
+                      id="name"
+                      type="text"
+                      placeholder={localize('com_agents_name_placeholder')}
+                      aria-label="Agent name"
+                    />
+                    <div
+                      className={cn(
+                        'mt-1 w-56 text-sm text-red-500',
+                        errors.name ? 'visible h-auto' : 'invisible h-0',
+                      )}
+                    >
+                      {errors.name ? errors.name.message : ' '}
+                    </div>
+                  </>
+                )}
+              />
+            </div>
+            <div className="w-24">
+              <label className={labelClass} htmlFor="order">
+                {localize('com_ui_order') || 'Order'}
+              </label>
+              <Controller
+                name="order"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    value={field.value ?? 0}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                    className={inputClass}
+                    id="order"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    aria-label="Agent order"
+                  />
+                )}
+              />
+            </div>
+          </div>
           <Controller
             name="id"
             control={control}

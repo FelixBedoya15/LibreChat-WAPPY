@@ -108,7 +108,13 @@ export const useEndpoints = ({
 
       // Handle agents case
       if (ep === EModelEndpoint.agents && (agents?.length ?? 0) > 0) {
-        result.models = agents?.map((agent) => ({
+        const sortedAgents = [...(agents || [])].sort((a, b) => {
+          if (a.order !== b.order) {
+            return (a.order ?? 0) - (b.order ?? 0);
+          }
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        result.models = sortedAgents.map((agent) => ({
           name: agent.id,
           isGlobal: agent.isPublic ?? false,
         }));

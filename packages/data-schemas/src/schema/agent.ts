@@ -112,6 +112,11 @@ const agentSchema = new Schema<IAgent>(
       default: false,
       index: true,
     },
+    order: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   {
     timestamps: true,
