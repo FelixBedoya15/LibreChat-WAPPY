@@ -18,6 +18,8 @@ interface UseVoiceSessionOptions {
     disableAudio?: boolean;
     mode?: 'chat' | 'live_analysis';
     initialVoice?: string;
+    model?: string;
+    endpoint?: string;
 }
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
@@ -250,6 +252,12 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             if (options.initialVoice) {
                 wsUrl += `&initialVoice=${encodeURIComponent(options.initialVoice)}`;
+            }
+            if (options.model) {
+                wsUrl += `&model=${encodeURIComponent(options.model)}`;
+            }
+            if (options.endpoint) {
+                wsUrl += `&endpoint=${encodeURIComponent(options.endpoint)}`;
             }
 
             console.log('[VoiceSession] Connecting to:', wsUrl);

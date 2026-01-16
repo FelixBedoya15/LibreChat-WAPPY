@@ -119,6 +119,16 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         !assistantMap?.[endpoint ?? '']?.[conversation?.assistant_id ?? '']),
     [conversation?.assistant_id, endpoint, assistantMap],
   );
+  const modelToUse = useMemo(() => {
+    if (isAgentsEndpoint(endpoint)) {
+      return conversation?.agent_id;
+    }
+    if (isAssistantsEndpoint(endpoint)) {
+      return conversation?.assistant_id;
+    }
+    return conversation?.model;
+  }, [endpoint, conversation?.agent_id, conversation?.assistant_id, conversation?.model]);
+
   const disableInputs = useMemo(
     () => requiresKey || invalidAssistant,
     [requiresKey, invalidAssistant],
@@ -378,6 +388,8 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         conversationId={conversationId} // Use current conversation
+        model={modelToUse}
+        endpoint={endpoint}
         onConversationIdUpdate={(newId) => {
           // Only navigate if we were in a NEW chat (not an existing one)
           const wasNewChat = conversationId === Constants.NEW_CONVO;

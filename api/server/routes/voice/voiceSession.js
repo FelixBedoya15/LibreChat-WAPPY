@@ -22,6 +22,28 @@ class VoiceSession {
         this.userId = userId;
         this.apiKey = apiKey;
         this.config = config;
+
+        // Context persistence: Use model/endpoint from client (Chat/Agent)
+        this.dbModel = config.model;
+        this.dbEndpoint = config.endpoint || EModelEndpoint.google;
+
+        // Verify/Set defaults if missing (for DB saving)
+        if (!this.dbModel) {
+            // Fallback to voice model if no chat model provided
+            this.dbModel = process.env.GEMINI_LIVE_MODEL || 'gemini-2.5-flash-native-audio-preview-09-2025';
+        }
+
+        // Voice Configuration: Separate from DB Config
+        this.liveConfig = { ...config };
+
+        // CRITICAL: Ensure we don't pass an Agent ID or incompatible model to Gemini Live (WebSocket)
+        // Gemini Live requires specific models (e.g. gemini-2.5-flash-native...).
+        // If the client sent a model (likely for chat context), we shouldn't blindly use it for the Voice connection.
+        // We delete it so GeminiLiveClient uses its internal default/env var.
+        if (this.liveConfig.model) {
+            delete this.liveConfig.model;
+        }
+
         this.conversationId = conversationId;
         this.geminiClient = null;
         this.isActive = false;
@@ -290,8 +312,8 @@ class VoiceSession {
                 try {
                     await saveConvo({ user: { id: this.userId } }, {
                         conversationId: this.conversationId,
-                        endpoint: EModelEndpoint.google,
-                        model: this.config.model
+                        endpoint: this.dbEndpoint,
+                        model: this.dbModel
                     }, { context: 'VoiceSession - TurnComplete' });
 
                     // If new conversation, send ID to client
@@ -488,8 +510,8 @@ class VoiceSession {
                             user: this.userId,
                             sender: 'User',
                             isCreatedByUser: true,
-                            endpoint: EModelEndpoint.google, // Ensure endpoint is set
-                            model: this.config.model,
+                            endpoint: this.dbEndpoint, // Ensure endpoint is set
+                            model: this.dbModel,
                         };
 
                         const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession' });
@@ -557,8 +579,8 @@ class VoiceSession {
                 user: this.userId,
                 sender: 'User',
                 isCreatedByUser: true,
-                endpoint: EModelEndpoint.google,
-                model: this.config.model,
+                endpoint: this.dbEndpoint,
+                model: this.dbModel,
             };
 
             const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - User' });
@@ -592,8 +614,8 @@ class VoiceSession {
                 user: this.userId,
                 sender: 'Assistant', // AI Sender
                 isCreatedByUser: false,
-                endpoint: EModelEndpoint.google,
-                model: this.config.model,
+                endpoint: this.dbEndpoint,
+                model: this.dbModel,
             };
 
             const savedMessage = await saveMessage({ user: { id: this.userId } }, messageData, { context: 'VoiceSession - AI' });

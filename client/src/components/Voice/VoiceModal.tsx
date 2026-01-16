@@ -13,9 +13,11 @@ interface VoiceModalProps {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onConversationUpdated?: () => void;
+    model?: string;
+    endpoint?: string;
 }
 
-const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated }) => {
+const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint }) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
     // Initialize with global state, but ensure we listen to updates
@@ -39,13 +41,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         onConversationIdUpdate,
         onConversationUpdated,
         initialVoice: voiceChatGeneral, // Pass the persisted voice
+        model, // Pass selected model/agent
+        endpoint, // Pass selected endpoint
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
         onTextReceived: handleTextReceived,
         onStatusChange: handleStatusChange,
         onError: handleError,
-    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral]);
+    }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint]);
 
     // Voice session WebSocket
     const {
