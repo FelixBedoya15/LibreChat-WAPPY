@@ -272,11 +272,11 @@ export default function AgentPanel() {
           </div>
           {/* Create + Select Button */}
           {agent_id && (
-            <div className="flex w-full gap-2">
+            <div className="flex w-full flex-col gap-2">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 justify-center"
+                className="w-full justify-center"
                 onClick={() => {
                   reset(getDefaultAgentFormValues());
                   setCurrentAgentId(undefined);
@@ -299,6 +299,7 @@ export default function AgentPanel() {
               </Button>
               <Button
                 variant="submit"
+                className="w-full justify-center"
                 disabled={isEphemeralAgent(agent_id) || agentQuery.isInitialLoading}
                 onClick={(e) => {
                   e.preventDefault();
