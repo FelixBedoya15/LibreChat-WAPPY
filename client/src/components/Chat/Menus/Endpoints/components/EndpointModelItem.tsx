@@ -52,6 +52,8 @@ export const EndpointModelItem = React.forwardRef<HTMLDivElement, EndpointModelI
               ref={dragRef}
               className="mr-1 flex cursor-grab items-center justify-center text-text-secondary hover:text-text-primary active:cursor-grabbing"
               onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             >
               <GripVertical className="h-4 w-4" />
             </div>
