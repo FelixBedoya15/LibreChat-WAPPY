@@ -428,9 +428,8 @@ export function replaceSpecialVars({ text, user }: { text: string; user?: t.TUse
   const isoDatetime = dayjs().toISOString();
   result = result.replace(/{{iso_datetime}}/gi, isoDatetime);
 
-  if (user) {
-    const name = user.name || user.username || user.email || 'Usuario';
-    result = result.replace(/{{current_user}}/gi, name);
+  if (user && user.name) {
+    result = result.replace(/{{current_user}}/gi, user.name);
   }
 
   if (user) {
