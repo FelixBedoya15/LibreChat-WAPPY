@@ -77,6 +77,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
     files,
     setFiles,
     conversation,
+    setConversation,
     isSubmitting,
     filesLoading,
     newConversation,
@@ -396,6 +397,14 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           console.log('[ChatForm] Voice created/updated conversation:', newId, 'wasNewChat:', wasNewChat);
 
           if (wasNewChat) {
+            // Update local conversation state IMMEDIATELY so that if user submits, it uses the new ID
+            if (setConversation) {
+              setConversation((prev) => ({
+                ...prev,
+                conversationId: newId,
+              }));
+            }
+
             // Navigate to the new conversation
             navigate(`/c/${newId}`, { replace: true, state: { focusChat: true } });
           }
