@@ -232,20 +232,21 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             }));
         });
 
+        const borderStyle = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
+
         return new Table({
             rows,
-            layout: TableLayoutType.AUTOFIT,
-            width: {
-                size: 100,
-                type: WidthType.PERCENTAGE,
+            layout: {
+                type: TableLayoutType.AUTOFIT,
             },
+            // REMOVED 'width' property entirely. defining both layout:AUTOFIT and width:100% can cause issues in Word for Mac.
             borders: {
-                top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                top: borderStyle,
+                bottom: borderStyle,
+                left: borderStyle,
+                right: borderStyle,
+                insideHorizontal: borderStyle,
+                insideVertical: borderStyle,
             },
         });
     };
