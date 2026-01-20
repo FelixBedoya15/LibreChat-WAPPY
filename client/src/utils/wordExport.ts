@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header, Footer, ImageRun, PageNumber, NumberFormat, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Header, Footer, ImageRun, PageNumber, NumberFormat, Table, TableRow, TableCell, WidthType, BorderStyle, TableLayoutType } from 'docx';
 import { saveAs } from 'file-saver';
 import { ExportConfig } from '~/hooks/useExportConfig';
 
@@ -167,7 +167,6 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
         let maxColumns = 0;
 
         // Identify separator line index if it exists
-        // Looks for line containing only -, :, | and whitespace
         const separatorIndex = lines.findIndex(line =>
             line.trim().match(/^\|?[\s\-:|]+\|?$/) && line.includes('-')
         );
@@ -178,15 +177,9 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 return;
             }
 
-            const cells = line.split('|')
-                .filter((cell, i, arr) => {
-                    // Filter out empty start/end cells caused by leading/trailing pipes
-                    if ((i === 0 || i === arr.length - 1) && cell.trim() === '') {
-                        return false;
-                    }
-                    return true;
-                })
-                .map(cell => cell.trim());
+            // Remove outer pipes if present and split
+            const cleanedLine = line.trim().replace(/^\||\|$/g, '');
+            const cells = cleanedLine.split('|').map(cell => cell.trim());
 
             if (cells.length > 0) {
                 if (cells.length > maxColumns) {
@@ -210,10 +203,14 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 rowCells.push(new TableCell({
                     children: [new Paragraph({
                         children: parseInline(cellText),
-                        alignment: AlignmentType.LEFT, // Ensure text alignment
+                        alignment: AlignmentType.LEFT,
                     })],
-                    // REMOVED explicit width to allow Word Auto-Layout (Fixes corruption)
-                    // Added borders to cells? No, setting on Table is better.
+                    borders: {
+                        top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                        bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                        left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                        right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                    },
                 }));
             });
 
@@ -221,6 +218,12 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             while (rowCells.length < maxColumns) {
                 rowCells.push(new TableCell({
                     children: [new Paragraph({ text: '' })],
+                    borders: {
+                        top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                        bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                        left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                        right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                    },
                 }));
             }
 
@@ -231,7 +234,11 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
 
         return new Table({
             rows,
-            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.AUTOFIT,
+            width: {
+                size: 100,
+                type: WidthType.PERCENTAGE,
+            },
             borders: {
                 top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
                 bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
