@@ -163,20 +163,24 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
 
     // Helper to create table from markdown
     const createTable = (lines: string[]): Table | undefined => {
-        // First pass: parse all rows and find max columns
         const parsedRows: string[][] = [];
         let maxColumns = 0;
 
+        // Identify separator line index if it exists
+        // Looks for line containing only -, :, | and whitespace
+        const separatorIndex = lines.findIndex(line =>
+            line.trim().match(/^\|?[\s\-:|]+\|?$/) && line.includes('-')
+        );
+
         lines.forEach((line, index) => {
-            // Skip separator line (|:--|:--:|--:|)
-            if (index === 1 && line.includes('--')) {
+            // Skip separator line
+            if (index === separatorIndex) {
                 return;
             }
 
             const cells = line.split('|')
                 .filter((cell, i, arr) => {
                     // Filter out empty start/end cells caused by leading/trailing pipes
-                    // Markdown tables often look like | cell | cell |, split gives ["", "cell", "cell", ""]
                     if ((i === 0 || i === arr.length - 1) && cell.trim() === '') {
                         return false;
                     }
@@ -196,10 +200,8 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             return undefined;
         }
 
-        const widthPercent = Math.floor(100 / maxColumns);
         const rows: TableRow[] = [];
 
-        // Second pass: create TableRows with padding
         parsedRows.forEach(cells => {
             const rowCells: TableCell[] = [];
 
@@ -208,8 +210,10 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
                 rowCells.push(new TableCell({
                     children: [new Paragraph({
                         children: parseInline(cellText),
+                        alignment: AlignmentType.LEFT, // Ensure text alignment
                     })],
-                    width: { size: widthPercent, type: WidthType.PERCENTAGE },
+                    // REMOVED explicit width to allow Word Auto-Layout (Fixes corruption)
+                    // Added borders to cells? No, setting on Table is better.
                 }));
             });
 
@@ -217,7 +221,6 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
             while (rowCells.length < maxColumns) {
                 rowCells.push(new TableCell({
                     children: [new Paragraph({ text: '' })],
-                    width: { size: widthPercent, type: WidthType.PERCENTAGE },
                 }));
             }
 
@@ -229,6 +232,14 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
         return new Table({
             rows,
             width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+                top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            },
         });
     };
 
