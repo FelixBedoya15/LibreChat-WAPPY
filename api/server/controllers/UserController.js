@@ -58,36 +58,6 @@ const getUserController = async (req, res) => {
   res.status(200).send(userData);
 };
 
-const updateSelfController = async (req, res) => {
-  try {
-    const { name, username, password } = req.body;
-    const userId = req.user.id;
-
-    // Only allow updating name, username, and password
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (username !== undefined) updateData.username = username;
-    if (password) updateData.password = password;
-
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ message: 'No fields to update' });
-    }
-
-    const updatedUser = await updateUser(userId, updateData);
-
-    // Return the updated user object (sanitize sensitive fields)
-    const userObject = updatedUser.toObject();
-    delete userObject.password;
-    delete userObject.totpSecret;
-    delete userObject.backupCodes;
-
-    res.status(200).json(userObject);
-  } catch (error) {
-    logger.error('Error in updateSelfController:', error);
-    res.status(500).json({ message: 'Error updating user profile' });
-  }
-};
-
 const getTermsStatusController = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -426,5 +396,4 @@ module.exports = {
   verifyEmailController,
   updateUserPluginsController,
   resendVerificationController,
-  updateSelfController,
 };
