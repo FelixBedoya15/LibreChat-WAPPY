@@ -4,6 +4,7 @@ import DeleteAccount from './DeleteAccount';
 import Avatar from './Avatar';
 import EnableTwoFactorItem from './TwoFactorAuthentication';
 import BackupCodesItem from './BackupCodesItem';
+import ProfileSettings from './ProfileSettings';
 import { useAuthContext } from '~/hooks';
 
 function Account() {
@@ -16,6 +17,9 @@ function Account() {
       </div>
       <div className="pb-3">
         <Avatar />
+      </div>
+      <div className="pb-3">
+        <ProfileSettings />
       </div>
       {user?.provider === 'local' && (
         <>
