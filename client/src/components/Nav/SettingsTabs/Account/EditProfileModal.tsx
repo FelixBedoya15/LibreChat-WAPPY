@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { useToastContext } from '@librechat/client';
+
 import { useLocalize, useAuthContext } from '~/hooks';
 import axios from 'axios';
 
 export default function EditProfileModal({ isOpen, onClose }) {
     const localize = useLocalize();
     const { user, setUser } = useAuthContext();
-    const { showToast } = useToastContext();
     const [formData, setFormData] = useState({
         name: '',
         username: '',
@@ -35,7 +34,8 @@ export default function EditProfileModal({ isOpen, onClose }) {
         e.preventDefault();
 
         if (formData.password && formData.password !== formData.confirmPassword) {
-            return showToast({ message: localize('com_auth_password_not_match'), status: 'error' });
+            // return showToast({ message: localize('com_auth_password_not_match'), status: 'error' });
+            return;
         }
 
         try {
