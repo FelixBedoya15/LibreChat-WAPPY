@@ -226,207 +226,208 @@ const updateUserPluginsController = async (req, res) => {
     logger.error('[updateUserPluginsController]', err);
     return res.status(500).json({ message: 'Something went wrong.' });
   }
+};
 
 
-  const updateUserProfileController = async (req, res) => {
+const updateUserProfileController = async (req, res) => {
+  try {
+    const { name, username, password } = req.body;
+    const userId = req.user.id;
+
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (username) updateData.username = username;
+    if (password) {
+      const salt = bcrypt.genSaltSync(10);
+      updateData.password = bcrypt.hashSync(password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Remove sensitive data before sending back
+    const userObj = user.toObject();
+    delete userObj.password;
+    delete userObj.__v;
+
+    res.status(200).json({ message: 'Profile updated successfully', user: userObj });
+  } catch (err) {
+    logger.error('[updateUserProfileController]', err);
+    res.status(500).json({ message: 'Error updating profile' });
+  }
+};
+
+const deleteUserController = async (req, res) => {
+  const { user } = req;
+
+  try {
+    await deleteMessages({ user: user.id }); // delete user messages
+    await deleteAllUserSessions({ userId: user.id }); // delete user sessions
+    await Transaction.deleteMany({ user: user.id }); // delete user transactions
+    await deleteUserKey({ userId: user.id, all: true }); // delete user keys
+    await Balance.deleteMany({ user: user._id }); // delete user balances
+    await deletePresets(user.id); // delete user presets
+    /* TODO: Delete Assistant Threads */
     try {
-      const { name, username, password } = req.body;
-      const userId = req.user.id;
-
-      const updateData = {};
-      if (name) updateData.name = name;
-      if (username) updateData.username = username;
-      if (password) {
-        const salt = bcrypt.genSaltSync(10);
-        updateData.password = bcrypt.hashSync(password, salt);
-      }
-
-      const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      // Remove sensitive data before sending back
-      const userObj = user.toObject();
-      delete userObj.password;
-      delete userObj.__v;
-
-      res.status(200).json({ message: 'Profile updated successfully', user: userObj });
-    } catch (err) {
-      logger.error('[updateUserProfileController]', err);
-      res.status(500).json({ message: 'Error updating profile' });
+      await deleteConvos(user.id); // delete user convos
+    } catch (error) {
+      logger.error('[deleteUserController] Error deleting user convos, likely no convos', error);
     }
-  };
+    await deleteUserPluginAuth(user.id, null, true); // delete user plugin auth
+    await deleteUserById(user.id); // delete user
+    await deleteAllSharedLinks(user.id); // delete user shared links
+    await deleteUserFiles(req); // delete user files
+    await deleteFiles(null, user.id); // delete database files in case of orphaned files from previous steps
+    await deleteToolCalls(user.id); // delete user tool calls
+    /* TODO: queue job for cleaning actions and assistants of non-existant users */
+    logger.info(`User deleted account. Email: ${user.email} ID: ${user.id}`);
+    res.status(200).send({ message: 'User deleted' });
+  } catch (err) {
+    logger.error('[deleteUserController]', err);
+    return res.status(500).json({ message: 'Something went wrong.' });
+  }
+};
 
-  const deleteUserController = async (req, res) => {
-    const { user } = req;
+const verifyEmailController = async (req, res) => {
+  try {
+    const verifyEmailService = await verifyEmail(req);
+    if (verifyEmailService instanceof Error) {
+      return res.status(400).json(verifyEmailService);
+    } else {
+      return res.status(200).json(verifyEmailService);
+    }
+  } catch (e) {
+    logger.error('[verifyEmailController]', e);
+    return res.status(500).json({ message: 'Something went wrong.' });
+  }
+};
 
+const resendVerificationController = async (req, res) => {
+  try {
+    const result = await resendVerificationEmail(req);
+    if (result instanceof Error) {
+      return res.status(400).json(result);
+    } else {
+      return res.status(200).json(result);
+    }
+  } catch (e) {
+    logger.error('[verifyEmailController]', e);
+    return res.status(500).json({ message: 'Something went wrong.' });
+  }
+};
+
+/**
+ * OAuth MCP specific uninstall logic
+ */
+const maybeUninstallOAuthMCP = async (userId, pluginKey, appConfig) => {
+  if (!pluginKey.startsWith(Constants.mcp_prefix)) {
+    // this is not an MCP server, so nothing to do here
+    return;
+  }
+
+  const serverName = pluginKey.replace(Constants.mcp_prefix, '');
+  const serverConfig =
+    (await mcpServersRegistry.getServerConfig(serverName, userId)) ??
+    appConfig?.mcpServers?.[serverName];
+  const oauthServers = await mcpServersRegistry.getOAuthServers();
+  if (!oauthServers.has(serverName)) {
+    // this server does not use OAuth, so nothing to do here as well
+    return;
+  }
+
+  // 1. get client info used for revocation (client id, secret)
+  const clientTokenData = await MCPTokenStorage.getClientInfoAndMetadata({
+    userId,
+    serverName,
+    findToken,
+  });
+  if (clientTokenData == null) {
+    return;
+  }
+  const { clientInfo, clientMetadata } = clientTokenData;
+
+  // 2. get decrypted tokens before deletion
+  const tokens = await MCPTokenStorage.getTokens({
+    userId,
+    serverName,
+    findToken,
+  });
+
+  // 3. revoke OAuth tokens at the provider
+  const revocationEndpoint =
+    serverConfig.oauth?.revocation_endpoint ?? clientMetadata.revocation_endpoint;
+  const revocationEndpointAuthMethodsSupported =
+    serverConfig.oauth?.revocation_endpoint_auth_methods_supported ??
+    clientMetadata.revocation_endpoint_auth_methods_supported;
+  const oauthHeaders = serverConfig.oauth_headers ?? {};
+
+  if (tokens?.access_token) {
     try {
-      await deleteMessages({ user: user.id }); // delete user messages
-      await deleteAllUserSessions({ userId: user.id }); // delete user sessions
-      await Transaction.deleteMany({ user: user.id }); // delete user transactions
-      await deleteUserKey({ userId: user.id, all: true }); // delete user keys
-      await Balance.deleteMany({ user: user._id }); // delete user balances
-      await deletePresets(user.id); // delete user presets
-      /* TODO: Delete Assistant Threads */
-      try {
-        await deleteConvos(user.id); // delete user convos
-      } catch (error) {
-        logger.error('[deleteUserController] Error deleting user convos, likely no convos', error);
-      }
-      await deleteUserPluginAuth(user.id, null, true); // delete user plugin auth
-      await deleteUserById(user.id); // delete user
-      await deleteAllSharedLinks(user.id); // delete user shared links
-      await deleteUserFiles(req); // delete user files
-      await deleteFiles(null, user.id); // delete database files in case of orphaned files from previous steps
-      await deleteToolCalls(user.id); // delete user tool calls
-      /* TODO: queue job for cleaning actions and assistants of non-existant users */
-      logger.info(`User deleted account. Email: ${user.email} ID: ${user.id}`);
-      res.status(200).send({ message: 'User deleted' });
-    } catch (err) {
-      logger.error('[deleteUserController]', err);
-      return res.status(500).json({ message: 'Something went wrong.' });
+      await MCPOAuthHandler.revokeOAuthToken(
+        serverName,
+        tokens.access_token,
+        'access',
+        {
+          serverUrl: serverConfig.url,
+          clientId: clientInfo.client_id,
+          clientSecret: clientInfo.client_secret ?? '',
+          revocationEndpoint,
+          revocationEndpointAuthMethodsSupported,
+        },
+        oauthHeaders,
+      );
+    } catch (error) {
+      logger.error(`Error revoking OAuth access token for ${serverName}:`, error);
     }
-  };
+  }
 
-  const verifyEmailController = async (req, res) => {
+  if (tokens?.refresh_token) {
     try {
-      const verifyEmailService = await verifyEmail(req);
-      if (verifyEmailService instanceof Error) {
-        return res.status(400).json(verifyEmailService);
-      } else {
-        return res.status(200).json(verifyEmailService);
-      }
-    } catch (e) {
-      logger.error('[verifyEmailController]', e);
-      return res.status(500).json({ message: 'Something went wrong.' });
+      await MCPOAuthHandler.revokeOAuthToken(
+        serverName,
+        tokens.refresh_token,
+        'refresh',
+        {
+          serverUrl: serverConfig.url,
+          clientId: clientInfo.client_id,
+          clientSecret: clientInfo.client_secret ?? '',
+          revocationEndpoint,
+          revocationEndpointAuthMethodsSupported,
+        },
+        oauthHeaders,
+      );
+    } catch (error) {
+      logger.error(`Error revoking OAuth refresh token for ${serverName}:`, error);
     }
-  };
+  }
 
-  const resendVerificationController = async (req, res) => {
-    try {
-      const result = await resendVerificationEmail(req);
-      if (result instanceof Error) {
-        return res.status(400).json(result);
-      } else {
-        return res.status(200).json(result);
-      }
-    } catch (e) {
-      logger.error('[verifyEmailController]', e);
-      return res.status(500).json({ message: 'Something went wrong.' });
-    }
-  };
+  // 4. delete tokens from the DB after revocation attempts
+  await MCPTokenStorage.deleteUserTokens({
+    userId,
+    serverName,
+    deleteToken: async (filter) => {
+      await Token.deleteOne(filter);
+    },
+  });
 
-  /**
-   * OAuth MCP specific uninstall logic
-   */
-  const maybeUninstallOAuthMCP = async (userId, pluginKey, appConfig) => {
-    if (!pluginKey.startsWith(Constants.mcp_prefix)) {
-      // this is not an MCP server, so nothing to do here
-      return;
-    }
+  // 5. clear the flow state for the OAuth tokens
+  const flowsCache = getLogStores(CacheKeys.FLOWS);
+  const flowManager = getFlowStateManager(flowsCache);
+  const flowId = MCPOAuthHandler.generateFlowId(userId, serverName);
+  await flowManager.deleteFlow(flowId, 'mcp_get_tokens');
+  await flowManager.deleteFlow(flowId, 'mcp_oauth');
+};
 
-    const serverName = pluginKey.replace(Constants.mcp_prefix, '');
-    const serverConfig =
-      (await mcpServersRegistry.getServerConfig(serverName, userId)) ??
-      appConfig?.mcpServers?.[serverName];
-    const oauthServers = await mcpServersRegistry.getOAuthServers();
-    if (!oauthServers.has(serverName)) {
-      // this server does not use OAuth, so nothing to do here as well
-      return;
-    }
+module.exports = {
+  getUserController,
+  getTermsStatusController,
+  acceptTermsController,
+  deleteUserController,
+  verifyEmailController,
+  updateUserPluginsController,
 
-    // 1. get client info used for revocation (client id, secret)
-    const clientTokenData = await MCPTokenStorage.getClientInfoAndMetadata({
-      userId,
-      serverName,
-      findToken,
-    });
-    if (clientTokenData == null) {
-      return;
-    }
-    const { clientInfo, clientMetadata } = clientTokenData;
-
-    // 2. get decrypted tokens before deletion
-    const tokens = await MCPTokenStorage.getTokens({
-      userId,
-      serverName,
-      findToken,
-    });
-
-    // 3. revoke OAuth tokens at the provider
-    const revocationEndpoint =
-      serverConfig.oauth?.revocation_endpoint ?? clientMetadata.revocation_endpoint;
-    const revocationEndpointAuthMethodsSupported =
-      serverConfig.oauth?.revocation_endpoint_auth_methods_supported ??
-      clientMetadata.revocation_endpoint_auth_methods_supported;
-    const oauthHeaders = serverConfig.oauth_headers ?? {};
-
-    if (tokens?.access_token) {
-      try {
-        await MCPOAuthHandler.revokeOAuthToken(
-          serverName,
-          tokens.access_token,
-          'access',
-          {
-            serverUrl: serverConfig.url,
-            clientId: clientInfo.client_id,
-            clientSecret: clientInfo.client_secret ?? '',
-            revocationEndpoint,
-            revocationEndpointAuthMethodsSupported,
-          },
-          oauthHeaders,
-        );
-      } catch (error) {
-        logger.error(`Error revoking OAuth access token for ${serverName}:`, error);
-      }
-    }
-
-    if (tokens?.refresh_token) {
-      try {
-        await MCPOAuthHandler.revokeOAuthToken(
-          serverName,
-          tokens.refresh_token,
-          'refresh',
-          {
-            serverUrl: serverConfig.url,
-            clientId: clientInfo.client_id,
-            clientSecret: clientInfo.client_secret ?? '',
-            revocationEndpoint,
-            revocationEndpointAuthMethodsSupported,
-          },
-          oauthHeaders,
-        );
-      } catch (error) {
-        logger.error(`Error revoking OAuth refresh token for ${serverName}:`, error);
-      }
-    }
-
-    // 4. delete tokens from the DB after revocation attempts
-    await MCPTokenStorage.deleteUserTokens({
-      userId,
-      serverName,
-      deleteToken: async (filter) => {
-        await Token.deleteOne(filter);
-      },
-    });
-
-    // 5. clear the flow state for the OAuth tokens
-    const flowsCache = getLogStores(CacheKeys.FLOWS);
-    const flowManager = getFlowStateManager(flowsCache);
-    const flowId = MCPOAuthHandler.generateFlowId(userId, serverName);
-    await flowManager.deleteFlow(flowId, 'mcp_get_tokens');
-    await flowManager.deleteFlow(flowId, 'mcp_oauth');
-  };
-
-  module.exports = {
-    getUserController,
-    getTermsStatusController,
-    acceptTermsController,
-    deleteUserController,
-    verifyEmailController,
-    updateUserPluginsController,
-
-    resendVerificationController,
-    updateUserProfileController,
-  };
+  resendVerificationController,
+  updateUserProfileController,
+};
