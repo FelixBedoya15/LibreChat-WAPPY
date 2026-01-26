@@ -36,20 +36,16 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const { password, ...rest } = formData;
-            const payload: Record<string, any> = { ...rest };
-            if (password) {
-                payload.password = password;
-            }
+            const payload = { ...formData };
+            if (!payload.password) delete payload.password; // Only send if changed
 
             await axios.post('/api/admin/users/update', payload);
             showToast({ message: localize('com_ui_user_update_success'), status: 'success' });
             onUserUpdated();
             onClose();
-        } catch (error: unknown) {
+        } catch (error) {
             console.error('Error updating user:', error);
-            const message = (axios.isAxiosError(error) && error.response?.data?.message) || localize('com_ui_user_update_error');
-            showToast({ message, status: 'error' });
+            showToast({ message: localize('com_ui_user_update_error'), status: 'error' });
         }
     };
 
