@@ -1160,7 +1160,6 @@
   "com_ui_revoke_key_success": "API key revoked exitosamente",
   "com_ui_revoke_keys": "Revocar Claves",
   "com_ui_revoke_keys_confirm": "¿Está seguro de que desea revocar todas las claves?",
-  "com_ui_role": "Role",
   "com_ui_role_editor": "Editaror",
   "com_ui_role_editor_desc": "Puede ver y modificar el agente",
   "com_ui_role_manager": "Manager",
