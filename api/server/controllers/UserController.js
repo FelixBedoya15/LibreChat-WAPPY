@@ -428,7 +428,7 @@ module.exports = {
   deleteUserController,
   verifyEmailController,
   updateUserPluginsController,
-  updateUserPluginsController,
+
   resendVerificationController,
   updateUserProfileController,
 };

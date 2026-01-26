@@ -6,7 +6,7 @@ const {
   acceptTermsController,
   verifyEmailController,
   deleteUserController,
-  deleteUserController,
+
   getUserController,
   updateUserProfileController,
 } = require('~/server/controllers/UserController');
