@@ -248,7 +248,8 @@ const updateUserProfileController = async (req, res) => {
     }
 
     // Remove sensitive data before sending back
-    const userObj = user.toObject();
+    // Remove sensitive data before sending back
+    const userObj = { ...user };
     delete userObj.password;
     delete userObj.__v;
 
