@@ -7,6 +7,7 @@ import {
   useAuthContext,
   useAgentsMap,
   useFileMap,
+  useLocalize,
 } from '~/hooks';
 import {
   PromptGroupsProvider,
@@ -23,6 +24,7 @@ import { Banner } from '~/components/Banners';
 import InactiveAccount from '~/components/Auth/InactiveAccount';
 
 export default function Root() {
+  const localize = useLocalize();
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
   const [navVisible, setNavVisible] = useState(() => {
@@ -92,9 +94,10 @@ export default function Root() {
               open={showTerms}
               onOpenChange={setShowTerms}
               onAccept={handleAcceptTerms}
+              onAccept={handleAcceptTerms}
               onDecline={handleDeclineTerms}
-              title={config.interface.termsOfService.modalTitle}
-              modalContent={config.interface.termsOfService.modalContent}
+              title={localize('com_ui_terms_title')}
+              modalContent={localize('com_ui_terms_content')}
             />
           )}
         </AssistantsMapContext.Provider>
