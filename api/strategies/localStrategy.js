@@ -22,23 +22,26 @@ async function passportLogin(req, email, password, done) {
       return done(null, false, { message: validationError });
     }
 
-    const user = await findUser({ email: email.trim() }, '+password');
+    const identifier = email.trim();
+    const user = await findUser({
+      $or: [{ email: identifier }, { username: identifier }],
+    }, '+password');
     if (!user) {
-      logError('Passport Local Strategy - User Not Found', { email });
-      logger.error(`[Login] [Login failed] [Username: ${email}] [Request-IP: ${req.ip}]`);
-      return done(null, false, { message: 'Email does not exist.' });
+      logError('Passport Local Strategy - User Not Found', { identifier });
+      logger.error(`[Login] [Login failed] [Username: ${identifier}] [Request-IP: ${req.ip}]`);
+      return done(null, false, { message: 'Email or Username does not exist.' });
     }
 
     if (!user.password) {
-      logError('Passport Local Strategy - User has no password', { email });
-      logger.error(`[Login] [Login failed] [Username: ${email}] [Request-IP: ${req.ip}]`);
-      return done(null, false, { message: 'Email does not exist.' });
+      logError('Passport Local Strategy - User has no password', { identifier });
+      logger.error(`[Login] [Login failed] [Username: ${identifier}] [Request-IP: ${req.ip}]`);
+      return done(null, false, { message: 'Email or Username does not exist.' });
     }
 
     const isMatch = await comparePassword(user, password);
     if (!isMatch) {
       logError('Passport Local Strategy - Password does not match', { isMatch });
-      logger.error(`[Login] [Login failed] [Username: ${email}] [Request-IP: ${req.ip}]`);
+      logger.error(`[Login] [Login failed] [Username: ${identifier}] [Request-IP: ${req.ip}]`);
       return done(null, false, { message: 'Incorrect password.' });
     }
 

@@ -96,7 +96,7 @@ export default function UserManagementTable() {
                         name: name || undefined, // Allow name to be optional or derived
                         username: username || email.split('@')[0], // Use email part as fallback if username missing
                         email,
-                        password: 'ChangeMe123!', // Default password
+                        password: username || email.split('@')[0], // Default password is username (or email prefix)
                         role: role && ['USER', 'ADMIN', 'USER_PRO', 'USER_PLUS'].includes(role.toUpperCase()) ? role.toUpperCase() : 'USER',
                         accountStatus: status && ['active', 'inactive', 'pending'].includes(status.toLowerCase()) ? status.toLowerCase() : 'active'
                     };
