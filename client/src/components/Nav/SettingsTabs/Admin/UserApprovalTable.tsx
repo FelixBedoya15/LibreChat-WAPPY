@@ -51,8 +51,8 @@ export default function UserManagementTable() {
         const csvContent =
             'data:text/csv;charset=utf-8,' +
             [
-                ['Name', 'Email', 'Role', 'Status'],
-                ...users.map((u) => [u.name || u.username, u.email, u.role, u.accountStatus]),
+                ['Name', 'Email', 'Username', 'Role', 'Status'],
+                ...users.map((u) => [u.name || u.username, u.email, u.username, u.role, u.accountStatus]),
             ]
                 .map((e) => e.join(','))
                 .join('\n');
@@ -83,18 +83,18 @@ export default function UserManagementTable() {
 
             for (const row of rows) {
                 if (!row.trim()) continue;
-                const [name, email, role, status] = row.split(',').map((cell) => cell.trim());
+                const [name, email, username, role, status] = row.split(',').map((cell) => cell.trim());
 
                 // Basic validation
                 if (!email) continue;
 
                 try {
                     // Using default password for bulk import or generating random one could be better, 
-                    // but for now let's assume we set a default one 'Password123!' or similar, 
+                    // but for now let's assume we set a default one 'ChangeMe123!' or similar, 
                     // attempting to use existing create endpoint
                     const userData = {
-                        name: name || email.split('@')[0],
-                        username: email.split('@')[0],
+                        name: name || undefined, // Allow name to be optional or derived
+                        username: username || email.split('@')[0], // Use email part as fallback if username missing
                         email,
                         password: 'ChangeMe123!', // Default password
                         role: role && ['USER', 'ADMIN', 'USER_PRO', 'USER_PLUS'].includes(role.toUpperCase()) ? role.toUpperCase() : 'USER',
@@ -164,6 +164,7 @@ export default function UserManagementTable() {
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_name')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_email')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_username')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_role')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_status')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_actions')}</th>
@@ -172,8 +173,9 @@ export default function UserManagementTable() {
                     <tbody className="bg-surface-primary divide-y divide-gray-200 dark:divide-gray-700">
                         {users.map((user) => (
                             <tr key={user._id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{user.name || user.username}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{user.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.username}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.role}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 

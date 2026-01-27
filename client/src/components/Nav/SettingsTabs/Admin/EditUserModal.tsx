@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { useToastContext } from '@librechat/client';
+import { useLocalize } from '~/hooks';
 import axios from 'axios';
 
 export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) {
+    const localize = useLocalize();
     const { showToast } = useToastContext();
     const [formData, setFormData] = useState({
         userId: '',
         name: '',
         username: '',
+        email: '',
         role: 'USER',
         accountStatus: 'active',
         password: '', // Optional
@@ -20,6 +23,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 userId: user._id,
                 name: user.name || '',
                 username: user.username || '',
+                email: user.email || '',
                 role: user.role || 'USER',
                 accountStatus: user.accountStatus || 'active',
                 password: '',
@@ -38,12 +42,12 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
             if (!payload.password) delete payload.password; // Only send if changed
 
             await axios.post('/api/admin/users/update', payload);
-            showToast({ message: 'User updated successfully', status: 'success' });
+            showToast({ message: localize('com_ui_user_updated_success') || 'User updated successfully', status: 'success' });
             onUserUpdated();
             onClose();
         } catch (error) {
             console.error('Error updating user:', error);
-            showToast({ message: error.response?.data?.message || 'Error updating user', status: 'error' });
+            showToast({ message: error.response?.data?.message || localize('com_ui_user_update_error') || 'Error updating user', status: 'error' });
         }
     };
 
@@ -75,11 +79,11 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                         >
                             <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
                                 <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                                    Edit User
+                                    {localize('com_ui_edit_user')}
                                 </DialogTitle>
                                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_name')}</label>
                                         <input
                                             type="text"
                                             name="name"
@@ -89,7 +93,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_username')}</label>
                                         <input
                                             type="text"
                                             name="username"
@@ -99,7 +103,17 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_email')}</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_role')}</label>
                                         <select
                                             name="role"
                                             value={formData.role}
@@ -113,7 +127,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_status')}</label>
                                         <select
                                             name="accountStatus"
                                             value={formData.accountStatus}
@@ -126,13 +140,13 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">New Password (Optional)</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_new_password')}</label>
                                         <input
                                             type="password"
                                             name="password"
                                             value={formData.password}
                                             onChange={handleChange}
-                                            placeholder="Leave blank to keep current"
+                                            placeholder={localize('com_ui_leave_blank_password')}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         />
                                     </div>
@@ -142,13 +156,13 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             className="inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2"
                                             onClick={onClose}
                                         >
-                                            Cancel
+                                            {localize('com_ui_cancel')}
                                         </button>
                                         <button
                                             type="submit"
                                             className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                                         >
-                                            Save Changes
+                                            {localize('com_ui_save_changes')}
                                         </button>
                                     </div>
                                 </form>
