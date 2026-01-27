@@ -140,10 +140,10 @@ export interface NavProps {
 
 export interface DataColumnMeta {
   meta:
-    | {
-        size: number | string;
-      }
-    | undefined;
+  | {
+    size: number | string;
+  }
+  | undefined;
 }
 
 export enum Panel {
@@ -465,6 +465,7 @@ export type TAuthContext = {
   login: (data: t.TLoginUser) => void;
   logout: (redirect?: string) => void;
   setError: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setUser: SetterOrUpdater<t.TUser | undefined>;
   roles?: Record<string, t.TRole | null | undefined>;
 };
 

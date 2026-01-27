@@ -218,6 +218,7 @@ const AuthContextProvider = ({
       login,
       logout,
       setError,
+      setUser,
       roles: {
         [SystemRoles.USER]: userRole,
         [SystemRoles.ADMIN]: adminRole,

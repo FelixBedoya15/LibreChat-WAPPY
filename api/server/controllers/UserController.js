@@ -242,7 +242,7 @@ const updateUserProfileController = async (req, res) => {
       updateData.password = bcrypt.hashSync(password, salt);
     }
 
-    const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
+    const user = await updateUser(userId, updateData);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

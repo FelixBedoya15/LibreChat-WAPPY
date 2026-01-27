@@ -65,8 +65,10 @@ const ProfileSettings: React.FC = () => {
             setDialogOpen(false);
         } catch (error: any) {
             console.error('Error updating profile:', error);
+            const status = error.response?.status;
+            const serverMessage = error.response?.data?.message;
             showToast({
-                message: error.response?.data?.message || localize('com_ui_profile_update_error'),
+                message: `(${status || 'N/A'}) ${serverMessage || localize('com_ui_profile_update_error')}`,
                 status: 'error'
             });
         }
