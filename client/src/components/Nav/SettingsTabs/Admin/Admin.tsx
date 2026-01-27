@@ -11,8 +11,8 @@ export default function Admin() {
     return (
         <div className="flex flex-col gap-4 p-4 text-sm text-text-primary">
             <div className="border-b border-border-medium pb-4">
-                <h3 className="text-lg font-medium">Admin Panel</h3>
-                <p className="text-text-secondary">Manage users, roles, and system permissions.</p>
+                <h3 className="text-lg font-medium">{localize('com_ui_admin_panel')}</h3>
+                <p className="text-text-secondary">{localize('com_ui_admin_panel_description')}</p>
             </div>
 
             <div className="flex space-x-4 border-b border-border-medium">
@@ -25,7 +25,7 @@ export default function Admin() {
                             : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    User Management
+                    {localize('com_ui_user_management')}
                 </button>
                 <button
                     onClick={() => setActiveTab('roles')}
@@ -36,7 +36,7 @@ export default function Admin() {
                             : "text-text-secondary hover:text-text-primary"
                     )}
                 >
-                    Role Permissions
+                    {localize('com_ui_role_permissions')}
                 </button>
             </div>
 

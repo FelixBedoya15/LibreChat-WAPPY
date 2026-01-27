@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useToastContext } from '@librechat/client';
+import { useLocalize } from '~/hooks';
 import axios from 'axios';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 
 export default function UserManagementTable() {
+    const localize = useLocalize();
     const { showToast } = useToastContext();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -45,6 +47,81 @@ export default function UserManagementTable() {
         setIsEditModalOpen(true);
     };
 
+    const handleExportUsers = () => {
+        const csvContent =
+            'data:text/csv;charset=utf-8,' +
+            [
+                ['Name', 'Email', 'Role', 'Status'],
+                ...users.map((u) => [u.name || u.username, u.email, u.role, u.accountStatus]),
+            ]
+                .map((e) => e.join(','))
+                .join('\n');
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', 'users.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast({ message: localize('com_ui_export_success') || 'Users exported successfully', status: 'success' });
+    };
+
+    const handleImportUsers = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target.result;
+            const rows = text.split('\n').slice(1); // Skip header
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            showToast({ message: localize('com_ui_processing') || 'Processing...', status: 'info' });
+
+            for (const row of rows) {
+                if (!row.trim()) continue;
+                const [name, email, role, status] = row.split(',').map((cell) => cell.trim());
+
+                // Basic validation
+                if (!email) continue;
+
+                try {
+                    // Using default password for bulk import or generating random one could be better, 
+                    // but for now let's assume we set a default one 'Password123!' or similar, 
+                    // attempting to use existing create endpoint
+                    const userData = {
+                        name: name || email.split('@')[0],
+                        username: email.split('@')[0],
+                        email,
+                        password: 'ChangeMe123!', // Default password
+                        role: role && ['USER', 'ADMIN', 'USER_PRO', 'USER_PLUS'].includes(role.toUpperCase()) ? role.toUpperCase() : 'USER',
+                        accountStatus: status && ['active', 'inactive', 'pending'].includes(status.toLowerCase()) ? status.toLowerCase() : 'active'
+                    };
+
+                    await axios.post('/api/admin/users/create', userData);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Error importing user ${email}:`, error);
+                    errorCount++;
+                }
+            }
+
+            if (successCount > 0) {
+                showToast({ message: `${localize('com_ui_import_success')}: ${successCount}`, status: 'success' });
+                fetchUsers();
+            }
+            if (errorCount > 0) {
+                showToast({ message: `${localize('com_ui_import_error')}: ${errorCount}`, status: 'warning' });
+            }
+        };
+        reader.readAsText(file);
+        // Reset file input
+        event.target.value = '';
+    };
+
     if (loading) {
         return <div className="p-4">Loading...</div>;
     }
@@ -52,23 +129,44 @@ export default function UserManagementTable() {
     return (
         <div className="flex flex-col gap-4">
             <div className="flex justify-end">
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                    Create User
-                </button>
+                <div className="flex gap-2">
+                    <input
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        id="import-users-file"
+                        onChange={handleImportUsers}
+                    />
+                    <label
+                        htmlFor="import-users-file"
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium cursor-pointer"
+                    >
+                        {localize('com_ui_import_users')}
+                    </label>
+                    <button
+                        onClick={handleExportUsers}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                    >
+                        {localize('com_ui_export_users')}
+                    </button>
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                    >
+                        {localize('com_ui_create_user')}
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-light">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-surface-secondary">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Role</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_name')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_email')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_role')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_status')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="bg-surface-primary divide-y divide-gray-200 dark:divide-gray-700">
