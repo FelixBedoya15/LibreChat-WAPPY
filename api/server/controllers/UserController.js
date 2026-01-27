@@ -229,34 +229,36 @@ const updateUserPluginsController = async (req, res) => {
 };
 
 
-const updateUserProfileController = async (req, res) => {
-  try {
-    const { name, username, password } = req.body;
-    const userId = req.user.id;
+try {
+  const { name, username, password } = req.body;
+  const userId = req.user.id || req.user._id;
 
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (username) updateData.username = username;
-    if (password) {
-      const salt = bcrypt.genSaltSync(10);
-      updateData.password = bcrypt.hashSync(password, salt);
-    }
-
-    const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Remove sensitive data before sending back
-    const userObj = user.toObject();
-    delete userObj.password;
-    delete userObj.__v;
-
-    res.status(200).json({ message: 'Profile updated successfully', user: userObj });
-  } catch (err) {
-    logger.error('[updateUserProfileController]', err);
-    res.status(500).json({ message: 'Error updating profile' });
+  const updateData = {};
+  if (name) updateData.name = name;
+  if (username) updateData.username = username;
+  if (password) {
+    const salt = bcrypt.genSaltSync(10);
+    updateData.password = bcrypt.hashSync(password, salt);
   }
+
+  const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  // Remove sensitive data before sending back
+  const userObj = user.toObject();
+  delete userObj.password;
+  delete userObj.__v;
+
+  res.status(200).json({ message: 'Profile updated successfully', user: userObj });
+} catch (err) {
+  logger.error('[updateUserProfileController]', err);
+  if (err.code === 11000) {
+    return res.status(400).json({ message: 'Username or email already exists' });
+  }
+  res.status(500).json({ message: 'Error updating profile' });
+}
 };
 
 const deleteUserController = async (req, res) => {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRecoilState } from 'recoil';
+import { Eye, EyeOff } from 'lucide-react';
 import {
     OGDialog,
     OGDialogContent,
@@ -19,6 +20,7 @@ const ProfileSettings: React.FC = () => {
     const { user, setUser } = useAuthContext();
     const { showToast } = useToastContext();
     const [isDialogOpen, setDialogOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         username: '',
@@ -115,29 +117,55 @@ const ProfileSettings: React.FC = () => {
                     <div className="border-t border-gray-200 dark:border-gray-700 py-2">
                         <h4 className="text-sm font-medium mb-3">{localize('com_ui_change_password')}</h4>
                         <div className="space-y-4">
-                            <div>
+                            <div className="relative">
                                 <Label htmlFor="password">{localize('com_ui_new_password_optional')}</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    placeholder={localize('com_ui_leave_blank_keep_current')}
-                                    className="mt-1"
-                                />
+                                <div className="relative mt-1">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        placeholder={localize('com_ui_leave_blank_keep_current')}
+                                        className="pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-5 w-5" />
+                                        ) : (
+                                            <Eye className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                             {formData.password && (
-                                <div>
+                                <div className="relative">
                                     <Label htmlFor="confirmPassword">{localize('com_auth_password_confirm')}</Label>
-                                    <Input
-                                        id="confirmPassword"
-                                        type="password"
-                                        name="confirmPassword"
-                                        value={formData.confirmPassword}
-                                        onChange={handleChange}
-                                        className="mt-1"
-                                    />
+                                    <div className="relative mt-1">
+                                        <Input
+                                            id="confirmPassword"
+                                            type={showPassword ? 'text' : 'password'}
+                                            name="confirmPassword"
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                            className="pr-10"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="h-5 w-5" />
+                                            ) : (
+                                                <Eye className="h-5 w-5" />
+                                            )}
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
