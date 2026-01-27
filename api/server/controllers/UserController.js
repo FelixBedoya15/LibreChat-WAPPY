@@ -258,7 +258,7 @@ const updateUserProfileController = async (req, res) => {
     if (err.code === 11000) {
       return res.status(400).json({ message: 'Username or email already exists' });
     }
-    res.status(500).json({ message: 'Error updating profile' });
+    res.status(500).json({ message: `Error updating profile: ${err.message}` });
   }
 };
 
