@@ -23,8 +23,10 @@ const uaParser = require('./uaParser');
 const checkBan = require('./checkBan');
 const noIndex = require('./noIndex');
 const roles = require('./roles');
+const checkAccountStatus = require('./checkAccountStatus');
 
 module.exports = {
+  checkAccountStatus,
   ...abortMiddleware,
   ...validate,
   ...limiters,

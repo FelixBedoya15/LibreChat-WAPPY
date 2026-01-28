@@ -1,6 +1,7 @@
 const cookies = require('cookie');
 const passport = require('passport');
 const { isEnabled } = require('@librechat/api');
+const checkAccountStatus = require('./checkAccountStatus');
 
 /**
  * Custom Middleware to handle JWT authentication, with support for OpenID token reuse
@@ -17,7 +18,16 @@ const requireJwtAuth = (req, res, next) => {
   }
 
   // Default to standard JWT authentication
-  return passport.authenticate('jwt', { session: false })(req, res, next);
+  return (req, res, next) => {
+    passport.authenticate('jwt', { session: false }, (err, user, info) => {
+      if (err) return next(err);
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      req.user = user;
+
+      // Check account status
+      return checkAccountStatus(req, res, next);
+    })(req, res, next);
+  };
 };
 
 module.exports = requireJwtAuth;

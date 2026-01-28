@@ -14,6 +14,7 @@ import {
 import { useAuthContext, useLocalize } from '~/hooks';
 import store from '~/store';
 import axios from 'axios';
+import { formatDateForInput } from '~/utils/dateHelpers';
 
 const ProfileSettings: React.FC = () => {
     const localize = useLocalize();
@@ -26,6 +27,7 @@ const ProfileSettings: React.FC = () => {
         username: '',
         password: '',
         confirmPassword: '',
+        inactiveAt: '',
     });
 
     useEffect(() => {
@@ -35,6 +37,7 @@ const ProfileSettings: React.FC = () => {
                 username: user.username || '',
                 password: '',
                 confirmPassword: '',
+                inactiveAt: formatDateForInput(user.inactiveAt),
             });
         }
     }, [user, isDialogOpen]);
@@ -57,6 +60,12 @@ const ProfileSettings: React.FC = () => {
             };
             if (formData.password) {
                 payload.password = formData.password;
+            }
+
+            if (formData.inactiveAt) {
+                payload.inactiveAt = new Date(formData.inactiveAt).toISOString();
+            } else {
+                payload.inactiveAt = null;
             }
 
             const response = await axios.post('/api/user/update', payload);
@@ -114,6 +123,32 @@ const ProfileSettings: React.FC = () => {
                             onChange={handleChange}
                             className="mt-1"
                         />
+                    </div>
+                    <div>
+                        <Label htmlFor="createdAt">{localize('com_ui_registration_date')}</Label>
+                        <Input
+                            id="createdAt"
+                            type="text"
+                            value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}
+                            disabled
+                            className="mt-1 bg-gray-100 dark:bg-gray-800"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="inactiveAt">{localize('com_ui_inactivation_date')}</Label>
+                        <Input
+                            id="inactiveAt"
+                            type="date"
+                            name="inactiveAt"
+                            value={formData.inactiveAt}
+                            onChange={handleChange}
+                            className="mt-1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            {formData.inactiveAt
+                                ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
+                                : localize('com_ui_account_active_indefinitely')}
+                        </p>
                     </div>
 
                     <div className="border-t border-gray-200 dark:border-gray-700 py-2">

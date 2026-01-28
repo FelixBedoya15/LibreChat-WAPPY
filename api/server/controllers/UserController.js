@@ -231,12 +231,13 @@ const updateUserPluginsController = async (req, res) => {
 
 const updateUserProfileController = async (req, res) => {
   try {
-    const { name, username, password } = req.body;
+    const { name, username, password, inactiveAt } = req.body;
     const userId = req.user.id || req.user._id;
 
     const updateData = {};
     if (name) updateData.name = name;
     if (username) updateData.username = username;
+    if (inactiveAt !== undefined) updateData.inactiveAt = inactiveAt;
     if (password) {
       const salt = bcrypt.genSaltSync(10);
       updateData.password = bcrypt.hashSync(password, salt);
