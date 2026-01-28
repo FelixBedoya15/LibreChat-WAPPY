@@ -237,7 +237,7 @@ const updateUserProfileController = async (req, res) => {
     const updateData = {};
     if (name) updateData.name = name;
     if (username) updateData.username = username;
-    if (inactiveAt !== undefined) updateData.inactiveAt = inactiveAt;
+    // inactiveAt is now restricted to Admin updates only
     if (password) {
       const salt = bcrypt.genSaltSync(10);
       updateData.password = bcrypt.hashSync(password, salt);

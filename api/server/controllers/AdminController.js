@@ -55,11 +55,12 @@ const createUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
     try {
-        const { userId, role, accountStatus, name, username, password } = req.body;
+        const { userId, role, accountStatus, name, username, password, inactiveAt } = req.body;
 
         const updateData = {};
         if (role) updateData.role = role;
         if (accountStatus) updateData.accountStatus = accountStatus;
+        if (inactiveAt !== undefined) updateData.inactiveAt = inactiveAt ? new Date(inactiveAt) : null;
         if (name) updateData.name = name;
         if (username) updateData.username = username;
         if (password) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { useToastContext } from '@librechat/client';
 import { useLocalize } from '~/hooks';
+import { formatDateForInput } from '~/utils/dateHelpers';
 import axios from 'axios';
 
 export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) {
@@ -14,7 +15,10 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         email: '',
         role: 'USER',
         accountStatus: 'active',
+        role: 'USER',
+        accountStatus: 'active',
         password: '', // Optional
+        inactiveAt: '',
     });
 
     useEffect(() => {
@@ -27,6 +31,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 role: user.role || 'USER',
                 accountStatus: user.accountStatus || 'active',
                 password: '',
+                inactiveAt: formatDateForInput(user.inactiveAt),
             });
         }
     }, [user]);
@@ -138,6 +143,21 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             <option value="pending">Pending</option>
                                             <option value="inactive">Inactive</option>
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_inactivation_date')}</label>
+                                        <input
+                                            type="date"
+                                            name="inactiveAt"
+                                            value={formData.inactiveAt}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {formData.inactiveAt
+                                                ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
+                                                : localize('com_ui_account_active_indefinitely')}
+                                        </p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_new_password')}</label>

@@ -62,11 +62,12 @@ const ProfileSettings: React.FC = () => {
                 payload.password = formData.password;
             }
 
-            if (formData.inactiveAt) {
-                payload.inactiveAt = new Date(formData.inactiveAt).toISOString();
-            } else {
-                payload.inactiveAt = null;
-            }
+            // inactiveAt is now read-only for users
+            // if (formData.inactiveAt) {
+            //     payload.inactiveAt = new Date(formData.inactiveAt).toISOString();
+            // } else {
+            //     payload.inactiveAt = null;
+            // }
 
             const response = await axios.post('/api/user/update', payload);
             setUser(response.data.user);
@@ -141,8 +142,8 @@ const ProfileSettings: React.FC = () => {
                             type="date"
                             name="inactiveAt"
                             value={formData.inactiveAt}
-                            onChange={handleChange}
-                            className="mt-1"
+                            disabled
+                            className="mt-1 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-70"
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             {formData.inactiveAt
