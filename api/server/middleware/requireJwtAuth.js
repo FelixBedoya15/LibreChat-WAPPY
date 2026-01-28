@@ -12,22 +12,19 @@ const requireJwtAuth = (req, res, next) => {
   const cookieHeader = req.headers.cookie;
   const tokenProvider = cookieHeader ? cookies.parse(cookieHeader).token_provider : null;
 
-  // Use OpenID authentication if token provider is OpenID and OPENID_REUSE_TOKENS is enabled
+  // Select authentication strategy
+  let authMiddleware;
   if (tokenProvider === 'openid' && isEnabled(process.env.OPENID_REUSE_TOKENS)) {
-    return passport.authenticate('openidJwt', { session: false })(req, res, next);
+    authMiddleware = passport.authenticate('openidJwt', { session: false });
+  } else {
+    authMiddleware = passport.authenticate('jwt', { session: false });
   }
 
-  // Default to standard JWT authentication
-  return (req, res, next) => {
-    passport.authenticate('jwt', { session: false }, (err, user, info) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ message: 'Unauthorized' });
-      req.user = user;
-
-      // Check account status
-      return checkAccountStatus(req, res, next);
-    })(req, res, next);
-  };
+  // Execute auth middleware, then check account status on success
+  return authMiddleware(req, res, (err) => {
+    if (err) return next(err);
+    checkAccountStatus(req, res, next);
+  });
 };
 
 module.exports = requireJwtAuth;
