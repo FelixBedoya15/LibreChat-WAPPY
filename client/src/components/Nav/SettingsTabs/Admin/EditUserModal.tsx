@@ -143,6 +143,21 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             <option value="pending">Pending</option>
                                             <option value="inactive">Inactive</option>
                                         </select>
+                                        {(() => {
+                                            const now = new Date();
+                                            const inactiveAt = formData.inactiveAt ? new Date(formData.inactiveAt) : null;
+                                            const activeAt = formData.activeAt ? new Date(formData.activeAt) : null;
+                                            const isExpired = inactiveAt && now >= inactiveAt;
+                                            const isNotStarted = activeAt && now < activeAt;
+
+                                            if (isExpired) {
+                                                return <p className="text-red-500 text-xs mt-1">Status is 'Active' but account is effectively <strong>INACTIVE</strong> due to expiration date ({inactiveAt.toLocaleDateString()}).</p>;
+                                            }
+                                            if (isNotStarted) {
+                                                return <p className="text-yellow-600 text-xs mt-1">Status is 'Active' but account is <strong>NOT YET ACTIVE</strong> (starts {activeAt.toLocaleDateString()}).</p>;
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Active Date</label>
