@@ -40,21 +40,6 @@ export default function Admin() {
                         {localize('com_ui_role_permissions')}
                     </button>
                 </div>
-                <button
-                    onClick={async () => {
-                        try {
-                            const res = await fetch('/api/temp-bulk-update-dates');
-                            const data = await res.json();
-                            alert(`Migration Result: ${data.message} (Modified: ${data.modifiedCount})`);
-                            window.location.reload();
-                        } catch (e) {
-                            alert('Migration Failed: ' + e);
-                        }
-                    }}
-                    className="pb-2 px-3 text-xs text-blue-500 hover:text-blue-700 underline"
-                >
-                    Run Date Migration
-                </button>
             </div>
 
             {activeTab === 'users' ? (

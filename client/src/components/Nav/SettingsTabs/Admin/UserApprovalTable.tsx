@@ -4,6 +4,7 @@ import { useLocalize } from '~/hooks';
 import axios from 'axios';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
+import BulkUpdateDatesModal from './BulkUpdateDatesModal';
 
 export default function UserManagementTable() {
     const localize = useLocalize();
@@ -13,6 +14,8 @@ export default function UserManagementTable() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedUsers, setSelectedUsers] = useState(new Set());
+    const [isBulkUpdateModalOpen, setIsBulkUpdateModalOpen] = useState(false);
 
     const fetchUsers = async () => {
         try {
@@ -29,6 +32,25 @@ export default function UserManagementTable() {
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    const toggleUserSelection = (userId) => {
+        const newSelected = new Set(selectedUsers);
+        if (newSelected.has(userId)) {
+            newSelected.delete(userId);
+        } else {
+            newSelected.add(userId);
+        }
+        setSelectedUsers(newSelected);
+    };
+
+    const toggleAllSelection = () => {
+        if (selectedUsers.size === users.length) {
+            setSelectedUsers(new Set());
+        } else {
+            setSelectedUsers(new Set(users.map(u => u._id)));
+        }
+    };
+
 
     const handleDelete = async (userId) => {
         if (!window.confirm('Are you sure you want to delete this user?')) return;
@@ -158,10 +180,32 @@ export default function UserManagementTable() {
                 </div>
             </div>
 
+            {selectedUsers.size > 0 && (
+                <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-2 px-4 rounded-md border border-blue-200 dark:border-blue-800">
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        {selectedUsers.size} users selected
+                    </span>
+                    <button
+                        onClick={() => setIsBulkUpdateModalOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
+                    >
+                        Update Dates
+                    </button>
+                </div>
+            )}
+
             <div className="overflow-x-auto rounded-lg border border-light">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-surface-secondary">
                         <tr>
+                            <th className="px-6 py-3 w-4">
+                                <input
+                                    type="checkbox"
+                                    checked={users.length > 0 && selectedUsers.size === users.length}
+                                    onChange={toggleAllSelection}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_name')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_email')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_username')}</th>
@@ -173,6 +217,14 @@ export default function UserManagementTable() {
                     <tbody className="bg-surface-primary divide-y divide-gray-200 dark:divide-gray-700">
                         {users.map((user) => (
                             <tr key={user._id}>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedUsers.has(user._id)}
+                                        onChange={() => toggleUserSelection(user._id)}
+                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{user.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.username}</td>
@@ -216,6 +268,16 @@ export default function UserManagementTable() {
                 onClose={() => setIsEditModalOpen(false)}
                 user={selectedUser}
                 onUserUpdated={fetchUsers}
+            />
+
+            <BulkUpdateDatesModal
+                isOpen={isBulkUpdateModalOpen}
+                onClose={() => setIsBulkUpdateModalOpen(false)}
+                userIds={Array.from(selectedUsers)}
+                onSuccess={() => {
+                    fetchUsers();
+                    setSelectedUsers(new Set());
+                }}
             />
         </div>
     );

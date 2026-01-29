@@ -98,4 +98,37 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { getAllUsers, createUser, updateUser, deleteUser };
+const bulkUpdateUsers = async (req, res) => {
+    try {
+        const { userIds, activeAt, inactiveAt } = req.body;
+
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+            return res.status(400).json({ message: 'No users provided' });
+        }
+
+        const updateData = {};
+        // Allow setting to null/undefined to clear dates, or valid dates
+        // If undefined in body, do not update. If null, clear.
+        if (activeAt !== undefined) updateData.activeAt = activeAt ? new Date(activeAt) : null;
+        if (inactiveAt !== undefined) updateData.inactiveAt = inactiveAt ? new Date(inactiveAt) : null;
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ message: 'No updates provided' });
+        }
+
+        const result = await User.updateMany(
+            { _id: { $in: userIds } },
+            { $set: updateData }
+        );
+
+        res.status(200).json({
+            message: 'Users updated successfully',
+            modifiedCount: result.modifiedCount
+        });
+    } catch (err) {
+        logger.error('[bulkUpdateUsers]', err);
+        res.status(500).json({ message: 'Error updating users' });
+    }
+};
+
+module.exports = { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers };
