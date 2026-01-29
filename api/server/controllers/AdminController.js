@@ -131,4 +131,46 @@ const bulkUpdateUsers = async (req, res) => {
     }
 };
 
-module.exports = { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers };
+const { Conversation } = require('~/db/models');
+const { getMessages } = require('~/models');
+
+const getUserConversations = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { page = 1, limit = 20 } = req.query;
+
+        const conversations = await Conversation.find({ user: userId })
+            .select('conversationId title createdAt updatedAt model')
+            .sort({ updatedAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .lean();
+
+        const total = await Conversation.countDocuments({ user: userId });
+
+        res.status(200).json({ conversations, total, pages: Math.ceil(total / limit) });
+    } catch (err) {
+        logger.error('[getUserConversations]', err);
+        res.status(500).json({ message: 'Error fetching user conversations' });
+    }
+};
+
+const getConversationDetails = async (req, res) => {
+    try {
+        const { userId, conversationId } = req.params;
+
+        const conversation = await Conversation.findOne({ user: userId, conversationId }).lean();
+        if (!conversation) {
+            return res.status(404).json({ message: 'Conversation not found' });
+        }
+
+        const messages = await getMessages({ conversationId }, null, { sort: { createdAt: 1 } });
+
+        res.status(200).json({ conversation, messages });
+    } catch (err) {
+        logger.error('[getConversationDetails]', err);
+        res.status(500).json({ message: 'Error fetching conversation details' });
+    }
+};
+
+module.exports = { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails };

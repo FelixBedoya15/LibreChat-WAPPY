@@ -5,6 +5,7 @@ import axios from 'axios';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import BulkUpdateDatesModal from './BulkUpdateDatesModal';
+import UserChatsModal from './UserChatsModal';
 
 export default function UserManagementTable() {
     const localize = useLocalize();
@@ -13,7 +14,9 @@ export default function UserManagementTable() {
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isChatsModalOpen, setIsChatsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [userForChats, setUserForChats] = useState(null);
     const [selectedUsers, setSelectedUsers] = useState(new Set());
     const [isBulkUpdateModalOpen, setIsBulkUpdateModalOpen] = useState(false);
 
@@ -245,6 +248,15 @@ export default function UserManagementTable() {
                                         Edit
                                     </button>
                                     <button
+                                        onClick={() => {
+                                            setUserForChats(user);
+                                            setIsChatsModalOpen(true);
+                                        }}
+                                        className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                    >
+                                        Chats
+                                    </button>
+                                    <button
                                         onClick={() => handleDelete(user._id)}
                                         className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                     >
@@ -278,6 +290,13 @@ export default function UserManagementTable() {
                     fetchUsers();
                     setSelectedUsers(new Set());
                 }}
+            />
+
+            <UserChatsModal
+                isOpen={isChatsModalOpen}
+                onClose={() => setIsChatsModalOpen(false)}
+                userId={userForChats?._id}
+                userName={userForChats?.name || userForChats?.username}
             />
         </div>
     );
