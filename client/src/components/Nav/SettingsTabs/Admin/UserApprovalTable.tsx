@@ -231,10 +231,10 @@ export default function UserManagementTable() {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.role}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${user.accountStatus === 'active' ? 'bg-green-100 text-green-800' :
-                                            user.accountStatus === 'inactive' ? 'bg-red-100 text-red-800' :
+                    ${(user.accountStatus === 'active' && (!user.inactiveAt || new Date() < new Date(user.inactiveAt))) ? 'bg-green-100 text-green-800' :
+                                            (user.accountStatus === 'inactive' || (user.inactiveAt && new Date() >= new Date(user.inactiveAt))) ? 'bg-red-100 text-red-800' :
                                                 'bg-yellow-100 text-yellow-800'}`}>
-                                        {user.accountStatus}
+                                        {(user.inactiveAt && new Date() >= new Date(user.inactiveAt)) ? 'inactive' : user.accountStatus}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">

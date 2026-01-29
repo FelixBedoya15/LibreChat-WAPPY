@@ -40,6 +40,22 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    // Auto-update status based on dates
+    useEffect(() => {
+        const parseLocal = (s) => {
+            if (!s) return null;
+            const [y, m, d] = s.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        };
+        const inactiveAt = parseLocal(formData.inactiveAt);
+        const nowStartOfDay = new Date();
+        nowStartOfDay.setHours(0, 0, 0, 0);
+
+        if (inactiveAt && nowStartOfDay >= inactiveAt && formData.accountStatus !== 'inactive') {
+            setFormData(prev => ({ ...prev, accountStatus: 'inactive' }));
+        }
+    }, [formData.inactiveAt, formData.activeAt]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -145,6 +161,33 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         </select>
                                         {(() => {
                                             const now = new Date();
+                                            // Ensure we are comparing local dates correctly as before
+                                            const parseLocal = (s) => {
+                                                if (!s) return null;
+                                                const [y, m, d] = s.split('-').map(Number);
+                                                return new Date(y, m - 1, d);
+                                            };
+                                            const inactiveAt = parseLocal(formData.inactiveAt);
+                                            const nowStartOfDay = new Date();
+                                            nowStartOfDay.setHours(0, 0, 0, 0);
+
+                                            const isExpired = inactiveAt && nowStartOfDay >= inactiveAt;
+
+                                            // Effect to sync visual status
+                                            // We can't do a setFormData inside render, but we can visually override the select value
+                                            // OR we can use a LayoutEffect/Effect.
+                                            // But for immediate visual feedback without complex state loops:
+                                            // We will keep the warning but if the user requested "it should change to inactive",
+                                            // let's auto-update the DB on save if it's expired?
+                                            // The user said "el estado deberia cambiar a inactivo".
+
+                                            if (isExpired && formData.accountStatus !== 'inactive') {
+                                                // We can render a message saying "This will be saved as Inactive"
+                                                // Or we can just show it as Inactive in the UI? 
+                                                // Let's rely on the warning for now, but strictly speaking the user wants the STATUS field to be Inactive.
+                                            }
+                                        })()}
+                                        const now = new Date();
                                             // Fix: Interpret the input value as local date to compare with now,
                                             // but for display purposes, we must be careful.
                                             // Actually, the simplest fix for "visual" correctness is to just read the string value directly for display?
@@ -153,41 +196,41 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             // Parse input YYYY-MM-DD as local midnight
                                             const parseLocal = (s) => {
                                                 if (!s) return null;
-                                                const [y, m, d] = s.split('-').map(Number);
-                                                return new Date(y, m - 1, d); // Local midnight
+                                        const [y, m, d] = s.split('-').map(Number);
+                                        return new Date(y, m - 1, d); // Local midnight
                                             };
 
-                                            const inactiveAt = parseLocal(formData.inactiveAt);
-                                            const activeAt = parseLocal(formData.activeAt);
+                                        const inactiveAt = parseLocal(formData.inactiveAt);
+                                        const activeAt = parseLocal(formData.activeAt);
 
-                                            // For comparison, we want to know if "today" is past that date.
-                                            // If inactiveAt is "2026-01-28", effectively it means it expires AT 2026-01-28 00:00:00 local time?
-                                            // Or end of day? Usually "expiration date" implies it's no longer valid ON that day, or AFTER that day?
-                                            // The backend check does: now >= inactiveAt.
-                                            // So if inactiveAt is 2026-01-28T00:00:00Z, and now is 2026-01-28T00:00:01Z, it's expired.
-                                            // So it includes the date (starts being inactive AT that date).
+                                        // For comparison, we want to know if "today" is past that date.
+                                        // If inactiveAt is "2026-01-28", effectively it means it expires AT 2026-01-28 00:00:00 local time?
+                                        // Or end of day? Usually "expiration date" implies it's no longer valid ON that day, or AFTER that day?
+                                        // The backend check does: now >= inactiveAt.
+                                        // So if inactiveAt is 2026-01-28T00:00:00Z, and now is 2026-01-28T00:00:01Z, it's expired.
+                                        // So it includes the date (starts being inactive AT that date).
 
-                                            // We'll compare dates ignoring time for UI stability
-                                            const nowStartOfDay = new Date();
-                                            nowStartOfDay.setHours(0, 0, 0, 0);
+                                        // We'll compare dates ignoring time for UI stability
+                                        const nowStartOfDay = new Date();
+                                        nowStartOfDay.setHours(0, 0, 0, 0);
 
                                             const isExpired = inactiveAt && nowStartOfDay >= inactiveAt;
-                                            const isNotStarted = activeAt && nowStartOfDay < activeAt;
+                                        const isNotStarted = activeAt && nowStartOfDay < activeAt;
 
                                             // Formatting helper that won't shift timezone
                                             const formatDate = (s) => {
                                                 if (!s) return '';
-                                                const [y, m, d] = s.split('-');
-                                                return `${d}/${m}/${y}`;
+                                        const [y, m, d] = s.split('-');
+                                        return `${d}/${m}/${y}`;
                                             };
 
-                                            if (isExpired) {
+                                        if (isExpired) {
                                                 return <p className="text-red-500 text-xs mt-1">{localize('com_ui_account_status_active_but_expired', { '0': formatDate(formData.inactiveAt) })}</p>;
                                             }
-                                            if (isNotStarted) {
+                                        if (isNotStarted) {
                                                 return <p className="text-yellow-600 text-xs mt-1">{localize('com_ui_account_status_active_but_pending', { '0': formatDate(formData.activeAt) })}</p>;
                                             }
-                                            return null;
+                                        return null;
                                         })()}
                                     </div>
                                     <div>
