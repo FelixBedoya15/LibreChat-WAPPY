@@ -45,6 +45,17 @@ async function passportLogin(req, email, password, done) {
       return done(null, false, { message: 'Incorrect password.' });
     }
 
+    // Check for Inactivation/Activation Dates
+    const now = new Date();
+    if (user.inactiveAt && now >= new Date(user.inactiveAt)) {
+      logger.info(`[Login] [Login denied] User ${identifier} account is inactive since ${user.inactiveAt}`);
+      return done(null, false, { message: 'Account is inactive.' });
+    }
+    if (user.activeAt && now < new Date(user.activeAt)) {
+      logger.info(`[Login] [Login denied] User ${identifier} account is soon to be active on ${user.activeAt}`);
+      return done(null, false, { message: 'Account is not yet active.' });
+    }
+
     const emailEnabled = checkEmailConfig();
     const userCreatedAtTimestamp = Math.floor(new Date(user.createdAt).getTime() / 1000);
 
