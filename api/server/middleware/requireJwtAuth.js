@@ -23,6 +23,13 @@ const requireJwtAuth = (req, res, next) => {
   // Execute auth middleware, then check account status on success
   return authMiddleware(req, res, (err) => {
     if (err) return next(err);
+
+    // Allow logout explicitly, even if account is inactive
+    // This prevents users from being "trapped" if they are blocked
+    if (req.originalUrl && req.originalUrl.includes('/logout')) {
+      return next();
+    }
+
     checkAccountStatus(req, res, next);
   });
 };
