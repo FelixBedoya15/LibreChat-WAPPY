@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { useToastContext } from '@librechat/client';
+import { useToastContext, Spinner } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import axios from 'axios';
-import { Spinner } from '~/components/svg';
 import ReactMarkdown from 'react-markdown';
 
 export default function UserChatsModal({ isOpen, onClose, userId, userName }) {
@@ -156,8 +155,8 @@ export default function UserChatsModal({ isOpen, onClose, userId, userName }) {
                                                     messages.map((msg, idx) => (
                                                         <div key={msg.messageId || idx} className={`flex flex-col ${msg.isCreatedByUser ? 'items-end' : 'items-start'}`}>
                                                             <div className={`max-w-[80%] rounded-lg p-3 ${msg.isCreatedByUser
-                                                                    ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-100'
-                                                                    : 'bg-white border text-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100'
+                                                                ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-100'
+                                                                : 'bg-white border text-gray-900 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100'
                                                                 }`}>
                                                                 {msg.text ? (
                                                                     <div className="prose dark:prose-invert text-sm max-w-none">
