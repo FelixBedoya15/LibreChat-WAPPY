@@ -145,22 +145,53 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         </select>
                                         {(() => {
                                             const now = new Date();
-                                            const inactiveAt = formData.inactiveAt ? new Date(formData.inactiveAt) : null;
-                                            const activeAt = formData.activeAt ? new Date(formData.activeAt) : null;
-                                            const isExpired = inactiveAt && now >= inactiveAt;
-                                            const isNotStarted = activeAt && now < activeAt;
+                                            // Fix: Interpret the input value as local date to compare with now,
+                                            // but for display purposes, we must be careful.
+                                            // Actually, the simplest fix for "visual" correctness is to just read the string value directly for display?
+                                            // But for logic check (now >= inactiveAt), we need real dates.
+
+                                            // Parse input YYYY-MM-DD as local midnight
+                                            const parseLocal = (s) => {
+                                                if (!s) return null;
+                                                const [y, m, d] = s.split('-').map(Number);
+                                                return new Date(y, m - 1, d); // Local midnight
+                                            };
+
+                                            const inactiveAt = parseLocal(formData.inactiveAt);
+                                            const activeAt = parseLocal(formData.activeAt);
+
+                                            // For comparison, we want to know if "today" is past that date.
+                                            // If inactiveAt is "2026-01-28", effectively it means it expires AT 2026-01-28 00:00:00 local time?
+                                            // Or end of day? Usually "expiration date" implies it's no longer valid ON that day, or AFTER that day?
+                                            // The backend check does: now >= inactiveAt.
+                                            // So if inactiveAt is 2026-01-28T00:00:00Z, and now is 2026-01-28T00:00:01Z, it's expired.
+                                            // So it includes the date (starts being inactive AT that date).
+
+                                            // We'll compare dates ignoring time for UI stability
+                                            const nowStartOfDay = new Date();
+                                            nowStartOfDay.setHours(0, 0, 0, 0);
+
+                                            const isExpired = inactiveAt && nowStartOfDay >= inactiveAt;
+                                            const isNotStarted = activeAt && nowStartOfDay < activeAt;
+
+                                            // Formatting helper that won't shift timezone
+                                            const formatDate = (s) => {
+                                                if (!s) return '';
+                                                const [y, m, d] = s.split('-');
+                                                return `${d}/${m}/${y}`;
+                                            };
 
                                             if (isExpired) {
-                                                return <p className="text-red-500 text-xs mt-1">Status is 'Active' but account is effectively <strong>INACTIVE</strong> due to expiration date ({inactiveAt.toLocaleDateString()}).</p>;
+                                                return <p className="text-red-500 text-xs mt-1">{localize('com_ui_account_status_active_but_expired', { '0': formatDate(formData.inactiveAt) })}</p>;
                                             }
                                             if (isNotStarted) {
-                                                return <p className="text-yellow-600 text-xs mt-1">Status is 'Active' but account is <strong>NOT YET ACTIVE</strong> (starts {activeAt.toLocaleDateString()}).</p>;
+                                                return <p className="text-yellow-600 text-xs mt-1">{localize('com_ui_account_status_active_but_pending', { '0': formatDate(formData.activeAt) })}</p>;
                                             }
                                             return null;
                                         })()}
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Active Date</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_active_date')}</label>
                                         <input
                                             type="date"
                                             name="activeAt"
@@ -170,8 +201,8 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
                                             {formData.activeAt
-                                                ? 'Account activates on ' + new Date(formData.activeAt).toLocaleDateString()
-                                                : 'Account active immediately'}
+                                                ? localize('com_ui_account_not_yet_active') + ' ' + formData.activeAt.split('-').reverse().join('/')
+                                                : localize('com_ui_account_is_active_immediately')}
                                         </p>
                                     </div>
                                     <div>
@@ -185,7 +216,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
                                             {formData.inactiveAt
-                                                ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
+                                                ? localize('com_ui_account_will_deactivate') + ' ' + formData.inactiveAt.split('-').reverse().join('/')
                                                 : localize('com_ui_account_active_indefinitely')}
                                         </p>
                                     </div>
