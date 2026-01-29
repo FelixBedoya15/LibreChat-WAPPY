@@ -18,6 +18,18 @@ const checkAccountStatus = (req, res, next) => {
             return res.status(403).json({ message: 'Account is inactive.' });
         }
     }
+
+    // Check activeAt
+    if (req.user && req.user.activeAt) {
+        const now = new Date();
+        const activeAt = new Date(req.user.activeAt);
+
+        if (now < activeAt) {
+            logger.info(`Access denied for user ${req.user.id}: Account not active until ${activeAt.toISOString()}`);
+            return res.status(403).json({ message: 'Account is not yet active.' });
+        }
+    }
+
     next();
 };
 

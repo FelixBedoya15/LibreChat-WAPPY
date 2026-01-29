@@ -19,6 +19,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         accountStatus: 'active',
         password: '', // Optional
         inactiveAt: '',
+        activeAt: '',
     });
 
     useEffect(() => {
@@ -32,6 +33,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 accountStatus: user.accountStatus || 'active',
                 password: '',
                 inactiveAt: formatDateForInput(user.inactiveAt),
+                activeAt: formatDateForInput(user.activeAt),
             });
         }
     }, [user]);
@@ -143,6 +145,21 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             <option value="pending">Pending</option>
                                             <option value="inactive">Inactive</option>
                                         </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Active Date</label>
+                                        <input
+                                            type="date"
+                                            name="activeAt"
+                                            value={formData.activeAt}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {formData.activeAt
+                                                ? 'Account activates on ' + new Date(formData.activeAt).toLocaleDateString()
+                                                : 'Account active immediately'}
+                                        </p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_ui_inactivation_date')}</label>
