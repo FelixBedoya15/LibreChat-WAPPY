@@ -9,9 +9,11 @@ const { logger } = require('@librechat/data-schemas');
  * @param {Function} next - Express next middleware function
  */
 const checkAccountStatus = (req, res, next) => {
+    // console.log('[checkAccountStatus] Middleware called for User:', req.user?._id, 'inactiveAt:', req.user?.inactiveAt);
     if (req.user && req.user.inactiveAt) {
         const now = new Date();
         const inactiveAt = new Date(req.user.inactiveAt);
+        // console.log('[checkAccountStatus] Checking Inactive:', now, '>=', inactiveAt, 'Result:', now >= inactiveAt);
 
         if (now >= inactiveAt) {
             logger.info(`Access denied for user ${req.user.id}: Account inactive since ${inactiveAt.toISOString()}`);
@@ -23,6 +25,7 @@ const checkAccountStatus = (req, res, next) => {
     if (req.user && req.user.activeAt) {
         const now = new Date();
         const activeAt = new Date(req.user.activeAt);
+        // console.log('[checkAccountStatus] Checking Active:', now, '<', activeAt, 'Result:', now < activeAt);
 
         if (now < activeAt) {
             logger.info(`Access denied for user ${req.user.id}: Account not active until ${activeAt.toISOString()}`);
