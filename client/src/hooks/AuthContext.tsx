@@ -96,7 +96,8 @@ const AuthContextProvider = ({
     },
     onError: (error: TResError | unknown) => {
       const resError = error as TResError;
-      doSetError(resError.message);
+      const message = resError.response?.data?.message || resError.message;
+      doSetError(message);
       navigate('/login', { replace: true });
     },
   });
