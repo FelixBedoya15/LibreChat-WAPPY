@@ -201,6 +201,31 @@ const startServer = async () => {
   app.use('/api/voice', routes.voice);
   app.use('/api/ads', routes.ads);
 
+  // TEMP MIGRATION ROUTE - REMOVE AFTER USE
+  app.get('/api/temp-bulk-update-dates', async (req, res) => {
+    try {
+      const mongoose = require('mongoose');
+      const User = mongoose.model('User');
+      const activeDate = new Date('2026-01-27T00:00:00.000Z');
+      const inactiveDate = new Date();
+      inactiveDate.setMonth(inactiveDate.getMonth() + 2);
+
+      const result = await User.updateMany(
+        { role: { $ne: 'ADMIN' } },
+        {
+          $set: {
+            activeAt: activeDate,
+            inactiveAt: inactiveDate
+          }
+        }
+      );
+      res.json({ message: 'Migration success', modifiedCount: result.modifiedCount });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.use(ErrorController);
 
   app.use((req, res) => {
