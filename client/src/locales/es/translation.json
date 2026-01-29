@@ -176,6 +176,8 @@
   "com_auth_error_login_rl": "Demasiados intentos de inicio de sesión en un corto período de tiempo. Inténtelo de nuevo más tarde.",
   "com_auth_error_login_server": "Hubo un error interno del servidor. Espere unos momentos y vuelva a intentarlo.",
   "com_auth_error_login_unverified": "Su cuenta no ha sido verificada. Por favor, revise su correo electrónico para encontrar el enlace de verificación.",
+  "com_auth_error_login_inactive": "Su cuenta está inactiva y no puede iniciar sesión.",
+  "com_auth_error_login_not_active_yet": "Su cuenta aún no ha alcanzado la fecha de activación.",
   "com_auth_error_oauth_failed": "Error de autenticación OAuth. Por favor, inténtalo de nuevo.",
   "com_auth_facebook_login": "Continuar con Facebook",
   "com_auth_full_name": "Nombre completo",
