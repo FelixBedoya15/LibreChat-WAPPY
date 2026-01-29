@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 
 const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved');
+        const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved inactiveAt activeAt');
         // Map legacy isApproved to accountStatus if needed
         const mappedUsers = users.map(user => {
             const userObj = user.toObject();
@@ -56,6 +56,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { userId, role, accountStatus, name, username, password, inactiveAt, activeAt } = req.body;
+        logger.info(`[AdminController] Updating user ${userId}:`, { role, accountStatus, inactiveAt, activeAt });
 
         const updateData = {};
         if (role) updateData.role = role;

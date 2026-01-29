@@ -15,8 +15,6 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         email: '',
         role: 'USER',
         accountStatus: 'active',
-        role: 'USER',
-        accountStatus: 'active',
         password: '', // Optional
         inactiveAt: '',
         activeAt: '',
