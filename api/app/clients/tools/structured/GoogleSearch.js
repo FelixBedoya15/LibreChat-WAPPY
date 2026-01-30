@@ -50,7 +50,7 @@ class GoogleSearchResults extends Tool {
 
     const response = await fetch(
       `https://www.googleapis.com/customsearch/v1?key=${this.apiKey}&cx=${this.searchEngineId
-      }&q=${encodeURIComponent(query)}&num=${max_results}`,
+      }&q=${encodeURIComponent(query)}&num=${max_results}&gl=co&hl=es`,
       {
         method: 'GET',
         headers: {

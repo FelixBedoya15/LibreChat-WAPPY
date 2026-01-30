@@ -286,9 +286,8 @@ const FileItem = React.memo(function FileItem({
       <button
         onClick={isLocalFile ? undefined : handleDownload}
         disabled={isLoading}
-        className={`flex w-full flex-col rounded-lg bg-surface-primary-contrast px-3 py-2 text-sm transition-all duration-300 disabled:opacity-50 ${
-          isLocalFile ? 'cursor-default' : 'hover:bg-surface-tertiary'
-        }`}
+        className={`flex w-full flex-col rounded-lg bg-surface-primary-contrast px-3 py-2 text-sm transition-all duration-300 disabled:opacity-50 ${isLocalFile ? 'cursor-default' : 'hover:bg-surface-tertiary'
+          }`}
         aria-label={
           isLocalFile ? localize('com_sources_download_local_unavailable') : downloadAriaLabel
         }
@@ -325,9 +324,8 @@ const FileItem = React.memo(function FileItem({
     <button
       onClick={isLocalFile ? undefined : handleDownload}
       disabled={isLoading}
-      className={`flex h-full w-full flex-col rounded-lg bg-surface-primary-contrast px-3 py-2 text-sm transition-all duration-300 disabled:opacity-50 ${
-        isLocalFile ? 'cursor-default' : 'hover:bg-surface-tertiary'
-      }`}
+      className={`flex h-full w-full flex-col rounded-lg bg-surface-primary-contrast px-3 py-2 text-sm transition-all duration-300 disabled:opacity-50 ${isLocalFile ? 'cursor-default' : 'hover:bg-surface-tertiary'
+        }`}
       aria-label={
         isLocalFile ? localize('com_sources_download_local_unavailable') : downloadAriaLabel
       }
@@ -658,10 +656,24 @@ function SourcesComponent({ messageId, conversationId }: SourcesProps = {}) {
   const tabs = useMemo(() => {
     const availableTabs: Array<{ label: React.ReactNode; content: React.ReactNode }> = [];
 
-    if (organicSources.length || topStories.length || hasAnswerBox) {
+    if (organicSources.length || topStories.length || hasAnswerBox || (agentFiles.length && messageId && conversationId)) {
       availableTabs.push({
         label: <TabWithIcon label={localize('com_sources_tab_all')} icon={<Globe />} />,
-        content: <SourcesGroup sources={[...organicSources, ...topStories]} />,
+        content: (
+          <div className="flex flex-col gap-2">
+            {agentFiles.length > 0 && messageId && conversationId && (
+              <FilesGroup
+                files={agentFiles}
+                messageId={messageId}
+                conversationId={conversationId}
+                limit={3}
+              />
+            )}
+            {(organicSources.length > 0 || topStories.length > 0) && (
+              <SourcesGroup sources={[...organicSources, ...topStories]} />
+            )}
+          </div>
+        ),
       });
     }
 
