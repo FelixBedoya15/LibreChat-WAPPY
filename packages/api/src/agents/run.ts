@@ -116,7 +116,7 @@ export async function createRun({
 
     let additionalSystemContext = '';
     if (hasWebSearch && hasFileSearch) {
-      additionalSystemContext = 'IMPORTANT: You have access to both file search and web search. You MUST use BOTH tools for research to ensure comprehensive results.\n1. SEARCH FILES FIRST: Call the file search tool to find context in your knowledge base.\n2. SEARCH WEB SECOND: Call the web search tool to find the latest information and corroborate findings.\n\nYou must calculate and execute these as separate, visible tool calls. Do not skip either step. Do not assume one source is sufficient.';
+      additionalSystemContext = 'IMPORTANT: You have access to both file search and web search. You MUST use BOTH tools for research to ensure comprehensive results.\n1. SEARCH FILES FIRST: Call the file search tool to find context in your knowledge base.\n2. SEARCH WEB SECOND: Call the web search tool to find the latest information and corroborate findings.\n3. SYNTHESIZE: Your final answer MUST integrate information from BOTH sources. Explicitly mention what you found in the files and how the web search supports or updates it.\n\nYou must calculate and execute these as separate, visible tool calls. Do not skip either step. Do not assume one source is sufficient.';
     }
 
     const systemContent = [
