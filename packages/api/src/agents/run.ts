@@ -101,8 +101,27 @@ export async function createRun({
       .join('\n')
       .trim();
 
+    const tools = agent.tools ?? [];
+    const hasWebSearch = tools.some((t: any) =>
+      (t.name && t.name.toLowerCase().includes('web')) ||
+      (t.type && t.type.toLowerCase().includes('web')) ||
+      (t.function?.name && t.function.name.toLowerCase().includes('web'))
+    );
+    const hasFileSearch = tools.some((t: any) =>
+      (t.name && t.name.toLowerCase().includes('file')) ||
+      (t.type && t.type.toLowerCase().includes('file')) ||
+      (t.type === 'retrieval') ||
+      (t.function?.name && t.function.name.toLowerCase().includes('file'))
+    );
+
+    let additionalSystemContext = '';
+    if (hasWebSearch && hasFileSearch) {
+      additionalSystemContext = 'IMPORTANT: You have access to both file search and web search. You MUST use BOTH tools for research to ensure comprehensive results.\n1. SEARCH FILES FIRST: Call the file search tool to find context in your knowledge base.\n2. SEARCH WEB SECOND: Call the web search tool to find the latest information and corroborate findings.\n\nYou must calculate and execute these as separate, visible tool calls. Do not skip either step. Do not assume one source is sufficient.';
+    }
+
     const systemContent = [
       systemMessage,
+      additionalSystemContext,
       agent.instructions ?? '',
       agent.additional_instructions ?? '',
     ]
