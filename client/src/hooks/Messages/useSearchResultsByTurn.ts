@@ -36,7 +36,17 @@ export function useSearchResultsByTurn(attachments?: TAttachment[]) {
       if (attachment.type === Tools.web_search && attachment[Tools.web_search]) {
         const searchData = attachment[Tools.web_search];
         if (searchData && typeof searchData.turn === 'number') {
-          turnMap[searchData.turn.toString()] = searchData;
+          const existing = turnMap[searchData.turn.toString()];
+          if (existing) {
+            // Merge web search data into existing (which might be file search data)
+            existing.organic = [...(existing.organic || []), ...(searchData.organic || [])];
+            existing.topStories = [...(existing.topStories || []), ...(searchData.topStories || [])];
+            existing.images = [...(existing.images || []), ...(searchData.images || [])];
+            existing.references = [...(existing.references || []), ...(searchData.references || [])];
+            if (searchData.answerBox) existing.answerBox = searchData.answerBox;
+          } else {
+            turnMap[searchData.turn.toString()] = searchData;
+          }
         }
       }
 
