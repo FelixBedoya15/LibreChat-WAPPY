@@ -107,7 +107,12 @@ export function useSearchResultsByTurn(attachments?: TAttachment[]) {
           ),
         };
 
-        turnMap[agentFileSearchTurn.toString()] = agentSearchData;
+        const existing = turnMap[agentFileSearchTurn.toString()];
+        if (existing) {
+          existing.references = [...(existing.references || []), ...agentSearchData.references!];
+        } else {
+          turnMap[agentFileSearchTurn.toString()] = agentSearchData;
+        }
         agentFileSearchTurn++;
       }
     });
