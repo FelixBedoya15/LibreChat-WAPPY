@@ -77,6 +77,10 @@ const Nav = memo(
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
     const hasAccessToLiveAnalysis = hasPermission(PermissionTypes.LIVE_ANALYSIS);
+    const hasAccessToSGSST = useHasAccess({
+      permissionType: PermissionTypes.SGSST,
+      permission: Permissions.USE,
+    }) && hasPermission(PermissionTypes.SGSST);
 
     const search = useRecoilValue(store.search);
 
@@ -190,13 +194,16 @@ const Nav = memo(
               </Suspense>
             </>
           )}
-          <div className="mt-1.5" />
-          <Suspense fallback={null}>
-            <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
-          </Suspense>
+          {hasAccessToSGSST && (
+            <div className="mt-1.5">
+              <Suspense fallback={null}>
+                <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+              </Suspense>
+            </div>
+          )}
         </>
       ),
-      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible],
+      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
