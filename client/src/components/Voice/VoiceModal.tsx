@@ -147,6 +147,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         setIsScreenSharing(false);
     };
 
+    const [supportsScreenShare, setSupportsScreenShare] = useState(false);
+
+    useEffect(() => {
+        // Check if getDisplayMedia is supported
+        if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
+            setSupportsScreenShare(true);
+        }
+    }, []);
+
     /**
      * Start Camera
      */
@@ -503,21 +512,23 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                     />
 
                     {/* Screen Share Toggle */}
-                    <TooltipAnchor
-                        description={isScreenSharing ? localize('com_ui_voice_screen_share_stop') : localize('com_ui_voice_screen_share_start')}
-                        render={
-                            <button
-                                onClick={toggleScreenShare}
-                                disabled={isCameraOn}
-                                className={`p-4 rounded-full transition-all duration-300 ${isScreenSharing
-                                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                                    : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-md'
-                                    } ${isCameraOn ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
-                            </button>
-                        }
-                    />
+                    {supportsScreenShare && (
+                        <TooltipAnchor
+                            description={isScreenSharing ? localize('com_ui_voice_screen_share_stop') : localize('com_ui_voice_screen_share_start')}
+                            render={
+                                <button
+                                    onClick={toggleScreenShare}
+                                    disabled={isCameraOn}
+                                    className={`p-4 rounded-full transition-all duration-300 ${isScreenSharing
+                                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                                        : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-md'
+                                        } ${isCameraOn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
+                                </button>
+                            }
+                        />
+                    )}
 
                     {/* Microphone Toggle (Large Center) */}
                     <TooltipAnchor
