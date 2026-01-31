@@ -1,3 +1,4 @@
+import SGSSTDashboard from '~/components/SGSST/Dashboard';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import {
   Login,
@@ -115,6 +116,10 @@ export const router = createBrowserRouter(
             {
               path: 'search',
               element: <Search />,
+            },
+            {
+              path: 'sgsst',
+              element: <SGSSTDashboard />,
             },
             {
               path: 'agents',
