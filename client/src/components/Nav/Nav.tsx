@@ -195,11 +195,12 @@ const Nav = memo(
             </>
           )}
           {hasAccessToSGSST && (
-            <div className="mt-1.5">
+            <>
+              <div className="mt-1.5" />
               <Suspense fallback={null}>
                 <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
               </Suspense>
-            </div>
+            </>
           )}
         </>
       ),
