@@ -15,6 +15,7 @@ import {
   peoplePickerPermissionsSchema,
   fileCitationsPermissionsSchema,
   attachmentsPermissionsSchema,
+  sgsstPermissionsSchema,
 } from './permissions';
 
 /**
@@ -119,6 +120,9 @@ const defaultRolesSchema = z.object({
       [PermissionTypes.ATTACHMENTS]: attachmentsPermissionsSchema.extend({
         [Permissions.USE]: z.boolean().default(true),
       }),
+      [PermissionTypes.SGSST]: sgsstPermissionsSchema.extend({
+        [Permissions.USE]: z.boolean().default(true),
+      }),
     }),
   }),
   [SystemRoles.USER]: roleSchema.extend({
@@ -208,6 +212,9 @@ export const roleDefaults = defaultRolesSchema.parse({
       [PermissionTypes.PARAMETERS]: {
         [Permissions.USE]: true,
       },
+      [PermissionTypes.SGSST]: {
+        [Permissions.USE]: true,
+      },
     },
   },
   [SystemRoles.USER]: {
@@ -244,6 +251,7 @@ export const roleDefaults = defaultRolesSchema.parse({
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
       [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
+      [PermissionTypes.SGSST]: { [Permissions.USE]: false },
     },
   },
   [SystemRoles.USER_PLUS]: {
@@ -280,6 +288,7 @@ export const roleDefaults = defaultRolesSchema.parse({
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
       [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
+      [PermissionTypes.SGSST]: { [Permissions.USE]: false },
     },
   },
   [SystemRoles.USER_PRO]: {
@@ -315,6 +324,7 @@ export const roleDefaults = defaultRolesSchema.parse({
       },
       [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
       [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
+      [PermissionTypes.SGSST]: { [Permissions.USE]: false },
     },
   },
 });

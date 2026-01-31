@@ -71,6 +71,9 @@ const rolePermissionsSchema = new Schema(
     [PermissionTypes.PARAMETERS]: {
       [Permissions.USE]: { type: Boolean },
     },
+    [PermissionTypes.SGSST]: {
+      [Permissions.USE]: { type: Boolean },
+    },
   },
   { _id: false, strict: false },
 );

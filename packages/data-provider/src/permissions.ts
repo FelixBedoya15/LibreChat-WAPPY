@@ -76,6 +76,10 @@ export enum PermissionTypes {
    * Type for Parameters (Temperature, Top P, etc.)
    */
   PARAMETERS = 'PARAMETERS',
+  /**
+   * Type for SG-SST System
+   */
+  SGSST = 'SGSST',
 }
 
 /**
@@ -203,6 +207,11 @@ export const parametersPermissionsSchema = z.object({
 });
 export type TParametersPermissions = z.infer<typeof parametersPermissionsSchema>;
 
+export const sgsstPermissionsSchema = z.object({
+  [Permissions.USE]: z.boolean().default(true),
+});
+export type TSgsstPermissions = z.infer<typeof sgsstPermissionsSchema>;
+
 // Define a single permissions schema that holds all permission types.
 export const permissionsSchema = z.object({
   [PermissionTypes.PROMPTS]: promptPermissionsSchema,
@@ -223,4 +232,5 @@ export const permissionsSchema = z.object({
   [PermissionTypes.ENDPOINTS]: endpointsPermissionsSchema,
   [PermissionTypes.ATTACHMENTS]: attachmentsPermissionsSchema,
   [PermissionTypes.PARAMETERS]: parametersPermissionsSchema,
+  [PermissionTypes.SGSST]: sgsstPermissionsSchema,
 });
