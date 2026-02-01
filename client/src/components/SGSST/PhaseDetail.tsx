@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocalize } from '~/hooks';
-import { ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
+import { PHASE_CATEGORIES } from './constants';
 
 interface PhaseDetailProps {
     phase: {
@@ -20,10 +22,15 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
     const navigate = useNavigate();
     const { showToast } = useToastContext();
     const [files, setFiles] = useState<any[]>([]);
-    const [isUploading, setIsUploading] = useState(false);
+    const [isUploading, setIsUploading] = useState<string | null>(null); // Stores category ID being uploaded to
+    const [expandedCategories, setExpandedCategories] = useState<string[]>([]); // Track expanded categories
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const selectedCategoryRef = useRef<string | null>(null);
 
     const storageKey = `sgsst_files_${phase.id}`;
+
+    // Get categories for this phase
+    const categories = PHASE_CATEGORIES[phase.id as keyof typeof PHASE_CATEGORIES] || [];
 
     useEffect(() => {
         const saved = localStorage.getItem(storageKey);
@@ -34,6 +41,10 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                 console.error('Failed to parse saved files', e);
             }
         }
+        // Initialize all categories as expanded by default
+        if (categories.length > 0) {
+            setExpandedCategories(categories.map(c => c.id));
+        }
     }, [phase.id, storageKey]);
 
     const saveFiles = (newFiles: any[]) => {
@@ -43,39 +54,47 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
 
     const uploadMutation = useUploadFileMutation({
         onSuccess: (data) => {
-            setIsUploading(false);
+            setIsUploading(null);
             showToast({ message: 'Archivo subido correctamente', status: 'success' });
 
             const newFile = {
                 file_id: data.file_id,
                 name: data.filename,
-                size: data.bytes || 0, // Note: bytes might need check
+                size: data.bytes || 0,
                 filepath: data.filepath,
                 type: data.type,
+                category: selectedCategoryRef.current || 'uncategorized',
             };
 
             saveFiles([...files, newFile]);
+            selectedCategoryRef.current = null;
         },
         onError: (error) => {
-            setIsUploading(false);
+            setIsUploading(null);
             console.error('Upload failed', error);
             showToast({ message: 'Error al subir archivo', status: 'error' });
+            selectedCategoryRef.current = null;
         }
     });
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
+        if (e.target.files && e.target.files[0] && selectedCategoryRef.current) {
             const file = e.target.files[0];
-            setIsUploading(true);
+            setIsUploading(selectedCategoryRef.current);
 
             const formData = new FormData();
             formData.append('file', file);
-            // We use 'default' endpoint or a specific one. For now assuming default/openAI structure
             formData.append('endpoint', 'default');
             formData.append('file_id', crypto.randomUUID());
             formData.append('width', '0');
             formData.append('height', '0');
             formData.append('version', '1');
+
+            // Metadata including category
+            // Note: Server might not persist extra fields in all implementations, 
+            // but we store it locally in `files` state anyway.
+            formData.append('sgsst_phase', phase.id);
+            formData.append('sgsst_category', selectedCategoryRef.current);
 
             uploadMutation.mutate(formData);
 
@@ -83,7 +102,8 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
         }
     };
 
-    const handleUploadClick = () => {
+    const handleUploadClick = (categoryId: string) => {
+        selectedCategoryRef.current = categoryId;
         fileInputRef.current?.click();
     };
 
@@ -93,10 +113,21 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
     };
 
     const handleChat = () => {
-        // Navigate to new chat with instructions to use these files
-        // Ideally we would create a conversation with these files attached.
-        // For prototype, we just go to new chat.
         navigate('/c/new', { state: { sgsstContext: { phase: phase.title, files } } });
+    };
+
+    const toggleCategory = (categoryId: string) => {
+        setExpandedCategories(prev =>
+            prev.includes(categoryId)
+                ? prev.filter(c => c !== categoryId)
+                : [...prev, categoryId]
+        );
+    };
+
+    // Helper to render icon dynamically
+    const renderIcon = (iconName: string) => {
+        const IconComponent = (LucideIcons as any)[iconName] || FolderOpen;
+        return <IconComponent className="h-5 w-5" />;
     };
 
     return (
@@ -118,57 +149,101 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                         <MessageSquare className="h-4 w-4" />
                         Chat con Fase
                     </Button>
-                    <Button
-                        onClick={handleUploadClick}
-                        disabled={isUploading}
-                        className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-                    >
-                        {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        {isUploading ? 'Subiendo...' : 'Subir Archivo'}
-                    </Button>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileSelect}
-                        className="hidden"
-                    />
                 </div>
+
+                {/* Hidden global input, triggered by specific category buttons */}
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                />
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-                {files.length === 0 ? (
-                    <div className="flex h-64 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border-medium bg-surface-secondary/50 text-text-secondary">
-                        <Upload className="mb-2 h-10 w-10 opacity-50" />
-                        <p>No hay archivos en esta fase.</p>
-                        <p className="text-sm">Sube documentos para comenzar.</p>
+            <div className="flex-1 overflow-y-auto space-y-6">
+                {categories.length === 0 ? (
+                    <div className="p-8 text-center text-text-secondary">
+                        No hay categorías definidas para esta fase.
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                        {files.map((file, idx) => (
-                            <div
-                                key={file.file_id || idx}
-                                className="group relative flex flex-col rounded-lg border border-border-medium bg-surface-secondary p-4 hover:shadow-md transition-shadow"
-                            >
-                                <div className="mb-2 flex items-center justify-center rounded-md bg-surface-tertiary p-4">
-                                    <File className="h-8 w-8 text-text-secondary" />
-                                </div>
-                                <span className="truncate text-sm font-medium text-text-primary" title={file.name}>
-                                    {file.name}
-                                </span>
-                                <span className="text-xs text-text-secondary">
-                                    {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Unknown size'}
-                                </span>
+                    categories.map((category) => {
+                        const categoryFiles = files.filter(f => f.category === category.id);
+                        const isExpanded = expandedCategories.includes(category.id);
+                        const isThisUploading = isUploading === category.id;
 
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
-                                    className="absolute top-2 right-2 rounded-full p-1 text-red-500 opacity-0 hover:bg-surface-tertiary group-hover:opacity-100 transition-opacity"
-                                    title="Eliminar"
+                        return (
+                            <div key={category.id} className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden transition-all duration-200">
+                                {/* Category Header */}
+                                <div
+                                    className="flex items-center justify-between p-4 bg-surface-tertiary/50 cursor-pointer hover:bg-surface-tertiary transition-colors"
+                                    onClick={() => toggleCategory(category.id)}
                                 >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-text-secondary">
+                                            {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-surface-primary text-blue-600 dark:text-blue-400">
+                                            {renderIcon(category.icon)}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-text-primary">{category.title}</h3>
+                                            <p className="text-xs text-text-secondary">{categoryFiles.length} documentos</p>
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
+                                        disabled={!!isUploading}
+                                        size="sm"
+                                        className="gap-2 bg-white/10 hover:bg-white/20 text-text-primary border border-white/10"
+                                    >
+                                        {isThisUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                                        <span className="hidden sm:inline">Subir</span>
+                                    </Button>
+                                </div>
+
+                                {/* Category Content */}
+                                {isExpanded && (
+                                    <div className="p-4 bg-surface-primary/30">
+                                        {categoryFiles.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-lg">
+                                                <FolderOpen className="h-8 w-8 mb-2 opacity-40" />
+                                                <span className="text-sm">Sin documentos</span>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                {categoryFiles.map((file) => (
+                                                    <div
+                                                        key={file.file_id}
+                                                        className="group relative flex items-center gap-3 p-3 rounded-lg border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
+                                                    >
+                                                        <div className="flex-shrink-0 p-2 rounded bg-surface-tertiary text-text-secondary">
+                                                            <File className="h-5 w-5" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-sm font-medium text-text-primary" title={file.name}>
+                                                                {file.name}
+                                                            </p>
+                                                            <p className="text-xs text-text-secondary">
+                                                                {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Size unknown'}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
+                                                            className="p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 hover:bg-surface-tertiary transition-all"
+                                                            title="Eliminar archivo"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })
                 )}
             </div>
         </div>
