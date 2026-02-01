@@ -4,6 +4,7 @@ import { FileText, ClipboardCheck, BarChart2, ShieldAlert } from 'lucide-react';
 import { cn } from '~/utils';
 
 import { PHASE_CATEGORIES } from './constants';
+import PhaseDetail from './PhaseDetail';
 
 const SGSSTDashboard = () => {
     const localize = useLocalize();
