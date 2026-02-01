@@ -3,7 +3,7 @@ import { useLocalize } from '~/hooks';
 import { FileText, ClipboardCheck, BarChart2, ShieldAlert } from 'lucide-react';
 import { cn } from '~/utils';
 
-import PhaseDetail from './PhaseDetail';
+import { PHASE_CATEGORIES } from './constants';
 
 const SGSSTDashboard = () => {
     const localize = useLocalize();
@@ -16,7 +16,7 @@ const SGSSTDashboard = () => {
             description: 'Política, Identificación de Peligros, Requisitos Legales',
             color: 'bg-blue-500/10 border-blue-500/50 text-blue-700 dark:text-blue-400',
             icon: <FileText className="w-8 h-8 text-blue-500" />,
-            items: ['Matriz Legal', 'Matriz de Riesgos', 'Plan de Trabajo', 'Presupuesto'],
+            items: PHASE_CATEGORIES.plan.map(c => c.title),
         },
         {
             id: 'do',
@@ -24,7 +24,7 @@ const SGSSTDashboard = () => {
             description: 'Gestión de la Salud, Gestión de Peligros y Riesgos',
             color: 'bg-yellow-500/10 border-yellow-500/50 text-yellow-700 dark:text-yellow-400',
             icon: <ShieldAlert className="w-8 h-8 text-yellow-500" />,
-            items: ['Capacitaciones', 'Inspecciones', 'Epp', 'Vigilancia Epidemiológica'],
+            items: PHASE_CATEGORIES.do.map(c => c.title),
         },
         {
             id: 'check',
@@ -32,7 +32,7 @@ const SGSSTDashboard = () => {
             description: 'Auditoría y Revisión por la Alta Dirección',
             color: 'bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-400',
             icon: <ClipboardCheck className="w-8 h-8 text-red-500" />,
-            items: ['Auditorías Internas', 'Indicadores de Gestión', 'Investigación de Incidentes'],
+            items: PHASE_CATEGORIES.check.map(c => c.title),
         },
         {
             id: 'act',
@@ -40,7 +40,7 @@ const SGSSTDashboard = () => {
             description: 'Mejoramiento Continuo',
             color: 'bg-green-500/10 border-green-500/50 text-green-700 dark:text-green-400',
             icon: <BarChart2 className="w-8 h-8 text-green-500" />,
-            items: ['Acciones Correctivas', 'Acciones Preventivas', 'Plan de Mejoramiento'],
+            items: PHASE_CATEGORIES.act.map(c => c.title),
         },
     ];
 
