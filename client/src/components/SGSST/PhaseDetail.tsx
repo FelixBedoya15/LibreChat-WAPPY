@@ -97,8 +97,8 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
             formData.append('file', file);
             formData.append('endpoint', 'default');
             formData.append('file_id', crypto.randomUUID());
-            formData.append('width', '0');
-            formData.append('height', '0');
+            // formData.append('width', '0'); // Removed to avoid triggering uploadImage
+            // formData.append('height', '0'); // Removed to avoid triggering uploadImage
             formData.append('version', '1');
 
             // Metadata including category
@@ -168,6 +168,7 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                     ref={fileInputRef}
                     onChange={handleFileSelect}
                     className="hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
                 />
             </div>
 
