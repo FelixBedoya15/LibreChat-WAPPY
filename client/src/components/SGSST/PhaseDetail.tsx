@@ -158,7 +158,7 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                 <div className="ml-auto flex gap-2">
                     <Button onClick={handleChat} variant="outline" className="gap-2">
                         <MessageSquare className="h-4 w-4" />
-                        Chat con Fase
+                        Chatea con SG-SST
                     </Button>
                 </div>
 
