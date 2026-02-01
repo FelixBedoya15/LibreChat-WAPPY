@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocalize } from '~/hooks';
-import { ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import {
+    ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
+    FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
+    ClipboardCheck, Briefcase, GitMerge
+} from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
+
+// Manual Icon Map to avoid dynamic import issues
+const ICON_MAP: Record<string, React.ElementType> = {
+    FileText, Target, Stethoscope, Scale,
+    Users, UserCircle, BarChart, Activity,
+    AlertTriangle, ShieldAlert, ClipboardCheck,
+    Briefcase, GitMerge, FolderOpen
+};
 
 interface PhaseDetailProps {
     phase: {
@@ -126,7 +137,7 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
 
     // Helper to render icon dynamically
     const renderIcon = (iconName: string) => {
-        const IconComponent = (LucideIcons as any)[iconName] || FolderOpen;
+        const IconComponent = ICON_MAP[iconName] || FolderOpen;
         return <IconComponent className="h-5 w-5" />;
     };
 
