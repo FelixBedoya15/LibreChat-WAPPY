@@ -135,7 +135,7 @@ export default function FileSearch({
       icon: <Folder className="icon-md" />,
     },
     {
-      label: 'Archivos SG-SST', // New Option
+      label: localize('com_files_upload_sgsst'), // Localized
       onClick: () => setIsSGSSTPickerOpen(true),
       icon: <Database className="icon-md" />,
     },
