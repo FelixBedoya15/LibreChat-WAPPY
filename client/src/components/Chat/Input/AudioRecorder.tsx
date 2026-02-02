@@ -107,7 +107,7 @@ export default function AudioRecorder({
 
   useEffect(() => {
     // If user manually clears the text while mic is on, reset transcript
-    if (currentText === '' && isListening && resetTranscriptRef.current) {
+    if (currentText === '' && previousTextRef.current !== '' && isListening && resetTranscriptRef.current) {
       console.log('[AudioRecorder] Text manually deleted, resetting transcript');
       resetTranscriptRef.current();
     }
