@@ -15,6 +15,9 @@ import useSharePointFileHandling from '~/hooks/Files/useSharePointFileHandling';
 import { useGetFileConfig, useGetStartupConfig } from '~/data-provider';
 import { useFileHandling, useLocalize, useLazyEffect } from '~/hooks';
 import { SharePointPickerDialog } from '~/components/SharePoint';
+import { useUpdateAgentMutation, useGetAgentByIdQuery } from '~/data-provider';
+import { QueryKeys } from 'librechat-data-provider';
+import { useQueryClient } from '@tanstack/react-query';
 import SGSSTPicker from './SGSSTPicker';
 import FileRow from '~/components/Chat/Input/Files/FileRow';
 import FileSearchCheckbox from './FileSearchCheckbox';
@@ -36,6 +39,11 @@ export default function FileSearch({
   const [isPopoverActive, setIsPopoverActive] = useState(false);
   const [isSharePointDialogOpen, setIsSharePointDialogOpen] = useState(false);
   const [isSGSSTPickerOpen, setIsSGSSTPickerOpen] = useState(false);
+
+  const [isSGSSTPickerOpen, setIsSGSSTPickerOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const updateAgent = useUpdateAgentMutation();
+  const { data: agent } = useGetAgentByIdQuery(agent_id);
 
   // Get startup configuration for SharePoint feature flag
   const { data: startupConfig } = useGetStartupConfig();
@@ -84,29 +92,48 @@ export default function FileSearch({
   };
 
   const handleSGSSTFilesSelected = (sgsstFiles: any[]) => {
-    // Convert SG-SST files to ExtendedFile format and add to state
-    // We assume these files are already uploaded and have IDs
+    // 1. Update UI State
     setFiles(prev => {
       const newMap = new Map(prev);
       sgsstFiles.forEach(f => {
-        // Construct minimal ExtendedFile object
-        // IMPORTANT: The backend needs to know these are existing files.
-        // Usually, existing files are handled by passing their IDs.
-        // Since 'files' state here is mostly for display and new uploads,
-        // we need to match the structure expected by the Agent update logic.
-        // Typically, we just need the file_id and basic metadata.
         newMap.set(f.file_id, {
           file_id: f.file_id,
           filename: f.name,
           size: f.size,
           type: f.type,
-          // We mark them as "processed" assuming they are already on server
           progress: 1,
           source: 'sgsst',
         } as any);
       });
       return newMap;
     });
+
+    // 2. Update Agent on Server
+    if (agent && sgsstFiles.length > 0) {
+      const currentFileIds = agent.tool_resources?.file_search?.file_ids ?? [];
+      const newFileIds = sgsstFiles.map(f => f.file_id);
+      // Merge and deduplicate
+      const combinedIds = Array.from(new Set([...currentFileIds, ...newFileIds]));
+
+      updateAgent.mutate({
+        agent_id,
+        data: {
+          tool_resources: {
+            ...agent.tool_resources,
+            file_search: {
+              ...agent.tool_resources?.file_search,
+              file_ids: combinedIds
+            }
+          }
+        }
+      }, {
+        onSuccess: () => {
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries([QueryKeys.agent, agent_id]);
+          queryClient.invalidateQueries([QueryKeys.agents]);
+        }
+      });
+    }
   };
 
   if (isUploadDisabled) {
