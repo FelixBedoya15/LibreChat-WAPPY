@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Folder } from 'lucide-react';
+import { Folder, Database } from 'lucide-react';
 import * as Ariakit from '@ariakit/react';
 import { useFormContext } from 'react-hook-form';
 import { SharePointIcon, AttachmentIcon, DropdownPopup } from '@librechat/client';
@@ -15,6 +15,7 @@ import useSharePointFileHandling from '~/hooks/Files/useSharePointFileHandling';
 import { useGetFileConfig, useGetStartupConfig } from '~/data-provider';
 import { useFileHandling, useLocalize, useLazyEffect } from '~/hooks';
 import { SharePointPickerDialog } from '~/components/SharePoint';
+import SGSSTPicker from './SGSSTPicker';
 import FileRow from '~/components/Chat/Input/Files/FileRow';
 import FileSearchCheckbox from './FileSearchCheckbox';
 import { useChatContext } from '~/Providers';
@@ -34,6 +35,7 @@ export default function FileSearch({
   const [files, setFiles] = useState<Map<string, ExtendedFile>>(new Map());
   const [isPopoverActive, setIsPopoverActive] = useState(false);
   const [isSharePointDialogOpen, setIsSharePointDialogOpen] = useState(false);
+  const [isSGSSTPickerOpen, setIsSGSSTPickerOpen] = useState(false);
 
   // Get startup configuration for SharePoint feature flag
   const { data: startupConfig } = useGetStartupConfig();
@@ -80,6 +82,33 @@ export default function FileSearch({
       console.error('SharePoint file processing error:', error);
     }
   };
+
+  const handleSGSSTFilesSelected = (sgsstFiles: any[]) => {
+    // Convert SG-SST files to ExtendedFile format and add to state
+    // We assume these files are already uploaded and have IDs
+    setFiles(prev => {
+      const newMap = new Map(prev);
+      sgsstFiles.forEach(f => {
+        // Construct minimal ExtendedFile object
+        // IMPORTANT: The backend needs to know these are existing files.
+        // Usually, existing files are handled by passing their IDs.
+        // Since 'files' state here is mostly for display and new uploads,
+        // we need to match the structure expected by the Agent update logic.
+        // Typically, we just need the file_id and basic metadata.
+        newMap.set(f.file_id, {
+          file_id: f.file_id,
+          filename: f.name,
+          size: f.size,
+          type: f.type,
+          // We mark them as "processed" assuming they are already on server
+          progress: 1,
+          source: 'sgsst',
+        } as any);
+      });
+      return newMap;
+    });
+  };
+
   if (isUploadDisabled) {
     return null;
   }
@@ -106,11 +135,19 @@ export default function FileSearch({
       icon: <Folder className="icon-md" />,
     },
     {
+      label: 'Archivos SG-SST', // New Option
+      onClick: () => setIsSGSSTPickerOpen(true),
+      icon: <Database className="icon-md" />,
+    },
+  ];
+
+  if (sharePointEnabled) {
+    dropdownItems.push({
       label: localize('com_files_upload_sharepoint'),
       onClick: () => setIsSharePointDialogOpen(true),
       icon: <SharePointIcon className="icon-md" />,
-    },
-  ];
+    });
+  }
 
   const menuTrigger = (
     <Ariakit.MenuButton
@@ -145,30 +182,19 @@ export default function FileSearch({
           Wrapper={({ children }) => <div className="flex flex-wrap gap-2">{children}</div>}
         />
         <div>
-          {sharePointEnabled ? (
-            <DropdownPopup
-              gutter={2}
-              menuId="file-search-upload-menu"
-              isOpen={isPopoverActive}
-              setIsOpen={setIsPopoverActive}
-              trigger={menuTrigger}
-              items={dropdownItems}
-              modal={true}
-              unmountOnHide={true}
-            />
-          ) : (
-            <button
-              type="button"
-              disabled={disabledUploadButton}
-              className="btn btn-neutral border-token-border-light relative h-9 w-full rounded-lg font-medium"
-              onClick={handleButtonClick}
-            >
-              <div className="flex w-full items-center justify-center gap-1">
-                <AttachmentIcon className="text-token-text-primary h-4 w-4" />
-                {localize('com_ui_upload_file_search')}
-              </div>
-            </button>
-          )}
+          {/* Always use dropdown if enabled, or simpler logic if preferred. 
+              Here we force dropdown to show SG-SST option easily */}
+          <DropdownPopup
+            gutter={2}
+            menuId="file-search-upload-menu"
+            isOpen={isPopoverActive}
+            setIsOpen={setIsPopoverActive}
+            trigger={menuTrigger}
+            items={dropdownItems}
+            modal={true}
+            unmountOnHide={true}
+          />
+
           <input
             multiple={true}
             type="file"
@@ -195,6 +221,12 @@ export default function FileSearch({
         isDownloading={isProcessing}
         downloadProgress={downloadProgress}
         maxSelectionCount={endpointFileConfig?.fileLimit}
+      />
+
+      <SGSSTPicker
+        isOpen={isSGSSTPickerOpen}
+        onClose={() => setIsSGSSTPickerOpen(false)}
+        onFilesSelected={handleSGSSTFilesSelected}
       />
     </div>
   );
