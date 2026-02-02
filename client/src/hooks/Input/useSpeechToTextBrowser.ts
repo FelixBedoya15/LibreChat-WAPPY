@@ -147,11 +147,13 @@ const useSpeechToTextBrowser = (
         isResettingRef.current = false;
       }, 500);
     } else {
-      console.log('[useSpeechToTextBrowser] Starting microphone');
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      console.log('[useSpeechToTextBrowser] Starting microphone. Mobile:', isMobile);
       isResettingRef.current = false;
       SpeechRecognition.startListening({
         language: languageSTT,
-        continuous: autoTranscribeAudio,
+        continuous: isMobile ? false : autoTranscribeAudio,
+        interimResults: true,
       });
     }
   };
