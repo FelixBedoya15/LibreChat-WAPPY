@@ -39,11 +39,11 @@ export default function FileSearch({
   const [isPopoverActive, setIsPopoverActive] = useState(false);
   const [isSharePointDialogOpen, setIsSharePointDialogOpen] = useState(false);
   const [isSGSSTPickerOpen, setIsSGSSTPickerOpen] = useState(false);
-
-  const [isSGSSTPickerOpen, setIsSGSSTPickerOpen] = useState(false);
   const queryClient = useQueryClient();
   const updateAgent = useUpdateAgentMutation();
   const { data: agent } = useGetAgentByIdQuery(agent_id);
+
+
 
   // Get startup configuration for SharePoint feature flag
   const { data: startupConfig } = useGetStartupConfig();
