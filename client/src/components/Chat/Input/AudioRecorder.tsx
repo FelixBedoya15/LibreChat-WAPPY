@@ -130,12 +130,16 @@ export default function AudioRecorder({
     return null;
   }
 
-  const handleStartRecording = async () => {
+  const handleStartRecording = async (e?: React.MouseEvent | React.TouchEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     existingTextRef.current = getValues('text') || '';
     startRecording();
   };
 
-  const handleStopRecording = async () => {
+  const handleStopRecording = async (e?: React.MouseEvent | React.TouchEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     stopRecording();
     /** For browser STT, clear the reference since text was already being updated */
     if (!isExternalSTT(speechToTextEndpoint)) {
