@@ -1,14 +1,14 @@
-import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useAuthContext, useNavScrolling } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
-import { Conversations } from '~/components/Conversations';
 import { Spinner } from '@librechat/client';
 import store from '~/store';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
+import { FileText, MessageSquare } from 'lucide-react';
+import { cn } from '~/utils';
 
-// Extended props to handle report selection
 interface ReportHistoryProps {
     onSelectReport: (conversationId: string) => void;
     isOpen: boolean;
@@ -18,11 +18,10 @@ interface ReportHistoryProps {
 const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProps) => {
     const { isAuthenticated } = useAuthContext();
     const search = useRecoilValue(store.search);
-    const [tags, setTags] = useState<string[]>([]); // Future: filter by 'Report' tag
     const [showLoading, setShowLoading] = useState(false);
 
-    // Fetch conversations
-    const { data, fetchNextPage, isFetchingNextPage, isLoading, isFetching, refetch } =
+    // Fetch conversations tagged as 'report'
+    const { data, fetchNextPage, isFetchingNextPage, isLoading } =
         useConversationsInfiniteQuery(
             {
                 tags: ['report'],
@@ -30,8 +29,8 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
             },
             {
                 enabled: isAuthenticated,
-                staleTime: 30000,
-                cacheTime: 300000,
+                staleTime: 0, // Force fresh fetch to see new saves immediately
+                refetchOnMount: true,
             },
         );
 
@@ -58,107 +57,78 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
         return data ? data.pages.flatMap((page) => page.conversations) : [];
     }, [data]);
 
-    const loadMoreConversations = useCallback(() => {
-        if (isFetchingNextPage || !computedHasNextPage) {
-            return;
-        }
-        fetchNextPage();
-    }, [isFetchingNextPage, computedHasNextPage, fetchNextPage]);
-
-    const listRef = useRef<any>(null);
-
-    // Filter conversations to only show those likely to be reports?
-    // For now, we show all, but we can customize this.
-
-    // Custom toggleNav to select conversation
-    const handleConversationClick = useCallback(() => {
-        // This is a bit tricker because Conversations component handles click internal nav.
-        // We might need to wrap or intercept navigation, but Conversations uses <Convo> which uses existing routing.
-        // Ideally, we want to stay on LivePage and just load the content.
-        // BUT, Conversations component assumes it navigates to /c/:id.
-        // If we want to intercept, we might need to modify Convo or manage url change in LivePage.
-    }, []);
-
-    // NOTE: The existing Conversations component uses <a href> or navigate to /c/:id.
-    // If the user clicks a conversation, the URL changes to /c/:conversationId.
-    // In LivePage, we need to detect this URL change and load the content IF we are in Live Mode.
-    // OR, we assume clicking history navigates AWAY from LivePage to ChatPage?
-    // The user requirement: "historial de informes que pueda volver a verlos ademas que se pueden editar y guardar".
-    // If they go to standard ChatPage, they can verify/edit.
-    // BUT maybe they want it IN the LivePage editor?
-    // Beause LivePage has the specific "Editor" view (CKEditor/RichText).
-    // The ChatPage handles it as chat bubbles.
-    // So we definitely want to load it into LivePage.
-
-    // Issue: Reusing `Conversations` component means it will try to navigate.
-    // If `LivePage` is at `/live`, clicking a convo link `/c/123` will unmount `LivePage`.
-    // Solution: modify `Conversations` or `Convo` to accept an `onClick` override?
-    // Checking `Convo.tsx` (not visible yet) would confirm.
-    // Assuming we can't easily change `Convo` without affecting global nav.
-    // Maybe we just let it navigate, and if the user wants to "Edit as Report", they do it there?
-    // NO, the user wants "historial ... ademas que se pueden editar y guardar". The LiveEditor is better for this.
-
-    // Workaround: We can't easily reuse `Conversations` if it hardcodes links.
-    // Let's assume for now we reuse it, but we need to handle the navigation or make `LivePage` handle `/c/:id` route?
-    // Actually, `LivePage` is likely a separate route.
-    // If I cannot reuse `Conversations` easily for "Select only", I might need to copy the logic or accept that it navigates.
-    // However, if I use `toggleNav` input of `Conversations`, maybe I can use that?
-    // `Convo` calls `toggleNav` on click.
-    // But it also has an anchor or div with onClick that navigates.
-
-    // Let's assume we create a simplified list for now if reusing is hard, OR we try to intercept.
-    // For this step, I'll blindly reuse `Conversations` and see.
-    // To properly support "Select to Load into Editor", `LivePage` needs to match `/c/:conversationId` route OR we manually fetch content when ID is selected.
-    // If `Conversations` navigates, we lost the `LivePage` context.
-
-    // Better approach: Create a simple list rendering for reports here avoiding the global navigation component if it's strictly coupled to Chat UI.
-    // I'll stick to `Conversations` for visual consistency, but if it navigates away, I might need to suggest the user "Copy to Live Editor" or similar.
-    // Wait, if I am on `/live`, and I go to `/c/123`, I am in normal chat.
-    // User wants to see history "que pueda volver a verlos ... editar".
-    // Maybe sticking to Chat UI is fine?
-    // But they asked this in context of Live Analysis.
-    // I think they want the list IN the side, and clicking it puts the text in the main editor.
-
-    // I'll create a simple list effectively duplicating `Conversations` logic but with custom click handler.
-    // Since `Conversations` is complex (virtualized), I'll try to just map `data.pages` to a simple list first.
-
     return (
-        <div className={`fixed inset-y-0 left-0 bg-surface-primary-alt w-64 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 z-[200] shadow-xl border-r border-black/10`}>
-            <div className="flex items-center justify-between p-4 border-b border-black/5">
-                <h3 className="font-bold text-lg">Historial</h3>
-                <button onClick={toggleOpen} className="p-1 hover:bg-black/5 rounded">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        <div
+            className={cn(
+                "fixed inset-y-0 left-0 z-[200] w-72 bg-surface-primary border-r border-black/10 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl",
+                isOpen ? "translate-x-0" : "-translate-x-full"
+            )}
+        >
+            <div className="flex items-center justify-between p-4 border-b border-black/10">
+                <h2 className="font-semibold text-lg text-text-primary">Historial</h2>
+                <button
+                    onClick={toggleOpen}
+                    className="p-1 hover:bg-surface-hover rounded-full transition-colors"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6 text-text-secondary"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
                 </button>
             </div>
 
-            <div className="overflow-y-auto h-full pb-20">
-                {isLoading ? (
-                    <div className="p-4 text-center text-sm text-gray-500">Cargando...</div>
-                ) : (
-                    <div className="flex flex-col">
-                        {conversations.length === 0 && (
-                            <div className="p-4 text-center text-sm text-gray-500">
-                                No hay informes disponibles.
-                            </div>
-                        )}
-                        {conversations.map(convo => (
-                            <div
-                                key={convo.conversationId}
-                                onClick={() => onSelectReport(convo.conversationId)}
-                                className="px-4 py-3 border-b border-black/5 cursor-pointer hover:bg-black/5 transition-colors"
-                            >
-                                <div className="font-medium text-sm truncate">{convo.title || 'Sin título'}</div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                    {new Date(convo.updatedAt || convo.createdAt || Date.now()).toLocaleDateString()}
-                                </div>
-                            </div>
-                        ))}
+            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {isLoading && (
+                    <div className="flex justify-center p-4">
+                        <Spinner />
+                    </div>
+                )}
 
-                        {computedHasNextPage && (
-                            <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="w-full py-2 text-xs text-blue-500 hover:underline">
-                                {isFetchingNextPage ? 'Cargando más...' : 'Ver más antiguos'}
-                            </button>
-                        )}
+                {!isLoading && conversations.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-40 text-text-secondary text-sm">
+                        <FileText className="w-8 h-8 mb-2 opacity-50" />
+                        <p>No hay informes disponibles.</p>
+                    </div>
+                )}
+
+                {conversations.map((convo) => (
+                    <button
+                        key={convo.conversationId}
+                        onClick={() => onSelectReport(convo.conversationId)}
+                        className="w-full text-left p-3 rounded-lg hover:bg-surface-hover transition-colors border border-transparent hover:border-black/5 group"
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400">
+                                <FileText className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-sm text-text-primary truncate">
+                                    {convo.title || 'Informe sin título'}
+                                </h3>
+                                <p className="text-xs text-text-secondary mt-0.5 truncate">
+                                    {new Date(convo.updatedAt).toLocaleString(undefined, {
+                                        dateStyle: 'short',
+                                        timeStyle: 'short',
+                                    })}
+                                </p>
+                            </div>
+                        </div>
+                    </button>
+                ))}
+
+                {isFetchingNextPage && (
+                    <div className="flex justify-center p-2">
+                        <Spinner className="w-4 h-4" />
                     </div>
                 )}
             </div>
