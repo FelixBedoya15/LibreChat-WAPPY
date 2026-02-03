@@ -34,6 +34,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const snapshotRef = useRef<string | null>(null); // NEW: Ref to store captured image
 
     // NEW: Countdown state
     const [countdown, setCountdown] = useState(10);
@@ -50,6 +51,25 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
     }, []);
 
+    // Helper to capture video frame
+    const captureSnapshot = useCallback(() => {
+        if (videoRef.current) {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoRef.current.videoWidth;
+                canvas.height = videoRef.current.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                    return canvas.toDataURL('image/png');
+                }
+            } catch (e) {
+                console.error("Error capturing snapshot:", e);
+            }
+        }
+        return null;
+    }, []);
+
     const sessionOptions = useMemo(() => ({
         conversationId,
         onConversationIdUpdate,
@@ -63,7 +83,40 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         },
         onReportReceived: (html: string) => {
             setHasReceivedReport(true); // Mark report as received
-            onReportReceived?.(html);
+
+            // Construct the Final Report with Header, Date, and Image
+            const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            const timeStr = new Date().toLocaleTimeString('es-ES');
+
+            let finalHtml = `
+                <div style="font-family: sans-serif; max-width: 100%;">
+                    <h1 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Informe de Análisis de Riesgos y Peligros</h1>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+                        <p><strong>Fecha de Emisión:</strong> ${dateStr} a las ${timeStr}</p>
+                        <p><strong>Tipo de Actividad:</strong> Identificación de Riesgos en Vivo (Live Analysis)</p>
+                    </div>
+            `;
+
+            if (snapshotRef.current) {
+                finalHtml += `
+                    <div style="margin-bottom: 25px; text-align: center;">
+                        <h3 style="text-align: left; color: #7f8c8d;">1. Evidencia Visual Captada</h3>
+                        <img src="${snapshotRef.current}" alt="Evidencia del Entorno" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+                        <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 5px;">Figura 1: Captura del entorno analizado en tiempo real.</p>
+                    </div>
+                `;
+            }
+
+            // Append the AI generated content (ensure it starts correctly)
+            finalHtml += `
+                <div class="ai-report-content">
+                    ${html}
+                </div>
+                </div>
+            `;
+
+            onReportReceived?.(finalHtml);
         },
         onStatusChange: (newStatus: string) => {
             console.log('[LiveAnalysisModal] Status:', newStatus);
@@ -168,57 +221,94 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
+
+                // DATA CAPTURE
+                snapshotRef.current = captureSnapshot(); // Capture image NOW
+                const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
                 sendTextMessage(`
-                    Actúa como un Experto Senior en Prevención de Riesgos Laborales (HSE).
-                    MIRA EL VIDEO AHORA MISMO. Tu misión es realizar una "Investigación Exhaustiva" del entorno visual ACTUAL y generar un INFORME TÉCNICO FORMAL.
+                    Actúa como un Auditor Líder Experto en Seguridad y Salud en el Trabajo (SST/HSE) certificado.
+                    
+                    CONTEXTO:
+                    Estás realizando una inspección técnica formal basada en la evidencia visual que estás viendo AHORA MISMO en el video.
+                    Fecha del reporte: ${currentDate}.
 
-                    INSTRUCCIONES DE SALIDA:
-                    1. **AUDIO (Voz):** Háblame como un colega experto. Explica tus hallazgos, menciona los riesgos críticos y sé directivo. Puedes ser conversacional en el audio.
-                    2. **TEXTO (Reporte):** Genera EXCLUSIVAMENTE el contenido del informe en formato HTML.
-                       - NO incluyas saludos, despedidas ni preguntas en el texto.
-                       - Usa etiquetas HTML semánticas: <h2>, <h3>, <p>, <ul>, <li>, <strong>.
-                       - PARA LAS TABLAS: Usa <table>, <thead>, <tbody>, <tr>, <th>, <td> con bordes (style="border-collapse: collapse; width: 100%;").
-                       - El texto debe ser un documento formal listo para guardar.
+                    TU MISIÓN:
+                    Generar un INFORME TÉCNICO DETALLADO Y EXTENSO sobre los hallazgos.
 
-                    ESTRUCTURA OBLIGATORIA DEL REPORTE (HTML):
+                    INSTRUCCIONES DE RESPUESTA:
+                    1. **AUDIO**: Háblame profesionalmente como si estuvieras dictando el resumen ejecutivo a un colega. Sé directo sobre los peligros críticos.
+                    2. **TEXTO (HTML)**: Genera el cuerpo del informe. Sé MUY EXTENSO. Usa un lenguaje técnico, formal y preciso.
+                    
+                    ESTRUCTURA OBLIGATORIA DEL CONTENIDO HTML (No incluyas <html> ni importes CSS, solo el contenido del body):
 
-                    <h2>Análisis de Trabajo Seguro (ATS)</h2>
+                    <h2>2. Descripción Detallada del Procedimiento / Actividad</h2>
+                    <p>[Describe exhaustivamente qué está sucediendo, el entorno, las herramientas visibles, el personal, y las condiciones ambientales. Mínimo 2 párrafos detallados].</p>
 
-                    <h3>1. Descripción del Entorno</h3>
-                    <p>(Descripción detallada de lo que ves en el video...)</p>
+                    <h2>3. Identificación y Análisis de Hallazgos</h2>
+                    <p>[Analiza condición por condición. Usa viñetas para listar observaciones específicas].</p>
+                    <ul>
+                        <li><strong>Observación 1:</strong> [Detalle]</li>
+                        <li><strong>Observación 2:</strong> [Detalle]</li>
+                    </ul>
 
-                    <h3>2. Análisis Técnico</h3>
-                    <p>(Evaluación profunda...)</p>
-
-                    <h3>3. Matriz de Identificación y Valoración de Riesgos</h3>
-                    <table border="1" style="border-collapse: collapse; width: 100%;">
-                      <thead>
-                        <tr><th>Peligro</th><th>Riesgo</th><th>Probabilidad</th><th>Consecuencia</th><th>Nivel de Riesgo</th></tr>
+                    <h2>4. Matriz de Valoración de Riesgos y Peligros (GTC 45 / Norma Técnica)</h2>
+                    <table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">
+                      <thead style="background-color: #ecf0f1;">
+                        <tr>
+                            <th style="padding: 8px;">Proceso / Zona</th>
+                            <th style="padding: 8px;">Peligro (Descripción)</th>
+                            <th style="padding: 8px;">Clasificación</th>
+                            <th style="padding: 8px;">Efectos Posibles</th>
+                            <th style="padding: 8px;">Nivel de Riesgo</th>
+                        </tr>
                       </thead>
                       <tbody>
-                        <!-- Filas de la matriz -->
+                        <!-- Genera al menos 3 filas si es posible -->
+                        <tr>
+                            <td style="padding: 8px;">[Ej: Soldadura]</td>
+                            <td style="padding: 8px;">[Ej: Humos metálicos]</td>
+                            <td style="padding: 8px;">[Ej: Químico]</td>
+                            <td style="padding: 8px;">[Ej: Neumoconiosis]</td>
+                            <td style="padding: 8px; font-weight: bold; color: red;">[Ej: Alto]</td>
+                        </tr>
                       </tbody>
                     </table>
 
-                    <h3>4. Jerarquía de Controles</h3>
-                    <table border="1" style="border-collapse: collapse; width: 100%;">
-                      <thead>
-                        <tr><th>Riesgo Identificado</th><th>Eliminación / Sustitución</th><th>Controles de Ingeniería</th><th>Controles Administrativos</th><th>EPP Requerido</th></tr>
+                    <h2>5. Medidas de Intervención Recomendadas (Jerarquía de Controles)</h2>
+                    <p>[Propone soluciones detalladas para cada hallazgo].</p>
+                    <table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">
+                      <thead style="background-color: #ecf0f1;">
+                        <tr>
+                            <th style="padding: 8px;">Eliminación / Sustitución</th>
+                            <th style="padding: 8px;">Controles de Ingeniería</th>
+                            <th style="padding: 8px;">Controles Administrativos</th>
+                            <th style="padding: 8px;">EPP Requeridos</th>
+                        </tr>
                       </thead>
                       <tbody>
-                        <!-- Filas de controles -->
+                        <tr>
+                            <td style="padding: 8px;">[Propuesta...]</td>
+                            <td style="padding: 8px;">[Propuesta...]</td>
+                            <td style="padding: 8px;">[Propuesta...]</td>
+                            <td style="padding: 8px;">[Propuesta...]</td>
+                        </tr>
                       </tbody>
                     </table>
 
-                    IMPORTANTE:
-                    - Sé riguroso en la valoración.
-                    - Si no ves riesgos graves, documenta los riesgos leves o ergonómicos presentes.
+                    <h2>6. Conclusiones y Cierre</h2>
+                    <p>[Conclusión técnica final sobre la viabilidad de la operación o la urgencia de las correcciones].</p>
+
+                    NOTA FINAL:
+                    - NO uses frases genéricas como "veo una persona". Describe "trabajador operando maquinaria sin guantes de carnaza".
+                    - Sé lo más extenso posible en los párrafos descriptivos.
+                    - Utiliza formato HTML limpio para tablas y listas.
                 `);
             }, 1000); // Short delay after ready
 
             return () => clearTimeout(timer);
         }
-    }, [isConnected, isOpen, isReady, sendTextMessage]);
+    }, [isConnected, isOpen, isReady, sendTextMessage, captureSnapshot]);
 
     const handleClose = () => {
         stopMediaTracks();
