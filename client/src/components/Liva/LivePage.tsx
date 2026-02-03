@@ -186,6 +186,7 @@ const LivePage = () => {
                                 finalConvoId = match[1];
                                 setConversationId(finalConvoId);
                                 foundId = true;
+                                showToast({ message: `ID capturado del stream: ${finalConvoId}`, status: 'success' }); // DEBUG
                                 break;
                             }
                         }
@@ -216,9 +217,13 @@ const LivePage = () => {
                     finalConvoId = data.conversations[0].conversationId;
                     setConversationId(finalConvoId);
                     console.log("Fallback: retrieved conversationId:", finalConvoId);
+                    showToast({ message: `ID recuperado por fallback: ${finalConvoId}`, status: 'warning' }); // DEBUG
+                } else {
+                    showToast({ message: 'FALLO TOTAL: No se pudo obtener ID', status: 'error' }); // DEBUG
                 }
             } catch (e) {
                 console.error("Fallback fetch failed", e);
+                showToast({ message: 'Error en fallback fetch', status: 'error' }); // DEBUG
             }
         }
 
