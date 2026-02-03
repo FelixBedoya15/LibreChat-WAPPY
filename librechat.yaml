@@ -261,18 +261,6 @@ endpoints:
       forcePrompt: false
       modelDisplayLabel: "Wappy"
 
-    - name: "NVIDIA"
-      apiKey: "user_provided"
-      baseURL: "https://integrate.api.nvidia.com/v1"
-      models:
-        default: ["meta/llama-3.1-405b-instruct"]
-        fetch: true
-      titleConvo: true
-      titleModel: "current_model"
-      modelDisplayLabel: "NVIDIA"
-      iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
-      dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]
-
     # Groq Example
     #- name: 'groq'
     #  apiKey: '${GROQ_API_KEY}'
@@ -334,22 +322,19 @@ endpoints:
       # NOTE: For Mistral, it is necessary to drop the following parameters or you will encounter a 422 Error:
      # dropParams: ['stop', 'user', 'frequency_penalty', 'presence_penalty']
 
-    # OpenRouter Example
-    #- name: 'OpenRouter'
-      # For `apiKey` and `baseURL`, you can use environment variables that you define.
-      # recommended environment variables:
-    #  apiKey: '${OPENROUTER_KEY}'
-    #  baseURL: 'https://openrouter.ai/api/v1'
-    #  headers:
-    #      x-librechat-body-parentmessageid: '{{LIBRECHAT_BODY_PARENTMESSAGEID}}'
-    #  models:
-    #    default: ['meta-llama/llama-3-70b-instruct']
-    #    fetch: true
-    #  titleConvo: true
-    #  titleModel: 'meta-llama/llama-3-70b-instruct'
-      # Recommended: Drop the stop parameter from the request as Openrouter models use a variety of stop tokens.
-    #  dropParams: ['stop']
-    #  modelDisplayLabel: 'OpenRouter'
+    # OpenRouter Example (REPURPOSED FOR NVIDIA TO ENABLE GEAR ICON)
+    - name: 'OpenRouter'
+      apiKey: '${NVIDIA_API_KEY}' # Will trigger UI input if missing
+      baseURL: 'https://integrate.api.nvidia.com/v1'
+      models:
+        default: ["meta/llama-3.1-405b-instruct"]
+        fetch: true
+      titleConvo: true
+      titleModel: 'current_model'
+      modelDisplayLabel: 'NVIDIA'
+      dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]
+      # Attempting to override icon, though native endpoints might enforce their own
+      iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
 
     # Portkey AI Example
     #- name: 'Portkey'
