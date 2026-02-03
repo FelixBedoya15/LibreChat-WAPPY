@@ -56,7 +56,6 @@ const LivePage = () => {
             setConversationId(selectedConvoId);
             setIsHistoryOpen(false);
 
-            const token = localStorage.getItem('token');
             const res = await fetch(`/api/messages/${selectedConvoId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -70,11 +69,12 @@ const LivePage = () => {
                 messages = data.messages;
             }
 
-            // Find last assistant message
-            const lastAssistantMsg = [...messages].reverse().find((m: any) => m.sender === 'Assistant' || m.isCreatedByUser === false);
+            // Find latest message with text (either User or Assistant)
+            // We want the most recent state of the report
+            const lastMsg = [...messages].reverse().find((m: any) => m.text);
 
-            if (lastAssistantMsg && lastAssistantMsg.text) {
-                let html = lastAssistantMsg.text;
+            if (lastMsg && lastMsg.text) {
+                let html = lastMsg.text;
                 // Basic Markdown to HTML conversion for display
                 html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                 html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
@@ -83,8 +83,8 @@ const LivePage = () => {
 
                 // Set content and update state
                 setEditorContent(html);
-                setReportMessageId(lastAssistantMsg.messageId);
-                setLastUpdated(new Date(lastAssistantMsg.createdAt));
+                setReportMessageId(lastMsg.messageId);
+                setLastUpdated(new Date(lastMsg.createdAt));
             }
 
         } catch (e) {
@@ -201,7 +201,8 @@ const LivePage = () => {
                     text: markdownContent,
                     conversationId: null, // Explicitly null for new
                     model: 'gemini-2.5-flash-preview-09-2025',
-                    endpoint: 'google'
+                    endpoint: 'google',
+                    parentMessageId: '00000000-0000-0000-0000-000000000000'
                 };
                 console.log("Saving new report, payload:", payload);
 
@@ -254,28 +255,44 @@ const LivePage = () => {
             }
         }
 
-        // FALLBACK: If we still don't have the ID (stream parsing failed), fetch the latest conversation
+        // FALLBACK: If we still don't have the ID, try fetching latest with retries
         if (!finalConvoId || finalConvoId === 'new') {
             try {
-                // Wait a moment for DB consistency
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                let attempts = 0;
+                const maxAttempts = 3;
 
-                console.log("Fallback: Fetching latest conversations...");
-                const resp = await fetch('/api/conversations', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await resp.json();
-                console.log("Fallback: API Response:", data);
+                while (attempts < maxAttempts && (!finalConvoId || finalConvoId === 'new')) {
+                    attempts++;
+                    // Wait a bit more on each attempt (1s, 2s, 3s)
+                    await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
 
-                const convos = data.conversations || (Array.isArray(data) ? data : []);
+                    console.log(`Fallback: Fetching latest conversations (Attempt ${attempts})...`);
+                    const resp = await fetch('/api/conversations', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await resp.json();
+                    const convos = data.conversations || (Array.isArray(data) ? data : []);
 
-                if (convos && convos.length > 0) {
-                    finalConvoId = convos[0].conversationId;
-                    setConversationId(finalConvoId);
-                    console.log("Fallback: retrieved conversationId:", finalConvoId);
-                    showToast({ message: `ID recuperado (Fallback): ${finalConvoId}`, status: 'warning' });
-                } else {
-                    console.error("Fallback: parsed conversations list is empty or invalid", data);
+                    if (convos && convos.length > 0) {
+                        // Check if this conversation looks like ours (created very recently)
+                        const mostRecent = convos[0];
+                        const createdTime = new Date(mostRecent.createdAt).getTime();
+                        const now = new Date().getTime();
+                        // If it's within last 30 seconds
+                        if (now - createdTime < 30000) {
+                            finalConvoId = mostRecent.conversationId;
+                            setConversationId(finalConvoId);
+                            console.log("Fallback: retrieved conversationId:", finalConvoId);
+                            showToast({ message: `ID recuperado (Fallback)`, status: 'warning' });
+                            break;
+                        } else {
+                            console.log("Fallback: Most recent convo is too old, waiting...");
+                        }
+                    }
+                }
+
+                if (!finalConvoId || finalConvoId === 'new') {
+                    console.error("Fallback: parsed conversations list is empty or invalid");
                     showToast({ message: 'FALLO: No se encontró la conversación nueva', status: 'error' });
                 }
             } catch (e) {
