@@ -120,21 +120,38 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         },
         onStatusChange: (newStatus: string) => {
             console.log('[LiveAnalysisModal] Status:', newStatus);
-            if (newStatus === 'listening') {
-                setStatusText('Listening...');
-            } else if (newStatus === 'speaking') {
-                setStatusText('AI Speaking...');
-            } else if (newStatus === 'thinking') {
-                setStatusText('Analizando...');
-            } else if (newStatus === 'turn_complete') {
-                // Only show completion if we actually got the report
-                if (hasReceivedReport) {
-                    setStatusText('Análisis Completado');
-                } else {
-                    setStatusText('Listo'); // Revert to ready if just a normal turn finished
-                }
-            } else {
-                setStatusText(newStatus);
+            switch (newStatus) {
+                case 'listening':
+                    setStatusText('Escuchando...');
+                    break;
+                case 'speaking':
+                    setStatusText('Hablando...');
+                    break;
+                case 'thinking':
+                    setStatusText('Analizando...');
+                    break;
+                case 'connecting':
+                    setStatusText('Conectando...');
+                    break;
+                case 'connected':
+                    setStatusText('Conectado');
+                    break;
+                case 'generating_report':
+                    setStatusText('Generando Reporte...');
+                    break;
+                case 'ready':
+                    setStatusText('Listo');
+                    break;
+                case 'turn_complete':
+                    // Only show completion if we actually got the report
+                    if (hasReceivedReport) {
+                        setStatusText('Análisis Completado');
+                    } else {
+                        setStatusText('Listo');
+                    }
+                    break;
+                default:
+                    setStatusText(newStatus);
             }
         },
         onError: (err: string) => {
