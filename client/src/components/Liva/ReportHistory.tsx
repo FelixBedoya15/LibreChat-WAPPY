@@ -25,7 +25,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
     const { data, fetchNextPage, isFetchingNextPage, isLoading, isFetching, refetch } =
         useConversationsInfiniteQuery(
             {
-                tags: tags.length === 0 ? undefined : tags,
+                tags: ['report'],
                 search: search.debouncedQuery || undefined,
             },
             {
