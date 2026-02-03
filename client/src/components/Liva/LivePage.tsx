@@ -4,13 +4,14 @@ import LiveAnalysisModal from './LiveAnalysisModal';
 import ReportHistory from './ReportHistory';
 import { Video, Save, History } from 'lucide-react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 
 const LivePage = () => {
     const localize = useLocalize();
+    const { token } = useAuthContext();
     const { showToast } = useToastContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [editorContent, setEditorContent] = useState('');
@@ -126,7 +127,6 @@ const LivePage = () => {
 
         const contentToSave = editorContent || initialReportContent;
         const markdownContent = convertHtmlToMarkdown(contentToSave);
-        const token = localStorage.getItem('token');
 
         let finalConvoId = conversationId;
 
