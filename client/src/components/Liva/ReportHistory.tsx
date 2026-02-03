@@ -123,7 +123,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
     // Since `Conversations` is complex (virtualized), I'll try to just map `data.pages` to a simple list first.
 
     return (
-        <div className={`fixed inset-y-0 left-0 bg-surface-primary-alt w-64 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 z-50 shadow-xl border-r border-black/10`}>
+        <div className={`fixed inset-y-0 left-0 bg-surface-primary-alt w-64 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 z-[200] shadow-xl border-r border-black/10`}>
             <div className="flex items-center justify-between p-4 border-b border-black/5">
                 <h3 className="font-bold text-lg">Historial</h3>
                 <button onClick={toggleOpen} className="p-1 hover:bg-black/5 rounded">
@@ -136,6 +136,11 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
                     <div className="p-4 text-center text-sm text-gray-500">Cargando...</div>
                 ) : (
                     <div className="flex flex-col">
+                        {conversations.length === 0 && (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                                No hay informes disponibles.
+                            </div>
+                        )}
                         {conversations.map(convo => (
                             <div
                                 key={convo.conversationId}
@@ -144,7 +149,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
                             >
                                 <div className="font-medium text-sm truncate">{convo.title || 'Sin título'}</div>
                                 <div className="text-xs text-gray-400 mt-1">
-                                    {new Date(convo.updatedAt || convo.createdAt).toLocaleDateString()}
+                                    {new Date(convo.updatedAt || convo.createdAt || Date.now()).toLocaleDateString()}
                                 </div>
                             </div>
                         ))}
