@@ -324,7 +324,7 @@ endpoints:
 
     # OpenRouter Example (REPURPOSED FOR NVIDIA TO ENABLE GEAR ICON)
     - name: 'OpenRouter'
-      apiKey: '${NVIDIA_API_KEY}' # Will trigger UI input if missing
+      apiKey: "user_provided" 
       baseURL: 'https://integrate.api.nvidia.com/v1'
       models:
         default: ["meta/llama-3.1-405b-instruct"]
@@ -333,7 +333,6 @@ endpoints:
       titleModel: 'current_model'
       modelDisplayLabel: 'NVIDIA'
       dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]
-      # Attempting to override icon, though native endpoints might enforce their own
       iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
 
     # Portkey AI Example
