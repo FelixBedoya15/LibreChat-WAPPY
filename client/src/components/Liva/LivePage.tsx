@@ -204,24 +204,32 @@ const LivePage = () => {
         if (!finalConvoId || finalConvoId === 'new') {
             try {
                 // Wait a moment for DB consistency
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 1500)); // Increased wait
 
-                const resp = await fetch('/api/conversations?pageNumber=1', {
+                console.log("Fallback: Fetching latest conversations...");
+                const resp = await fetch('/api/conversations', { // Removed params to use default
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await resp.json();
+                console.log("Fallback: API Response:", data);
 
-                // Assuming the created conversation is the most recent one
-                if (data && data.conversations && data.conversations.length > 0) {
-                    finalConvoId = data.conversations[0].conversationId;
+                // LibreChat API usually returns { conversations: [...] } or just [...]
+                // We handle both structures
+                const convos = data.conversations || (Array.isArray(data) ? data : []);
+
+                if (convos && convos.length > 0) {
+                    // Get the first one (most recent)
+                    finalConvoId = convos[0].conversationId;
                     setConversationId(finalConvoId);
                     console.log("Fallback: retrieved conversationId:", finalConvoId);
+                    showToast({ message: `ID recuperado (Fallback): ${finalConvoId}`, status: 'warning' });
                 } else {
-                    showToast({ message: 'FALLO TOTAL: No se pudo obtener ID', status: 'error' });
+                    console.error("Fallback: parsed conversations list is empty or invalid", data);
+                    showToast({ message: 'FALLO: No se encontró la conversación nueva', status: 'error' });
                 }
             } catch (e) {
                 console.error("Fallback fetch failed", e);
-                showToast({ message: 'Error en fallback fetch', status: 'error' });
+                showToast({ message: 'Error de conexión en Fallback', status: 'error' });
             }
         }
 
