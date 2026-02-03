@@ -1,12 +1,10 @@
 import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
-import { useRecoilValue } from 'recoil';
 import { useAuthContext, useNavScrolling } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner } from '@librechat/client';
-import store from '~/store';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
-import { FileText, MessageSquare } from 'lucide-react';
+import { FileText, RefreshCw, X } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface ReportHistoryProps {
@@ -18,15 +16,14 @@ interface ReportHistoryProps {
 
 const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: ReportHistoryProps) => {
     const { isAuthenticated } = useAuthContext();
-    const search = useRecoilValue(store.search);
+    // Removed dependency on global search state to prevent filtering issues
     const [showLoading, setShowLoading] = useState(false);
 
-    // Fetch conversations tagged as 'report'
+    // Fetch conversations tagged as 'report' - No search filter
     const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
         useConversationsInfiniteQuery(
             {
                 tags: ['report'],
-                search: search.debouncedQuery || undefined,
             },
             {
                 enabled: isAuthenticated,
@@ -41,6 +38,10 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
             refetch();
         }
     }, [refreshTrigger, refetch]);
+
+    const handleManualRefresh = () => {
+        refetch();
+    };
 
     const computedHasNextPage = useMemo(() => {
         if (data?.pages && data.pages.length > 0) {
@@ -73,25 +74,21 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
             )}
         >
             <div className="flex items-center justify-between p-4 border-b border-black/10">
-                <h2 className="font-semibold text-lg text-text-primary">Historial</h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="font-semibold text-lg text-text-primary">Historial</h2>
+                    <button
+                        onClick={handleManualRefresh}
+                        className="p-1 hover:bg-surface-hover rounded-full transition-colors text-text-secondary hover:text-text-primary"
+                        title="Actualizar lista"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", (isLoading || isFetchingNextPage) && "animate-spin")} />
+                    </button>
+                </div>
                 <button
                     onClick={toggleOpen}
                     className="p-1 hover:bg-surface-hover rounded-full transition-colors"
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-6 w-6 text-text-secondary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                        />
-                    </svg>
+                    <X className="w-5 h-5 text-text-secondary" />
                 </button>
             </div>
 
