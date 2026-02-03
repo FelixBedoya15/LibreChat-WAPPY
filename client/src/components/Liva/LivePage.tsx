@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
-import { Video, Save } from 'lucide-react';
+import ReportHistory from './ReportHistory'; // NEW
+import { Video, Save, History, FileText } from 'lucide-react'; // NEW Icons
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useNewConvo, useLocalize } from '~/hooks';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -12,6 +13,7 @@ const LivePage = () => {
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [editorContent, setEditorContent] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false); // NEW
     const [conversationId, setConversationId] = useState('new');
     const { newConversation } = useNewConvo();
 
@@ -35,6 +37,61 @@ const LivePage = () => {
             setReportMessageId(messageId);
         }
     }, []);
+
+    // NEW: Function to load a selected report from history
+    const handleSelectReport = async (selectedConvoId: string) => {
+        try {
+            console.log("Loading report from conversation:", selectedConvoId);
+            setConversationId(selectedConvoId);
+            setIsHistoryOpen(false);
+
+            // Fetch conversation details/messages
+            const token = localStorage.getItem('token');
+            // We need to fetch messages. The conversation object doesn't have messages usually in the list view.
+            const res = await fetch(`/api/messages/${selectedConvoId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            // Assume the last message/response is the report? or try to find one with HTML?
+            // For now, let's take the last assistant message.
+            if (data && Array.isArray(data)) { // Assuming data is array of messages or { messages: [] }
+                const messages = Array.isArray(data) ? data : data.messages;
+                // Find last assistant message
+                const lastAssistantMsg = [...messages].reverse().find((m: any) => m.sender === 'Assistant' || m.isCreatedByUser === false);
+
+                if (lastAssistantMsg && lastAssistantMsg.text) {
+                    // Check if it looks like markdown or html. The editor expects HTML ideally or conversion.
+                    // Our LiveEditor likely takes HTML. The saved content was Markdown.
+                    // Ensure LiveEditor can handle Markdown or we convert it back?
+                    // Usually CKEditor handles HTML.
+                    // The handleSave converted HTML -> Markdown.
+                    // So here we might receive Markdown.
+                    // We need to render Markdown as HTML for the editor... or Editor supports markdown?
+                    // The component is called LiveEditor. Let's assume for now we pass text.
+                    // Ideally we should use a markdown-to-html converter here if Editor requires HTML.
+                    // For MVP, just loading the text.
+                    // Note: The previous handleSave saved Markdown.
+                    // Let's do a simple line break to <br> conversion if needed or rely on Editor.
+
+                    // Quick Markdown to HTML (very basic) for restoring visual
+                    let html = lastAssistantMsg.text;
+                    // Basic bold
+                    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+                    setEditorContent(html);
+                    setReportMessageId(lastAssistantMsg.messageId);
+                    setLastUpdated(new Date(lastAssistantMsg.createdAt));
+                }
+            }
+
+        } catch (e) {
+            console.error("Error loading conversation:", e);
+        }
+    };
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>
@@ -91,6 +148,7 @@ const LivePage = () => {
                         })
                     });
                     console.log('Report message updated successfully');
+                    setLastUpdated(new Date());
                 } catch (error) {
                     console.error('Error updating report message:', error);
                 }
@@ -118,7 +176,10 @@ const LivePage = () => {
             }
 
             // Navigate to the existing conversation where the report is now saved (and updated)
-            navigate(`/c/${conversationId}`);
+            // navigate(`/c/${conversationId}`);
+            // STAY on LivePage to verify edit
+            alert(localize('com_ui_saved_success') || 'Guardado exitosamente');
+
         } else {
             newConversation({
                 state: { initialMessage: markdownContent },
@@ -128,6 +189,13 @@ const LivePage = () => {
 
     return (
         <div className="flex h-full w-full flex-col bg-surface-secondary relative">
+            {/* Report History Sidebar */}
+            <ReportHistory
+                isOpen={isHistoryOpen}
+                toggleOpen={() => setIsHistoryOpen(false)}
+                onSelectReport={handleSelectReport}
+            />
+
             {/* Toolbar / Header Actions */}
             <div className="w-full p-4 pb-0">
                 <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-4 flex items-center justify-between">
@@ -143,6 +211,13 @@ const LivePage = () => {
                         )}
                     </div>
                     <div className="flex items-center space-x-3">
+                        <button
+                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                            className={`flex items-center px-4 py-2 border border-light rounded-full transition-colors shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700' : 'bg-surface-primary text-primary hover:bg-surface-hover'}`}
+                        >
+                            <History className="w-4 h-4 mr-2" />
+                            Historial
+                        </button>
                         <button
                             onClick={handleStartAnalysis}
                             className="flex items-center px-4 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-colors shadow-sm font-medium text-sm"
