@@ -310,6 +310,7 @@ const LivePage = () => {
                         onUpdate={(html) => {
                             setEditorContent(html);
                         }}
+                        onSave={handleSave}
                     />
                 </div>
             </div>
