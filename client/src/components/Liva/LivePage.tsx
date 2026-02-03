@@ -170,7 +170,7 @@ const LivePage = () => {
                 });
 
                 if (res.ok && res.body) {
-                    // Read the stream to find conversationId
+                    // Try to parse ID from stream
                     const reader = res.body.getReader();
                     const decoder = new TextDecoder();
                     let done = false;
@@ -181,11 +181,10 @@ const LivePage = () => {
                         done = doneReading;
                         if (value) {
                             const chunk = decoder.decode(value);
-                            // Look for conversationId in the chunk (it appears in data: {...} JSON)
                             const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
                             if (match && match[1]) {
                                 finalConvoId = match[1];
-                                setConversationId(finalConvoId); // Update local state
+                                setConversationId(finalConvoId);
                                 foundId = true;
                                 break;
                             }
@@ -198,6 +197,28 @@ const LivePage = () => {
                 console.error('Error saving new report:', error);
                 showToast({ message: 'Error al guardar el informe', status: 'error' });
                 return;
+            }
+        }
+
+        // FALLBACK: If we still don't have the ID (stream parsing failed), fetch the latest conversation
+        if (!finalConvoId || finalConvoId === 'new') {
+            try {
+                // Wait a moment for DB consistency
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                const resp = await fetch('/api/conversations?pageNumber=1', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await resp.json();
+
+                // Assuming the created conversation is the most recent one
+                if (data && data.conversations && data.conversations.length > 0) {
+                    finalConvoId = data.conversations[0].conversationId;
+                    setConversationId(finalConvoId);
+                    console.log("Fallback: retrieved conversationId:", finalConvoId);
+                }
+            } catch (e) {
+                console.error("Fallback fetch failed", e);
             }
         }
 
