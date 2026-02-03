@@ -262,7 +262,7 @@ endpoints:
       modelDisplayLabel: "Wappy"
 
     - name: "NVIDIA"
-      apiKey: "${NVIDIA_API_KEY}"
+      apiKey: "user_provided"
       baseURL: "https://integrate.api.nvidia.com/v1"
       models:
         default: ["meta/llama-3.1-405b-instruct"]
@@ -271,6 +271,7 @@ endpoints:
       titleModel: "current_model"
       modelDisplayLabel: "NVIDIA"
       iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
+      dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]
 
     # Groq Example
     #- name: 'groq'
