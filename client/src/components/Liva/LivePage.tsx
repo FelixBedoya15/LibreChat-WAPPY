@@ -35,7 +35,10 @@ const LivePage = () => {
     };
 
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+    // State to trigger history refresh
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const handleReportReceived = useCallback((html: string, messageId?: string) => {
         console.log("LivePage: Full Report received", messageId);
