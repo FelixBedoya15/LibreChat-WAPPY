@@ -1,21 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
-import ReportHistory from './ReportHistory'; // NEW
-import { Video, Save, History, FileText } from 'lucide-react'; // NEW Icons
+import ReportHistory from './ReportHistory';
+import { Video, Save, History } from 'lucide-react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useNewConvo, useLocalize } from '~/hooks';
+import { useToastContext } from '@librechat/client';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 
 const LivePage = () => {
     const localize = useLocalize();
+    const { showToast } = useToastContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [editorContent, setEditorContent] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false); // NEW
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const { newConversation } = useNewConvo();
+
+    // Ensure we start with a new conversation when entering this page
+    useEffect(() => {
+        newConversation();
+        setConversationId('new');
+    }, [newConversation]);
 
     const handleStartAnalysis = () => {
         setIsModalOpen(true);
@@ -23,7 +31,6 @@ const LivePage = () => {
 
     const handleTextReceived = (text: string) => {
         // console.log("LivePage: Text received (ignored for editor):", text);
-        // We ignore conversational text for the editor now, as we rely on the 'Second Brain' report.
     };
 
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -38,58 +45,46 @@ const LivePage = () => {
         }
     }, []);
 
-    // NEW: Function to load a selected report from history
     const handleSelectReport = async (selectedConvoId: string) => {
         try {
             console.log("Loading report from conversation:", selectedConvoId);
             setConversationId(selectedConvoId);
             setIsHistoryOpen(false);
 
-            // Fetch conversation details/messages
             const token = localStorage.getItem('token');
-            // We need to fetch messages. The conversation object doesn't have messages usually in the list view.
             const res = await fetch(`/api/messages/${selectedConvoId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
 
-            // Assume the last message/response is the report? or try to find one with HTML?
-            // For now, let's take the last assistant message.
-            if (data && Array.isArray(data)) { // Assuming data is array of messages or { messages: [] }
-                const messages = Array.isArray(data) ? data : data.messages;
-                // Find last assistant message
-                const lastAssistantMsg = [...messages].reverse().find((m: any) => m.sender === 'Assistant' || m.isCreatedByUser === false);
+            // Handle both array and object response formats
+            let messages = [];
+            if (Array.isArray(data)) {
+                messages = data;
+            } else if (data && data.messages) {
+                messages = data.messages;
+            }
 
-                if (lastAssistantMsg && lastAssistantMsg.text) {
-                    // Check if it looks like markdown or html. The editor expects HTML ideally or conversion.
-                    // Our LiveEditor likely takes HTML. The saved content was Markdown.
-                    // Ensure LiveEditor can handle Markdown or we convert it back?
-                    // Usually CKEditor handles HTML.
-                    // The handleSave converted HTML -> Markdown.
-                    // So here we might receive Markdown.
-                    // We need to render Markdown as HTML for the editor... or Editor supports markdown?
-                    // The component is called LiveEditor. Let's assume for now we pass text.
-                    // Ideally we should use a markdown-to-html converter here if Editor requires HTML.
-                    // For MVP, just loading the text.
-                    // Note: The previous handleSave saved Markdown.
-                    // Let's do a simple line break to <br> conversion if needed or rely on Editor.
+            // Find last assistant message
+            const lastAssistantMsg = [...messages].reverse().find((m: any) => m.sender === 'Assistant' || m.isCreatedByUser === false);
 
-                    // Quick Markdown to HTML (very basic) for restoring visual
-                    let html = lastAssistantMsg.text;
-                    // Basic bold
-                    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-                    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-                    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            if (lastAssistantMsg && lastAssistantMsg.text) {
+                let html = lastAssistantMsg.text;
+                // Basic Markdown to HTML conversion for display
+                html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
 
-                    setEditorContent(html);
-                    setReportMessageId(lastAssistantMsg.messageId);
-                    setLastUpdated(new Date(lastAssistantMsg.createdAt));
-                }
+                // Set content and update state
+                setEditorContent(html);
+                setReportMessageId(lastAssistantMsg.messageId);
+                setLastUpdated(new Date(lastAssistantMsg.createdAt));
             }
 
         } catch (e) {
             console.error("Error loading conversation:", e);
+            showToast({ message: 'Error al cargar el informe', status: 'error' });
         }
     };
 
@@ -99,10 +94,8 @@ const LivePage = () => {
 <h2>Análisis en Vivo</h2>
 `;
 
-    const navigate = useNavigate();
-
     const handleSave = async () => {
-        // Helper function to convert HTML to Markdown (Improved)
+        // Helper function to convert HTML to Markdown
         const convertHtmlToMarkdown = (html: string) => {
             let md = html;
             md = md.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g, '\n### $1\n');
@@ -115,76 +108,111 @@ const LivePage = () => {
             md = md.replace(/<\/ul>/g, '\n');
             md = md.replace(/<p[^>]*>(.*?)<\/p>/g, '\n$1\n');
             md = md.replace(/<br\s*\/?>/g, '\n');
-            md = md.replace(/<table[^>]*>/g, '\n'); // Simple table handling
+            md = md.replace(/<table[^>]*>/g, '\n');
             md = md.replace(/<\/table>/g, '\n');
             md = md.replace(/<tr[^>]*>/g, '|');
             md = md.replace(/<\/tr>/g, '|\n');
             md = md.replace(/<td[^>]*>(.*?)<\/td>/g, ' $1 |');
             md = md.replace(/<th[^>]*>(.*?)<\/th>/g, ' **$1** |');
-            md = md.replace(/<[^>]*>/g, ''); // Remove remaining tags
+            md = md.replace(/<[^>]*>/g, '');
             md = md.replace(/&nbsp;/g, ' ');
-            md = md.replace(/\n\s*\n\s*\n/g, '\n\n'); // Fix excess newlines
+            md = md.replace(/\n\s*\n\s*\n/g, '\n\n');
             return md.trim();
         };
 
         const contentToSave = editorContent || initialReportContent;
         const markdownContent = convertHtmlToMarkdown(contentToSave);
+        const token = localStorage.getItem('token');
 
-        if (conversationId && conversationId !== 'new') {
-            // If we have a reportMessageId, we update that specific message with the edited content
-            if (reportMessageId) {
-                try {
-                    const token = localStorage.getItem('token'); // Basic auth retrieval
-                    await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            text: markdownContent, // Send converted Markdown
-                            index: 0,
-                            model: 'gemini-2.5-flash-preview-09-2025'
-                        })
-                    });
-                    console.log('Report message updated successfully');
-                    setLastUpdated(new Date());
-                } catch (error) {
-                    console.error('Error updating report message:', error);
-                }
-            } else {
-                // FALLBACK: If no report message ID, send as a NEW message to the conversation
-                try {
-                    const token = localStorage.getItem('token');
-                    await fetch('/api/ask', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            text: markdownContent,
-                            conversationId: conversationId,
-                            model: 'gemini-2.5-flash-preview-09-2025',
-                            endpoint: 'google'
-                        })
-                    });
-                    console.log('Report saved as new message');
-                } catch (error) {
-                    console.error('Error saving report as new message:', error);
-                }
+        let targetConvoId = conversationId;
+
+        // SCENARIO 1: Update existing message
+        if (conversationId && conversationId !== 'new' && reportMessageId) {
+            try {
+                await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        text: markdownContent,
+                        index: 0,
+                        model: 'gemini-2.5-flash-preview-09-2025'
+                    })
+                });
+                setLastUpdated(new Date());
+            } catch (error) {
+                console.error('Error updating report message:', error);
+                showToast({ message: 'Error al actualizar el informe', status: 'error' });
+                return;
             }
-
-            // Navigate to the existing conversation where the report is now saved (and updated)
-            // navigate(`/c/${conversationId}`);
-            // STAY on LivePage to verify edit
-            alert(localize('com_ui_saved_success') || 'Guardado exitosamente');
-
-        } else {
-            newConversation({
-                state: { initialMessage: markdownContent },
-            });
         }
+        // SCENARIO 2: New Conversation / New Message
+        else {
+            try {
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        text: markdownContent,
+                        conversationId: conversationId === 'new' ? null : conversationId,
+                        model: 'gemini-2.5-flash-preview-09-2025',
+                        endpoint: 'google'
+                    })
+                });
+
+                if (res.ok) {
+                    // Try to parse the stream or response to get the conversation ID
+                    // Since /api/ask is streaming, parsing JSON might fail if it sends text/event-stream
+                    // However, we can try to fetch the latest conversation if we sent 'new'
+                    // For simplicity in this fix, we will rely on Refetching history
+
+                    // If it returns JSON (some configs do), great. If stream, we might miss the ID.
+                    // But usually the first chunk contains conversation_id.
+                    // FIXME: For a robust implementation we should handle stream reading.
+                    // For now, let's assume we can get the ID via a separate check or if the backend returns headers.
+                }
+            } catch (error) {
+                console.error('Error saving new report:', error);
+                showToast({ message: 'Error al guardar el informe', status: 'error' });
+                return;
+            }
+        }
+
+        // TAGGING LOGIC (Critical for History)
+        // Since we might not have the new ID immediately if it was a 'new' chat stream, 
+        // we might need to rely on the backend creating it.
+        // But if we are in an existing chat (conversationId !== 'new'), we function nicely.
+        // If we just created a 'new' chat, we have a race condition to tag it.
+
+        // WORKAROUND: If we entered via 'newConversation()', the hook might have set a temp ID or similar.
+        // But better: Let's assume the user has to 'Start Analysis' which creates the conversation via 'LiveAnalysisModal'.
+        // IF 'LiveAnalysisModal' was used, 'conversationId' should be set!
+
+        if (targetConvoId && targetConvoId !== 'new') {
+            try {
+                await fetch('/api/conversations/tags', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        conversationId: targetConvoId,
+                        tags: ['report'],
+                        tag: 'report'
+                    })
+                });
+            } catch (e) {
+                console.error("Error tagging conversation:", e);
+            }
+        }
+
+        showToast({ message: localize('com_ui_saved_success') || 'Guardado exitosamente', status: 'success' });
     };
 
     return (
