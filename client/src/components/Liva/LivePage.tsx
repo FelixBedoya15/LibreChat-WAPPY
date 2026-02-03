@@ -131,29 +131,42 @@ const LivePage = () => {
         let finalConvoId = conversationId;
 
         // SCENARIO 1: Update existing message
-        if (conversationId && conversationId !== 'new' && reportMessageId) {
+        if (!token) {
+            showToast({ message: 'Error: No autorizado (Token faltante)', status: 'error' });
+            return;
+        }
+
+        // TAGGING LOGIC - Helper function to avoid duplication
+        const tagConversation = async (id: string) => {
             try {
-                await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
-                    method: 'PUT',
+                const tagRes = await fetch('/api/conversations/tags', {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: markdownContent,
-                        index: 0,
-                        model: 'gemini-2.5-flash-preview-09-2025'
+                        conversationId: id,
+                        tags: ['report'],
+                        tag: 'report'
                     })
                 });
-                setLastUpdated(new Date());
-            } catch (error) {
-                console.error('Error updating report message:', error);
-                showToast({ message: 'Error al actualizar el informe', status: 'error' });
-                return;
+
+                if (tagRes.ok) {
+                    setRefreshTrigger(prev => prev + 1);
+                    showToast({ message: 'Informe guardado y archivado', status: 'success' });
+                } else {
+                    console.error("Tagging failed:", tagRes.status, tagRes.statusText);
+                    showToast({ message: 'Error: Informe guardado pero NO etiquetado', status: 'warning' });
+                }
+            } catch (e) {
+                console.error("Error tagging conversation:", e);
+                showToast({ message: 'Excepción al etiquetar informe', status: 'error' });
             }
-        }
-        // SCENARIO 2: New Conversation / New Message
-        else {
+        };
+
+        // SCENARIO 1: Existing conversation (Update)
+        if (conversationId && conversationId !== 'new') {
             try {
                 const res = await fetch('/api/ask', {
                     method: 'POST',
@@ -163,13 +176,53 @@ const LivePage = () => {
                     },
                     body: JSON.stringify({
                         text: markdownContent,
-                        conversationId: conversationId === 'new' ? null : conversationId,
+                        conversationId: conversationId,
                         model: 'gemini-2.5-flash-preview-09-2025',
                         endpoint: 'google'
                     })
                 });
 
-                if (res.ok && res.body) {
+                if (res.ok) {
+                    await tagConversation(conversationId);
+                } else {
+                    console.error("Update failed:", res.status);
+                    showToast({ message: `Error al actualizar: ${res.status}`, status: 'error' });
+                }
+            } catch (error) {
+                console.error('Error updating report message:', error);
+                showToast({ message: 'Error al actualizar el informe', status: 'error' });
+                return;
+            }
+        }
+        // SCENARIO 2: New Conversation / New Message
+        else {
+            try {
+                const payload = {
+                    text: markdownContent,
+                    conversationId: null, // Explicitly null for new
+                    model: 'gemini-2.5-flash-preview-09-2025',
+                    endpoint: 'google'
+                };
+                console.log("Saving new report, payload:", payload);
+
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    console.error("Creation failed:", res.status, res.statusText);
+                    const errorText = await res.text();
+                    console.error("Error details:", errorText);
+                    showToast({ message: `Error al crear reporte: ${res.status}`, status: 'error' });
+                    return; // Stop here if creation failed
+                }
+
+                if (res.body) {
                     // Try to parse ID from stream
                     const reader = res.body.getReader();
                     const decoder = new TextDecoder();
@@ -181,6 +234,7 @@ const LivePage = () => {
                         done = doneReading;
                         if (value) {
                             const chunk = decoder.decode(value);
+                            // Simple regex for conversationId
                             const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
                             if (match && match[1]) {
                                 finalConvoId = match[1];
@@ -195,7 +249,7 @@ const LivePage = () => {
                 }
             } catch (error) {
                 console.error('Error saving new report:', error);
-                showToast({ message: 'Error al guardar el informe', status: 'error' });
+                showToast({ message: 'Error de red al guardar', status: 'error' });
                 return;
             }
         }
@@ -204,21 +258,18 @@ const LivePage = () => {
         if (!finalConvoId || finalConvoId === 'new') {
             try {
                 // Wait a moment for DB consistency
-                await new Promise(resolve => setTimeout(resolve, 1500)); // Increased wait
+                await new Promise(resolve => setTimeout(resolve, 1500));
 
                 console.log("Fallback: Fetching latest conversations...");
-                const resp = await fetch('/api/conversations', { // Removed params to use default
+                const resp = await fetch('/api/conversations', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await resp.json();
                 console.log("Fallback: API Response:", data);
 
-                // LibreChat API usually returns { conversations: [...] } or just [...]
-                // We handle both structures
                 const convos = data.conversations || (Array.isArray(data) ? data : []);
 
                 if (convos && convos.length > 0) {
-                    // Get the first one (most recent)
                     finalConvoId = convos[0].conversationId;
                     setConversationId(finalConvoId);
                     console.log("Fallback: retrieved conversationId:", finalConvoId);
@@ -233,35 +284,13 @@ const LivePage = () => {
             }
         }
 
-        // TAGGING LOGIC - Uses the reliably obtained finalConvoId
+        // Final Tagging Attempt
         if (finalConvoId && finalConvoId !== 'new') {
-            try {
-                const tagRes = await fetch('/api/conversations/tags', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        conversationId: finalConvoId,
-                        tags: ['report'],
-                        tag: 'report'
-                    })
-                });
-
-                if (tagRes.ok) {
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Informe guardado y archivado', status: 'success' });
-                } else {
-                    console.error("Tagging failed:", tagRes.status, tagRes.statusText);
-                    showToast({ message: 'Error: No se pudo etiquetar el informe', status: 'error' });
-                }
-            } catch (e) {
-                console.error("Error tagging conversation:", e);
-                showToast({ message: 'Excepción al etiquetar informe', status: 'error' });
-            }
+            await tagConversation(finalConvoId);
         } else {
-            showToast({ message: 'Error crítico: ID de conversación inválido', status: 'error' });
+            // Only show error if we supposedly finished but still have no ID
+            console.error("Critical: Finished save flow but ID is missing.");
+            showToast({ message: 'Error: No se pudo verificar el guardado (ID faltante)', status: 'error' });
         }
     };
 
