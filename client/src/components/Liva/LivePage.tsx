@@ -4,7 +4,7 @@ import LiveAnalysisModal from './LiveAnalysisModal';
 import ReportHistory from './ReportHistory';
 import { Video, Save, History } from 'lucide-react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { useNewConvo, useLocalize } from '~/hooks';
+import { useLocalize } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
@@ -17,13 +17,14 @@ const LivePage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const { newConversation } = useNewConvo();
 
-    // Ensure we start with a new conversation when entering this page
+    // REMOVED useNewConvo because it forces a redirect to /c/new.
+    // We handle "new" state locally.
     useEffect(() => {
-        newConversation();
         setConversationId('new');
-    }, [newConversation]);
+        setEditorContent('');
+        setReportMessageId(null);
+    }, []);
 
     const handleStartAnalysis = () => {
         setIsModalOpen(true);
