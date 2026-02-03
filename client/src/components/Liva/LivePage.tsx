@@ -228,7 +228,7 @@ const LivePage = () => {
         // TAGGING LOGIC - Uses the reliably obtained finalConvoId
         if (finalConvoId && finalConvoId !== 'new') {
             try {
-                await fetch('/api/conversations/tags', {
+                const tagRes = await fetch('/api/conversations/tags', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -240,14 +240,21 @@ const LivePage = () => {
                         tag: 'report'
                     })
                 });
-                // Trigger refresh of history list
-                setRefreshTrigger(prev => prev + 1);
+
+                if (tagRes.ok) {
+                    setRefreshTrigger(prev => prev + 1);
+                    showToast({ message: 'Informe guardado y archivado', status: 'success' });
+                } else {
+                    console.error("Tagging failed:", tagRes.status, tagRes.statusText);
+                    showToast({ message: 'Error: No se pudo etiquetar el informe', status: 'error' });
+                }
             } catch (e) {
                 console.error("Error tagging conversation:", e);
+                showToast({ message: 'Excepción al etiquetar informe', status: 'error' });
             }
+        } else {
+            showToast({ message: 'Error crítico: ID de conversación inválido', status: 'error' });
         }
-
-        showToast({ message: 'Informe guardado y archivado', status: 'success' });
     };
 
     return (
