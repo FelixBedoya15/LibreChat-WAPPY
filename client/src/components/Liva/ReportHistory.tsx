@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useAuthContext, useNavScrolling } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
@@ -112,7 +112,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
                 {conversations.map((convo) => (
                     <button
                         key={convo.conversationId}
-                        onClick={() => onSelectReport(convo.conversationId)}
+                        onClick={() => onSelectReport(convo.conversationId ?? '')}
                         className="w-full text-left p-3 rounded-lg hover:bg-surface-hover transition-colors border border-transparent hover:border-black/5 group"
                     >
                         <div className="flex items-start gap-3">

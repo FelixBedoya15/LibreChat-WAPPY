@@ -128,7 +128,7 @@ const LivePage = () => {
         const markdownContent = convertHtmlToMarkdown(contentToSave);
         const token = localStorage.getItem('token');
 
-        let targetConvoId = conversationId;
+        let finalConvoId = conversationId;
 
         // SCENARIO 1: Update existing message
         if (conversationId && conversationId !== 'new' && reportMessageId) {
@@ -169,16 +169,30 @@ const LivePage = () => {
                     })
                 });
 
-                if (res.ok) {
-                    // Try to parse the stream or response to get the conversation ID
-                    // Since /api/ask is streaming, parsing JSON might fail if it sends text/event-stream
-                    // However, we can try to fetch the latest conversation if we sent 'new'
-                    // For simplicity in this fix, we will rely on Refetching history
+                if (res.ok && res.body) {
+                    // Read the stream to find conversationId
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let done = false;
+                    let foundId = false;
 
-                    // If it returns JSON (some configs do), great. If stream, we might miss the ID.
-                    // But usually the first chunk contains conversation_id.
-                    // FIXME: For a robust implementation we should handle stream reading.
-                    // For now, let's assume we can get the ID via a separate check or if the backend returns headers.
+                    while (!done) {
+                        const { value, done: doneReading } = await reader.read();
+                        done = doneReading;
+                        if (value) {
+                            const chunk = decoder.decode(value);
+                            // Look for conversationId in the chunk (it appears in data: {...} JSON)
+                            const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
+                            if (match && match[1]) {
+                                finalConvoId = match[1];
+                                setConversationId(finalConvoId); // Update local state
+                                foundId = true;
+                                break;
+                            }
+                        }
+                        if (doneReading || foundId) break;
+                    }
+                    try { if (!done) reader.cancel(); } catch (e) { }
                 }
             } catch (error) {
                 console.error('Error saving new report:', error);
@@ -187,17 +201,8 @@ const LivePage = () => {
             }
         }
 
-        // TAGGING LOGIC (Critical for History)
-        // Since we might not have the new ID immediately if it was a 'new' chat stream, 
-        // we might need to rely on the backend creating it.
-        // But if we are in an existing chat (conversationId !== 'new'), we function nicely.
-        // If we just created a 'new' chat, we have a race condition to tag it.
-
-        // WORKAROUND: If we entered via 'newConversation()', the hook might have set a temp ID or similar.
-        // But better: Let's assume the user has to 'Start Analysis' which creates the conversation via 'LiveAnalysisModal'.
-        // IF 'LiveAnalysisModal' was used, 'conversationId' should be set!
-
-        if (targetConvoId && targetConvoId !== 'new') {
+        // TAGGING LOGIC - Uses the reliably obtained finalConvoId
+        if (finalConvoId && finalConvoId !== 'new') {
             try {
                 await fetch('/api/conversations/tags', {
                     method: 'POST',
@@ -206,11 +211,13 @@ const LivePage = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        conversationId: targetConvoId,
+                        conversationId: finalConvoId,
                         tags: ['report'],
                         tag: 'report'
                     })
                 });
+                // Trigger refresh of history list
+                setRefreshTrigger(prev => prev + 1);
             } catch (e) {
                 console.error("Error tagging conversation:", e);
             }
