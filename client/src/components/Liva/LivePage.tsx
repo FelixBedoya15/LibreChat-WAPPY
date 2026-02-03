@@ -223,6 +223,7 @@ const LivePage = () => {
                 isOpen={isHistoryOpen}
                 toggleOpen={() => setIsHistoryOpen(false)}
                 onSelectReport={handleSelectReport}
+                refreshTrigger={refreshTrigger}
             />
 
             {/* Toolbar / Header Actions */}

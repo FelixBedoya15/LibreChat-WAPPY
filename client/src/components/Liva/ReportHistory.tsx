@@ -13,15 +13,16 @@ interface ReportHistoryProps {
     onSelectReport: (conversationId: string) => void;
     isOpen: boolean;
     toggleOpen: () => void;
+    refreshTrigger?: number; // Optional trigger
 }
 
-const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProps) => {
+const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: ReportHistoryProps) => {
     const { isAuthenticated } = useAuthContext();
     const search = useRecoilValue(store.search);
     const [showLoading, setShowLoading] = useState(false);
 
     // Fetch conversations tagged as 'report'
-    const { data, fetchNextPage, isFetchingNextPage, isLoading } =
+    const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
         useConversationsInfiniteQuery(
             {
                 tags: ['report'],
@@ -29,10 +30,17 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen }: ReportHistoryProp
             },
             {
                 enabled: isAuthenticated,
-                staleTime: 0, // Force fresh fetch to see new saves immediately
+                staleTime: 0,
                 refetchOnMount: true,
             },
         );
+
+    // Refresh when trigger changes
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) {
+            refetch();
+        }
+    }, [refreshTrigger, refetch]);
 
     const computedHasNextPage = useMemo(() => {
         if (data?.pages && data.pages.length > 0) {
