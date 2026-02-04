@@ -19,18 +19,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
     // Removed dependency on global search state to prevent filtering issues
     const [showLoading, setShowLoading] = useState(false);
 
-    // Fetch conversations tagged as 'report' - No search filter
-    const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
-        useConversationsInfiniteQuery(
-            {
-                tags: ['report'],
-            },
-            {
-                enabled: isAuthenticated,
-                staleTime: 0,
-                refetchOnMount: true,
-            },
-        );
+
 
     const queryClient = useQueryClient();
 
