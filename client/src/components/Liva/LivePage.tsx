@@ -69,30 +69,30 @@ const LivePage = () => {
                 messages = data.messages;
             }
 
-            // Find the report message.
-            // We prioritize the USER's message because that contains the original, full-fidelity HTML report we saved.
-            // The AI often replies with a summary or text-only version, which we want to ignore for display purposes.
-            const reportMsgs = messages.filter((m: any) => m.text && (m.text.includes('<h1>') || m.text.includes('# ')));
+            // 1. HIGHEST PRIORITY: The saved report containing the Base64 Image.
+            // The AI response NEVER contains a data-uri image. Only the user's saved message does.
+            const reportWithImage = [...messages].reverse().find((m: any) =>
+                m.text && m.text.includes('<img src="data:')
+            );
 
-            // Try to find the one created by the user (the saved state)
-            let lastMsg = reportMsgs.reverse().find((m: any) => m.isCreatedByUser || m.sender === 'User');
+            // 2. Fallback: A user-created message with a Header (for reports without images)
+            const reportUserMsg = [...messages].reverse().find((m: any) =>
+                (m.isCreatedByUser || m.sender === 'User') && (m.text && (m.text.includes('<h1>') || m.text.includes('# ')))
+            );
 
-            // Fallback: If no user report found, take the latest system report
-            if (!lastMsg && reportMsgs.length > 0) {
-                lastMsg = reportMsgs[0];
-            }
+            // 3. Last Resort: Any message with a Header (likely AI summary)
+            const reportSystemMsg = [...messages].reverse().find((m: any) =>
+                m.text && (m.text.includes('<h1>') || m.text.includes('# '))
+            );
 
-            // Fallback 2: formatted content
-            if (!lastMsg && messages.length > 0) {
-                lastMsg = messages[messages.length - 1];
-            }
+            // Select the best match
+            const lastMsg = reportWithImage || reportUserMsg || reportSystemMsg || messages[messages.length - 1];
 
             if (lastMsg && lastMsg.text) {
                 let html = lastMsg.text;
 
                 // Only apply markdown conversion if it DOESN'T look like HTML already.
-                // Our saved reports start with <div or <h1, so we check for that.
-                if (!html.trim().startsWith('<')) {
+                if (!html.trim().startsWith('<') && !html.includes('<div') && !html.includes('<h1')) {
                     // Basic Markdown to HTML conversion for legacy/AI responses
                     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
