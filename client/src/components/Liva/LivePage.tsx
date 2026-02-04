@@ -69,19 +69,36 @@ const LivePage = () => {
                 messages = data.messages;
             }
 
-            // Find latest message that looks like a report (contains Header 1)
-            // This prevents loading "Gracias" or short interactions as the report content
-            const lastMsg = [...messages].reverse().find((m: any) =>
-                m.text && (m.text.includes('<h1>') || m.text.includes('# '))
-            ) || [...messages].reverse().find((m: any) => m.text); // Fallback to last text if no header found
+            // Find the report message.
+            // We prioritize the USER's message because that contains the original, full-fidelity HTML report we saved.
+            // The AI often replies with a summary or text-only version, which we want to ignore for display purposes.
+            const reportMsgs = messages.filter((m: any) => m.text && (m.text.includes('<h1>') || m.text.includes('# ')));
+
+            // Try to find the one created by the user (the saved state)
+            let lastMsg = reportMsgs.reverse().find((m: any) => m.isCreatedByUser || m.sender === 'User');
+
+            // Fallback: If no user report found, take the latest system report
+            if (!lastMsg && reportMsgs.length > 0) {
+                lastMsg = reportMsgs[0];
+            }
+
+            // Fallback 2: formatted content
+            if (!lastMsg && messages.length > 0) {
+                lastMsg = messages[messages.length - 1];
+            }
 
             if (lastMsg && lastMsg.text) {
                 let html = lastMsg.text;
-                // Basic Markdown to HTML conversion for display
-                html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-                html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-                html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+                // Only apply markdown conversion if it DOESN'T look like HTML already.
+                // Our saved reports start with <div or <h1, so we check for that.
+                if (!html.trim().startsWith('<')) {
+                    // Basic Markdown to HTML conversion for legacy/AI responses
+                    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                }
 
                 // Set content and update state
                 setEditorContent(html);
