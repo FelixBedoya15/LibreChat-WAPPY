@@ -22,7 +22,7 @@ const PERMISSION_LABELS = {
     [PermissionTypes.SGSST]: 'Gestor SG-SST',
 };
 
-const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy', 'agents'];
+const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy', 'agents', 'NVIDIA'];
 
 export default function RolePermissionsTable() {
     const { showToast } = useToastContext();
