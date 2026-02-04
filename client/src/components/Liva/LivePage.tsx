@@ -101,33 +101,11 @@ const LivePage = () => {
 `;
 
     const handleSave = async () => {
-        // Helper function to convert HTML to Markdown, preserving Tables and Images
+        // Helper function to convert HTML to Markdown.
+        // CURRENTLY DISABLED: We return raw HTML to preserve images (base64) and tables.
+        // Converting to Markdown via regex was destroying complex structures.
         const convertHtmlToMarkdown = (html: string) => {
-            let md = html;
-            // Basic formatting
-            md = md.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g, '\n### $1\n');
-            md = md.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
-            md = md.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
-            md = md.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*');
-            md = md.replace(/<i[^>]*>(.*?)<\/i>/g, '*$1*');
-            md = md.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
-            md = md.replace(/<ul[^>]*>/g, '\n');
-            md = md.replace(/<\/ul>/g, '\n');
-            md = md.replace(/<p[^>]*>(.*?)<\/p>/g, '\n$1\n');
-            md = md.replace(/<br\s*\/?>/g, '\n');
-
-            // CLEANUP: Strip generic divs and spans but KEEP structure-critical tags
-            // We preserve table, img, and other tags by NOT matching them in a catch-all
-            // Instead of a catch-all "strip tags", we only strip what we know is formatting noise
-            // OR we just leave the rest as HTML, because Markdown supports HTML.
-
-            // Allow &nbsp; to be a space
-            md = md.replace(/&nbsp;/g, ' ');
-
-            // Normalize newlines
-            md = md.replace(/\n\s*\n\s*\n/g, '\n\n');
-
-            return md.trim();
+            return html;
         };
 
         const contentToSave = editorContent || initialReportContent;
