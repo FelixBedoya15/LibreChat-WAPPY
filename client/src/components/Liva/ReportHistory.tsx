@@ -1,6 +1,6 @@
 import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import { useAuthContext, useNavScrolling } from '~/hooks';
-import { useConversationsInfiniteQuery, useDeleteConversationMutation } from '~/data-provider';
+import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner, OGDialog, OGDialogContent, Button } from '@librechat/client';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import { useQueryClient, type InfiniteQueryObserverResult } from '@tanstack/react-query';
