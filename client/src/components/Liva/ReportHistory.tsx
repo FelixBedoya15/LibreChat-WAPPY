@@ -8,6 +8,42 @@ import { FileText, RefreshCw, X, MoreVertical, Edit, Trash } from 'lucide-react'
 import { cn } from '~/utils';
 import axios from 'axios';
 
+// Simplified Delete Dialog
+const DeleteReportDialog = ({
+    open,
+    onOpenChange,
+    onConfirm,
+    title,
+    loading
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: () => void;
+    title: string;
+    loading: boolean;
+}) => {
+    return (
+        <OGDialog open={open} onOpenChange={onOpenChange}>
+            <OGDialogContent title="¿Eliminar informe?" className="w-11/12 max-w-md">
+                <div className="py-4">
+                    ¿Deseas eliminar <strong>{title}</strong> de la lista de informes?<br />
+                    <span className="text-sm text-text-secondary mt-2 block">
+                        Nota: El chat original permanecerá en tu historial de conversaciones.
+                    </span>
+                </div>
+                <div className="flex justify-end gap-3 mt-4">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Cancelar
+                    </Button>
+                    <Button variant="destructive" onClick={onConfirm} disabled={loading}>
+                        {loading ? <Spinner className="w-4 h-4" /> : 'Eliminar'}
+                    </Button>
+                </div>
+            </OGDialogContent>
+        </OGDialog>
+    );
+};
+
 // Simple Dropdown Component for Context Menu
 const MenuDropdown = ({ conversationId, onRename, onDelete }: { conversationId: string, onRename: (name: string) => void, onDelete: () => void }) => {
     const [isOpen, setIsOpen] = useState(false);
