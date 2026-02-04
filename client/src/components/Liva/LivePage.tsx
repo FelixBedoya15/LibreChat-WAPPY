@@ -139,16 +139,14 @@ const LivePage = () => {
         // TAGGING LOGIC - Helper function to avoid duplication
         const tagConversation = async (id: string) => {
             try {
-                const tagRes = await fetch('/api/conversations/tags', {
-                    method: 'POST',
+                const tagRes = await fetch(`/api/tags/convo/${id}`, {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        conversationId: id,
-                        tags: ['report'],
-                        tag: 'report'
+                        tags: ['report']
                     })
                 });
 
