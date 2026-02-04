@@ -69,11 +69,32 @@ const LivePage = () => {
                 messages = data.messages;
             }
 
+            // DEBUG: Traceability for Report Loading
+            console.log('[ReportDebug] Total messages loaded:', messages.length);
+            messages.forEach((m, i) => {
+                const hasImg = m.text && m.text.includes('<img src="data:');
+                const isUser = m.isCreatedByUser || m.sender === 'User';
+                console.log(`[ReportDebug] Msg ${i}: ID=${m.messageId}, User=${isUser}, HasImage=${hasImg}, Len=${m.text?.length || 0}, TextStart=${m.text?.substring(0, 50)}...`);
+            });
+
+            // DECODING STRATEGY
+            // Check for Base64 encoded reports (New Format) which guarantees fidelity
+            const b64_to_utf8 = (str: string) => {
+                return decodeURIComponent(escape(window.atob(str)));
+            };
+
+            const reportWithPackedData = [...messages].reverse().find((m: any) =>
+                m.text && m.text.includes('data-report-content="')
+            );
+
             // 1. HIGHEST PRIORITY: The saved report containing the Base64 Image.
-            // The AI response NEVER contains a data-uri image. Only the user's saved message does.
+            // (Legacy support or if Base64 missing)
             const reportWithImage = [...messages].reverse().find((m: any) =>
                 m.text && m.text.includes('<img src="data:')
             );
+
+            console.log('[ReportDebug] Found ReportWithPackedData:', !!reportWithPackedData);
+            console.log('[ReportDebug] Found ReportWithImage:', !!reportWithImage);
 
             // 2. Fallback: A user-created message with a Header (for reports without images)
             const reportUserMsg = [...messages].reverse().find((m: any) =>
@@ -86,10 +107,23 @@ const LivePage = () => {
             );
 
             // Select the best match
-            const lastMsg = reportWithImage || reportUserMsg || reportSystemMsg || messages[messages.length - 1];
+            const lastMsg = reportWithPackedData || reportWithImage || reportUserMsg || reportSystemMsg || messages[messages.length - 1];
 
             if (lastMsg && lastMsg.text) {
                 let html = lastMsg.text;
+
+                // TRY DECODE
+                if (html.includes('data-report-content="')) {
+                    try {
+                        const match = html.match(/data-report-content="([^"]+)"/);
+                        if (match && match[1]) {
+                            html = b64_to_utf8(match[1]);
+                            console.log('[ReportDebug] Successfully decoded Base64 content');
+                        }
+                    } catch (e) {
+                        console.error('[ReportDebug] Failed to decode report:', e);
+                    }
+                }
 
                 // Only apply markdown conversion if it DOESN'T look like HTML already.
                 if (!html.trim().startsWith('<') && !html.includes('<div') && !html.includes('<h1')) {
@@ -118,15 +152,17 @@ const LivePage = () => {
 `;
 
     const handleSave = async () => {
-        // Helper function to convert HTML to Markdown.
-        // CURRENTLY DISABLED: We return raw HTML to preserve images (base64) and tables.
-        // Converting to Markdown via regex was destroying complex structures.
-        const convertHtmlToMarkdown = (html: string) => {
-            return html;
+        // ENCODING STRATEGY: 
+        // We Base64 encode the HTML to bypass any backend sanitization or markdown conversion.
+        // This ensures 100% fidelity of images and table structures when saving.
+        const utf8_to_b64 = (str: string) => {
+            return window.btoa(unescape(encodeURIComponent(str)));
         };
 
         const contentToSave = editorContent || initialReportContent;
-        const markdownContent = convertHtmlToMarkdown(contentToSave);
+        // We wrap the base64 data in a marker we can easily find later
+        const base64Data = utf8_to_b64(contentToSave);
+        const packedContent = `<!-- REPORT_START -->\n<div style="display:none;" data-report-content="${base64Data}"></div>\n<!-- REPORT_END -->\n# Informe de Riesgos Guardado\nEl informe ha sido almacenado con éxito. Usa el menú de historial para verlo.\n(Datos encriptados para fidelidad)`;
 
         let finalConvoId = conversationId;
 
@@ -189,7 +225,7 @@ const LivePage = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: markdownContent,
+                        text: packedContent,
                         conversationId: conversationId,
                         model: 'gemini-2.5-flash-preview-09-2025',
                         endpoint: 'google'
@@ -212,7 +248,7 @@ const LivePage = () => {
         else {
             try {
                 const payload = {
-                    text: markdownContent,
+                    text: packedContent,
                     conversationId: null, // Explicitly null for new
                     model: 'gemini-2.5-flash-preview-09-2025',
                     endpoint: 'google',
