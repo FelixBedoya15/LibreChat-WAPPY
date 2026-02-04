@@ -69,9 +69,11 @@ const LivePage = () => {
                 messages = data.messages;
             }
 
-            // Find latest message with text (either User or Assistant)
-            // We want the most recent state of the report
-            const lastMsg = [...messages].reverse().find((m: any) => m.text);
+            // Find latest message that looks like a report (contains Header 1)
+            // This prevents loading "Gracias" or short interactions as the report content
+            const lastMsg = [...messages].reverse().find((m: any) =>
+                m.text && (m.text.includes('<h1>') || m.text.includes('# '))
+            ) || [...messages].reverse().find((m: any) => m.text); // Fallback to last text if no header found
 
             if (lastMsg && lastMsg.text) {
                 let html = lastMsg.text;
@@ -86,7 +88,6 @@ const LivePage = () => {
                 setReportMessageId(lastMsg.messageId);
                 setLastUpdated(new Date(lastMsg.createdAt));
             }
-
         } catch (e) {
             console.error("Error loading conversation:", e);
             showToast({ message: 'Error al cargar el informe', status: 'error' });
@@ -151,6 +152,22 @@ const LivePage = () => {
                 });
 
                 if (tagRes.ok) {
+                    // Update Title to "Informe de Riesgos - [Date]"
+                    const dateStr = new Date().toLocaleString();
+                    await fetch('/api/convos/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            arg: {
+                                conversationId: id,
+                                title: `Informe de Riesgos - ${dateStr}`
+                            }
+                        })
+                    });
+
                     setRefreshTrigger(prev => prev + 1);
                     showToast({ message: 'Informe guardado y archivado', status: 'success' });
                 } else {

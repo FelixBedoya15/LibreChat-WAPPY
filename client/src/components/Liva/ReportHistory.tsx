@@ -4,8 +4,59 @@ import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner } from '@librechat/client';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import { useQueryClient, type InfiniteQueryObserverResult } from '@tanstack/react-query';
-import { FileText, RefreshCw, X } from 'lucide-react';
+import { FileText, RefreshCw, X, MoreVertical, Edit, Trash } from 'lucide-react';
 import { cn } from '~/utils';
+import axios from 'axios';
+
+// Simple Dropdown Component for Context Menu
+const MenuDropdown = ({ conversationId, onRename, onDelete }: { conversationId: string, onRename: (name: string) => void, onDelete: () => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleRenameClick = () => {
+        const newName = prompt("Nuevo nombre del informe:");
+        if (newName) onRename(newName);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative" ref={menuRef}>
+            <button
+                onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+            >
+                <MoreVertical className="w-4 h-4 text-text-secondary" />
+            </button>
+
+            {isOpen && (
+                <div className="absolute right-0 top-full mt-1 w-32 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg z-50 py-1">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleRenameClick(); }}
+                        className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
+                    >
+                        <Edit className="w-3 h-3" /> Renombrar
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(); setIsOpen(false); }}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                    >
+                        <Trash className="w-3 h-3" /> Eliminar
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
 
 interface ReportHistoryProps {
     onSelectReport: (conversationId: string) => void;
@@ -120,28 +171,54 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
                 )}
 
                 {conversations.map((convo) => (
-                    <button
-                        key={convo.conversationId}
-                        onClick={() => onSelectReport(convo.conversationId ?? '')}
-                        className="w-full text-left p-3 rounded-lg hover:bg-surface-hover transition-colors border border-transparent hover:border-black/5 group"
-                    >
-                        <div className="flex items-start gap-3">
-                            <div className="mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400">
-                                <FileText className="w-4 h-4" />
+                    <div key={convo.conversationId} className="relative group">
+                        <button
+                            onClick={() => onSelectReport(convo.conversationId ?? '')}
+                            className="w-full text-left p-3 rounded-lg hover:bg-surface-hover transition-colors border border-transparent hover:border-black/5 pr-8"
+                        >
+                            <div className="flex items-start gap-3">
+                                <div className="mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400">
+                                    <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-medium text-sm text-text-primary truncate">
+                                        {convo.title || 'Informe sin título'}
+                                    </h3>
+                                    <p className="text-xs text-text-secondary mt-0.5 truncate">
+                                        {new Date(convo.updatedAt).toLocaleString(undefined, {
+                                            dateStyle: 'short',
+                                            timeStyle: 'short',
+                                        })}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-sm text-text-primary truncate">
-                                    {convo.title || 'Informe sin título'}
-                                </h3>
-                                <p className="text-xs text-text-secondary mt-0.5 truncate">
-                                    {new Date(convo.updatedAt).toLocaleString(undefined, {
-                                        dateStyle: 'short',
-                                        timeStyle: 'short',
-                                    })}
-                                </p>
-                            </div>
+                        </button>
+
+                        {/* Context Menu Trigger */}
+                        <div className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MenuDropdown
+                                conversationId={convo.conversationId}
+                                onRename={async (newName) => {
+                                    try {
+                                        await axios.post('/api/convos/update', {
+                                            arg: { conversationId: convo.conversationId, title: newName }
+                                        });
+                                        refreshHistory(); // Refresh to show new name based on invalidation
+                                    } catch (e) { console.error(e); }
+                                }}
+                                onDelete={async () => {
+                                    if (confirm('¿Eliminar este informe?')) {
+                                        try {
+                                            await axios.post('/api/convos/clear', {
+                                                conversationId: convo.conversationId, source: 'button'
+                                            });
+                                            refreshHistory();
+                                        } catch (e) { console.error(e); }
+                                    }
+                                }}
+                            />
                         </div>
-                    </button>
+                    </div>
                 ))}
 
                 {isFetchingNextPage && (
