@@ -3,7 +3,7 @@ import { useAuthContext, useNavScrolling } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner } from '@librechat/client';
 import type { ConversationListResponse } from 'librechat-data-provider';
-import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
+import { useQueryClient, type InfiniteQueryObserverResult } from '@tanstack/react-query';
 import { FileText, RefreshCw, X } from 'lucide-react';
 import { cn } from '~/utils';
 
@@ -32,15 +32,39 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
             },
         );
 
-    // Refresh when trigger changes
+    const queryClient = useQueryClient();
+
+    // Fetch conversations tagged as 'report' - No search filter
+    const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
+        useConversationsInfiniteQuery(
+            {
+                tags: ['report'],
+            },
+            {
+                enabled: isAuthenticated,
+                staleTime: 0,
+                refetchOnMount: true,
+            },
+        );
+
+    const refreshHistory = useCallback(() => {
+        // Invalidate to force a hard refresh from server
+        queryClient.invalidateQueries(['conversations', { tags: ['report'] }]);
+        refetch();
+    }, [queryClient, refetch]);
+
+    // Refresh when trigger changes with a small delay to ensure backend indexing
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) {
-            refetch();
+            const timer = setTimeout(() => {
+                refreshHistory();
+            }, 500); // 500ms delay
+            return () => clearTimeout(timer);
         }
-    }, [refreshTrigger, refetch]);
+    }, [refreshTrigger, refreshHistory]);
 
     const handleManualRefresh = () => {
-        refetch();
+        refreshHistory();
     };
 
     const computedHasNextPage = useMemo(() => {
