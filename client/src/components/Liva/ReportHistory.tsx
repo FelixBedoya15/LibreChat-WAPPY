@@ -45,8 +45,10 @@ const DeleteReportDialog = ({
 };
 
 // Simple Dropdown Component for Context Menu
-const MenuDropdown = ({ conversationId, onRename, onDelete }: { conversationId: string, onRename: (name: string) => void, onDelete: () => void }) => {
+const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversationId: string, title: string, onRename: (name: string) => void, onDelete: () => Promise<void> }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -60,8 +62,16 @@ const MenuDropdown = ({ conversationId, onRename, onDelete }: { conversationId: 
     }, []);
 
     const handleRenameClick = () => {
-        const newName = prompt("Nuevo nombre del informe:");
-        if (newName) onRename(newName);
+        const newName = prompt("Nuevo nombre del informe:", title);
+        if (newName && newName !== title) onRename(newName);
+        setIsOpen(false);
+    };
+
+    const handleDeleteConfirm = async () => {
+        setIsDeleting(true);
+        await onDelete();
+        setIsDeleting(false);
+        setShowDeleteDialog(false);
         setIsOpen(false);
     };
 
@@ -83,13 +93,21 @@ const MenuDropdown = ({ conversationId, onRename, onDelete }: { conversationId: 
                         <Edit className="w-3 h-3" /> Renombrar
                     </button>
                     <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(); setIsOpen(false); }}
+                        onClick={(e) => { e.stopPropagation(); setIsOpen(false); setShowDeleteDialog(true); }}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
                     >
                         <Trash className="w-3 h-3" /> Eliminar
                     </button>
                 </div>
             )}
+
+            <DeleteReportDialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
+                onConfirm={handleDeleteConfirm}
+                title={title}
+                loading={isDeleting}
+            />
         </div>
     );
 };
@@ -234,6 +252,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
                         <div className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
                             <MenuDropdown
                                 conversationId={convo.conversationId}
+                                title={convo.title || 'Informe'}
                                 onRename={async (newName) => {
                                     try {
                                         await axios.post('/api/convos/update', {
@@ -243,13 +262,21 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
                                     } catch (e) { console.error(e); }
                                 }}
                                 onDelete={async () => {
-                                    if (confirm('¿Eliminar este informe?')) {
-                                        try {
-                                            await axios.post('/api/convos/clear', {
-                                                conversationId: convo.conversationId, source: 'button'
-                                            });
-                                            refreshHistory();
-                                        } catch (e) { console.error(e); }
+                                    try {
+                                        // UNTAG LOGIC: "Remove" from report history but keep chat
+                                        const res = await axios.get(`/api/convos/${convo.conversationId}`);
+                                        const currentTags = res.data.tags || [];
+                                        const newTags = currentTags.filter((t: string) => t !== 'report');
+
+                                        await axios.post('/api/convos/update', {
+                                            arg: {
+                                                conversationId: convo.conversationId,
+                                                tags: newTags
+                                            }
+                                        });
+                                        refreshHistory();
+                                    } catch (e) {
+                                        console.error('Failed to remove report tag', e);
                                     }
                                 }}
                             />
