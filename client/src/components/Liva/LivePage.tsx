@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import ReportHistory from './ReportHistory';
@@ -128,22 +125,13 @@ const LivePage = () => {
                     }
                 }
 
-                // Only apply markdown conversion if it DOESN'T look like HTML already.
-                if (!html.trim().startsWith('<') && !html.includes('<div') && !html.includes('<h1')) {
+                // Detect mixed content (HTML + Markdown) and format it
+                // This handles cases where AI returns HTML headers but Markdown tables
+                if (html && (html.includes('|') || html.includes('**') || html.includes('##'))) {
                     try {
-                        // Robust Markdown to HTML conversion using ReactMarkdown + GFM (Tables!)
-                        html = renderToStaticMarkup(
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {html}
-                            </ReactMarkdown>
-                        );
-                    } catch (err) {
-                        console.error("Markdown conversion failed, falling back to basic regex", err);
-                        // Fallback to basic regex if ReactMarkdown fails
-                        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-                        html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-                        html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                        html = formatMixedContent(html);
+                    } catch (e) {
+                        console.error("Mixed content formatting failed", e);
                     }
                 }
 
@@ -156,6 +144,89 @@ const LivePage = () => {
             console.error("Error loading conversation:", e);
             showToast({ message: 'Error al cargar el informe', status: 'error' });
         }
+    };
+
+    // Helper to format mixed HTML/Markdown content
+    const formatMixedContent = (text: string) => {
+        let lines = text.split('\n');
+        let processed = [];
+        let inTable = false;
+        let tableHeaderProcessed = false;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+
+            // Table Detection (Lines starting and ending with |)
+            if (line.startsWith('|') && (line.endsWith('|') || line.endsWith('||'))) {
+                if (!inTable) {
+                    inTable = true;
+                    tableHeaderProcessed = false;
+                    processed.push('<div class="overflow-x-auto my-4"><table class="min-w-full border-collapse border border-gray-300">');
+                }
+
+                // Check if it's a separator line (e.g. |---|---|)
+                if (line.replace(/\|/g, '').replace(/-/g, '').replace(/:/g, '').trim() === '') {
+                    // sizing row, ignore
+                    continue;
+                }
+
+                // Process Row Cells
+                // Clean start/end pipes
+                if (line.startsWith('|')) line = line.substring(1);
+                if (line.endsWith('|')) line = line.substring(0, line.length - 1);
+                if (line.endsWith('||')) line = line.substring(0, line.length - 2); // Handle double pipe end
+
+                const cells = line.split('|').map(c => c.trim());
+
+                let rowHtml = '<tr>';
+                if (!tableHeaderProcessed) {
+                    // Assume first row is header
+                    rowHtml = '<thead class="bg-gray-100"><tr>';
+                    cells.forEach(cell => {
+                        rowHtml += `<th class="border border-gray-300 px-4 py-2 font-semibold text-left">${parseMarkdownInline(cell)}</th>`;
+                    });
+                    rowHtml += '</tr></thead><tbody>';
+                    tableHeaderProcessed = true;
+                } else {
+                    rowHtml = '<tr>';
+                    cells.forEach(cell => {
+                        rowHtml += `<td class="border border-gray-300 px-4 py-2">${parseMarkdownInline(cell)}</td>`;
+                    });
+                    rowHtml += '</tr>';
+                }
+                processed.push(rowHtml);
+
+            } else {
+                if (inTable) {
+                    inTable = false;
+                    processed.push('</tbody></table></div>');
+                }
+                // Regular line processing
+                // Convert # Headers if they exist and aren't already HTML
+                if (line.startsWith('# ') && !line.includes('<h1>')) {
+                    processed.push(`<h1>${parseMarkdownInline(line.substring(2))}</h1>`);
+                } else if (line.startsWith('## ') && !line.includes('<h2>')) {
+                    processed.push(`<h2>${parseMarkdownInline(line.substring(3))}</h2>`);
+                } else if (line.startsWith('### ') && !line.includes('<h3>')) {
+                    processed.push(`<h3>${parseMarkdownInline(line.substring(4))}</h3>`);
+                } else {
+                    // Just basic inline parsing, preserve existing HTML
+                    processed.push(parseMarkdownInline(line));
+                }
+            }
+        }
+        if (inTable) {
+            processed.push('</tbody></table></div>');
+        }
+
+        return processed.join('\n');
+    };
+
+    const parseMarkdownInline = (text: string) => {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
     };
 
     const initialReportContent = `
