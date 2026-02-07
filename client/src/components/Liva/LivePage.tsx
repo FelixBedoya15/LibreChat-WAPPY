@@ -71,61 +71,55 @@ const LivePage = () => {
 
             // DEBUG: Traceability for Report Loading
             console.log('[ReportDebug] Total messages loaded:', messages.length);
-            messages.forEach((m, i) => {
+            messages.forEach((m: any, i: number) => {
                 const hasImg = m.text && m.text.includes('<img src="data:');
-                const isUser = m.isCreatedByUser || m.sender === 'User';
-                console.log(`[ReportDebug] Msg ${i}: ID=${m.messageId}, User=${isUser}, HasImage=${hasImg}, Len=${m.text?.length || 0}, TextStart=${m.text?.substring(0, 50)}...`);
+                const isHtml = m.isHtmlReport || (m.text && m.text.trim().startsWith('<'));
+                console.log(`[ReportDebug] Msg ${i}: ID=${m.messageId}, IsHtml=${isHtml}, HasImage=${hasImg}, Len=${m.text?.length || 0}`);
             });
 
-            // DECODING STRATEGY
-            // Check for Base64 encoded reports (New Format) which guarantees fidelity
-            const b64_to_utf8 = (str: string) => {
-                return decodeURIComponent(escape(window.atob(str)));
-            };
-
-            const reportWithPackedData = [...messages].reverse().find((m: any) =>
-                m.text && (m.text.includes('data-report-content="') || m.text.includes('```report-payload'))
+            // PRIORITY 1: Find HTML reports (new format with isHtmlReport marker)
+            const htmlReport = [...messages].reverse().find((m: any) =>
+                m.isHtmlReport === true
             );
 
-            // 1. HIGHEST PRIORITY: The saved report containing the Base64 Image.
-            // (Legacy support or if Base64 missing)
+            // PRIORITY 2: Reports with embedded images (captures snapshot)
             const reportWithImage = [...messages].reverse().find((m: any) =>
                 m.text && m.text.includes('<img src="data:')
             );
 
-            console.log('[ReportDebug] Found ReportWithPackedData:', !!reportWithPackedData);
-            console.log('[ReportDebug] Found ReportWithImage:', !!reportWithImage);
-
-            // 2. Fallback: A user-created message with a Header (for reports without images)
-            const reportUserMsg = [...messages].reverse().find((m: any) =>
-                (m.isCreatedByUser || m.sender === 'User') && (m.text && (m.text.includes('<h1>') || m.text.includes('# ')))
+            // PRIORITY 3: Base64 packed content (legacy format)
+            const b64_to_utf8 = (str: string) => {
+                return decodeURIComponent(escape(window.atob(str)));
+            };
+            const reportWithPackedData = [...messages].reverse().find((m: any) =>
+                m.text && m.text.includes('data-report-content="')
             );
 
-            // 3. Last Resort: Any message with a Header (likely AI summary)
+            // PRIORITY 4: Any message that looks like HTML (starts with <)
+            const htmlLookingMsg = [...messages].reverse().find((m: any) =>
+                m.text && (m.text.trim().startsWith('<') || m.text.includes('<h1>') || m.text.includes('<h2>') || m.text.includes('<table'))
+            );
+
+            // PRIORITY 5: Last resort - any message with header (Markdown)
             const reportSystemMsg = [...messages].reverse().find((m: any) =>
-                m.text && (m.text.includes('<h1>') || m.text.includes('# '))
+                m.text && (m.text.includes('# ') || m.text.includes('## '))
             );
 
             // Select the best match
-            const lastMsg = reportWithPackedData || reportWithImage || reportUserMsg || reportSystemMsg || messages[messages.length - 1];
+            const lastMsg = htmlReport || reportWithImage || reportWithPackedData || htmlLookingMsg || reportSystemMsg || messages[messages.length - 1];
+
+            console.log('[ReportDebug] Selected message type:',
+                htmlReport ? 'isHtmlReport' :
+                    reportWithImage ? 'withImage' :
+                        reportWithPackedData ? 'packed' :
+                            htmlLookingMsg ? 'htmlLooking' :
+                                reportSystemMsg ? 'markdown' : 'lastMsg');
 
             if (lastMsg && lastMsg.text) {
                 let html = lastMsg.text;
 
-                // TRY DECODE (New Code Block Format)
-                if (html.includes('```report-payload')) {
-                    try {
-                        const match = html.match(/```report-payload\s*([\s\S]*?)\s*```/);
-                        if (match && match[1]) {
-                            html = b64_to_utf8(match[1].trim());
-                            console.log('[ReportDebug] Successfully decoded Code Block content');
-                        }
-                    } catch (e) {
-                        console.error('[ReportDebug] Failed to decode code block:', e);
-                    }
-                }
-                // TRY DECODE (Legacy HTML Attribute)
-                else if (html.includes('data-report-content="')) {
+                // Try decode Base64 packed content (legacy)
+                if (html.includes('data-report-content="')) {
                     try {
                         const match = html.match(/data-report-content="([^"]+)"/);
                         if (match && match[1]) {
@@ -137,17 +131,13 @@ const LivePage = () => {
                     }
                 }
 
-                // Detect mixed content (HTML + Markdown) and format it.
-                // CRITICAL FIX: Do NOT run this if the content already contains HTML tables or Images.
-                // We should trust the existing HTML structure if it exists.
-                const hasRichContent = html.includes('<table') || html.includes('<img');
-
-                if (html && !hasRichContent && (html.includes('|') || html.includes('**') || html.includes('##'))) {
-                    try {
-                        html = formatMixedContent(html);
-                    } catch (e) {
-                        console.error("Mixed content formatting failed", e);
-                    }
+                // Only apply markdown conversion if it DOESN'T look like HTML already
+                if (!html.trim().startsWith('<') && !html.includes('<div') && !html.includes('<h1') && !html.includes('<table')) {
+                    // Basic Markdown to HTML conversion for legacy/AI responses
+                    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
                 }
 
                 // Set content and update state
@@ -161,89 +151,6 @@ const LivePage = () => {
         }
     };
 
-    // Helper to format mixed HTML/Markdown content
-    const formatMixedContent = (text: string) => {
-        let lines = text.split('\n');
-        let processed = [];
-        let inTable = false;
-        let tableHeaderProcessed = false;
-
-        for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
-
-            // Table Detection (Lines starting and ending with |)
-            if (line.startsWith('|') && (line.endsWith('|') || line.endsWith('||'))) {
-                if (!inTable) {
-                    inTable = true;
-                    tableHeaderProcessed = false;
-                    // Improved Table Styling: Compact, professional, centered
-                    processed.push('<div class="overflow-x-auto my-4 border rounded-md shadow-sm">');
-                    processed.push('<table class="min-w-full divide-y divide-gray-200 text-sm">');
-                }
-
-                // Check if it's a separator line (e.g. |---|---|)
-                if (line.replace(/\|/g, '').replace(/-/g, '').replace(/:/g, '').trim() === '') {
-                    continue;
-                }
-
-                // Process Row Cells
-                if (line.startsWith('|')) line = line.substring(1);
-                if (line.endsWith('|')) line = line.substring(0, line.length - 1);
-                if (line.endsWith('||')) line = line.substring(0, line.length - 2);
-
-                const cells = line.split('|').map(c => c.trim());
-
-                let rowHtml = '';
-                if (!tableHeaderProcessed) {
-                    rowHtml = '<thead class="bg-gray-100"><tr>';
-                    cells.forEach(cell => {
-                        // Header cells: Darker text, slightly larger, semibold
-                        rowHtml += `<th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r last:border-r-0 border-gray-200">${parseMarkdownInline(cell)}</th>`;
-                    });
-                    rowHtml += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
-                    tableHeaderProcessed = true;
-                } else {
-                    rowHtml = '<tr class="hover:bg-gray-50 transition-colors">';
-                    cells.forEach(cell => {
-                        // Body cells: Normal text, gray
-                        rowHtml += `<td class="px-4 py-3 whitespace-normal align-top text-gray-700 border-r last:border-r-0 border-gray-200">${parseMarkdownInline(cell)}</td>`;
-                    });
-                    rowHtml += '</tr>';
-                }
-                processed.push(rowHtml);
-
-            } else {
-                if (inTable) {
-                    inTable = false;
-                    processed.push('</tbody></table></div>');
-                }
-                // Regular line processing
-                // Convert # Headers if they exist and aren't already HTML
-                if (line.startsWith('# ') && !line.includes('<h1>')) {
-                    processed.push(`<h1>${parseMarkdownInline(line.substring(2))}</h1>`);
-                } else if (line.startsWith('## ') && !line.includes('<h2>')) {
-                    processed.push(`<h2>${parseMarkdownInline(line.substring(3))}</h2>`);
-                } else if (line.startsWith('### ') && !line.includes('<h3>')) {
-                    processed.push(`<h3>${parseMarkdownInline(line.substring(4))}</h3>`);
-                } else {
-                    // Just basic inline parsing, preserve existing HTML
-                    processed.push(parseMarkdownInline(line));
-                }
-            }
-        }
-        if (inTable) {
-            processed.push('</tbody></table></div>');
-        }
-
-        return processed.join('\n');
-    };
-
-    const parseMarkdownInline = (text: string) => {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-pink-500 font-mono text-xs">$1</code>');
-    };
 
     const initialReportContent = `
 <h1>Informe de Riesgos Laborales</h1>
@@ -252,22 +159,8 @@ const LivePage = () => {
 `;
 
     const handleSave = async () => {
-        // ENCODING STRATEGY: 
-        // We Base64 encode the HTML to bypass any backend sanitization or markdown conversion.
-        // This ensures 100% fidelity of images and table structures when saving.
-        const utf8_to_b64 = (str: string) => {
-            return window.btoa(unescape(encodeURIComponent(str)));
-        };
-
         const contentToSave = editorContent || initialReportContent;
-        // We wrap the base64 data in a marker we can easily find later
-        const base64Data = utf8_to_b64(contentToSave);
-        // NEW format using Code Block, immune to HTML sanitization
-        const packedContent = `<!-- REPORT_PAYLOAD -->\n\`\`\`report-payload\n${base64Data}\n\`\`\`\n<!-- END_PAYLOAD -->\n# Informe de Riesgos Guardado\nEl informe ha sido almacenado con éxito. Usa el menú de historial para verlo.\n(Datos encriptados para fidelidad)\n`;
 
-        let finalConvoId = conversationId;
-
-        // SCENARIO 1: Update existing message
         if (!token) {
             showToast({ message: 'Error: No autorizado (Token faltante)', status: 'error' });
             return;
@@ -316,151 +209,137 @@ const LivePage = () => {
             }
         };
 
-        // SCENARIO 1: Existing conversation (Update)
+        // SCENARIO 1: Existing report - Update message directly
+        if (conversationId && conversationId !== 'new' && reportMessageId) {
+            try {
+                console.log('[Save] Updating existing report:', conversationId, reportMessageId);
+
+                // Use direct message update API (no AI trigger)
+                const res = await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        text: contentToSave // Raw HTML directly
+                    })
+                });
+
+                if (res.ok) {
+                    console.log('[Save] Message updated successfully');
+                    await tagConversation(conversationId);
+                } else {
+                    console.error("[Save] Update failed:", res.status);
+                    showToast({ message: `Error al actualizar: ${res.status}`, status: 'error' });
+                }
+            } catch (error) {
+                console.error('[Save] Error updating report message:', error);
+                showToast({ message: 'Error al actualizar el informe', status: 'error' });
+            }
+            return;
+        }
+
+        // SCENARIO 2: Existing conversation but no message ID - Create new message
         if (conversationId && conversationId !== 'new') {
             try {
-                const res = await fetch('/api/ask', {
+                console.log('[Save] Creating new message in existing conversation:', conversationId);
+
+                // Use direct message creation API
+                const res = await fetch(`/api/messages/${conversationId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: packedContent,
+                        text: contentToSave,
                         conversationId: conversationId,
-                        model: 'gemini-2.5-flash-preview-09-2025',
-                        endpoint: 'google'
+                        sender: 'User',
+                        isCreatedByUser: true,
+                        isHtmlReport: true,
+                        messageId: crypto.randomUUID()
                     })
                 });
 
                 if (res.ok) {
+                    const savedMsg = await res.json();
+                    setReportMessageId(savedMsg.messageId);
+                    console.log('[Save] New message created:', savedMsg.messageId);
                     await tagConversation(conversationId);
                 } else {
-                    console.error("Update failed:", res.status);
-                    showToast({ message: `Error al actualizar: ${res.status}`, status: 'error' });
+                    console.error("[Save] Creation failed:", res.status);
+                    showToast({ message: `Error al crear mensaje: ${res.status}`, status: 'error' });
                 }
             } catch (error) {
-                console.error('Error updating report message:', error);
-                showToast({ message: 'Error al actualizar el informe', status: 'error' });
-                return;
+                console.error('[Save] Error creating message:', error);
+                showToast({ message: 'Error al crear el mensaje', status: 'error' });
             }
+            return;
         }
-        // SCENARIO 2: New Conversation / New Message
-        else {
-            try {
-                const payload = {
-                    text: packedContent,
-                    conversationId: null, // Explicitly null for new
+
+        // SCENARIO 3: No conversation exists - Need to create conversation first
+        // For simplicity, we still use /api/ask for this as it handles conversation creation
+        // But we use a minimal payload without complex Base64 encoding
+        try {
+            console.log('[Save] Creating new conversation with report');
+
+            const res = await fetch('/api/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    text: contentToSave, // Save raw HTML directly
+                    conversationId: null,
                     model: 'gemini-2.5-flash-preview-09-2025',
                     endpoint: 'google',
                     parentMessageId: '00000000-0000-0000-0000-000000000000'
-                };
-                console.log("Saving new report, payload:", payload);
+                })
+            });
 
-                const res = await fetch('/api/ask', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) {
-                    console.error("Creation failed:", res.status, res.statusText);
-                    const errorText = await res.text();
-                    console.error("Error details:", errorText);
-                    showToast({ message: `Error al crear reporte: ${res.status}`, status: 'error' });
-                    return; // Stop here if creation failed
-                }
-
-                if (res.body) {
-                    // Try to parse ID from stream
-                    const reader = res.body.getReader();
-                    const decoder = new TextDecoder();
-                    let done = false;
-                    let foundId = false;
-
-                    while (!done) {
-                        const { value, done: doneReading } = await reader.read();
-                        done = doneReading;
-                        if (value) {
-                            const chunk = decoder.decode(value);
-                            // Simple regex for conversationId
-                            const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
-                            if (match && match[1]) {
-                                finalConvoId = match[1];
-                                setConversationId(finalConvoId);
-                                foundId = true;
-                                break;
-                            }
-                        }
-                        if (doneReading || foundId) break;
-                    }
-                    try { if (!done) reader.cancel(); } catch (e) { }
-                }
-            } catch (error) {
-                console.error('Error saving new report:', error);
-                showToast({ message: 'Error de red al guardar', status: 'error' });
+            if (!res.ok) {
+                console.error("[Save] Creation failed:", res.status);
+                showToast({ message: `Error al crear reporte: ${res.status}`, status: 'error' });
                 return;
             }
-        }
 
-        // FALLBACK: If we still don't have the ID, try fetching latest with retries
-        if (!finalConvoId || finalConvoId === 'new') {
-            try {
-                let attempts = 0;
-                const maxAttempts = 3;
+            // Parse conversation ID from stream response
+            let newConvoId = null;
+            if (res.body) {
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
 
-                while (attempts < maxAttempts && (!finalConvoId || finalConvoId === 'new')) {
-                    attempts++;
-                    // Wait a bit more on each attempt (1s, 2s, 3s)
-                    await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
-
-                    console.log(`Fallback: Fetching latest conversations (Attempt ${attempts})...`);
-                    const resp = await fetch('/api/conversations', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const data = await resp.json();
-                    const convos = data.conversations || (Array.isArray(data) ? data : []);
-
-                    if (convos && convos.length > 0) {
-                        // Check if this conversation looks like ours (created very recently)
-                        const mostRecent = convos[0];
-                        const createdTime = new Date(mostRecent.createdAt).getTime();
-                        const now = new Date().getTime();
-                        // If it's within last 30 seconds
-                        if (now - createdTime < 30000) {
-                            finalConvoId = mostRecent.conversationId;
-                            setConversationId(finalConvoId);
-                            console.log("Fallback: retrieved conversationId:", finalConvoId);
-                            showToast({ message: `ID recuperado (Fallback)`, status: 'warning' });
+                while (!done) {
+                    const { value, done: doneReading } = await reader.read();
+                    done = doneReading;
+                    if (value) {
+                        const chunk = decoder.decode(value);
+                        const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
+                        if (match && match[1]) {
+                            newConvoId = match[1];
                             break;
-                        } else {
-                            console.log("Fallback: Most recent convo is too old, waiting...");
                         }
                     }
                 }
-
-                if (!finalConvoId || finalConvoId === 'new') {
-                    console.error("Fallback: parsed conversations list is empty or invalid");
-                    showToast({ message: 'FALLO: No se encontró la conversación nueva', status: 'error' });
-                }
-            } catch (e) {
-                console.error("Fallback fetch failed", e);
-                showToast({ message: 'Error de conexión en Fallback', status: 'error' });
+                try { if (!done) reader.cancel(); } catch (e) { }
             }
-        }
 
-        // Final Tagging Attempt
-        if (finalConvoId && finalConvoId !== 'new') {
-            await tagConversation(finalConvoId);
-        } else {
-            // Only show error if we supposedly finished but still have no ID
-            console.error("Critical: Finished save flow but ID is missing.");
-            showToast({ message: 'Error: No se pudo verificar el guardado (ID faltante)', status: 'error' });
+            if (newConvoId) {
+                setConversationId(newConvoId);
+                console.log('[Save] New conversation created:', newConvoId);
+                await tagConversation(newConvoId);
+            } else {
+                showToast({ message: 'Error: No se obtuvo ID de conversación', status: 'error' });
+            }
+        } catch (error) {
+            console.error('[Save] Error creating new report:', error);
+            showToast({ message: 'Error de red al guardar', status: 'error' });
         }
     };
+
 
     return (
         <div className="flex h-full w-full flex-col bg-surface-secondary relative">

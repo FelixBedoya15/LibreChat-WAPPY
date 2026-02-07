@@ -796,48 +796,17 @@ class VoiceSession {
             let messageId = uuidv4();
             if (this.conversationId && this.conversationId !== 'new') {
                 try {
-                    // Helper to convert HTML to Markdown (Basic implementation)
-                    const convertHtmlToMarkdown = (html) => {
-                        let md = html;
-                        md = md.replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/g, '\n### $1\n');
-                        md = md.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
-                        md = md.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
-                        md = md.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*');
-                        md = md.replace(/<i[^>]*>(.*?)<\/i>/g, '*$1*');
-                        md = md.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
-                        md = md.replace(/<ul[^>]*>/g, '\n');
-                        md = md.replace(/<\/ul>/g, '\n');
-                        md = md.replace(/<p[^>]*>(.*?)<\/p>/g, '\n$1\n');
-                        md = md.replace(/<br\s*\/?>/g, '\n');
-                        md = md.replace(/<table[^>]*>/g, '\n'); // Simple table handling
-                        md = md.replace(/<\/table>/g, '\n');
-                        md = md.replace(/<tr[^>]*>/g, '|');
-                        md = md.replace(/<\/tr>/g, '|\n');
-                        md = md.replace(/<td[^>]*>(.*?)<\/td>/g, ' $1 |');
-                        md = md.replace(/<th[^>]*>(.*?)<\/th>/g, ' **$1** |');
-                        md = md.replace(/<[^>]*>/g, ''); // Remove remaining tags
-                        md = md.replace(/&nbsp;/g, ' ');
-                        md = md.replace(/\n\s*\n\s*\n/g, '\n\n'); // Fix excess newlines
-                        return md.trim();
-                    };
-
-                    const reportMarkdown = convertHtmlToMarkdown(reportHtml);
-
-                    // Extract a brief summary for the Voice AI (First 200 chars or first paragraph)
-                    let summaryForVoice = "un informe técnico detallado";
-                    const summaryMatch = reportHtml.match(/<p[^>]*>(.*?)<\/p>/);
-                    if (summaryMatch && summaryMatch[1]) {
-                        summaryForVoice = summaryMatch[1].substring(0, 150) + "...";
-                    }
-
+                    // FIX: Save raw HTML to preserve tables, images, and formatting
+                    // Previously this converted to Markdown which lost all formatting
                     const reportMessage = {
                         messageId,
                         conversationId: this.conversationId,
                         parentMessageId: this.lastMessageId, // Link to last message
                         sender: 'Assistant', // Save as Assistant
-                        text: reportMarkdown, // SAVE AS MARKDOWN for Chat UI
-                        content: [{ type: 'text', text: reportMarkdown }], // CRITICAL: Add content array for compatibility
+                        text: reportHtml, // SAVE AS HTML to preserve formatting
+                        content: [{ type: 'text', text: reportHtml }],
                         isCreatedByUser: false,
+                        isHtmlReport: true, // Marker to identify HTML reports
                         error: false,
                         model: modelName,
                         createdAt: new Date(),

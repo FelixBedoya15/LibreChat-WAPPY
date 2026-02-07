@@ -94,7 +94,6 @@ export default function Root() {
               open={showTerms}
               onOpenChange={setShowTerms}
               onAccept={handleAcceptTerms}
-              onAccept={handleAcceptTerms}
               onDecline={handleDeclineTerms}
               title={localize('com_ui_terms_title')}
               modalContent={localize('com_ui_terms_content')}
