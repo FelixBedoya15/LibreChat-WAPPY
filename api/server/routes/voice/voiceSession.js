@@ -863,9 +863,13 @@ class VoiceSession {
                         md = md.replace(/<div[^>]*>/gi, '\n');
                         md = md.replace(/<\/div>/gi, '\n');
 
-                        // Handle images - convert to markdown image syntax
-                        md = md.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
-                        md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, '![image]($1)');
+                        // Handle images - base64 images replaced with placeholder, URL images to markdown
+                        // Base64 images cause display issues in chat (too long)
+                        md = md.replace(/<img[^>]*src="data:[^"]*"[^>]*alt="([^"]*)"[^>]*>/gi, '\n\n📷 **[$1]** *(imagen disponible en el informe original)*\n\n');
+                        md = md.replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '\n\n📷 **[Imagen captada]** *(ver en informe original)*\n\n');
+                        // Normal URL images convert to markdown
+                        md = md.replace(/<img[^>]*src="(https?:\/\/[^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
+                        md = md.replace(/<img[^>]*src="(https?:\/\/[^"]*)"[^>]*>/gi, '![image]($1)');
 
                         // Remove remaining HTML tags
                         md = md.replace(/<[^>]*>/g, '');
