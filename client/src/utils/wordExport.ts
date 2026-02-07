@@ -236,9 +236,7 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
 
         return new Table({
             rows,
-            layout: {
-                type: TableLayoutType.AUTOFIT,
-            },
+            layout: TableLayoutType.FIXED,
             width: {
                 size: 100,
                 type: WidthType.PERCENTAGE,
@@ -413,6 +411,26 @@ export const exportToWord = async (content: string, config: ExportConfig) => {
     const doc = new Document({
         creator: 'LibreChat AI',
         title: documentTitle,
+        numbering: {
+            config: [
+                {
+                    reference: 'default-numbering',
+                    levels: [
+                        {
+                            level: 0,
+                            format: NumberFormat.DECIMAL,
+                            text: '%1.',
+                            alignment: AlignmentType.START,
+                            style: {
+                                paragraph: {
+                                    indent: { left: 720, hanging: 360 },
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         sections: [
             // Section 1: Cover Page
             {
