@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import LiveEditor from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import ReportHistory from './ReportHistory';
@@ -127,11 +130,21 @@ const LivePage = () => {
 
                 // Only apply markdown conversion if it DOESN'T look like HTML already.
                 if (!html.trim().startsWith('<') && !html.includes('<div') && !html.includes('<h1')) {
-                    // Basic Markdown to HTML conversion for legacy/AI responses
-                    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-                    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-                    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                    try {
+                        // Robust Markdown to HTML conversion using ReactMarkdown + GFM (Tables!)
+                        html = renderToStaticMarkup(
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {html}
+                            </ReactMarkdown>
+                        );
+                    } catch (err) {
+                        console.error("Markdown conversion failed, falling back to basic regex", err);
+                        // Fallback to basic regex if ReactMarkdown fails
+                        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                        html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                        html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                    }
                 }
 
                 // Set content and update state
