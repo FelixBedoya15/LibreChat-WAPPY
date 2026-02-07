@@ -221,6 +221,87 @@ const LivePage = () => {
             return;
         }
 
+        // HTML to Markdown conversion for chat compatibility
+        const convertHtmlToMarkdown = (html: string): string => {
+            let md = html;
+
+            // Handle tables FIRST
+            const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+            md = md.replace(tableRegex, (_match, tableContent) => {
+                const rows: string[] = [];
+                const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+                let rowMatch;
+                let isHeader = true;
+
+                while ((rowMatch = rowRegex.exec(tableContent)) !== null) {
+                    const cells: string[] = [];
+                    const cellRegex = /<(th|td)[^>]*>([\s\S]*?)<\/\1>/gi;
+                    let cellMatch;
+
+                    while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+                        let cellText = cellMatch[2].replace(/<[^>]*>/g, '').replace(/\n/g, ' ').trim();
+                        cells.push(cellText || ' ');
+                    }
+
+                    if (cells.length > 0) {
+                        rows.push('| ' + cells.join(' | ') + ' |');
+                        if (isHeader) {
+                            rows.push('|' + cells.map(() => '---').join('|') + '|');
+                            isHeader = false;
+                        }
+                    }
+                }
+
+                return '\n' + rows.join('\n') + '\n';
+            });
+
+            // Handle headings
+            md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n# $1\n');
+            md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n## $1\n');
+            md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n### $1\n');
+            md = md.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '\n#### $1\n');
+
+            // Handle text formatting
+            md = md.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+            md = md.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+            md = md.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+            md = md.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+
+            // Handle lists
+            md = md.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+            md = md.replace(/<ul[^>]*>/gi, '\n');
+            md = md.replace(/<\/ul>/gi, '\n');
+            md = md.replace(/<ol[^>]*>/gi, '\n');
+            md = md.replace(/<\/ol>/gi, '\n');
+
+            // Handle paragraphs and line breaks
+            md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n$1\n');
+            md = md.replace(/<br\s*\/?>/gi, '\n');
+            md = md.replace(/<div[^>]*>/gi, '\n');
+            md = md.replace(/<\/div>/gi, '\n');
+
+            // Handle images - convert to markdown image syntax
+            md = md.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
+            md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, '![image]($1)');
+
+            // Remove remaining HTML tags
+            md = md.replace(/<[^>]*>/g, '');
+
+            // Clean up entities
+            md = md.replace(/&nbsp;/g, ' ');
+            md = md.replace(/&amp;/g, '&');
+            md = md.replace(/&lt;/g, '<');
+            md = md.replace(/&gt;/g, '>');
+
+            // Fix excess newlines
+            md = md.replace(/\n\s*\n\s*\n/g, '\n\n');
+
+            return md.trim();
+        };
+
+        // Convert HTML to Markdown for chat display
+        const markdownContent = convertHtmlToMarkdown(contentToSave);
+
         // TAGGING LOGIC - Helper function to avoid duplication
         const tagConversation = async (id: string) => {
             try {
@@ -270,6 +351,7 @@ const LivePage = () => {
                 console.log('[Save] Updating existing report:', conversationId, reportMessageId);
 
                 // Use direct message update API (no AI trigger)
+                // Save Markdown for chat display, preserve originalHtml
                 const res = await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
                     method: 'PUT',
                     headers: {
@@ -277,7 +359,8 @@ const LivePage = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: contentToSave // Raw HTML directly
+                        text: markdownContent, // Markdown for chat display
+                        originalHtml: contentToSave // Preserve HTML for Live editor
                     })
                 });
 
@@ -300,7 +383,7 @@ const LivePage = () => {
             try {
                 console.log('[Save] Creating new message in existing conversation:', conversationId);
 
-                // Use direct message creation API
+                // Use direct message creation API - Save as Assistant message with Markdown
                 const res = await fetch(`/api/messages/${conversationId}`, {
                     method: 'POST',
                     headers: {
@@ -308,11 +391,12 @@ const LivePage = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: contentToSave,
+                        text: markdownContent, // Markdown for chat display
                         conversationId: conversationId,
-                        sender: 'User',
-                        isCreatedByUser: true,
+                        sender: 'Assistant', // Save as AI message, not User
+                        isCreatedByUser: false, // It's an AI-generated report
                         isHtmlReport: true,
+                        originalHtml: contentToSave, // Preserve HTML for Live editor
                         messageId: crypto.randomUUID()
                     })
                 });
@@ -335,7 +419,7 @@ const LivePage = () => {
 
         // SCENARIO 3: No conversation exists - Need to create conversation first
         // For simplicity, we still use /api/ask for this as it handles conversation creation
-        // But we use a minimal payload without complex Base64 encoding
+        // But we send Markdown instead of raw HTML
         try {
             console.log('[Save] Creating new conversation with report');
 
@@ -346,7 +430,7 @@ const LivePage = () => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    text: contentToSave, // Save raw HTML directly
+                    text: markdownContent, // Save Markdown for chat compatibility
                     conversationId: null,
                     model: 'gemini-2.5-flash-preview-09-2025',
                     endpoint: 'google',
