@@ -796,17 +796,104 @@ class VoiceSession {
             let messageId = uuidv4();
             if (this.conversationId && this.conversationId !== 'new') {
                 try {
-                    // FIX: Save raw HTML to preserve tables, images, and formatting
-                    // Previously this converted to Markdown which lost all formatting
+                    // IMPROVED: Convert HTML to Markdown for chat display
+                    // The chat UI expects Markdown, not raw HTML
+                    const convertHtmlToMarkdown = (html) => {
+                        let md = html;
+
+                        // Handle tables FIRST (before stripping other tags)
+                        // This creates proper Markdown tables
+                        const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
+                        md = md.replace(tableRegex, (match, tableContent) => {
+                            const rows = [];
+                            const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+                            let rowMatch;
+                            let isHeader = true;
+
+                            while ((rowMatch = rowRegex.exec(tableContent)) !== null) {
+                                const cells = [];
+                                const cellRegex = /<(th|td)[^>]*>([\s\S]*?)<\/\1>/gi;
+                                let cellMatch;
+
+                                while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+                                    // Clean cell content
+                                    let cellText = cellMatch[2]
+                                        .replace(/<[^>]*>/g, '') // Remove inner tags
+                                        .replace(/\n/g, ' ')
+                                        .trim();
+                                    cells.push(cellText || ' ');
+                                }
+
+                                if (cells.length > 0) {
+                                    rows.push('| ' + cells.join(' | ') + ' |');
+
+                                    // Add separator after header row
+                                    if (isHeader) {
+                                        rows.push('|' + cells.map(() => '---').join('|') + '|');
+                                        isHeader = false;
+                                    }
+                                }
+                            }
+
+                            return '\n' + rows.join('\n') + '\n';
+                        });
+
+                        // Handle headings
+                        md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n# $1\n');
+                        md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n## $1\n');
+                        md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n### $1\n');
+                        md = md.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '\n#### $1\n');
+
+                        // Handle text formatting
+                        md = md.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+                        md = md.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+                        md = md.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+                        md = md.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+
+                        // Handle lists
+                        md = md.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+                        md = md.replace(/<ul[^>]*>/gi, '\n');
+                        md = md.replace(/<\/ul>/gi, '\n');
+                        md = md.replace(/<ol[^>]*>/gi, '\n');
+                        md = md.replace(/<\/ol>/gi, '\n');
+
+                        // Handle paragraphs and line breaks
+                        md = md.replace(/<p[^>]*>(.*?)<\/p>/gis, '\n$1\n');
+                        md = md.replace(/<br\s*\/?>/gi, '\n');
+                        md = md.replace(/<div[^>]*>/gi, '\n');
+                        md = md.replace(/<\/div>/gi, '\n');
+
+                        // Handle images - convert to markdown image syntax
+                        md = md.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
+                        md = md.replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, '![image]($1)');
+
+                        // Remove remaining HTML tags
+                        md = md.replace(/<[^>]*>/g, '');
+
+                        // Clean up entities
+                        md = md.replace(/&nbsp;/g, ' ');
+                        md = md.replace(/&amp;/g, '&');
+                        md = md.replace(/&lt;/g, '<');
+                        md = md.replace(/&gt;/g, '>');
+
+                        // Fix excess newlines
+                        md = md.replace(/\n\s*\n\s*\n/g, '\n\n');
+
+                        return md.trim();
+                    };
+
+                    const reportMarkdown = convertHtmlToMarkdown(reportHtml);
+
                     const reportMessage = {
                         messageId,
                         conversationId: this.conversationId,
-                        parentMessageId: this.lastMessageId, // Link to last message
-                        sender: 'Assistant', // Save as Assistant
-                        text: reportHtml, // SAVE AS HTML to preserve formatting
-                        content: [{ type: 'text', text: reportHtml }],
+                        parentMessageId: this.lastMessageId,
+                        sender: 'Assistant',
+                        text: reportMarkdown, // Save as Markdown for chat UI
+                        content: [{ type: 'text', text: reportMarkdown }],
                         isCreatedByUser: false,
-                        isHtmlReport: true, // Marker to identify HTML reports
+                        isHtmlReport: true, // Marker - original was HTML
+                        originalHtml: reportHtml, // Store original HTML for Live editor
                         error: false,
                         model: modelName,
                         createdAt: new Date(),
@@ -835,7 +922,7 @@ class VoiceSession {
                 }
             }
 
-            // Notify client with report AND messageId
+            // Notify client with HTML (for rich rendering in Live editor) AND messageId
             this.sendToClient({
                 type: 'report',
                 data: { html: reportHtml, messageId: messageId }

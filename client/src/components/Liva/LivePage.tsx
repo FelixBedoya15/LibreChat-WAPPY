@@ -116,7 +116,8 @@ const LivePage = () => {
                                 reportSystemMsg ? 'markdown' : 'lastMsg');
 
             if (lastMsg && lastMsg.text) {
-                let html = lastMsg.text;
+                // Prefer originalHtml if available (new format stores both)
+                let html = lastMsg.originalHtml || lastMsg.text;
 
                 // Try decode Base64 packed content (legacy)
                 if (html.includes('data-report-content="')) {
@@ -131,13 +132,67 @@ const LivePage = () => {
                     }
                 }
 
-                // Only apply markdown conversion if it DOESN'T look like HTML already
+                // Convert Markdown to HTML if content is in Markdown format
                 if (!html.trim().startsWith('<') && !html.includes('<div') && !html.includes('<h1') && !html.includes('<table')) {
-                    // Basic Markdown to HTML conversion for legacy/AI responses
+                    // Convert Markdown tables to HTML
+                    const lines = html.split('\n');
+                    const convertedLines: string[] = [];
+                    let inTable = false;
+                    let tableRows: string[] = [];
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+
+                        // Check if it's a table row (has pipes and is not a separator)
+                        if (trimmed.includes('|') && !trimmed.match(/^\|?[\s\-:|]+\|?$/)) {
+                            if (!inTable) {
+                                inTable = true;
+                                tableRows = [];
+                            }
+                            tableRows.push(trimmed);
+                        } else if (trimmed.match(/^\|?[\s\-:|]+\|?$/) && inTable) {
+                            // Skip separator line but keep collecting
+                            continue;
+                        } else {
+                            // End of table or non-table line
+                            if (inTable && tableRows.length > 0) {
+                                // Convert collected table rows to HTML
+                                let tableHtml = '<table border="1" style="width: 100%; border-collapse: collapse; margin: 10px 0;"><tbody>';
+                                tableRows.forEach((row, idx) => {
+                                    const cells = row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+                                    const tag = idx === 0 ? 'th' : 'td';
+                                    tableHtml += '<tr>' + cells.map(c => `<${tag} style="padding: 8px; border: 1px solid #ddd;">${c}</${tag}>`).join('') + '</tr>';
+                                });
+                                tableHtml += '</tbody></table>';
+                                convertedLines.push(tableHtml);
+                                tableRows = [];
+                            }
+                            inTable = false;
+                            convertedLines.push(trimmed);
+                        }
+                    }
+
+                    // Handle remaining table if file ends with table
+                    if (inTable && tableRows.length > 0) {
+                        let tableHtml = '<table border="1" style="width: 100%; border-collapse: collapse;"><tbody>';
+                        tableRows.forEach((row, idx) => {
+                            const cells = row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+                            const tag = idx === 0 ? 'th' : 'td';
+                            tableHtml += '<tr>' + cells.map(c => `<${tag} style="padding: 8px; border: 1px solid #ddd;">${c}</${tag}>`).join('') + '</tr>';
+                        });
+                        tableHtml += '</tbody></table>';
+                        convertedLines.push(tableHtml);
+                    }
+
+                    html = convertedLines.join('\n');
+
+                    // Basic Markdown formatting
                     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
                     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
                     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                    html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+                    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%;">');
                 }
 
                 // Set content and update state
