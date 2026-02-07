@@ -137,9 +137,12 @@ const LivePage = () => {
                     }
                 }
 
-                // Detect mixed content (HTML + Markdown) and format it
-                // This handles cases where AI returns HTML headers but Markdown tables
-                if (html && (html.includes('|') || html.includes('**') || html.includes('##'))) {
+                // Detect mixed content (HTML + Markdown) and format it.
+                // CRITICAL FIX: Do NOT run this if the content already contains HTML tables or Images.
+                // We should trust the existing HTML structure if it exists.
+                const hasRichContent = html.includes('<table') || html.includes('<img');
+
+                if (html && !hasRichContent && (html.includes('|') || html.includes('**') || html.includes('##'))) {
                     try {
                         html = formatMixedContent(html);
                     } catch (e) {
@@ -173,37 +176,37 @@ const LivePage = () => {
                 if (!inTable) {
                     inTable = true;
                     tableHeaderProcessed = false;
-                    // Improved Table Styling
-                    processed.push('<div class="overflow-x-auto my-6 rounded-lg shadow-sm border border-gray-200"><table class="min-w-full divide-y divide-gray-200 text-sm">');
+                    // Improved Table Styling: Compact, professional, centered
+                    processed.push('<div class="overflow-x-auto my-4 border rounded-md shadow-sm">');
+                    processed.push('<table class="min-w-full divide-y divide-gray-200 text-sm">');
                 }
 
                 // Check if it's a separator line (e.g. |---|---|)
                 if (line.replace(/\|/g, '').replace(/-/g, '').replace(/:/g, '').trim() === '') {
-                    // sizing row, ignore
                     continue;
                 }
 
                 // Process Row Cells
-                // Clean start/end pipes
                 if (line.startsWith('|')) line = line.substring(1);
                 if (line.endsWith('|')) line = line.substring(0, line.length - 1);
-                if (line.endsWith('||')) line = line.substring(0, line.length - 2); // Handle double pipe end
+                if (line.endsWith('||')) line = line.substring(0, line.length - 2);
 
                 const cells = line.split('|').map(c => c.trim());
 
-                let rowHtml = '<tr>';
+                let rowHtml = '';
                 if (!tableHeaderProcessed) {
-                    // Assume first row is header
-                    rowHtml = '<thead class="bg-blue-50"><tr>';
+                    rowHtml = '<thead class="bg-gray-100"><tr>';
                     cells.forEach(cell => {
-                        rowHtml += `<th class="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">${parseMarkdownInline(cell)}</th>`;
+                        // Header cells: Darker text, slightly larger, semibold
+                        rowHtml += `<th class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r last:border-r-0 border-gray-200">${parseMarkdownInline(cell)}</th>`;
                     });
-                    rowHtml += '</tr></thead><tbody>';
+                    rowHtml += '</tr></thead><tbody class="bg-white divide-y divide-gray-200">';
                     tableHeaderProcessed = true;
                 } else {
-                    rowHtml = '<tr class="bg-white hover:bg-gray-50">';
+                    rowHtml = '<tr class="hover:bg-gray-50 transition-colors">';
                     cells.forEach(cell => {
-                        rowHtml += `<td class="px-6 py-4 whitespace-nowrap text-gray-700">${parseMarkdownInline(cell)}</td>`;
+                        // Body cells: Normal text, gray
+                        rowHtml += `<td class="px-4 py-3 whitespace-normal align-top text-gray-700 border-r last:border-r-0 border-gray-200">${parseMarkdownInline(cell)}</td>`;
                     });
                     rowHtml += '</tr>';
                 }
