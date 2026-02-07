@@ -84,7 +84,7 @@ const LivePage = () => {
             };
 
             const reportWithPackedData = [...messages].reverse().find((m: any) =>
-                m.text && m.text.includes('data-report-content="')
+                m.text && (m.text.includes('data-report-content="') || m.text.includes('```report-payload'))
             );
 
             // 1. HIGHEST PRIORITY: The saved report containing the Base64 Image.
@@ -112,8 +112,20 @@ const LivePage = () => {
             if (lastMsg && lastMsg.text) {
                 let html = lastMsg.text;
 
-                // TRY DECODE
-                if (html.includes('data-report-content="')) {
+                // TRY DECODE (New Code Block Format)
+                if (html.includes('```report-payload')) {
+                    try {
+                        const match = html.match(/```report-payload\s*([\s\S]*?)\s*```/);
+                        if (match && match[1]) {
+                            html = b64_to_utf8(match[1].trim());
+                            console.log('[ReportDebug] Successfully decoded Code Block content');
+                        }
+                    } catch (e) {
+                        console.error('[ReportDebug] Failed to decode code block:', e);
+                    }
+                }
+                // TRY DECODE (Legacy HTML Attribute)
+                else if (html.includes('data-report-content="')) {
                     try {
                         const match = html.match(/data-report-content="([^"]+)"/);
                         if (match && match[1]) {
@@ -161,7 +173,8 @@ const LivePage = () => {
                 if (!inTable) {
                     inTable = true;
                     tableHeaderProcessed = false;
-                    processed.push('<div class="overflow-x-auto my-4"><table class="min-w-full border-collapse border border-gray-300">');
+                    // Improved Table Styling
+                    processed.push('<div class="overflow-x-auto my-6 rounded-lg shadow-sm border border-gray-200"><table class="min-w-full divide-y divide-gray-200 text-sm">');
                 }
 
                 // Check if it's a separator line (e.g. |---|---|)
@@ -181,16 +194,16 @@ const LivePage = () => {
                 let rowHtml = '<tr>';
                 if (!tableHeaderProcessed) {
                     // Assume first row is header
-                    rowHtml = '<thead class="bg-gray-100"><tr>';
+                    rowHtml = '<thead class="bg-blue-50"><tr>';
                     cells.forEach(cell => {
-                        rowHtml += `<th class="border border-gray-300 px-4 py-2 font-semibold text-left">${parseMarkdownInline(cell)}</th>`;
+                        rowHtml += `<th class="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider">${parseMarkdownInline(cell)}</th>`;
                     });
                     rowHtml += '</tr></thead><tbody>';
                     tableHeaderProcessed = true;
                 } else {
-                    rowHtml = '<tr>';
+                    rowHtml = '<tr class="bg-white hover:bg-gray-50">';
                     cells.forEach(cell => {
-                        rowHtml += `<td class="border border-gray-300 px-4 py-2">${parseMarkdownInline(cell)}</td>`;
+                        rowHtml += `<td class="px-6 py-4 whitespace-nowrap text-gray-700">${parseMarkdownInline(cell)}</td>`;
                     });
                     rowHtml += '</tr>';
                 }
@@ -226,7 +239,7 @@ const LivePage = () => {
         return text
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>');
+            .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 rounded text-pink-500 font-mono text-xs">$1</code>');
     };
 
     const initialReportContent = `
@@ -246,7 +259,8 @@ const LivePage = () => {
         const contentToSave = editorContent || initialReportContent;
         // We wrap the base64 data in a marker we can easily find later
         const base64Data = utf8_to_b64(contentToSave);
-        const packedContent = `<!-- REPORT_START -->\n<div style="display:none;" data-report-content="${base64Data}"></div>\n<!-- REPORT_END -->\n# Informe de Riesgos Guardado\nEl informe ha sido almacenado con éxito. Usa el menú de historial para verlo.\n(Datos encriptados para fidelidad)`;
+        // NEW format using Code Block, immune to HTML sanitization
+        const packedContent = `<!-- REPORT_PAYLOAD -->\n\`\`\`report-payload\n${base64Data}\n\`\`\`\n<!-- END_PAYLOAD -->\n# Informe de Riesgos Guardado\nEl informe ha sido almacenado con éxito. Usa el menú de historial para verlo.\n(Datos encriptados para fidelidad)\n`;
 
         let finalConvoId = conversationId;
 
