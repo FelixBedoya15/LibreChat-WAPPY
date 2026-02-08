@@ -116,8 +116,8 @@ const LivePage = () => {
                                 reportSystemMsg ? 'markdown' : 'lastMsg');
 
             if (lastMsg && lastMsg.text) {
-                // Prefer originalHtml if available (new format stores both)
-                let html = lastMsg.originalHtml || lastMsg.text;
+                // Use text field directly (stores HTML for reports)
+                let html = lastMsg.text;
 
                 // Try decode Base64 packed content (legacy)
                 if (html.includes('data-report-content="')) {
@@ -303,8 +303,8 @@ const LivePage = () => {
             return md.trim();
         };
 
-        // Convert HTML to Markdown for chat display
-        const markdownContent = convertHtmlToMarkdown(contentToSave);
+        // NOTE: We save HTML directly for Live editor compatibility
+        // MongoDB doesn't persist custom fields like originalHtml
 
         // TAGGING LOGIC - Helper function to avoid duplication
         const tagConversation = async (id: string) => {
@@ -355,7 +355,6 @@ const LivePage = () => {
                 console.log('[Save] Updating existing report:', conversationId, reportMessageId);
 
                 // Use direct message update API (no AI trigger)
-                // Save Markdown for chat display, preserve originalHtml
                 const res = await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
                     method: 'PUT',
                     headers: {
@@ -363,8 +362,7 @@ const LivePage = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: markdownContent, // Markdown for chat display
-                        originalHtml: contentToSave // Preserve HTML for Live editor
+                        text: contentToSave // Save HTML directly
                     })
                 });
 
@@ -387,7 +385,7 @@ const LivePage = () => {
             try {
                 console.log('[Save] Creating new message in existing conversation:', conversationId);
 
-                // Use direct message creation API - Save as Assistant message with Markdown
+                // Use direct message creation API - Save as Assistant message with HTML
                 const res = await fetch(`/api/messages/${conversationId}`, {
                     method: 'POST',
                     headers: {
@@ -395,12 +393,11 @@ const LivePage = () => {
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        text: markdownContent, // Markdown for chat display
+                        text: contentToSave, // Save HTML directly
                         conversationId: conversationId,
-                        sender: 'Assistant', // Save as AI message, not User
-                        isCreatedByUser: false, // It's an AI-generated report
+                        sender: 'Assistant',
+                        isCreatedByUser: false,
                         isHtmlReport: true,
-                        originalHtml: contentToSave, // Preserve HTML for Live editor
                         messageId: crypto.randomUUID()
                     })
                 });
@@ -423,7 +420,6 @@ const LivePage = () => {
 
         // SCENARIO 3: No conversation exists - Need to create conversation first
         // For simplicity, we still use /api/ask for this as it handles conversation creation
-        // But we send Markdown instead of raw HTML
         try {
             console.log('[Save] Creating new conversation with report');
 
@@ -434,7 +430,7 @@ const LivePage = () => {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    text: markdownContent, // Save Markdown for chat compatibility
+                    text: contentToSave, // Save HTML directly
                     conversationId: null,
                     model: 'gemini-2.5-flash-preview-09-2025',
                     endpoint: 'google',

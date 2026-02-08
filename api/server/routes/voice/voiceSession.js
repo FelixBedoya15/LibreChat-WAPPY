@@ -886,18 +886,18 @@ class VoiceSession {
                         return md.trim();
                     };
 
-                    const reportMarkdown = convertHtmlToMarkdown(reportHtml);
-
+                    // NOTE: Save HTML directly for Live editor compatibility
+                    // MongoDB schema doesn't persist custom fields like originalHtml
+                    // The chat will show raw HTML but the Live editor will work correctly
                     const reportMessage = {
                         messageId,
                         conversationId: this.conversationId,
                         parentMessageId: this.lastMessageId,
                         sender: 'Assistant',
-                        text: reportMarkdown, // Save as Markdown for chat UI
-                        content: [{ type: 'text', text: reportMarkdown }],
+                        text: reportHtml, // Save HTML for Live editor
+                        content: [{ type: 'text', text: reportHtml }],
                         isCreatedByUser: false,
-                        isHtmlReport: true, // Marker - original was HTML
-                        originalHtml: reportHtml, // Store original HTML for Live editor
+                        isHtmlReport: true, // Marker - this is an HTML report
                         error: false,
                         model: modelName,
                         createdAt: new Date(),
