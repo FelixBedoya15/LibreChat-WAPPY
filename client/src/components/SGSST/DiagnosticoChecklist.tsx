@@ -294,7 +294,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <div>
                             <p className="text-sm text-text-secondary">Puntuación</p>
                             <p className="text-2xl font-bold text-text-primary">
-                                {currentScore.toFixed(1)}/{totalPoints}
+                                {currentScore.toFixed(1)}/{Math.round(totalPoints)}
                             </p>
                         </div>
                         <div>
