@@ -9,6 +9,7 @@ import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
+import DiagnosticoChecklist from './DiagnosticoChecklist';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -217,6 +218,13 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                                 {/* Category Content */}
                                 {isExpanded && (
                                     <div className="p-4 bg-surface-primary/30">
+                                        {/* Show DiagnosticoChecklist for diagnostico category */}
+                                        {category.id === 'diagnostico' && (
+                                            <div className="mb-6">
+                                                <DiagnosticoChecklist />
+                                            </div>
+                                        )}
+
                                         {categoryFiles.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-lg">
                                                 <FolderOpen className="h-8 w-8 mb-2 opacity-40" />

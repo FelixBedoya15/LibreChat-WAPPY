@@ -30,6 +30,7 @@ const mcp = require('./mcp');
 const admin = require('./admin');
 const voice = require('./voice');
 const ads = require('./ads');
+const sgsst = require('./sgsst');
 
 module.exports = {
   auth,
@@ -64,4 +65,5 @@ module.exports = {
   actions,
   voice,
   ads,
+  sgsst,
 };

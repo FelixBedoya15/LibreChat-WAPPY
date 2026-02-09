@@ -157,6 +157,7 @@ const startServer = async () => {
     ['admin', routes.admin],
     ['voice', routes.voice],
     ['ads', routes.ads],
+    ['sgsst', routes.sgsst],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -200,6 +201,7 @@ const startServer = async () => {
   app.use('/api/admin', routes.admin);
   app.use('/api/voice', routes.voice);
   app.use('/api/ads', routes.ads);
+  app.use('/api/sgsst/diagnostico', routes.sgsst.diagnostico);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {
