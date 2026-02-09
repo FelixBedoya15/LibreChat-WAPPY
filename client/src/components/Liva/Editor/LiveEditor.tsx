@@ -43,7 +43,8 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     return (
         <div className="w-full h-full flex flex-col">
             {/* Toolbar */}
-            <div className="bg-surface-secondary p-2 border-b border-light flex flex-wrap gap-1 items-center sticky top-0 z-10 justify-between">
+            <div className="bg-surface-secondary p-2 border-b border-light flex flex-wrap gap-2 items-center sticky top-0 z-10">
+                {/* Group 1: Formatting Text */}
                 <div className="flex gap-1 items-center">
                     <ToolbarButton icon={Bold} command="bold" label="Bold" />
                     <ToolbarButton icon={Italic} command="italic" label="Italic" />
@@ -54,16 +55,21 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     <div className="w-px h-6 bg-border-medium mx-1" />
                     <ToolbarButton icon={List} command="insertUnorderedList" label="Bullet List" />
                     <ToolbarButton icon={ListOrdered} command="insertOrderedList" label="Numbered List" />
-                    <div className="w-px h-6 bg-border-medium mx-1" />
+                </div>
+
+                {/* Group 2: Alignment & Save */}
+                <div className="flex gap-1 items-center">
+                    <div className="w-px h-6 bg-border-medium mx-1 hidden sm:block" />
                     <ToolbarButton icon={AlignLeft} command="justifyLeft" label="Align Left" />
                     <ToolbarButton icon={AlignCenter} command="justifyCenter" label="Align Center" />
                     <ToolbarButton icon={AlignRight} command="justifyRight" label="Align Right" />
+                    {onSave && (
+                        <>
+                            <div className="w-px h-6 bg-border-medium mx-1" />
+                            <ToolbarButton icon={Save} label="Guardar Informe" onClick={onSave} />
+                        </>
+                    )}
                 </div>
-                {onSave && (
-                    <div className="flex gap-1 items-center border-l border-light pl-2">
-                        <ToolbarButton icon={Save} label="Guardar Informe" onClick={onSave} />
-                    </div>
-                )}
             </div>
             <div
                 ref={editorRef}
