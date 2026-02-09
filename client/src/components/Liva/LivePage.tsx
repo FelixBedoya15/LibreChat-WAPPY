@@ -507,24 +507,30 @@ const LivePage = () => {
                     <div className="flex items-center space-x-3">
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`flex items-center px-4 py-2 border border-light rounded-full transition-colors shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700' : 'bg-surface-primary text-primary hover:bg-surface-hover'}`}
+                            className={`group flex items-center px-3 py-2 border border-light rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700' : 'bg-surface-primary text-primary hover:bg-surface-hover'}`}
                         >
-                            <History className="w-4 h-4 mr-2" />
-                            Historial
+                            <History className="w-5 h-5" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                Historial
+                            </span>
                         </button>
                         <button
                             onClick={handleStartAnalysis}
-                            className="flex items-center px-4 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-colors shadow-sm font-medium text-sm"
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                         >
-                            <Video className="w-4 h-4 mr-2" />
-                            {localize('com_ui_start_live_analysis')}
+                            <Video className="w-5 h-5" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                {localize('com_ui_start_live_analysis')}
+                            </span>
                         </button>
                         <button
                             onClick={handleSave}
-                            className="flex items-center px-4 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-colors shadow-sm font-medium text-sm"
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-light hover:bg-surface-hover text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                         >
-                            <Save className="w-4 h-4 mr-2" />
-                            {localize('com_ui_save_report')}
+                            <Save className="w-5 h-5" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                {localize('com_ui_save_report')}
+                            </span>
                         </button>
                     </div>
                 </div>
