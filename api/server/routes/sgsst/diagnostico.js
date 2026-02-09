@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { logger } = require('~/config');
-const requireJwtAuth = require('~/middleware/requireJwtAuth');
-const { getUserKey } = require('~/services/UserService');
+const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
+const { getUserKey } = require('~/server/services/UserService');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
