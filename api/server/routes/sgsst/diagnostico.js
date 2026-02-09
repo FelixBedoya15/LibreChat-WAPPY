@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { logger } = require('~/config');
+const requireJwtAuth = require('~/middleware/requireJwtAuth');
+const { getUserKey } = require('~/services/UserService');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
  * Analyzes the SGSST checklist and generates a management report
  */
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', requireJwtAuth, async (req, res) => {
     try {
         const {
             companySize,
@@ -19,15 +21,25 @@ router.post('/analyze', async (req, res) => {
             complianceLevel,
         } = req.body;
 
-        // Get API key from environment
-        const apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return res.status(500).json({ error: 'API key not configured' });
+        // Get API key from user settings first, then environment
+        let apiKey;
+        try {
+            apiKey = await getUserKey({ userId: req.user.id, name: 'google' });
+        } catch (err) {
+            logger.debug('[SGSST] No user Google key found, trying env vars');
         }
 
-        // Initialize Gemini client
+        if (!apiKey) {
+            apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+        }
+
+        if (!apiKey) {
+            return res.status(500).json({ error: 'API key not configured. Please add your Google API Key in settings.' });
+        }
+
+        // Initialize Gemini client with specific model
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-04-17' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
 
         // Build the prompt for analysis
         const completedItems = checklist.filter(item => item.status === 'cumple');
