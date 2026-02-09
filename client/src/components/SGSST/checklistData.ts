@@ -65,7 +65,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que exista documento de asignación de responsabilidades o contrato donde se evidencie la asignación del responsable del SG-SST.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 3.33,
         article: 3,
     },
     {
@@ -76,7 +76,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar planillas de pago de aportes al Sistema de Seguridad Social Integral de todos los trabajadores.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 3.33,
         article: 3,
     },
     {
@@ -87,7 +87,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar certificado del curso de capacitación virtual de 50 horas en SST definido por el Ministerio del Trabajo.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        points: 6,
+        points: 40,
         article: 3,
     },
     {
@@ -98,7 +98,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que la política esté firmada por el representante legal, fechada y divulgada a todos los trabajadores.',
         category: 'planear',
         subcategory: 'Política de SST',
-        points: 1,
+        points: 6.67,
         article: 3,
     },
     {
@@ -109,7 +109,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que el plan anual esté documentado, incluya metas, responsables, recursos y cronograma.',
         category: 'planear',
         subcategory: 'Plan anual de trabajo',
-        points: 2,
+        points: 13.33,
         article: 3,
     },
     {
@@ -120,7 +120,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar certificados de aptitud laboral de las evaluaciones médicas ocupacionales de ingreso de los trabajadores.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1,
+        points: 6.67,
         article: 3,
     },
     {
@@ -131,7 +131,7 @@ export const ARTICLE_3_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar documento de identificación de peligros y evaluación de riesgos actualizado y con participación de los trabajadores.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        points: 4,
+        points: 26.67,
         article: 3,
     },
 ];
@@ -150,7 +150,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar documento de asignación de responsabilidades donde se designe al responsable del SG-SST.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -161,7 +161,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar documento donde consten las responsabilidades en SST de todos los niveles.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -172,7 +172,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que exista documento de asignación de recursos con presupuesto definido para el SG-SST.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -183,7 +183,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar planillas de aportes al Sistema de Seguridad Social Integral.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -194,7 +194,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar actas de conformación, reuniones mensuales y funcionamiento del COPASST/Vigía.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -205,7 +205,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar certificados de capacitación de los miembros del COPASST.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -216,7 +216,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar actas de conformación y reuniones del Comité de Convivencia Laboral.',
         category: 'planear',
         subcategory: 'Recursos',
-        points: 0.5,
+        points: 1.92,
         article: 9,
     },
     {
@@ -227,7 +227,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar programa de capacitación anual documentado y registros de ejecución.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        points: 2,
+        points: 7.69,
         article: 9,
     },
     {
@@ -238,7 +238,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar registros de inducción y reinducción en SST de todos los trabajadores.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        points: 2,
+        points: 7.69,
         article: 9,
     },
     {
@@ -249,7 +249,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar certificado del curso virtual de 50 horas en SST del Ministerio del Trabajo.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        points: 2,
+        points: 7.69,
         article: 9,
     },
     {
@@ -260,7 +260,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar política documentada, firmada por el representante legal, fechada y comunicada.',
         category: 'planear',
         subcategory: 'Política de SST',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -271,7 +271,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que los objetivos estén documentados, sean claros, medibles y coherentes con la política.',
         category: 'planear',
         subcategory: 'Objetivos de la política de SST',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -282,7 +282,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar documento de evaluación inicial del SG-SST realizado.',
         category: 'planear',
         subcategory: 'Evaluación inicial del SG-SST',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -293,7 +293,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar plan anual de trabajo documentado y firmado con todos los elementos requeridos.',
         category: 'planear',
         subcategory: 'Plan anual de trabajo',
-        points: 2,
+        points: 7.69,
         article: 9,
     },
     // HACER
@@ -305,7 +305,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar perfil sociodemográfico actualizado y diagnóstico de condiciones de salud.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -316,7 +316,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar registro de actividades de promoción y prevención desarrolladas.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -327,7 +327,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que se remitan los perfiles de cargo y riesgos al médico evaluador.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -338,7 +338,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar certificados de aptitud de evaluaciones médicas ocupacionales.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -349,7 +349,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar documento que evidencie la custodia de historias clínicas por el médico o IPS.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1,
+        points: 3.85,
         article: 9,
     },
     {
@@ -360,7 +360,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar matriz de identificación de peligros y evaluación de riesgos actualizada.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        points: 4,
+        points: 15.38,
         article: 9,
     },
     {
@@ -371,7 +371,7 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar que existan medidas de prevención y control implementadas según la matriz de riesgos.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 9.62,
         article: 9,
     },
 ];
