@@ -21,6 +21,9 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             score,
             totalPoints,
             complianceLevel,
+            userName,
+            currentDate,
+            observations,
         } = req.body;
 
         // 1. Retrieve the user's Google API key (same one used by chat)
@@ -65,6 +68,10 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         const percentage = ((score / totalPoints) * 100).toFixed(1);
 
         const promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
+
+**Fecha de Emisión:** ${currentDate || new Date().toLocaleDateString('es-CO')}
+**Consultor Experto:** ${userName || req.user?.name || 'Usuario del Sistema'}
+**Referencia Normativa:** Resolución 0312 de 2019 (Estándares Mínimos, Art. ${applicableArticle})
     
 Analiza los resultados de la evaluación según la Resolución 0312 de 2019 y genera un INFORME GERENCIAL completo.
 
@@ -86,10 +93,22 @@ Analiza los resultados de la evaluación según la Resolución 0312 de 2019 y ge
 - Pendientes: ${pending.length}
 
 **Estándares que NO CUMPLEN (Críticos):**
-${nonCompliantItems.map(item => `- ${item.code} - ${item.name}: ${item.description}`).join('\n') || 'Ninguno'}
+${nonCompliantItems.map(item => {
+            const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+            return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+        }).join('\n') || 'Ninguno'}
 
 **Estándares que CUMPLEN PARCIALMENTE:**
-${partialItems.map(item => `- ${item.code} - ${item.name}: ${item.description}`).join('\n') || 'Ninguno'}
+${partialItems.map(item => {
+            const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+            return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+        }).join('\n') || 'Ninguno'}
+
+**Estándares que NO APLICAN:**
+${notApplicable.map(item => {
+            const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+            return `- ${item.code} - ${item.name}${obs}`;
+        }).join('\n') || 'Ninguno'}
 
 ## INSTRUCCIONES
 

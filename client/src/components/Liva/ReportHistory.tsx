@@ -116,10 +116,11 @@ interface ReportHistoryProps {
     onSelectReport: (conversationId: string) => void;
     isOpen: boolean;
     toggleOpen: () => void;
-    refreshTrigger?: number; // Optional trigger
+    refreshTrigger?: number;
+    tags?: string[];
 }
 
-const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: ReportHistoryProps) => {
+const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tags = ['report'] }: ReportHistoryProps) => {
     const { isAuthenticated } = useAuthContext();
     // Removed dependency on global search state to prevent filtering issues
     const [showLoading, setShowLoading] = useState(false);
@@ -132,7 +133,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
     const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
         useConversationsInfiniteQuery(
             {
-                tags: ['report'],
+                tags,
             },
             {
                 enabled: isAuthenticated,
@@ -143,9 +144,9 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
 
     const refreshHistory = useCallback(() => {
         // Invalidate to force a hard refresh from server
-        queryClient.invalidateQueries(['conversations', { tags: ['report'] }]);
+        queryClient.invalidateQueries(['conversations', { tags }]);
         refetch();
-    }, [queryClient, refetch]);
+    }, [queryClient, refetch, tags]);
 
     // Refresh when trigger changes with a small delay to ensure backend indexing
     useEffect(() => {
@@ -266,7 +267,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger }: R
                                         // UNTAG LOGIC: "Remove" from report history but keep chat
                                         const res = await axios.get(`/api/convos/${convo.conversationId}`);
                                         const currentTags = res.data.tags || [];
-                                        const newTags = currentTags.filter((t: string) => t !== 'report');
+                                        const newTags = currentTags.filter((t: string) => !tags.includes(t));
 
                                         await axios.post('/api/convos/update', {
                                             arg: {

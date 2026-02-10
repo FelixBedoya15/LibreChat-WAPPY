@@ -11,6 +11,8 @@ import {
     FileText,
     Download,
     Sparkles,
+    History,
+    Save,
     Loader2,
     HelpCircle,
     Users,
@@ -30,6 +32,9 @@ import {
     getTotalPoints,
     getComplianceLevel,
 } from './checklistData';
+import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
+import { useAuthContext } from '~/hooks';
 
 interface DiagnosticoChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -58,6 +63,7 @@ const STATUS_OPTIONS = [
 
 const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisComplete }) => {
     const { showToast } = useToastContext();
+    const { user, token } = useAuthContext();
 
     // Filters
     const [companySize, setCompanySize] = useState<CompanySize>(CompanySize.MEDIUM);
@@ -68,9 +74,19 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['planear', 'hacer', 'verificar', 'actuar']));
 
+    // Observations state
+    const [observations, setObservations] = useState<Record<string, string>>({});
+
     // Analysis state  
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<string | null>(null);
+    const [editorContent, setEditorContent] = useState('');
+
+    // History & save state
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [conversationId, setConversationId] = useState('new');
+    const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Get applicable checklist
     const checklist = useMemo(() => {
@@ -164,6 +180,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 score: currentScore,
                 totalPoints,
                 complianceLevel,
+                userName: user?.name || user?.username || 'Usuario',
+                currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+                observations,
             };
 
             // Call analysis API
@@ -171,6 +190,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
             const result = response.data;
             setAnalysisReport(result.report);
+            setEditorContent(result.report);
+            setConversationId('new');
+            setReportMessageId(null);
             onAnalysisComplete?.(result.report);
             showToast({ message: 'Análisis generado exitosamente', status: 'success' });
         } catch (error) {
@@ -179,7 +201,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast]);
+    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations]);
 
     const handleExportWord = useCallback(async () => {
         if (!analysisReport) {
@@ -203,6 +225,111 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
         showToast({ message: 'Informe exportado a Word', status: 'success' });
     }, [analysisReport, showToast]);
+
+    // Save report as conversation tagged 'sgsst-diagnostico'
+    const handleSave = useCallback(async () => {
+        const contentToSave = editorContent || analysisReport;
+        if (!contentToSave) {
+            showToast({ message: 'No hay informe para guardar', status: 'warning' });
+            return;
+        }
+        if (!token) {
+            showToast({ message: 'Error: No autorizado', status: 'error' });
+            return;
+        }
+
+        const tagConversation = async (id: string) => {
+            try {
+                const tagRes = await fetch(`/api/tags/convo/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ tags: ['sgsst-diagnostico'] }),
+                });
+                if (tagRes.ok) {
+                    const dateStr = new Date().toLocaleString('es-CO');
+                    await fetch('/api/convos/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ arg: { conversationId: id, title: `Diagnóstico SGSST - ${dateStr}` } }),
+                    });
+                    setRefreshTrigger(prev => prev + 1);
+                    showToast({ message: 'Diagnóstico guardado exitosamente', status: 'success' });
+                }
+            } catch (e) {
+                console.error('Error tagging:', e);
+                showToast({ message: 'Error al etiquetar el diagnóstico', status: 'error' });
+            }
+        };
+
+        // Update existing report
+        if (conversationId && conversationId !== 'new' && reportMessageId) {
+            try {
+                await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ text: contentToSave }),
+                });
+                await tagConversation(conversationId);
+            } catch (e) {
+                console.error('Update error:', e);
+                showToast({ message: 'Error al actualizar', status: 'error' });
+            }
+            return;
+        }
+
+        // Create new conversation + message
+        try {
+            const convoRes = await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    conversationId: null,
+                    text: contentToSave,
+                    sender: 'User',
+                    isCreatedByUser: true,
+                    parentMessageId: '00000000-0000-0000-0000-000000000000',
+                    model: 'sgsst-diagnostico',
+                }),
+            });
+
+            if (convoRes.ok) {
+                const convoData = await convoRes.json();
+                const newId = convoData.conversationId;
+                const newMsgId = convoData.messageId;
+                setConversationId(newId);
+                setReportMessageId(newMsgId);
+                await tagConversation(newId);
+            }
+        } catch (e) {
+            console.error('Save error:', e);
+            showToast({ message: 'Error al guardar el diagnóstico', status: 'error' });
+        }
+    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast]);
+
+    // Load report from history
+    const handleSelectReport = useCallback(async (selectedConvoId: string) => {
+        try {
+            const res = await fetch(`/api/messages/${selectedConvoId}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error('Failed to load');
+            const messages = await res.json();
+
+            // Find the last message with content
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg?.text) {
+                setAnalysisReport(lastMsg.text);
+                setEditorContent(lastMsg.text);
+                setConversationId(selectedConvoId);
+                setReportMessageId(lastMsg.messageId);
+                setIsHistoryOpen(false);
+                showToast({ message: 'Diagnóstico cargado', status: 'success' });
+            }
+        } catch (e) {
+            console.error('Load error:', e);
+            showToast({ message: 'Error al cargar el diagnóstico', status: 'error' });
+        }
+    }, [token, showToast]);
 
     const getCategoryTitle = (category: string): string => {
         const titles: Record<string, string> = {
@@ -303,7 +430,15 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                            variant="outline"
+                            className="gap-2"
+                        >
+                            <History className="h-4 w-4" />
+                            Historial
+                        </Button>
                         <Button
                             onClick={handleAnalyze}
                             disabled={isAnalyzing || completedCount === 0}
@@ -317,10 +452,16 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             Generar Análisis IA
                         </Button>
                         {analysisReport && (
-                            <Button onClick={handleExportWord} variant="outline" className="gap-2">
-                                <Download className="h-4 w-4" />
-                                Exportar Word
-                            </Button>
+                            <>
+                                <Button onClick={handleSave} variant="outline" className="gap-2">
+                                    <Save className="h-4 w-4" />
+                                    Guardar
+                                </Button>
+                                <Button onClick={handleExportWord} variant="outline" className="gap-2">
+                                    <Download className="h-4 w-4" />
+                                    Exportar Word
+                                </Button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -432,6 +573,19 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                                 <p className="text-sm text-text-secondary">{item.evaluation}</p>
                                                             </div>
                                                         )}
+
+                                                        {/* Observations field for parcial/no_aplica */}
+                                                        {(status === 'parcial' || status === 'no_aplica') && (
+                                                            <div className="mt-2">
+                                                                <textarea
+                                                                    placeholder="Agregar observación..."
+                                                                    value={observations[item.id] || ''}
+                                                                    onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none"
+                                                                    rows={2}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -444,19 +598,39 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 })}
             </div>
 
-            {/* Analysis Report */}
+            {/* Analysis Report - Editable */}
             {analysisReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
-                    <div className="mb-4 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-text-secondary" />
-                        <h3 className="font-semibold text-text-primary">Informe Gerencial</h3>
+                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b border-border-light">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-text-secondary" />
+                            <h3 className="font-semibold text-text-primary">Informe Gerencial</h3>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={handleSave} variant="outline" size="sm" className="gap-1">
+                                <Save className="h-3 w-3" />
+                                Guardar
+                            </Button>
+                        </div>
                     </div>
-                    <div
-                        className="prose prose-sm dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: analysisReport }}
-                    />
+                    <div style={{ minHeight: '400px' }}>
+                        <LiveEditor
+                            initialContent={analysisReport}
+                            onUpdate={(content) => setEditorContent(content)}
+                            onSave={handleSave}
+                        />
+                    </div>
                 </div>
             )}
+
+            {/* Report History Panel */}
+            <ReportHistory
+                isOpen={isHistoryOpen}
+                toggleOpen={() => setIsHistoryOpen(false)}
+                onSelectReport={handleSelectReport}
+                refreshTrigger={refreshTrigger}
+                tags={['sgsst-diagnostico']}
+            />
         </div>
     );
 };
