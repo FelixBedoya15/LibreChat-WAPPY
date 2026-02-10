@@ -5,7 +5,7 @@ import {
     Briefcase, Shield, Hash, FileText, Users, Activity,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
-import { useToastContext } from '~/Providers';
+import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 
 interface CompanyInfoData {
