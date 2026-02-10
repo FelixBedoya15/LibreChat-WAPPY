@@ -10,6 +10,7 @@ import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
 import DiagnosticoChecklist from './DiagnosticoChecklist';
+import PoliticaSST from './PoliticaSST';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -227,6 +228,13 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                                         {category.id === 'diagnostico' && (
                                             <div className="mb-6">
                                                 <DiagnosticoChecklist />
+                                            </div>
+                                        )}
+
+                                        {/* Show PoliticaSST for politica category */}
+                                        {category.id === 'politica' && (
+                                            <div className="mb-6">
+                                                <PoliticaSST />
                                             </div>
                                         )}
 

@@ -203,6 +203,7 @@ const startServer = async () => {
   app.use('/api/ads', routes.ads);
   app.use('/api/sgsst/diagnostico', routes.sgsst.diagnostico);
   app.use('/api/sgsst/company-info', routes.sgsst.companyInfo);
+  app.use('/api/sgsst/politica', routes.sgsst.politica);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {
