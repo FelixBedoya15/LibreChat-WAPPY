@@ -1,14 +1,16 @@
 import React from 'react';
 import { useLocalize } from '~/hooks';
-import { FileText, ClipboardCheck, BarChart2, ShieldAlert } from 'lucide-react';
+import { FileText, ClipboardCheck, BarChart2, ShieldAlert, Building2 } from 'lucide-react';
 import { cn } from '~/utils';
 
 import { PHASE_CATEGORIES } from './constants';
 import PhaseDetail from './PhaseDetail';
+import CompanyInfoModal from './CompanyInfoModal';
 
 const SGSSTDashboard = () => {
     const localize = useLocalize();
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
+    const [showCompanyInfo, setShowCompanyInfo] = React.useState(false);
 
     const phases = [
         {
@@ -52,7 +54,16 @@ const SGSSTDashboard = () => {
     return (
         <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary p-6">
             <div className="mb-8 text-center">
-                <h1 className="text-3xl font-bold text-text-primary">Sistema de Gestión SST</h1>
+                <div className="flex items-center justify-center gap-3">
+                    <h1 className="text-3xl font-bold text-text-primary">Sistema de Gestión SST</h1>
+                    <button
+                        onClick={() => setShowCompanyInfo(true)}
+                        className="rounded-lg border border-border-medium p-2 text-text-secondary transition-colors hover:bg-surface-hover hover:text-blue-500"
+                        title="Información de la Empresa"
+                    >
+                        <Building2 className="h-5 w-5" />
+                    </button>
+                </div>
                 <p className="mt-2 text-text-secondary">Ciclo PHVA (Planear - Hacer - Verificar - Actuar)</p>
             </div>
 
@@ -86,8 +97,11 @@ const SGSSTDashboard = () => {
                     </div>
                 ))}
             </div>
+
+            <CompanyInfoModal isOpen={showCompanyInfo} onClose={() => setShowCompanyInfo(false)} />
         </div>
     );
 };
 
 export default SGSSTDashboard;
+

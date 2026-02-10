@@ -24,12 +24,12 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
         e.preventDefault();
         try {
             await axios.post('/api/admin/users/create', formData);
-            showToast({ message: 'User created successfully', status: 'success' });
+            showToast({ message: localize('com_ui_user_created_success') || 'User created successfully', status: 'success' });
             onUserCreated();
             onClose();
         } catch (error) {
             console.error('Error creating user:', error);
-            showToast({ message: error.response?.data?.message || 'Error creating user', status: 'error' });
+            showToast({ message: error.response?.data?.message || localize('com_ui_user_create_error') || 'Error creating user', status: 'error' });
         }
     };
 
@@ -116,10 +116,10 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
                                             onChange={handleChange}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         >
-                                            <option value="USER">User</option>
-                                            <option value="USER_PLUS">User Plus</option>
-                                            <option value="USER_PRO">User Pro</option>
-                                            <option value="ADMIN">Admin</option>
+                                            <option value="USER">{localize('com_ui_role_user')}</option>
+                                            <option value="USER_PLUS">{localize('com_ui_role_user_plus')}</option>
+                                            <option value="USER_PRO">{localize('com_ui_role_user_pro')}</option>
+                                            <option value="ADMIN">{localize('com_ui_role_admin')}</option>
                                         </select>
                                     </div>
                                     <div>
@@ -130,9 +130,9 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
                                             onChange={handleChange}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         >
-                                            <option value="active">Active</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="inactive">Inactive</option>
+                                            <option value="active">{localize('com_ui_status_active')}</option>
+                                            <option value="pending">{localize('com_ui_status_pending')}</option>
+                                            <option value="inactive">{localize('com_ui_status_inactive')}</option>
                                         </select>
                                     </div>
                                     <div className="mt-6 flex justify-end gap-3">

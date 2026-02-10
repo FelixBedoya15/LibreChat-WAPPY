@@ -9,6 +9,7 @@ const { getUserKey } = require('~/server/services/UserService');
 const { saveConvo } = require('~/models/Conversation');
 const { saveMessage, updateMessageText, getMessages } = require('~/models/Message');
 const { updateTagsForConversation } = require('~/models/ConversationTag');
+const CompanyInfo = require('~/models/CompanyInfo');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -71,6 +72,33 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const percentage = ((score / totalPoints) * 100).toFixed(1);
 
+        // Load company info from DB
+        let companyInfoBlock = '';
+        try {
+            const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            if (ci && ci.companyName) {
+                companyInfoBlock = `
+**Datos de la Empresa:**
+- Razón Social: ${ci.companyName || 'No registrado'}
+- NIT: ${ci.nit || 'No registrado'}
+- Representante Legal: ${ci.legalRepresentative || 'No registrado'}
+- Número de Trabajadores: ${ci.workerCount || 'No registrado'}
+- ARL: ${ci.arl || 'No registrada'}
+- Actividad Económica: ${ci.economicActivity || 'No registrada'}
+- Código CIIU: ${ci.ciiu || 'No registrado'}
+- Nivel de Riesgo: ${ci.riskLevel || riskLevel}
+- Sector: ${ci.sector || 'No registrado'}
+- Dirección: ${ci.address || 'No registrada'}, ${ci.city || ''}
+- Teléfono: ${ci.phone || 'No registrado'}
+- Email: ${ci.email || 'No registrado'}
+- Responsable SG-SST: ${ci.responsibleSST || 'No registrado'}
+- Actividades Generales: ${ci.generalActivities || 'No registradas'}
+`;
+            }
+        } catch (ciErr) {
+            logger.warn('[SGSST] Error loading company info:', ciErr.message);
+        }
+
         const promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
 
 **Fecha de Emisión:** ${currentDate || new Date().toLocaleDateString('es-CO')}
@@ -85,6 +113,7 @@ Analiza los resultados de la evaluación según la Resolución 0312 de 2019 y ge
 - Tamaño: ${companySize === 'small' ? '≤10 trabajadores' : companySize === 'medium' ? '11-50 trabajadores' : '>50 trabajadores'}
 - Nivel de Riesgo: ${riskLevel}
 - Artículo Aplicable: Artículo ${applicableArticle}
+${companyInfoBlock}
 
 **Resultados:**
 - Puntuación Total: ${score}/${totalPoints} (${percentage}%)

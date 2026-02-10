@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
     Filter,
@@ -62,6 +63,7 @@ const STATUS_OPTIONS = [
 ];
 
 const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisComplete }) => {
+    const { t } = useTranslation();
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
 
@@ -161,7 +163,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     const handleAnalyze = useCallback(async () => {
         if (completedCount === 0) {
-            showToast({ message: 'Complete al menos un ítem antes de analizar', status: 'warning' });
+            showToast({ message: t('com_ui_complete_one_item', 'Complete al menos un ítem antes de analizar'), status: 'warning' });
             return;
         }
 
@@ -194,10 +196,10 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             setConversationId('new');
             setReportMessageId(null);
             onAnalysisComplete?.(result.report);
-            showToast({ message: 'Análisis generado exitosamente', status: 'success' });
+            showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
         } catch (error) {
             console.error('Analysis error:', error);
-            showToast({ message: 'Error al generar el análisis', status: 'error' });
+            showToast({ message: t('com_ui_analysis_error', 'Error al generar el análisis'), status: 'error' });
         } finally {
             setIsAnalyzing(false);
         }
@@ -206,7 +208,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;
         if (!contentForExport) {
-            showToast({ message: 'Primero genere el análisis', status: 'warning' });
+            showToast({ message: t('com_ui_generate_analysis_first', 'Primero genere el análisis'), status: 'warning' });
             return;
         }
 
@@ -286,18 +288,18 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             messageTitle: 'Evaluación según Resolución 0312 de 2019',
         });
 
-        showToast({ message: 'Informe exportado a Word', status: 'success' });
+        showToast({ message: t('com_ui_export_word_success', 'Informe exportado a Word'), status: 'success' });
     }, [editorContent, analysisReport, showToast]);
 
     // Save report using dedicated backend endpoint
     const handleSave = useCallback(async () => {
         const contentToSave = editorContent || analysisReport;
         if (!contentToSave) {
-            showToast({ message: 'No hay informe para guardar', status: 'warning' });
+            showToast({ message: t('com_ui_no_report_save', 'No hay informe para guardar'), status: 'warning' });
             return;
         }
         if (!token) {
-            showToast({ message: 'Error: No autorizado', status: 'error' });
+            showToast({ message: t('com_ui_error_unauthorized', 'Error: No autorizado'), status: 'error' });
             return;
         }
 
@@ -317,10 +319,10 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Diagnóstico actualizado exitosamente', status: 'success' });
+                    showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success' });
                 } else {
                     const err = await res.json();
-                    showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
+                    showToast({ message: `${t('com_ui_update_error', 'Error al actualizar')}: ${err.error || res.status}`, status: 'error' });
                 }
                 return;
             }
@@ -340,14 +342,14 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Diagnóstico guardado exitosamente', status: 'success' });
+                showToast({ message: t('com_ui_diagnostic_saved', 'Diagnóstico guardado exitosamente'), status: 'success' });
             } else {
                 const err = await res.json();
-                showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
+                showToast({ message: `${t('com_ui_save_error', 'Error al guardar')}: ${err.error || res.status}`, status: 'error' });
             }
         } catch (e) {
             console.error('[SGSST Save] Error:', e);
-            showToast({ message: 'Error de red al guardar el diagnóstico', status: 'error' });
+            showToast({ message: t('com_ui_save_network_error', 'Error de red al guardar el diagnóstico'), status: 'error' });
         }
     }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast]);
 
@@ -368,11 +370,11 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Diagnóstico cargado', status: 'success' });
+                showToast({ message: t('com_ui_diagnostic_loaded', 'Diagnóstico cargado'), status: 'success' });
             }
         } catch (e) {
             console.error('Load error:', e);
-            showToast({ message: 'Error al cargar el diagnóstico', status: 'error' });
+            showToast({ message: t('com_ui_load_error', 'Error al cargar el diagnóstico'), status: 'error' });
         }
     }, [token, showToast]);
 
@@ -402,13 +404,13 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
                 <div className="mb-4 flex items-center gap-2">
                     <Filter className="h-5 w-5 text-text-secondary" />
-                    <h3 className="font-semibold text-text-primary">Filtros de Evaluación</h3>
+                    <h3 className="font-semibold text-text-primary">{t('com_ui_eval_filters', 'Filtros de Evaluación')}</h3>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="mb-2 block text-sm font-medium text-text-secondary">
-                            Número de Trabajadores
+                            {t('com_ui_worker_count', 'Número de Trabajadores')}
                         </label>
                         <select
                             value={companySize}
@@ -423,7 +425,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
                     <div>
                         <label className="mb-2 block text-sm font-medium text-text-secondary">
-                            Nivel de Riesgo
+                            {t('com_ui_risk_level', 'Nivel de Riesgo')}
                         </label>
                         <select
                             value={riskLevel}
@@ -440,8 +442,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <div className="mt-4 flex items-center gap-2 rounded-lg bg-blue-500/10 p-3 text-sm">
                     <AlertTriangle className="h-4 w-4 text-blue-500" />
                     <span className="text-blue-700 dark:text-blue-300">
-                        Aplica <strong>Artículo {applicableArticle}</strong> de la Resolución 0312/2019
-                        ({checklist.length} estándares)
+                        {t('com_ui_applies_article', 'Aplica')} <strong>{t('com_ui_article', 'Artículo')} {applicableArticle}</strong> {t('com_ui_resolution_0312', 'de la Resolución 0312/2019')}
+                        ({checklist.length} {t('com_ui_standards', 'estándares')})
                     </span>
                 </div>
             </div>
@@ -451,19 +453,19 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-6">
                         <div>
-                            <p className="text-sm text-text-secondary">Progreso</p>
+                            <p className="text-sm text-text-secondary">{t('com_ui_progress', 'Progreso')}</p>
                             <p className="text-2xl font-bold text-text-primary">
                                 {completedCount}/{checklist.length}
                             </p>
                         </div>
                         <div>
-                            <p className="text-sm text-text-secondary">Puntuación</p>
+                            <p className="text-sm text-text-secondary">{t('com_ui_score', 'Puntuación')}</p>
                             <p className="text-2xl font-bold text-text-primary">
                                 {currentScore.toFixed(1)}/{Math.round(totalPoints)}
                             </p>
                         </div>
                         <div>
-                            <p className="text-sm text-text-secondary">Nivel</p>
+                            <p className="text-sm text-text-secondary">{t('com_ui_level', 'Nivel')}</p>
                             <span className={cn(
                                 'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium',
                                 complianceLevel.level === 'crítico' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -482,7 +484,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             className="gap-2"
                         >
                             <History className="h-4 w-4" />
-                            Historial
+                            {t('com_ui_history', 'Historial')}
                         </Button>
                         <Button
                             onClick={handleAnalyze}
@@ -494,17 +496,17 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             ) : (
                                 <Sparkles className="h-4 w-4" />
                             )}
-                            Generar Análisis IA
+                            {t('com_ui_gen_analysis', 'Generar Análisis IA')}
                         </Button>
                         {analysisReport && (
                             <>
                                 <Button onClick={handleSave} variant="outline" className="gap-2">
                                     <Save className="h-4 w-4" />
-                                    Guardar
+                                    {t('com_ui_save', 'Guardar')}
                                 </Button>
                                 <Button onClick={handleExportWord} variant="outline" className="gap-2">
                                     <Download className="h-4 w-4" />
-                                    Exportar Word
+                                    {t('com_ui_export_word', 'Exportar Word')}
                                 </Button>
                             </>
                         )}
@@ -554,7 +556,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                     )}
                                     <span className="font-bold">{getCategoryTitle(category)}</span>
                                     <span className="text-sm text-text-secondary">
-                                        ({categoryCompleted}/{items.length} evaluados)
+                                        ({categoryCompleted}/{items.length} {t('com_ui_evaluated', 'evaluados')})
                                     </span>
                                 </div>
                             </button>
@@ -584,7 +586,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                                 </p>
                                                                 <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
                                                                 <p className="mt-1 text-xs text-text-tertiary">
-                                                                    Puntaje: {item.points} pts | {item.subcategory}
+                                                                    {t('com_ui_points', 'Puntaje')}: {item.points} pts | {item.subcategory}
                                                                 </p>
                                                             </div>
 
@@ -613,7 +615,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                         {isItemExpanded && (
                                                             <div className="mt-3 rounded-lg border border-border-light bg-surface-secondary p-3">
                                                                 <p className="mb-2 text-sm font-medium text-text-primary">
-                                                                    ¿Cómo se evalúa?
+                                                                    {t('com_ui_how_eval', '¿Cómo se evalúa?')}
                                                                 </p>
                                                                 <p className="text-sm text-text-secondary">{item.evaluation}</p>
                                                             </div>
@@ -623,7 +625,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                         {(status === 'parcial' || status === 'no_aplica') && (
                                                             <div className="mt-2">
                                                                 <textarea
-                                                                    placeholder="Agregar observación..."
+                                                                    placeholder={t('com_ui_add_obs', 'Agregar observación...')}
                                                                     value={observations[item.id] || ''}
                                                                     onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
                                                                     className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none"
@@ -649,7 +651,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     <div className="flex items-center justify-between p-4 border-b border-border-light">
                         <div className="flex items-center gap-2">
                             <FileText className="h-5 w-5 text-text-secondary" />
-                            <h3 className="font-semibold text-text-primary">Informe Gerencial</h3>
+                            <h3 className="font-semibold text-text-primary">{t('com_ui_manager_report', 'Informe Gerencial')}</h3>
                         </div>
                     </div>
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
