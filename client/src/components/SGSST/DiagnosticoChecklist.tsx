@@ -289,7 +289,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         showToast({ message: 'Informe exportado a Word', status: 'success' });
     }, [editorContent, analysisReport, showToast]);
 
-    // Save report as conversation tagged 'sgsst-diagnostico'
+    // Save report using dedicated backend endpoint
     const handleSave = useCallback(async () => {
         const contentToSave = editorContent || analysisReport;
         if (!contentToSave) {
@@ -301,118 +301,53 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             return;
         }
 
-        const tagConversation = async (id: string) => {
-            try {
-                const tagRes = await fetch(`/api/tags/convo/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ tags: ['sgsst-diagnostico'] }),
-                });
-                if (tagRes.ok) {
-                    const dateStr = new Date().toLocaleString('es-CO');
-                    await fetch('/api/convos/update', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ arg: { conversationId: id, title: `Diagnóstico SGSST - ${dateStr}` } }),
-                    });
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Diagnóstico guardado exitosamente', status: 'success' });
-                }
-            } catch (e) {
-                console.error('Error tagging:', e);
-                showToast({ message: 'Error al etiquetar el diagnóstico', status: 'error' });
-            }
-        };
-
-        // Update existing report
-        if (conversationId && conversationId !== 'new' && reportMessageId) {
-            try {
-                console.log('[SGSST Save] Updating existing:', conversationId, reportMessageId);
-                await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ text: contentToSave }),
-                });
-                await tagConversation(conversationId);
-            } catch (e) {
-                console.error('Update error:', e);
-                showToast({ message: 'Error al actualizar', status: 'error' });
-            }
-            return;
-        }
-
-        // Create new conversation via /api/ask (same pattern as LivePage)
         try {
-            console.log('[SGSST Save] Creating new conversation');
-            const res = await fetch('/api/ask', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    text: contentToSave,
-                    conversationId: null,
-                    model: 'gemini-2.5-flash-preview-09-2025',
-                    endpoint: 'google',
-                    parentMessageId: '00000000-0000-0000-0000-000000000000',
-                }),
-            });
-
-            if (!res.ok) {
-                showToast({ message: `Error al crear: ${res.status}`, status: 'error' });
-                return;
-            }
-
-            // Parse conversation ID from stream response
-            let newConvoId: string | null = null;
-            if (res.body) {
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let done = false;
-
-                while (!done) {
-                    const { value, done: doneReading } = await reader.read();
-                    done = doneReading;
-                    if (value) {
-                        const chunk = decoder.decode(value);
-                        const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
-                        if (match && match[1]) {
-                            newConvoId = match[1];
-                            break;
-                        }
-                    }
-                }
-                try { if (!done) reader.cancel(); } catch (_e) { /* noop */ }
-            }
-
-            if (newConvoId) {
-                setConversationId(newConvoId);
-                console.log('[SGSST Save] Created:', newConvoId);
-
-                // Now save the actual report content as a message
-                const msgRes = await fetch(`/api/messages/${newConvoId}`, {
-                    method: 'POST',
+            // Update existing report
+            if (conversationId && conversationId !== 'new' && reportMessageId) {
+                console.log('[SGSST Save] Updating existing:', conversationId, reportMessageId);
+                const res = await fetch('/api/sgsst/diagnostico/save-report', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({
-                        text: contentToSave,
-                        conversationId: newConvoId,
-                        sender: 'Assistant',
-                        isCreatedByUser: false,
-                        isHtmlReport: true,
-                        messageId: crypto.randomUUID(),
+                        conversationId,
+                        messageId: reportMessageId,
+                        content: contentToSave,
                     }),
                 });
 
-                if (msgRes.ok) {
-                    const savedMsg = await msgRes.json();
-                    setReportMessageId(savedMsg.messageId);
+                if (res.ok) {
+                    setRefreshTrigger(prev => prev + 1);
+                    showToast({ message: 'Diagnóstico actualizado exitosamente', status: 'success' });
+                } else {
+                    const err = await res.json();
+                    showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
                 }
+                return;
+            }
 
-                await tagConversation(newConvoId);
+            // Create new report
+            console.log('[SGSST Save] Creating new report');
+            const res = await fetch('/api/sgsst/diagnostico/save-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    content: contentToSave,
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setConversationId(data.conversationId);
+                setReportMessageId(data.messageId);
+                setRefreshTrigger(prev => prev + 1);
+                showToast({ message: 'Diagnóstico guardado exitosamente', status: 'success' });
             } else {
-                showToast({ message: 'Error: No se obtuvo ID de conversación', status: 'error' });
+                const err = await res.json();
+                showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
             }
         } catch (e) {
-            console.error('Save error:', e);
-            showToast({ message: 'Error al guardar el diagnóstico', status: 'error' });
+            console.error('[SGSST Save] Error:', e);
+            showToast({ message: 'Error de red al guardar el diagnóstico', status: 'error' });
         }
     }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast]);
 

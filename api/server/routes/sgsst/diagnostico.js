@@ -1,10 +1,14 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
+const { saveConvo } = require('~/models/Conversation');
+const { saveMessage, updateMessageText, getMessages } = require('~/models/Message');
+const { updateTagsForConversation } = require('~/models/ConversationTag');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -140,7 +144,9 @@ Genera un informe gerencial en formato HTML con las siguientes secciones:
    - Cronograma sugerido de implementación
    - Métricas de seguimiento
 
-Usa etiquetas HTML semánticas (<h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
+IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
+Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
+Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="color:#004d99;">).
 El informe debe ser profesional, específico y accionable.`;
 
         // 4. Generate the report
@@ -148,10 +154,24 @@ El informe debe ser profesional, específico y accionable.`;
         const response = await result.response;
         const report = response.text();
 
-        // Clean up markdown code blocks if present
+        // Clean up: remove code blocks, full HTML document wrappers
         let cleanedReport = report
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
+            .trim();
+
+        // Strip full HTML document structure if AI still generates it
+        const bodyMatch = cleanedReport.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch) {
+            cleanedReport = bodyMatch[1].trim();
+        }
+        // Remove DOCTYPE, html, head, style tags
+        cleanedReport = cleanedReport
+            .replace(/<!DOCTYPE[^>]*>/gi, '')
+            .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+            .replace(/<head>[\s\S]*?<\/head>/gi, '')
+            .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
 
         res.json({
@@ -170,6 +190,82 @@ El informe debe ser profesional, específico y accionable.`;
     } catch (error) {
         logger.error('[SGSST Diagnostico] Analysis error:', error);
         res.status(500).json({ error: 'Error generating analysis' });
+    }
+});
+
+/**
+ * POST /api/sgsst/diagnostico/save-report
+ * Saves a new SGSST diagnostic report as a conversation+message and tags it.
+ */
+router.post('/save-report', requireJwtAuth, async (req, res) => {
+    try {
+        const { content, title } = req.body;
+        if (!content) {
+            return res.status(400).json({ error: 'Content is required' });
+        }
+
+        const conversationId = crypto.randomUUID();
+        const messageId = crypto.randomUUID();
+        const dateStr = new Date().toLocaleString('es-CO');
+        const reportTitle = title || `Diagnóstico SGSST - ${dateStr}`;
+
+        // 1. Save conversation
+        await saveConvo(req, {
+            conversationId,
+            title: reportTitle,
+            endpoint: 'sgsst-diagnostico',
+            model: 'sgsst-diagnostico',
+        }, { context: 'SGSST save-report' });
+
+        // 2. Save message with the report content
+        await saveMessage(req, {
+            messageId,
+            conversationId,
+            text: content,
+            sender: 'SGSST Diagnóstico',
+            isCreatedByUser: false,
+            parentMessageId: '00000000-0000-0000-0000-000000000000',
+        }, { context: 'SGSST save-report message' });
+
+        // 3. Tag the conversation
+        try {
+            await updateTagsForConversation(
+                req.user.id,
+                conversationId,
+                ['sgsst-diagnostico'],
+            );
+        } catch (tagErr) {
+            logger.warn('[SGSST] Error tagging conversation:', tagErr);
+        }
+
+        res.status(201).json({
+            conversationId,
+            messageId,
+            title: reportTitle,
+        });
+    } catch (error) {
+        logger.error('[SGSST save-report] Error:', error);
+        res.status(500).json({ error: 'Error saving report' });
+    }
+});
+
+/**
+ * PUT /api/sgsst/diagnostico/save-report
+ * Updates an existing SGSST diagnostic report message.
+ */
+router.put('/save-report', requireJwtAuth, async (req, res) => {
+    try {
+        const { conversationId, messageId, content } = req.body;
+        if (!conversationId || !messageId || !content) {
+            return res.status(400).json({ error: 'conversationId, messageId, and content are required' });
+        }
+
+        await updateMessageText(req, { messageId, text: content });
+
+        res.json({ success: true, conversationId, messageId });
+    } catch (error) {
+        logger.error('[SGSST save-report update] Error:', error);
+        res.status(500).json({ error: 'Error updating report' });
     }
 });
 
