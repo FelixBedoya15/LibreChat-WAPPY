@@ -651,12 +651,6 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             <FileText className="h-5 w-5 text-text-secondary" />
                             <h3 className="font-semibold text-text-primary">Informe Gerencial</h3>
                         </div>
-                        <div className="flex gap-2">
-                            <Button onClick={handleSave} variant="outline" size="sm" className="gap-1">
-                                <Save className="h-3 w-3" />
-                                Guardar
-                            </Button>
-                        </div>
                     </div>
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <LiveEditor
