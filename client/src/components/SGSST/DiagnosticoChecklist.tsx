@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import axios from 'axios';
 import {
     Filter,
     CheckCircle2,
@@ -166,17 +167,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             };
 
             // Call analysis API
-            const response = await fetch('/api/sgsst/diagnostico/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(analysisData),
-            });
+            const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData);
 
-            if (!response.ok) {
-                throw new Error('Error al generar el análisis');
-            }
-
-            const result = await response.json();
+            const result = response.data;
             setAnalysisReport(result.report);
             onAnalysisComplete?.(result.report);
             showToast({ message: 'Análisis generado exitosamente', status: 'success' });

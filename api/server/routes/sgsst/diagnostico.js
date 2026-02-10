@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
-const GoogleClient = require('~/app/clients/GoogleClient');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
- * Analyzes the SGSST checklist and generates a management report
+ * Analyzes the SGSST checklist and generates a management report.
+ * Uses the same Google API key the user configures in chat settings.
  */
 router.post('/analyze', requireJwtAuth, async (req, res) => {
     try {
@@ -22,39 +23,37 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             complianceLevel,
         } = req.body;
 
-        // Get API key from user settings first, then environment
-        let apiKey;
+        // 1. Retrieve the user's Google API key (same one used by chat)
+        let resolvedApiKey;
         try {
-            apiKey = await getUserKey({ userId: req.user.id, name: 'google' });
+            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+            // The stored key is a JSON string like {"GOOGLE_API_KEY": "AIza..."}
+            // We need to extract the actual API key from it
+            try {
+                const parsed = JSON.parse(storedKey);
+                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+            } catch (parseErr) {
+                // If it's not JSON, treat it as a raw API key string
+                resolvedApiKey = storedKey;
+            }
         } catch (err) {
-            logger.debug('[SGSST] No user Google key found, trying env vars');
+            logger.debug('[SGSST] No user Google key found, trying env vars:', err.message);
         }
 
-        if (!apiKey) {
-            apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+        // 2. Fallback to environment variables
+        if (!resolvedApiKey) {
+            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
         }
 
-        if (!apiKey) {
-            return res.status(500).json({ error: 'API key not configured. Please add your Google API Key in settings.' });
+        if (!resolvedApiKey) {
+            return res.status(400).json({
+                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.',
+            });
         }
 
-        // Initialize GoogleClient with robust credential handling
-        let credentials = apiKey;
-        try {
-            // If it's a JSON string (Service Account), parse it
-            credentials = JSON.parse(apiKey);
-        } catch (e) {
-            // If parse fails, assume it's a raw API Key string
-            credentials = { [AuthKeys.GOOGLE_API_KEY]: apiKey };
-        }
-
-        const client = new GoogleClient(credentials, {
-            req,
-            modelOptions: {
-                model: 'gemini-2.5-flash-preview-09-2025',
-                temperature: 0.7,
-            },
-        });
+        // 3. Initialize the Gemini SDK directly (same SDK used by GoogleClient internally)
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
 
         // Build the prompt for analysis
         const completedItems = checklist.filter(item => item.status === 'cumple');
@@ -125,21 +124,10 @@ Genera un informe gerencial en formato HTML con las siguientes secciones:
 Usa etiquetas HTML semánticas (<h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
 El informe debe ser profesional, específico y accionable.`;
 
-        // Create payload for GoogleClient (GenAI format)
-        const payload = [
-            {
-                role: 'user',
-                parts: [{ text: promptText }],
-            },
-        ];
-
-        // Abort controller is required by getCompletion
-        const abortController = new AbortController();
-
-        const report = await client.getCompletion(payload, {
-            abortController,
-            onProgress: () => { }, // Optional progress handler
-        });
+        // 4. Generate the report
+        const result = await model.generateContent(promptText);
+        const response = await result.response;
+        const report = response.text();
 
         // Clean up markdown code blocks if present
         let cleanedReport = report
