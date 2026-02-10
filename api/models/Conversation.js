@@ -168,6 +168,10 @@ module.exports = {
 
     if (Array.isArray(tags) && tags.length > 0) {
       filters.push({ tags: { $in: tags } });
+    } else {
+      // Exclude internal tool conversations from the main sidebar
+      const internalTags = ['sgsst-diagnostico', 'report'];
+      filters.push({ $or: [{ tags: { $exists: false } }, { tags: { $nin: internalTags } }] });
     }
 
     filters.push({ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] });
