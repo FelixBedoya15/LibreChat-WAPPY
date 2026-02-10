@@ -204,15 +204,78 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations]);
 
     const handleExportWord = useCallback(async () => {
-        if (!analysisReport) {
+        const contentForExport = editorContent || analysisReport;
+        if (!contentForExport) {
             showToast({ message: 'Primero genere el análisis', status: 'warning' });
             return;
         }
 
+        // Convert HTML to plain text/markdown for Word export
+        const htmlToMarkdown = (html: string): string => {
+            // Extract body content if full HTML doc
+            let body = html;
+            const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            if (bodyMatch) body = bodyMatch[1];
+
+            // Strip style/script tags entirely
+            body = body.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            body = body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+
+            // Convert headings
+            body = body.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n');
+            body = body.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n');
+            body = body.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n');
+            body = body.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n');
+
+            // Convert tables to markdown
+            body = body.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_, tableContent) => {
+                const rows: string[] = [];
+                const rowMatches = tableContent.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+                rowMatches.forEach((row: string, idx: number) => {
+                    const cells = (row.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi) || []).map((cell: string) =>
+                        cell.replace(/<t[hd][^>]*>/i, '').replace(/<\/t[hd]>/i, '').replace(/<[^>]+>/g, '').trim()
+                    );
+                    rows.push('| ' + cells.join(' | ') + ' |');
+                    if (idx === 0) {
+                        rows.push('| ' + cells.map(() => '---').join(' | ') + ' |');
+                    }
+                });
+                return rows.join('\n') + '\n';
+            });
+
+            // Convert lists
+            body = body.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+            body = body.replace(/<\/?[uo]l[^>]*>/gi, '\n');
+
+            // Convert formatting
+            body = body.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+            body = body.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+            body = body.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+            body = body.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+
+            // Convert paragraphs and line breaks
+            body = body.replace(/<br\s*\/?>/gi, '\n');
+            body = body.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
+            body = body.replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n');
+
+            // Strip remaining HTML tags
+            body = body.replace(/<[^>]+>/g, '');
+
+            // Decode HTML entities
+            body = body.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"');
+
+            // Clean up whitespace
+            body = body.replace(/\n{3,}/g, '\n\n').trim();
+
+            return body;
+        };
+
+        const markdownContent = htmlToMarkdown(contentForExport);
+
         // Dynamic import of word export
         const { exportToWord } = await import('~/utils/wordExport');
 
-        await exportToWord(analysisReport, {
+        await exportToWord(markdownContent, {
             documentTitle: 'Informe Diagnóstico SG-SST',
             fontFamily: 'Arial',
             fontSize: 11,
@@ -224,7 +287,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         });
 
         showToast({ message: 'Informe exportado a Word', status: 'success' });
-    }, [analysisReport, showToast]);
+    }, [editorContent, analysisReport, showToast]);
 
     // Save report as conversation tagged 'sgsst-diagnostico'
     const handleSave = useCallback(async () => {
@@ -264,6 +327,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         // Update existing report
         if (conversationId && conversationId !== 'new' && reportMessageId) {
             try {
+                console.log('[SGSST Save] Updating existing:', conversationId, reportMessageId);
                 await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -277,28 +341,74 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             return;
         }
 
-        // Create new conversation + message
+        // Create new conversation via /api/ask (same pattern as LivePage)
         try {
-            const convoRes = await fetch('/api/messages', {
+            console.log('[SGSST Save] Creating new conversation');
+            const res = await fetch('/api/ask', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
-                    conversationId: null,
                     text: contentToSave,
-                    sender: 'User',
-                    isCreatedByUser: true,
+                    conversationId: null,
+                    model: 'gemini-2.5-flash-preview-09-2025',
+                    endpoint: 'google',
                     parentMessageId: '00000000-0000-0000-0000-000000000000',
-                    model: 'sgsst-diagnostico',
                 }),
             });
 
-            if (convoRes.ok) {
-                const convoData = await convoRes.json();
-                const newId = convoData.conversationId;
-                const newMsgId = convoData.messageId;
-                setConversationId(newId);
-                setReportMessageId(newMsgId);
-                await tagConversation(newId);
+            if (!res.ok) {
+                showToast({ message: `Error al crear: ${res.status}`, status: 'error' });
+                return;
+            }
+
+            // Parse conversation ID from stream response
+            let newConvoId: string | null = null;
+            if (res.body) {
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
+
+                while (!done) {
+                    const { value, done: doneReading } = await reader.read();
+                    done = doneReading;
+                    if (value) {
+                        const chunk = decoder.decode(value);
+                        const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
+                        if (match && match[1]) {
+                            newConvoId = match[1];
+                            break;
+                        }
+                    }
+                }
+                try { if (!done) reader.cancel(); } catch (_e) { /* noop */ }
+            }
+
+            if (newConvoId) {
+                setConversationId(newConvoId);
+                console.log('[SGSST Save] Created:', newConvoId);
+
+                // Now save the actual report content as a message
+                const msgRes = await fetch(`/api/messages/${newConvoId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({
+                        text: contentToSave,
+                        conversationId: newConvoId,
+                        sender: 'Assistant',
+                        isCreatedByUser: false,
+                        isHtmlReport: true,
+                        messageId: crypto.randomUUID(),
+                    }),
+                });
+
+                if (msgRes.ok) {
+                    const savedMsg = await msgRes.json();
+                    setReportMessageId(savedMsg.messageId);
+                }
+
+                await tagConversation(newConvoId);
+            } else {
+                showToast({ message: 'Error: No se obtuvo ID de conversación', status: 'error' });
             }
         } catch (e) {
             console.error('Save error:', e);
@@ -613,13 +723,27 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             </Button>
                         </div>
                     </div>
-                    <div style={{ minHeight: '400px' }}>
+                    <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <LiveEditor
                             initialContent={analysisReport}
                             onUpdate={(content) => setEditorContent(content)}
                             onSave={handleSave}
                         />
                     </div>
+                    <style>{`
+                        [contenteditable] table {
+                            display: block;
+                            overflow-x: auto;
+                            max-width: 100%;
+                            border-collapse: collapse;
+                        }
+                        [contenteditable] table td,
+                        [contenteditable] table th {
+                            white-space: nowrap;
+                            padding: 8px 12px;
+                            border: 1px solid var(--border-medium, #ddd);
+                        }
+                    `}</style>
                 </div>
             )}
 
