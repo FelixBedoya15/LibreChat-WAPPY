@@ -1,7 +1,10 @@
 import React from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useLocalize } from '~/hooks';
 import { FileText, ClipboardCheck, BarChart2, ShieldAlert, Building2 } from 'lucide-react';
 import { cn } from '~/utils';
+import { OpenSidebar } from '~/components/Chat/Menus';
+import type { ContextType } from '~/common';
 
 import { PHASE_CATEGORIES } from './constants';
 import PhaseDetail from './PhaseDetail';
@@ -9,6 +12,7 @@ import CompanyInfoModal from './CompanyInfoModal';
 
 const SGSSTDashboard = () => {
     const localize = useLocalize();
+    const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
     const [showCompanyInfo, setShowCompanyInfo] = React.useState(false);
 
@@ -55,6 +59,9 @@ const SGSSTDashboard = () => {
         <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary p-6">
             <div className="mb-8 text-center">
                 <div className="flex items-center justify-center gap-3">
+                    {!navVisible && (
+                        <OpenSidebar setNavVisible={setNavVisible} />
+                    )}
                     <h1 className="text-3xl font-bold text-text-primary">Sistema de Gestión SST</h1>
                     <button
                         onClick={() => setShowCompanyInfo(true)}
