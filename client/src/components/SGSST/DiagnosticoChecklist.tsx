@@ -477,37 +477,50 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                        <Button
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            variant="outline"
-                            className="gap-2"
+                            className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                         >
-                            <History className="h-4 w-4" />
-                            {t('com_ui_history', 'Historial')}
-                        </Button>
-                        <Button
+                            <History className="h-5 w-5" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                {t('com_ui_history', 'Historial')}
+                            </span>
+                        </button>
+                        <button
                             onClick={handleAnalyze}
                             disabled={isAnalyzing || completedCount === 0}
-                            className="gap-2"
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isAnalyzing ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
-                                <Sparkles className="h-4 w-4" />
+                                <Sparkles className="h-5 w-5" />
                             )}
-                            {t('com_ui_gen_analysis', 'Generar Análisis IA')}
-                        </Button>
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                {t('com_ui_gen_analysis', 'Generar Análisis IA')}
+                            </span>
+                        </button>
                         {analysisReport && (
                             <>
-                                <Button onClick={handleSave} variant="outline" className="gap-2">
-                                    <Save className="h-4 w-4" />
-                                    {t('com_ui_save', 'Guardar')}
-                                </Button>
-                                <Button onClick={handleExportWord} variant="outline" className="gap-2">
-                                    <Download className="h-4 w-4" />
-                                    {t('com_ui_export_word', 'Exportar Word')}
-                                </Button>
+                                <button
+                                    onClick={handleSave}
+                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                >
+                                    <Save className="h-5 w-5" />
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        {t('com_ui_save', 'Guardar')}
+                                    </span>
+                                </button>
+                                <button
+                                    onClick={handleExportWord}
+                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                >
+                                    <Download className="h-5 w-5" />
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        {t('com_ui_export_word', 'Exportar Word')}
+                                    </span>
+                                </button>
                             </>
                         )}
                     </div>
