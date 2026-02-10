@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { AuthKeys } = require('librechat-data-provider');
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
+const GoogleClient = require('~/app/clients/GoogleClient');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -37,9 +38,23 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             return res.status(500).json({ error: 'API key not configured. Please add your Google API Key in settings.' });
         }
 
-        // Initialize Gemini client with specific model
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
+        // Initialize GoogleClient with robust credential handling
+        let credentials = apiKey;
+        try {
+            // If it's a JSON string (Service Account), parse it
+            credentials = JSON.parse(apiKey);
+        } catch (e) {
+            // If parse fails, assume it's a raw API Key string
+            credentials = { [AuthKeys.GOOGLE_API_KEY]: apiKey };
+        }
+
+        const client = new GoogleClient(credentials, {
+            req,
+            modelOptions: {
+                model: 'gemini-2.5-flash-preview-09-2025',
+                temperature: 0.7,
+            },
+        });
 
         // Build the prompt for analysis
         const completedItems = checklist.filter(item => item.status === 'cumple');
@@ -50,7 +65,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const percentage = ((score / totalPoints) * 100).toFixed(1);
 
-        const prompt = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
+        const promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
     
 Analiza los resultados de la evaluación según la Resolución 0312 de 2019 y genera un INFORME GERENCIAL completo.
 
@@ -110,9 +125,21 @@ Genera un informe gerencial en formato HTML con las siguientes secciones:
 Usa etiquetas HTML semánticas (<h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
 El informe debe ser profesional, específico y accionable.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const report = response.text();
+        // Create payload for GoogleClient (GenAI format)
+        const payload = [
+            {
+                role: 'user',
+                parts: [{ text: promptText }],
+            },
+        ];
+
+        // Abort controller is required by getCompletion
+        const abortController = new AbortController();
+
+        const report = await client.getCompletion(payload, {
+            abortController,
+            onProgress: () => { }, // Optional progress handler
+        });
 
         // Clean up markdown code blocks if present
         let cleanedReport = report
