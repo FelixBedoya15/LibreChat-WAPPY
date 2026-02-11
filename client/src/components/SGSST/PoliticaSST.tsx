@@ -127,6 +127,7 @@ const PoliticaSST = () => {
                 body: JSON.stringify({
                     content: contentToSave,
                     title: `Política SST - ${new Date().toLocaleDateString('es-CO')}`,
+                    tags: ['sgsst-politica'],
                 }),
             });
 
@@ -211,16 +212,32 @@ const PoliticaSST = () => {
         showToast({ message: 'Documento Word exportado', status: 'success' });
     }, [editorContent, generatedPolicy, showToast]);
 
-    const handleSelectReport = useCallback((report: any) => {
-        if (report?.text) {
-            setGeneratedPolicy(report.text);
-            setEditorContent(report.text);
-            setConversationId(report.conversationId || null);
-            setReportMessageId(report.messageId || null);
-            setIsFormExpanded(false);
+    const handleSelectReport = useCallback(async (selectedConvoId: string) => {
+        if (!selectedConvoId) return;
+
+        try {
+            const res = await fetch(`/api/messages/${selectedConvoId}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error('Failed to load');
+            const messages = await res.json();
+
+            // Find the last message with content
+            const lastMsg = messages[messages.length - 1];
+            if (lastMsg?.text) {
+                setGeneratedPolicy(lastMsg.text);
+                setEditorContent(lastMsg.text);
+                setConversationId(selectedConvoId);
+                setReportMessageId(lastMsg.messageId);
+                setIsFormExpanded(false);
+                showToast({ message: 'Política cargada correctamente', status: 'success' });
+            }
+        } catch (e) {
+            console.error('Load policy error:', e);
+            showToast({ message: 'Error al cargar la política', status: 'error' });
         }
         setIsHistoryOpen(false);
-    }, []);
+    }, [token, showToast]);
 
     const formFields = [
         {
@@ -330,7 +347,7 @@ const PoliticaSST = () => {
                         isOpen={isHistoryOpen}
                         toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
                         refreshTrigger={refreshTrigger}
-                        tags={['sgsst-diagnostico']}
+                        tags={['sgsst-politica']}
                     />
                 </div>
             )}

@@ -228,7 +228,7 @@ El informe debe ser profesional, específico y accionable.`;
  */
 router.post('/save-report', requireJwtAuth, async (req, res) => {
     try {
-        const { content, title } = req.body;
+        const { content, title, tags } = req.body;
         if (!content) {
             return res.status(400).json({ error: 'Content is required' });
         }
@@ -237,6 +237,7 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
         const messageId = crypto.randomUUID();
         const dateStr = new Date().toLocaleString('es-CO');
         const reportTitle = title || `Diagnóstico SGSST - ${dateStr}`;
+        const reportTags = tags || ['sgsst-diagnostico'];
 
         // 1. Save conversation
         await saveConvo(req, {
@@ -261,7 +262,7 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
             await updateTagsForConversation(
                 req.user.id,
                 conversationId,
-                ['sgsst-diagnostico'],
+                reportTags,
             );
         } catch (tagErr) {
             logger.warn('[SGSST] Error tagging conversation:', tagErr);
