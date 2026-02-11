@@ -23,8 +23,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de designación, licencia vigente en SST y certificado del curso de 50 horas.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.1 | Dec 1072: 2.2.4.6.8 (Obligaciones)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312: E1.1.1 | Dec 1072: 2.2.4.6.8 | Res 4927/16 | Circ 0047 | Res 908/25',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES + '\n\n' + NORMATIVE_FRAGMENTS.RES_4927_2016_CURSO + '\n\n' + NORMATIVE_FRAGMENTS.CIRCULAR_0047_2025_ACTUALIZACION + '\n\n' + NORMATIVE_FRAGMENTS.RES_908_2025_LICENCIAS
     },
     {
         id: 'aud_1_1_2',

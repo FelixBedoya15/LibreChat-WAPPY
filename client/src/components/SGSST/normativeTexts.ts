@@ -121,6 +121,27 @@ export const NORMATIVE_FRAGMENTS = {
     
     Solo los accidentes graves y mortales, así como las enfermedades laborales diagnosticadas, deben ser reportados a la Dirección Territorial del Ministerio del Trabajo.`,
 
+    // --- RESPONSABLE SG-SST (Capacitación y Licencia) ---
+    'RES_4927_2016_CURSO': `RESOLUCIÓN 4927 DE 2016 (Curso Virtual 50 Horas):
+    Establece los parámetros para la capacitación virtual obligatoria en el SG-SST.
+    
+    Art 4: El programa de capacitación de 50 horas es de obligatorio cumplimiento para los responsables de la ejecución del SG-SST.
+    Vigencia: El certificado tiene una validez de tres (3) años. Para mantenerlo vigente, se debe realizar un curso de actualización de veinte (20) horas.`,
+
+    'CIRCULAR_0047_2025_ACTUALIZACION': `CIRCULAR 0047 DE 2025 (Actualización Capacitación SST):
+    Reitera y actualiza las directrices sobre formación en SST.
+    
+    - Responsables del SG-SST: Deben contar con el curso de 50 horas y realizar la actualización de 20 horas cada tres años.
+    - Oferentes: Deben registrar los certificados en el Ministerio.
+    - Empleadores: Deben verificar que sus responsables cumplan con estos requisitos para evitar sanciones.`,
+
+    'RES_908_2025_LICENCIAS': `RESOLUCIÓN 908 DE 2025 (Licencias SST):
+    Establece los requisitos y procedimiento para la expedición, renovación y modificación de las licencias de Seguridad y Salud en el Trabajo.
+    
+    - Regula el ejercicio de personas naturales y jurídicas en SST.
+    - Define los perfiles y alcances de las licencias según niveles de formación (Técnico, Tecnólogo, Profesional, Especialista).
+    - Trámite digital ante Secretarías de Salud.`,
+
     // --- RESOLUCIONES 2025 ---
     'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
     Establece la conformación y funcionamiento del Comité de Convivencia Laboral.
