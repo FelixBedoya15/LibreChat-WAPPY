@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
 import DiagnosticoChecklist from './DiagnosticoChecklist';
 import PoliticaSST from './PoliticaSST';
+import AuditoriaChecklist from './AuditoriaChecklist';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -236,6 +237,13 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                                         {category.id === 'politica' && (
                                             <div className="mb-6">
                                                 <PoliticaSST />
+                                            </div>
+                                        )}
+
+                                        {/* Show AuditoriaChecklist for auditoria category */}
+                                        {category.id === 'auditoria' && (
+                                            <div className="mb-6">
+                                                <AuditoriaChecklist />
                                             </div>
                                         )}
 

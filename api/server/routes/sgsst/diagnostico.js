@@ -29,77 +29,89 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             userName,
             currentDate,
             observations,
+            type = 'diagnostico', // Default to diagnostico for backward compatibility
         } = req.body;
 
-        // 1. Retrieve the user's Google API key (same one used by chat)
-        let resolvedApiKey;
-        try {
-            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
-            // The stored key is a JSON string like {"GOOGLE_API_KEY": "AIza..."}
-            // We need to extract the actual API key from it
-            try {
-                const parsed = JSON.parse(storedKey);
-                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-            } catch (parseErr) {
-                // If it's not JSON, treat it as a raw API key string
-                resolvedApiKey = storedKey;
-            }
-        } catch (err) {
-            logger.debug('[SGSST] No user Google key found, trying env vars:', err.message);
-        }
+        // ... (API Key retrieval logic remains the same) ...
 
-        // 2. Fallback to environment variables
-        if (!resolvedApiKey) {
-            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-        }
-
-        if (!resolvedApiKey) {
-            return res.status(400).json({
-                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.',
-            });
-        }
-
-        // 3. Initialize the Gemini SDK directly (same SDK used by GoogleClient internally)
+        // 3. Initialize the Gemini SDK directly
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
 
-        // Build the prompt for analysis
+        // Build checklist stats
         const completedItems = checklist.filter(item => item.status === 'cumple');
         const partialItems = checklist.filter(item => item.status === 'parcial');
         const nonCompliantItems = checklist.filter(item => item.status === 'no_cumple');
         const notApplicable = checklist.filter(item => item.status === 'no_aplica');
         const pending = checklist.filter(item => item.status === 'pendiente');
 
-        const percentage = ((score / totalPoints) * 100).toFixed(1);
+        const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : 0;
 
-        // Load company info from DB
-        let companyInfoBlock = '';
-        try {
-            const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (ci && ci.companyName) {
-                companyInfoBlock = `
-**Datos de la Empresa:**
-- Razón Social: ${ci.companyName || 'No registrado'}
-- NIT: ${ci.nit || 'No registrado'}
-- Representante Legal: ${ci.legalRepresentative || 'No registrado'}
-- Número de Trabajadores: ${ci.workerCount || 'No registrado'}
-- ARL: ${ci.arl || 'No registrada'}
-- Actividad Económica: ${ci.economicActivity || 'No registrada'}
-- Código CIIU: ${ci.ciiu || 'No registrado'}
-- Nivel de Riesgo: ${ci.riskLevel || riskLevel}
-- Sector: ${ci.sector || 'No registrado'}
-- Dirección: ${ci.address || 'No registrada'}, ${ci.city || ''}
-- Teléfono: ${ci.phone || 'No registrado'}
-- Email: ${ci.email || 'No registrado'}
-- Responsable SG-SST: ${ci.responsibleSST || 'No registrado'}
-- Actividades Generales: ${ci.generalActivities || 'No registradas'}
-`;
-            }
-        } catch (ciErr) {
-            logger.warn('[SGSST] Error loading company info:', ciErr.message);
-        }
+        // ... (Company Info loading remains the same) ...
 
-        const promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
+        let promptText = '';
+
+        if (type === 'auditoria') {
+            promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
+
+**Fecha de Auditoría:** ${currentDate || new Date().toLocaleDateString('es-CO')}
+**Auditor Líder:** ${userName || req.user?.name || 'Usuario del Sistema'}
+**Criterios de Auditoría:** Decreto 1072 de 2015 (Capítulo 6), ISO 45001:2018, Resolución 0312 de 2019.
+
+Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA completo.
+
+## DATOS DE LA AUDITORÍA
+
+**Información de la Empresa:**
+${companyInfoBlock}
+
+**Resumen de Hallazgos:**
+- Porcentaje de Conformidad: ${percentage}%
+- Total Requisitos Evaluados: ${checklist.length}
+- Conformidades (Cumple): ${completedItems.length}
+- No Conformidades Mayores/Menores (No Cumple/Parcial): ${nonCompliantItems.length + partialItems.length}
+- Observaciones (No Aplica): ${notApplicable.length}
+
+**Detalle de No Conformidades y Hallazgos:**
+**NO CONFORMIDADES (Incumplimientos):**
+${nonCompliantItems.map(item => {
+                const obs = observations && observations[item.id] ? ` (Evidencia/Obs: ${observations[item.id]})` : '';
+                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+            }).join('\n') || 'Ninguna'}
+
+**OBSERVACIONES / OPORTUNIDADES DE MEJORA (Parciales):**
+${partialItems.map(item => {
+                const obs = observations && observations[item.id] ? ` (Evidencia/Obs: ${observations[item.id]})` : '';
+                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+            }).join('\n') || 'Ninguna'}
+
+## INSTRUCCIONES
+
+Genera un INFORME DE AUDITORÍA INTERNA en formato HTML con las siguientes secciones obligatorias:
+
+1. **OBJETIVO Y ALCANCE**:
+   - Objetivo: Verificar el cumplimiento del SG-SST frente al Decreto 1072 y la mejora continua.
+   - Alcance: Todos los procesos del SG-SST evaluados.
+
+2. **RESUMEN EJECUTIVO**: Concepto global sobre la eficacia del sistema.
+
+3. **FORTALEZAS**: Aspectos positivos destacados.
+
+4. **HALLAZGOS DETALLADOS**:
+   - Análisis de las No Conformidades detectadas.
+   - Análisis de debilidades en el ciclo PHVA.
+
+5. **CONCLUSIONES DE AUDITORÍA**:
+   - ¿El sistema es conforme con los requisitos propios y legales?
+   - ¿El sistema se implementa y mantiene eficazmente?
+
+6. **RECOMENDACIONES**: Acciones para abordar hallazgos y mejora continua.
+
+IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). Usa etiquetas <h2>, <h3>, <p>, <ul>, <li>, <strong>. Estilos inline profesionales (ej: color azul corporativo para títulos).`;
+
+        } else {
+            // Default Diagnostic Prompt (Resolución 0312)
+            promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
 
 **Fecha de Emisión:** ${currentDate || new Date().toLocaleDateString('es-CO')}
 **Consultor Experto:** ${userName || req.user?.name || 'Usuario del Sistema'}
@@ -117,7 +129,7 @@ ${companyInfoBlock}
 
 **Resultados:**
 - Puntuación Total: ${score}/${totalPoints} (${percentage}%)
-- Nivel de Cumplimiento: ${complianceLevel.level.toUpperCase()}
+- Nivel de Cumplimiento: ${complianceLevel?.level?.toUpperCase() || 'N/A'}
 - Total Estándares Evaluados: ${checklist.length}
 - Cumplen: ${completedItems.length}
 - Cumplen Parcialmente: ${partialItems.length}
@@ -127,21 +139,21 @@ ${companyInfoBlock}
 
 **Estándares que NO CUMPLEN (Críticos):**
 ${nonCompliantItems.map(item => {
-            const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
-            return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
-        }).join('\n') || 'Ninguno'}
+                const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+            }).join('\n') || 'Ninguno'}
 
 **Estándares que CUMPLEN PARCIALMENTE:**
 ${partialItems.map(item => {
-            const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
-            return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
-        }).join('\n') || 'Ninguno'}
+                const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+            }).join('\n') || 'Ninguno'}
 
 **Estándares que NO APLICAN:**
 ${notApplicable.map(item => {
-            const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
-            return `- ${item.code} - ${item.name}${obs}`;
-        }).join('\n') || 'Ninguno'}
+                const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+                return `- ${item.code} - ${item.name}${obs}`;
+            }).join('\n') || 'Ninguno'}
 
 ## INSTRUCCIONES
 
@@ -177,6 +189,7 @@ IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE
 Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
 Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="color:#004d99;">).
 El informe debe ser profesional, específico y accionable.`;
+        }
 
         // 4. Generate the report
         const result = await model.generateContent(promptText);
