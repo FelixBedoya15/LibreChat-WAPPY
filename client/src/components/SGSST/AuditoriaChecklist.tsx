@@ -399,7 +399,17 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="font-mono text-xs font-bold text-text-tertiary bg-surface-tertiary px-1.5 py-0.5 rounded">{item.criteria}</span>
+                                                            <div className="group relative">
+                                                                <span className="font-mono text-xs font-bold text-text-tertiary bg-surface-tertiary px-1.5 py-0.5 rounded cursor-help border-b border-dotted border-text-tertiary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                                                    {item.criteria}
+                                                                </span>
+                                                                {item.normativeText && (
+                                                                    <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
+                                                                        <div className="font-semibold mb-1 text-blue-500">Fundamento Legal:</div>
+                                                                        {item.normativeText}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                             <h4 className="font-medium text-text-primary">{item.code} - {item.name}</h4>
                                                         </div>
                                                         <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
