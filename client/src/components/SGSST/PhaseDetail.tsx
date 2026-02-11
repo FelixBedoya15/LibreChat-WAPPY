@@ -55,9 +55,10 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
             }
         }
         // Initialize all categories as expanded by default
-        if (categories.length > 0) {
-            setExpandedCategories(categories.map(c => c.id));
-        }
+        // if (categories.length > 0) {
+        //     setExpandedCategories(categories.map(c => c.id));
+        // }
+        setExpandedCategories([]);
     }, [phase.id, storageKey]);
 
     const saveFiles = (newFiles: any[]) => {
