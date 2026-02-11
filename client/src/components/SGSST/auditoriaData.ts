@@ -255,7 +255,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comunicación',
         criteria: 'Res 0312: E2.8.1 | Dec 1072: 2.2.4.6.14 (Comunicación)',
-        normativeText: 'ARTÍCULO 2.2.4.6.14. Comunicación. El empleador debe establecer mecanismos eficaces para: 1. Recibir, documentar y responder adecuadamente a las comunicaciones internas y externas relativas a la seguridad y salud en el trabajo. 2. Garantizar que se dé a conocer el Sistema de Gestión de la Seguridad y Salud en el Trabajo SG-SST a los trabajadores y contratistas. 3. Disponer de canales que permitan recolectar inquietudes, ideas y aportes de los trabajadores en materia de seguridad y salud en el trabajo para que sean consideradas...'
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_14_COMUNICACION
     },
     // Adquisiciones
     {
@@ -267,7 +267,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Adquisiciones',
         criteria: 'Res 0312: E2.9.1 | Dec 1072: 2.2.4.6.27 (Adquisiciones)',
-        normativeText: 'ARTÍCULO 2.2.4.6.27. Adquisiciones. El empleador debe establecer y mantener un procedimiento para garantizar que se identifiquen y evalúen en las especificaciones relativas a las compras o adquisiciones de productos y servicios, las disposiciones relacionadas con el cumplimiento del Sistema de Gestión de la Seguridad y Salud en el Trabajo SG-SST por parte de la empresa.'
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_27_ADQUISICIONES
     },
     // Contratación
     {
@@ -279,7 +279,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Contratación',
         criteria: 'Res 0312: E2.10.1 | Dec 1072: 2.2.4.6.28 (Contratación)',
-        normativeText: 'ARTÍCULO 2.2.4.6.28. Contratación. El empleador debe adoptar y mantener las disposiciones que garanticen el cumplimiento de las normas de seguridad y salud en el trabajo de su empresa, por parte de los proveedores, trabajadores dependientes, trabajadores cooperados, trabajadores en misión, contratistas y sus trabajadores o subcontratistas, durante el desempeño de las actividades objeto del contrato.'
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_28_CONTRATACION
     },
     // Gestión Cambio
     {
@@ -291,7 +291,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Gestión del cambio',
         criteria: 'Res 0312: E2.11.1 | Dec 1072: 2.2.4.6.26 (Gestión Cambio)',
-        normativeText: 'ARTÍCULO 2.2.4.6.26. Gestión del cambio. El empleador o contratante debe implementar y mantener un procedimiento para evaluar el impacto sobre la seguridad y salud en el trabajo que puedan generar los cambios internos (introducción de nuevos procesos, cambio en los métodos de trabajo, cambios en instalaciones, entre otros) o los cambios externos (cambios en la legislación, evolución del conocimiento en seguridad y salud en el trabajo, entre otros).'
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_26_CAMBIO
     },
 
     // --- II. HACER ---
@@ -393,7 +393,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312: E3.1.8 | Res 2400/79',
-        normativeText: 'RESOLUCIÓN 2400 DE 1979 (Vivienda, Higiene y Seguridad): Establece disposiciones sobre vivienda, higiene y seguridad en los establecimientos de trabajo. Incluye requisitos sobre agua potable, servicios sanitarios, manejo de desechos y condiciones ambientales generales.'
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_3_1_9',
