@@ -142,6 +142,28 @@ export const NORMATIVE_FRAGMENTS = {
     - Define los perfiles y alcances de las licencias según niveles de formación (Técnico, Tecnólogo, Profesional, Especialista).
     - Trámite digital ante Secretarías de Salud.`,
 
+    'ROLES_RESPONSABILIDADES_COMPLETO': `COMPENDIO DE RESPONSABILIDADES EN EL SG-SST:
+
+    1. LEY 1562 DE 2012 (Sistema General de Riesgos Laborales):
+       - Empleador: Afiliación al SGRL, pago de aportes, prevención de riesgos, implementación del SG-SST, reporte de ATEL.
+       - Trabajadores: Procurar el cuidado integral de su salud, suministrar información clara sobre su estado de salud, cumplir normas y participar en prevención.
+       - ARL: Asesoría técnica, vigilancia y control, fomento de estilos de vida saludables.
+
+    2. RESOLUCIÓN 2013 DE 1986 (COPASST):
+       - Art 11: Proponer medidas de salud, vigilar el desarrollo de actividades de SST, colaborar en análisis de accidentes, visitar lugares de trabajo.
+
+    3. RESOLUCIÓN 3461 DE 2025 (Comité de Convivencia):
+       - Funciones preventivas del acoso laboral, recibir y tramitar quejas, escuchar a las partes, crear espacios de diálogo, formular planes de mejora.
+
+    4. DECRETO 1072 DE 2015 (Brigada de Emergencia):
+       - Art 2.2.4.6.25: Conformar, capacitar, entrenar y dotar la brigada para prevención y atención de emergencias (incendios, primeros auxilios, evacuación).
+
+    5. RESOLUCIÓN 4272 DE 2021 (Coordinador de Alturas):
+       - Identificar peligros en sitio, aplicar medidas correctivas inmediatas, avalar permisos de trabajo, inspeccionar equipos y sistemas.
+
+    6. LEY 2050 DE 2020 / RES 40595 DE 2022 (Comité Seguridad Vial):
+       - Diseñar, definir y gestionar el Plan Estratégico de Seguridad Vial (PESV), analizar siniestros viales y promover conductas seguras en la vía.`,
+
     // --- RESOLUCIONES 2025 ---
     'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
     Establece la conformación y funcionamiento del Comité de Convivencia Laboral.

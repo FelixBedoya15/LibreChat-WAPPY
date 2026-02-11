@@ -34,8 +34,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento con asignación de responsabilidades en SST por niveles.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.2 | Dec 1072/15: 2.2.4.6.8 (Obligaciones)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312/19: E1.1.2 | Dec 1072/15: 2.2.4.6.8 | Ley 1562/12 | Res 2013/86 | Res 3461/25 | Res 4272/21 | Ley 2050/20',
+        normativeText: NORMATIVE_FRAGMENTS.ROLES_RESPONSABILIDADES_COMPLETO
     },
     {
         id: 'aud_1_1_3',
