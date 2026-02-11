@@ -50,21 +50,16 @@ const useLocationSystem = () => {
 
         const error = (err: GeolocationPositionError) => {
             console.warn(`Geolocation error: ${err.code} - ${err.message}`);
-            let message = 'Error fetching location';
+            // Only show toast for permission denied, as timeout/unavailable might be transient
             if (err.code === err.PERMISSION_DENIED) {
-                message = 'Location permission denied. Please enable it in your browser settings.';
-            } else if (err.code === err.POSITION_UNAVAILABLE) {
-                message = 'Location information is unavailable.';
-            } else if (err.code === err.TIMEOUT) {
-                message = 'The request to get user location timed out.';
+                showToast({ message: 'Location permission denied. Please enable it in your browser settings.', status: 'error' });
             }
-            showToast({ message, status: 'error' });
         };
 
         const options = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0,
+            enableHighAccuracy: false, // Use WiFi/Cell triangulation for speed and stability
+            timeout: 15000, // 15 seconds
+            maximumAge: 600000, // 10 minutes cache
         };
 
         navigator.geolocation.getCurrentPosition(success, error, options);
