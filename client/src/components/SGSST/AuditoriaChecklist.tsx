@@ -398,9 +398,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                             <div key={item.id} className="bg-surface-primary/50 p-4">
                                                 <div className="flex items-start justify-between gap-4">
                                                     <div className="flex-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="group relative">
-                                                                <span className="font-mono text-xs font-bold text-text-tertiary bg-surface-tertiary px-1.5 py-0.5 rounded cursor-help border-b border-dotted border-text-tertiary hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <h4 className="font-medium text-text-primary text-base">
+                                                                <span className="font-bold text-blue-600 mr-2">{item.code}</span>
+                                                                {item.name}
+                                                            </h4>
+                                                            <div className="group relative w-fit">
+                                                                <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
                                                                     {item.criteria}
                                                                 </span>
                                                                 {item.normativeText && (
@@ -410,7 +414,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <h4 className="font-medium text-text-primary">{item.code} - {item.name}</h4>
                                                         </div>
                                                         <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
                                                         {isItemExpanded && (
