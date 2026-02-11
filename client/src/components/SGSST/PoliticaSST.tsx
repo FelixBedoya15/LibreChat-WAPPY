@@ -386,14 +386,16 @@ const PoliticaSST = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating || !hazards.trim()}
-                                className="flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isGenerating ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-5 w-5 animate-spin" />
                                 ) : (
-                                    <Sparkles className="h-4 w-4" />
+                                    <Sparkles className="h-5 w-5" />
                                 )}
-                                Generar Política con IA
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Generar Política con IA
+                                </span>
                             </button>
                         </div>
                     </div>
