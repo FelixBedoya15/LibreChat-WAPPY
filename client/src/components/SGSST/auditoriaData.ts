@@ -20,7 +20,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de designación, licencia vigente en SST y certificado del curso de 50 horas.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.1'
+        criteria: 'Res 0312: E1.1.1 | Dec 1072: 2.2.4.6.8'
     },
     {
         id: 'aud_1_1_2',
@@ -30,7 +30,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento con asignación de responsabilidades en SST por niveles.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.2'
+        criteria: 'Res 0312: E1.1.2 | Dec 1072: 2.2.4.6.8'
     },
     {
         id: 'aud_1_1_3',
@@ -40,7 +40,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de asignación de recursos con presupuesto específico para SST.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.3'
+        criteria: 'Res 0312: E1.1.3 | Dec 1072: 2.2.4.6.8'
     },
     {
         id: 'aud_1_1_4',
@@ -50,7 +50,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar planillas de aportes y afiliación de todos los trabajadores al SGRL.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.4'
+        criteria: 'Res 0312: E1.1.4 | Dec 1072: 2.2.4.6.8'
     },
     {
         id: 'aud_1_1_5',
@@ -60,7 +60,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar pago de aportes adicionales de pensión para actividades de alto riesgo.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.5'
+        criteria: 'Res 0312: E1.1.5 | Dec 1072: 2.2.4.6.8'
     },
     {
         id: 'aud_1_1_6',
@@ -70,7 +70,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar acta de conformación del COPASST con la participación paritaria.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.6'
+        criteria: 'Res 0312: E1.1.6 | Dec 1072: 2.2.4.6.2'
     },
     {
         id: 'aud_1_1_7',
@@ -80,7 +80,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros de capacitación de los miembros del COPASST.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.7'
+        criteria: 'Res 0312: E1.1.7 | Dec 1072: 2.2.4.6.8'
     },
     {
         id: 'aud_1_1_8',
@@ -111,7 +111,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de capacitación documentado con temas, fechas, responsables y recursos.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        criteria: 'Res 0312: E1.2.1'
+        criteria: 'Res 0312: E1.2.1 | Dec 1072: 2.2.4.6.11'
     },
     {
         id: 'aud_1_2_2',
@@ -121,7 +121,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros de inducción y reinducción de todos los trabajadores.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        criteria: 'Res 0312: E1.2.2'
+        criteria: 'Res 0312: E1.2.2 | Dec 1072: 2.2.4.6.11'
     },
     {
         id: 'aud_1_2_3',
@@ -131,7 +131,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar certificado del curso de 50 horas de los responsables del SG-SST.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        criteria: 'Res 0312: E1.2.3'
+        criteria: 'Res 0312: E1.2.3 | Res 4927/16'
     },
 
     // --- GESTIÓN INTEGRAL ---
@@ -144,7 +144,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar política firmada por el representante legal, fechada, publicada y comunicada.',
         category: 'planear',
         subcategory: 'Política de SST',
-        criteria: 'Res 0312: E2.1.1'
+        criteria: 'Res 0312: E2.1.1 | Dec 1072: 2.2.4.6.5'
     },
     {
         id: 'aud_ley_2191', // ADICIONAL
@@ -165,7 +165,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar que los objetivos cumplan las características y estén alineados con las prioridades.',
         category: 'planear',
         subcategory: 'Objetivos de la política de SST',
-        criteria: 'Res 0312: E2.2.1'
+        criteria: 'Res 0312: E2.2.1 | Dec 1072: 2.2.4.6.18'
     },
     // Evaluación Inicial
     {
@@ -176,7 +176,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de evaluación inicial con identificación de prioridades.',
         category: 'planear',
         subcategory: 'Evaluación inicial del SG-SST',
-        criteria: 'Res 0312: E2.3.1'
+        criteria: 'Res 0312: E2.3.1 | Dec 1072: 2.2.4.6.16'
     },
     // Plan Anual
     {
@@ -187,7 +187,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de trabajo con metas, responsables, recursos, cronograma y firmado.',
         category: 'planear',
         subcategory: 'Plan anual de trabajo',
-        criteria: 'Res 0312: E2.4.1'
+        criteria: 'Res 0312: E2.4.1 | Dec 1072: 2.2.4.6.8'
     },
     // Archivo
     {
@@ -198,7 +198,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar sistema de archivo y conservación de documentos del SG-SST.',
         category: 'planear',
         subcategory: 'Conservación de la documentación',
-        criteria: 'Res 0312: E2.5.1'
+        criteria: 'Res 0312: E2.5.1 | Dec 1072: 2.2.4.6.13'
     },
     // Rendición Cuentas
     {
@@ -209,7 +209,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros de rendición de cuentas de quienes tienen responsabilidades en SST.',
         category: 'planear',
         subcategory: 'Rendición de cuentas',
-        criteria: 'Res 0312: E2.6.1'
+        criteria: 'Res 0312: E2.6.1 | Dec 1072: 2.2.4.6.8'
     },
     // Matriz Legal
     {
@@ -220,7 +220,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar matriz legal actualizada con normas aplicables a la empresa.',
         category: 'planear',
         subcategory: 'Normatividad vigente',
-        criteria: 'Res 0312: E2.7.1'
+        criteria: 'Res 0312: E2.7.1 | Dec 1072: 2.2.4.6.8'
     },
     // Comunicación
     {
@@ -231,7 +231,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar mecanismos de comunicación definidos y funcionando.',
         category: 'planear',
         subcategory: 'Comunicación',
-        criteria: 'Res 0312: E2.8.1'
+        criteria: 'Res 0312: E2.8.1 | Dec 1072: 2.2.4.6.14'
     },
     // Adquisiciones
     {
@@ -242,7 +242,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar procedimiento de adquisiciones que contemple aspectos de SST.',
         category: 'planear',
         subcategory: 'Adquisiciones',
-        criteria: 'Res 0312: E2.9.1'
+        criteria: 'Res 0312: E2.9.1 | Dec 1072: 2.2.4.6.27'
     },
     // Contratación
     {
@@ -253,7 +253,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar procedimiento de evaluación de contratistas que incluya aspectos de SST.',
         category: 'planear',
         subcategory: 'Contratación',
-        criteria: 'Res 0312: E2.10.1'
+        criteria: 'Res 0312: E2.10.1 | Dec 1072: 2.2.4.6.28'
     },
     // Gestión Cambio
     {
@@ -264,7 +264,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar procedimiento de gestión del cambio documentado.',
         category: 'planear',
         subcategory: 'Gestión del cambio',
-        criteria: 'Res 0312: E2.11.1'
+        criteria: 'Res 0312: E2.11.1 | Dec 1072: 2.2.4.6.26'
     },
 
     // --- II. HACER ---
@@ -277,17 +277,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de vigilancia epidemiológica y certificados médicos.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.1'
-    },
-    {
-        id: 'aud_res_2764', // ADICIONAL
-        code: 'Norma Adicional',
-        name: 'Batería Riesgo Psicosocial (Res 2764)',
-        description: 'Aplicación de la batería de riesgo psicosocial (Resolución 2764 de 2022).',
-        evaluation: 'Verificar informe de aplicación de la batería e intervención de riesgos psicosociales.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 2764 de 2022'
+        criteria: 'Res 0312: E3.1.1 | Dec 1072: 2.2.4.6.22'
     },
     {
         id: 'aud_3_1_2',
@@ -297,7 +287,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros y evidencias de actividades de promoción y prevención.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.2'
+        criteria: 'Res 0312: E3.1.2 | Dec 1072: 2.2.4.6.22'
     },
     {
         id: 'aud_3_1_3',
@@ -307,7 +297,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar que se remitan perfiles de cargo y factores de riesgo al médico.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.3'
+        criteria: 'Res 0312: E3.1.3 | Dec 1072: 2.2.4.6.22'
     },
     {
         id: 'aud_3_1_4',
@@ -317,7 +307,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar certificados de evaluaciones médicas según profesiograma.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.4'
+        criteria: 'Res 0312: E3.1.4 | Res 2346/07'
     },
     {
         id: 'aud_3_1_5',
@@ -327,7 +317,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento que garantice la custodia de historias clínicas.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.5'
+        criteria: 'Res 0312: E3.1.5 | Res 2346/07'
     },
     {
         id: 'aud_3_1_6',
@@ -337,7 +327,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar seguimiento a recomendaciones y restricciones médicas.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.6'
+        criteria: 'Res 0312: E3.1.6 | Dec 1072: 2.2.4.6.22'
     },
     {
         id: 'aud_3_1_7',
@@ -347,7 +337,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de estilos de vida saludable documentado y ejecutado.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.7'
+        criteria: 'Res 0312: E3.1.7 | Dec 1072: 2.2.4.6.22'
     },
     {
         id: 'aud_3_1_8',
@@ -357,7 +347,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar condiciones de agua potable, servicios sanitarios y manejo de residuos.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.8'
+        criteria: 'Res 0312: E3.1.8 | Res 2400/79'
     },
     {
         id: 'aud_3_1_9',
@@ -367,7 +357,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de manejo de residuos según normatividad ambiental.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312: E3.1.9'
+        criteria: 'Res 0312: E3.1.9 | Dec 1072: 2.2.4.6.22'
     },
 
     // Registro Reporte ATEL
@@ -379,7 +369,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar reportes de accidentes de trabajo dentro de los 2 días hábiles.',
         category: 'hacer',
         subcategory: 'Registro, reporte e investigación de ATEL',
-        criteria: 'Res 0312: E3.2.1'
+        criteria: 'Res 0312: E3.2.1 | Dec 1072: 2.2.4.6.32'
     },
     {
         id: 'aud_3_2_2',
@@ -389,7 +379,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar metodología e informes de investigación de ATEL.',
         category: 'hacer',
         subcategory: 'Registro, reporte e investigación de ATEL',
-        criteria: 'Res 0312: E3.2.2'
+        criteria: 'Res 0312: E3.2.2 | Dec 1072: 2.2.4.6.32'
     },
     {
         id: 'aud_3_2_3',
@@ -399,7 +389,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar indicadores de accidentalidad y análisis de tendencias.',
         category: 'hacer',
         subcategory: 'Registro, reporte e investigación de ATEL',
-        criteria: 'Res 0312: E3.2.3'
+        criteria: 'Res 0312: E3.2.3 | Dec 1072: 2.2.4.6.22'
     },
 
     // Mecanismos Vigilancia
@@ -411,7 +401,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar cálculo del indicador de severidad de AT.',
         category: 'hacer',
         subcategory: 'Mecanismos de vigilancia de las condiciones de salud',
-        criteria: 'Res 0312: E3.3.1'
+        criteria: 'Res 0312: E3.3.1 | Dec 1072: 2.2.4.6.21'
     },
     {
         id: 'aud_3_3_2',
@@ -421,7 +411,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar cálculo del indicador de frecuencia de AT.',
         category: 'hacer',
         subcategory: 'Mecanismos de vigilancia de las condiciones de salud',
-        criteria: 'Res 0312: E3.3.2'
+        criteria: 'Res 0312: E3.3.2 | Dec 1072: 2.2.4.6.21'
     },
     {
         id: 'aud_3_3_3',
@@ -431,7 +421,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar cálculo del indicador de mortalidad por AT.',
         category: 'hacer',
         subcategory: 'Mecanismos de vigilancia de las condiciones de salud',
-        criteria: 'Res 0312: E3.3.3'
+        criteria: 'Res 0312: E3.3.3 | Dec 1072: 2.2.4.6.21'
     },
     {
         id: 'aud_3_3_4',
@@ -441,7 +431,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar cálculo del indicador de prevalencia de EL.',
         category: 'hacer',
         subcategory: 'Mecanismos de vigilancia de las condiciones de salud',
-        criteria: 'Res 0312: E3.3.4'
+        criteria: 'Res 0312: E3.3.4 | Dec 1072: 2.2.4.6.21'
     },
     {
         id: 'aud_3_3_5',
@@ -451,7 +441,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar cálculo del indicador de incidencia de EL.',
         category: 'hacer',
         subcategory: 'Mecanismos de vigilancia de las condiciones de salud',
-        criteria: 'Res 0312: E3.3.5'
+        criteria: 'Res 0312: E3.3.5 | Dec 1072: 2.2.4.6.21'
     },
     {
         id: 'aud_3_3_6',
@@ -461,7 +451,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar cálculo del indicador de ausentismo.',
         category: 'hacer',
         subcategory: 'Mecanismos de vigilancia de las condiciones de salud',
-        criteria: 'Res 0312: E3.3.6'
+        criteria: 'Res 0312: E3.3.6 | Dec 1072: 2.2.4.6.21'
     },
 
     // Identificación Peligros
@@ -473,7 +463,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar metodología documentada y matriz de peligros y riesgos.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        criteria: 'Res 0312: E4.1.1'
+        criteria: 'Res 0312: E4.1.1 | Dec 1072: 2.2.4.6.15'
     },
     {
         id: 'aud_4_1_2',
@@ -483,7 +473,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros de participación de trabajadores en identificación de peligros.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        criteria: 'Res 0312: E4.1.2'
+        criteria: 'Res 0312: E4.1.2 | Dec 1072: 2.2.4.6.15'
     },
     {
         id: 'aud_4_1_3',
@@ -493,7 +483,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar que la matriz incluya todos los tipos de peligros priorizados.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        criteria: 'Res 0312: E4.1.3'
+        criteria: 'Res 0312: E4.1.3 | Dec 1072: 2.2.4.6.15'
     },
     {
         id: 'aud_4_1_4',
@@ -503,17 +493,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar informes de mediciones ambientales y su análisis.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        criteria: 'Res 0312: E4.1.4'
-    },
-    {
-        id: 'aud_ley_2050', // ADICIONAL
-        code: 'Norma Adicional',
-        name: 'Plan Estratégico Seguridad Vial (PESV)',
-        description: 'Diseño e implementación del Plan Estratégico de Seguridad Vial (Ley 2050).',
-        evaluation: 'Verificar PESV documentado y adoptado por la empresa (si aplica por flota/conductores).',
-        category: 'hacer',
-        subcategory: 'Identificación de peligros',
-        criteria: 'Ley 2050 de 2020'
+        criteria: 'Res 0312: E4.1.4 | Dec 1072: 2.2.4.6.15'
     },
 
     // Medidas Prevención
@@ -525,8 +505,60 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar implementación de medidas según jerarquía de controles.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E4.2.1'
+        criteria: 'Res 0312: E4.2.1 | Dec 1072: 2.2.4.6.24'
     },
+    // PELIGROS ESPECÍFICOS (Reubicados bajo 4.2.1)
+    {
+        id: 'aud_res_2764',
+        code: 'Norma Adicional',
+        name: 'Riesgo Psicosocial (Res 2764)',
+        description: 'Aplicación de la batería de riesgo psicosocial e intervención.',
+        evaluation: 'Verificar informe de batería, análisis e implementación de programa de vigilancia.',
+        category: 'hacer',
+        subcategory: 'Medidas de prevención y control',
+        criteria: 'Res 2764 de 2022 | Dec 1072: 2.2.4.6.24'
+    },
+    {
+        id: 'aud_ley_2050',
+        code: 'Norma Adicional',
+        name: 'Seguridad Vial (PESV - Ley 2050)',
+        description: 'Diseño e implementación del Plan Estratégico de Seguridad Vial.',
+        evaluation: 'Verificar PESV documentado y adoptado (Ley 2050).',
+        category: 'hacer',
+        subcategory: 'Medidas de prevención y control',
+        criteria: 'Ley 2050 de 2020 | Dec 1072: 2.2.4.6.24'
+    },
+    {
+        id: 'aud_sga',
+        code: 'Norma Adicional',
+        name: 'SGA - Productos Químicos',
+        description: 'Sistema Globalmente Armonizado de Clasificación y Etiquetado.',
+        evaluation: 'Verificar etiquetado, fichas de seguridad y matriz de compatibilidad.',
+        category: 'hacer',
+        subcategory: 'Medidas de prevención y control',
+        criteria: 'Dec 1496 de 2018 | Dec 1072: 2.2.4.6.24'
+    },
+    {
+        id: 'aud_alturas',
+        code: 'Norma Adicional',
+        name: 'Trabajo en Alturas (Res 4272)',
+        description: 'Programa de protección contra caídas.',
+        evaluation: 'Verificar programa, procedimientos, permisos de trabajo, certificados y equipos certificados.',
+        category: 'hacer',
+        subcategory: 'Medidas de prevención y control',
+        criteria: 'Res 4272 de 2021 | Dec 1072: 2.2.4.6.24'
+    },
+    {
+        id: 'aud_confinados',
+        code: 'Norma Adicional',
+        name: 'Espacios Confinados (Res 0491)',
+        description: 'Programa de gestión para trabajo en espacios confinados.',
+        evaluation: 'Verificar identificación, evaluación, permisos y monitoreo de atmósferas.',
+        category: 'hacer',
+        subcategory: 'Medidas de prevención y control',
+        criteria: 'Res 0491 de 2020 | Dec 1072: 2.2.4.6.24'
+    },
+
     {
         id: 'aud_4_2_2',
         code: '4.2.2',
@@ -535,7 +567,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar procedimientos de trabajo seguro para tareas críticas.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E4.2.2'
+        criteria: 'Res 0312: E4.2.2 | Dec 1072: 2.2.4.6.24'
     },
     {
         id: 'aud_4_2_3',
@@ -545,7 +577,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de inspecciones, formatos y registros.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E4.2.3'
+        criteria: 'Res 0312: E4.2.3 | Dec 1072: 2.2.4.6.24'
     },
     {
         id: 'aud_4_2_4',
@@ -555,7 +587,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa y registros de mantenimiento preventivo y correctivo.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E4.2.4'
+        criteria: 'Res 0312: E4.2.4 | Dec 1072: 2.2.4.6.24'
     },
     {
         id: 'aud_4_2_5',
@@ -565,7 +597,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar matriz de EPP, registros de entrega y capacitación.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E4.2.5'
+        criteria: 'Res 0312: E4.2.5 | Dec 1072: 2.2.4.6.24'
     },
     {
         id: 'aud_4_2_6',
@@ -575,17 +607,17 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de emergencias, brigadas y simulacros.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E4.2.6'
+        criteria: 'Res 0312: E4.2.6 | Dec 1072: 2.2.4.6.25'
     },
     {
         id: 'aud_4_2_7',
-        code: '4.2.7', // Correspondiente a Brigada confirmada en checklistData (5.1.2 en 0312)
+        code: '4.2.7',
         name: 'Brigada de prevención, preparación y respuesta ante emergencias',
         description: 'Debe existir brigada de emergencias conformada, capacitada y dotada.',
         evaluation: 'Verificar conformación de brigada, actas de capacitación, dotación y simulacros realizados.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        criteria: 'Res 0312: E5.1.2'
+        criteria: 'Res 0312: E5.1.2 | Dec 1072: 2.2.4.6.25'
     },
 
     // --- III. VERIFICAR ---
@@ -597,7 +629,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar fichas técnicas de indicadores y su medición.',
         category: 'verificar',
         subcategory: 'Gestión y resultados del SG-SST',
-        criteria: 'Res 0312: E6.1.1'
+        criteria: 'Res 0312: E6.1.1 | Dec 1072: 2.2.4.6.20'
     },
     {
         id: 'aud_5_1_2',
@@ -607,7 +639,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de auditoría, informe y plan de mejora.',
         category: 'verificar',
         subcategory: 'Gestión y resultados del SG-SST',
-        criteria: 'Res 0312: E6.1.2'
+        criteria: 'Res 0312: E6.1.2 | Dec 1072: 2.2.4.6.29'
     },
     {
         id: 'aud_5_1_3',
@@ -617,7 +649,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar acta de revisión por la dirección con decisiones tomadas.',
         category: 'verificar',
         subcategory: 'Gestión y resultados del SG-SST',
-        criteria: 'Res 0312: E6.1.3'
+        criteria: 'Res 0312: E6.1.3 | Dec 1072: 2.2.4.6.31'
     },
     {
         id: 'aud_5_1_4',
@@ -627,7 +659,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar participación del COPASST en la planificación de auditoría.',
         category: 'verificar',
         subcategory: 'Gestión y resultados del SG-SST',
-        criteria: 'Res 0312: E6.1.4'
+        criteria: 'Res 0312: E6.1.4 | Dec 1072: 2.2.4.6.29'
     },
 
     // --- IV. ACTUAR ---
@@ -639,7 +671,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de acciones correctivas, preventivas y de mejora.',
         category: 'actuar',
         subcategory: 'Acciones preventivas y correctivas',
-        criteria: 'Res 0312: E7.1.1'
+        criteria: 'Res 0312: E7.1.1 | Dec 1072: 2.2.4.6.33'
     },
     {
         id: 'aud_6_1_2',
@@ -649,7 +681,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar seguimiento a acciones derivadas de la revisión por dirección.',
         category: 'actuar',
         subcategory: 'Acciones preventivas y correctivas',
-        criteria: 'Res 0312: E7.1.2'
+        criteria: 'Res 0312: E7.1.2 | Dec 1072: 2.2.4.6.33'
     },
     {
         id: 'aud_6_1_3',
@@ -659,7 +691,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar seguimiento a recomendaciones de investigaciones de ATEL.',
         category: 'actuar',
         subcategory: 'Acciones preventivas y correctivas',
-        criteria: 'Res 0312: E7.1.3'
+        criteria: 'Res 0312: E7.1.3 | Dec 1072: 2.2.4.6.33'
     },
     {
         id: 'aud_6_1_4',
@@ -669,16 +701,16 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de mejoramiento basado en evaluación de estándares.',
         category: 'actuar',
         subcategory: 'Acciones preventivas y correctivas',
-        criteria: 'Res 0312: E7.1.4'
+        criteria: 'Res 0312: E7.1.4 | Dec 1072: 2.2.4.6.33'
     },
     {
-        id: 'aud_reporte_min', // Item final del checklistData
-        code: '3.1.10', // Código de checklistData
-        name: 'Reporte de accidentes de trabajo y enfermedades al MinTrabajo',
-        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales diagnosticadas.',
-        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo dentro de los 2 días hábiles siguientes al evento.',
-        category: 'hacer', // Correcto: checklistData lo tiene en hacer
+        id: 'aud_reporte_min',
+        code: '3.1.10',
+        name: 'Reporte de accidentes de trabajo y hostigamientos al MinTrabajo',
+        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales.',
+        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo.',
+        category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Dec 1072'
+        criteria: 'Dec 1072: 2.2.4.6.32'
     }
 ];
