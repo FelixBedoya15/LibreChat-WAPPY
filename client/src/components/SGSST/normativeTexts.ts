@@ -215,8 +215,8 @@ export const NORMATIVE_FRAGMENTS = {
    'CONFORMACION_COPASST': `CONFORMACIÓN DEL COPASST (Resolución 2013 y Dec 1072):
     
     NORMATIVA VIGENTE:
-       - Decreto 1072/15 (Art 2.2.4.6.14 - Comunicación): Define al COPASST como canal de comunicación para la SST.
-       - Resolución 2013/86: Define la conformación según número de trabajadores (1, 2, 3 o 4 representantes).
+       - Decreto 1072/15 (Art 2.2.4.6.2 - Parágrafo 2): Ratifica la vigencia de la Resolución 2013 de 1986 para la conformación del comité.
+        - Resolución 2013/86 (Arts 1 y 2): Obligación de conformar el comité y escala de respresentantes según número de trabajadores.
        - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.`,
 
    'INFO_COMUNICACION_COPASST': `COMUNICACIÓN INTEGRAL AL COPASST (Derecho a la Información y Veeduría):
@@ -235,8 +235,9 @@ export const NORMATIVE_FRAGMENTS = {
 
     3. ADMINISTRATIVA Y MEJORA:
        - Gestión del Cambio (Art 26): Conocer cambios de tecnología/procesos antes de implementación para evaluar riesgos.
-       - Plan de Capacitación: Conocerlo y aprobarlo/sugerir antes de ejecución.
-       - Informes Externos: Conocer recomendaciones de ARL o MinTrabajo para vigilar cumplimiento.`,
+        - Plan de Capacitación: Conocerlo y aprobarlo/sugerir antes de ejecución.
+        - Auditoría (Art 29): Participar en la planificación y conocer los resultados de la auditoría.
+        - Informes Externos: Conocer recomendaciones de ARL o MinTrabajo para vigilar cumplimiento.`,
 
    'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
     

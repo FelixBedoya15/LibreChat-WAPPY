@@ -603,7 +603,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.6 | Dec 1072/15: 2.2.4.6.22 (Punto 6 - Ausentismo)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_7',
@@ -613,8 +613,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de estilos de vida saludable documentado y ejecutado.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.7 | Dec 1072/15: 2.2.4.6.22 (Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312/19: E3.1.7 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
         id: 'aud_3_1_8',
@@ -636,7 +636,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
         id: 'aud_reporte_min',
