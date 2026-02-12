@@ -205,17 +205,7 @@ export const NORMATIVE_FRAGMENTS = {
     NORMATIVA VIGENTE:
        - Decreto 1072/15 (Art 2.2.4.6.14 - Comunicación): Define al COPASST como canal de comunicación para la SST.
        - Resolución 2013/86: Define la conformación según número de trabajadores (1, 2, 3 o 4 representantes).
-       - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.
-       
-    TABLA DE PARTICIPACIÓN OBLIGATORIA DEL COPASST (Para Calificación Integral):
-    
-    | ACTIVIDAD            | PROPÓSITO                               | NORMA                    |
-    |----------------------|-----------------------------------------|--------------------------|
-    | Matriz de Riesgos    | Para validar controles en sitio.        | Dec 1072/15 (2.2.4.6.15) |
-    | Investigación AT     | Participación obligatoria en el equipo. | Res 1401/07              |
-    | Informes de Inspección| Para gestionar hallazgos y acciones.   | Res 2013/86 (Art 11)     |
-    | Gestión del Cambio   | Evaluar riesgos en nuevos proyectos.    | Dec 1072/15 (2.2.4.6.26) |
-    | Auditoría Anual      | Para que conozcan las no conformidades. | Dec 1072/15 (2.2.4.6.29) |`,
+       - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.`,
 
    'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
     

@@ -82,6 +82,61 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
     },
     {
+        id: 'aud_1_1_6_riesgos',
+        code: '1.1.6.1',
+        name: ' > Validación Matriz de Riesgos (COPASST)',
+        description: 'El COPASST debe validar los controles en sitio según la Matriz de Riesgos.',
+        evaluation: 'Verificar actas donde conste la revisión y validación de la matriz.',
+        category: 'planear',
+        subcategory: 'Conformación del COPASST (Detalle)',
+        criteria: 'Dec 1072/15 (2.2.4.6.15)',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_15_PELIGROS
+    },
+    {
+        id: 'aud_1_1_6_at',
+        code: '1.1.6.2',
+        name: ' > Investigación de Accidentes (COPASST)',
+        description: 'Participación obligatoria de un representante del COPASST en el equipo investigador.',
+        evaluation: 'Verificar firmas del COPASST en los informes de investigación de AT.',
+        category: 'planear',
+        subcategory: 'Conformación del COPASST (Detalle)',
+        criteria: 'Res 1401/07',
+        normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
+    },
+    {
+        id: 'aud_1_1_6_inspecciones',
+        code: '1.1.6.3',
+        name: ' > Informes de Inspección (COPASST)',
+        description: 'Gestión de hallazgos y acciones preventivas/correctivas derivadas de inspecciones.',
+        evaluation: 'Verificar informes de inspección realizados o revisados por el COPASST.',
+        category: 'planear',
+        subcategory: 'Conformación del COPASST (Detalle)',
+        criteria: 'Res 2013/86 (Art 11)',
+        normativeText: NORMATIVE_FRAGMENTS.RES_2013_COPASST
+    },
+    {
+        id: 'aud_1_1_6_cambio',
+        code: '1.1.6.4',
+        name: ' > Gestión del Cambio (COPASST)',
+        description: 'Evaluación de riesgos en nuevos proyectos o cambios internos.',
+        evaluation: 'Verificar concepto del COPASST en procesos de gestión del cambio.',
+        category: 'planear',
+        subcategory: 'Conformación del COPASST (Detalle)',
+        criteria: 'Dec 1072/15 (2.2.4.6.26)',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_26_CAMBIO
+    },
+    {
+        id: 'aud_1_1_6_auditoria',
+        code: '1.1.6.5',
+        name: ' > Auditoría Anual (COPASST)',
+        description: 'Conocimiento y análisis de las no conformidades de la auditoría anual.',
+        evaluation: 'Verificar acta donde se socialice el informe de auditoría al COPASST.',
+        category: 'planear',
+        subcategory: 'Conformación del COPASST (Detalle)',
+        criteria: 'Dec 1072/15 (2.2.4.6.29)',
+        normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
+    },
+    {
         id: 'aud_1_1_7',
         code: '1.1.7',
         name: 'Capacitación del COPASST',
