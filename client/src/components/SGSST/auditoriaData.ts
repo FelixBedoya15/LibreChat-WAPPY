@@ -148,6 +148,50 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.CAPACITACION_COPASST
     },
     {
+        id: 'aud_1_1_7_investigacion',
+        code: '1.1.7.1',
+        name: ' > Inv. Accidentes (Metodología)',
+        description: 'Capacitación obligatoria en metodología de investigación de accidentes (árbol de causas, 5 por qués) bajo Res 1401/07.',
+        evaluation: 'Verificar certificados de capacitación en Investigación de AT para el COPASST.',
+        category: 'planear',
+        subcategory: 'Capacitación COPASST (Detalle)',
+        criteria: 'Res 1401/07',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+    },
+    {
+        id: 'aud_1_1_7_inspecciones',
+        code: '1.1.7.2',
+        name: ' > Inspecciones de Seguridad',
+        description: 'Formación en técnicas para la identificación de actos y condiciones inseguras en los puestos de trabajo.',
+        evaluation: 'Verificar entrenamiento en realización de inspecciones y uso de listas de chequeo.',
+        category: 'planear',
+        subcategory: 'Capacitación COPASST (Detalle)',
+        criteria: 'Res 2013/86',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+    },
+    {
+        id: 'aud_1_1_7_peligros',
+        code: '1.1.7.3',
+        name: ' > Identificación de Peligros',
+        description: 'Conocimiento de metodologías como la GTC 45 para validar los controles propuestos por la empresa.',
+        evaluation: 'Verificar capacitación en identificación de peligros y valoración de riesgos.',
+        category: 'planear',
+        subcategory: 'Capacitación COPASST (Detalle)',
+        criteria: 'Dec 1072/15 (2.2.4.6.15)',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+    },
+    {
+        id: 'aud_1_1_7_funciones',
+        code: '1.1.7.4',
+        name: ' > Funciones y Responsabilidades',
+        description: 'Taller sobre los alcances legales, rol de veeduría y funcionamiento definido en la Resolución 2013 de 1986.',
+        evaluation: 'Verificar registro de capacitación en funciones del COPASST.',
+        category: 'planear',
+        subcategory: 'Capacitación COPASST (Detalle)',
+        criteria: 'Res 2013/86',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+    },
+    {
         id: 'aud_1_1_8',
         code: '1.1.8',
         name: 'Conformación del Comité de Convivencia (Actualizado 2025)',
@@ -157,6 +201,72 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         subcategory: 'Recursos',
         criteria: 'Res 0312/19: E1.1.8 | Res 3461/25 (Deroga Res 652)',
         normativeText: NORMATIVE_FRAGMENTS.RES_3461_2025_CONVIVENCIA
+    },
+    {
+        id: 'aud_1_1_8_normativa',
+        code: '1.1.8.1',
+        name: ' > Nuevo Marco Normativo (Res 3461)',
+        description: 'Capacitación obligatoria sobre el funcionamiento del comité según Res 3461/25 y la derogación de la Res 652.',
+        evaluation: 'Verificar socialización de la nueva norma de convivencia laboral.',
+        category: 'planear',
+        subcategory: 'Comité Convivencia (Detalle)',
+        criteria: 'Res 3461/25',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+    },
+    {
+        id: 'aud_1_1_8_acoso',
+        code: '1.1.8.2',
+        name: ' > Ley 1010 (Acoso Laboral)',
+        description: 'Definición clara de conductas que constituyen acoso y aquellas que no, para evitar trámites innecesarios.',
+        evaluation: 'Verificar capacitación en Ley 1010 de 2006.',
+        category: 'planear',
+        subcategory: 'Comité Convivencia (Detalle)',
+        criteria: 'Ley 1010/06',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+    },
+    {
+        id: 'aud_1_1_8_conflictos',
+        code: '1.1.8.3',
+        name: ' > Resolución de Conflictos',
+        description: 'Herramientas de comunicación asertiva, negociación y mediación para manejar las quejas internas.',
+        evaluation: 'Verificar taller de habilidades blandas/resolución de conflictos para el comité.',
+        category: 'planear',
+        subcategory: 'Comité Convivencia (Detalle)',
+        criteria: 'Res 3461/25',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+    },
+    {
+        id: 'aud_1_1_8_sexual',
+        code: '1.1.8.4',
+        name: ' > Acoso Sexual (Ley 2365)',
+        description: 'Formación específica para entender que el comité NO tiene competencia en acoso sexual y debe remitir a la ruta legal.',
+        evaluation: 'Verificar capacitación sobre protocolo de acoso sexual y límites del CCL.',
+        category: 'planear',
+        subcategory: 'Comité Convivencia (Detalle)',
+        criteria: 'Ley 2365/24',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+    },
+    {
+        id: 'aud_1_1_8_psicosocial',
+        code: '1.1.8.5',
+        name: ' > Sensibilización Riesgo Psicosocial',
+        description: 'Entender los factores intralaborales y extralaborales que afectan el clima laboral y la salud mental.',
+        evaluation: 'Verificar formación en factores de riesgo psicosocial.',
+        category: 'planear',
+        subcategory: 'Comité Convivencia (Detalle)',
+        criteria: 'Res 2764/22',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+    },
+    {
+        id: 'aud_1_1_8_etica',
+        code: '1.1.8.6',
+        name: ' > Ética y Confidencialidad',
+        description: 'Taller sobre el manejo de información sensible, protección de datos y garantías del debido proceso.',
+        evaluation: 'Verificar compromisos de confidencialidad y capacitación ética.',
+        category: 'planear',
+        subcategory: 'Comité Convivencia (Detalle)',
+        criteria: 'Ley 1010/06',
+        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
     },
     {
         id: 'aud_ley_2365', // ADICIONAL

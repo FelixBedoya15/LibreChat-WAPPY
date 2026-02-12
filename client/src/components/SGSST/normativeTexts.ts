@@ -235,6 +235,42 @@ export const NORMATIVE_FRAGMENTS = {
        - Decreto 1295/94 (Art 11 - Responsabilidad ARL): Establece el derecho del comité a recibir asesoría y capacitación gratuita por parte de la ARL.
        - Ley 1562/12 (Art 11): Refuerza la obligatoriedad de los programas de educación y prevención de las ARL.`,
 
+   'INFO_TEMAS_CAPACITACION_COPASST': `TEMARIO OBLIGATORIO DE CAPACITACIÓN COPASST:
+
+    1. INVESTIGACIÓN DE ACCIDENTES (Res 1401/07):
+       - Metodología de árbol de causas o 5 por qués.
+       - Funciones del equipo investigador.
+
+    2. INSPECCIONES DE SEGURIDAD:
+       - Técnicas para identificación de actos y condiciones inseguras.
+       - Listas de chequeo y seguimiento.
+
+    3. IDENTIFICACIÓN DE PELIGROS (GTC 45):
+       - Metodología para valorar riesgos y validar controles.
+
+    4. FUNCIONES Y RESPONSABILIDADES (Res 2013/86):
+       - Alcances legales y rol de veeduría.`,
+
+   'INFO_TEMAS_CAPACITACION_CCL': `TEMARIO OBLIGATORIO Y FUNCIONAMIENTO CCL (Nuevo Marco 2025):
+
+    1. NORMATIVA ACTUALIZADA (Res 3461/25):
+       - Nuevo funcionamiento y derogación de Res 652.
+       
+    2. ACOSO LABORAL (Ley 1010/06):
+       - Definición precisa de conductas que constituyen acoso y las que no.
+
+    3. RESOLUCIÓN DE CONFLICTOS:
+       - Comunicación asertiva, negociación y manejo de quejas.
+
+    4. ACOSO SEXUAL (Ley 2365/24):
+       - Entender que el CCL NO tiene competencia (Ruta penal/fiscalía) y debe remitir a talento humano/fiscalía.
+
+    5. RIESGO PSICOSOCIAL:
+       - Factores de clima laboral y salud mental.
+
+    6. ÉTICA Y CONFIDENCIALIDAD:
+       - Taller sobre protección de datos sensibles y debido proceso.`,
+
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
     
     NORMATIVA VIGENTE:
