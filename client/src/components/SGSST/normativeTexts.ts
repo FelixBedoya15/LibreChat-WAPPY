@@ -191,9 +191,10 @@ export const NORMATIVE_FRAGMENTS = {
    'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
     
     NORMATIVA VIGENTE:
-       - Decreto 1072/15 (Art 2.2.4.6.8 #10): El empleador debe definir un programa de capacitación para que el COPASST identifique peligros y controle riesgos.
-       - Decreto 1072/15 (Art 2.2.4.6.11): Define los requisitos de competencia necesarios.
-       - Ley 1562/12 (Art 11): Las ARL deben brindar capacitación gratuita al comité.`,
+       - Decreto 1072/15 (Art 2.2.4.6.11 - Capacitación): El empleador debe definir los requisitos de conocimiento y competencia necesarios para cada nivel.
+       - Resolución 2013/86 (Art 11 - Funciones): Exige conocimientos técnicos para investigar causas (lit a), realizar inspecciones (lit b) y estudiar sugerencias (lit f).
+       - Decreto 1295/94 (Art 11 - Responsabilidad ARL): Establece el derecho del comité a recibir asesoría y capacitación gratuita por parte de la ARL.
+       - Ley 1562/12 (Art 11): Refuerza la obligatoriedad de los programas de educación y prevención de las ARL.`,
 
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
    

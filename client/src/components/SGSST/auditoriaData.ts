@@ -89,7 +89,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Plan de capacitación (temas específicos).\n2. Registros asistencia.\n3. Certificados ARL.\n\nTemas Clave:\n- GTC 45 (Peligros).\n- Res 1401 (Investigación).\n- Inspecciones.\n- Curso 50h.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.7 | Dec 1072/15 (Art 8, 11) | Ley 1562/12 (Art 11) | Res 1401/07',
+        criteria: 'Res 0312/19: E1.1.7 | Dec 1072/15 (Art 11) | Res 2013/86 | Dec 1295/94 (ARL)',
         normativeText: NORMATIVE_FRAGMENTS.CAPACITACION_COPASST
     },
     {
