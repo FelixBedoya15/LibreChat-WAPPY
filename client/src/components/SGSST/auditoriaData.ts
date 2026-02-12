@@ -34,7 +34,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Manual de Funciones/Matriz SST (Soporte Documental).\n2. Cartas de Asignación Individual.\n3. Registros de Socialización (Res 3461 - Verificable).\n4. Acta de Rendición de Cuentas Anual.\n\nNiveles:\n- Alta Dirección: Recursos, Revisión, Rendición Cuentas.\n- Resp SST: Diseño, Ejecución, Reporte.\n- Jefes: Reporte Actos/Condiciones, EPP.\n- Trabajadores: Autocuidado, Informar Salud.\n- COPASST: Vigilancia.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.2 | Dec 1072/15 (Rendición de Cuentas) | Res 3461/25 | Ley 2050/20',
+        criteria: 'Res 0312/19: E1.1.2 | Dec 1072/15: 2.2.4.6.8 (Num 2 - Responsabilidades) | Res 3461/25 | Ley 2050/20',
         normativeText: NORMATIVE_FRAGMENTS.RESPONSABILIDADES_SST_2025
     },
     {
@@ -45,7 +45,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Presupuesto Firmado (Rep Legal).\n2. Ejecución Presupuestal (Facturas/Soportes).\n3. Rubro Exámenes Médicos (Crítico).\n4. Cruce con Rendición de Cuentas (Asignado vs Ejecutado).\n\nRecursos:\n- Financieros: Presupuesto desglosado.\n- Humanos: Resp SST, Comités.\n- Técnicos: Software, Equipos, Emergencias.\n- Físicos: Espacios reunión/capacitación.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.3 | Dec 1072/15 (Art 8 #4) | Presupuesto y Ejecución',
+        criteria: 'Res 0312/19: E1.1.3 | Dec 1072/15: 2.2.4.6.8 (Num 4 - Presupuesto y Ejecución)',
         normativeText: NORMATIVE_FRAGMENTS.RECURSOS_SST_DETALLE
     },
     {
