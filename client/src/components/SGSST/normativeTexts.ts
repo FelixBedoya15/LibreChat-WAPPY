@@ -231,14 +231,7 @@ export const NORMATIVE_FRAGMENTS = {
          * > 50 o Riesgo IV/V: Profesional/Especialista SST + Licencia + Curso 50h.
        - Decreto 1072/15 (Art 2.2.4.6.8): Exige carta de designación firmada por representante legal y aceptación del cargo.
        - Circular 0047 de 2025: Obliga a verificar la vigencia de la licencia y antecedentes ante Secretarías de Salud / Mi Seguridad Social.
-       - Resolución 908 de 2025: Ratifica la obligatoriedad del Curso de 50h y su actualización de 20h cada 3 años como requisito habilitante.
-
-    2. DOCUMENTOS AUDITABLES:
-       - Hoja de vida con soportes académicos y laborales.
-       - Copia de Licencia vigente (con resolución).
-       - Certificado de Curso 50 Horas (y actualización 20h si aplica).
-       - Consulta de antecedentes y vigencia de licencia (RUES / Mi Seguridad Social).
-       - Acta de designación y aceptación de responsabilidades.`,
+       - Resolución 908 de 2025: Ratifica la obligatoriedad del Curso de 50h y su actualización de 20h cada 3 años como requisito habilitante.`,
 
    'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
 
@@ -252,13 +245,7 @@ export const NORMATIVE_FRAGMENTS = {
        - Responsable SST: Diseño, ejecución y reporte.
        - Jefes/Supervisores: Reporte de actos/condiciones, asegurar uso EPP.
        - Trabajadores: Autocuidado, informar salud, cumplir normas.
-       - COPASST/Convivencia: Vigilancia y promoción.
-
-    3. EVIDENCIAS AUDITABLES:
-       - Manual de Funciones / Matriz con componente SST.
-       - Cartas de asignación individual firmadas.
-       - Registros de socialización (Listas/Pantallazos según Res 3461).
-       - Informes de Rendición de Cuentas anuales.`,
+       - COPASST/Convivencia: Vigilancia y promoción.`,
 
    'RECURSOS_SST_DETALLE': `ASIGNACIÓN DE RECURSOS (Financieros, Técnicos, Humanos y Físicos):
 
@@ -270,32 +257,18 @@ export const NORMATIVE_FRAGMENTS = {
        - Financieros: Presupuesto firmado y desglosado (EPP, Exámenes Médicos, Capacitación, Mantenimiento).
        - Humanos: Responsable SST, tiempos para COPASST y Brigadas.
        - Técnicos: Software, equipos de cómputo, conectividad, herramientas de medición.
-       - Físicos: Espacios para reuniones, capacitación y archivo.
-
-    3. CRITERIOS DE AUDITORÍA:
-       - Presupuesto firmado por Representante Legal.
-       - Ejecución Presupuestal (Facturas, recibos que demuestren el gasto real).
-       - Inclusión de Exámenes Médicos Ocupacionales en el rubro (Punto crítico).
-       - Cruce con Rendición de Cuentas (Presupuesto Asignado vs Ejecutado).`,
+       - Físicos: Espacios para reuniones, capacitación y archivo.`,
 
    'AFILIACION_SGRL_DETALLE': `AFILIACIÓN AL SGRL (Cobertura Total y Oportunidad):
 
     1. MARCO LEGAL CRÍTICO:
        - Ley 1562/12: Obligatoriedad universal para dependientes, contratistas (>1 mes) y alto riesgo.
        - Decreto 1072/15 (Art 2.2.4.2.2): La afiliación debe realizarse mínimo un día antes del inicio de labores (Cobertura inicia 00:00 del día siguiente).
-       - Decreto 1295/94: Unidad de afiliación (una sola ARL para todos los trabajadores).
-
     2. ALCANCE DE LA COBERTURA:
        - Trabajadores Dependientes (Contrato laboral).
        - Contratistas de Prestación de Servicios.
        - Estudiantes en práctica (Dec 055/15).
-       - Trabajadores en Misión (Empresas de Servicios Temporales).
-
-    3. EVIDENCIAS Y CONTROLES:
-       - Planilla PILA mensual: Verificar coincidencia de IBC y Clase de Riesgo (administrativo vs operativo) con la realidad.
-       - Soportes de ingreso a la ARL (Formularios).
-       - Certificado de vigencia emitido por la ARL (activos).
-       - Control de contratistas: Verificar pago de seguridad social antes del ingreso.`,
+       - Trabajadores en Misión (Empresas de Servicios Temporales).`,
 
    // --- RESOLUCIONES 2025 ---
    'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
