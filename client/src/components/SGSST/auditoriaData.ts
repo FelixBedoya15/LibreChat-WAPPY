@@ -78,7 +78,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Actas convocatoria/elección.\n2. Acta constitución.\n3. Registro votación.\n4. Designación vigía.\n\nTabla Res 2013:\n- 10-49: 1 Rep.\n- 50-499: 2 Rep.\n- 500-999: 3 Rep.\n- 1000+: 4 Rep.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.6 | Dec 1072/15 | Res 2013/86 | Dec 1295/94 (Vigía)',
+        criteria: 'Res 0312/19: E1.1.6 | Dec 1072/15: 2.2.4.6.2 (Parágrafo 2) | Res 2013/86 | Dec 1295/94 (Vigía)',
         normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
     },
     {
