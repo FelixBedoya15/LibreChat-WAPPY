@@ -223,8 +223,7 @@ export const NORMATIVE_FRAGMENTS = {
     NORMATIVA VIGENTE:
        - Decreto 1072/15 (Art 2.2.4.6.2 - Parágrafo 2): Se entenderá el Comité Paritario de Salud Ocupacional como COPASST, quienes tendrán las funciones establecidas en la normatividad vigente.
        - Resolución 2013/86 (Arts 1 y 2): Obligación de conformar el comité y escala de respresentantes según número de trabajadores.
-       - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.
-       - Resolución 0312/19 (E1.1.6): Solicita soportes de la conformación del COPASST.`,
+       - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.`,
 
    'INFO_COMUNICACION_COPASST': `COMUNICACIÓN INTEGRAL AL COPASST (Derecho a la Información y Veeduría):
     
@@ -471,5 +470,130 @@ export const NORMATIVE_FRAGMENTS = {
 
    'DEC_1072_ART_28_CONTRATACION': 'ARTÍCULO 2.2.4.6.28. Contratación. El empleador debe adoptar y mantener las disposiciones que garanticen el cumplimiento de las normas de seguridad y salud en el trabajo de su empresa, por parte de los proveedores, trabajadores dependientes, trabajadores cooperados, trabajadores en misión, contratistas y sus trabajadores o subcontratistas, durante el desempeño de las actividades objeto del contrato.',
 
-   'DEC_1072_ART_26_CAMBIO': 'ARTÍCULO 2.2.4.6.26. Gestión del cambio. El empleador o contratante debe implementar y mantener un procedimiento para evaluar el impacto sobre la seguridad y salud en el trabajo que puedan generar los cambios internos (introducción de nuevos procesos, cambio en los métodos de trabajo, cambios en instalaciones, entre otros) o los cambios externos (cambios en la legislación, evolución del conocimiento en seguridad y salud en el trabajo, entre otros).'
+   'DEC_1072_ART_26_CAMBIO': 'ARTÍCULO 2.2.4.6.26. Gestión del cambio. El empleador o contratante debe implementar y mantener un procedimiento para evaluar el impacto sobre la seguridad y salud en el trabajo que puedan generar los cambios internos (introducción de nuevos procesos, cambio en los métodos de trabajo, cambios en instalaciones, entre otros) o los cambios externos (cambios en la legislación, evolución del conocimiento en seguridad y salud en el trabajo, entre otros).',
+
+   // --- FRAGMENTOS DISCRIMINADOS 1.1.6 (Operación COPASST) ---
+   'COPASST_MATRIZ_PELIGROS': `PARTICIPACIÓN EN MATRIZ DE PELIGROS (Dec 1072 Art 2.2.4.6.15):
+     
+     El empleador debe involucrar al COPASST en la identificación de peligros y evaluación de riesgos.
+     
+     NORMATIVA VIGENTE:
+        - Decreto 1072/15 (Art 2.2.4.6.15 - Parágrafo 1): La identificación de peligros y evaluación de los riesgos debe ser desarrollada por el empleador o contratante con la participación de todos los niveles de la empresa.`,
+
+   'COPASST_INVESTIGACION_AT': `INVESTIGACIÓN DE ACCIDENTES (Res 1401/07):
+     
+     Obligación del COPASST de participar en el equipo investigador de incidentes y accidentes de trabajo.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 1401/07 (Art 7): El equipo investigador debe estar integrado como mínimo por el jefe inmediato o supervisor del trabajador accidentado o del área donde ocurrió el incidente, un representante del Comité Paritario de Salud Ocupacional o el Vigía Ocupacional y el encargado del desarrollo del programa de salud ocupacional.`,
+
+   'COPASST_INSPECCIONES': `INSPECCIONES DE SEGURIDAD (Res 2013/86):
+     
+     Función de vigilancia e inspección de los lugares de trabajo.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 2013/86 (Art 11 - Lit b): Visitar periódicamente los lugares de trabajo e inspeccionar los ambientes, máquinas, equipos, aparatos y las operaciones realizadas por el personal de trabajadores en cada área o sección de la empresa e informar al empleador sobre la existencia de factores de riesgo y sugerir las medidas correctivas y de control.`,
+
+   'COPASST_GESTION_CAMBIO': `GESTIÓN DEL CAMBIO (Dec 1072 Art 2.2.4.6.26):
+     
+     Evaluación del impacto en SST antes de realizar cambios internos.
+     
+     NORMATIVA VIGENTE:
+        - Decreto 1072/15 (Art 2.2.4.6.26): El empleador o contratante debe implementar y mantener un procedimiento para evaluar el impacto sobre la seguridad y salud en el trabajo que puedan generar los cambios internos (introducción de nuevos procesos, cambio en los métodos de trabajo, cambios en instalaciones, entre otros) o los cambios externos (cambios en la legislación, evolución del conocimiento en seguridad y salud en el trabajo, entre otros).`,
+
+   'COPASST_AUDITORIA': `PARTICIPACIÓN EN AUDITORÍA (Dec 1072 Art 2.2.4.6.29):
+     
+     Rol del COPASST en la planificación y resultados de la auditoría anual.
+     
+     NORMATIVA VIGENTE:
+        - Decreto 1072/15 (Art 2.2.4.6.29): El empleador debe realizar una auditoría anual, la cual será planificada con la participación del Comité Paritario o Vigía de Seguridad y Salud en el Trabajo.`,
+
+   // --- FRAGMENTOS DISCRIMINADOS 1.1.7 (Capacitación COPASST) ---
+   'CAP_COPASST_INV_AT': `CAPACITACIÓN: INVESTIGACIÓN DE ACCIDENTES (Res 1401/07):
+     
+     Formación específica para cumplir el rol de investigador.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 1401/07 (Art 4): Exige que los aportantes utilicen la metodología de investigación de accidentes determinada por la ARL o metodologías técnicas reconocidas (Árbol de Causas, 5 Porqués).`,
+
+   'CAP_COPASST_INSPECCIONES': `CAPACITACIÓN: INSPECCIONES DE SEGURIDAD (Res 2013/86):
+     
+     Entrenamiento para identificar condiciones inseguras.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 2013/86 (Art 11): Para cumplir la función de "Visitar periódicamente los lugares de trabajo", los miembros del comité deben estar entrenados en técnicas de observación y uso de listas de chequeo.`,
+
+   'CAP_COPASST_PELIGROS': `CAPACITACIÓN: IDENTIFICACIÓN DE PELIGROS (GTC 45):
+     
+     Formación en metodologías de valoración de riesgos.
+     
+     NORMATIVA VIGENTE:
+        - Decreto 1072/15 (Art 2.2.4.6.15): Exige aplicar una metodología sistemática. GTC 45 es la principal guía técnica para este fin.`,
+
+   'CAP_COPASST_FUNCIONES': `CAPACITACIÓN: FUNCIONES Y MARCO LEGAL (Res 2013/86):
+     
+     Taller sobre el rol, alcance y responsabilidades legales del comité.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 2013/86: Define el funcionamiento, reuniones y funciones específicas de vigilancia y promoción.`,
+
+   // --- FRAGMENTOS DISCRIMINADOS 1.1.8 (Convivencia) ---
+   'CCL_MARCO_NORMATIVO': `MARCO NORMATIVO COMITÉ DE CONVIVENCIA (Res 3461/25):
+     
+     Establece el nuevo funcionamiento, conformación y responsabilidades del comité, derogando la Res 652/12.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 3461/25: Define que el comité es un órgano de medida preventiva de acoso laboral que contribuye a proteger a los trabajadores contra los riesgos psicosociales.`,
+
+   'CCL_LEY_1010_ACOSO': `DEFINICIÓN DE ACOSO LABORAL (Ley 1010/06):
+     
+     Conducta persistente y demostrable encaminada a infundir miedo, intimidación, terror y angustia o causar perjuicio laboral.
+     
+     NORMATIVA VIGENTE:
+        - Ley 1010/06 (Art 2): Modalidades de Maltrato, persecución, discriminación, entorpecimiento, inequidad y desprotección.`,
+
+   'CCL_RESOLUCION_CONFLICTOS': `HERRAMIENTAS DE RESOLUCIÓN DE CONFLICTOS:
+     
+     El Comité actúa como mediador para promover el mutuo acuerdo.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 3461/25 (Art 9): El comité debe escuchar a las partes de manera individual y realizar reuniones conjuntas para formular planes de mejora.`,
+
+   'CCL_LEY_2365_SEXUAL': `ACOSO SEXUAL LABORAL (Ley 2365/24):
+     
+     El Comité de Convivencia NO tiene competencia para investigar o mediar en casos de acoso sexual.
+     
+     NORMATIVA VIGENTE:
+        - Res 3461/25: Refuerza que ante una queja de acoso sexual, el empleador debe seguir el protocolo de protección a la víctima y la ruta legal externa (Fiscalía/Inspección Trabajo) de inmediato.`,
+
+   'CCL_RIESGO_PSICOSOCIAL': `FACTORES DE RIESGO PSICOSOCIAL (Res 2764/22):
+     
+     El CCL debe comprender los factores que afectan la salud mental para prevenir conductas de acoso.
+     
+     NORMATIVA VIGENTE:
+        - Resolución 2764/22: Exige la evaluación de factores intralaborales y extralaborales mediante instrumentos validados para mejorar el clima laboral.`,
+
+   'CCL_ETICA_CONFIDENCIALIDAD': `ÉTICA Y CONFIDENCIALIDAD EN EL CCL:
+     
+     Garantía del debido proceso y protección de la información sensible.
+     
+     NORMATIVA VIGENTE:
+        - Ley 1010/06: Los miembros del comité deben mantener absoluta reserva sobre las quejas conocidas.
+        - Ley 1581/12: Protección de datos personales de los involucrados.`,
+
+   // --- FRAGMENTOS DISCRIMINADOS 3.1.1 (Sociodemográfica / Salud) ---
+   'DIAGNOSTICO_SOCIODEMOGRAFICO': `PERFIL SOCIODEMOGRÁFICO (Dec 1072 Art 2.2.4.6.16 Num 7):
+     
+     Estudio estadístico de las características de la población trabajadora.
+     
+     CONTENIDO OBLIGATORIO:
+        - Datos personales: Edad, Sexo, Estado Civil, Escolaridad.
+        - Datos laborales: Cargo, Antigüedad, Tipo de Contratación.`,
+
+   'DIAGNOSTICO_SALUD_PVE': `DIAGNÓSTICO DE SALUD Y PVE (Dec 1072 Art 2.2.4.6.16):
+     
+     Análisis de las condiciones de salud para priorizar la intervención.
+     
+     NORMATIVA VIGENTE:
+        - El diagnóstico consolidado de salud sirve de base para el diseño de los Programas de Vigilancia Epidemiológica (PVE) y actividades de promoción y prevención.`
 };
