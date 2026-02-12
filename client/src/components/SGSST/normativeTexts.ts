@@ -198,13 +198,10 @@ export const NORMATIVE_FRAGMENTS = {
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
    
     NORMATIVA VIGENTE:
-       - Resolución 0312/19: Define el perfil según tamaño y riesgo de la empresa:
-         * < 10 (Riesgo I, II, III): Técnico en SST + 1 año exp + Curso 50h.
-         * 11-50 (Riesgo I, II, III): Tecnólogo en SST + 2 años exp + Licencia + Curso 50h.
-         * > 50 o Riesgo IV/V: Profesional/Especialista SST + Licencia + Curso 50h.
-       - Decreto 1072/15 (Art 2.2.4.6.8): Exige carta de designación firmada por representante legal y aceptación del cargo.
-       - Circular 0047 de 2025: Obliga a verificar la vigencia de la licencia y antecedentes ante Secretarías de Salud / Mi Seguridad Social.
-       - Resolución 908 de 2025: Ratifica la obligatoriedad del Curso de 50h y su actualización de 20h cada 3 años como requisito habilitante.`,
+       - Resolución 0312 de 2019: Define los Estándares Mínimos y los perfiles de idoneidad para el diseño e implementación del SG-SST.
+       - Decreto 1072/15 (Art 2.2.4.6.8): Obligación de designar responsable del SG-SST.
+       - Circular 0047 de 2025: Instrucciones sobre certificación de competencias y vigilancia.
+       - Resolución 4927/16 y 908/25: Parámetros del Curso de 50 horas y actualización de 20 horas.`,
 
    'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
     
