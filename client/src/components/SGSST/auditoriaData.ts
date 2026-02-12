@@ -145,8 +145,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar certificado del curso de 50 horas de los responsables del SG-SST.',
         category: 'planear',
         subcategory: 'Capacitación en el SG-SST',
-        criteria: 'Res 0312/19: E1.2.3 | Dec 1072/15: 2.2.4.6.35 (Capacitación Responsable)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_11_CAPACITACION
+        criteria: 'Res 0312: E1.2.3 | Res 4927/16 | Circ 0047/25 (Actualización)',
+        normativeText: NORMATIVE_FRAGMENTS.RES_4927_2016_CURSO + '\n\n' + NORMATIVE_FRAGMENTS.CIRCULAR_0047_2025_ACTUALIZACION
     },
 
     // --- GESTIÓN INTEGRAL ---

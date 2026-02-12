@@ -222,7 +222,7 @@ export const NORMATIVE_FRAGMENTS = {
        - Plan de Capacitación Anual con temas específicos para el comité.
        - Registros de asistencia y certificados de la ARL.`,
 
-   'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST (Normativa 2025):
+   'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
 
     1. NORMATIVA VIGENTE ACTUALIZADA:
        - Resolución 0312/19: Define el perfil según tamaño y riesgo de la empresa:
@@ -240,7 +240,7 @@ export const NORMATIVE_FRAGMENTS = {
        - Consulta de antecedentes y vigencia de licencia (RUES / Mi Seguridad Social).
        - Acta de designación y aceptación de responsabilidades.`,
 
-   'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES (Normativa 2025):
+   'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
 
     1. MARCO LEGAL REFORZADO:
        - Resolución 3461 de 2025: Exige comunicación verificable (digital/física con acuse) de responsabilidades. No basta el manual.
