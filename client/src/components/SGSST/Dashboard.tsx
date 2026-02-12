@@ -1,5 +1,5 @@
-import React from 'react';
-import { useOutletContext } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { useLocalize } from '~/hooks';
 import { FileText, ClipboardCheck, BarChart2, ShieldAlert, Building2 } from 'lucide-react';
 import { cn } from '~/utils';
@@ -10,49 +10,73 @@ import { PHASE_CATEGORIES } from './constants';
 import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
 
+const phases = [
+    {
+        id: 'plan',
+        title: 'Planear',
+        description: 'Política, Identificación de Peligros, Requisitos Legales',
+        color: 'bg-blue-500/10 border-blue-500/50 text-blue-700 dark:text-blue-400',
+        icon: <FileText className="w-8 h-8 text-blue-500" />,
+        items: PHASE_CATEGORIES.plan.map(c => c.title),
+    },
+    {
+        id: 'do',
+        title: 'Hacer',
+        description: 'Gestión de la Salud, Gestión de Peligros y Riesgos',
+        color: 'bg-yellow-500/10 border-yellow-500/50 text-yellow-700 dark:text-yellow-400',
+        icon: <ShieldAlert className="w-8 h-8 text-yellow-500" />,
+        items: PHASE_CATEGORIES.do.map(c => c.title),
+    },
+    {
+        id: 'check',
+        title: 'Verificar',
+        description: 'Auditoría y Revisión por la Alta Dirección',
+        color: 'bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-400',
+        icon: <ClipboardCheck className="w-8 h-8 text-red-500" />,
+        items: PHASE_CATEGORIES.check.map(c => c.title),
+    },
+    {
+        id: 'act',
+        title: 'Actuar',
+        description: 'Mejoramiento Continuo',
+        color: 'bg-green-500/10 border-green-500/50 text-green-700 dark:text-green-400',
+        icon: <BarChart2 className="w-8 h-8 text-green-500" />,
+        items: PHASE_CATEGORIES.act.map(c => c.title),
+    },
+];
+
 const SGSSTDashboard = () => {
     const localize = useLocalize();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
     const [showCompanyInfo, setShowCompanyInfo] = React.useState(false);
 
-    const phases = [
-        {
-            id: 'plan',
-            title: 'Planear',
-            description: 'Política, Identificación de Peligros, Requisitos Legales',
-            color: 'bg-blue-500/10 border-blue-500/50 text-blue-700 dark:text-blue-400',
-            icon: <FileText className="w-8 h-8 text-blue-500" />,
-            items: PHASE_CATEGORIES.plan.map(c => c.title),
-        },
-        {
-            id: 'do',
-            title: 'Hacer',
-            description: 'Gestión de la Salud, Gestión de Peligros y Riesgos',
-            color: 'bg-yellow-500/10 border-yellow-500/50 text-yellow-700 dark:text-yellow-400',
-            icon: <ShieldAlert className="w-8 h-8 text-yellow-500" />,
-            items: PHASE_CATEGORIES.do.map(c => c.title),
-        },
-        {
-            id: 'check',
-            title: 'Verificar',
-            description: 'Auditoría y Revisión por la Alta Dirección',
-            color: 'bg-red-500/10 border-red-500/50 text-red-700 dark:text-red-400',
-            icon: <ClipboardCheck className="w-8 h-8 text-red-500" />,
-            items: PHASE_CATEGORIES.check.map(c => c.title),
-        },
-        {
-            id: 'act',
-            title: 'Actuar',
-            description: 'Mejoramiento Continuo',
-            color: 'bg-green-500/10 border-green-500/50 text-green-700 dark:text-green-400',
-            icon: <BarChart2 className="w-8 h-8 text-green-500" />,
-            items: PHASE_CATEGORIES.act.map(c => c.title),
-        },
-    ];
+    // Sync state with URL on mount and update
+    useEffect(() => {
+        const phaseId = searchParams.get('phase');
+        if (phaseId) {
+            const phase = phases.find(p => p.id === phaseId);
+            if (phase) {
+                setSelectedPhase(phase);
+            } else {
+                setSelectedPhase(null);
+            }
+        } else {
+            setSelectedPhase(null);
+        }
+    }, [searchParams]);
+
+    const handlePhaseSelect = (phase: any) => {
+        setSearchParams({ phase: phase.id });
+    };
+
+    const handleBack = () => {
+        setSearchParams({});
+    };
 
     if (selectedPhase) {
-        return <PhaseDetail phase={selectedPhase} onBack={() => setSelectedPhase(null)} />;
+        return <PhaseDetail phase={selectedPhase} onBack={handleBack} />;
     }
 
     return (
@@ -78,7 +102,7 @@ const SGSSTDashboard = () => {
                 {phases.map((phase) => (
                     <div
                         key={phase.id}
-                        onClick={() => setSelectedPhase(phase)}
+                        onClick={() => handlePhaseSelect(phase)}
                         className={cn(
                             'group relative flex cursor-pointer flex-col rounded-xl border p-6 transition-all hover:shadow-lg',
                             phase.color,
