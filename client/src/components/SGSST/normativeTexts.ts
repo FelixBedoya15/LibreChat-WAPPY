@@ -206,11 +206,12 @@ export const NORMATIVE_FRAGMENTS = {
    'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
     
     NORMATIVA VIGENTE:
-       - Ley 1562 de 2012: Define responsabilidad empleador (pago/protección) y trabajador (autocuidado).
-       - Resolución 3461 de 2025: Exige comunicación verificable (digital/física con acuse).
-       - Ley 2050 de 2020 (PESV): Vincula responsabilidad directiva en accidentes viales.
-       - Resolución 4272 de 2021 (Alturas): Roles delegados por escrito (Admin, Coord, Trabajador).
-       - Resolución 2013 de 1986: Responsabilidades específicas del COPASST.`,
+       - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Define la obligación del empleador de garantizar la gestión de la SST y asignar responsabilidades.
+       - Ley 1562 de 2012 (Art 2 - Sistema General de Riesgos Laborales): Define la responsabilidad del empleador en el pago de aportes y protección, y del trabajador en su autocuidado.
+       - Resolución 3461 de 2025 (Comunicación Verificable): Exige que la asignación de responsabilidades sea comunicada por medios digitales o físicos con acuse de recibo.
+       - Ley 2050 de 2020 (Plan Estratégico de Seguridad Vial): Vincula la responsabilidad de la alta dirección en la prevención de accidentes viales laborales.
+       - Resolución 4272 de 2021 (Trabajo en Alturas): Obliga a delegar por escrito roles específicos (Administrador, Coordinador, Trabajador autorizado).
+       - Resolución 2013 de 1986 (COPASST): Establece las responsabilidades específicas de vigilancia y promoción para los miembros del comité.`,
 
    'RECURSOS_SST_DETALLE': `ASIGNACIÓN DE RECURSOS (Financieros, Técnicos, Humanos y Físicos):
     
