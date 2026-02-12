@@ -513,20 +513,21 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         criteria: 'Res 0312/19: E2.11.1 | Dec 1072/15: 2.2.4.6.26 (Gestión Cambio)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_26_CAMBIO
     },
+
+
+    // --- II. HACER ---
+    // Condiciones Salud
     {
         id: 'aud_3_1_1',
         code: '3.1.1',
         name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
         description: 'Documento consolidado con la información sociodemográfica (edad, sexo, escolaridad) y el diagnóstico de salud de la población trabajadora (morbimortalidad).',
         evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
-        category: 'planear',
+        category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico Salud)',
         normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
     },
-
-    // --- II. HACER ---
-    // Condiciones Salud
 
 
     {
