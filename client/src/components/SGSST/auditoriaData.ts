@@ -555,11 +555,11 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         code: '3.1.3',
         name: 'Información al médico de perfiles de cargo',
         description: 'Se debe informar al médico los perfiles de cargo para evaluaciones.',
-        evaluation: 'Verificar que se remitan perfiles de cargo y factores de riesgo al médico.',
+        evaluation: 'Verificar suministro de **Profesiograma** (descripción de tareas y factores de riesgo) al médico especialista.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.3 | Dec 1072/15: 2.2.4.6.22 | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.3 | Res 1843/25 (Profesiograma)',
+        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_4',
