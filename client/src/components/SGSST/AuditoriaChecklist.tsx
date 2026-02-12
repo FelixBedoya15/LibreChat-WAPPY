@@ -199,6 +199,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             margins: 1,
             coverTitle: 'Informe de Auditoría Interna\nSistema de Gestión de Seguridad y Salud en el Trabajo',
             messageTitle: 'Auditoría de cumplimiento Decreto 1072 / ISO 45001',
+            logoUrl: '',
+            showPagination: true,
         });
 
         showToast({ message: 'Informe exportado a Word', status: 'success' });
@@ -417,8 +419,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                         </div>
                                                         <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
                                                         {isItemExpanded && (
-                                                            <div className="mt-2 text-xs text-text-tertiary bg-surface-tertiary p-2 rounded">
-                                                                Pregunta: {item.evaluation}
+                                                            <div className="mt-2 text-xs text-text-tertiary bg-surface-tertiary p-2 rounded whitespace-pre-wrap">
+                                                                {item.evaluation}
                                                             </div>
                                                         )}
                                                         <button
