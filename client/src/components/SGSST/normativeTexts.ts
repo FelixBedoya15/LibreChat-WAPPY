@@ -209,9 +209,11 @@ export const NORMATIVE_FRAGMENTS = {
    'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
     
     NORMATIVA VIGENTE:
-       - Resolución 3461 de 2025: Exige comunicación verificable (digital/física con acuse) de responsabilidades. No basta el manual.
-       - Decreto 1072/15 (Art 2.2.4.6.8 #2): Obligación de Rendición de Cuentas anual, escrita y para todos los niveles.
-       - Ley 2050/20 (Seguridad Vial) y Res 4272/21 (Alturas): Responsabilidades específicas directivas y operativas.`,
+       - Ley 1562 de 2012: Define responsabilidad empleador (pago/protección) y trabajador (autocuidado).
+       - Resolución 3461 de 2025: Exige comunicación verificable (digital/física con acuse).
+       - Ley 2050 de 2020 (PESV): Vincula responsabilidad directiva en accidentes viales.
+       - Resolución 4272 de 2021 (Alturas): Roles delegados por escrito (Admin, Coord, Trabajador).
+       - Resolución 2013 de 1986: Responsabilidades específicas del COPASST.`,
 
    'RECURSOS_SST_DETALLE': `ASIGNACIÓN DE RECURSOS (Financieros, Técnicos, Humanos y Físicos):
     
