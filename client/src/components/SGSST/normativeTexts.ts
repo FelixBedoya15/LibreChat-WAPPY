@@ -176,55 +176,28 @@ export const NORMATIVE_FRAGMENTS = {
        - Servicio Doméstico: Obligatoria la afiliación por parte del empleador (persona natural).`,
 
    'PENSION_ALTO_RIESGO': `DECRETO 2090 DE 2003 (Pensión Especial de Vejez por Alto Riesgo):
-    Define las actividades de alto riesgo para la salud del trabajador y modifica las condiciones para acceder a la pensión.
-
-    - Actividades Cubiertas (Art 2):
-      1. Minería en socavones o subterráneos.
-      2. Exposición a altas temperaturas por encima de límites permisibles.
-      3. Radiaciones ionizantes.
-      4. Sustancias cancerígenas.
-      5. Controladores de tránsito aéreo (Aeronáutica Civil).
-      6. Cuerpos de Bomberos (extinción de incendios).
-      7. INPEC (Custodia y vigilancia en centros de reclusión).
-
-    - Cotización Especial (Art 5):
-      El empleador debe asumir una cotización especial adicional de 10 puntos porcentuales sobre la cotización ordinaria del Sistema General de Pensiones.`,
+    
+    NORMATIVA VIGENTE:
+     - Define las actividades de alto riesgo y modifica condiciones de pensión.
+     - Cotización Especial (Art 5): Adicional de 10 puntos porcentuales.`,
 
    'CONFORMACION_COPASST': `RESOLUCIÓN 2013 DE 1986 (Estructura y Conformación del COPASST):
-    Define la conformación técnica del comité según el número de trabajadores.
     
-    1. TABLA DE REPRESENTANTES (Principales y Suplentes por cada parte):
-       - 10 a 49 trabajadores: 1 Representante (Total 2 miembros + suplentes).
-       - 50 a 499 trabajadores: 2 Representantes (Total 4 miembros + suplentes).
-       - 500 a 999 trabajadores: 3 Representantes (Total 6 miembros + suplentes).
-       - 1.000 o más trabajadores: 4 Representantes (Total 8 miembros + suplentes).
-
-    2. VIGÍA EN SEGURIDAD Y SALUD EN EL TRABAJO (< 10 Trabajadores):
-       - Decreto 1295 de 1994 (Art 35): Para empresas con menos de 10 trabajadores no se conforma comité, sino que se nombra un Vigía con las mismas funciones.
-
-    3. NOTA SOBRE DECRETO 1072 DE 2015:
-       - Los Art. 2.2.4.6.2 y 2.2.4.6.8 solo definen al COPASST como canal de comunicación y la obligación general del empleador, pero la norma técnica de conformación es la Res. 2013/86.`,
+    NORMATIVA VIGENTE:
+       - Resolución 2013/86: Define la conformación según número de trabajadores.
+       - Decreto 1295/94 (Art 35): Vigía para empresas < 10 trabajadores.
+       - Decreto 1072/15: COPASST como canal de comunicación.`,
 
    'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
-
-    1. OBLIGACIONES LEGALES:
+    
+    NORMATIVA VIGENTE:
        - Decreto 1072/15 (Art 2.2.4.6.8 #10): El empleador debe definir un programa de capacitación para que el COPASST identifique peligros y controle riesgos.
        - Decreto 1072/15 (Art 2.2.4.6.11): Define los requisitos de competencia necesarios.
-       - Ley 1562/12 (Art 11): Las ARL deben brindar capacitación gratuita al comité.
-
-    2. TEMAS CLAVE DE FORMACIÓN:
-       - Identificación de Peligros y Valoración de Riesgos (Metodología GTC 45).
-       - Investigación de Accidentes de Trabajo (Res 1401/07).
-       - Inspecciones de Seguridad y Funciones Propias (Res 2013/86).
-       - Curso Virtual de 50 Horas SST (Res 0312/19).
-
-    3. EVIDENCIAS REQUERIDAS:
-       - Plan de Capacitación Anual con temas específicos para el comité.
-       - Registros de asistencia y certificados de la ARL.`,
+       - Ley 1562/12 (Art 11): Las ARL deben brindar capacitación gratuita al comité.`,
 
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
-
-    1. NORMATIVA VIGENTE ACTUALIZADA:
+   
+    NORMATIVA VIGENTE:
        - Resolución 0312/19: Define el perfil según tamaño y riesgo de la empresa:
          * < 10 (Riesgo I, II, III): Técnico en SST + 1 año exp + Curso 50h.
          * 11-50 (Riesgo I, II, III): Tecnólogo en SST + 2 años exp + Licencia + Curso 50h.
@@ -234,51 +207,31 @@ export const NORMATIVE_FRAGMENTS = {
        - Resolución 908 de 2025: Ratifica la obligatoriedad del Curso de 50h y su actualización de 20h cada 3 años como requisito habilitante.`,
 
    'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
-
-    1. MARCO LEGAL REFORZADO:
+    
+    NORMATIVA VIGENTE:
        - Resolución 3461 de 2025: Exige comunicación verificable (digital/física con acuse) de responsabilidades. No basta el manual.
        - Decreto 1072/15 (Art 2.2.4.6.8 #2): Obligación de Rendición de Cuentas anual, escrita y para todos los niveles.
-       - Ley 2050/20 (Seguridad Vial) y Res 4272/21 (Alturas): Responsabilidades específicas directivas y operativas.
-
-    2. NIVELES DE RESPONSABILIDAD:
-       - Alta Dirección: Recursos, Rentición de Cuentas, Revisión por la Dirección.
-       - Responsable SST: Diseño, ejecución y reporte.
-       - Jefes/Supervisores: Reporte de actos/condiciones, asegurar uso EPP.
-       - Trabajadores: Autocuidado, informar salud, cumplir normas.
-       - COPASST/Convivencia: Vigilancia y promoción.`,
+       - Ley 2050/20 (Seguridad Vial) y Res 4272/21 (Alturas): Responsabilidades específicas directivas y operativas.`,
 
    'RECURSOS_SST_DETALLE': `ASIGNACIÓN DE RECURSOS (Financieros, Técnicos, Humanos y Físicos):
-
-    1. OBLIGATORIEDAD LEGAL:
+    
+    NORMATIVA VIGENTE:
        - Decreto 1072/15 (Art 2.2.4.6.8 #4): El empleador debe definir y asignar recursos para el diseño, implementación y mejora del SG-SST.
-       - Resolución 0312/19: Exige documento soporte de asignación de recursos.
-
-    2. TIPOS DE RECURSOS A EVIDENCIAR:
-       - Financieros: Presupuesto firmado y desglosado (EPP, Exámenes Médicos, Capacitación, Mantenimiento).
-       - Humanos: Responsable SST, tiempos para COPASST y Brigadas.
-       - Técnicos: Software, equipos de cómputo, conectividad, herramientas de medición.
-       - Físicos: Espacios para reuniones, capacitación y archivo.`,
+       - Resolución 0312/19: Exige documento soporte de asignación de recursos.`,
 
    'AFILIACION_SGRL_DETALLE': `AFILIACIÓN AL SGRL (Cobertura Total y Oportunidad):
-
-    1. MARCO LEGAL CRÍTICO:
+    
+    NORMATIVA VIGENTE:
        - Ley 1562/12: Obligatoriedad universal para dependientes, contratistas (>1 mes) y alto riesgo.
        - Decreto 1072/15 (Art 2.2.4.2.2): La afiliación debe realizarse mínimo un día antes del inicio de labores (Cobertura inicia 00:00 del día siguiente).
-    2. ALCANCE DE LA COBERTURA:
-       - Trabajadores Dependientes (Contrato laboral).
-       - Contratistas de Prestación de Servicios.
-       - Estudiantes en práctica (Dec 055/15).
-       - Trabajadores en Misión (Empresas de Servicios Temporales).`,
+       - Decreto 1295/94: Unidad de afiliación (una sola ARL para todos los trabajadores).`,
 
    // --- RESOLUCIONES 2025 ---
    'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
-    Establece la conformación y funcionamiento del Comité de Convivencia Laboral.
     
-    Obligaciones:
-    - Conformar el comité con representantes del empleador y trabajadores (paritario).
-    - Reuniones ordinarias según periodicidad establecida (mensual/bimestral).
-    - Gestión confidencial de quejas y promoción de la convivencia.
-    - El comité no tiene competencia en acoso sexual (Ley 2365), que requiere protocolo independiente.`,
+    NORMATIVA VIGENTE:
+     Establece la conformación y funcionamiento del Comité de Convivencia Laboral.
+     El comité no tiene competencia en acoso sexual (Ley 2365), que requiere protocolo independiente.`,
 
    'RES_1843_2025_MEDICAS': `RESOLUCIÓN 1843 DE 2025 (Nuevas Evaluaciones Médicas):
     Regula la práctica de evaluaciones médicas ocupacionales y el manejo de la historia clínica.
