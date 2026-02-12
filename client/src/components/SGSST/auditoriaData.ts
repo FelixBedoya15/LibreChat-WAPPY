@@ -100,7 +100,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar firmas del COPASST en los informes de investigación de AT.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
-        criteria: 'Res 1401/07',
+        criteria: 'Res 1401/07 (Art 4 - Equipo Investigador)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
@@ -155,7 +155,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar certificados de capacitación en Investigación de AT para el COPASST.',
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
-        criteria: 'Res 1401/07',
+        criteria: 'Res 1401/07 (Art 4 - Metodología)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
     },
     {
@@ -166,7 +166,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar entrenamiento en realización de inspecciones y uso de listas de chequeo.',
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
-        criteria: 'Res 2013/86',
+        criteria: 'Res 2013/86 (Art 11 - Lit b)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
     },
     {
@@ -188,7 +188,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registro de capacitación en funciones del COPASST.',
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
-        criteria: 'Res 2013/86',
+        criteria: 'Res 2013/86 (Art 11 - Funciones)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
     },
     {
@@ -199,7 +199,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Acta conformación (paritaria).\n2. Acta designación empleador / elección trab.\n3. Reuniones trimestrales (Res 652/1356).\n4. Confidencialidad.\n\nFunciones:\n- Recibir quejas.\n- Escuchar partes.\n- Espacios diálogo.\n- Seguimiento.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.8 | Res 3461/25 (Deroga Res 652)',
+        criteria: 'Res 0312/19: E1.1.8 | Res 3461/25 (Conformación y Funcionamiento)',
         normativeText: NORMATIVE_FRAGMENTS.RES_3461_2025_CONVIVENCIA
     },
     {
@@ -210,7 +210,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar socialización de la nueva norma de convivencia laboral.',
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
-        criteria: 'Res 3461/25',
+        criteria: 'Res 3461/25 (Art 8 - Capacitación)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
     },
     {
@@ -221,7 +221,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar capacitación en Ley 1010 de 2006.',
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
-        criteria: 'Ley 1010/06',
+        criteria: 'Ley 1010/06 (Art 2 y 7 - Definición y Modalidades)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
     },
     {
@@ -232,7 +232,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar taller de habilidades blandas/resolución de conflictos para el comité.',
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
-        criteria: 'Res 3461/25',
+        criteria: 'Res 3461/25 (Art 9 - Resolución Conflictos)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
     },
     {
@@ -254,7 +254,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar formación en factores de riesgo psicosocial.',
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
-        criteria: 'Res 2764/22',
+        criteria: 'Res 2764/22 (Art 4 - Batería Instrumentos)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
     },
     {
@@ -335,7 +335,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar política escrita. Debe incluir prohibición consumo (Ley 1335) y enfoque preventivo (Sent C-636/16).',
         category: 'planear',
         subcategory: 'Política de SST',
-        criteria: 'Res 1016/86 | Ley 1335/09 | CST Art 60 | Sent C-636/16',
+        criteria: 'Res 1016/86 (Art 10) | Ley 1335/09 (Art 19) | CST Art 60 | Sent C-636/16',
         normativeText: NORMATIVE_FRAGMENTS.POLITICA_CONSUMO_SPA
     },
     {
@@ -346,7 +346,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar existencia de la política y coherencia con el Comité de Convivencia.',
         category: 'planear',
         subcategory: 'Política de SST',
-        criteria: 'Ley 1010/06 | Res 2646/08',
+        criteria: 'Ley 1010/06 (Art 9) | Res 2646/08 (Art 14)',
         normativeText: NORMATIVE_FRAGMENTS.POLITICA_ACOSO_LABORAL
     },
     {
@@ -368,7 +368,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar política de privacidad y autorizaciones de tratamiento de datos manuscritas/digitales.',
         category: 'planear',
         subcategory: 'Política de SST',
-        criteria: 'Ley 1581/12 | Dec 1377/13',
+        criteria: 'Ley 1581/12 (Art 9) | Dec 1377/13 (Art 10)',
         normativeText: NORMATIVE_FRAGMENTS.POLITICA_DATOS_PERSONALES
     },
     {
@@ -379,7 +379,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar existencia de la política de desconexión laboral aprobada y divulgada.',
         category: 'planear',
         subcategory: 'Política de SST',
-        criteria: 'Ley 2191/22',
+        criteria: 'Ley 2191/22 (Art 3 - Derecho Desconexión)',
         normativeText: NORMATIVE_FRAGMENTS.LEY_2191_DESCONEXION
     },
     {
