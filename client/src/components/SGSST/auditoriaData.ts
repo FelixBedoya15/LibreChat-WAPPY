@@ -273,7 +273,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar sistema de archivo y conservación de documentos del SG-SST.',
         category: 'planear',
         subcategory: 'Conservación de la documentación',
-        criteria: 'Res 0312/19: E2.5.1 | Dec 1072/15: 2.2.4.6.13 (Conservación)',
+        criteria: 'Res 0312/19: E2.5.1 | Dec 1072/15: Arts 12 y 13 (Doc. y Conservación)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_12_DOCUMENTACION
     },
     // Rendición Cuentas
@@ -285,8 +285,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros de rendición de cuentas de quienes tienen responsabilidades en SST.',
         category: 'planear',
         subcategory: 'Rendición de cuentas',
-        criteria: 'Res 0312/19: E2.6.1 | Dec 1072/15: 2.2.4.6.8 (Obligación 3)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312/19: E2.6.1 | Dec 1072/15: Arts 8, 12 y 31 (Rendición y Revisión)',
+        normativeText: NORMATIVE_FRAGMENTS.RENDICION_CUENTAS_DETALLE
     },
     // Matriz Legal
     {

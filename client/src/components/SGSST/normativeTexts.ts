@@ -1,6 +1,17 @@
 
 export const NORMATIVE_FRAGMENTS = {
    // --- DECRETO 1072 DE 2015 ---
+   'RENDICION_CUENTAS_DETALLE': `RENDICIÓN DE CUENTAS (Obligación, Insumo y Registro):
+    
+    NORMATIVA VIGENTE:
+       1. OBLIGACIÓN (Art 2.2.4.6.8, Num 3):
+          Todos los niveles de la organización deben rendir cuentas sobre su desempeño en SST al menos una vez al año.
+          
+       2. INSUMO PARA LA ALTA DIRECCIÓN (Art 2.2.4.6.31, Num 2):
+          Los resultados validados de la rendición de cuentas son un insumo obligatorio para la Revisión por la Alta Dirección. Sin esto, no se cierra el ciclo PHVA.
+          
+       3. CONSERVACIÓN (Art 2.2.4.6.12, Num 10):
+          Los registros de la rendición de cuentas son documentos obligatorios del SG-SST y deben conservarse por 20 años.`,
    'DEC_1072_ART_8_OBLIGACIONES': `ARTÍCULO 2.2.4.6.8. Obligaciones de los empleadores. 
     El empleador está obligado a la protección de la seguridad y la salud de los trabajadores, acorde con lo establecido en la normatividad vigente.
     
@@ -23,23 +34,31 @@ export const NORMATIVE_FRAGMENTS = {
     
     El programa de capacitación debe ser revisado mínimo una (1) vez al año, con la participación del Comité Paritario o Vigía de Seguridad y Salud en el Trabajo y la alta dirección de la empresa.`,
 
-   'DEC_1072_ART_12_DOCUMENTACION': `ARTÍCULO 2.2.4.6.12. Documentación.
-    El empleador debe mantener disponibles y debidamente actualizados entre otros, los siguientes documentos en relación con el Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST):
-    1. La política y los objetivos de la empresa en materia de seguridad y salud en el trabajo SST, firmados por el empleador.
-    2. Las responsabilidades asignadas para la implementación y mejora continua del Sistema de Gestión de la Seguridad y Salud en el Trabajo SG-SST.
-    3. La identificación anual de peligros y evaluación y valoración de los riesgos.
-    4. El informe de las condiciones de salud, junto con el perfil sociodemográfico de la población trabajadora.
-    5. El plan de trabajo anual en seguridad y salud en el trabajo - SST de la empresa.
-    6. El programa de capacitación anual en seguridad y salud en el trabajo - SST.
-    7. Los procedimientos e instructivos internos de seguridad y salud en el trabajo.
-    8. Registros de entrega de equipos y elementos de protección personal.
-    9. Registro de entrega de los protocolos de seguridad, fichas técnicas e instructivos.
-    10. Los soportes de la convocatoria, elección y conformación del Comité Paritario de Seguridad y Salud en el Trabajo y las actas de sus reuniones.
-    11. Los reportes y las investigaciones de los incidentes, accidentes de trabajo y enfermedades laborales.
-    13. El programa de vigilancia epidemiológica de la salud de los trabajadores.
-    14. La identificación de las amenazas junto con la evaluación de la vulnerabilidad y sus correspondientes planes de prevención, preparación y respuesta ante emergencias.
-    15. Los resultados de las mediciones ambientales.
-    16. La matriz legal actualizada.`,
+   'DEC_1072_ART_12_DOCUMENTACION': `DOCUMENTACIÓN Y CONSERVACIÓN (Decreto 1072 - Arts 12 y 13):
+    
+    NORMATIVA VIGENTE:
+       1. ARTÍCULO 2.2.4.6.12 (DOCUMENTACIÓN):
+          El empleador debe mantener disponibles y actualizados, entre otros:
+          - Política y Objetivos firmados.
+          - Responsabilidades asignadas.
+          - Identificación de Peligros (Ipevr).
+          - Informe de Condiciones de Salud.
+          - Plan de Trabajo Anual y Cronograma.
+          - Programa de Capacitación.
+          - Procedimientos e Instructivos.
+          - Registros de entrega de EPP y Protocolos.
+          - Actas de COPASST.
+          - Reportes e investigaciones de ATEL.
+          - Programas de Vigilancia Epidemiológica.
+          - Planes de Emergencia y Matriz Legal.
+
+       2. ARTÍCULO 2.2.4.6.13 (CONSERVACIÓN - 20 AÑOS):
+          Se deben conservar por 20 años (desde que cesa la relación laboral) de manera controlada y digital/física:
+          - Resultados de perfiles epidemiológicos.
+          - Exámenes médicos de ingreso, periódicos y retiro.
+          - Resultados de mediciones y monitoreo ambiental.
+          - Registros de capacitación, formación y entrenamiento.
+          - Registro de entrega de EPP.`,
 
    'DEC_1072_ART_15_PELIGROS': `ARTÍCULO 2.2.4.6.15. Identificación de peligros, evaluación y valoración de los riesgos.
     El empleador o contratante debe aplicar una metodología sistemática, que tenga alcance sobre todos los procesos y actividades rutinarias y no rutinarias internas o externas, máquinas y equipos, todos los centros de trabajo y todos los trabajadores independientemente de su forma de contratación y vinculación, que le permita identificar los peligros y evaluar los riesgos en seguridad y salud en el trabajo, con el fin que pueda priorizarlos y establecer los controles necesarios.`,
