@@ -741,6 +741,17 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         points: 1,
         article: 16,
     },
+    {
+        id: 'art16_60',
+        code: '3.1.10',
+        name: 'Reporte de accidentes de trabajo y enfermedades al MinTrabajo',
+        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales diagnosticadas.',
+        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo dentro de los 2 días hábiles siguientes al evento.',
+        category: 'hacer',
+        subcategory: 'Condiciones de salud en el trabajo',
+        points: 5,
+        article: 16,
+    },
     // Registro y reporte de ATEL (5%)
     {
         id: 'art16_32',
@@ -1055,17 +1066,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         points: 5,
         article: 16,
     },
-    {
-        id: 'art16_60',
-        code: '3.1.10',
-        name: 'Reporte de accidentes de trabajo y enfermedades al MinTrabajo',
-        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales diagnosticadas.',
-        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo dentro de los 2 días hábiles siguientes al evento.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        points: 5,
-        article: 16,
-    },
+
 ];
 
 /**

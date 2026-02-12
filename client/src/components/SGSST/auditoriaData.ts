@@ -528,17 +528,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     // --- II. HACER ---
     // Condiciones Salud
 
-    {
-        id: 'aud_res_2764', // ADICIONAL
-        code: 'Norma Adicional',
-        name: 'Batería Riesgo Psicosocial (Res 2764)',
-        description: 'Aplicación de la batería de riesgo psicosocial (Resolución 2764 de 2022).',
-        evaluation: 'Verificar informe de aplicación de la batería e intervención de riesgos psicosociales.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 2764/22 | Dec 1072/15: 2.2.4.6.22',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
-    },
+
     {
         id: 'aud_3_1_2',
         code: '3.1.2',
@@ -626,6 +616,17 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.22',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+    },
+    {
+        id: 'aud_reporte_min',
+        code: '3.1.10',
+        name: 'Reporte de accidentes de trabajo y hostigamientos al MinTrabajo',
+        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales.',
+        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo.',
+        category: 'hacer',
+        subcategory: 'Condiciones de salud en el trabajo',
+        criteria: 'Dec 1072/15: 2.2.4.6.32 (Reporte MinTrabajo)',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_32_REPORTE
     },
 
     // Registro Reporte ATEL
@@ -1004,15 +1005,5 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         criteria: 'Res 0312/19: E7.1.4 | Dec 1072/15: 2.2.4.6.33 (Mejora Continua)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_33_MEJORA
     },
-    {
-        id: 'aud_reporte_min',
-        code: '3.1.10',
-        name: 'Reporte de accidentes de trabajo y hostigamientos al MinTrabajo',
-        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales.',
-        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Dec 1072/15: 2.2.4.6.32 (Reporte MinTrabajo)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_32_REPORTE
-    }
+
 ];
