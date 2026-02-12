@@ -303,11 +303,12 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
         name: 'Descripción sociodemográfica y diagnóstico de condiciones de salud',
         description: 'Debe existir descripción sociodemográfica de los trabajadores y diagnóstico de condiciones de salud.',
         evaluation: 'Verificar perfil sociodemográfico actualizado y diagnóstico de condiciones de salud.',
-        category: 'hacer',
+        category: 'planear',
         subcategory: 'Condiciones de salud en el trabajo',
         points: 3.85,
         article: 9,
     },
+
     {
         id: 'art9_16',
         code: '3.1.2',
@@ -639,18 +640,19 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         article: 16,
     },
     // II. HACER (60%)
-    // Condiciones de salud (9%)
     {
         id: 'art16_23',
         code: '3.1.1',
-        name: 'Evaluación médica ocupacional',
-        description: 'Deben realizarse evaluaciones médicas ocupacionales según normatividad.',
-        evaluation: 'Verificar programa de vigilancia epidemiológica y certificados médicos.',
-        category: 'hacer',
+        name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
+        description: 'Documento consolidado con la información sociodemográfica y el diagnóstico de salud de la población trabajadora.',
+        evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
+        category: 'planear',
         subcategory: 'Condiciones de salud en el trabajo',
         points: 1,
         article: 16,
     },
+    // Condiciones de salud (9%)
+
     {
         id: 'art16_24',
         code: '3.1.2',
