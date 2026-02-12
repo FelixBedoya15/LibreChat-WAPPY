@@ -90,7 +90,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Dec 1072/15: 2.2.4.6.15 (Identificación de Peligros)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.COPASST_MATRIZ_PELIGROS
     },
     {
         id: 'aud_1_1_6_at',
@@ -101,7 +101,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Res 1401/07 (Art 4 - Equipo Investigador)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.COPASST_INVESTIGACION_AT
     },
     {
         id: 'aud_1_1_6_inspecciones',
@@ -112,7 +112,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Res 2013/86 (Art 11)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.COPASST_INSPECCIONES
     },
     {
         id: 'aud_1_1_6_cambio',
@@ -123,7 +123,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Dec 1072/15: 2.2.4.6.26 (Gestión del Cambio)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.COPASST_GESTION_CAMBIO
     },
     {
         id: 'aud_1_1_6_auditoria',
@@ -134,7 +134,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Dec 1072/15: 2.2.4.6.29 (Auditoría)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.COPASST_AUDITORIA
     },
     {
         id: 'aud_1_1_7',
