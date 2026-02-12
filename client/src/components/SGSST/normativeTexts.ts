@@ -286,15 +286,15 @@ export const NORMATIVE_FRAGMENTS = {
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
     
     NORMATIVA VIGENTE:
-       - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Establece la obligación de designar un responsable del SG-SST por escrito.
-       - Resolución 0312 de 2019 (Estándares Mínimos): Define los perfiles de idoneidad (técnico, tecnólogo, profesional) según el tamaño y riesgo de la empresa.
-       - Circular 0047 de 2025 (Vigilancia y Control): Instruye sobre la verificación de la vigencia de licencias y antecedentes en el registro oficial.
-       - Resolución 4927 de 2016 y 908 de 2025 (Capacitación Obligatoria): Establecen el curso virtual de 50 horas y su actualización de 20 horas como requisito habilitante.`,
+        - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Establece la obligación de designar un responsable del SG-SST por escrito.
+        - Resolución 0312 de 2019 (Estándares Mínimos - Art 16): Define los perfiles de idoneidad.
+        - Circular 0047 de 2025 (Vigilancia y Control): Instruye sobre la verificación de la vigencia de licencias.
+        - Resolución 908 de 2025 (Renovación): Requisitos para mantener la vigencia de la licencia.`,
 
    'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES:
     
     NORMATIVA VIGENTE:
-       - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Define la obligación del empleador de garantizar la gestión de la SST y asignar responsabilidades.
+        - Decreto 1072 de 2015 (Art 2.2.4.6.8 #2 - Responsabilidades): Define la obligación del empleador de asignar, documentar y comunicar responsabilidades.
        - Ley 1562 de 2012 (Art 2 - Sistema General de Riesgos Laborales): Define la responsabilidad del empleador en el pago de aportes y protección, y del trabajador en su autocuidado.
        - Resolución 3461 de 2025 (Comunicación Verificable): Exige que la asignación de responsabilidades sea comunicada por medios digitales o físicos con acuse de recibo.
        - Ley 2050 de 2020 (Plan Estratégico de Seguridad Vial): Vincula la responsabilidad de la alta dirección en la prevención de accidentes viales laborales.
@@ -311,7 +311,8 @@ export const NORMATIVE_FRAGMENTS = {
     
     NORMATIVA VIGENTE:
        - Ley 1562/12: Obligatoriedad universal para dependientes, contratistas (>1 mes) y alto riesgo.
-       - Decreto 1072/15 (Art 2.2.4.2.2): La afiliación debe realizarse mínimo un día antes del inicio de labores (Cobertura inicia 00:00 del día siguiente).
+        - Decreto 1072/15 (Art 2.2.4.2.2 - Cobertura Total): La afiliación debe realizarse mínimo un día antes del inicio de labores.
+        - Decreto 055/15: Afiliación de estudiantes.
        - Decreto 1295/94: Unidad de afiliación (una sola ARL para todos los trabajadores).`,
 
    // --- RESOLUCIONES 2025 ---
