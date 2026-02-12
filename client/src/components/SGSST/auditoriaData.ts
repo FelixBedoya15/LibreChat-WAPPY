@@ -205,7 +205,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_1_1_8_normativa',
         code: '1.1.8.1',
-        name: ' > Nuevo Marco Normativo (Res 3461)',
+        name: ' > Nuevo Marco Normativo',
         description: 'Capacitación obligatoria sobre el funcionamiento del comité según Res 3461/25 y la derogación de la Res 652.',
         evaluation: 'Verificar socialización de la nueva norma de convivencia laboral.',
         category: 'planear',
@@ -216,7 +216,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_1_1_8_acoso',
         code: '1.1.8.2',
-        name: ' > Ley 1010 (Acoso Laboral)',
+        name: ' > Acoso Laboral',
         description: 'Definición clara de conductas que constituyen acoso y aquellas que no, para evitar trámites innecesarios.',
         evaluation: 'Verificar capacitación en Ley 1010 de 2006.',
         category: 'planear',
@@ -238,7 +238,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_1_1_8_sexual',
         code: '1.1.8.4',
-        name: ' > Acoso Sexual (Ley 2365)',
+        name: ' > Acoso Sexual',
         description: 'Formación específica para entender que el comité NO tiene competencia en acoso sexual y debe remitir a la ruta legal.',
         evaluation: 'Verificar capacitación sobre protocolo de acoso sexual y límites del CCL.',
         category: 'planear',
@@ -271,7 +271,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_ley_2365', // ADICIONAL
         code: 'Norma Adicional',
-        name: 'Prevención Acoso Sexual (Ley 2365)',
+        name: 'Prevención Acoso Sexual',
         description: 'Implementación de medidas de prevención del acoso sexual laboral (Ley 2365/24).',
         evaluation: 'Verificar protocolos del Comité de Convivencia específicos para acoso sexual y divulgación de la Ley 2365.',
         category: 'planear',
@@ -575,7 +575,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_3_1_4',
         code: '3.1.4',
-        name: 'Realización de evaluaciones médicas (Res 1843/25)',
+        name: 'Realización de evaluaciones médicas',
         description: 'Deben realizarse evaluaciones médicas (Preingreso, Periódicas, Egreso, Post-incapacidad).',
         evaluation: 'Verificar certificados de evaluaciones médicas según profesiograma y Res 1843.',
         category: 'hacer',
@@ -815,7 +815,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_res_2764',
         code: 'Norma Adicional',
-        name: 'Riesgo Psicosocial (Res 2764)',
+        name: 'Riesgo Psicosocial',
         description: 'Aplicación de la batería de riesgo psicosocial e intervención.',
         evaluation: 'Verificar informe de batería, análisis e implementación de programa de vigilancia.',
         category: 'hacer',
@@ -826,7 +826,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_ley_2050',
         code: 'Norma Adicional',
-        name: 'Seguridad Vial (PESV - Ley 2050)',
+        name: 'Seguridad Vial (PESV)',
         description: 'Diseño e implementación del Plan Estratégico de Seguridad Vial.',
         evaluation: 'Verificar PESV documentado y adoptado (Ley 2050).',
         category: 'hacer',
@@ -848,7 +848,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_alturas',
         code: 'Norma Adicional',
-        name: 'Trabajo en Alturas (Res 4272)',
+        name: 'Trabajo en Alturas',
         description: 'Programa de protección contra caídas.',
         evaluation: 'Verificar programa, procedimientos, permisos de trabajo, certificados y equipos certificados.',
         category: 'hacer',
@@ -859,7 +859,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_confinados',
         code: 'Norma Adicional',
-        name: 'Espacios Confinados (Res 0491)',
+        name: 'Espacios Confinados',
         description: 'Programa de gestión para trabajo en espacios confinados.',
         evaluation: 'Verificar identificación, evaluación, permisos y monitoreo de atmósferas.',
         category: 'hacer',

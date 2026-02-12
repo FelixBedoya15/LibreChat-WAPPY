@@ -29,15 +29,13 @@ export const NORMATIVE_FRAGMENTS = {
     El empleador o contratante debe establecer por escrito una política de Seguridad y Salud en el Trabajo (SST) que debe ser parte de las políticas de gestión de la empresa, con alcance sobre todos sus centros de trabajo y todos sus trabajadores, independiente de su forma de contratación o vinculación, incluyendo los contratistas y subcontratistas.
     
     Esta política debe ser comunicada al Comité Paritario o Vigía de Seguridad y Salud en el Trabajo según corresponda de conformidad con la normatividad vigente.
-    
-    Resolución 0312/19 (E2.1.1): Exige la política de SST fechada y firmada.`,
+   `,
 
    'DEC_1072_ART_11_CAPACITACION': `ARTÍCULO 2.2.4.6.11. Capacitación en Seguridad y Salud en el Trabajo - SST.
     El empleador o contratante debe definir los requisitos de conocimiento y práctica en seguridad y salud en el trabajo necesarios para sus trabajadores, también debe adoptar y mantener disposiciones para que estos los cumplan en todos los aspectos de la ejecución de sus deberes u obligaciones, con el fin de prevenir accidentes de trabajo y enfermedades laborales.
     
     El programa de capacitación debe ser revisado mínimo una (1) vez al año, con la participación del Comité Paritario o Vigía de Seguridad y Salud en el Trabajo y la alta dirección de la empresa.
-    
-    Resolución 0312/19 (E1.2.1): Exige el Programa de Capacitación anual.`,
+   `,
 
    'DEC_1072_ART_12_DOCUMENTACION': `DOCUMENTACIÓN Y CONSERVACIÓN (Decreto 1072 - Arts 12 y 13):
     
@@ -113,8 +111,7 @@ export const NORMATIVE_FRAGMENTS = {
     4. Ser compatibles con el cumplimiento de la normatividad vigente aplicable.
     5. Estar documentados y ser comunicados a todos los trabajadores.
     6. Ser revisados y evaluados periódicamente, mínimo una (1) vez al año.
-    
-    Resolución 0312/19 (E2.2.1): Exige objetivos definidos y alineados a la política.`,
+   `,
 
    'DEC_1072_ART_22_INDICADORES': `ARTÍCULO 2.2.4.6.20, .21 y .22. Indicadores del SG-SST.
     El empleador debe definir indicadores (cualitativos o cuantitativos) según la naturaleza de sus peligros y el tamaño de la empresa.
@@ -235,7 +232,7 @@ export const NORMATIVE_FRAGMENTS = {
        - Decreto 1072/15 (Art 2.2.4.6.2 - Parágrafo 2): Se entenderá el Comité Paritario de Salud Ocupacional como COPASST, quienes tendrán las funciones establecidas en la normatividad vigente.
        - Resolución 2013/86 (Arts 1 y 2): Obligación de conformar el comité y escala de respresentantes según número de trabajadores.
        - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.
-       - Resolución 0312/19 (E1.1.6): Solicita soportes de la conformación del COPASST.`,
+`,
 
    'COPASST_MATRIZ_PELIGROS': `PARTICIPACIÓN EN MATRIZ DE PELIGROS (Dec 1072 Art 2.2.4.6.15):
     
@@ -291,7 +288,7 @@ export const NORMATIVE_FRAGMENTS = {
        - Resolución 2013/86 (Art 11 - Funciones): Exige conocimientos técnicos para investigar causas (lit a), realizar inspecciones (lit b) y estudiar sugerencias (lit f).
        - Decreto 1295/94 (Art 11 - Responsabilidad ARL): Establece el derecho del comité a recibir asesoría y capacitación gratuita por parte de la ARL.
        - Ley 1562/12 (Art 11): Refuerza la obligatoriedad de los programas de educación y prevención de las ARL.
-       - Resolución 0312/19 (E1.1.7): Exige soportes de capacitación a los miembros del COPASST.`,
+`,
 
    // --- CAPACITACIÓN COPASST (1.1.7) ---
    'CAP_COPASST_INVESTIGACION': `INVESTIGACIÓN DE ACCIDENTES (Res 1401/07):
@@ -385,7 +382,6 @@ export const NORMATIVE_FRAGMENTS = {
     
     NORMATIVA VIGENTE:
         - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Establece la obligación de designar un responsable del SG-SST por escrito.
-        - Resolución 0312 de 2019 (Estándares Mínimos - Art 16): Define los perfiles de idoneidad.
         - Circular 0047 de 2025 (Vigilancia y Control): Instruye sobre la verificación de la vigencia de licencias.
         - Resolución 908 de 2025 (Renovación): Requisitos para mantener la vigencia de la licencia.`,
 
@@ -403,7 +399,7 @@ export const NORMATIVE_FRAGMENTS = {
     
     NORMATIVA VIGENTE:
        - Decreto 1072/15 (Art 2.2.4.6.8 #4): El empleador debe definir y asignar recursos para el diseño, implementación y mejora del SG-SST.
-       - Resolución 0312/19: Exige documento soporte de asignación de recursos.`,
+`,
 
    'AFILIACION_SGRL_DETALLE': `AFILIACIÓN AL SGRL (Cobertura Total y Oportunidad):
     
@@ -419,8 +415,7 @@ export const NORMATIVE_FRAGMENTS = {
     NORMATIVA VIGENTE:
      Establece la conformación y funcionamiento del Comité de Convivencia Laboral.
      El comité no tiene competencia en acoso sexual (Ley 2365/24), que requiere protocolo independiente.
-     
-     Resolución 0312/19 (E1.1.8): Exige la conformación y funcionamiento del Comité de Convivencia.`,
+    `,
 
    'RES_1843_2025_MEDICAS': `RESOLUCIÓN 1843 DE 2025 (Nuevas Evaluaciones Médicas):
     Regula la práctica de evaluaciones médicas ocupacionales y el manejo de la historia clínica.
@@ -480,7 +475,7 @@ export const NORMATIVE_FRAGMENTS = {
        
        4. SALUD PÚBLICA:
        - Ley 1566/12: Reconoce la adicción como enfermedad.
-       - Res 0312/19: Verificación de actividades de prevención en el Plan de Capacitación.`,
+`,
 
    'POLITICA_ACOSO_LABORAL': `POLÍTICA DE PREVENCIÓN DEL ACOSO LABORAL (Ley 1010):
     
