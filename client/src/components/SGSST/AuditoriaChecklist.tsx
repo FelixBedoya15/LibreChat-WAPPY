@@ -374,7 +374,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     const categoryCompleted = items.filter(item => getItemStatus(item.id) !== 'pendiente').length;
 
                     return (
-                        <div key={category} className="overflow-hidden rounded-xl border border-border-medium bg-surface-secondary">
+                        <div key={category} className="rounded-xl border border-border-medium bg-surface-secondary">
                             <button
                                 onClick={() => toggleCategoryExpanded(category)}
                                 className={cn(
