@@ -190,6 +190,21 @@ export const NORMATIVE_FRAGMENTS = {
     - Cotización Especial (Art 5):
       El empleador debe asumir una cotización especial adicional de 10 puntos porcentuales sobre la cotización ordinaria del Sistema General de Pensiones.`,
 
+   'CONFORMACION_COPASST': `RESOLUCIÓN 2013 DE 1986 (Estructura y Conformación del COPASST):
+    Define la conformación técnica del comité según el número de trabajadores.
+    
+    1. TABLA DE REPRESENTANTES (Principales y Suplentes por cada parte):
+       - 10 a 49 trabajadores: 1 Representante (Total 2 miembros + suplentes).
+       - 50 a 499 trabajadores: 2 Representantes (Total 4 miembros + suplentes).
+       - 500 a 999 trabajadores: 3 Representantes (Total 6 miembros + suplentes).
+       - 1.000 o más trabajadores: 4 Representantes (Total 8 miembros + suplentes).
+
+    2. VIGÍA EN SEGURIDAD Y SALUD EN EL TRABAJO (< 10 Trabajadores):
+       - Decreto 1295 de 1994 (Art 35): Para empresas con menos de 10 trabajadores no se conforma comité, sino que se nombra un Vigía con las mismas funciones.
+
+    3. NOTA SOBRE DECRETO 1072 DE 2015:
+       - Los Art. 2.2.4.6.2 y 2.2.4.6.8 solo definen al COPASST como canal de comunicación y la obligación general del empleador, pero la norma técnica de conformación es la Res. 2013/86.`,
+
    // --- RESOLUCIONES 2025 ---
    'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
     Establece la conformación y funcionamiento del Comité de Convivencia Laboral.

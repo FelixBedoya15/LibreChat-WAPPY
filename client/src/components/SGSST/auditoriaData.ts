@@ -78,8 +78,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar acta de conformación del COPASST con la participación paritaria.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.6 | Res 2013/86 | Dec 1072/15: 2.2.4.6.2 (Definición) y .8 (Obligaciones)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_2013_COPASST
+        criteria: 'Res 0312: E1.1.6 | Res 2013/86 | Dec 1295/94 (Vigía)',
+        normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
     },
     {
         id: 'aud_1_1_7',
