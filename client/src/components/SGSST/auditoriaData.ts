@@ -513,6 +513,28 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         criteria: 'Res 0312/19: E2.11.1 | Dec 1072/15: 2.2.4.6.26 (Gestión Cambio)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_26_CAMBIO
     },
+    {
+        id: 'aud_reg_higiene',
+        code: 'Norma Adicional',
+        name: 'Reglamento de Higiene y Seguridad Industrial',
+        description: 'Obligación de elaborar y publicar el reglamento de higiene y seguridad (CST Art 349).',
+        evaluation: 'Verificar reglamento publicado en dos lugares visibles (10 o más trabajadores).',
+        category: 'planear',
+        subcategory: 'Reglamentos y Normativa Adicional',
+        criteria: 'CST Art 349 (Obligación) | CST Art 350 (Publicación)',
+        normativeText: NORMATIVE_FRAGMENTS.REGLAMENTO_HIGIENE_DETALLE
+    },
+    {
+        id: 'aud_reg_rit',
+        code: 'Norma Adicional',
+        name: 'Reglamento Interno de Trabajo (RIT)',
+        description: 'Obligación de adoptar el RIT según número de trabajadores (CST Art 105).',
+        evaluation: 'Verificar existencia y publicacion del RIT con contenido mínimo de ley.',
+        category: 'planear',
+        subcategory: 'Reglamentos y Normativa Adicional',
+        criteria: 'CST Art 105 (Obligados) | CST Art 108 (Contenido)',
+        normativeText: NORMATIVE_FRAGMENTS.REGLAMENTO_INTERNO_DETALLE
+    },
 
 
     // --- II. HACER ---

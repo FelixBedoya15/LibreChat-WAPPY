@@ -501,6 +501,24 @@ export const NORMATIVE_FRAGMENTS = {
        - Decreto 1079/15: Reglamenta el Sector Transporte.
        - Resolución 20223040040595 de 2022: Metodología para el diseño e implementación del PESV.`,
 
+   'REGLAMENTO_HIGIENE_DETALLE': `REGLAMENTO DE HIGIENE Y SEGURIDAD INDUSTRIAL (CST Art 349 y 350):
+
+    NORMATIVA VIGENTE:
+       - CST Artículo 349: "Los empleadores que tengan a su servicio diez (10) o más trabajadores permanentes están obligados a elaborar un reglamento especial de higiene y seguridad...".
+       - CST Artículo 350: Establece que el reglamento debe estar permanentemente fijado en dos lugares visibles del local de trabajo.`,
+
+   'REGLAMENTO_INTERNO_DETALLE': `REGLAMENTO INTERNO DE TRABAJO (CST Art 105 y 108):
+
+    NORMATIVA VIGENTE:
+       1. OBLIGATORIEDAD (CST Art 105):
+          Están obligados a tenerlo:
+          - Empresas comerciales con más de cinco (5) trabajadores.
+          - Empresas industriales con más de diez (10) trabajadores.
+          - Empresas agrícolas con más de veinte (20) trabajadores.
+
+       2. CONTENIDO MÍNIMO (CST Art 108):
+          Dicta el contenido mínimo (horarios, salarios, días de descanso, escala de faltas y sanciones).`,
+
    'POLITICA_DATOS_PERSONALES': `POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES (Habeas Data):
     
     NORMATIVA VIGENTE:
