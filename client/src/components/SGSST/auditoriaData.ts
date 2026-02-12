@@ -23,7 +23,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Carta de Designación y Aceptación (Dec 1072).\n2. Licencia SST vigente y Certificado Res 4927.\n3. Curso 50h o Actualización 20h (Res 908 - Habilitante).\n4. Consulta Antecedentes (RUES/Mi Seguridad Social - Circ 0047).\n5. Vinculación real (Cruce DIAN/PILA).\n\nIdoneidad (Res 0312):\n- <10 (I-III): Técnico + 1 año.\n- 11-50 (I-III): Tecnólogo + 2 años.\n- >50/IV-V: Profesional/Esp.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.1 | Circ 0047/25 | Res 908/25 | Dec 1072/15: 2.2.4.6.8 (Obligaciones)',
+        criteria: 'Res 0312/19: E1.1.1 | Dec 1072/15: 2.2.4.6.8 (Obligaciones) | Circ 0047/25 | Res 908/25',
         normativeText: NORMATIVE_FRAGMENTS.RESPONSABLE_SST_2025
     },
     {
@@ -34,7 +34,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Manual de Funciones/Matriz SST (Soporte Documental).\n2. Cartas de Asignación Individual.\n3. Registros de Socialización (Res 3461 - Verificable).\n4. Acta de Rendición de Cuentas Anual.\n\nNiveles:\n- Alta Dirección: Recursos, Revisión, Rendición Cuentas.\n- Resp SST: Diseño, Ejecución, Reporte.\n- Jefes: Reporte Actos/Condiciones, EPP.\n- Trabajadores: Autocuidado, Informar Salud.\n- COPASST: Vigilancia.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.2 | Res 3461/25 | Ley 2050/20 | Dec 1072/15 (Rendición de Cuentas)',
+        criteria: 'Res 0312/19: E1.1.2 | Dec 1072/15 (Rendición de Cuentas) | Res 3461/25 | Ley 2050/20',
         normativeText: NORMATIVE_FRAGMENTS.RESPONSABILIDADES_SST_2025
     },
     {
@@ -56,7 +56,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Soportes de Afiliación (Formularios).\n2. Planilla PILA (Cruce Nómina vs PILA - IBC/Riesgo).\n3. Certificado de Vigencia (Activos).\n\nAlcance (Binario: Todo/Nada):\n- Dependientes.\n- Contratistas (>1 mes).\n- Estudiantes (Dec 055).\n- Misión.\n\nNota: Afiliación min 1 día antes inicio labores.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.4 | Ley 1562/12 | Dec 1072/15 (2.2.4.2.2) | Cobertura Total',
+        criteria: 'Res 0312/19: E1.1.4 | Dec 1072/15 (2.2.4.2.2) | Ley 1562/12 | Cobertura Total',
         normativeText: NORMATIVE_FRAGMENTS.AFILIACION_SGRL_DETALLE
     },
     {
@@ -78,7 +78,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Actas convocatoria/elección.\n2. Acta constitución.\n3. Registro votación.\n4. Designación vigía.\n\nTabla Res 2013:\n- 10-49: 1 Rep.\n- 50-499: 2 Rep.\n- 500-999: 3 Rep.\n- 1000+: 4 Rep.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.6 | Res 2013/86 | Dec 1295/94 (Vigía)',
+        criteria: 'Res 0312/19: E1.1.6 | Dec 1072/15 | Res 2013/86 | Dec 1295/94 (Vigía)',
         normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
     },
     {

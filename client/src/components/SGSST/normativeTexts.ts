@@ -181,12 +181,12 @@ export const NORMATIVE_FRAGMENTS = {
      - Define las actividades de alto riesgo y modifica condiciones de pensión.
      - Cotización Especial (Art 5): Adicional de 10 puntos porcentuales.`,
 
-   'CONFORMACION_COPASST': `RESOLUCIÓN 2013 DE 1986 (Estructura y Conformación del COPASST):
+   'CONFORMACION_COPASST': `CONFORMACIÓN DEL COPASST (Resolución 2013 y Dec 1072):
     
     NORMATIVA VIGENTE:
-       - Resolución 2013/86: Define la conformación según número de trabajadores.
-       - Decreto 1295/94 (Art 35): Vigía para empresas < 10 trabajadores.
-       - Decreto 1072/15: COPASST como canal de comunicación.`,
+       - Decreto 1072/15 (Art 2.2.4.6.14 - Comunicación): Define al COPASST como canal de comunicación para la SST.
+       - Resolución 2013/86: Define la conformación según número de trabajadores (1, 2, 3 o 4 representantes).
+       - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.`,
 
    'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
     
@@ -198,8 +198,8 @@ export const NORMATIVE_FRAGMENTS = {
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
    
     NORMATIVA VIGENTE:
-       - Resolución 0312 de 2019 (Estándares Mínimos): Define los perfiles de idoneidad (técnico, tecnólogo, profesional) según el tamaño y riesgo de la empresa.
        - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Establece la obligación de designar un responsable del SG-SST por escrito.
+       - Resolución 0312 de 2019 (Estándares Mínimos): Define los perfiles de idoneidad (técnico, tecnólogo, profesional) según el tamaño y riesgo de la empresa.
        - Circular 0047 de 2025 (Vigilancia y Control): Instruye sobre la verificación de la vigencia de licencias y antecedentes en el registro oficial.
        - Resolución 4927 de 2016 y 908 de 2025 (Capacitación Obligatoria): Establecen el curso virtual de 50 horas y su actualización de 20 horas como requisito habilitante.`,
 
