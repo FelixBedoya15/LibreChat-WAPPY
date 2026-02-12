@@ -37,6 +37,17 @@ export const NORMATIVE_FRAGMENTS = {
     El programa de capacitación debe ser revisado mínimo una (1) vez al año, con la participación del Comité Paritario o Vigía de Seguridad y Salud en el Trabajo y la alta dirección de la empresa.
    `,
 
+   'MATRIZ_LEGAL_DETALLE': `MATRIZ LEGAL (Obligación y Documentación):
+
+    NORMATIVA VIGENTE:
+       1. ARTÍCULO 2.2.4.6.8 (OBLIGACIONES DE LOS EMPLEADORES):
+          Numeral 6: "Cumplir con la normatividad nacional vigente aplicable en materia de seguridad y salud en el trabajo."
+          (Esto es lo que da sustento legal a que la matriz no sea opcional, sino un mandato).
+
+       2. ARTÍCULO 2.2.4.6.12 (DOCUMENTACIÓN):
+          El empleador debe mantener disponibles y actualizados, entre otros:
+          - La Matriz Legal actualizada acorde con los cambios normativos.`,
+
    'DEC_1072_ART_12_DOCUMENTACION': `DOCUMENTACIÓN Y CONSERVACIÓN (Decreto 1072 - Arts 12 y 13):
     
     NORMATIVA VIGENTE:

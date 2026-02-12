@@ -463,7 +463,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Normatividad vigente',
         criteria: 'Res 0312/19: E2.7.1 | Dec 1072/15: 2.2.4.6.12 (Documentación)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_12_DOCUMENTACION
+        normativeText: NORMATIVE_FRAGMENTS.MATRIZ_LEGAL_DETALLE
     },
     // Comunicación
     {
