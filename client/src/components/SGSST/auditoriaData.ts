@@ -524,8 +524,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de vigilancia epidemiológica y certificados médicos.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Res 1843/25 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico) | Res 1843/25',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_res_2764', // ADICIONAL
@@ -536,7 +536,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 2764/22 | Dec 1072/15: 2.2.4.6.22',
-        normativeText: NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
     },
     {
         id: 'aud_3_1_2',
@@ -547,7 +547,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.2 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico y Programas)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
         id: 'aud_3_1_3',
@@ -558,7 +558,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.3 | Dec 1072/15: 2.2.4.6.22 | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_4',
@@ -568,8 +568,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar certificados de evaluaciones médicas según profesiograma y Res 1843.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.4 | Res 1843/25 (Deroga Res 2346)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.4 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico) | Res 1843/25 (Deroga Res 2346)',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_5',
@@ -579,8 +579,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento que garantice la custodia de historias clínicas.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.5 | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.5 | Dec 1072/15: Arts 12 y 13 (Conservación) | Res 1843/25',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_12_DOCUMENTACION + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_6',
@@ -591,7 +591,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.6 | Dec 1072/15: 2.2.4.6.22 (Punto 6)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_7',
@@ -602,7 +602,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.7 | Dec 1072/15: 2.2.4.6.22 (Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
         id: 'aud_3_1_8',
@@ -612,8 +612,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar condiciones de agua potable, servicios sanitarios y manejo de residuos.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.8 | Res 2400/79',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
+        criteria: 'Res 0312/19: E3.1.8 | Dec 1072/15: 2.2.4.6.24 (Medidas) | Res 2400/79',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_3_1_9',
@@ -624,7 +624,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.22',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
 
     // Registro Reporte ATEL
@@ -798,7 +798,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Res 2764/22 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
     },
     {
         id: 'aud_ley_2050',
@@ -809,7 +809,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Ley 2050/20 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.LEY_2050_PESV
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.LEY_2050_PESV
     },
     {
         id: 'aud_sga',
@@ -820,7 +820,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Dec 1496/18 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1496_SGA
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1496_SGA
     },
     {
         id: 'aud_alturas',
@@ -831,7 +831,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Res 4272/21 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_4272_ALTURAS
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_4272_ALTURAS
     },
     {
         id: 'aud_confinados',
@@ -842,7 +842,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Res 0491/20 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_0491_CONFINADOS
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_0491_CONFINADOS
     },
 
     {
