@@ -163,7 +163,51 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_5_POLITICA
     },
     {
-        id: 'aud_ley_2191', // ADICIONAL
+        id: 'aud_pol_spa', // ADICIONAL SPA (1986/2009/2016)
+        code: 'Norma Adicional',
+        name: 'Política de Prevención de Consumo de SPA',
+        description: 'Política de prevención de alcohol, drogas y tabaquismo (Res 1016/86, Ley 1335/09).',
+        evaluation: 'Verificar política escrita. Debe incluir prohibición consumo (Ley 1335) y enfoque preventivo (Sent C-636/16).',
+        category: 'planear',
+        subcategory: 'Política de SST',
+        criteria: 'Res 1016/86 | Ley 1335/09 | CST Art 60 | Sent C-636/16',
+        normativeText: NORMATIVE_FRAGMENTS.POLITICA_CONSUMO_SPA
+    },
+    {
+        id: 'aud_pol_acoso', // ADICIONAL ACOSO (2006)
+        code: 'Norma Adicional',
+        name: 'Política de Prevención del Acoso Laboral',
+        description: 'Política para prevenir y corregir el acoso laboral (Ley 1010/06).',
+        evaluation: 'Verificar existencia de la política y coherencia con el Comité de Convivencia.',
+        category: 'planear',
+        subcategory: 'Política de SST',
+        criteria: 'Ley 1010/06 | Res 2646/08',
+        normativeText: NORMATIVE_FRAGMENTS.POLITICA_ACOSO_LABORAL
+    },
+    {
+        id: 'aud_pol_vial', // ADICIONAL VIAL (2011)
+        code: 'Norma Adicional',
+        name: 'Política de Seguridad Vial',
+        description: 'Política de seguridad vial para prevenir siniestros (Ley 1503/11).',
+        evaluation: 'Verificar política de seguridad vial alineada al PESV (si aplica).',
+        category: 'planear',
+        subcategory: 'Política de SST',
+        criteria: 'Ley 1503/11 | Res 20223040040595/22',
+        normativeText: NORMATIVE_FRAGMENTS.POLITICA_SEGURIDAD_VIAL
+    },
+    {
+        id: 'aud_pol_datos', // ADICIONAL DATOS (2012)
+        code: 'Norma Adicional',
+        name: 'Política de Tratamiento de Datos Personales',
+        description: 'Política de protección de datos personales (Ley 1581/12).',
+        evaluation: 'Verificar política de privacidad y autorizaciones de tratamiento de datos manuscritas/digitales.',
+        category: 'planear',
+        subcategory: 'Política de SST',
+        criteria: 'Ley 1581/12 | Dec 1377/13',
+        normativeText: NORMATIVE_FRAGMENTS.POLITICA_DATOS_PERSONALES
+    },
+    {
+        id: 'aud_ley_2191', // ADICIONAL DESCONEXION (2022)
         code: 'Norma Adicional',
         name: 'Política de Desconexión Laboral',
         description: 'Política y regulación de la desconexión laboral (Ley 2191/22).',
@@ -172,6 +216,17 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         subcategory: 'Política de SST',
         criteria: 'Ley 2191/22',
         normativeText: NORMATIVE_FRAGMENTS.LEY_2191_DESCONEXION
+    },
+    {
+        id: 'aud_pol_mental', // ADICIONAL SALUD MENTAL (2025)
+        code: 'Norma Adicional',
+        name: 'Política de Salud Mental y Bienestar',
+        description: 'Política de promoción de la salud mental y bienestar integral (Ley 2460/25).',
+        evaluation: 'Verificar inclusión de principios de salud mental y prevención de trastornos en las políticas.',
+        category: 'planear',
+        subcategory: 'Política de SST',
+        criteria: 'Ley 2460/25',
+        normativeText: NORMATIVE_FRAGMENTS.POLITICA_SALUD_MENTAL_2025
     },
     // Objetivos
     {

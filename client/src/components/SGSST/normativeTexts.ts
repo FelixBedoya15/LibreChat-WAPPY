@@ -274,6 +274,51 @@ export const NORMATIVE_FRAGMENTS = {
     - Garantizar que el trabajador no sea contactado fuera de su jornada laboral (salvo excepciones de fuerza mayor).
     - Respeto a tiempos de descanso, licencias y vacaciones.`,
 
+   'POLITICA_CONSUMO_SPA': `POLÍTICA DE PREVENCIÓN DE CONSUMO DE SPA (Alcohol, Drogas y Tabaquismo):
+    
+    NORMATIVA VIGENTE:
+       1. BASE Y SALUD:
+       - Res 1016/86 (Art 10): Obligación de programas de prevención de farmacodependencia, alcoholismo y tabaquismo.
+       - Dec 1072/15: Prevención de peligros (consumo aumenta probabilidad de accidentes).
+       - Ley 1562/12: Promoción y prevención en salud.
+       
+       2. TABAQUISMO (ESPACIOS LIBRES DE HUMO):
+       - Ley 1335/09 (Ley Antitabaco): Prohíbe consumo en trabajo y obliga a declarar "Espacios 100% Libres de Humo".
+       - Circular 0038/10: Instrucciones para avisos y prohibición total.
+       
+       3. CONTROL Y PROHIBICIÓN (CST):
+       - C.S.T. (Art 60 #2): Prohíbe presentarse al trabajo bajo influencia de narcóticos o embriaguez.
+       - Sentencia C-636/16 (VITAL): El empleador solo puede sancionar si afecta el desempeño o seguridad. No se sanciona consumo privado sin impacto laboral.
+       
+       4. SALUD PÚBLICA:
+       - Ley 1566/12: Reconoce la adicción como enfermedad.
+       - Res 0312/19: Verificación de actividades de prevención en el Plan de Capacitación.`,
+
+   'POLITICA_ACOSO_LABORAL': `POLÍTICA DE PREVENCIÓN DEL ACOSO LABORAL (Ley 1010):
+    
+    NORMATIVA VIGENTE:
+       - Ley 1010/06: Medidas para prevenir, corregir y sancionar el acoso laboral.
+       - Resolución 2646/08: Exige políticas claras para prevención del acoso y mecanismos de intervención.`,
+
+   'POLITICA_SEGURIDAD_VIAL': `POLÍTICA DE SEGURIDAD VIAL (Ley 1503 y Res 20223040040595):
+    
+    NORMATIVA VIGENTE:
+       - Ley 1503/11: Promueve la formación de hábitos, comportamientos y conductas seguros en la vía.
+       - Decreto 1079/15: Reglamenta el Sector Transporte.
+       - Resolución 20223040040595 de 2022: Metodología para el diseño e implementación del PESV.`,
+
+   'POLITICA_DATOS_PERSONALES': `POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES (Habeas Data):
+    
+    NORMATIVA VIGENTE:
+       - Ley 1581/12: Régimen General de Protección de Datos Personales.
+       - Decreto 1377/13: Regula la autorización del titular para el tratamiento de sus datos.`,
+
+   'POLITICA_SALUD_MENTAL_2025': `POLÍTICA DE SALUD MENTAL Y BIENESTAR (Ley 2460):
+    
+    NORMATIVA VIGENTE:
+       - Ley 2460/25: Política Nacional de Salud Mental y Bienestar Integral.
+       - Exige acciones de promoción de la salud mental, prevención del trastorno mental y atención integral.`,
+
    'RES_2764_PSICOSOCIAL': `RESOLUCIÓN 2764 DE 2022 (Batería Riesgo Psicosocial):
     Adopta la batería de instrumentos para la evaluación de factores de riesgo psicosocial.
     
