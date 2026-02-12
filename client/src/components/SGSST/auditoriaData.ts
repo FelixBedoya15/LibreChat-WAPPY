@@ -522,7 +522,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         code: '3.1.1',
         name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
         description: 'Documento consolidado con la información sociodemográfica (edad, sexo, escolaridad) y el diagnóstico de salud de la población trabajadora (morbimortalidad).',
-        evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
+        evaluation: 'Verificar documento consolidado con la descripción sociodemográfica y el diagnóstico de condiciones de salud actualizado anualmente.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico Salud)',
