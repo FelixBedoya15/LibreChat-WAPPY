@@ -81,6 +81,17 @@ export const NORMATIVE_FRAGMENTS = {
     7. La descripción sociodemográfica de los trabajadores y la caracterización de sus condiciones de salud.
     8. Registro y seguimiento a los resultados de los indicadores definidos en el SGSST.`,
 
+   'DX_SOCIODEMOGRAFICO': `PERFIL SOCIODEMOGRÁFICO (Dec 1072 Art 2.2.4.6.16 Num 7):
+    
+    NORMATIVA VIGENTE:
+       - Decreto 1072/15 (Art 2.2.4.6.16 - Num 7): El empleador debe realizar la descripción sociodemográfica de los trabajadores (edad, sexo, escolaridad, estado civil) para identificar características de la población y planificar acciones de bienestar.`,
+
+   'DX_CONDICIONES_SALUD': `DIAGNÓSTICO DE SALUD (Dec 1072 Art 2.2.4.6.16):
+    
+    NORMATIVA VIGENTE:
+       - Decreto 1072/15 (Art 2.2.4.6.16): La evaluación inicial debe incluir la caracterización de las condiciones de salud.
+       - Resolución 2346/07 (Historias Clínicas): El diagnóstico de salud se elabora con base en la información agregada de las evaluaciones médicas ocupacionales (preingreso, periódicas, egreso), respetando la reserva de la historia clínica.`,
+
    'DIAGNOSTICO_CONDICIONES_SALUD': `DIAGNÓSTICO DE CONDICIONES DE SALUD (Dec 1072 Art 2.2.4.6.16 - Num 7):
     
     El empleador debe realizar y mantener actualizado un "Diagnóstico de Condiciones de Salud" que incluya:
@@ -281,6 +292,58 @@ export const NORMATIVE_FRAGMENTS = {
        - Decreto 1295/94 (Art 11 - Responsabilidad ARL): Establece el derecho del comité a recibir asesoría y capacitación gratuita por parte de la ARL.
        - Ley 1562/12 (Art 11): Refuerza la obligatoriedad de los programas de educación y prevención de las ARL.
        - Resolución 0312/19 (E1.1.7): Exige soportes de capacitación a los miembros del COPASST.`,
+
+   // --- CAPACITACIÓN COPASST (1.1.7) ---
+   'CAP_COPASST_INVESTIGACION': `INVESTIGACIÓN DE ACCIDENTES (Res 1401/07):
+    
+    NORMATIVA VIGENTE:
+       - Resolución 1401/07 (Art 4 - Metodología): El equipo investigador debe utilizar una metodología adecuada para la investigación de accidentes (árbol de causas, 5 por qués, espina de pescado) que permita identificar las causas básicas e inmediatas.`,
+
+   'CAP_COPASST_INSPECCIONES': `INSPECCIONES DE SEGURIDAD (Res 2013/86):
+    
+    NORMATIVA VIGENTE:
+       - Resolución 2013/86 (Art 11 - Lit b): El COPASST debe recibir capacitación y entrenamiento para realizar inspecciones periódicas a las instalaciones, máquinas y equipos, utilizando listas de chequeo adecuadas.`,
+
+   'CAP_COPASST_PELIGROS': `IDENTIFICACIÓN DE PELIGROS (Dec 1072 Art 15):
+    
+    NORMATIVA VIGENTE:
+       - Decreto 1072/15 (Art 2.2.4.6.15): El COPASST debe conocer la metodología de identificación de peligros (Ej. GTC 45) para validar si los controles propuestos por la empresa son adecuados y sugerir mejoras.`,
+
+   'CAP_COPASST_FUNCIONES': `FUNCIONES Y RESPONSABILIDADES (Res 2013/86):
+    
+    NORMATIVA VIGENTE:
+       - Resolución 2013/86 (Art 11): Define las funciones legales obligatorias: Vigilar el SG-SST, colaborar en el análisis de accidentes, visitar puestos de trabajo, estudiar sugerencias de trabajadores y servir como organismo de coordinación.`,
+
+   // --- CAPACITACIÓN CONVIVENCIA (1.1.8) ---
+   'CAP_CCL_NORMATIVA': `FUNCIONAMIENTO DEL COMITÉ (Res 3461/25):
+    
+    NORMATIVA VIGENTE:
+       - Resolución 3461/25: Establece el nuevo marco para el funcionamiento del Comité de Convivencia, derogando la Resolución 652/12. Incluye periodicidad de reuniones, quórum y actas.`,
+
+   'CAP_CCL_ACOSO_LABORAL': `ACOSO LABORAL (Ley 1010/06):
+    
+    NORMATIVA VIGENTE:
+       - Ley 1010/06 (Art 2 y 7): Define las modalidades de acoso laboral (maltrato, persecución, discriminación, entorpecimiento, inequidad, desprotección) y las conductas que NO constituyen acoso.`,
+
+   'CAP_CCL_CONFLICTOS': `RESOLUCIÓN DE CONFLICTOS (Res 3461/25):
+    
+    NORMATIVA VIGENTE:
+       - Resolución 3461/25 (Art 9): El Comité debe contar con habilidades para la escucha activa, comunicación asertiva y negociación para tramitar las quejas y proponer fórmulas de arreglo entre las partes.`,
+
+   'CAP_CCL_ACOSO_SEXUAL': `ACOSO SEXUAL (Ley 2365/24):
+    
+    NORMATIVA VIGENTE:
+       - Ley 2365/24: Aclara que el acoso sexual es una conducta delictiva y NO es competencia del Comité de Convivencia. El Comité debe conocer la ruta de remisión a Talento Humano o Fiscalía y el protocolo de atención a víctimas.`,
+
+   'CAP_CCL_RIESGO_PSICOSOCIAL': `RIESGO PSICOSOCIAL (Res 2764/22):
+    
+    NORMATIVA VIGENTE:
+       - Resolución 2764/22: El Comité debe entender los conceptos de estrés laboral y factores de riesgo psicosocial intralaboral para proponer medidas de prevención efectivas.`,
+
+   'CAP_CCL_ETICA': `ÉTICA Y CONFIDENCIALIDAD (Ley 1010/06):
+    
+    NORMATIVA VIGENTE:
+       - Ley 1010/06 (Art 18 - Caducidad y garantías): Los miembros del Comité deben garantizar la absoluta reserva y confidencialidad de la información que manejen, para proteger la intimidad y dignidad de los involucrados.`,
 
    'INFO_TEMAS_CAPACITACION_COPASST': `TEMARIO OBLIGATORIO DE CAPACITACIÓN COPASST:
 

@@ -156,7 +156,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
         criteria: 'Res 1401/07 (Art 4 - Metodología)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.CAP_COPASST_INVESTIGACION
     },
     {
         id: 'aud_1_1_7_inspecciones',
@@ -167,7 +167,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
         criteria: 'Res 2013/86 (Art 11 - Lit b)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.CAP_COPASST_INSPECCIONES
     },
     {
         id: 'aud_1_1_7_peligros',
@@ -178,7 +178,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
         criteria: 'Dec 1072/15: 2.2.4.6.15 (Identificación de Peligros)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.CAP_COPASST_PELIGROS
     },
     {
         id: 'aud_1_1_7_funciones',
@@ -189,7 +189,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
         criteria: 'Res 2013/86 (Art 11 - Funciones)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.CAP_COPASST_FUNCIONES
     },
     {
         id: 'aud_1_1_8',
@@ -211,7 +211,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
         criteria: 'Res 3461/25 (Art 8 - Capacitación)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+        normativeText: NORMATIVE_FRAGMENTS.CAP_CCL_NORMATIVA
     },
     {
         id: 'aud_1_1_8_acoso',
@@ -222,7 +222,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
         criteria: 'Ley 1010/06 (Art 2 y 7 - Definición y Modalidades)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+        normativeText: NORMATIVE_FRAGMENTS.CAP_CCL_ACOSO_LABORAL
     },
     {
         id: 'aud_1_1_8_conflictos',
@@ -233,7 +233,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
         criteria: 'Res 3461/25 (Art 9 - Resolución Conflictos)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+        normativeText: NORMATIVE_FRAGMENTS.CAP_CCL_CONFLICTOS
     },
     {
         id: 'aud_1_1_8_sexual',
@@ -244,7 +244,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
         criteria: 'Ley 2365/24',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+        normativeText: NORMATIVE_FRAGMENTS.CAP_CCL_ACOSO_SEXUAL
     },
     {
         id: 'aud_1_1_8_psicosocial',
@@ -255,7 +255,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
         criteria: 'Res 2764/22 (Art 4 - Batería Instrumentos)',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+        normativeText: NORMATIVE_FRAGMENTS.CAP_CCL_RIESGO_PSICOSOCIAL
     },
     {
         id: 'aud_1_1_8_etica',
@@ -266,7 +266,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'planear',
         subcategory: 'Comité Convivencia (Detalle)',
         criteria: 'Ley 1010/06',
-        normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_CCL
+        normativeText: NORMATIVE_FRAGMENTS.CAP_CCL_ETICA
     },
     {
         id: 'aud_ley_2365', // ADICIONAL
@@ -537,7 +537,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Num 7 - Sociodemográfica) | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
+        normativeText: NORMATIVE_FRAGMENTS.DX_SOCIODEMOGRAFICO
     },
     {
         id: 'aud_3_1_1_diag',
@@ -548,7 +548,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico) | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
+        normativeText: NORMATIVE_FRAGMENTS.DX_CONDICIONES_SALUD
     },
     {
         id: 'aud_3_1_2',
