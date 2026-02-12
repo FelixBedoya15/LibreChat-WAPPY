@@ -613,7 +613,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
         criteria: 'Res 0312/19: E3.1.8 | Dec 1072/15: 2.2.4.6.24 (Medidas) | Res 2400/79',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_3_1_9',
@@ -798,7 +798,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Res 2764/22 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
+        normativeText: NORMATIVE_FRAGMENTS.RES_2764_PSICOSOCIAL
     },
     {
         id: 'aud_ley_2050',
@@ -809,7 +809,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Ley 2050/20 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.LEY_2050_PESV
+        normativeText: NORMATIVE_FRAGMENTS.LEY_2050_PESV
     },
     {
         id: 'aud_sga',
@@ -820,7 +820,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Dec 1496/18 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1496_SGA
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1496_SGA
     },
     {
         id: 'aud_alturas',
@@ -831,7 +831,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Res 4272/21 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_4272_ALTURAS
+        normativeText: NORMATIVE_FRAGMENTS.RES_4272_ALTURAS
     },
     {
         id: 'aud_confinados',
@@ -842,7 +842,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
         criteria: 'Res 0491/20 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_0491_CONFINADOS
+        normativeText: NORMATIVE_FRAGMENTS.RES_0491_CONFINADOS
     },
 
     {
