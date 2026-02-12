@@ -205,6 +205,98 @@ export const NORMATIVE_FRAGMENTS = {
     3. NOTA SOBRE DECRETO 1072 DE 2015:
        - Los Art. 2.2.4.6.2 y 2.2.4.6.8 solo definen al COPASST como canal de comunicación y la obligación general del empleador, pero la norma técnica de conformación es la Res. 2013/86.`,
 
+   'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
+
+    1. OBLIGACIONES LEGALES:
+       - Decreto 1072/15 (Art 2.2.4.6.8 #10): El empleador debe definir un programa de capacitación para que el COPASST identifique peligros y controle riesgos.
+       - Decreto 1072/15 (Art 2.2.4.6.11): Define los requisitos de competencia necesarios.
+       - Ley 1562/12 (Art 11): Las ARL deben brindar capacitación gratuita al comité.
+
+    2. TEMAS CLAVE DE FORMACIÓN:
+       - Identificación de Peligros y Valoración de Riesgos (Metodología GTC 45).
+       - Investigación de Accidentes de Trabajo (Res 1401/07).
+       - Inspecciones de Seguridad y Funciones Propias (Res 2013/86).
+       - Curso Virtual de 50 Horas SST (Res 0312/19).
+
+    3. EVIDENCIAS REQUERIDAS:
+       - Plan de Capacitación Anual con temas específicos para el comité.
+       - Registros de asistencia y certificados de la ARL.`,
+
+   'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST (Normativa 2025):
+
+    1. NORMATIVA VIGENTE ACTUALIZADA:
+       - Resolución 0312/19: Define el perfil según tamaño y riesgo de la empresa:
+         * < 10 (Riesgo I, II, III): Técnico en SST + 1 año exp + Curso 50h.
+         * 11-50 (Riesgo I, II, III): Tecnólogo en SST + 2 años exp + Licencia + Curso 50h.
+         * > 50 o Riesgo IV/V: Profesional/Especialista SST + Licencia + Curso 50h.
+       - Decreto 1072/15 (Art 2.2.4.6.8): Exige carta de designación firmada por representante legal y aceptación del cargo.
+       - Circular 0047 de 2025: Obliga a verificar la vigencia de la licencia y antecedentes ante Secretarías de Salud / Mi Seguridad Social.
+       - Resolución 908 de 2025: Ratifica la obligatoriedad del Curso de 50h y su actualización de 20h cada 3 años como requisito habilitante.
+
+    2. DOCUMENTOS AUDITABLES:
+       - Hoja de vida con soportes académicos y laborales.
+       - Copia de Licencia vigente (con resolución).
+       - Certificado de Curso 50 Horas (y actualización 20h si aplica).
+       - Consulta de antecedentes y vigencia de licencia (RUES / Mi Seguridad Social).
+       - Acta de designación y aceptación de responsabilidades.`,
+
+   'RESPONSABILIDADES_SST_2025': `ASIGNACIÓN Y COMUNICACIÓN DE RESPONSABILIDADES (Normativa 2025):
+
+    1. MARCO LEGAL REFORZADO:
+       - Resolución 3461 de 2025: Exige comunicación verificable (digital/física con acuse) de responsabilidades. No basta el manual.
+       - Decreto 1072/15 (Art 2.2.4.6.8 #2): Obligación de Rendición de Cuentas anual, escrita y para todos los niveles.
+       - Ley 2050/20 (Seguridad Vial) y Res 4272/21 (Alturas): Responsabilidades específicas directivas y operativas.
+
+    2. NIVELES DE RESPONSABILIDAD:
+       - Alta Dirección: Recursos, Rentición de Cuentas, Revisión por la Dirección.
+       - Responsable SST: Diseño, ejecución y reporte.
+       - Jefes/Supervisores: Reporte de actos/condiciones, asegurar uso EPP.
+       - Trabajadores: Autocuidado, informar salud, cumplir normas.
+       - COPASST/Convivencia: Vigilancia y promoción.
+
+    3. EVIDENCIAS AUDITABLES:
+       - Manual de Funciones / Matriz con componente SST.
+       - Cartas de asignación individual firmadas.
+       - Registros de socialización (Listas/Pantallazos según Res 3461).
+       - Informes de Rendición de Cuentas anuales.`,
+
+   'RECURSOS_SST_DETALLE': `ASIGNACIÓN DE RECURSOS (Financieros, Técnicos, Humanos y Físicos):
+
+    1. OBLIGATORIEDAD LEGAL:
+       - Decreto 1072/15 (Art 2.2.4.6.8 #4): El empleador debe definir y asignar recursos para el diseño, implementación y mejora del SG-SST.
+       - Resolución 0312/19: Exige documento soporte de asignación de recursos.
+
+    2. TIPOS DE RECURSOS A EVIDENCIAR:
+       - Financieros: Presupuesto firmado y desglosado (EPP, Exámenes Médicos, Capacitación, Mantenimiento).
+       - Humanos: Responsable SST, tiempos para COPASST y Brigadas.
+       - Técnicos: Software, equipos de cómputo, conectividad, herramientas de medición.
+       - Físicos: Espacios para reuniones, capacitación y archivo.
+
+    3. CRITERIOS DE AUDITORÍA:
+       - Presupuesto firmado por Representante Legal.
+       - Ejecución Presupuestal (Facturas, recibos que demuestren el gasto real).
+       - Inclusión de Exámenes Médicos Ocupacionales en el rubro (Punto crítico).
+       - Cruce con Rendición de Cuentas (Presupuesto Asignado vs Ejecutado).`,
+
+   'AFILIACION_SGRL_DETALLE': `AFILIACIÓN AL SGRL (Cobertura Total y Oportunidad):
+
+    1. MARCO LEGAL CRÍTICO:
+       - Ley 1562/12: Obligatoriedad universal para dependientes, contratistas (>1 mes) y alto riesgo.
+       - Decreto 1072/15 (Art 2.2.4.2.2): La afiliación debe realizarse mínimo un día antes del inicio de labores (Cobertura inicia 00:00 del día siguiente).
+       - Decreto 1295/94: Unidad de afiliación (una sola ARL para todos los trabajadores).
+
+    2. ALCANCE DE LA COBERTURA:
+       - Trabajadores Dependientes (Contrato laboral).
+       - Contratistas de Prestación de Servicios.
+       - Estudiantes en práctica (Dec 055/15).
+       - Trabajadores en Misión (Empresas de Servicios Temporales).
+
+    3. EVIDENCIAS Y CONTROLES:
+       - Planilla PILA mensual: Verificar coincidencia de IBC y Clase de Riesgo (administrativo vs operativo) con la realidad.
+       - Soportes de ingreso a la ARL (Formularios).
+       - Certificado de vigencia emitido por la ARL (activos).
+       - Control de contratistas: Verificar pago de seguridad social antes del ingreso.`,
+
    // --- RESOLUCIONES 2025 ---
    'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
     Establece la conformación y funcionamiento del Comité de Convivencia Laboral.

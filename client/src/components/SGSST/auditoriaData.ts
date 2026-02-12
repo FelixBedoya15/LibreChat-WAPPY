@@ -23,8 +23,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de designación, licencia vigente en SST y certificado del curso de 50 horas.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.1 | Dec 1072/15: 2.2.4.6.8 | Res 4927/16 | Circ 0047/25 | Res 908/25',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES + '\n\n' + NORMATIVE_FRAGMENTS.RES_4927_2016_CURSO + '\n\n' + NORMATIVE_FRAGMENTS.CIRCULAR_0047_2025_ACTUALIZACION + '\n\n' + NORMATIVE_FRAGMENTS.RES_908_2025_LICENCIAS
+        criteria: 'Res 0312: E1.1.1 | Circ 0047/25 | Res 908/25 | Dec 1072: 2.2.4.6.8',
+        normativeText: NORMATIVE_FRAGMENTS.RESPONSABLE_SST_2025
     },
     {
         id: 'aud_1_1_2',
@@ -34,8 +34,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento con asignación de responsabilidades en SST por niveles.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.2 | Dec 1072/15: 2.2.4.6.8 | Ley 1562/12 | Res 2013/86 | Res 3461/25 | Res 4272/21 | Ley 2050/20',
-        normativeText: NORMATIVE_FRAGMENTS.ROLES_RESPONSABILIDADES_COMPLETO
+        criteria: 'Res 0312: E1.1.2 | Res 3461/25 | Ley 2050/20 | Dec 1072 (Rendición de Cuentas)',
+        normativeText: NORMATIVE_FRAGMENTS.RESPONSABILIDADES_SST_2025
     },
     {
         id: 'aud_1_1_3',
@@ -45,8 +45,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de asignación de recursos con presupuesto específico para SST.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.3 | Dec 1072/15: 2.2.4.6.8 (Obligaciones)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312: E1.1.3 | Dec 1072 (Art 8 #4) | Presupuesto y Ejecución',
+        normativeText: NORMATIVE_FRAGMENTS.RECURSOS_SST_DETALLE
     },
     {
         id: 'aud_1_1_4',
@@ -56,8 +56,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar planillas de aportes y afiliación de todos los trabajadores al SGRL.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312: E1.1.4 | Ley 1562/12 | Dec 1072: 2.2.4.2.2 (Afiliación)',
-        normativeText: NORMATIVE_FRAGMENTS.AFILIACION_SGRL_COMPLETA
+        criteria: 'Res 0312: E1.1.4 | Ley 1562 | Dec 1072 (2.2.4.2.2) | Cobertura Total',
+        normativeText: NORMATIVE_FRAGMENTS.AFILIACION_SGRL_DETALLE
     },
     {
         id: 'aud_1_1_5',
@@ -89,8 +89,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros de capacitación de los miembros del COPASST.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.7 | Dec 1072/15: 2.2.4.6.8 (Obligaciones)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312: E1.1.7 | Dec 1072 (Art 8, 11) | Ley 1562 (Art 11) | Res 1401/07',
+        normativeText: NORMATIVE_FRAGMENTS.CAPACITACION_COPASST
     },
     {
         id: 'aud_1_1_8',
