@@ -56,7 +56,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar planillas de aportes y afiliación de todos los trabajadores al SGRL.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.4 | Dec 1072/15: 2.2.4.6.8 | Ley 1562/12 (Afiliación)',
+        criteria: 'Res 0312: E1.1.4 | Ley 1562/12 | Dec 1072: 2.2.4.2.2 (Afiliación)',
         normativeText: NORMATIVE_FRAGMENTS.AFILIACION_SGRL_COMPLETA
     },
     {
