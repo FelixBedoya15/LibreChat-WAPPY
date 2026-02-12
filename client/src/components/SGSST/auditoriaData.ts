@@ -56,7 +56,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Soportes de Afiliación (Formularios).\n2. Planilla PILA (Cruce Nómina vs PILA - IBC/Riesgo).\n3. Certificado de Vigencia (Activos).\n\nAlcance (Binario: Todo/Nada):\n- Dependientes.\n- Contratistas (>1 mes).\n- Estudiantes (Dec 055).\n- Misión.\n\nNota: Afiliación min 1 día antes inicio labores.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.4 | Dec 1072/15 (2.2.4.2.2) | Ley 1562/12 | Cobertura Total',
+        criteria: 'Res 0312/19: E1.1.4 | Dec 1072/15: 2.2.4.2.2 (Afiliación) | Ley 1562/12 | Cobertura Total',
         normativeText: NORMATIVE_FRAGMENTS.AFILIACION_SGRL_DETALLE
     },
     {
@@ -89,7 +89,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar actas donde conste la revisión y validación de la matriz.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
-        criteria: 'Dec 1072/15 (2.2.4.6.15)',
+        criteria: 'Dec 1072/15: 2.2.4.6.15 (Identificación de Peligros)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
@@ -122,7 +122,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar actas de socialización de cambios proyectados y su evaluación.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
-        criteria: 'Dec 1072/15 (2.2.4.6.26)',
+        criteria: 'Dec 1072/15: 2.2.4.6.26 (Gestión del Cambio)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
@@ -133,7 +133,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar participación en planificación y socialización de resultados de auditoría.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
-        criteria: 'Dec 1072/15 (2.2.4.6.29)',
+        criteria: 'Dec 1072/15: 2.2.4.6.29 (Auditoría)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
@@ -144,7 +144,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar:\n1. Plan de capacitación (temas específicos).\n2. Registros asistencia.\n3. Certificados ARL.\n\nTemas Clave:\n- GTC 45 (Peligros).\n- Res 1401 (Investigación).\n- Inspecciones.\n- Curso 50h.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.7 | Dec 1072/15 (Art 11) | Res 2013/86 | Dec 1295/94 (ARL)',
+        criteria: 'Res 0312/19: E1.1.7 | Dec 1072/15: 2.2.4.6.11 (Capacitación) | Res 2013/86 | Dec 1295/94 (ARL)',
         normativeText: NORMATIVE_FRAGMENTS.CAPACITACION_COPASST
     },
     {
@@ -177,7 +177,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar capacitación en identificación de peligros y valoración de riesgos.',
         category: 'planear',
         subcategory: 'Capacitación COPASST (Detalle)',
-        criteria: 'Dec 1072/15 (2.2.4.6.15)',
+        criteria: 'Dec 1072/15: 2.2.4.6.15 (Identificación de Peligros)',
         normativeText: NORMATIVE_FRAGMENTS.INFO_TEMAS_CAPACITACION_COPASST
     },
     {
@@ -525,7 +525,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de evaluación médica ocupacional (Sociodemográfico y Diagnóstico).',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 | Res 1843/25',
+        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Evaluación Inicial) | Res 1843/25',
         normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
     },
     {
@@ -536,7 +536,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar documento de perfil sociodemográfico actualizado anualmente.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Num 7) | Res 1843/25',
+        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Num 7 - Sociodemográfica) | Res 1843/25',
         normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
     },
     {
@@ -558,7 +558,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros y evidencias de actividades de promoción y prevención.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.2 | Dec 1072/15: 2.2.4.6.24 | Res 1843/25',
+        criteria: 'Res 0312/19: E3.1.2 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención) | Res 1843/25',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
@@ -602,7 +602,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar seguimiento a recomendaciones y restricciones médicas.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.6 | Dec 1072/15: 2.2.4.6.22 (Punto 6)',
+        criteria: 'Res 0312/19: E3.1.6 | Dec 1072/15: 2.2.4.6.22 (Punto 6 - Ausentismo)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
@@ -635,7 +635,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de manejo de residuos según normatividad ambiental.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.22',
+        criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
