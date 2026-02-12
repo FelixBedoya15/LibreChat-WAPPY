@@ -77,6 +77,17 @@ export const NORMATIVE_FRAGMENTS = {
     7. La descripción sociodemográfica de los trabajadores y la caracterización de sus condiciones de salud.
     8. Registro y seguimiento a los resultados de los indicadores definidos en el SGSST.`,
 
+   'DIAGNOSTICO_CONDICIONES_SALUD': `DIAGNÓSTICO DE CONDICIONES DE SALUD (Dec 1072 Art 2.2.4.6.16 - Num 7):
+    
+    El empleador debe realizar y mantener actualizado un "Diagnóstico de Condiciones de Salud" que incluya:
+    
+    1. Perfil Sociodemográfico de la población trabajadora (Edad, Sexo, Escolaridad, Estado Civil).
+    2. Perfil de Morbilidad y Mortalidad (Enfermedades comunes, laborales y accidentes).
+    3. Análisis de Resultados de las Evaluaciones Médicas Ocupacionales (Conceptos de aptitud, restricciones y recomendaciones).
+    
+    OBJETIVO:
+    Identificar las prioridades de salud para diseñar los programas de vigilancia epidemiológica y las actividades de promoción y prevención (PVE).`,
+
    'DEC_1072_ART_18_OBJETIVOS': `ARTÍCULO 2.2.4.6.18. Objetivos del Sistema de Gestión de la Seguridad y Salud en el Trabajo SG-SST.
     Los objetivos deben expresarse de conformidad con la política de seguridad y salud en el trabajo establecida en la empresa y el resultado de la evaluación inicial y auditorías que se realicen.
     

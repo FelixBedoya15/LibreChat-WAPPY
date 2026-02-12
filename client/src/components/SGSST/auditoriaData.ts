@@ -513,20 +513,21 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         criteria: 'Res 0312/19: E2.11.1 | Dec 1072/15: 2.2.4.6.26 (Gestión Cambio)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_26_CAMBIO
     },
-
-    // --- II. HACER ---
-    // Condiciones Salud
     {
         id: 'aud_3_1_1',
         code: '3.1.1',
-        name: 'Evaluación médica ocupacional (Actualizado 2025)',
-        description: 'Evaluaciones médicas según Res 1843/2025: Preingreso, Periódicas (máx 3 años), Egreso, Post-incapacidad (>30 días).',
-        evaluation: 'Verificar programa de vigilancia epidemiológica y certificados médicos.',
-        category: 'hacer',
+        name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
+        description: 'Documento consolidado con la información sociodemográfica (edad, sexo, escolaridad) y el diagnóstico de salud de la población trabajadora (morbimortalidad).',
+        evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
+        category: 'planear',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico) | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico Salud)',
+        normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
     },
+
+    // --- II. HACER ---
+    // Condiciones Salud
+
     {
         id: 'aud_res_2764', // ADICIONAL
         code: 'Norma Adicional',
