@@ -84,57 +84,57 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_1_1_6_riesgos',
         code: '1.1.6.1',
-        name: ' > Validación Matriz de Riesgos (COPASST)',
-        description: 'El COPASST debe validar los controles en sitio según la Matriz de Riesgos.',
+        name: ' > Validación Matriz de Riesgos',
+        description: 'El COPASST debe participar en la actualización de la Matriz de Peligros (GTC 45) y conocerla a fondo para validar si los controles propuestos son reales y efectivos.',
         evaluation: 'Verificar actas donde conste la revisión y validación de la matriz.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Dec 1072/15 (2.2.4.6.15)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_15_PELIGROS
+        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
         id: 'aud_1_1_6_at',
         code: '1.1.6.2',
-        name: ' > Investigación de Accidentes (COPASST)',
-        description: 'Participación obligatoria de un representante del COPASST en el equipo investigador.',
+        name: ' > Investigación de Accidentes',
+        description: 'Participación obligatoria de un representante del COPASST en el equipo investigador de todos los incidentes y accidentes, dentro de los 15 días siguientes (Res 1401).',
         evaluation: 'Verificar firmas del COPASST en los informes de investigación de AT.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Res 1401/07',
-        normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
         id: 'aud_1_1_6_inspecciones',
         code: '1.1.6.3',
-        name: ' > Informes de Inspección (COPASST)',
-        description: 'Gestión de hallazgos y acciones preventivas/correctivas derivadas de inspecciones.',
+        name: ' > Informes de Inspección',
+        description: 'El COPASST debe realizar inspecciones y conocer los informes para vigilar la gestión de hallazgos y acciones preventivas/correctivas.',
         evaluation: 'Verificar informes de inspección realizados o revisados por el COPASST.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Res 2013/86 (Art 11)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_2013_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
         id: 'aud_1_1_6_cambio',
         code: '1.1.6.4',
-        name: ' > Gestión del Cambio (COPASST)',
-        description: 'Evaluación de riesgos en nuevos proyectos o cambios internos.',
-        evaluation: 'Verificar concepto del COPASST en procesos de gestión del cambio.',
+        name: ' > Gestión del Cambio',
+        description: 'El empleador debe comunicar cambios en procesos o maquinaria antes de su implementación para que el COPASST evalúe los nuevos riesgos.',
+        evaluation: 'Verificar actas de socialización de cambios proyectados y su evaluación.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Dec 1072/15 (2.2.4.6.26)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_26_CAMBIO
+        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
         id: 'aud_1_1_6_auditoria',
         code: '1.1.6.5',
-        name: ' > Auditoría Anual (COPASST)',
-        description: 'Conocimiento y análisis de las no conformidades de la auditoría anual.',
-        evaluation: 'Verificar acta donde se socialice el informe de auditoría al COPASST.',
+        name: ' > Auditoría Anual',
+        description: 'El COPASST debe participar en la planificación de la auditoría y conocer los resultados (no conformidades) para apoyar el plan de mejoramiento.',
+        evaluation: 'Verificar participación en planificación y socialización de resultados de auditoría.',
         category: 'planear',
         subcategory: 'Conformación del COPASST (Detalle)',
         criteria: 'Dec 1072/15 (2.2.4.6.29)',
-        normativeText: NORMATIVE_FRAGMENTS.CONFORMACION_COPASST
+        normativeText: NORMATIVE_FRAGMENTS.INFO_COMUNICACION_COPASST
     },
     {
         id: 'aud_1_1_7',

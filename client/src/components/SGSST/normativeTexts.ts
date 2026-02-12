@@ -12,6 +12,7 @@ export const NORMATIVE_FRAGMENTS = {
           
        3. CONSERVACIÓN (Art 2.2.4.6.12, Num 10):
           Los registros de la rendición de cuentas son documentos obligatorios del SG-SST y deben conservarse por 20 años.`,
+
    'DEC_1072_ART_8_OBLIGACIONES': `ARTÍCULO 2.2.4.6.8. Obligaciones de los empleadores. 
     El empleador está obligado a la protección de la seguridad y la salud de los trabajadores, acorde con lo establecido en la normatividad vigente.
     
@@ -207,6 +208,25 @@ export const NORMATIVE_FRAGMENTS = {
        - Resolución 2013/86: Define la conformación según número de trabajadores (1, 2, 3 o 4 representantes).
        - Decreto 1295/94 (Art 35): Obligación de un Vigía Ocupacional para empresas de menos de 10 trabajadores.`,
 
+   'INFO_COMUNICACION_COPASST': `COMUNICACIÓN INTEGRAL AL COPASST (Derecho a la Información y Veeduría):
+    
+    NORMATIVA VIGENTE (Res 2013/86, Dec 1072/15, Res 1401/07):
+    Para ejercer su vigilancia, el COPASST debe recibir y participar en:
+
+    1. INFORMACIÓN TÉCNICA Y DE DIAGNÓSTICO:
+       - Mediciones Ambientales: Conocer informes de sonometrías, iluminación, químicos.
+       - Condiciones de Salud: Conocer perfil sociodemográfico y dx de salud (anónimo) para priorizar vigilancia.
+       - Matriz de Peligros (GTC 45): Participar en actualización y validar efectividad de controles.
+
+    2. SINIESTRALIDAD DETALLADA:
+       - Investigación AT (Res 1401): Participación obligatoria de un representante en el equipo investigador (plazo 15 días).
+       - Ausentismo: Recibir reportes para identificar tendencias de salud y productividad.
+
+    3. ADMINISTRATIVA Y MEJORA:
+       - Gestión del Cambio (Art 26): Conocer cambios de tecnología/procesos antes de implementación para evaluar riesgos.
+       - Plan de Capacitación: Conocerlo y aprobarlo/sugerir antes de ejecución.
+       - Informes Externos: Conocer recomendaciones de ARL o MinTrabajo para vigilar cumplimiento.`,
+
    'CAPACITACION_COPASST': `NORMATIVA DE CAPACITACIÓN DEL COPASST (Formación y Competencia):
     
     NORMATIVA VIGENTE:
@@ -216,7 +236,7 @@ export const NORMATIVE_FRAGMENTS = {
        - Ley 1562/12 (Art 11): Refuerza la obligatoriedad de los programas de educación y prevención de las ARL.`,
 
    'RESPONSABLE_SST_2025': `PERFIL Y REQUISITOS DEL RESPONSABLE SG-SST:
-   
+    
     NORMATIVA VIGENTE:
        - Decreto 1072 de 2015 (Art 2.2.4.6.8 - Obligaciones de los Empleadores): Establece la obligación de designar un responsable del SG-SST por escrito.
        - Resolución 0312 de 2019 (Estándares Mínimos): Define los perfiles de idoneidad (técnico, tecnólogo, profesional) según el tamaño y riesgo de la empresa.
