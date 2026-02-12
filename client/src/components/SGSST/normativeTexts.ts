@@ -175,6 +175,21 @@ export const NORMATIVE_FRAGMENTS = {
        - Estudiantes (Dec 055/15): Obligatoria para estudiantes en práctica que involucre riesgo ocupacional.
        - Servicio Doméstico: Obligatoria la afiliación por parte del empleador (persona natural).`,
 
+   'PENSION_ALTO_RIESGO': `DECRETO 2090 DE 2003 (Pensión Especial de Vejez por Alto Riesgo):
+    Define las actividades de alto riesgo para la salud del trabajador y modifica las condiciones para acceder a la pensión.
+
+    - Actividades Cubiertas (Art 2):
+      1. Minería en socavones o subterráneos.
+      2. Exposición a altas temperaturas por encima de límites permisibles.
+      3. Radiaciones ionizantes.
+      4. Sustancias cancerígenas.
+      5. Controladores de tránsito aéreo (Aeronáutica Civil).
+      6. Cuerpos de Bomberos (extinción de incendios).
+      7. INPEC (Custodia y vigilancia en centros de reclusión).
+
+    - Cotización Especial (Art 5):
+      El empleador debe asumir una cotización especial adicional de 10 puntos porcentuales sobre la cotización ordinaria del Sistema General de Pensiones.`,
+
    // --- RESOLUCIONES 2025 ---
    'RES_3461_2025_CONVIVENCIA': `RESOLUCIÓN 3461 DE 2025 (Nuevo Comité de Convivencia):
     Establece la conformación y funcionamiento del Comité de Convivencia Laboral.

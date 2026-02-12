@@ -67,8 +67,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar pago de aportes adicionales de pensión para actividades de alto riesgo.',
         category: 'planear',
         subcategory: 'Recursos',
-        criteria: 'Res 0312/19: E1.1.5 | Dec 1072/15: 2.2.4.6.8 (Obligaciones)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312: E1.1.5 | Dec 2090/03 (Alto Riesgo)',
+        normativeText: NORMATIVE_FRAGMENTS.PENSION_ALTO_RIESGO
     },
     {
         id: 'aud_1_1_6',
