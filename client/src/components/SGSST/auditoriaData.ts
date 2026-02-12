@@ -518,18 +518,27 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     // --- II. HACER ---
     // Condiciones Salud
     {
-        id: 'aud_3_1_1',
-        code: '3.1.1',
-        name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
-        description: 'Documento consolidado con la información sociodemográfica (edad, sexo, escolaridad) y el diagnóstico de salud de la población trabajadora (morbimortalidad).',
-        evaluation: 'Verificar documento consolidado con la descripción sociodemográfica y el diagnóstico de condiciones de salud actualizado anualmente.',
+        id: 'aud_3_1_1_desc',
+        code: '3.1.1.1',
+        name: ' > Descripción Sociodemográfica',
+        description: 'Documento con la información sociodemográfica actualizada de la población trabajadora (Edad, Sexo, Escolaridad, Estado Civil, etc.).',
+        evaluation: 'Verificar documento de perfil sociodemográfico actualizado anualmente.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico Salud)',
+        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Num 7) | Res 1843/25',
         normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
     },
-
-
+    {
+        id: 'aud_3_1_1_diag',
+        code: '3.1.1.2',
+        name: ' > Diagnóstico de condiciones de salud',
+        description: 'Diagnóstico de salud de la población trabajadora (morbimortalidad sentida y biológica).',
+        evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
+        category: 'hacer',
+        subcategory: 'Condiciones de salud en el trabajo',
+        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico) | Res 1843/25',
+        normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
+    },
     {
         id: 'aud_3_1_2',
         code: '3.1.2',
@@ -538,8 +547,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar registros y evidencias de actividades de promoción y prevención.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.2 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico y Programas)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 0312/19: E3.1.2 | Dec 1072/15: 2.2.4.6.24 | Res 1843/25',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_3',
