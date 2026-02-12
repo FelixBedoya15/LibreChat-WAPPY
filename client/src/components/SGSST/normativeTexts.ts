@@ -232,7 +232,7 @@ export const NORMATIVE_FRAGMENTS = {
     
     NORMATIVA VIGENTE:
      Establece la conformación y funcionamiento del Comité de Convivencia Laboral.
-     El comité no tiene competencia en acoso sexual (Ley 2365), que requiere protocolo independiente.`,
+     El comité no tiene competencia en acoso sexual (Ley 2365/24), que requiere protocolo independiente.`,
 
    'RES_1843_2025_MEDICAS': `RESOLUCIÓN 1843 DE 2025 (Nuevas Evaluaciones Médicas):
     Regula la práctica de evaluaciones médicas ocupacionales y el manejo de la historia clínica.
