@@ -216,39 +216,48 @@ ${notApplicable.map(item => {
                 return `- ${item.code} - ${item.name}${obs}`;
             }).join('\n') || 'Ninguno'}
 
-## INSTRUCCIONES - GENERACIÓN DE INFORME EXTENSO
+## INSTRUCCIONES - GENERACIÓN DE INFORME EXTENSO Y VISUALMENTE PREMIUM
 
-Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML. No resumas; expande cada punto con explicaciones técnicas completas.
+Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RICO Y ESTILIZADO.
+**IMPORTANTE:** El informe debe verse profesional y hermoso. Usa tablas, colores y "tarjetas" visuales.
 
-1. **RESUMEN EJECUTIVO (EXTENSO)**:
-   - Realiza una descripción detallada, profunda y explicativa del estado actual del SG-SST.
-   - Contextualiza el nivel de cumplimiento y el riesgo para la empresa.
-   - NO seas breve. Extiéndete en la explicación diagnóstica.
+1. **ENCABEZADO Y CONTEXTO**:
+   - Crea una tabla elegante para la información de la empresa.
+   - Usa un diseño limpio con bordes sutiles.
 
-2. **ANÁLISIS DE RESULTADOS (DETALLADO)**: 
-   - Interpretación exhaustiva del nivel de cumplimiento.
-   - Análisis pormenorizado de la distribución por ciclos PHVA.
-   - Explicación amplia de las fortalezas y debilidades críticas.
+2. **RESUMEN EJECUTIVO (EXTENSO)**:
+   - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
+     Realiza una descripción detallada, profunda y explicativa del estado actual del SG-SST. Contextualiza el nivel de cumplimiento. NO seas breve.
+     </div>
 
-3. **PLAN DE ACCIÓN PRIORITARIO (COMPLETO)**:
-   - Para CADA estándar crítico que no cumple, desarrolla:
-     - Acción correctiva específica y detallada.
-     - Justificación técnica de la acción.
-     - Responsable sugerido y perfil requerido.
-     - Plazo recomendado con hitos si es necesario.
-     - Recursos financieros, técnicos y humanos necesarios.
+3. **ANÁLISIS DE RESULTADOS (VISUAL Y GRÁFICO)**: 
+   - **TARJETAS DE PUNTUACIÓN:** Genera dos recuadros (divs) visuales lado a lado:
+     - Uno rojo/verde para el PUNTAJE NUMÉRICO.
+     - Uno naranja/amarillo para el NIVEL DE RIESGO.
+   - **GRÁFICOS DE BARRAS (PHVA):** Para cada ciclo (Planear, Hacer, Verificar, Actuar), genera una **BARRA DE PROGRESO** visual usando HTML/CSS.
+     - Estilo sugerido: Un contenedor gris claro con una barra interna de color (verde/naranja/rojo según cumplimiento) que tenga un ancho % proporcional.
+   - **TABLA PHVA:** Crea una tabla HTML con encabezados azules (#004d99) y filas alternadas.
+   - Texto explicativo extenso sobre fortalezas y debilidades.
 
-4. **RIESGOS Y CONSECUENCIAS (PROFUNDO)**:
-   - Análisis detallado de las implicaciones legales (multas específicas, cierres).
-   - Riesgos operacionales y reputacionales explicados a fondo.
+4. **PLAN DE ACCIÓN PRIORITARIO (TABLA DETALLADA)**:
+   - Usa una **TABLA HTML** completa para esta sección.
+   - Columnas: Estándar | Hallazgo | Acción Correctiva (Detallada) | Responsable | Plazo.
+   - Usa colores en el texto para resaltar urgencia.
 
-5. **RECOMENDACIONES FINALES (ESTRATÉGICAS)**:
-   - Hoja de ruta detallada para la implementación.
-   - Estrategias de mejora a corto, mediano y largo plazo.
+5. **RIESGOS Y CONSECUENCIAS**:
+   - Usa listas con iconos (puedes usar emojis como ⚠️ o ⚖️ sutilmente si encajan, o bullets estilizados) para enumerar consecuencias legales y operativas.
+   - Explicación profunda de cada riesgo.
 
-IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas etiquetas de documento completo.
-Usa etiquetas HTML semánticas (h1, h2, h3, p, ul, li).
-El tono debe ser de CONSULTORÍA EXPERTA DE ALTO NIVEL, formal y muy explicativo.`;
+6. **RECOMENDACIONES FINALES**:
+   - Hoja de ruta en formato de lista estilizada o tabla de cronograma.
+
+**ESTILOS OBLIGATORIOS (CSS INLINE):**
+- Títulos (h1, h2): Color azul oscuro (#004d99).
+- Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
+- Celdas (td): padding="10px", border-bottom="1px solid #ddd".
+- Texto: Párrafos bien estructurados, no bloques de texto infinito.
+
+Genera SOLO el contenido del cuerpo (HTML body tags).`;
         }
 
         // Initialize the model
