@@ -188,7 +188,13 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             };
 
             // Call analysis API
-            const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData);
+            console.log('[DiagnosticoChecklist] Sending analysis data:', analysisData);
+
+            const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
             const result = response.data;
             setAnalysisReport(result.report);
@@ -204,7 +210,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations]);
+    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations, token]);
 
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;
