@@ -45,7 +45,8 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         const notApplicable = checklist.filter(item => item.status === 'no_aplica');
         const pending = checklist.filter(item => item.status === 'pendiente');
 
-        const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : 0;
+        const safeTotal = totalPoints > 0 ? totalPoints : 1; // Prevent division by zero
+        const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : "0.0";
 
         // ... (Company Info loading remains the same) ...
 
@@ -245,7 +246,8 @@ El informe debe ser profesional, específico y accionable.`;
 
     } catch (error) {
         logger.error('[SGSST Diagnostico] Analysis error:', error);
-        res.status(500).json({ error: 'Error generating analysis' });
+        console.error('[SGSST ERROR DETAILS]:', error); // Explicit console log for immediate visibility
+        res.status(500).json({ error: `Error generating analysis: ${error.message}` });
     }
 });
 
