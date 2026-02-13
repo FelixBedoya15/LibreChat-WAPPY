@@ -29,12 +29,26 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             userName,
             currentDate,
             observations,
-            type = 'diagnostico', // Default to diagnostico for backward compatibility
+            type = 'diagnostico', // Default to diagnostico
         } = req.body;
 
-        // ... (API Key retrieval logic remains the same) ...
+        console.log(`[SGSST Analysis] Processing request. Type: ${type}, User: ${req.user.id}`);
 
-        // 3. Initialize the Gemini SDK directly
+        if (!checklist || !Array.isArray(checklist)) {
+            console.error('[SGSST Analysis] Invalid checklist data');
+            return res.status(400).json({ error: 'Checklist data is missing or invalid' });
+        }
+
+        // API Key retrieval
+        const key = await getUserKey(req.user.id, 'google');
+        const resolvedApiKey = key || process.env.GOOGLE_API_KEY;
+
+        if (!resolvedApiKey) {
+            console.error('[SGSST Analysis] No Google API key found');
+            return res.status(401).json({ error: 'Google API key not found. Please add it in Settings.' });
+        }
+
+        // Initialize Gemini
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
 
@@ -47,16 +61,18 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : 0;
 
-        // ... (Company Info loading remains the same) ...
+        // Company Info
+        const companyInfo = await CompanyInfo.findOne({ userId: req.user.id });
+        const companyInfoBlock = companyInfo
+            ? `- Empresa: ${companyInfo.companyName}\n- NIT: ${companyInfo.nit}\n- Actividad: ${companyInfo.economicActivity}\n- Riesgo: ${companyInfo.riskClass}`
+            : '(Información de empresa no registrada)';
 
         let promptText = '';
 
         if (type === 'auditoria') {
             const { weightedScore = 0, weightedPercentage = 0 } = req.body;
-            console.log('[SGSST Audit Analysis] Dedicated Audit Pipeline Triggered');
+            console.log('[SGSST Audit] Generating Audit Report Prompt');
 
-            // Audit-specific logic: No dependency on companySize/riskLevel
-            // The prompt is self-contained for the audit context
             promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
 
 **Fecha de Auditoría:** ${currentDate || new Date().toLocaleDateString('es-CO')}
@@ -129,7 +145,9 @@ IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE
 Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
 Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="color:#004d99;">).
 El informe debe ser profesional, técnico y sustentado en la norma.`;
+
         } else {
+            console.log('[SGSST Diagnostic] Generating Diagnostic Report Prompt');
             // Default Diagnostic Prompt (Resolución 0312)
             promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
 
@@ -211,23 +229,23 @@ Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="c
 El informe debe ser profesional, específico y accionable.`;
         }
 
-        // 4. Generate the report
+        console.log('[SGSST Analysis] Sending prompt to Gemini...');
         const result = await model.generateContent(promptText);
         const response = await result.response;
         const report = response.text();
+        console.log('[SGSST Analysis] Report generated successfully');
 
-        // Clean up: remove code blocks, full HTML document wrappers
+        // Clean up
         let cleanedReport = report
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
 
-        // Strip full HTML document structure if AI still generates it
         const bodyMatch = cleanedReport.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         if (bodyMatch) {
             cleanedReport = bodyMatch[1].trim();
         }
-        // Remove DOCTYPE, html, head, style tags
+
         cleanedReport = cleanedReport
             .replace(/<!DOCTYPE[^>]*>/gi, '')
             .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
@@ -251,7 +269,7 @@ El informe debe ser profesional, específico y accionable.`;
 
     } catch (error) {
         logger.error('[SGSST Diagnostico] Analysis error:', error);
-        res.status(500).json({ error: 'Error generating analysis' });
+        res.status(500).json({ error: 'Error generating analysis: ' + (error.message || 'Check server logs') });
     }
 });
 
