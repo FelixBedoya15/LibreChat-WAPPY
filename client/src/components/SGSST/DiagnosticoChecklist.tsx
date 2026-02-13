@@ -485,6 +485,13 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        {/* Model Selector */}
+                        <ModelSelector
+                            selectedModel={selectedModel}
+                            onSelectModel={setSelectedModel}
+                            disabled={isAnalyzing}
+                        />
+
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                             className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
