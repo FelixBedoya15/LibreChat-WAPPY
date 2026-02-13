@@ -80,6 +80,34 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         return (compliantCount / applicableTotal) * 100;
     }, [statuses, compliantCount]);
 
+    // Weighted Score (Res 0312) Calculation
+    const weightedScore = useMemo(() => {
+        return statuses.reduce((acc, status) => {
+            if (status.status === 'cumple') {
+                const item = AUDITORIA_ITEMS.find(i => i.id === status.itemId);
+                return acc + (item?.points || 0);
+            }
+            return acc;
+        }, 0);
+    }, [statuses]);
+
+    // Maximum possible score (only applicable items)
+    const maxPossibleScore = useMemo(() => {
+        return statuses.reduce((acc, status) => {
+            if (status.status !== 'no_aplica' && status.status !== 'pendiente') {
+                const item = AUDITORIA_ITEMS.find(i => i.id === status.itemId);
+                return acc + (item?.points || 0);
+            }
+            return acc;
+        }, 0);
+    }, [statuses]);
+
+    // Res 0312 Compliance Percentage (Weighted)
+    const weightedPercentage = useMemo(() => {
+        if (maxPossibleScore === 0) return 0;
+        return (weightedScore / maxPossibleScore) * 100;
+    }, [weightedScore, maxPossibleScore]);
+
     // Group items by category
     const groupedItems = useMemo(() => {
         const groups: Record<string, AuditoriaItem[]> = {
@@ -153,6 +181,11 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 score: compliantCount,
                 totalPoints: statuses.filter(s => s.status !== 'pendiente' && s.status !== 'no_aplica').length, // Total applicable items evaluated
                 complianceLevel: { level: compliancePercentage >= 85 ? 'Conforme' : 'No Conforme' },
+
+                // New Fields for Dual Scoring
+                weightedScore: weightedScore,
+                weightedPercentage: weightedPercentage,
+
                 userName: user?.name || user?.username || 'Auditor',
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
                 observations,
@@ -174,7 +207,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, compliantCount, compliancePercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations]);
+    }, [completedCount, compliantCount, compliancePercentage, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations]);
 
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;
@@ -302,18 +335,35 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                        <div>
-                            <p className="text-sm text-text-secondary">Progreso de Evaluación</p>
-                            <p className="text-2xl font-bold text-text-primary">
-                                {completedCount}/{totalItems}
-                            </p>
+                    <div className="flex flex-col gap-3 w-full md:w-auto">
+                        {/* General Audit Scoring */}
+                        <div className="flex items-center justify-between gap-6 border-b border-border-light pb-2">
+                            <div>
+                                <p className="text-xs uppercase tracking-wider font-bold text-text-secondary">Auditoría (Dec 1072)</p>
+                                <p className="text-sm text-text-tertiary">Progreso</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-2xl font-bold text-text-primary">
+                                    {compliancePercentage.toFixed(1)}%
+                                </p>
+                                <p className="text-xs text-text-secondary">{completedCount}/{totalItems} Ítems</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">% Conformidad (de lo evaluado)</p>
-                            <p className="text-2xl font-bold text-text-primary">
-                                {compliancePercentage.toFixed(1)}%
-                            </p>
+
+                        {/* Res 0312 Scoring */}
+                        <div className="flex items-center justify-between gap-6 pt-1">
+                            <div>
+                                <p className="text-xs uppercase tracking-wider font-bold text-blue-600">Estándares (Res 0312)</p>
+                                <p className="text-sm text-text-tertiary">Puntaje</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-2xl font-bold text-blue-600">
+                                    {weightedScore.toFixed(1)} / {maxPossibleScore.toFixed(1)}
+                                </p>
+                                <p className="text-xs text-blue-400 font-medium">
+                                    {weightedPercentage.toFixed(1)}% Cumplimiento
+                                </p>
+                            </div>
                         </div>
                     </div>
 
