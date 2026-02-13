@@ -38,6 +38,9 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
 
+// Force rebuild verification
+console.log('DiagnosticoChecklist loaded');
+
 interface DiagnosticoChecklistProps {
     onAnalysisComplete?: (report: string) => void;
 }

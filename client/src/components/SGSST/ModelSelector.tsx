@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Brain, ChevronDown, Check } from 'lucide-react';
-import { cn } from '~/utils/';
+import { cn } from '~/utils';
 
 export const AI_MODELS = [
     { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
