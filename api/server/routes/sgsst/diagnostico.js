@@ -32,11 +32,15 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             type = 'diagnostico', // Default to diagnostico for backward compatibility
         } = req.body;
 
+        // Validate checklist
+        if (!checklist || !Array.isArray(checklist) || checklist.length === 0) {
+            return res.status(400).json({ error: 'La lista de verificación es inválida o está vacía.' });
+        }
+
         // ... (API Key retrieval logic remains the same) ...
 
         // 3. Initialize the Gemini SDK directly
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
 
         // Build checklist stats
         const completedItems = checklist.filter(item => item.status === 'cumple');
@@ -206,10 +210,29 @@ Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="c
 El informe debe ser profesional, específico y accionable.`;
         }
 
-        // 4. Generate the report
-        const result = await model.generateContent(promptText);
-        const response = await result.response;
-        const text = response.text();
+        // 4. Generate the report with Fallback Strategy
+        let result;
+        let text;
+
+        try {
+            console.log('[SGSST Diagnostico] Attempting Generation with gemini-3-flash-preview');
+            const modelPrimary = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+            result = await modelPrimary.generateContent(promptText);
+            const response = await result.response;
+            text = response.text();
+        } catch (primaryError) {
+            console.warn('[SGSST Diagnostico] Primary model (gemini-3-flash-preview) failed, attempting fallback to gemini-2.0-flash-exp. Error:', primaryError.message);
+            try {
+                // Fallback to previous stable/experimental version
+                const modelFallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                result = await modelFallback.generateContent(promptText);
+                const response = await result.response;
+                text = response.text();
+            } catch (fallbackError) {
+                console.error('[SGSST Diagnostico] All models failed.');
+                throw fallbackError; // Re-throw to main catch
+            }
+        }
 
         // Clean up: remove code blocks, full HTML document wrappers
         let cleanedReport = text
@@ -233,6 +256,7 @@ El informe debe ser profesional, específico y accionable.`;
 
         res.json({
             report: cleanedReport,
+            conversationId: crypto.randomUUID(), // Return new ID for UI
             summary: {
                 score,
                 totalPoints,
@@ -252,7 +276,7 @@ El informe debe ser profesional, específico y accionable.`;
                 checklistLength: checklist?.length,
                 score,
                 totalPoints,
-                modelName: 'gemini-2.5-flash-preview-09-2025'
+                modelName: 'gemini-2.5-flash-preview-09-2025 (+fallback)'
             }
         });
         logger.error('[SGSST Diagnostico] Analysis error:', error);
