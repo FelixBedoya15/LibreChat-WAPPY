@@ -198,6 +198,11 @@ ${companyInfoBlock}
 - No Aplican: ${notApplicable.length}
 - Pendientes: ${pending.length}
 
+**Estándares que CUMPLEN (Exitosos):**
+${completedItems.map(item => {
+                return `- ${item.code} - ${item.name} (${item.category.toUpperCase()})`;
+            }).join('\n') || 'Ninguno'}
+
 **Estándares que NO CUMPLEN (Críticos):**
 ${nonCompliantItems.map(item => {
                 const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
@@ -239,10 +244,11 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
    - **TABLA PHVA:** Crea una tabla HTML con encabezados azules (#004d99) y filas alternadas.
    - Texto explicativo extenso sobre fortalezas y debilidades.
 
-4. **PLAN DE ACCIÓN PRIORITARIO (TABLA DETALLADA)**:
-   - Usa una **TABLA HTML** completa para esta sección.
+4. **PLAN DE ACCIÓN COMPLETO (TODOS LOS HALLAZGOS)**:
+   - **IMPORTANTE:** NO hagas un "Top 5". Debes incluir **TODOS** los estándares que no cumplen.
+   - Usa una **TABLA HTML** extensa.
    - Columnas: Estándar | Hallazgo | Acción Correctiva (Detallada) | Responsable | Plazo.
-   - Usa colores en el texto para resaltar urgencia.
+   - Si hay muchos hallazgos, la tabla debe ser larga. NO omitas ninguno.
 
 5. **RIESGOS Y CONSECUENCIAS**:
    - Usa listas con iconos (puedes usar emojis como ⚠️ o ⚖️ sutilmente si encajan, o bullets estilizados) para enumerar consecuencias legales y operativas.
