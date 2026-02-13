@@ -263,6 +263,14 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd".
 - Texto: Párrafos bien estructurados, no bloques de texto infinito.
 
+**FIRMA OBLIGATORIA:**
+Al final del informe, firma estrictamente así:
+<div style="margin-top: 50px; text-align: center;">
+    <strong>${userName || req.user?.name || 'Usuario del Sistema'}</strong><br>
+    Consultor Experto en SG-SST<br>
+    Licencia en Seguridad y Salud en el Trabajo Vigente
+</div>
+
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
         }
 
