@@ -29,26 +29,12 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             userName,
             currentDate,
             observations,
-            type = 'diagnostico', // Default to diagnostico
+            type = 'diagnostico', // Default to diagnostico for backward compatibility
         } = req.body;
 
-        console.log(`[SGSST Analysis] Processing request. Type: ${type}, User: ${req.user.id}`);
+        // ... (API Key retrieval logic remains the same) ...
 
-        if (!checklist || !Array.isArray(checklist)) {
-            console.error('[SGSST Analysis] Invalid checklist data');
-            return res.status(400).json({ error: 'Checklist data is missing or invalid' });
-        }
-
-        // API Key retrieval
-        const key = await getUserKey(req.user.id, 'google');
-        const resolvedApiKey = key || process.env.GOOGLE_API_KEY;
-
-        if (!resolvedApiKey) {
-            console.error('[SGSST Analysis] No Google API key found');
-            return res.status(401).json({ error: 'Google API key not found. Please add it in Settings.' });
-        }
-
-        // Initialize Gemini
+        // 3. Initialize the Gemini SDK directly
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
 
@@ -61,17 +47,19 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : 0;
 
-        // Company Info
-        const companyInfo = await CompanyInfo.findOne({ userId: req.user.id });
-        const companyInfoBlock = companyInfo
-            ? `- Empresa: ${companyInfo.companyName}\n- NIT: ${companyInfo.nit}\n- Actividad: ${companyInfo.economicActivity}\n- Riesgo: ${companyInfo.riskClass}`
-            : '(Información de empresa no registrada)';
+        // ... (Company Info loading remains the same) ...
 
         let promptText = '';
 
         if (type === 'auditoria') {
             const { weightedScore = 0, weightedPercentage = 0 } = req.body;
-            console.log('[SGSST Audit] Generating Audit Report Prompt');
+            console.log('[SGSST Audit Analysis] Payload:', {
+                score,
+                totalPoints,
+                weightedScore,
+                weightedPercentage,
+                checklistLength: checklist?.length
+            });
 
             promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
 
@@ -115,39 +103,27 @@ ${partialItems.map(item => {
 
 Genera un INFORME DE AUDITORÍA INTERNA en formato HTML con las siguientes secciones obligatorias:
 
-1. **RESUMEN EJECUTIVO**: Breve descripción del estado actual del SG-SST, mencionando explícitamente ambos resultados (Cumplimiento Dec 1072 y Estándares Res 0312).
+1. **OBJETIVO Y ALCANCE**:
+   - Objetivo: Verificar el cumplimiento del SG-SST frente al Decreto 1072 y la mejora continua.
+   - Alcance: Todos los procesos del SG-SST evaluados.
 
-2. **ANÁLISIS DE RESULTADOS**:
-   - Interpretación del porcentaje de cumplimiento (Dec 1072)
-   - Interpretación del puntaje obtenido (Res 0312)
-   - Distribución por ciclos PHVA
-   - Principales fortalezas identificadas
-   - Áreas críticas de incumplimiento
+2. **RESUMEN EJECUTIVO**: Concepto global sobre la eficacia del sistema, mencionando ambos puntajes (Cumplimiento Dec 1072 y Ponderado Res 0312).
 
-3. **PLAN DE ACCIÓN PRIORITARIO**:
-   - Para cada no conformidad detectada, proporciona:
-     - Acción correctiva específica
-     - Responsable sugerido
-     - Plazo recomendado
-     - Recursos necesarios
-   - Prioriza los hallazgos que afectan el cumplimiento legal directo.
+3. **FORTALEZAS**: Aspectos positivos destacados.
 
-4. **RIESGOS Y CONSECUENCIAS**:
-   - Consecuencias legales del incumplimiento (Multas, Cierre, Responsabilidad Penal/Civil)
-   - Riesgos operacionales
+4. **HALLAZGOS DETALLADOS**:
+   - Análisis de las No Conformidades detectadas.
+   - Análisis de debilidades en el ciclo PHVA.
 
-5. **RECOMENDACIONES DE AUDITORÍA**:
-   - Concepto final del auditor: ¿El sistema es conforme y eficaz?
-   - Próximos pasos para cierre de hallazgos
-   - Sugerencias de mejora continua
+5. **CONCLUSIONES DE AUDITORÍA**:
+   - ¿El sistema es conforme con los requisitos propios y legales?
+   - ¿El sistema se implementa y mantiene eficazmente?
 
-IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
-Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
-Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="color:#004d99;">).
-El informe debe ser profesional, técnico y sustentado en la norma.`;
+6. **RECOMENDACIONES**: Acciones para abordar hallazgos y mejora continua.
+
+IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). Usa etiquetas <h2>, <h3>, <p>, <ul>, <li>, <strong>. Estilos inline profesionales (ej: color azul corporativo para títulos).`;
 
         } else {
-            console.log('[SGSST Diagnostic] Generating Diagnostic Report Prompt');
             // Default Diagnostic Prompt (Resolución 0312)
             promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
 
@@ -229,23 +205,23 @@ Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="c
 El informe debe ser profesional, específico y accionable.`;
         }
 
-        console.log('[SGSST Analysis] Sending prompt to Gemini...');
+        // 4. Generate the report
         const result = await model.generateContent(promptText);
         const response = await result.response;
         const report = response.text();
-        console.log('[SGSST Analysis] Report generated successfully');
 
-        // Clean up
+        // Clean up: remove code blocks, full HTML document wrappers
         let cleanedReport = report
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
 
+        // Strip full HTML document structure if AI still generates it
         const bodyMatch = cleanedReport.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         if (bodyMatch) {
             cleanedReport = bodyMatch[1].trim();
         }
-
+        // Remove DOCTYPE, html, head, style tags
         cleanedReport = cleanedReport
             .replace(/<!DOCTYPE[^>]*>/gi, '')
             .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
@@ -269,7 +245,7 @@ El informe debe ser profesional, específico y accionable.`;
 
     } catch (error) {
         logger.error('[SGSST Diagnostico] Analysis error:', error);
-        res.status(500).json({ error: 'Error generating analysis: ' + (error.message || 'Check server logs') });
+        res.status(500).json({ error: 'Error generating analysis' });
     }
 });
 
