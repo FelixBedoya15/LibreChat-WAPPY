@@ -72,8 +72,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const { user, token } = useAuthContext();
 
     // Filters
-    const [companySize, setCompanySize] = useState<CompanySize>(CompanySize.MEDIUM);
-    const [riskLevel, setRiskLevel] = useState<RiskLevel>(RiskLevel.III);
+    const [companySize, setCompanySize] = useState<CompanySize>(CompanySize.SMALL);
+    const [riskLevel, setRiskLevel] = useState<RiskLevel>(RiskLevel.I);
 
     // Checklist state
     const [statuses, setStatuses] = useState<ComplianceStatus[]>([]);
