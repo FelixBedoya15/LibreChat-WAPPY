@@ -52,11 +52,13 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         let promptText = '';
 
         if (type === 'auditoria') {
+            const { weightedScore, weightedPercentage } = req.body;
+
             promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
 
 **Fecha de Auditoría:** ${currentDate || new Date().toLocaleDateString('es-CO')}
 **Auditor Líder:** ${userName || req.user?.name || 'Usuario del Sistema'}
-**Criterios de Auditoría:** Decreto 1072 de 2015 (Capítulo 6), ISO 45001:2018, Resolución 0312 de 2019.
+**Criterios de Auditoría:** Decreto 1072 de 2015 (Capítulo 6), Resolución 0312 de 2019.
 
 Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA completo.
 
@@ -65,12 +67,17 @@ Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA
 **Información de la Empresa:**
 ${companyInfoBlock}
 
-**Resumen de Hallazgos:**
-- Porcentaje de Conformidad: ${percentage}%
-- Total Requisitos Evaluados: ${checklist.length}
-- Conformidades (Cumple): ${completedItems.length}
-- No Conformidades Mayores/Menores (No Cumple/Parcial): ${nonCompliantItems.length + partialItems.length}
-- Observaciones (No Aplica): ${notApplicable.length}
+**Resumen de Resultados (Doble Calificación):**
+1. **Auditoría de Cumplimiento (Dec 1072):**
+   - Porcentaje de Conformidad: ${percentage}%
+   - Total Requisitos Evaluados: ${checklist.length}
+   - Conformidades (Cumple): ${completedItems.length}
+   - No Conformidades Mayores/Menores: ${nonCompliantItems.length + partialItems.length}
+   - Observaciones (No Aplica): ${notApplicable.length}
+
+2. **Estándares Mínimos (Res 0312):**
+   - Puntaje Obtenido: ${weightedScore || 'N/A'}
+   - Porcentaje Ponderado: ${weightedPercentage ? parseFloat(weightedPercentage).toFixed(1) : 'N/A'}%
 
 **Detalle de No Conformidades y Hallazgos:**
 **NO CONFORMIDADES (Incumplimientos):**
@@ -93,7 +100,7 @@ Genera un INFORME DE AUDITORÍA INTERNA en formato HTML con las siguientes secci
    - Objetivo: Verificar el cumplimiento del SG-SST frente al Decreto 1072 y la mejora continua.
    - Alcance: Todos los procesos del SG-SST evaluados.
 
-2. **RESUMEN EJECUTIVO**: Concepto global sobre la eficacia del sistema.
+2. **RESUMEN EJECUTIVO**: Concepto global sobre la eficacia del sistema, mencionando ambos puntajes (Cumplimiento Dec 1072 y Ponderado Res 0312).
 
 3. **FORTALEZAS**: Aspectos positivos destacados.
 

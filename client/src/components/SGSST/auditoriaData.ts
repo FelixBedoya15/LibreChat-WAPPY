@@ -10,6 +10,7 @@ export interface AuditoriaItem {
     category: 'planear' | 'hacer' | 'verificar' | 'actuar';
     subcategory: string;
     criteria: string;
+    points?: number;
     normativeText?: string;
 }
 
