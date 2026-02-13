@@ -481,6 +481,25 @@ export const NORMATIVE_FRAGMENTS = {
        3. DECRETO 4741 DE 2005 (RESPEL):
           - Regula la gestión integral de Residuos Peligrosos (si aplica a la actividad económica).`,
 
+   'REPORTE_MINTRABAJO_DETALLE': `REPORTE AL MINTRABAJO (Solo Graves y Mortales - Res 1401/07):
+
+    NORMATIVA VIGENTE:
+       1. RESOLUCIÓN 1401 DE 2007 (INVESTIGACIÓN DE INCIDENTES Y ACCIDENTES):
+          - Accidente Grave: Aquel que trae como consecuencia amputación de cualquier segmento corporal; fractura de huesos largos (fémur, tibia, peroné, húmero, radio y cúbito); trauma craneoencefálico; quemaduras de segundo y tercer grado; lesiones severas de mano (aplastamiento); lesiones severas de columna vertebral con compromiso de médula espinal; lesiones oculares que comprometan la agudeza visual; o lesiones que comprometan la capacidad auditiva.
+
+       2. OBLIGACIÓN DE REPORTE (Dec 1072/15 Art 2.2.4.6.32):
+          - Solo los accidentes graves y mortales, así como las enfermedades laborales diagnosticadas, deben ser reportados a la Dirección Territorial del Ministerio del Trabajo (independiente del reporte a la ARL).
+
+    (Nota: El reporte a la ARL sí aplica para TODOS los accidentes).`,
+
+   'INVESTIGACION_ACCIDENTES_DETALLE': `INVESTIGACIÓN DE INCIDENTES Y ACCIDENTES (Res 1401/07):
+
+    NORMATIVA VIGENTE:
+       1. RESOLUCIÓN 1401 DE 2007:
+          - Obligación: Investigar TODOS los incidentes y accidentes de trabajo dentro de los quince (15) días siguientes a su ocurrencia.
+          - Equipo Investigador: Jefe inmediato o supervisor, un representante del COPASST y el responsable del SG-SST. (Si es grave o mortal, debe participar un profesional con licencia en SST).
+          - Metodología: Debe permitir identificar las causas básicas (factores personales y del trabajo) y causas inmediatas (actos y condiciones subestándar).`,
+
    // --- OTRAS NORMAS ---
    'RES_2013_COPASST': `RESOLUCIÓN 2013 DE 1986 (COPASST):
     Reglamenta la organización y funcionamiento de los Comités de Medicina, Higiene y Seguridad Industrial (hoy COPASST).

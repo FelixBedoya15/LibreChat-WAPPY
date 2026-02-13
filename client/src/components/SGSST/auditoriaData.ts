@@ -668,8 +668,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Dec 1072/15: 2.2.4.6.32 (Reporte MinTrabajo)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_32_REPORTE
+        criteria: 'Res 1401/07 (Graves/Mortales) | Dec 1072/15',
+        normativeText: NORMATIVE_FRAGMENTS.REPORTE_MINTRABAJO_DETALLE
     },
 
     // Registro Reporte ATEL
@@ -692,8 +692,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar metodología e informes de investigación de ATEL.',
         category: 'hacer',
         subcategory: 'Registro, reporte e investigación de ATEL',
-        criteria: 'Res 0312/19: E3.2.2 | Dec 1072/15: 2.2.4.6.32 (Investigación)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_32_REPORTE
+        criteria: 'Res 1401/07 (Investigación) | Dec 1072/15',
+        normativeText: NORMATIVE_FRAGMENTS.INVESTIGACION_ACCIDENTES_DETALLE
     },
     {
         id: 'aud_3_2_3',
