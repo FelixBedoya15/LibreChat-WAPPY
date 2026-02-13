@@ -201,9 +201,10 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             setReportMessageId(null);
             onAnalysisComplete?.(result.report);
             showToast({ message: 'Informe de Auditoría generado exitosamente', status: 'success' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Audit Analysis error:', error);
-            showToast({ message: 'Error al generar el informe de auditoría', status: 'error' });
+            const errorMsg = error.response?.data?.error || error.message || 'Error desconocido';
+            showToast({ message: `Error al generar informe: ${errorMsg}`, status: 'error' });
         } finally {
             setIsAnalyzing(false);
         }
