@@ -209,10 +209,10 @@ El informe debe ser profesional, específico y accionable.`;
         // 4. Generate the report
         const result = await model.generateContent(promptText);
         const response = await result.response;
-        const report = response.text();
+        const text = response.text();
 
         // Clean up: remove code blocks, full HTML document wrappers
-        let cleanedReport = report
+        let cleanedReport = text
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
@@ -245,9 +245,18 @@ El informe debe ser profesional, específico y accionable.`;
         });
 
     } catch (error) {
+        console.error('[SGSST CRITICAL ERROR] Diagnostic Analysis Failed:', {
+            message: error.message,
+            stack: error.stack,
+            payloadSummary: {
+                checklistLength: checklist?.length,
+                score,
+                totalPoints,
+                modelName: 'gemini-2.5-flash-preview-09-2025'
+            }
+        });
         logger.error('[SGSST Diagnostico] Analysis error:', error);
-        console.error('[SGSST ERROR DETAILS]:', error); // Explicit console log for immediate visibility
-        res.status(500).json({ error: `Error generating analysis: ${error.message}` });
+        res.status(500).json({ error: `Error generando análisis: ${error.message}` });
     }
 });
 

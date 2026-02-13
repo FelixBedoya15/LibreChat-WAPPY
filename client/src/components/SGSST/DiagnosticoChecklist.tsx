@@ -197,9 +197,10 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             setReportMessageId(null);
             onAnalysisComplete?.(result.report);
             showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Analysis error:', error);
-            showToast({ message: t('com_ui_analysis_error', 'Error al generar el análisis'), status: 'error' });
+            const errorMsg = error.response?.data?.error || error.message || t('com_ui_analysis_error', 'Error al generar el análisis');
+            showToast({ message: `Error: ${errorMsg}`, status: 'error', duration: 5000 });
         } finally {
             setIsAnalyzing(false);
         }
