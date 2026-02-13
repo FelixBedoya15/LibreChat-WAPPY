@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { AuthKeys } = require('librechat-data-provider');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getLogStores } = require('../../../cache/getLogStores');
 const { getUserKey, checkUserKey } = require('../../services/UserService');
-const { AuthKeys } = require('../../../models/AuthKeys');
 
 const mapSizeToLabel = (size) => {
     switch (size) {
