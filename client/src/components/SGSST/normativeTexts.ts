@@ -440,6 +440,11 @@ export const NORMATIVE_FRAGMENTS = {
     
     Custodia: Exclusiva de la IPS o médico especialista con licencia SST. El empleador solo recibe el Certificado de Aptitud, no la Historia Clínica.`,
 
+   'RES_1843_RESTRICCIONES': `RESOLUCIÓN 1843 DE 2025 (Restricciones y Recomendaciones):
+    
+    NORMATIVA VIGENTE:
+       - Artículo 5, literal f): "Adaptar las condiciones de trabajo y medio ambiente laboral según las recomendaciones y/o restricciones emitidas en el concepto ocupacional en un término no superior a veinte (20) días hábiles, posterior a la realización de las evaluaciones médicas ocupacionales."`,
+
    // --- OTRAS NORMAS ---
    'RES_2013_COPASST': `RESOLUCIÓN 2013 DE 1986 (COPASST):
     Reglamenta la organización y funcionamiento de los Comités de Medicina, Higiene y Seguridad Industrial (hoy COPASST).

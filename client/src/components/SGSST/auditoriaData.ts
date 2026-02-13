@@ -602,8 +602,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar certificados de evaluaciones médicas según profesiograma y Res 1843.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.4 | Dec 1072/15: 2.2.4.6.22 (Diagnóstico) | Res 1843/25 (Deroga Res 2346)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES + '\n\n' + NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.4 | Res 1843/25 (Deroga Res 2346)',
+        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
     },
     {
         id: 'aud_3_1_5',
@@ -624,8 +624,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar seguimiento a recomendaciones y restricciones médicas.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.6 | Dec 1072/15: 2.2.4.6.22 (Punto 6 - Ausentismo)',
-        normativeText: NORMATIVE_FRAGMENTS.RES_1843_2025_MEDICAS
+        criteria: 'Res 0312/19: E3.1.6 | Res 1843/25 (Art 5 lit f)',
+        normativeText: NORMATIVE_FRAGMENTS.RES_1843_RESTRICCIONES
     },
     {
         id: 'aud_3_1_7',
