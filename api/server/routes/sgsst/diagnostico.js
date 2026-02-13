@@ -216,49 +216,56 @@ ${notApplicable.map(item => {
                 return `- ${item.code} - ${item.name}${obs}`;
             }).join('\n') || 'Ninguno'}
 
-## INSTRUCCIONES
+## INSTRUCCIONES - GENERACIÓN DE INFORME EXTENSO
 
-Genera un informe gerencial en formato HTML con las siguientes secciones:
+Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML. No resumas; expande cada punto con explicaciones técnicas completas.
 
-1. **RESUMEN EJECUTIVO**: Breve descripción del estado actual del SG-SST
+1. **RESUMEN EJECUTIVO (EXTENSO)**:
+   - Realiza una descripción detallada, profunda y explicativa del estado actual del SG-SST.
+   - Contextualiza el nivel de cumplimiento y el riesgo para la empresa.
+   - NO seas breve. Extiéndete en la explicación diagnóstica.
 
-2. **ANÁLISIS DE RESULTADOS**: 
-   - Interpretación del nivel de cumplimiento
-   - Distribución por ejes PHVA (Planear, Hacer, Verificar, Actuar)
-   - Principales fortalezas identificadas
-   - Áreas críticas de incumplimiento
+2. **ANÁLISIS DE RESULTADOS (DETALLADO)**: 
+   - Interpretación exhaustiva del nivel de cumplimiento.
+   - Análisis pormenorizado de la distribución por ciclos PHVA.
+   - Explicación amplia de las fortalezas y debilidades críticas.
 
-3. **PLAN DE ACCIÓN PRIORITARIO**:
-   - Para cada estándar crítico que no cumple, proporciona:
-     - Acción correctiva específica
-     - Responsable sugerido
-     - Plazo recomendado
-     - Recursos necesarios
-   - Ordena por prioridad (mayor puntaje = mayor prioridad)
+3. **PLAN DE ACCIÓN PRIORITARIO (COMPLETO)**:
+   - Para CADA estándar crítico que no cumple, desarrolla:
+     - Acción correctiva específica y detallada.
+     - Justificación técnica de la acción.
+     - Responsable sugerido y perfil requerido.
+     - Plazo recomendado con hitos si es necesario.
+     - Recursos financieros, técnicos y humanos necesarios.
 
-4. **RIESGOS Y CONSECUENCIAS**:
-   - Consecuencias legales del incumplimiento
-   - Riesgos operacionales
-   - Posibles sanciones según la normatividad colombiana
+4. **RIESGOS Y CONSECUENCIAS (PROFUNDO)**:
+   - Análisis detallado de las implicaciones legales (multas específicas, cierres).
+   - Riesgos operacionales y reputacionales explicados a fondo.
 
-5. **RECOMENDACIONES FINALES**:
-   - Próximos pasos inmediatos
-   - Cronograma sugerido de implementación
-   - Métricas de seguimiento
+5. **RECOMENDACIONES FINALES (ESTRATÉGICAS)**:
+   - Hoja de ruta detallada para la implementación.
+   - Estrategias de mejora a corto, mediano y largo plazo.
 
-IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
-Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
-Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="color:#004d99;">).
-El informe debe ser profesional, específico y accionable.`;
+IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas etiquetas de documento completo.
+Usa etiquetas HTML semánticas (h1, h2, h3, p, ul, li).
+El tono debe ser de CONSULTORÍA EXPERTA DE ALTO NIVEL, formal y muy explicativo.`;
         }
 
+        // Initialize the model
         // 4. Generate the report with Fallback Strategy
         let result;
         let text;
 
+        // Console logs removed as per user request
+
+        const generationConfig = {
+            maxOutputTokens: 65536, // Maximum allowed by model
+            temperature: 0.7,
+        };
+
         try {
             console.log('[SGSST Diagnostico] Attempting Generation with gemini-3-flash-preview');
-            const modelPrimary = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+            const modelPrimary = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview', generationConfig });
             result = await modelPrimary.generateContent(promptText);
             const response = await result.response;
             text = response.text();
@@ -266,7 +273,7 @@ El informe debe ser profesional, específico y accionable.`;
             console.warn('[SGSST Diagnostico] Primary model (gemini-3-flash-preview) failed, attempting fallback to gemini-2.0-flash-exp. Error:', primaryError.message);
             try {
                 // Fallback to previous stable/experimental version
-                const modelFallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+                const modelFallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp', generationConfig });
                 result = await modelFallback.generateContent(promptText);
                 const response = await result.response;
                 text = response.text();
