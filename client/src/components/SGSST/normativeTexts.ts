@@ -492,13 +492,16 @@ export const NORMATIVE_FRAGMENTS = {
 
     (Nota: El reporte a la ARL sí aplica para TODOS los accidentes).`,
 
-   'INVESTIGACION_ACCIDENTES_DETALLE': `INVESTIGACIÓN DE INCIDENTES Y ACCIDENTES (Res 1401/07):
+   'INVESTIGACION_ACCIDENTES_DETALLE': `INVESTIGACIÓN DE INCIDENTES Y ACCIDENTES (Res 1401/07 y Dec 1072):
 
     NORMATIVA VIGENTE:
        1. RESOLUCIÓN 1401 DE 2007:
           - Obligación: Investigar TODOS los incidentes y accidentes de trabajo dentro de los quince (15) días siguientes a su ocurrencia.
           - Equipo Investigador: Jefe inmediato o supervisor, un representante del COPASST y el responsable del SG-SST. (Si es grave o mortal, debe participar un profesional con licencia en SST).
-          - Metodología: Debe permitir identificar las causas básicas (factores personales y del trabajo) y causas inmediatas (actos y condiciones subestándar).`,
+          - Metodología: Debe permitir identificar las causas básicas (factores personales y del trabajo) y causas inmediatas (actos y condiciones subestándar).
+
+       2. DECRETO 1072/15 (Art 2.2.4.6.32):
+          - Reitera la obligación de investigar incidentes y accidentes para identificar causas y establecer acciones correctivas.`,
 
    // --- OTRAS NORMAS ---
    'RES_2013_COPASST': `RESOLUCIÓN 2013 DE 1986 (COPASST):

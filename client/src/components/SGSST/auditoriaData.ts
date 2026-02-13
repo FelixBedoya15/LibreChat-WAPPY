@@ -635,7 +635,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de estilos de vida saludable documentado y ejecutado.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Ley 1355/09 (Obesidad) | Res 3461/25 (Convivencia) | Dec 1072/15',
+        criteria: 'Res 0312/19: E3.1.7 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención) | Ley 1355/09 | Res 3461/25',
         normativeText: NORMATIVE_FRAGMENTS.ESTILOS_VIDA_SALUDABLE
     },
     {
@@ -646,7 +646,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar condiciones de agua potable, servicios sanitarios y manejo de residuos.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 2400/79 (Arts 17-38) | Dec 1072/15',
+        criteria: 'Res 0312/19: E3.1.8 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención) | Res 2400/79',
         normativeText: NORMATIVE_FRAGMENTS.SERVICIOS_BASICOS_DETALLE
     },
     {
@@ -657,7 +657,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de manejo de residuos según normatividad ambiental.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 2184/19 (Colores) | Dec 4741/05 (Peligrosos) | Dec 1072/15',
+        criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención) | Res 2184/19 | Dec 4741/05',
         normativeText: NORMATIVE_FRAGMENTS.GESTION_RESIDUOS_DETALLE + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
@@ -692,7 +692,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar metodología e informes de investigación de ATEL.',
         category: 'hacer',
         subcategory: 'Registro, reporte e investigación de ATEL',
-        criteria: 'Res 1401/07 (Investigación) | Dec 1072/15',
+        criteria: 'Res 0312/19: E3.2.2 | Dec 1072/15: 2.2.4.6.32 (Investigación) | Res 1401/07',
         normativeText: NORMATIVE_FRAGMENTS.INVESTIGACION_ACCIDENTES_DETALLE
     },
     {
