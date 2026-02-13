@@ -99,26 +99,36 @@ ${partialItems.map(item => {
 
 Genera un INFORME DE AUDITORÍA INTERNA en formato HTML con las siguientes secciones obligatorias:
 
-1. **OBJETIVO Y ALCANCE**:
-   - Objetivo: Verificar el cumplimiento del SG-SST frente al Decreto 1072 y la mejora continua.
-   - Alcance: Todos los procesos del SG-SST evaluados.
+1. **RESUMEN EJECUTIVO**: Breve descripción del estado actual del SG-SST, mencionando explícitamente ambos resultados (Cumplimiento Dec 1072 y Estándares Res 0312).
 
-2. **RESUMEN EJECUTIVO**: Concepto global sobre la eficacia del sistema, mencionando ambos puntajes (Cumplimiento Dec 1072 y Ponderado Res 0312).
+2. **ANÁLISIS DE RESULTADOS**:
+   - Interpretación del porcentaje de cumplimiento (Dec 1072)
+   - Interpretación del puntaje obtenido (Res 0312)
+   - Distribución por ciclos PHVA
+   - Principales fortalezas identificadas
+   - Áreas críticas de incumplimiento
 
-3. **FORTALEZAS**: Aspectos positivos destacados.
+3. **PLAN DE ACCIÓN PRIORITARIO**:
+   - Para cada no conformidad detectada, proporciona:
+     - Acción correctiva específica
+     - Responsable sugerido
+     - Plazo recomendado
+     - Recursos necesarios
+   - Prioriza los hallazgos que afectan el cumplimiento legal directo.
 
-4. **HALLAZGOS DETALLADOS**:
-   - Análisis de las No Conformidades detectadas.
-   - Análisis de debilidades en el ciclo PHVA.
+4. **RIESGOS Y CONSECUENCIAS**:
+   - Consecuencias legales del incumplimiento (Multas, Cierre, Responsabilidad Penal/Civil)
+   - Riesgos operacionales
 
-5. **CONCLUSIONES DE AUDITORÍA**:
-   - ¿El sistema es conforme con los requisitos propios y legales?
-   - ¿El sistema se implementa y mantiene eficazmente?
+5. **RECOMENDACIONES DE AUDITORÍA**:
+   - Concepto final del auditor: ¿El sistema es conforme y eficaz?
+   - Próximos pasos para cierre de hallazgos
+   - Sugerencias de mejora continua
 
-6. **RECOMENDACIONES**: Acciones para abordar hallazgos y mejora continua.
-
-IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). Usa etiquetas <h2>, <h3>, <p>, <ul>, <li>, <strong>. Estilos inline profesionales (ej: color azul corporativo para títulos).`;
-
+IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
+Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
+Para estilos, usa atributos style inline en los elementos (ejemplo: <h1 style="color:#004d99;">).
+El informe debe ser profesional, técnico y sustentado en la norma.`;
         } else {
             // Default Diagnostic Prompt (Resolución 0312)
             promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
