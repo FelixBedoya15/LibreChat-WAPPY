@@ -503,6 +503,18 @@ export const NORMATIVE_FRAGMENTS = {
        2. DECRETO 1072/15 (Art 2.2.4.6.32):
           - Reitera la obligación de investigar incidentes y accidentes para identificar causas y establecer acciones correctivas.`,
 
+   'SUSTANCIAS_CARCINOGENAS_DETALLE': `SUSTANCIAS CARCINÓGENAS Y TOXICIDAD AGUDA (Res 0312 y Circular 0038):
+
+    NORMATIVA VIGENTE:
+       1. RESOLUCIÓN 0312 DE 2019 (Estándar 4.1.4):
+          - Exige verificar si en la empresa se procesan, manipulan o trabajan con sustancias catalogadas como carcinógenas o con toxicidad aguda.
+          
+       2. DECRETO 1072/15 (Art 2.2.4.6.15 - Parágrafo 2):
+          - El empleador debe identificar y relacionar en el SG-SST los trabajadores que se dediquen de forma permanente a actividades de alto riesgo (incluyendo sustancias cancerígenas).
+          
+       3. CIRCULAR 0038 DE 2022:
+          - Establece directrices para la vigilancia de los trabajadores expuestos a sustancias carcinógenas.`,
+
    // --- OTRAS NORMAS ---
    'RES_2013_COPASST': `RESOLUCIÓN 2013 DE 1986 (COPASST):
     Reglamenta la organización y funcionamiento de los Comités de Medicina, Higiene y Seguridad Industrial (hoy COPASST).

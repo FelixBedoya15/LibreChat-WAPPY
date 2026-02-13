@@ -660,17 +660,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención) | Res 2184/19 | Dec 4741/05',
         normativeText: NORMATIVE_FRAGMENTS.GESTION_RESIDUOS_DETALLE + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
-    {
-        id: 'aud_reporte_min',
-        code: '3.1.10',
-        name: 'Reporte de accidentes de trabajo y hostigamientos al MinTrabajo',
-        description: 'Se deben reportar al Ministerio del Trabajo los accidentes graves y mortales, así como las enfermedades laborales.',
-        evaluation: 'Verificar reportes realizados a la Dirección Territorial del Ministerio del Trabajo.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 1401/07 (Graves/Mortales) | Dec 1072/15',
-        normativeText: NORMATIVE_FRAGMENTS.REPORTE_MINTRABAJO_DETALLE
-    },
+
 
     // Registro Reporte ATEL
     {
@@ -812,12 +802,23 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_4_1_4',
         code: '4.1.4',
+        name: 'Identificación de sustancias catalogadas como carcinógenas o con toxicidad aguda',
+        description: 'Se debe verificar si se manipulan sustancias carcinógenas o tóxicas.',
+        evaluation: 'Verificar lista de sustancias químicas y su clasificación (carcinógenas/tóxicas).',
+        category: 'hacer',
+        subcategory: 'Identificación de peligros',
+        criteria: 'Res 0312/19: E4.1.4 | Dec 1072/15: 2.2.4.6.15 (Peligros)',
+        normativeText: NORMATIVE_FRAGMENTS.SUSTANCIAS_CARCINOGENAS_DETALLE
+    },
+    {
+        id: 'aud_4_1_5',
+        code: '4.1.5',
         name: 'Realización de mediciones ambientales',
         description: 'Deben realizarse mediciones ambientales cuando se requiera.',
         evaluation: 'Verificar informes de mediciones ambientales y su análisis.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        criteria: 'Res 0312/19: E4.1.4 | Dec 1072/15: 2.2.4.6.15 (Identificación Peligros)',
+        criteria: 'Res 0312/19: E4.1.5 | Dec 1072/15: 2.2.4.6.15 (Identificación Peligros)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_15_PELIGROS
     },
 
