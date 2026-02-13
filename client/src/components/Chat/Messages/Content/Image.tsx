@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Skeleton } from '@librechat/client';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { cn, scaleImage } from '~/utils';
+import { useLocalize } from '~/hooks';
 import DialogImage from './DialogImage';
 
 const Image = ({
@@ -30,6 +31,7 @@ const Image = ({
     [key: string]: unknown;
   };
 }) => {
+  const localize = useLocalize();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,7 +87,7 @@ const Image = ({
       >
         <button
           type="button"
-          aria-label={`View ${altText} in dialog`}
+          aria-label={localize('com_ui_view_image_in_dialog', { 0: altText })}
           onClick={() => setIsOpen(true)}
           className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
@@ -107,7 +109,7 @@ const Image = ({
             placeholder={
               <Skeleton
                 className={cn('h-auto w-full', `h-[${scaledHeight}] w-[${scaledWidth}]`)}
-                aria-label="Loading image"
+                aria-label={localize('com_ui_loading_image')}
                 aria-busy="true"
               />
             }

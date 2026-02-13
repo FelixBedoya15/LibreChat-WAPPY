@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
-import { useAuthContext, useNavScrolling } from '~/hooks';
+import { useAuthContext, useNavScrolling, useLocalize } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner, OGDialog, OGDialogContent, Button } from '@librechat/client';
 import type { ConversationListResponse } from 'librechat-data-provider';
@@ -22,21 +22,22 @@ const DeleteReportDialog = ({
     title: string;
     loading: boolean;
 }) => {
+    const localize = useLocalize();
     return (
         <OGDialog open={open} onOpenChange={onOpenChange}>
-            <OGDialogContent title="¿Eliminar informe?" className="w-11/12 max-w-md">
+            <OGDialogContent title={localize('com_ui_delete_report_confirm_title')} className="w-11/12 max-w-md">
                 <div className="py-4">
-                    ¿Deseas eliminar <strong>{title}</strong> de la lista de informes?<br />
+                    {localize('com_ui_delete_report_confirm_msg', { 0: title })}<br />
                     <span className="text-sm text-text-secondary mt-2 block">
-                        Nota: El chat original permanecerá en tu historial de conversaciones.
+                        {localize('com_ui_delete_report_note')}
                     </span>
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        Cancelar
+                        {localize('com_ui_cancel')}
                     </Button>
                     <Button variant="destructive" onClick={onConfirm} disabled={loading}>
-                        {loading ? <Spinner className="w-4 h-4" /> : 'Eliminar'}
+                        {loading ? <Spinner className="w-4 h-4" /> : localize('com_ui_delete')}
                     </Button>
                 </div>
             </OGDialogContent>
@@ -49,7 +50,11 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
     const [isOpen, setIsOpen] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const localize = useLocalize();
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -62,7 +67,7 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
     }, []);
 
     const handleRenameClick = () => {
-        const newName = prompt("Nuevo nombre del informe:", title);
+        const newName = prompt(localize('com_ui_new_report_name'), title);
         if (newName && newName !== title) onRename(newName);
         setIsOpen(false);
     };
@@ -90,13 +95,13 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
                         onClick={(e) => { e.stopPropagation(); handleRenameClick(); }}
                         className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
                     >
-                        <Edit className="w-3 h-3" /> Renombrar
+                        <Edit className="w-3 h-3" /> {localize('com_ui_rename')}
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsOpen(false); setShowDeleteDialog(true); }}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
                     >
-                        <Trash className="w-3 h-3" /> Eliminar
+                        <Trash className="w-3 h-3" /> {localize('com_ui_delete')}
                     </button>
                 </div>
             )}
@@ -122,6 +127,7 @@ interface ReportHistoryProps {
 
 const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tags = ['report'] }: ReportHistoryProps) => {
     const { isAuthenticated } = useAuthContext();
+    const localize = useLocalize();
     // Removed dependency on global search state to prevent filtering issues
     const [showLoading, setShowLoading] = useState(false);
 
@@ -194,11 +200,11 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
         >
             <div className="flex items-center justify-between p-4 border-b border-black/10">
                 <div className="flex items-center gap-2">
-                    <h2 className="font-semibold text-lg text-text-primary">Historial</h2>
+                    <h2 className="font-semibold text-lg text-text-primary">{localize('com_ui_history')}</h2>
                     <button
                         onClick={handleManualRefresh}
                         className="p-1 hover:bg-surface-hover rounded-full transition-colors text-text-secondary hover:text-text-primary"
-                        title="Actualizar lista"
+                        title={localize('com_ui_refresh_list')}
                     >
                         <RefreshCw className={cn("w-4 h-4", (isLoading || isFetchingNextPage) && "animate-spin")} />
                     </button>
@@ -221,7 +227,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                 {!isLoading && conversations.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-40 text-text-secondary text-sm">
                         <FileText className="w-8 h-8 mb-2 opacity-50" />
-                        <p>No hay informes disponibles.</p>
+                        <p>{localize('com_ui_no_reports')}</p>
                     </div>
                 )}
 
@@ -237,7 +243,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-medium text-sm text-text-primary truncate">
-                                        {convo.title || 'Informe sin título'}
+                                        {convo.title || localize('com_ui_untitled_report')}
                                     </h3>
                                     <p className="text-xs text-text-secondary mt-0.5 truncate">
                                         {new Date(convo.updatedAt).toLocaleString(undefined, {
@@ -253,7 +259,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                         <div className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
                             <MenuDropdown
                                 conversationId={convo.conversationId}
-                                title={convo.title || 'Informe'}
+                                title={convo.title || localize('com_ui_report')}
                                 onRename={async (newName) => {
                                     try {
                                         await axios.post('/api/convos/update', {

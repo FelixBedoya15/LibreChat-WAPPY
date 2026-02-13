@@ -208,9 +208,9 @@ const LivePage = () => {
 
 
     const initialReportContent = `
-<h1>Informe de Riesgos Laborales</h1>
-<p><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</p>
-<h2>Análisis en Vivo</h2>
+<h1>${localize('com_ui_risk_report_title')}</h1>
+<p><strong>${localize('com_ui_date')}</strong> ${new Date().toLocaleDateString()}</p>
+<h2>${localize('com_ui_live_analysis_title')}</h2>
 `;
 
     const handleSave = async () => {
@@ -497,10 +497,10 @@ const LivePage = () => {
                         {!navVisible && (
                             <OpenSidebar setNavVisible={setNavVisible} className="mr-2 hidden md:flex" />
                         )}
-                        <h1 className="text-2xl font-bold text-primary hidden md:block">Análisis de Riesgos</h1>
+                        <h1 className="text-2xl font-bold text-primary hidden md:block">{localize('com_ui_risk_analysis')}</h1>
                         {lastUpdated && (
                             <span className="text-xs text-green-600 font-medium animate-pulse hidden md:inline">
-                                Actualizado: {lastUpdated.toLocaleTimeString()}
+                                {localize('com_ui_updated_at')} {lastUpdated.toLocaleTimeString()}
                             </span>
                         )}
                     </div>
@@ -511,7 +511,7 @@ const LivePage = () => {
                         >
                             <History className="w-5 h-5" />
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                Historial
+                                {localize('com_ui_history')}
                             </span>
                         </button>
                         <button

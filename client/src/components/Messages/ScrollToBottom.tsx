@@ -1,15 +1,17 @@
 import React from 'react';
+import { useLocalize } from '~/hooks';
 
 type Props = {
   scrollHandler: React.MouseEventHandler<HTMLButtonElement>;
 };
 
 export default function ScrollToBottom({ scrollHandler }: Props) {
+  const localize = useLocalize();
   return (
     <button
       onClick={scrollHandler}
       className="premium-scroll-button absolute bottom-5 right-1/2 cursor-pointer border border-border-light bg-surface-secondary"
-      aria-label="Scroll to bottom"
+      aria-label={localize('com_ui_scroll_to_bottom')}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-text-secondary">
         <path

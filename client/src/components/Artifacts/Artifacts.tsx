@@ -81,7 +81,7 @@ export default function Artifacts() {
                   )}
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  aria-label="Refresh"
+                  aria-label={localize('com_ui_refresh')}
                 >
                   <RefreshCw
                     size={16}
@@ -125,9 +125,8 @@ export default function Artifacts() {
               <button onClick={() => cycleArtifact('prev')} className="mr-2 text-text-secondary">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <span className="text-xs">{`${currentIndex + 1} / ${
-                orderedArtifactIds.length
-              }`}</span>
+              <span className="text-xs">{`${currentIndex + 1} / ${orderedArtifactIds.length
+                }`}</span>
               <button onClick={() => cycleArtifact('next')} className="ml-2 text-text-secondary">
                 <ChevronRight className="h-4 w-4" />
               </button>

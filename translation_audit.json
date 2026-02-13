@@ -1,0 +1,2389 @@
+[
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 100,
+    "type": "JSX Text",
+    "content": "') || m.text.includes('",
+    "code": "m.text && (m.text.trim().startsWith('<') || m.text.includes('<h1>') || m.text.includes('<h2>') || m.text.includes('<table'))"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 100,
+    "type": "JSX Text",
+    "content": "') || m.text.includes('",
+    "code": "m.text && (m.text.trim().startsWith('<') || m.text.includes('<h1>') || m.text.includes('<h2>') || m.text.includes('<table'))"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 164,
+    "type": "JSX Text",
+    "content": "`).join('') + '",
+    "code": "tableHtml += '<tr>' + cells.map(c => `<${tag} style=\"padding: 8px; border: 1px solid #ddd;\">${c}</${tag}>`).join('') + '</tr>';"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 181,
+    "type": "JSX Text",
+    "content": "`).join('') + '",
+    "code": "tableHtml += '<tr>' + cells.map(c => `<${tag} style=\"padding: 8px; border: 1px solid #ddd;\">${c}</${tag}>`).join('') + '</tr>';"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 190,
+    "type": "JSX Text",
+    "content": "$1",
+    "code": "html = html.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 191,
+    "type": "JSX Text",
+    "content": "$1",
+    "code": "html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 192,
+    "type": "JSX Text",
+    "content": "$1",
+    "code": "html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 193,
+    "type": "JSX Text",
+    "content": "$1",
+    "code": "html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 194,
+    "type": "JSX Text",
+    "content": "$1",
+    "code": "html = html.replace(/^- (.*$)/gim, '<li>$1</li>');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 195,
+    "type": "Attribute (alt)",
+    "content": "$1",
+    "code": "html = html.replace(/!\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '<img src=\"$2\" alt=\"$1\" style=\"max-width: 100%;\">');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 229,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const tableRegex = /<table[^>]*>([\\s\\S]*?)<\\/table>/gi;"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 232,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const rowRegex = /<tr[^>]*>([\\s\\S]*?)<\\/tr>/gi;"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 238,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const cellRegex = /<(th|td)[^>]*>([\\s\\S]*?)<\\/\\1>/gi;"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 259,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<h1[^>]*>(.*?)<\\/h1>/gi, '\\n# $1\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 260,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<h2[^>]*>(.*?)<\\/h2>/gi, '\\n## $1\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 261,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<h3[^>]*>(.*?)<\\/h3>/gi, '\\n### $1\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 262,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<h4[^>]*>(.*?)<\\/h4>/gi, '\\n#### $1\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 265,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<strong[^>]*>(.*?)<\\/strong>/gi, '**$1**');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 266,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<b[^>]*>(.*?)<\\/b>/gi, '**$1**');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 267,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<em[^>]*>(.*?)<\\/em>/gi, '*$1*');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 268,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<i[^>]*>(.*?)<\\/i>/gi, '*$1*');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 271,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "md = md.replace(/<li[^>]*>(.*?)<\\/li>/gi, '- $1\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 278,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "md = md.replace(/<p[^>]*>([\\s\\S]*?)<\\/p>/gi, '\\n$1\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 285,
+    "type": "Attribute (alt)",
+    "content": "([^",
+    "code": "md = md.replace(/<img[^>]*src=\"data:[^\"]*\"[^>]*alt=\"([^\"]*)\"[^>]*>/gi, '\\n\\n📷 **[$1]** *(imagen disponible en el informe original)*\\n\\n');"
+  },
+  {
+    "file": "client/src/components/Liva/LivePage.tsx",
+    "line": 288,
+    "type": "Attribute (alt)",
+    "content": "([^",
+    "code": "md = md.replace(/<img[^>]*src=\"(https?:\\/\\/[^\"]*)\"[^>]*alt=\"([^\"]*)\"[^>]*>/gi, '![$2]($1)');"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 93,
+    "type": "JSX Text",
+    "content": "Informe de Análisis de Riesgos y Peligros",
+    "code": "<h1 style=\"color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;\">Informe de Análisis de Riesgos y Peligros</h1>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 96,
+    "type": "JSX Text",
+    "content": "Fecha de Emisión:",
+    "code": "<p><strong>Fecha de Emisión:</strong> ${dateStr} a las ${timeStr}</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 97,
+    "type": "JSX Text",
+    "content": "Tipo de Actividad:",
+    "code": "<p><strong>Tipo de Actividad:</strong> Identificación de Riesgos en Vivo (Live Analysis)</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 97,
+    "type": "JSX Text",
+    "content": "Identificación de Riesgos en Vivo (Live Analysis)",
+    "code": "<p><strong>Tipo de Actividad:</strong> Identificación de Riesgos en Vivo (Live Analysis)</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 104,
+    "type": "JSX Text",
+    "content": "1. Evidencia Visual Captada",
+    "code": "<h3 style=\"text-align: left; color: #7f8c8d;\">1. Evidencia Visual Captada</h3>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 105,
+    "type": "Attribute (alt)",
+    "content": "Evidencia del Entorno",
+    "code": "<img src=\"${snapshotRef.current}\" alt=\"Evidencia del Entorno\" style=\"max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.1);\" />"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 106,
+    "type": "JSX Text",
+    "content": "Figura 1: Captura del entorno analizado en tiempo real.",
+    "code": "<p style=\"font-size: 0.9em; color: #7f8c8d; margin-top: 5px;\">Figura 1: Captura del entorno analizado en tiempo real.</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 262,
+    "type": "JSX Text",
+    "content": "2. Descripción Detallada del Procedimiento / Actividad",
+    "code": "<h2>2. Descripción Detallada del Procedimiento / Actividad</h2>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 263,
+    "type": "JSX Text",
+    "content": "[Describe exhaustivamente qué está sucediendo, el entorno, las herramientas visibles, el personal, y las condiciones ambientales. Mínimo 2 párrafos detallados].",
+    "code": "<p>[Describe exhaustivamente qué está sucediendo, el entorno, las herramientas visibles, el personal, y las condiciones ambientales. Mínimo 2 párrafos detallados].</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 265,
+    "type": "JSX Text",
+    "content": "3. Identificación y Análisis de Hallazgos",
+    "code": "<h2>3. Identificación y Análisis de Hallazgos</h2>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 266,
+    "type": "JSX Text",
+    "content": "[Analiza condición por condición. Usa viñetas para listar observaciones específicas].",
+    "code": "<p>[Analiza condición por condición. Usa viñetas para listar observaciones específicas].</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 268,
+    "type": "JSX Text",
+    "content": "Observación 1:",
+    "code": "<li><strong>Observación 1:</strong> [Detalle]</li>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 268,
+    "type": "JSX Text",
+    "content": "[Detalle]",
+    "code": "<li><strong>Observación 1:</strong> [Detalle]</li>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 269,
+    "type": "JSX Text",
+    "content": "Observación 2:",
+    "code": "<li><strong>Observación 2:</strong> [Detalle]</li>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 269,
+    "type": "JSX Text",
+    "content": "[Detalle]",
+    "code": "<li><strong>Observación 2:</strong> [Detalle]</li>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 272,
+    "type": "JSX Text",
+    "content": "4. Matriz de Valoración de Riesgos y Peligros (GTC 45 / Norma Técnica)",
+    "code": "<h2>4. Matriz de Valoración de Riesgos y Peligros (GTC 45 / Norma Técnica)</h2>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 276,
+    "type": "JSX Text",
+    "content": "Proceso / Zona",
+    "code": "<th style=\"padding: 8px;\">Proceso / Zona</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 277,
+    "type": "JSX Text",
+    "content": "Peligro (Descripción)",
+    "code": "<th style=\"padding: 8px;\">Peligro (Descripción)</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 278,
+    "type": "JSX Text",
+    "content": "Clasificación",
+    "code": "<th style=\"padding: 8px;\">Clasificación</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 279,
+    "type": "JSX Text",
+    "content": "Efectos Posibles",
+    "code": "<th style=\"padding: 8px;\">Efectos Posibles</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 280,
+    "type": "JSX Text",
+    "content": "Nivel de Riesgo",
+    "code": "<th style=\"padding: 8px;\">Nivel de Riesgo</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 286,
+    "type": "JSX Text",
+    "content": "[Ej: Soldadura]",
+    "code": "<td style=\"padding: 8px;\">[Ej: Soldadura]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 287,
+    "type": "JSX Text",
+    "content": "[Ej: Humos metálicos]",
+    "code": "<td style=\"padding: 8px;\">[Ej: Humos metálicos]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 288,
+    "type": "JSX Text",
+    "content": "[Ej: Químico]",
+    "code": "<td style=\"padding: 8px;\">[Ej: Químico]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 289,
+    "type": "JSX Text",
+    "content": "[Ej: Neumoconiosis]",
+    "code": "<td style=\"padding: 8px;\">[Ej: Neumoconiosis]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 290,
+    "type": "JSX Text",
+    "content": "[Ej: Alto]",
+    "code": "<td style=\"padding: 8px; font-weight: bold; color: red;\">[Ej: Alto]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 295,
+    "type": "JSX Text",
+    "content": "5. Medidas de Intervención Recomendadas (Jerarquía de Controles)",
+    "code": "<h2>5. Medidas de Intervención Recomendadas (Jerarquía de Controles)</h2>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 296,
+    "type": "JSX Text",
+    "content": "[Propone soluciones detalladas para cada hallazgo].",
+    "code": "<p>[Propone soluciones detalladas para cada hallazgo].</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 300,
+    "type": "JSX Text",
+    "content": "Eliminación / Sustitución",
+    "code": "<th style=\"padding: 8px;\">Eliminación / Sustitución</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 301,
+    "type": "JSX Text",
+    "content": "Controles de Ingeniería",
+    "code": "<th style=\"padding: 8px;\">Controles de Ingeniería</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 302,
+    "type": "JSX Text",
+    "content": "Controles Administrativos",
+    "code": "<th style=\"padding: 8px;\">Controles Administrativos</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 303,
+    "type": "JSX Text",
+    "content": "EPP Requeridos",
+    "code": "<th style=\"padding: 8px;\">EPP Requeridos</th>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 308,
+    "type": "JSX Text",
+    "content": "[Propuesta...]",
+    "code": "<td style=\"padding: 8px;\">[Propuesta...]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 309,
+    "type": "JSX Text",
+    "content": "[Propuesta...]",
+    "code": "<td style=\"padding: 8px;\">[Propuesta...]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 310,
+    "type": "JSX Text",
+    "content": "[Propuesta...]",
+    "code": "<td style=\"padding: 8px;\">[Propuesta...]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 311,
+    "type": "JSX Text",
+    "content": "[Propuesta...]",
+    "code": "<td style=\"padding: 8px;\">[Propuesta...]</td>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 316,
+    "type": "JSX Text",
+    "content": "6. Conclusiones y Cierre",
+    "code": "<h2>6. Conclusiones y Cierre</h2>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 317,
+    "type": "JSX Text",
+    "content": "[Conclusión técnica final sobre la viabilidad de la operación o la urgencia de las correcciones].",
+    "code": "<p>[Conclusión técnica final sobre la viabilidad de la operación o la urgencia de las correcciones].</p>"
+  },
+  {
+    "file": "client/src/components/Liva/LiveAnalysisModal.tsx",
+    "line": 558,
+    "type": "JSX Text",
+    "content": "Estableciendo Conexión",
+    "code": "<span className=\"text-white/80 font-medium text-sm tracking-widest uppercase\">Estableciendo Conexión</span>"
+  },
+  {
+    "file": "client/src/components/Endpoints/Settings/AgentSettings.tsx",
+    "line": 136,
+    "type": "JSX Text",
+    "content": "(default: 1)",
+    "code": "Top P <small className=\"opacity-40\">(default: 1)</small>"
+  },
+  {
+    "file": "client/src/components/Endpoints/Settings/AgentSettings.tsx",
+    "line": 174,
+    "type": "JSX Text",
+    "content": "(default: 0)",
+    "code": "Frequency Penalty <small className=\"opacity-40\">(default: 0)</small>"
+  },
+  {
+    "file": "client/src/components/Endpoints/Settings/AgentSettings.tsx",
+    "line": 212,
+    "type": "JSX Text",
+    "content": "(default: 0)",
+    "code": "Presence Penalty <small className=\"opacity-40\">(default: 0)</small>"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/HoverButtons.tsx",
+    "line": 121,
+    "type": "Attribute (title)",
+    "content": "Exportar a Word",
+    "code": "title=\"Exportar a Word\""
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Feedback.tsx",
+    "line": 108,
+    "type": "JSX Text",
+    "content": "(e: React.MouseEvent",
+    "code": "(tag: TFeedbackTag) => (e: React.MouseEvent<HTMLButtonElement>) => {"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Feedback.tsx",
+    "line": 133,
+    "type": "JSX Text",
+    "content": "(e: React.MouseEvent",
+    "code": "(tag: TFeedbackTag) => (e: React.MouseEvent<HTMLButtonElement>) => {"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/ToolCallInfo.tsx",
+    "line": 88,
+    "type": "JSX Text",
+    "content": "1 &&",
+    "code": "{uiResources.length > 1 && <UIResourceCarousel uiResources={uiResources} />}"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/ToolCall.tsx",
+    "line": 213,
+    "type": "JSX Text",
+    "content": "0 && !cancelled && progress",
+    "code": "pendingAuth={authDomain.length > 0 && !cancelled && progress < 1}"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/ToolCall.tsx",
+    "line": 238,
+    "type": "JSX Text",
+    "content": "0 &&",
+    "code": "{attachments && attachments.length > 0 && <AttachmentGroup attachments={attachments} />}"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/DialogImage.tsx",
+    "line": 281,
+    "type": "Attribute (alt)",
+    "content": "Image",
+    "code": "alt=\"Image\""
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/UIResourceCarousel.tsx",
+    "line": 76,
+    "type": "Attribute (aria-label)",
+    "content": "Scroll left",
+    "code": "aria-label=\"Scroll left\""
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/UIResourceCarousel.tsx",
+    "line": 134,
+    "type": "Attribute (aria-label)",
+    "content": "Scroll right",
+    "code": "aria-label=\"Scroll right\""
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/ContentParts.tsx",
+    "line": 30,
+    "type": "JSX Text",
+    "content": "void | React.Dispatch",
+    "code": "| ((value: number) => void | React.Dispatch<React.SetStateAction<number>>)"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/__tests__/MemoryInfo.test.tsx",
+    "line": 9,
+    "type": "JSX Text",
+    "content": "(key: string, params?: Record",
+    "code": "useLocalize: () => (key: string, params?: Record<string, any>) => {"
+  },
+  {
+    "file": "client/src/components/Chat/Messages/Content/Parts/ExecuteCode.tsx",
+    "line": 222,
+    "type": "JSX Text",
+    "content": "0 &&",
+    "code": "{attachments && attachments.length > 0 && <AttachmentGroup attachments={attachments} />}"
+  },
+  {
+    "file": "client/src/components/Chat/Input/EditBadges.tsx",
+    "line": 51,
+    "type": "Attribute (aria-label)",
+    "content": "Cancel",
+    "code": "aria-label=\"Cancel\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/EditBadges.tsx",
+    "line": 60,
+    "type": "Attribute (aria-label)",
+    "content": "Save changes",
+    "code": "aria-label=\"Save changes\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/AddedConvo.tsx",
+    "line": 46,
+    "type": "Attribute (aria-label)",
+    "content": "Close added conversation",
+    "code": "aria-label=\"Close added conversation\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/ToolsDropdown.tsx",
+    "line": 192,
+    "type": "Attribute (aria-label)",
+    "content": "Configure web search",
+    "code": "aria-label=\"Configure web search\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/ToolsDropdown.tsx",
+    "line": 247,
+    "type": "Attribute (aria-label)",
+    "content": "Configure code interpreter",
+    "code": "aria-label=\"Configure code interpreter\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/ToolsDropdown.tsx",
+    "line": 312,
+    "type": "Attribute (aria-label)",
+    "content": "Tools Options",
+    "code": "aria-label=\"Tools Options\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/StreamAudio.tsx",
+    "line": 46,
+    "type": "JSX Text",
+    "content": "queryClient.getQueryData",
+    "code": "() => queryClient.getQueryData<TMessage[]>([QueryKeys.messages, queryParam]),"
+  },
+  {
+    "file": "client/src/components/Chat/Input/ActiveSetting.tsx",
+    "line": 5,
+    "type": "JSX Text",
+    "content": "[latest] Tailwind CSS GPT",
+    "code": "<span className=\"text-token-text-secondary font-medium\">[latest] Tailwind CSS GPT</span>"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/AttachFileMenu.tsx",
+    "line": 226,
+    "type": "Attribute (aria-label)",
+    "content": "Attach File Options",
+    "code": "aria-label=\"Attach File Options\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/FileRow.tsx",
+    "line": 66,
+    "type": "JSX Text",
+    "content": "file.progress",
+    "code": "if (files.some((file) => file.progress < 1)) {"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/ImagePreview.tsx",
+    "line": 27,
+    "type": "Attribute (alt)",
+    "content": "Preview image",
+    "code": "alt = 'Preview image',"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/ImagePreview.tsx",
+    "line": 74,
+    "type": "Attribute (aria-label)",
+    "content": "Close full view",
+    "code": "const closeButton = document.querySelector('[aria-label=\"Close full view\"]') as HTMLElement;"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/__tests__/AttachFileMenu.spec.tsx",
+    "line": 64,
+    "type": "JSX Text",
+    "content": "SP",
+    "code": "SharePointIcon: () => <span data-testid=\"sharepoint-icon\">SP</span>,"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/Columns.tsx",
+    "line": 39,
+    "type": "Attribute (aria-label)",
+    "content": "Select all",
+    "code": "aria-label=\"Select all\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/Columns.tsx",
+    "line": 49,
+    "type": "Attribute (aria-label)",
+    "content": "Select row",
+    "code": "aria-label=\"Select row\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/TemplateTable.tsx",
+    "line": 40,
+    "type": "JSX Text",
+    "content": "June 11, 2023",
+    "code": "<div className=\"px-4 py-2 [tr[data-disabled=true]_&]:opacity-50\">June 11, 2023</div>"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/TemplateTable.tsx",
+    "line": 43,
+    "type": "JSX Text",
+    "content": "11 mb",
+    "code": "<div className=\"px-4 py-2 [tr[data-disabled=true]_&]:opacity-50\">11 mb</div>"
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/TemplateTable.tsx",
+    "line": 53,
+    "type": "Attribute (aria-label)",
+    "content": "View source chat",
+    "code": "aria-label=\"View source chat\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/TemplateTable.tsx",
+    "line": 74,
+    "type": "Attribute (aria-label)",
+    "content": "Delete shared link",
+    "code": "aria-label=\"Delete shared link\""
+  },
+  {
+    "file": "client/src/components/Chat/Input/Files/Table/SortFilterHeader.tsx",
+    "line": 15,
+    "type": "JSX Text",
+    "content": "extends React.HTMLAttributes",
+    "code": "interface SortFilterHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {"
+  },
+  {
+    "file": "client/src/components/Chat/Menus/BookmarkMenu.tsx",
+    "line": 147,
+    "type": "Attribute (aria-label)",
+    "content": "Spinner",
+    "code": "return <Spinner aria-label=\"Spinner\" />;"
+  },
+  {
+    "file": "client/src/components/Chat/Menus/BookmarkMenu.tsx",
+    "line": 150,
+    "type": "Attribute (aria-label)",
+    "content": "Filled Bookmark",
+    "code": "return <BookmarkFilledIcon className=\"icon-sm\" aria-label=\"Filled Bookmark\" />;"
+  },
+  {
+    "file": "client/src/components/Chat/Menus/BookmarkMenu.tsx",
+    "line": 152,
+    "type": "Attribute (aria-label)",
+    "content": "Bookmark",
+    "code": "return <BookmarkIcon className=\"icon-sm\" aria-label=\"Bookmark\" />;"
+  },
+  {
+    "file": "client/src/components/Chat/Menus/PresetsMenu.tsx",
+    "line": 35,
+    "type": "Attribute (aria-label)",
+    "content": "Preset Icon",
+    "code": "<BookCopy size={16} aria-label=\"Preset Icon\" />"
+  },
+  {
+    "file": "client/src/components/Chat/Menus/Bookmarks/BookmarkMenuItems.tsx",
+    "line": 37,
+    "type": "Attribute (aria-label)",
+    "content": "Add Bookmark",
+    "code": "icon={<BookmarkPlusIcon className=\"size-4\" aria-label=\"Add Bookmark\" />}"
+  },
+  {
+    "file": "client/src/components/Auth/LoginForm.tsx",
+    "line": 89,
+    "type": "Attribute (aria-label)",
+    "content": "Login form",
+    "code": "aria-label=\"Login form\""
+  },
+  {
+    "file": "client/src/components/Auth/Login.tsx",
+    "line": 78,
+    "type": "Attribute (alt)",
+    "content": "OpenID Logo",
+    "code": "<img src={startupConfig.openidImageUrl} alt=\"OpenID Logo\" className=\"h-5 w-5\" />"
+  },
+  {
+    "file": "client/src/components/Auth/RequestPasswordReset.tsx",
+    "line": 83,
+    "type": "Attribute (aria-label)",
+    "content": "Password reset form",
+    "code": "aria-label=\"Password reset form\""
+  },
+  {
+    "file": "client/src/components/Auth/RequestPasswordReset.tsx",
+    "line": 128,
+    "type": "Attribute (aria-label)",
+    "content": "Continue with password reset",
+    "code": "aria-label=\"Continue with password reset\""
+  },
+  {
+    "file": "client/src/components/Auth/ResetPassword.tsx",
+    "line": 60,
+    "type": "Attribute (aria-label)",
+    "content": "Password reset form",
+    "code": "aria-label=\"Password reset form\""
+  },
+  {
+    "file": "client/src/components/Auth/SocialLoginRender.tsx",
+    "line": 92,
+    "type": "Attribute (alt)",
+    "content": "OpenID Logo",
+    "code": "<img src={startupConfig.openidImageUrl} alt=\"OpenID Logo\" className=\"h-5 w-5\" />"
+  },
+  {
+    "file": "client/src/components/Auth/SocialLoginRender.tsx",
+    "line": 109,
+    "type": "Attribute (alt)",
+    "content": "SAML Logo",
+    "code": "<img src={startupConfig.samlImageUrl} alt=\"SAML Logo\" className=\"h-5 w-5\" />"
+  },
+  {
+    "file": "client/src/components/Auth/Registration.tsx",
+    "line": 123,
+    "type": "Attribute (aria-label)",
+    "content": "Registration form",
+    "code": "aria-label=\"Registration form\""
+  },
+  {
+    "file": "client/src/components/Auth/Registration.tsx",
+    "line": 204,
+    "type": "Attribute (aria-label)",
+    "content": "Submit registration",
+    "code": "aria-label=\"Submit registration\""
+  },
+  {
+    "file": "client/src/components/Auth/Registration.tsx",
+    "line": 217,
+    "type": "Attribute (aria-label)",
+    "content": "Login",
+    "code": "aria-label=\"Login\""
+  },
+  {
+    "file": "client/src/components/Auth/InactiveAccount.tsx",
+    "line": 12,
+    "type": "JSX Text",
+    "content": "⏸️",
+    "code": "<div className=\"text-6xl\">⏸️</div>"
+  },
+  {
+    "file": "client/src/components/Input/SetKeyDialog/SetKeyDialog.tsx",
+    "line": 316,
+    "type": "Attribute (label)",
+    "content": "Expires",
+    "code": "label=\"Expires \""
+  },
+  {
+    "file": "client/src/components/Input/ModelSelect/MultiSelectDropDown.tsx",
+    "line": 33,
+    "type": "Attribute (title)",
+    "content": "Plugins",
+    "code": "title = 'Plugins',"
+  },
+  {
+    "file": "client/src/components/Plugins/Store/PluginPagination.tsx",
+    "line": 30,
+    "type": "Attribute (aria-label)",
+    "content": "Previous page",
+    "code": "aria-label=\"Previous page\""
+  },
+  {
+    "file": "client/src/components/Plugins/Store/PluginPagination.tsx",
+    "line": 83,
+    "type": "Attribute (aria-label)",
+    "content": "Next page",
+    "code": "aria-label=\"Next page\""
+  },
+  {
+    "file": "client/src/components/Plugins/Store/PluginStoreDialog.tsx",
+    "line": 227,
+    "type": "Attribute (label)",
+    "content": "Install an unverified plugin",
+    "code": "label=\"Install an unverified plugin\""
+  },
+  {
+    "file": "client/src/components/Plugins/Store/PluginStoreDialog.tsx",
+    "line": 232,
+    "type": "Attribute (label)",
+    "content": "Develop your own plugin",
+    "code": "label=\"Develop your own plugin\""
+  },
+  {
+    "file": "client/src/components/Plugins/Store/PluginStoreDialog.tsx",
+    "line": 236,
+    "type": "Attribute (label)",
+    "content": "About plugins",
+    "code": "<PluginStoreLinkButton label=\"About plugins\" onClick={onAboutPluginsClick} />"
+  },
+  {
+    "file": "client/src/components/SidePanel/data.tsx",
+    "line": 7,
+    "type": "JSX Text",
+    "content": "Vercel",
+    "code": "<title>Vercel</title>"
+  },
+  {
+    "file": "client/src/components/SidePanel/data.tsx",
+    "line": 17,
+    "type": "JSX Text",
+    "content": "Gmail",
+    "code": "<title>Gmail</title>"
+  },
+  {
+    "file": "client/src/components/SidePanel/SidePanelGroup.tsx",
+    "line": 153,
+    "type": "Attribute (aria-label)",
+    "content": "Close right side panel",
+    "code": "aria-label=\"Close right side panel\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/Instructions.tsx",
+    "line": 50,
+    "type": "Attribute (title)",
+    "content": "Add variables to instructions",
+    "code": "<div className=\"ml-auto\" title=\"Add variables to instructions\">"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/Instructions.tsx",
+    "line": 61,
+    "type": "Attribute (aria-label)",
+    "content": "Add variable to instructions",
+    "code": "aria-label=\"Add variable to instructions\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/Instructions.tsx",
+    "line": 89,
+    "type": "Attribute (aria-label)",
+    "content": "Agent instructions",
+    "code": "aria-label=\"Agent instructions\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/ActionsPanel.tsx",
+    "line": 153,
+    "type": "JSX Text",
+    "content": "Learn more.",
+    "code": "<a href=\"https://help.openai.com/en/articles/8554397-creating-a-gpt\" target=\"_blank\" rel=\"noreferrer\" className=\"font-medium\">Learn more.</a>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/AgentPanel.tsx",
+    "line": 260,
+    "type": "Attribute (aria-label)",
+    "content": "Agent configuration form",
+    "code": "aria-label=\"Agent configuration form\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/ActionsInput.tsx",
+    "line": 215,
+    "type": "JSX Text",
+    "content": "Import from URL",
+    "code": "<div className=\"flex w-full items-center justify-center text-xs\">Import from URL</div>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/ActionsInput.tsx",
+    "line": 223,
+    "type": "JSX Text",
+    "content": "Weather (JSON)",
+    "code": "<option value=\"0\">Weather (JSON)</option>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/ActionsInput.tsx",
+    "line": 224,
+    "type": "JSX Text",
+    "content": "Pet Store (YAML)",
+    "code": "<option value=\"1\">Pet Store (YAML)</option>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/ActionsInput.tsx",
+    "line": 225,
+    "type": "JSX Text",
+    "content": "Blank Template",
+    "code": "<option value=\"2\">Blank Template</option>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/MCPIcon.tsx",
+    "line": 40,
+    "type": "Attribute (alt)",
+    "content": "MCP Icon",
+    "code": "alt=\"MCP Icon\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/Images.tsx",
+    "line": 49,
+    "type": "Attribute (alt)",
+    "content": "GPT",
+    "code": "alt=\"GPT\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/AgentConfig.tsx",
+    "line": 211,
+    "type": "Attribute (aria-label)",
+    "content": "Agent name",
+    "code": "aria-label=\"Agent name\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/AgentConfig.tsx",
+    "line": 251,
+    "type": "Attribute (aria-label)",
+    "content": "Agent description",
+    "code": "aria-label=\"Agent description\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/AgentConfig.tsx",
+    "line": 423,
+    "type": "Attribute (aria-label)",
+    "content": "Support contact name",
+    "code": "aria-label=\"Support contact name\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/AgentConfig.tsx",
+    "line": 465,
+    "type": "Attribute (aria-label)",
+    "content": "Support contact email",
+    "code": "aria-label=\"Support contact email\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/Advanced/AgentHandoffs.tsx",
+    "line": 262,
+    "type": "JSX Text",
+    "content": "0 &&",
+    "code": "{edges.length > 0 && <Waypoints className=\"mx-auto text-text-secondary\" size={14} />}"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/Advanced/AgentChain.tsx",
+    "line": 164,
+    "type": "JSX Text",
+    "content": "0 &&",
+    "code": "{agentIds.length > 0 && <Link2 className=\"mx-auto text-text-secondary\" size={14} />}"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/__tests__/AgentFooter.spec.tsx",
+    "line": 149,
+    "type": "Attribute (title)",
+    "content": "Delete Agent",
+    "code": "<button data-testid=\"delete-button\" data-agent-id={agent_id} title=\"Delete Agent\" />"
+  },
+  {
+    "file": "client/src/components/SidePanel/Agents/__tests__/AgentFooter.spec.tsx",
+    "line": 156,
+    "type": "Attribute (title)",
+    "content": "Duplicate Agent",
+    "code": "<button data-testid=\"duplicate-button\" data-agent-id={agent_id} title=\"Duplicate Agent\" />"
+  },
+  {
+    "file": "client/src/components/SidePanel/Bookmarks/BookmarkTable.tsx",
+    "line": 124,
+    "type": "Attribute (aria-label)",
+    "content": "Pagination",
+    "code": "<div className=\"flex items-center gap-2\" role=\"navigation\" aria-label=\"Pagination\">"
+  },
+  {
+    "file": "client/src/components/SidePanel/Files/PanelTable.tsx",
+    "line": 287,
+    "type": "Attribute (aria-label)",
+    "content": "Pagination",
+    "code": "<div className=\"flex items-center gap-2\" role=\"navigation\" aria-label=\"Pagination\">"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 37,
+    "type": "JSX Text",
+    "content": "Configuración de Exportación",
+    "code": "<h3 className=\"text-lg font-medium\">Configuración de Exportación</h3>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 49,
+    "type": "JSX Text",
+    "content": "Título de Portada",
+    "code": "<Label htmlFor=\"coverTitle\">Título de Portada</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 54,
+    "type": "Attribute (placeholder)",
+    "content": "Ej: Reporte de IA",
+    "code": "placeholder=\"Ej: Reporte de IA\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 59,
+    "type": "JSX Text",
+    "content": "URL del Logo (Opcional)",
+    "code": "<Label htmlFor=\"logoUrl\">URL del Logo (Opcional)</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 70,
+    "type": "JSX Text",
+    "content": "Título del Documento (Metadatos)",
+    "code": "<Label htmlFor=\"documentTitle\">Título del Documento (Metadatos)</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 80,
+    "type": "JSX Text",
+    "content": "Tipografía",
+    "code": "<Label htmlFor=\"fontFamily\">Tipografía</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 88,
+    "type": "JSX Text",
+    "content": "Tamaño Fuente",
+    "code": "<Label htmlFor=\"fontSize\">Tamaño Fuente</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 99,
+    "type": "JSX Text",
+    "content": "Márgenes (pulgadas)",
+    "code": "<Label htmlFor=\"margins\">Márgenes (pulgadas)</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 111,
+    "type": "JSX Text",
+    "content": "Título del Mensaje",
+    "code": "<Label htmlFor=\"messageTitle\">Título del Mensaje</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Export/ExportConfigPanel.tsx",
+    "line": 120,
+    "type": "JSX Text",
+    "content": "Mostrar Paginación",
+    "code": "<Label htmlFor=\"showPagination\">Mostrar Paginación</Label>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsAuth.tsx",
+    "line": 177,
+    "type": "Attribute (placeholder)",
+    "content": "<HIDDEN>",
+    "code": "placeholder=\"<HIDDEN>\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsAuth.tsx",
+    "line": 261,
+    "type": "Attribute (placeholder)",
+    "content": "X-Api-Key",
+    "code": "placeholder=\"X-Api-Key\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsAuth.tsx",
+    "line": 300,
+    "type": "Attribute (placeholder)",
+    "content": "<HIDDEN>",
+    "code": "placeholder=\"<HIDDEN>\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsAuth.tsx",
+    "line": 308,
+    "type": "Attribute (placeholder)",
+    "content": "<HIDDEN>",
+    "code": "placeholder=\"<HIDDEN>\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/Action.tsx",
+    "line": 35,
+    "type": "Attribute (aria-label)",
+    "content": "Settings",
+    "code": "aria-label=\"Settings\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsPanel.tsx",
+    "line": 165,
+    "type": "JSX Text",
+    "content": "Learn more.",
+    "code": "<a href=\"https://help.openai.com/en/articles/8554397-creating-a-gpt\" target=\"_blank\" rel=\"noreferrer\" className=\"font-medium\">Learn more.</a>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsInput.tsx",
+    "line": 226,
+    "type": "JSX Text",
+    "content": "Import from URL",
+    "code": "<div className=\"flex w-full items-center justify-center text-xs\">Import from URL</div>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsInput.tsx",
+    "line": 235,
+    "type": "JSX Text",
+    "content": "Weather (JSON)",
+    "code": "<option value=\"0\">Weather (JSON)</option>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsInput.tsx",
+    "line": 236,
+    "type": "JSX Text",
+    "content": "Pet Store (YAML)",
+    "code": "<option value=\"1\">Pet Store (YAML)</option>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/ActionsInput.tsx",
+    "line": 237,
+    "type": "JSX Text",
+    "content": "Blank Template",
+    "code": "<option value=\"2\">Blank Template</option>"
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/MCP.tsx",
+    "line": 53,
+    "type": "Attribute (aria-label)",
+    "content": "Settings",
+    "code": "aria-label=\"Settings\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Builder/Images.tsx",
+    "line": 48,
+    "type": "Attribute (alt)",
+    "content": "GPT",
+    "code": "alt=\"GPT\""
+  },
+  {
+    "file": "client/src/components/SidePanel/Memories/MemoryViewer.tsx",
+    "line": 382,
+    "type": "Attribute (aria-label)",
+    "content": "Pagination",
+    "code": "aria-label=\"Pagination\""
+  },
+  {
+    "file": "client/src/components/Web/SourcesErrorBoundary.tsx",
+    "line": 41,
+    "type": "JSX Text",
+    "content": "Sources temporarily unavailable",
+    "code": "<div className=\"mb-2 text-sm text-text-secondary\">Sources temporarily unavailable</div>"
+  },
+  {
+    "file": "client/src/components/Web/SourcesErrorBoundary.tsx",
+    "line": 45,
+    "type": "Attribute (aria-label)",
+    "content": "Reload the page",
+    "code": "aria-label=\"Reload the page\""
+  },
+  {
+    "file": "client/src/components/Agents/ErrorDisplay.tsx",
+    "line": 195,
+    "type": "Attribute (aria-label)",
+    "content": "Error icon",
+    "code": "aria-label=\"Error icon\""
+  },
+  {
+    "file": "client/src/components/Agents/tests/AgentCard.spec.tsx",
+    "line": 20,
+    "type": "JSX Text",
+    "content": "(key: string, values?: Record",
+    "code": "useLocalize: () => (key: string, values?: Record<string, string>) => {"
+  },
+  {
+    "file": "client/src/components/Agents/tests/SmartLoader.spec.tsx",
+    "line": 9,
+    "type": "JSX Text",
+    "content": "Loading...",
+    "code": "const LoadingComponent = () => <div data-testid=\"loading\">Loading...</div>;"
+  },
+  {
+    "file": "client/src/components/Agents/tests/Accessibility.spec.tsx",
+    "line": 114,
+    "type": "JSX Text",
+    "content": "(isLoading ?",
+    "code": "SmartLoader: ({ children, isLoading }: any) => (isLoading ? <div>Loading...</div> : children),"
+  },
+  {
+    "file": "client/src/components/Agents/tests/Accessibility.spec.tsx",
+    "line": 114,
+    "type": "JSX Text",
+    "content": "Loading...",
+    "code": "SmartLoader: ({ children, isLoading }: any) => (isLoading ? <div>Loading...</div> : children),"
+  },
+  {
+    "file": "client/src/components/Banners/Banner.tsx",
+    "line": 40,
+    "type": "Attribute (aria-label)",
+    "content": "Dismiss banner",
+    "code": "aria-label=\"Dismiss banner\""
+  },
+  {
+    "file": "client/src/components/Bookmarks/BookmarkItems.tsx",
+    "line": 16,
+    "type": "JSX Text",
+    "content": "0 &&",
+    "code": "{bookmarks.length > 0 && <div className=\"my-1.5 h-px\" role=\"none\" />}"
+  },
+  {
+    "file": "client/src/components/Bookmarks/BookmarkForm.tsx",
+    "line": 91,
+    "type": "Attribute (aria-label)",
+    "content": "Bookmark form",
+    "code": "aria-label=\"Bookmark form\""
+  },
+  {
+    "file": "client/src/components/Voice/VoiceSelector.tsx",
+    "line": 68,
+    "type": "Attribute (aria-label)",
+    "content": "Voz anterior",
+    "code": "aria-label=\"Voz anterior\""
+  },
+  {
+    "file": "client/src/components/Voice/VoiceSelector.tsx",
+    "line": 102,
+    "type": "Attribute (aria-label)",
+    "content": "Siguiente voz",
+    "code": "aria-label=\"Siguiente voz\""
+  },
+  {
+    "file": "client/src/components/Conversations/Conversations.tsx",
+    "line": 204,
+    "type": "Attribute (aria-label)",
+    "content": "Conversations",
+    "code": "aria-label=\"Conversations\""
+  },
+  {
+    "file": "client/src/components/Conversations/Pages.tsx",
+    "line": 7,
+    "type": "JSX Text",
+    "content": "Promise",
+    "code": "nextPage: () => Promise<void>;"
+  },
+  {
+    "file": "client/src/components/Conversations/Pages.tsx",
+    "line": 8,
+    "type": "JSX Text",
+    "content": "Promise",
+    "code": "previousPage: () => Promise<void>;"
+  },
+  {
+    "file": "client/src/components/Conversations/Pages.tsx",
+    "line": 19,
+    "type": "JSX Text",
+    "content": "Promise",
+    "code": "(func: () => Promise<void>) => async (e: React.MouseEvent<HTMLButtonElement>) => {"
+  },
+  {
+    "file": "client/src/components/Prompts/Markdown.tsx",
+    "line": 44,
+    "type": "JSX Text",
+    "content": "renderContent(child))}",
+    "code": "return <p>{React.Children.map(children, (child) => renderContent(child))}</p>;"
+  },
+  {
+    "file": "client/src/components/Prompts/ManagePrompts.tsx",
+    "line": 27,
+    "type": "Attribute (aria-label)",
+    "content": "Manage Prompts",
+    "code": "aria-label=\"Manage Prompts\""
+  },
+  {
+    "file": "client/src/components/Prompts/PromptVersions.tsx",
+    "line": 131,
+    "type": "JSX Text",
+    "content": "0 &&",
+    "code": "{tags.length > 0 && <VersionTags tags={tags} />}"
+  },
+  {
+    "file": "client/src/components/Prompts/PromptVersions.tsx",
+    "line": 152,
+    "type": "Attribute (aria-label)",
+    "content": "Prompt Versions",
+    "code": "<section className=\"my-6\" aria-label=\"Prompt Versions\">"
+  },
+  {
+    "file": "client/src/components/Prompts/PromptVersions.tsx",
+    "line": 160,
+    "type": "Attribute (aria-label)",
+    "content": "Version history",
+    "code": "<div className=\"flex flex-col gap-3\" role=\"tablist\" aria-label=\"Version history\">"
+  },
+  {
+    "file": "client/src/components/Prompts/PromptForm.tsx",
+    "line": 111,
+    "type": "Attribute (aria-label)",
+    "content": "Make prompt production",
+    "code": "aria-label=\"Make prompt production\""
+  },
+  {
+    "file": "client/src/components/Prompts/PromptForm.tsx",
+    "line": 506,
+    "type": "Attribute (aria-label)",
+    "content": "Mobile navigation panel",
+    "code": "aria-label=\"Mobile navigation panel\""
+  },
+  {
+    "file": "client/src/components/Prompts/SharePrompt.tsx",
+    "line": 59,
+    "type": "Attribute (aria-label)",
+    "content": "Share prompt",
+    "code": "aria-label=\"Share prompt\""
+  },
+  {
+    "file": "client/src/components/Prompts/PromptName.tsx",
+    "line": 84,
+    "type": "Attribute (aria-label)",
+    "content": "Save prompt name",
+    "code": "aria-label=\"Save prompt name\""
+  },
+  {
+    "file": "client/src/components/Prompts/PromptName.tsx",
+    "line": 105,
+    "type": "Attribute (aria-label)",
+    "content": "Edit prompt name",
+    "code": "aria-label=\"Edit prompt name\""
+  },
+  {
+    "file": "client/src/components/Prompts/DeleteVersion.tsx",
+    "line": 24,
+    "type": "Attribute (aria-label)",
+    "content": "Delete version",
+    "code": "aria-label=\"Delete version\""
+  },
+  {
+    "file": "client/src/components/Prompts/PreviewLabels.tsx",
+    "line": 33,
+    "type": "Attribute (placeholder)",
+    "content": "+ Add Labels",
+    "code": "placeholder=\"+ Add Labels\""
+  },
+  {
+    "file": "client/src/components/Prompts/PreviewLabels.tsx",
+    "line": 39,
+    "type": "JSX Text",
+    "content": "Labels",
+    "code": "<h3 className=\"rounded-t-lg border border-gray-300 px-4 text-base font-semibold\">Labels</h3>"
+  },
+  {
+    "file": "client/src/components/Prompts/PreviewLabels.tsx",
+    "line": 62,
+    "type": "JSX Text",
+    "content": "No Labels",
+    "code": "<label className=\"rounded-full border px-2\">No Labels</label>"
+  },
+  {
+    "file": "client/src/components/Prompts/Groups/PanelNavigation.tsx",
+    "line": 30,
+    "type": "Attribute (aria-label)",
+    "content": "Pagination",
+    "code": "<div className=\"flex items-center gap-2\" role=\"navigation\" aria-label=\"Pagination\">"
+  },
+  {
+    "file": "client/src/components/Prompts/Groups/ChatGroupItem.tsx",
+    "line": 68,
+    "type": "Attribute (aria-label)",
+    "content": "Global prompt group",
+    "code": "<EarthIcon className=\"icon-md text-green-400\" aria-label=\"Global prompt group\" />"
+  },
+  {
+    "file": "client/src/components/Prompts/Groups/FilterPrompts.tsx",
+    "line": 92,
+    "type": "Attribute (label)",
+    "content": "Filter:",
+    "code": "label=\"Filter: \""
+  },
+  {
+    "file": "client/src/components/Prompts/Groups/CategorySelector.tsx",
+    "line": 82,
+    "type": "Attribute (aria-label)",
+    "content": "Prompt's category selector",
+    "code": "aria-label=\"Prompt's category selector\""
+  },
+  {
+    "file": "client/src/components/Files/FileList/FileSidePanel.tsx",
+    "line": 153,
+    "type": "JSX Text",
+    "content": "Files",
+    "code": "<strong>Files</strong>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/FilePreview.tsx",
+    "line": 50,
+    "type": "JSX Text",
+    "content": "FILE",
+    "code": "<b className=\"hidden text-sm md:text-base lg:block lg:text-lg\">FILE</b>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/FilePreview.tsx",
+    "line": 120,
+    "type": "JSX Text",
+    "content": "Attached To",
+    "code": "<b className=\"text-sm md:text-base lg:text-lg\">Attached To</b>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/FilePreview.tsx",
+    "line": 127,
+    "type": "JSX Text",
+    "content": "Uploaded",
+    "code": "<div className=\"w-3/5 text-sm md:w-1/2 md:text-base lg:text-lg xl:w-1/3\">Uploaded</div>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/FilePreview.tsx",
+    "line": 154,
+    "type": "JSX Text",
+    "content": "Threads",
+    "code": "<div className=\"w-2/5 text-sm md:w-1/2 md:text-base lg:text-lg xl:w-2/3\">Threads</div>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/FilePreview.tsx",
+    "line": 155,
+    "type": "JSX Text",
+    "content": "Uploaded",
+    "code": "<div className=\"w-3/5 text-sm md:w-1/2 md:text-base lg:text-lg xl:w-1/3\">Uploaded</div>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/UploadFileButton.tsx",
+    "line": 14,
+    "type": "JSX Text",
+    "content": "Upload New File",
+    "code": "&nbsp; <span className=\"text-nowrap\">Upload New File</span>"
+  },
+  {
+    "file": "client/src/components/Files/FileList/FileTableColumns.tsx",
+    "line": 20,
+    "type": "Attribute (aria-label)",
+    "content": "Select all",
+    "code": "aria-label=\"Select all\""
+  },
+  {
+    "file": "client/src/components/Files/FileList/FileTableColumns.tsx",
+    "line": 30,
+    "type": "Attribute (aria-label)",
+    "content": "Select row",
+    "code": "aria-label=\"Select row\""
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 104,
+    "type": "JSX Text",
+    "content": "VECTOR STORE",
+    "code": "<b className=\"hidden text-base md:text-lg lg:block lg:text-xl\">VECTOR STORE</b>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 142,
+    "type": "JSX Text",
+    "content": "0 KB hours",
+    "code": "<span className=\"text-[#91c561]\">0 KB hours</span>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 186,
+    "type": "JSX Text",
+    "content": "Files attached",
+    "code": "<b className=\"text-base md:text-lg lg:text-xl\">Files attached</b>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 190,
+    "type": "JSX Text",
+    "content": "File",
+    "code": "<div className=\"w-1/2 text-base md:text-lg lg:w-2/3 lg:text-xl\">File</div>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 191,
+    "type": "JSX Text",
+    "content": "Uploaded",
+    "code": "<div className=\"w-1/2 text-base md:text-lg lg:w-1/3 lg:text-xl\">Uploaded</div>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 217,
+    "type": "JSX Text",
+    "content": "Used by",
+    "code": "<b className=\"text-base md:text-lg lg:text-xl\">Used by</b>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStorePreview.tsx",
+    "line": 225,
+    "type": "JSX Text",
+    "content": "Resource",
+    "code": "<div className=\"w-1/2 text-base md:text-lg lg:w-2/3 lg:text-xl\">Resource</div>"
+  },
+  {
+    "file": "client/src/components/Files/VectorStore/VectorStoreFilter.tsx",
+    "line": 4,
+    "type": "JSX Text",
+    "content": "VectorStoreFilter",
+    "code": "return <div>VectorStoreFilter</div>;"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 219,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const bodyMatch = html.match(/<body[^>]*>([\\s\\S]*?)<\\/body>/i);"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 223,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "body = body.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 224,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "body = body.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 227,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h1[^>]*>(.*?)<\\/h1>/gi, '# $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 228,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h2[^>]*>(.*?)<\\/h2>/gi, '## $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 229,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h3[^>]*>(.*?)<\\/h3>/gi, '### $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 230,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h4[^>]*>(.*?)<\\/h4>/gi, '#### $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 233,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "body = body.replace(/<table[^>]*>([\\s\\S]*?)<\\/table>/gi, (_, tableContent) => {"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 235,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "const rowMatches = tableContent.match(/<tr[^>]*>[\\s\\S]*?<\\/tr>/gi) || [];"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 237,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const cells = (row.match(/<t[hd][^>]*>([\\s\\S]*?)<\\/t[hd]>/gi) || []).map((cell: string) =>"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 238,
+    "type": "JSX Text",
+    "content": "]*>/i, '').replace(/",
+    "code": "cell.replace(/<t[hd][^>]*>/i, '').replace(/<\\/t[hd]>/i, '').replace(/<[^>]+>/g, '').trim()"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 249,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<li[^>]*>(.*?)<\\/li>/gi, '- $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 253,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<strong[^>]*>(.*?)<\\/strong>/gi, '**$1**');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 254,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<b[^>]*>(.*?)<\\/b>/gi, '**$1**');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 255,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<em[^>]*>(.*?)<\\/em>/gi, '*$1*');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 256,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<i[^>]*>(.*?)<\\/i>/gi, '*$1*');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 260,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<p[^>]*>(.*?)<\\/p>/gi, '$1\\n\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/DiagnosticoChecklist.tsx",
+    "line": 261,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<div[^>]*>(.*?)<\\/div>/gi, '$1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PhaseDetail.tsx",
+    "line": 154,
+    "type": "Attribute (aria-label)",
+    "content": "Back",
+    "code": "aria-label=\"Back\""
+  },
+  {
+    "file": "client/src/components/SGSST/PhaseDetail.tsx",
+    "line": 222,
+    "type": "JSX Text",
+    "content": "Subir",
+    "code": "<span className=\"hidden sm:inline\">Subir</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/PhaseDetail.tsx",
+    "line": 253,
+    "type": "JSX Text",
+    "content": "Sin documentos",
+    "code": "<span className=\"text-sm\">Sin documentos</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/PhaseDetail.tsx",
+    "line": 276,
+    "type": "Attribute (title)",
+    "content": "Eliminar archivo",
+    "code": "title=\"Eliminar archivo\""
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 188,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "let body = contentForExport.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 299,
+    "type": "JSX Text",
+    "content": "Lista de Verificación de Auditoría Interna",
+    "code": "<h3 className=\"font-semibold text-text-primary\">Lista de Verificación de Auditoría Interna</h3>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 300,
+    "type": "JSX Text",
+    "content": "Decreto 1072 de 2015 / ISO 45001 / Resolución 0312",
+    "code": "<p className=\"text-xs text-text-secondary\">Decreto 1072 de 2015 / ISO 45001 / Resolución 0312</p>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 307,
+    "type": "JSX Text",
+    "content": "Progreso de Evaluación",
+    "code": "<p className=\"text-sm text-text-secondary\">Progreso de Evaluación</p>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 313,
+    "type": "JSX Text",
+    "content": "% Conformidad (de lo evaluado)",
+    "code": "<p className=\"text-sm text-text-secondary\">% Conformidad (de lo evaluado)</p>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 344,
+    "type": "JSX Text",
+    "content": "Guardar",
+    "code": "<span className=\"max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap\">Guardar</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 348,
+    "type": "JSX Text",
+    "content": "Exportar",
+    "code": "<span className=\"max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap\">Exportar</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 414,
+    "type": "JSX Text",
+    "content": "Fundamento Legal:",
+    "code": "<div className=\"font-semibold mb-1 text-blue-500\">Fundamento Legal:</div>"
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 454,
+    "type": "Attribute (placeholder)",
+    "content": "Describa el hallazgo, evidencia o motivo de no aplicabilidad...",
+    "code": "placeholder=\"Describa el hallazgo, evidencia o motivo de no aplicabilidad...\""
+  },
+  {
+    "file": "client/src/components/SGSST/AuditoriaChecklist.tsx",
+    "line": 476,
+    "type": "JSX Text",
+    "content": "Informe de Auditoría Generado",
+    "code": "<h3 className=\"font-semibold text-text-primary\">Informe de Auditoría Generado</h3>"
+  },
+  {
+    "file": "client/src/components/SGSST/Dashboard.tsx",
+    "line": 89,
+    "type": "JSX Text",
+    "content": "Sistema de Gestión SST",
+    "code": "<h1 className=\"text-3xl font-bold text-text-primary\">Sistema de Gestión SST</h1>"
+  },
+  {
+    "file": "client/src/components/SGSST/Dashboard.tsx",
+    "line": 93,
+    "type": "Attribute (title)",
+    "content": "Información de la Empresa",
+    "code": "title=\"Información de la Empresa\""
+  },
+  {
+    "file": "client/src/components/SGSST/Dashboard.tsx",
+    "line": 98,
+    "type": "JSX Text",
+    "content": "Ciclo PHVA (Planear - Hacer - Verificar - Actuar)",
+    "code": "<p className=\"mt-2 text-text-secondary\">Ciclo PHVA (Planear - Hacer - Verificar - Actuar)</p>"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 158,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const bodyMatch = html.match(/<body[^>]*>([\\s\\S]*?)<\\/body>/i);"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 161,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "body = body.replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 162,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "body = body.replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 163,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h1[^>]*>(.*?)<\\/h1>/gi, '# $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 164,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h2[^>]*>(.*?)<\\/h2>/gi, '## $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 165,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h3[^>]*>(.*?)<\\/h3>/gi, '### $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 166,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<h4[^>]*>(.*?)<\\/h4>/gi, '#### $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 168,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "body = body.replace(/<table[^>]*>([\\s\\S]*?)<\\/table>/gi, (_, tableContent) => {"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 170,
+    "type": "JSX Text",
+    "content": "]*>[\\s\\S]*?",
+    "code": "const rowMatches = tableContent.match(/<tr[^>]*>[\\s\\S]*?<\\/tr>/gi) || [];"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 172,
+    "type": "JSX Text",
+    "content": "]*>([\\s\\S]*?)",
+    "code": "const cells = (row.match(/<t[hd][^>]*>([\\s\\S]*?)<\\/t[hd]>/gi) || []).map((cell: string) =>"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 173,
+    "type": "JSX Text",
+    "content": "]*>/i, '').replace(/",
+    "code": "cell.replace(/<t[hd][^>]*>/i, '').replace(/<\\/t[hd]>/i, '').replace(/<[^>]+>/g, '').trim()"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 183,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<li[^>]*>(.*?)<\\/li>/gi, '- $1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 185,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<strong[^>]*>(.*?)<\\/strong>/gi, '**$1**');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 186,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<b[^>]*>(.*?)<\\/b>/gi, '**$1**');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 187,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<em[^>]*>(.*?)<\\/em>/gi, '*$1*');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 188,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<i[^>]*>(.*?)<\\/i>/gi, '*$1*');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 190,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<p[^>]*>(.*?)<\\/p>/gi, '$1\\n\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 191,
+    "type": "JSX Text",
+    "content": "]*>(.*?)",
+    "code": "body = body.replace(/<div[^>]*>(.*?)<\\/div>/gi, '$1\\n');"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 364,
+    "type": "JSX Text",
+    "content": "Datos para Generar la Política",
+    "code": "<span className=\"font-semibold text-text-primary\">Datos para Generar la Política</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 367,
+    "type": "JSX Text",
+    "content": "✓ Datos ingresados",
+    "code": "<span className=\"text-xs text-green-600 font-medium\">✓ Datos ingresados</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/PoliticaSST.tsx",
+    "line": 430,
+    "type": "JSX Text",
+    "content": "Puedes editar el contenido directamente",
+    "code": "<span className=\"text-xs text-text-secondary\">Puedes editar el contenido directamente</span>"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 160,
+    "type": "JSX Text",
+    "content": "NIT",
+    "code": "<label className={labelClass}><Hash className=\"h-3 w-3\" />NIT</label>"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 161,
+    "type": "Attribute (placeholder)",
+    "content": "123456789-0",
+    "code": "<input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder=\"123456789-0\" />"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 188,
+    "type": "JSX Text",
+    "content": "ARL",
+    "code": "<label className={labelClass}><Shield className=\"h-3 w-3\" />ARL</label>"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 206,
+    "type": "JSX Text",
+    "content": "Código CIIU",
+    "code": "<label className={labelClass}><Hash className=\"h-3 w-3\" />Código CIIU</label>"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 207,
+    "type": "Attribute (placeholder)",
+    "content": "Ej: 4711",
+    "code": "<input className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder=\"Ej: 4711\" />"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 232,
+    "type": "Attribute (placeholder)",
+    "content": "+57 300 123 4567",
+    "code": "<input className={inputClass} value={data.phone} onChange={e => handleChange('phone', e.target.value)} placeholder=\"+57 300 123 4567\" />"
+  },
+  {
+    "file": "client/src/components/SGSST/CompanyInfoModal.tsx",
+    "line": 236,
+    "type": "Attribute (placeholder)",
+    "content": "empresa@ejemplo.com",
+    "code": "<input className={inputClass} type=\"email\" value={data.email} onChange={e => handleChange('email', e.target.value)} placeholder=\"empresa@ejemplo.com\" />"
+  },
+  {
+    "file": "client/src/components/Nav/Settings.tsx",
+    "line": 215,
+    "type": "Attribute (aria-label)",
+    "content": "Settings",
+    "code": "aria-label=\"Settings\""
+  },
+  {
+    "file": "client/src/components/Nav/Nav.tsx",
+    "line": 46,
+    "type": "Attribute (aria-label)",
+    "content": "Toggle navigation",
+    "code": "aria-label=\"Toggle navigation\""
+  },
+  {
+    "file": "client/src/components/Nav/LiveAnalysisButton.tsx",
+    "line": 33,
+    "type": "Attribute (aria-label)",
+    "content": "Live Analysis",
+    "code": "aria-label=\"Live Analysis\""
+  },
+  {
+    "file": "client/src/components/Nav/MobileNav.tsx",
+    "line": 20,
+    "type": "Attribute (title)",
+    "content": "New Chat",
+    "code": "const { title = 'New Chat' } = conversation || {};"
+  },
+  {
+    "file": "client/src/components/Nav/SGSSTButton.tsx",
+    "line": 33,
+    "type": "Attribute (aria-label)",
+    "content": "Gestor SG-SST",
+    "code": "aria-label=\"Gestor SG-SST\""
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/ToggleSwitch.tsx",
+    "line": 10,
+    "type": "JSX Text",
+    "content": "| WritableAtom",
+    "code": "stateAtom: RecoilState<boolean> | WritableAtom<boolean, [boolean], void>;"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/ToggleSwitch.tsx",
+    "line": 20,
+    "type": "JSX Text",
+    "content": "(atom: unknown): atom is RecoilState",
+    "code": "function isRecoilState<T>(atom: unknown): atom is RecoilState<T> {"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 184,
+    "type": "JSX Text",
+    "content": "Título",
+    "code": "<label className=\"text-sm font-medium\">Título</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 190,
+    "type": "Attribute (placeholder)",
+    "content": "Título del anuncio",
+    "code": "<Input {...field} placeholder=\"Título del anuncio\" value={field.value || ''} />"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 193,
+    "type": "JSX Text",
+    "content": "Requerido",
+    "code": "{errors.title && <span className=\"text-red-500 text-xs\">Requerido</span>}"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 196,
+    "type": "JSX Text",
+    "content": "Contenido",
+    "code": "<label className=\"text-sm font-medium\">Contenido</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 201,
+    "type": "Attribute (placeholder)",
+    "content": "Descripción corta",
+    "code": "<Input {...field} placeholder=\"Descripción corta\" value={field.value || ''} />"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 206,
+    "type": "JSX Text",
+    "content": "Imágenes",
+    "code": "<label className=\"text-sm font-medium\">Imágenes</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 291,
+    "type": "Attribute (placeholder)",
+    "content": "URLs de imágenes (o sube una)",
+    "code": "<Input {...field} placeholder=\"URLs de imágenes (o sube una)\" value={field.value || ''} />"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 294,
+    "type": "JSX Text",
+    "content": "Requerido (al menos una URL)",
+    "code": "{errors.images && <span className=\"text-red-500 text-xs\">Requerido (al menos una URL)</span>}"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 298,
+    "type": "JSX Text",
+    "content": "Enlace (Opcional)",
+    "code": "<label className=\"text-sm font-medium\">Enlace (Opcional)</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 308,
+    "type": "JSX Text",
+    "content": "Texto del Botón",
+    "code": "<label className=\"text-sm font-medium\">Texto del Botón</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 313,
+    "type": "Attribute (placeholder)",
+    "content": "Ver más",
+    "code": "<Input {...field} placeholder=\"Ver más\" value={field.value || ''} />"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 331,
+    "type": "JSX Text",
+    "content": "Activo",
+    "code": "<label htmlFor=\"active\" className=\"text-sm\">Activo</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 334,
+    "type": "JSX Text",
+    "content": "Cancelar",
+    "code": "<Button type=\"button\" variant=\"outline\" onClick={cancelEdit}>Cancelar</Button>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 335,
+    "type": "JSX Text",
+    "content": "Guardar",
+    "code": "<Button type=\"submit\">Guardar</Button>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 345,
+    "type": "JSX Text",
+    "content": "Gestión de Publicidad",
+    "code": "<h3 className=\"text-lg font-medium\">Gestión de Publicidad</h3>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 352,
+    "type": "JSX Text",
+    "content": "Cargando...",
+    "code": "<div>Cargando...</div>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Ads/Ads.tsx",
+    "line": 371,
+    "type": "JSX Text",
+    "content": "No hay anuncios creados.",
+    "code": "{ads.length === 0 && <div className=\"text-center text-text-secondary pt-4\">No hay anuncios creados.</div>}"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/General/ArchivedChats.tsx",
+    "line": 15,
+    "type": "Attribute (aria-label)",
+    "content": "Archived chats",
+    "code": "<Button variant=\"outline\" aria-label=\"Archived chats\">"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx",
+    "line": 102,
+    "type": "JSX Text",
+    "content": "Loading permissions...",
+    "code": "if (loading) return <div>Loading permissions...</div>;"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/RolePermissionsTable.tsx",
+    "line": 109,
+    "type": "JSX Text",
+    "content": "Feature / Permission",
+    "code": "<th className=\"px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300\">Feature / Permission</th>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/BulkUpdateDatesModal.tsx",
+    "line": 94,
+    "type": "JSX Text",
+    "content": "Active Date",
+    "code": "<label className=\"block text-sm font-medium text-gray-700 dark:text-gray-300\">Active Date</label>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/UserChatsModal.tsx",
+    "line": 114,
+    "type": "JSX Text",
+    "content": "No conversations found.",
+    "code": "<div className=\"text-center p-4 text-gray-500\">No conversations found.</div>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/UserChatsModal.tsx",
+    "line": 154,
+    "type": "JSX Text",
+    "content": "No messages in this conversation.",
+    "code": "<div className=\"text-center text-gray-500\">No messages in this conversation.</div>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/UserChatsModal.tsx",
+    "line": 167,
+    "type": "JSX Text",
+    "content": "No text content",
+    "code": "<span className=\"italic text-gray-500\">No text content</span>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 144,
+    "type": "JSX Text",
+    "content": "User",
+    "code": "<option value=\"USER\">User</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 145,
+    "type": "JSX Text",
+    "content": "User Plus",
+    "code": "<option value=\"USER_PLUS\">User Plus</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 146,
+    "type": "JSX Text",
+    "content": "User Pro",
+    "code": "<option value=\"USER_PRO\">User Pro</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 147,
+    "type": "JSX Text",
+    "content": "Admin",
+    "code": "<option value=\"ADMIN\">Admin</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 158,
+    "type": "JSX Text",
+    "content": "Active",
+    "code": "<option value=\"active\">Active</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 159,
+    "type": "JSX Text",
+    "content": "Pending",
+    "code": "<option value=\"pending\">Pending</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/EditUserModal.tsx",
+    "line": 160,
+    "type": "JSX Text",
+    "content": "Inactive",
+    "code": "<option value=\"inactive\">Inactive</option>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Admin/UserApprovalTable.tsx",
+    "line": 151,
+    "type": "JSX Text",
+    "content": "Loading...",
+    "code": "return <div className=\"p-4\">Loading...</div>;"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Speech/Speech.tsx",
+    "line": 246,
+    "type": "JSX Text",
+    "content": "Configuración de Gemini Live",
+    "code": "<h3 className=\"text-sm font-medium text-text-primary\">Configuración de Gemini Live</h3>"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Speech/Speech.tsx",
+    "line": 248,
+    "type": "Attribute (label)",
+    "content": "Voz Chat General",
+    "code": "label=\"Voz Chat General\""
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Speech/Speech.tsx",
+    "line": 253,
+    "type": "Attribute (label)",
+    "content": "Voz Análisis en Vivo",
+    "code": "label=\"Voz Análisis en Vivo\""
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Account/BackupCodesItem.tsx",
+    "line": 76,
+    "type": "Attribute (aria-label)",
+    "content": "Manage Backup Codes",
+    "code": "<Button aria-label=\"Manage Backup Codes\" variant=\"outline\">"
+  },
+  {
+    "file": "client/src/components/Nav/SettingsTabs/Account/ProfileSettings.tsx",
+    "line": 94,
+    "type": "Attribute (aria-label)",
+    "content": "Edit Profile",
+    "code": "<Button aria-label=\"Edit Profile\" variant=\"outline\">"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 140,
+    "type": "JSX Text",
+    "content": "Error Message:",
+    "code": "<h3 className=\"mb-2 font-medium\">Error Message:</h3>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 150,
+    "type": "JSX Text",
+    "content": "Status:",
+    "code": "<h3 className=\"mb-2 font-medium\">Status:</h3>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 162,
+    "type": "JSX Text",
+    "content": "Stack Trace",
+    "code": "<span>Stack Trace</span>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 194,
+    "type": "JSX Text",
+    "content": "Additional Details",
+    "code": "<span>Additional Details</span>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 195,
+    "type": "JSX Text",
+    "content": "'}",
+    "code": "<span className=\"transition-transform group-open:rotate-90\">{'>'}</span>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 204,
+    "type": "JSX Text",
+    "content": "Please try one of the following:",
+    "code": "<p className=\"text-sm font-light text-text-secondary\">Please try one of the following:</p>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 206,
+    "type": "JSX Text",
+    "content": "Refresh the page",
+    "code": "<li>Refresh the page</li>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 207,
+    "type": "JSX Text",
+    "content": "Clear your browser cache",
+    "code": "<li>Clear your browser cache</li>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 208,
+    "type": "JSX Text",
+    "content": "Check your internet connection",
+    "code": "<li>Check your internet connection</li>"
+  },
+  {
+    "file": "client/src/routes/RouteErrorBoundary.tsx",
+    "line": 209,
+    "type": "JSX Text",
+    "content": "Contact the Admin if the issue persists",
+    "code": "<li>Contact the Admin if the issue persists</li>"
+  },
+  {
+    "file": "client/src/routes/Layouts/DashBreadcrumb.tsx",
+    "line": 84,
+    "type": "JSX Text",
+    "content": "Toggle menu",
+    "code": "<span className=\"sr-only\">Toggle menu</span>"
+  },
+  {
+    "file": "client/src/routes/Layouts/DashBreadcrumb.tsx",
+    "line": 87,
+    "type": "JSX Text",
+    "content": "Documentation",
+    "code": "<DropdownMenuItem>Documentation</DropdownMenuItem>"
+  },
+  {
+    "file": "client/src/routes/Layouts/DashBreadcrumb.tsx",
+    "line": 88,
+    "type": "JSX Text",
+    "content": "Themes",
+    "code": "<DropdownMenuItem>Themes</DropdownMenuItem>"
+  },
+  {
+    "file": "client/src/routes/Layouts/DashBreadcrumb.tsx",
+    "line": 89,
+    "type": "JSX Text",
+    "content": "GitHub",
+    "code": "<DropdownMenuItem>GitHub</DropdownMenuItem>"
+  }
+]

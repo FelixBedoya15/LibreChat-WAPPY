@@ -25,9 +25,8 @@ function Examples({ readonly, examples, setExample, addExample, removeExample }:
           <React.Fragment key={idx}>
             {/* Input */}
             <div
-              className={`col-span-${
-                examples.length === 1 ? '1' : 'full'
-              } flex flex-col items-center justify-start gap-6 sm:col-span-1`}
+              className={`col-span-${examples.length === 1 ? '1' : 'full'
+                } flex flex-col items-center justify-start gap-6 sm:col-span-1`}
             >
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor={`input-${idx}`} className="text-left text-sm font-medium">
@@ -39,7 +38,7 @@ function Examples({ readonly, examples, setExample, addExample, removeExample }:
                   disabled={readonly}
                   value={example.input.content || ''}
                   onChange={(e) => setExample(idx, 'input', e.target.value ?? null)}
-                  placeholder="Set example input. Example is ignored if empty."
+                  placeholder={localize('com_ui_example_placeholder')}
                   className={cn(
                     defaultTextProps,
                     'flex max-h-[138px] min-h-[75px] w-full resize-none px-3 py-2',
@@ -50,9 +49,8 @@ function Examples({ readonly, examples, setExample, addExample, removeExample }:
 
             {/* Output */}
             <div
-              className={`col-span-${
-                examples.length === 1 ? '1' : 'full'
-              } flex flex-col items-center justify-start gap-6 sm:col-span-1`}
+              className={`col-span-${examples.length === 1 ? '1' : 'full'
+                } flex flex-col items-center justify-start gap-6 sm:col-span-1`}
             >
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor={`output-${idx}`} className="text-left text-sm font-medium">
@@ -64,7 +62,7 @@ function Examples({ readonly, examples, setExample, addExample, removeExample }:
                   disabled={readonly}
                   value={example.output.content || ''}
                   onChange={(e) => setExample(idx, 'output', e.target.value ?? null)}
-                  placeholder={'Set example output. Example is ignored if empty.'}
+                  placeholder={localize('com_ui_example_output_placeholder')}
                   className={cn(
                     defaultTextProps,
                     'flex max-h-[300px] min-h-[75px] w-full resize-none px-3 py-2',

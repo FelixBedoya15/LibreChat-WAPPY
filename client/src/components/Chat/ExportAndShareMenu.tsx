@@ -80,7 +80,7 @@ export default function ExportAndShareMenu({
             render={
               <Ariakit.MenuButton
                 id="export-menu-button"
-                aria-label="Export options"
+                aria-label={localize('com_ui_export_options')}
                 className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light bg-transparent text-text-primary transition-all ease-in-out hover:bg-surface-tertiary disabled:pointer-events-none disabled:opacity-50 radix-state-open:bg-surface-tertiary"
               >
                 <Share2
