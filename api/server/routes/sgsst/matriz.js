@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
-const CompanyInfo = require('../../../models/CompanyInfo');
-const requireJwtAuth = require('../../middleware/requireJwtAuth');
-const { getLogStores } = require('../../../cache/getLogStores');
-const { getUserKey, checkUserKey } = require('../../services/UserService');
+const { logger } = require('~/config');
+const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
+const { getUserKey } = require('~/server/services/UserService');
+const CompanyInfo = require('~/models/CompanyInfo');
 
 const mapSizeToLabel = (size) => {
     switch (size) {
@@ -21,7 +21,6 @@ const mapRiskToLabel = (risk) => {
 };
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
-    const logger = getLogStores(req.app.locals.config.cache);
 
     try {
         const { activity, location, entityType, modelName } = req.body;
