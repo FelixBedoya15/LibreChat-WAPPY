@@ -254,7 +254,10 @@ const MatrizLegal = () => {
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <span className="font-semibold text-text-primary">Datos para Generar la Matriz Legal</span>
+                        <span className="font-semibold text-text-primary flex items-center gap-2">
+                            Datos para Generar la Matriz Legal
+                            <span className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full">BETA</span>
+                        </span>
                     </div>
                     {activity.trim() && (
                         <span className="text-xs text-green-600 font-medium">✓ Datos ingresados</span>
