@@ -174,9 +174,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             // Prepare data for audit analysis
             const analysisData = {
                 type: 'auditoria', // Trigger audit prompt in backend
-                companySize: 'medium', // Default/Dummy for audit
-                riskLevel: 3, // Default/Dummy for audit
-                applicableArticle: 16, // Default for full compliance
                 checklist: AUDITORIA_ITEMS.map(item => ({
                     ...item,
                     status: getItemStatus(item.id),
