@@ -18,6 +18,7 @@ import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
+import ModelSelector from './ModelSelector';
 
 const PoliticaSST = () => {
     const { t } = useTranslation();
@@ -30,6 +31,7 @@ const PoliticaSST = () => {
     const [commitments, setCommitments] = useState('');
     const [objectives, setObjectives] = useState('');
     const [additionalNorms, setAdditionalNorms] = useState('');
+    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
 
     // Generated policy
     const [generatedPolicy, setGeneratedPolicy] = useState<string | null>(null);
@@ -65,6 +67,7 @@ const PoliticaSST = () => {
                     commitments,
                     objectives,
                     additionalNorms,
+                    modelName: selectedModel,
                 }),
             });
 
@@ -315,6 +318,11 @@ const PoliticaSST = () => {
                         Generar Política IA
                     </span>
                 </button>
+                <ModelSelector
+                    selectedModel={selectedModel}
+                    onSelectModel={setSelectedModel}
+                    disabled={isGenerating}
+                />
                 {generatedPolicy && (
                     <>
                         <button

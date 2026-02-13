@@ -19,6 +19,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             commitments,
             objectives,
             additionalNorms,
+            modelName,
         } = req.body;
 
         if (!hazards || !hazards.trim()) {

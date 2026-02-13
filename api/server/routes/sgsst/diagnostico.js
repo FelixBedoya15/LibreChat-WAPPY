@@ -286,14 +286,16 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
             temperature: 0.7,
         };
 
+        const selectedModel = req.body.modelName || 'gemini-3-flash-preview';
+
         try {
-            console.log('[SGSST Diagnostico] Attempting Generation with gemini-3-flash-preview');
-            const modelPrimary = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview', generationConfig });
+            console.log(`[SGSST Diagnostico] Attempting Generation with ${selectedModel}`);
+            const modelPrimary = genAI.getGenerativeModel({ model: selectedModel, generationConfig });
             result = await modelPrimary.generateContent(promptText);
             const response = await result.response;
             text = response.text();
         } catch (primaryError) {
-            console.warn('[SGSST Diagnostico] Primary model (gemini-3-flash-preview) failed, attempting fallback to gemini-2.0-flash-exp. Error:', primaryError.message);
+            console.warn(`[SGSST Diagnostico] Primary model (${selectedModel}) failed, attempting fallback to gemini-2.0-flash-exp. Error:`, primaryError.message);
             try {
                 // Fallback to previous stable/experimental version
                 const modelFallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp', generationConfig });
