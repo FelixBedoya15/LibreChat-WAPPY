@@ -198,7 +198,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             fontSize: 11,
             margins: 1,
             coverTitle: 'Informe de Auditoría Interna\nSistema de Gestión de Seguridad y Salud en el Trabajo',
-            messageTitle: 'Auditoría de cumplimiento Decreto 1072 / ISO 45001',
+            messageTitle: 'Auditoría de cumplimiento Decreto 1072',
             logoUrl: '',
             showPagination: true,
         });
@@ -297,7 +297,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <AlertTriangle className="h-5 w-5 text-blue-500" />
                     <div>
                         <h3 className="font-semibold text-text-primary">Lista de Verificación de Auditoría Interna</h3>
-                        <p className="text-xs text-text-secondary">Decreto 1072 de 2015 / ISO 45001 / Resolución 0312</p>
+                        <p className="text-xs text-text-secondary">Decreto 1072 de 2015 / Resolución 0312</p>
                     </div>
                 </div>
 
@@ -467,6 +467,17 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         </div>
                     );
                 })}
+            </div>
+
+            <div className="flex justify-center mt-6 mb-4">
+                <button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || completedCount === 0}
+                    className="group flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                    Generar Informe Auditoría
+                </button>
             </div>
 
             {analysisReport && (
