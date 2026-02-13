@@ -635,8 +635,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar programa de estilos de vida saludable documentado y ejecutado.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.7 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Ley 1355/09 (Obesidad) | Res 3461/25 (Convivencia) | Dec 1072/15',
+        normativeText: NORMATIVE_FRAGMENTS.ESTILOS_VIDA_SALUDABLE
     },
     {
         id: 'aud_3_1_8',

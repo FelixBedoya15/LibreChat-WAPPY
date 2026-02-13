@@ -445,6 +445,18 @@ export const NORMATIVE_FRAGMENTS = {
     NORMATIVA VIGENTE:
        - Artículo 5, literal f): "Adaptar las condiciones de trabajo y medio ambiente laboral según las recomendaciones y/o restricciones emitidas en el concepto ocupacional en un término no superior a veinte (20) días hábiles, posterior a la realización de las evaluaciones médicas ocupacionales."`,
 
+   'ESTILOS_VIDA_SALUDABLE': `ESTILOS DE VIDA Y ENTORNO SALUDABLE (Ley 1355 y Res 3461):
+
+    NORMATIVA VIGENTE:
+       1. LEY 1355 DE 2009 (LEY DE OBESIDAD):
+          - Art 20: Obliga a las empresas a promover políticas de seguridad alimentaria y nutricional, así como entornos que faciliten la actividad física ("Pausas Activas") y el consumo de alimentos saludables.
+
+       2. RESOLUCIÓN 3461 DE 2025 (CONVIVENCIA Y SALUD MENTAL):
+          - Al regular el Comité de Convivencia, refuerza que un entorno saludable también implica un clima laboral libre de acoso, violencia y estrés tóxico.
+
+       3. DECRETO 1072/15 (PREVENCIÓN):
+          - Art 2.2.4.6.24: Medidas de prevención y control que incluyan fomento de estilos de vida saludables.`,
+
    // --- OTRAS NORMAS ---
    'RES_2013_COPASST': `RESOLUCIÓN 2013 DE 1986 (COPASST):
     Reglamenta la organización y funcionamiento de los Comités de Medicina, Higiene y Seguridad Industrial (hoy COPASST).
