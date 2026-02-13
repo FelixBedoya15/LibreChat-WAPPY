@@ -797,8 +797,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar informes de mediciones ambientales y su análisis.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        criteria: 'Res 0312/19: E4.1.5 | Dec 1072/15: 2.2.4.6.15 (Identificación Peligros)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_15_PELIGROS
+        criteria: 'Res 0312/19: E4.1.5 | Res 2400/79 (Estándares) | Dec 1072/15',
+        normativeText: NORMATIVE_FRAGMENTS.MEDICIONES_AMBIENTALES_DETALLE
     },
 
     // Medidas Prevención

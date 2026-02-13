@@ -895,7 +895,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         code: '4.1.5',
         name: 'Realización de mediciones ambientales',
         description: 'Deben realizarse mediciones ambientales cuando se requiera.',
-        evaluation: 'Verificar informes de mediciones ambientales y su análisis.',
+        evaluation: 'Verificar informes de mediciones ambientales y su contraste con límites (Res 2400/79).',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
         points: 4,

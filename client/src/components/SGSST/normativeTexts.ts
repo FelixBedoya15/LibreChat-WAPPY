@@ -77,6 +77,19 @@ export const NORMATIVE_FRAGMENTS = {
    'DEC_1072_ART_15_PELIGROS': `ARTÍCULO 2.2.4.6.15. Identificación de peligros, evaluación y valoración de los riesgos.
     El empleador o contratante debe aplicar una metodología sistemática, que tenga alcance sobre todos los procesos y actividades rutinarias y no rutinarias internas o externas, máquinas y equipos, todos los centros de trabajo y todos los trabajadores independientemente de su forma de contratación y vinculación, que le permita identificar los peligros y evaluar los riesgos en seguridad y salud en el trabajo, con el fin que pueda priorizarlos y establecer los controles necesarios.`,
 
+   'MEDICIONES_AMBIENTALES_DETALLE': `MEDICIONES AMBIENTALES (Res 2400/79):
+
+    NORMATIVA VIGENTE:
+       1. RESOLUCIÓN 0312 DE 2019 (Estándar 4.1.5):
+          - Exige realizar mediciones ambientales (físicas, químicas, biológicas) cuando el riesgo lo amerite y compararlas con los límites permisibles.
+          
+       2. DECRETO 1072/15 (Art 2.2.4.6.15):
+          - La identificación de peligros debe contemplar todos los agentes de riesgo, incluyendo los que requieren mediciones higiénicas.
+          
+       3. RESOLUCIÓN 2400 DE 1979 (Títulos III, IV, V):
+          - ESTÁNDARES TÉCNICOS: Proporciona los límites permisibles y estándares para factores como ruido, temperatura, ventilación, iluminación y radiaciones.
+          - VALIDACIÓN: Los resultados obtenidos en las mediciones deben contrastarse con los valores límite de esta resolución (y sus actualizaciones como Res 1792/90 para ruido, Res 8321/83, etc).`,
+
    'DEC_1072_ART_16_EVAL_INICIAL': `ARTÍCULO 2.2.4.6.16. Evaluación inicial del sistema de gestión de la seguridad y salud en el trabajo SG-SST.
     La evaluación inicial deberá realizarse con el fin de identificar las prioridades en seguridad y salud en el trabajo para establecer el plan de trabajo anual o para la actualización del existente.
     
@@ -503,16 +516,13 @@ export const NORMATIVE_FRAGMENTS = {
        2. DECRETO 1072/15 (Art 2.2.4.6.32):
           - Reitera la obligación de investigar incidentes y accidentes para identificar causas y establecer acciones correctivas.`,
 
-   'SUSTANCIAS_CARCINOGENAS_DETALLE': `SUSTANCIAS CARCINÓGENAS Y TOXICIDAD AGUDA (Res 0312 y Circular 0038):
+   'SUSTANCIAS_CARCINOGENAS_DETALLE': `SUSTANCIAS CARCINÓGENAS Y TOXICIDAD AGUDA (Circular 0038):
 
     NORMATIVA VIGENTE:
-       1. RESOLUCIÓN 0312 DE 2019 (Estándar 4.1.4):
-          - Exige verificar si en la empresa se procesan, manipulan o trabajan con sustancias catalogadas como carcinógenas o con toxicidad aguda.
-          
-       2. DECRETO 1072/15 (Art 2.2.4.6.15 - Parágrafo 2):
+       1. DECRETO 1072/15 (Art 2.2.4.6.15 - Parágrafo 2):
           - El empleador debe identificar y relacionar en el SG-SST los trabajadores que se dediquen de forma permanente a actividades de alto riesgo (incluyendo sustancias cancerígenas).
           
-       3. CIRCULAR 0038 DE 2022:
+       2. CIRCULAR 0038 DE 2022:
           - Establece directrices para la vigilancia de los trabajadores expuestos a sustancias carcinógenas.`,
 
    // --- OTRAS NORMAS ---
