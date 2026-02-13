@@ -52,7 +52,14 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         let promptText = '';
 
         if (type === 'auditoria') {
-            const { weightedScore, weightedPercentage } = req.body;
+            const { weightedScore = 0, weightedPercentage = 0 } = req.body;
+            console.log('[SGSST Audit Analysis] Payload:', {
+                score,
+                totalPoints,
+                weightedScore,
+                weightedPercentage,
+                checklistLength: checklist?.length
+            });
 
             promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
 

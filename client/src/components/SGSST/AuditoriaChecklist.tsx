@@ -183,8 +183,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 complianceLevel: { level: compliancePercentage >= 85 ? 'Conforme' : 'No Conforme' },
 
                 // New Fields for Dual Scoring
-                weightedScore: weightedScore,
-                weightedPercentage: weightedPercentage,
+                weightedScore: weightedScore || 0,
+                weightedPercentage: weightedPercentage || 0,
 
                 userName: user?.name || user?.username || 'Auditor',
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
