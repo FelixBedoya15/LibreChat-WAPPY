@@ -457,6 +457,30 @@ export const NORMATIVE_FRAGMENTS = {
        3. DECRETO 1072/15 (PREVENCIÓN):
           - Art 2.2.4.6.24: Medidas de prevención y control que incluyan fomento de estilos de vida saludables.`,
 
+   'SERVICIOS_BASICOS_DETALLE': `SERVICIOS BÁSICOS Y BIENESTAR (Res 2400/79 y Dec 1072):
+
+    NORMATIVA VIGENTE:
+       1. RESOLUCIÓN 2400 DE 1979 (ESTATUTO DE SEGURIDAD):
+          - Art 17-38: Especificaciones técnicas de suministro de agua potable (fresca y apta para consumo) y de servicios sanitarios (separados por sexo, dotados y limpios).
+          - Orden y Aseo: Obligación de mantener los lugares de trabajo limpios y ordenados.
+
+       2. DECRETO 1072/15 (Medidas de Prevención):
+          - Art 2.2.4.6.24: Clasifica el suministro de condiciones básicas como una medida de prevención de riesgos biológicos y de saneamiento básico.`,
+
+   'GESTION_RESIDUOS_DETALLE': `ELIMINACIÓN ADECUADA DE RESIDUOS (Res 2184/19 y Dec 4741/05):
+
+    NORMATIVA VIGENTE:
+       1. DECRETO 1072/15 (Art 2.2.4.6.24):
+          - Exige la eliminación de residuos como medida de control de peligros biológicos y químicos.
+
+       2. RESOLUCIÓN 2184 DE 2019 (CÓDIGO DE COLORES):
+          - Blanco: Aprovechables (Plástico, vidrio, metales, papel, cartón).
+          - Negro: No aprovechables (Papel higiénico, servilletas, papeles contaminados).
+          - Verde: Orgánicos aprovechables (Restos de comida).
+
+       3. DECRETO 4741 DE 2005 (RESPEL):
+          - Regula la gestión integral de Residuos Peligrosos (si aplica a la actividad económica).`,
+
    // --- OTRAS NORMAS ---
    'RES_2013_COPASST': `RESOLUCIÓN 2013 DE 1986 (COPASST):
     Reglamenta la organización y funcionamiento de los Comités de Medicina, Higiene y Seguridad Industrial (hoy COPASST).

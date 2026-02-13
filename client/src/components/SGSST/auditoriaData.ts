@@ -646,8 +646,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar condiciones de agua potable, servicios sanitarios y manejo de residuos.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.8 | Dec 1072/15: 2.2.4.6.24 (Medidas) | Res 2400/79',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
+        criteria: 'Res 2400/79 (Arts 17-38) | Dec 1072/15',
+        normativeText: NORMATIVE_FRAGMENTS.SERVICIOS_BASICOS_DETALLE
     },
     {
         id: 'aud_3_1_9',
@@ -657,8 +657,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar plan de manejo de residuos según normatividad ambiental.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.9 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
+        criteria: 'Res 2184/19 (Colores) | Dec 4741/05 (Peligrosos) | Dec 1072/15',
+        normativeText: NORMATIVE_FRAGMENTS.GESTION_RESIDUOS_DETALLE + '\n\n' + NORMATIVE_FRAGMENTS.DEC_1072_ART_8_OBLIGACIONES
     },
     {
         id: 'aud_reporte_min',
