@@ -50,9 +50,7 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
     const [isOpen, setIsOpen] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
+
     const menuRef = useRef<HTMLDivElement>(null);
     const localize = useLocalize();
 
