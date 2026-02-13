@@ -37,7 +37,51 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'La lista de verificación es inválida o está vacía.' });
         }
 
-        // ... (API Key retrieval logic remains the same) ...
+        // 1. Retrieve the user's Google API key
+        let resolvedApiKey;
+        try {
+            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+            try {
+                const parsed = JSON.parse(storedKey);
+                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+            } catch (parseErr) {
+                resolvedApiKey = storedKey;
+            }
+        } catch (err) {
+            logger.debug('[SGSST Diagnostico] No user Google key found, trying env vars:', err.message);
+        }
+
+        if (!resolvedApiKey) {
+            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+        }
+
+        if (!resolvedApiKey) {
+            return res.status(400).json({
+                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.',
+            });
+        }
+
+        // 2. Load company info from DB
+        let companyInfoBlock = '';
+        try {
+            const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            if (ci && ci.companyName) {
+                companyInfoBlock = `
+- Razón Social: ${ci.companyName || 'No registrado'}
+- NIT: ${ci.nit || 'No registrado'}
+- Representante Legal: ${ci.legalRepresentative || 'No registrado'}
+- Número de Trabajadores: ${ci.workerCount || 'No registrado'}
+- ARL: ${ci.arl || 'No registrada'}
+- Actividad Económica: ${ci.economicActivity || 'No registrada'}
+- Código CIIU: ${ci.ciiu || 'No registrado'}
+- Nivel de Riesgo: ${ci.riskLevel || 'No registrado'}
+- Sector: ${ci.sector || 'No registrado'}
+- Dirección: ${ci.address || 'No registrada'}, ${ci.city || ''}
+`;
+            }
+        } catch (ciErr) {
+            logger.warn('[SGSST Diagnostico] Error loading company info:', ciErr.message);
+        }
 
         // 3. Initialize the Gemini SDK directly
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
@@ -51,8 +95,6 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const safeTotal = totalPoints > 0 ? totalPoints : 1; // Prevent division by zero
         const percentage = totalPoints > 0 ? ((score / totalPoints) * 100).toFixed(1) : "0.0";
-
-        // ... (Company Info loading remains the same) ...
 
         let promptText = '';
 
