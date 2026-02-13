@@ -298,25 +298,14 @@ export const ARTICLE_9_STANDARDS: ChecklistItem[] = [
     },
     // HACER
     {
-        id: 'art9_15_desc',
-        code: '3.1.1.1',
-        name: ' > Descripción Sociodemográfica',
-        description: 'Debe existir descripción sociodemográfica de los trabajadores actualizada.',
-        evaluation: 'Verificar perfil sociodemográfico actualizado (Edad, Sexo, Escolaridad, etc.).',
+        id: 'art9_15',
+        code: '3.1.1',
+        name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
+        description: 'Debe existir descripción sociodemográfica y diagnóstico de salud de los trabajadores.',
+        evaluation: 'Verificar documento consolidado con perfil sociodemográfico y diagnóstico de salud actualizado anualmente.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 1.925,
-        article: 9,
-    },
-    {
-        id: 'art9_15_diag',
-        code: '3.1.1.2',
-        name: ' > Diagnóstico de condiciones de salud',
-        description: 'Debe existir diagnóstico de condiciones de salud de la población trabajadora.',
-        evaluation: 'Verificar diagnóstico de condiciones de salud actualizado anualmente.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        points: 1.925,
+        points: 3.85,
         article: 9,
     },
 
@@ -653,25 +642,14 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
     // II. HACER (60%)
     // Condiciones de salud (9%)
     {
-        id: 'art16_23_desc',
-        code: '3.1.1.1',
-        name: ' > Descripción Sociodemográfica',
-        description: 'Documento con la información sociodemográfica actualizada de la población trabajadora.',
-        evaluation: 'Verificar documento de perfil sociodemográfico actualizado anualmente.',
+        id: 'art16_23',
+        code: '3.1.1',
+        name: 'Descripción sociodemográfica y Diagnóstico de condiciones de salud',
+        description: 'Documento consolidado con la información sociodemográfica y el diagnóstico de salud de la población trabajadora.',
+        evaluation: 'Verificar documento de evaluación médica ocupacional (Sociodemográfico y Diagnóstico) actualizado anualmente.',
         category: 'hacer',
         subcategory: 'Condiciones de salud en el trabajo',
-        points: 0.5,
-        article: 16,
-    },
-    {
-        id: 'art16_23_diag',
-        code: '3.1.1.2',
-        name: ' > Diagnóstico de condiciones de salud',
-        description: 'Diagnóstico de salud de la población trabajadora (morbimortalidad).',
-        evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        points: 0.5,
+        points: 1,
         article: 16,
     },
 
@@ -932,7 +910,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar implementación de medidas según jerarquía de controles.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 3.0,
         article: 16,
     },
     {
@@ -943,7 +921,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar procedimientos de trabajo seguro para tareas críticas.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 3.0,
         article: 16,
     },
     {
@@ -954,7 +932,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar programa de inspecciones, formatos y registros.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 3.0,
         article: 16,
     },
     {
@@ -965,7 +943,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar programa y registros de mantenimiento preventivo y correctivo.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 3.0,
         article: 16,
     },
     {
@@ -976,7 +954,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar matriz de EPP, registros de entrega y capacitación.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 3.0,
         article: 16,
     },
     {
@@ -987,7 +965,7 @@ export const ARTICLE_16_STANDARDS: ChecklistItem[] = [
         evaluation: 'Verificar plan de emergencias, brigadas y simulacros.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 2.5,
+        points: 5.0,
         article: 16,
     },
     // III. VERIFICAR (5%)

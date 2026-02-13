@@ -550,28 +550,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Evaluación Inicial) | Res 1843/25',
         normativeText: NORMATIVE_FRAGMENTS.DIAGNOSTICO_CONDICIONES_SALUD
     },
-    {
-        id: 'aud_3_1_1_desc',
-        code: '3.1.1.1',
-        name: ' > Descripción Sociodemográfica',
-        description: 'Documento con la información sociodemográfica actualizada de la población trabajadora (Edad, Sexo, Escolaridad, Estado Civil, etc.).',
-        evaluation: 'Verificar documento de perfil sociodemográfico actualizado anualmente.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Num 7 - Sociodemográfica) | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.DX_SOCIODEMOGRAFICO
-    },
-    {
-        id: 'aud_3_1_1_diag',
-        code: '3.1.1.2',
-        name: ' > Diagnóstico de condiciones de salud',
-        description: 'Diagnóstico de salud de la población trabajadora (morbimortalidad sentida y biológica).',
-        evaluation: 'Verificar documento de diagnóstico de condiciones de salud actualizado anualmente.',
-        category: 'hacer',
-        subcategory: 'Condiciones de salud en el trabajo',
-        criteria: 'Res 0312/19: E3.1.1 | Dec 1072/15: 2.2.4.6.16 (Diagnóstico) | Res 1843/25',
-        normativeText: NORMATIVE_FRAGMENTS.DX_CONDICIONES_SALUD
-    },
+
     {
         id: 'aud_3_1_2',
         code: '3.1.2',
