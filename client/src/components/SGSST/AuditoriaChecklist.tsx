@@ -93,7 +93,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
     // Maximum possible score (all items)
     const maxPossibleScore = useMemo(() => {
-        return AUDITORIA_ITEMS.reduce((sum, item) => sum + item.points, 0);
+        return AUDITORIA_ITEMS.reduce((sum, item) => sum + (item.points || 0), 0);
     }, []);
 
     // Res 0312 Compliance Percentage (Weighted)
@@ -101,6 +101,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         if (maxPossibleScore === 0) return 0;
         return (weightedScore / maxPossibleScore) * 100;
     }, [weightedScore, maxPossibleScore]);
+
+    // Compliance Level (Visual)
+    const complianceLevel = useMemo(() => {
+        if (weightedPercentage >= 85) return { level: 'aceptable', label: 'Aceptable', color: 'text-green-600 bg-green-100' };
+        if (weightedPercentage >= 60) return { level: 'moderado', label: 'Moderado', color: 'text-yellow-600 bg-yellow-100' };
+        return { level: 'crítico', label: 'Crítico', color: 'text-red-600 bg-red-100' };
+    }, [weightedPercentage]);
 
     // Group items by category
     const groupedItems = useMemo(() => {
@@ -171,10 +178,14 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 checklist: AUDITORIA_ITEMS.map(item => ({
                     ...item,
                     status: getItemStatus(item.id),
+                    // Ensure points are included for backend context if needed
+                    points: item.points || 0
                 })),
                 score: compliantCount,
                 totalPoints: statuses.filter(s => s.status !== 'pendiente' && s.status !== 'no_aplica').length, // Total applicable items evaluated
-                complianceLevel: { level: compliancePercentage >= 85 ? 'Conforme' : 'No Conforme' },
+
+                // Use the Weighted Level (Res 0312) for consistency with UI
+                complianceLevel: { level: complianceLevel.label },
 
                 // New Fields for Dual Scoring
                 weightedScore: weightedScore || 0,
@@ -202,7 +213,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, compliantCount, compliancePercentage, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations]);
+    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations]);
 
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;
@@ -236,12 +247,23 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
     // Save report
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || analysisReport;
+        let contentToSave = editorContent || analysisReport;
         if (!contentToSave) return;
         if (!token) {
             showToast({ message: 'Error: No autorizado', status: 'error' });
             return;
         }
+
+        // Embed state data as a hidden comment
+        const stateData = {
+            statuses,
+            observations
+        };
+        const stateString = `<!-- SGSST_AUDIT_DATA_V1:${JSON.stringify(stateData)} -->`;
+
+        // Remove any existing state data before appending new
+        contentToSave = contentToSave.replace(/<!-- SGSST_AUDIT_DATA_V1:.*? -->/g, '');
+        contentToSave += stateString;
 
         try {
             const body = {
@@ -273,7 +295,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             console.error('Save error:', e);
             showToast({ message: 'Error de red al guardar', status: 'error' });
         }
-    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast]);
+    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast, statuses, observations]);
 
     // Load report from history
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
@@ -285,12 +307,32 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             const messages = await res.json();
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
-                setAnalysisReport(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                // Extract embedded state data
+                const stateMatch = lastMsg.text.match(/<!-- SGSST_AUDIT_DATA_V1:(.*?) -->/);
+                let loadedContent = lastMsg.text;
+
+                if (stateMatch && stateMatch[1]) {
+                    try {
+                        const stateData = JSON.parse(stateMatch[1]);
+                        if (stateData) {
+                            console.log('[SGSST Audit Load] Restoring state:', stateData);
+                            if (stateData.statuses) setStatuses(stateData.statuses);
+                            if (stateData.observations) setObservations(stateData.observations);
+
+                            // Remove hidden data from editor view
+                            loadedContent = loadedContent.replace(/<!-- SGSST_AUDIT_DATA_V1:.*? -->/g, '');
+                        }
+                    } catch (err) {
+                        console.error('[SGSST Audit Load] Error parsing state data:', err);
+                    }
+                }
+
+                setAnalysisReport(loadedContent);
+                setEditorContent(loadedContent);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Auditoría cargada', status: 'success' });
+                showToast({ message: 'Auditoría cargada y restaurada', status: 'success' });
             }
         } catch (e) {
             console.error('Load error:', e);
@@ -330,35 +372,27 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex flex-col gap-3 w-full md:w-auto">
-                        {/* General Audit Scoring */}
-                        <div className="flex items-center justify-between gap-6 border-b border-border-light pb-2">
-                            <div>
-                                <p className="text-xs uppercase tracking-wider font-bold text-text-secondary">Auditoría (Dec 1072)</p>
-                                <p className="text-sm text-text-tertiary">Progreso</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-2xl font-bold text-text-primary">
-                                    {compliancePercentage.toFixed(1)}%
-                                </p>
-                                <p className="text-xs text-text-secondary">{completedCount}/{totalItems} Ítems</p>
-                            </div>
+                    <div className="flex items-center gap-6">
+                        <div>
+                            <p className="text-sm text-text-secondary">Progreso</p>
+                            <p className="text-2xl font-bold text-text-primary">
+                                {completedCount}/{totalItems}
+                            </p>
                         </div>
-
-                        {/* Res 0312 Scoring */}
-                        <div className="flex items-center justify-between gap-6 pt-1">
-                            <div>
-                                <p className="text-xs uppercase tracking-wider font-bold text-blue-600">Estándares (Res 0312)</p>
-                                <p className="text-sm text-text-tertiary">Puntaje</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-2xl font-bold text-blue-600">
-                                    {weightedScore.toFixed(1)} / {maxPossibleScore.toFixed(1)}
-                                </p>
-                                <p className="text-xs text-blue-400 font-medium">
-                                    {weightedPercentage.toFixed(1)}% Cumplimiento
-                                </p>
-                            </div>
+                        <div>
+                            <p className="text-sm text-text-secondary">Puntuación</p>
+                            <p className="text-2xl font-bold text-text-primary">
+                                {weightedScore.toFixed(1)}/{maxPossibleScore.toFixed(0)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-text-secondary">Nivel</p>
+                            <span className={cn(
+                                'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium',
+                                complianceLevel.color
+                            )}>
+                                {complianceLevel.label.toUpperCase()}
+                            </span>
                         </div>
                     </div>
 
