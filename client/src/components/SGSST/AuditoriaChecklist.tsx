@@ -23,11 +23,18 @@ import { AUDITORIA_ITEMS, AuditoriaItem } from './auditoriaData';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
-import ModelSelector, { ModelOption } from '~/components/Chat/ModelSelector';
+import ModelSelector from './ModelSelector';
+
+// Define ModelOption locally since it's not exported
+interface ModelOption {
+    id: string;
+    name: string;
+}
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
 }
+
 
 interface ComplianceStatus {
     itemId: string;
