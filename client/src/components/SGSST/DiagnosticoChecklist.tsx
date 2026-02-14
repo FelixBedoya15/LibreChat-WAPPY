@@ -734,7 +734,23 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     );
                 })}
             </div>
-
+            {/* Bottom Action Button */}
+            <div className="flex justify-center mt-6 mb-4">
+                <button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || completedCount === 0}
+                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isAnalyzing ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                        <Sparkles className="h-5 w-5" />
+                    )}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                        {t('com_ui_gen_analysis', 'Generar Análisis IA')}
+                    </span>
+                </button>
+            </div>
             {/* Analysis Report - Editable */}
             {analysisReport && (
                 <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
