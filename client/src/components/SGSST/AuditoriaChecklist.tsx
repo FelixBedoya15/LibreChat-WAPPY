@@ -329,227 +329,224 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex flex-col gap-3 w-full md:w-auto">
-                        {/* General Audit Scoring */}
-                        <div className="flex items-center justify-between gap-6 border-b border-border-light pb-2">
+                {/* Progress Card */}
+                <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-6">
                             <div>
-                                <p className="text-xs uppercase tracking-wider font-bold text-text-secondary">Auditoría (Dec 1072)</p>
-                                <p className="text-sm text-text-tertiary">Progreso</p>
-                            </div>
-                            <div className="text-right">
+                                <p className="text-sm text-text-secondary">{t('com_ui_progress', 'Progreso')}</p>
                                 <p className="text-2xl font-bold text-text-primary">
-                                    {compliancePercentage.toFixed(1)}%
+                                    {completedCount}/{totalItems}
                                 </p>
-                                <p className="text-xs text-text-secondary">{completedCount}/{totalItems} Ítems</p>
                             </div>
-                        </div>
-
-                        {/* Res 0312 Scoring */}
-                        <div className="flex items-center justify-between gap-6 pt-1">
                             <div>
-                                <p className="text-xs uppercase tracking-wider font-bold text-blue-600">Estándares (Res 0312)</p>
-                                <p className="text-sm text-text-tertiary">Puntaje</p>
+                                <p className="text-sm text-text-secondary">{t('com_ui_score', 'Puntuación')}</p>
+                                <p className="text-2xl font-bold text-text-primary">
+                                    {weightedScore.toFixed(1)}/{maxPossibleScore.toFixed(0)}
+                                </p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-2xl font-bold text-blue-600">
-                                    {weightedScore.toFixed(1)} / {maxPossibleScore.toFixed(1)}
-                                </p>
-                                <p className="text-xs text-blue-400 font-medium">
-                                    {weightedPercentage.toFixed(1)}% Cumplimiento
-                                </p>
+                            <div>
+                                <p className="text-sm text-text-secondary">{t('com_ui_level', 'Nivel')}</p>
+                                <span className={cn(
+                                    'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium',
+                                    weightedPercentage < 60 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                        weightedPercentage < 85 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                )}>
+                                    {weightedPercentage < 60 ? 'CRÍTICO' :
+                                        weightedPercentage < 85 ? 'MODERADO' : 'ACEPTABLE'}
+                                </span>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
-                        >
-                            <History className="h-5 w-5" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                Historial
-                            </span>
-                        </button>
-                        <button
-                            onClick={handleAnalyze}
-                            disabled={isAnalyzing || completedCount === 0}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                Generar Informe Auditoría
-                            </span>
-                        </button>
-                        {analysisReport && (
-                            <>
-                                <button onClick={handleSave} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                    <Save className="h-5 w-5" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
-                                </button>
-                                <button onClick={handleExportWord} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                    <Download className="h-5 w-5" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Exportar</span>
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
-                    <div
-                        className={cn(
-                            'h-full transition-all duration-300',
-                            compliancePercentage >= 90 ? 'bg-green-500' :
-                                compliancePercentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                        )}
-                        style={{ width: `${compliancePercentage}%` }}
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                {['planear', 'hacer', 'verificar', 'actuar'].map((category) => {
-                    const items = groupedItems[category];
-                    if (!items || items.length === 0) return null;
-
-                    const isExpanded = expandedCategories.has(category);
-                    const categoryCompleted = items.filter(item => getItemStatus(item.id) !== 'pendiente').length;
-
-                    return (
-                        <div key={category} className="rounded-xl border border-border-medium bg-surface-secondary">
+                        <div className="flex flex-wrap items-center gap-2">
                             <button
-                                onClick={() => toggleCategoryExpanded(category)}
-                                className={cn(
-                                    'flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-surface-tertiary',
-                                    'border-l-4',
-                                    getCategoryColor(category),
-                                )}
+                                onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                                className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                             >
-                                <div className="flex items-center gap-3">
-                                    {isExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
-                                    <span className="font-bold">{getCategoryTitle(category)}</span>
-                                    <span className="text-sm text-text-secondary">({categoryCompleted}/{items.length})</span>
-                                </div>
+                                <History className="h-5 w-5" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Historial
+                                </span>
                             </button>
-
-                            {isExpanded && (
-                                <div className="divide-y divide-border-light">
-                                    {items.map((item) => {
-                                        const status = getItemStatus(item.id);
-                                        const isItemExpanded = expandedItems.has(item.id);
-
-                                        return (
-                                            <div key={item.id} className="bg-surface-primary/50 p-4">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex-1">
-                                                        <div className="flex flex-col gap-1.5">
-                                                            <h4 className="font-medium text-text-primary text-base">
-                                                                <span className="font-bold text-blue-600 mr-2">{item.code}</span>
-                                                                {item.name}
-                                                            </h4>
-                                                            <div className="group relative w-fit">
-                                                                <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
-                                                                    {item.criteria}
-                                                                </span>
-                                                                {item.normativeText && (
-                                                                    <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
-                                                                        <div className="font-semibold mb-1 text-blue-500">Fundamento Legal:</div>
-                                                                        {item.normativeText}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
-                                                        {isItemExpanded && (
-                                                            <div className="mt-2 text-xs text-text-tertiary bg-surface-tertiary p-2 rounded whitespace-pre-wrap">
-                                                                {item.evaluation}
-                                                            </div>
-                                                        )}
-                                                        <button
-                                                            onClick={() => toggleItemExpanded(item.id)}
-                                                            className="mt-1 text-xs text-blue-500 hover:underline flex items-center gap-1"
-                                                        >
-                                                            <HelpCircle className="h-3 w-3" /> Ver criterio de evaluación
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="flex flex-shrink-0 gap-1">
-                                                        {STATUS_OPTIONS.map(opt => (
-                                                            <button
-                                                                key={opt.value}
-                                                                onClick={() => handleStatusChange(item.id, opt.value)}
-                                                                className={cn(
-                                                                    'rounded-lg p-2 transition-all',
-                                                                    status === opt.value ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary'
-                                                                )}
-                                                                title={opt.label}
-                                                            >
-                                                                <opt.icon className="h-5 w-5" />
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {(status === 'parcial' || status === 'no_cumple' || status === 'no_aplica') && (
-                                                    <div className="mt-3">
-                                                        <textarea
-                                                            placeholder="Describa el hallazgo, evidencia o motivo de no aplicabilidad..."
-                                                            value={observations[item.id] || ''}
-                                                            onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-blue-500 focus:outline-none resize-none"
-                                                            rows={2}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                            <button
+                                onClick={handleAnalyze}
+                                disabled={isAnalyzing || completedCount === 0}
+                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Generar Informe Auditoría
+                                </span>
+                            </button>
+                            {analysisReport && (
+                                <>
+                                    <button onClick={handleSave} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                        <Save className="h-5 w-5" />
+                                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
+                                    </button>
+                                    <button onClick={handleExportWord} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                        <Download className="h-5 w-5" />
+                                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Exportar</span>
+                                    </button>
+                                </>
                             )}
                         </div>
-                    );
-                })}
-            </div>
-
-            <div className="flex justify-center mt-6 mb-4">
-                <button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || completedCount === 0}
-                    className="group flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
-                    Generar Informe Auditoría
-                </button>
-            </div>
-
-            {analysisReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                    <div className="flex items-center gap-2 p-4 border-b border-border-light">
-                        <FileText className="h-5 w-5 text-text-secondary" />
-                        <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
                     </div>
-                    <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                        <LiveEditor
-                            initialContent={analysisReport}
-                            onUpdate={(content) => setEditorContent(content)}
-                            onSave={handleSave}
+
+                    {/* Progress bar */}
+                    <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
+                        <div
+                            className={cn(
+                                'h-full transition-all duration-300',
+                                compliancePercentage >= 90 ? 'bg-green-500' :
+                                    compliancePercentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                            )}
+                            style={{ width: `${compliancePercentage}%` }}
                         />
                     </div>
                 </div>
-            )}
 
-            <ReportHistory
-                isOpen={isHistoryOpen}
-                toggleOpen={() => setIsHistoryOpen(false)}
-                onSelectReport={handleSelectReport}
-                refreshTrigger={refreshTrigger}
-                tags={['sgsst-auditoria']}
-            />
-        </div>
-    );
+                <div className="space-y-4">
+                    {['planear', 'hacer', 'verificar', 'actuar'].map((category) => {
+                        const items = groupedItems[category];
+                        if (!items || items.length === 0) return null;
+
+                        const isExpanded = expandedCategories.has(category);
+                        const categoryCompleted = items.filter(item => getItemStatus(item.id) !== 'pendiente').length;
+
+                        return (
+                            <div key={category} className="rounded-xl border border-border-medium bg-surface-secondary">
+                                <button
+                                    onClick={() => toggleCategoryExpanded(category)}
+                                    className={cn(
+                                        'flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-surface-tertiary',
+                                        'border-l-4',
+                                        getCategoryColor(category),
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        {isExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
+                                        <span className="font-bold">{getCategoryTitle(category)}</span>
+                                        <span className="text-sm text-text-secondary">({categoryCompleted}/{items.length})</span>
+                                    </div>
+                                </button>
+
+                                {isExpanded && (
+                                    <div className="divide-y divide-border-light">
+                                        {items.map((item) => {
+                                            const status = getItemStatus(item.id);
+                                            const isItemExpanded = expandedItems.has(item.id);
+
+                                            return (
+                                                <div key={item.id} className="bg-surface-primary/50 p-4">
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="flex-1">
+                                                            <div className="flex flex-col gap-1.5">
+                                                                <h4 className="font-medium text-text-primary text-base">
+                                                                    <span className="font-bold text-blue-600 mr-2">{item.code}</span>
+                                                                    {item.name}
+                                                                </h4>
+                                                                <div className="group relative w-fit">
+                                                                    <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
+                                                                        {item.criteria}
+                                                                    </span>
+                                                                    {item.normativeText && (
+                                                                        <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
+                                                                            <div className="font-semibold mb-1 text-blue-500">Fundamento Legal:</div>
+                                                                            {item.normativeText}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
+                                                            {isItemExpanded && (
+                                                                <div className="mt-2 text-xs text-text-tertiary bg-surface-tertiary p-2 rounded whitespace-pre-wrap">
+                                                                    {item.evaluation}
+                                                                </div>
+                                                            )}
+                                                            <button
+                                                                onClick={() => toggleItemExpanded(item.id)}
+                                                                className="mt-1 text-xs text-blue-500 hover:underline flex items-center gap-1"
+                                                            >
+                                                                <HelpCircle className="h-3 w-3" /> Ver criterio de evaluación
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex flex-shrink-0 gap-1">
+                                                            {STATUS_OPTIONS.map(opt => (
+                                                                <button
+                                                                    key={opt.value}
+                                                                    onClick={() => handleStatusChange(item.id, opt.value)}
+                                                                    className={cn(
+                                                                        'rounded-lg p-2 transition-all',
+                                                                        status === opt.value ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary'
+                                                                    )}
+                                                                    title={opt.label}
+                                                                >
+                                                                    <opt.icon className="h-5 w-5" />
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {(status === 'parcial' || status === 'no_cumple' || status === 'no_aplica') && (
+                                                        <div className="mt-3">
+                                                            <textarea
+                                                                placeholder="Describa el hallazgo, evidencia o motivo de no aplicabilidad..."
+                                                                value={observations[item.id] || ''}
+                                                                onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                                                className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-blue-500 focus:outline-none resize-none"
+                                                                rows={2}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="flex justify-center mt-6 mb-4">
+                    <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || completedCount === 0}
+                        className="group flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                        Generar Informe Auditoría
+                    </button>
+                </div>
+
+                {analysisReport && (
+                    <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                        <div className="flex items-center gap-2 p-4 border-b border-border-light">
+                            <FileText className="h-5 w-5 text-text-secondary" />
+                            <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
+                        </div>
+                        <div style={{ minHeight: '400px', overflowX: 'auto' }}>
+                            <LiveEditor
+                                initialContent={analysisReport}
+                                onUpdate={(content) => setEditorContent(content)}
+                                onSave={handleSave}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <ReportHistory
+                    isOpen={isHistoryOpen}
+                    toggleOpen={() => setIsHistoryOpen(false)}
+                    onSelectReport={handleSelectReport}
+                    refreshTrigger={refreshTrigger}
+                    tags={['sgsst-auditoria']}
+                />
+            </div>
+            );
 };
 
-export default AuditoriaChecklist;
+            export default AuditoriaChecklist;
