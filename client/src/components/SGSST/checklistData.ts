@@ -1111,12 +1111,13 @@ export function calculateScore(items: ChecklistItem[], statuses: ComplianceStatu
         if (status) {
             switch (status.status) {
                 case 'cumple':
+                case 'no_aplica':
                     score += item.points;
                     break;
                 case 'parcial':
                     score += item.points * 0.5;
                     break;
-                // 'no_cumple', 'no_aplica', 'pendiente' = 0
+                // 'no_cumple', 'pendiente' = 0
             }
         }
     }

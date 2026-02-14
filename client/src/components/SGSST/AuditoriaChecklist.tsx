@@ -75,10 +75,11 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     }, [statuses]);
 
     const compliancePercentage = useMemo(() => {
-        const applicableTotal = statuses.filter(s => s.status !== 'pendiente' && s.status !== 'no_aplica').length;
+        const noAplicaCount = statuses.filter(s => s.status === 'no_aplica').length;
+        const applicableTotal = totalItems - noAplicaCount;
         if (applicableTotal === 0) return 0;
         return (compliantCount / applicableTotal) * 100;
-    }, [statuses, compliantCount]);
+    }, [statuses, compliantCount, totalItems]);
 
     // Weighted Score (Res 0312) Calculation
     const weightedScore = useMemo(() => {
@@ -91,15 +92,17 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         }, 0);
     }, [statuses]);
 
-    // Maximum possible score (only applicable items)
+    // Maximum possible score (all items except no_aplica)
     const maxPossibleScore = useMemo(() => {
-        return statuses.reduce((acc, status) => {
-            if (status.status !== 'no_aplica' && status.status !== 'pendiente') {
+        const totalPoints = AUDITORIA_ITEMS.reduce((sum, item) => sum + item.points, 0);
+        const noAplicaPoints = statuses.reduce((sum, status) => {
+            if (status.status === 'no_aplica') {
                 const item = AUDITORIA_ITEMS.find(i => i.id === status.itemId);
-                return acc + (item?.points || 0);
+                return sum + (item?.points || 0);
             }
-            return acc;
+            return sum;
         }, 0);
+        return totalPoints - noAplicaPoints;
     }, [statuses]);
 
     // Res 0312 Compliance Percentage (Weighted)
