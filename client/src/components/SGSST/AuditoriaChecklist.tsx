@@ -371,28 +371,74 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                    {/* Card 1: Auditoría Global (Dec 1072) */}
+                    <div className="bg-surface-primary p-4 rounded-xl border border-border-medium flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-sm text-text-secondary">Progreso</p>
-                            <p className="text-2xl font-bold text-text-primary">
-                                {completedCount}/{totalItems}
-                            </p>
+                            <p className="text-sm font-medium text-text-secondary">Auditoría (Dec 1072)</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <span className="text-2xl font-bold text-text-primary">
+                                    {compliancePercentage.toFixed(1)}%
+                                </span>
+                                <span className="text-xs text-text-tertiary">
+                                    ({completedCount}/{totalItems} ítems)
+                                </span>
+                            </div>
+                            <div className="mt-2 text-xs text-text-tertiary">
+                                Cumplimiento de requisitos globales y normas adicionales
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">Puntuación</p>
-                            <p className="text-2xl font-bold text-text-primary">
-                                {weightedScore.toFixed(1)}/{maxPossibleScore.toFixed(0)}
-                            </p>
+                        <div className="h-12 w-12 rounded-full border-4 border-blue-500 flex items-center justify-center text-xs font-bold bg-blue-50 text-blue-700">
+                            {compliancePercentage.toFixed(0)}%
                         </div>
+                    </div>
+
+                    {/* Card 2: Estándares Mínimos (Res 0312) */}
+                    <div className="bg-surface-primary p-4 rounded-xl border border-border-medium flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-sm text-text-secondary">Nivel</p>
-                            <span className={cn(
-                                'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium',
-                                complianceLevel.color
-                            )}>
-                                {complianceLevel.label.toUpperCase()}
-                            </span>
+                            <p className="text-sm font-medium text-text-secondary">Estándares (Res 0312)</p>
+                            <div className="flex items-baseline gap-2 mt-1">
+                                <span className="text-2xl font-bold text-text-primary">
+                                    {weightedScore.toFixed(2)}
+                                </span>
+                                <span className="text-sm font-medium text-text-secondary">
+                                    / 100 Puntos
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className={cn(
+                                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                                    complianceLevel.color
+                                )}>
+                                    {complianceLevel.label.toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                        <div className={cn(
+                            "h-12 w-12 rounded-full border-4 flex items-center justify-center text-xs font-bold bg-surface-primary",
+                            complianceLevel.color.replace('bg-', 'border-').replace('text-', 'text-')
+                        )}>
+                            {weightedScore.toFixed(0)}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                    {/* Progress bar for Standards (Critical) */}
+                    <div className="flex-1 min-w-[200px]">
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="text-text-secondary">Progreso Estándares Mínimos</span>
+                            <span className="font-medium">{weightedPercentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
+                            <div
+                                className={cn(
+                                    'h-full transition-all duration-300',
+                                    weightedPercentage >= 85 ? 'bg-green-500' :
+                                        weightedPercentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                )}
+                                style={{ width: `${weightedPercentage}%` }}
+                            />
                         </div>
                     </div>
 
