@@ -423,14 +423,14 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                    {/* Progress bar for Standards (Critical) */}
-                    <div className="flex-1 min-w-[200px]">
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Progress Bar 1: Standards (Res 0312) */}
+                    <div>
                         <div className="flex justify-between text-xs mb-1">
-                            <span className="text-text-secondary">Progreso Estándares Mínimos</span>
-                            <span className="font-medium">{weightedPercentage.toFixed(1)}%</span>
+                            <span className="text-text-secondary font-medium">Progreso Estándares Mínimos</span>
+                            <span className="font-bold text-text-primary">{weightedPercentage.toFixed(1)}%</span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-tertiary">
                             <div
                                 className={cn(
                                     'h-full transition-all duration-300',
@@ -442,51 +442,53 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
-                        >
-                            <History className="h-5 w-5" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                Historial
-                            </span>
-                        </button>
-                        <button
-                            onClick={handleAnalyze}
-                            disabled={isAnalyzing || completedCount === 0}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                Generar Informe Auditoría
-                            </span>
-                        </button>
-                        {analysisReport && (
-                            <>
-                                <button onClick={handleSave} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                    <Save className="h-5 w-5" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
-                                </button>
-                                <button onClick={handleExportWord} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                    <Download className="h-5 w-5" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Exportar</span>
-                                </button>
-                            </>
-                        )}
+                    {/* Progress Bar 2: Audit (Dec 1072) */}
+                    <div>
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="text-text-secondary font-medium">Auditoría (Dec 1072/15)</span>
+                            <span className="font-bold text-text-primary">{compliancePercentage.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-tertiary">
+                            <div
+                                className={cn(
+                                    'h-full transition-all duration-300',
+                                    compliancePercentage >= 90 ? 'bg-green-500' :
+                                        compliancePercentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                                )}
+                                style={{ width: `${compliancePercentage}%` }}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
-                    <div
-                        className={cn(
-                            'h-full transition-all duration-300',
-                            compliancePercentage >= 90 ? 'bg-green-500' :
-                                compliancePercentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                        )}
-                        style={{ width: `${compliancePercentage}%` }}
-                    />
+                <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border-light pt-4">
+                    <button
+                        onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                        className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                    >
+                        <History className="h-4 w-4 mr-2" />
+                        Historial
+                    </button>
+                    <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || completedCount === 0}
+                        className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        Generar Informe
+                    </button>
+                    {analysisReport && (
+                        <>
+                            <button onClick={handleSave} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                <Save className="h-4 w-4 mr-2" />
+                                Guardar
+                            </button>
+                            <button onClick={handleExportWord} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                <Download className="h-4 w-4 mr-2" />
+                                Exportar
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
