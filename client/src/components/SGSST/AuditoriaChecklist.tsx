@@ -426,7 +426,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         </div>
                         <div className={cn(
                             "h-12 w-12 rounded-full border-4 flex items-center justify-center text-xs font-bold bg-surface-primary",
-                            complianceLevel.color.replace('bg-', 'border-').replace('text-', 'text-')
+                            (complianceLevel.color || '').replace('bg-', 'border-').replace('text-', 'text-')
                         )}>
                             {weightedScore.toFixed(0)}
                         </div>
