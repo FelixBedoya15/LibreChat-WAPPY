@@ -23,6 +23,7 @@ import { AUDITORIA_ITEMS, AuditoriaItem } from './auditoriaData';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
+import ModelSelector, { ModelOption } from '~/components/Chat/ModelSelector';
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -57,6 +58,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState('');
+    const [selectedModel, setSelectedModel] = useState<ModelOption | null>(null);
 
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -194,6 +196,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 userName: user?.name || user?.username || 'Auditor',
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
                 observations,
+                model: selectedModel?.value,
             };
 
             // Call analysis API (reusing diagnostic endpoint with type='auditoria')
@@ -213,7 +216,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations]);
+    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations, selectedModel]);
 
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;
@@ -462,12 +465,21 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-border-light pt-4">
+                    {/* Model Selector */}
+                    <ModelSelector
+                        selectedModel={selectedModel}
+                        onSelectModel={setSelectedModel}
+                        disabled={isAnalyzing}
+                    />
+
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
                         <History className="h-4 w-4 mr-2" />
-                        Historial
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Historial
+                        </span>
                     </button>
                     <button
                         onClick={handleAnalyze}
@@ -475,19 +487,30 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                        Generar Informe
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Generar Informe
+                        </span>
                     </button>
-                    {analysisReport && (
+
+                    {/* Show Save/Export if content exists OR we have analysis results */}
+                    {(analysisReport || editorContent || completedCount > 0) && (
                         <>
                             <button onClick={handleSave} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
                                 <Save className="h-4 w-4 mr-2" />
-                                Guardar
-                            </button>
-                            <button onClick={handleExportWord} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <Download className="h-4 w-4 mr-2" />
-                                Exportar
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Guardar
+                                </span>
                             </button>
                         </>
+                    )}
+
+                    {(analysisReport || editorContent) && (
+                        <button onClick={handleExportWord} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                            <Download className="h-4 w-4 mr-2" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                Exportar
+                            </span>
+                        </button>
                     )}
                 </div>
             </div>
