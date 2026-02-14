@@ -23,13 +23,8 @@ import { AUDITORIA_ITEMS, AuditoriaItem } from './auditoriaData';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
-import ModelSelector from './ModelSelector';
 
-// Define ModelOption locally since it's not exported
-interface ModelOption {
-    id: string;
-    name: string;
-}
+import ModelSelector, { AI_MODELS } from './ModelSelector';
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -65,7 +60,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState('');
-    const [selectedModel, setSelectedModel] = useState<ModelOption | null>(null);
+
+    const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0].id);
 
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -203,7 +199,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 userName: user?.name || user?.username || 'Auditor',
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
                 observations,
-                model: selectedModel?.value,
+                model: selectedModel,
             };
 
             // Call analysis API (reusing diagnostic endpoint with type='auditoria')
