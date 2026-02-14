@@ -546,7 +546,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     tags={['sgsst-auditoria']}
                 />
             </div>
-            );
+        </div>
+    );
 };
 
-            export default AuditoriaChecklist;
+export default AuditoriaChecklist;
