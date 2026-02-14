@@ -80,230 +80,30 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['planear', 'hacer', 'verificar', 'actuar']));
 
+    const handleCompanySizeChange = (newSize: CompanySize) => {
+        setCompanySize(newSize);
+        // Reset state on filter change
+        setStatuses([]);
+        setObservations({});
+        setExpandedItems(new Set());
+    };
+
+    const handleRiskLevelChange = (newLevel: RiskLevel) => {
+        setRiskLevel(newLevel);
+        // Reset state on filter change
+        setStatuses([]);
+        setObservations({});
+        setExpandedItems(new Set());
+    };
+
     // Observations state
     const [observations, setObservations] = useState<Record<string, string>>({});
 
-    // Analysis state  
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [analysisReport, setAnalysisReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
-
-    // History & save state
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    const [conversationId, setConversationId] = useState('new');
-    const [reportMessageId, setReportMessageId] = useState<string | null>(null);
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
-
-    // Get applicable checklist
-    const checklist = useMemo(() => {
-        return getApplicableChecklist(companySize, riskLevel);
-    }, [companySize, riskLevel]);
-
-    const applicableArticle = useMemo(() => {
-        return getApplicableArticle(companySize, riskLevel);
-    }, [companySize, riskLevel]);
-
-    // Calculate scores
-    const totalPoints = useMemo(() => getTotalPoints(checklist), [checklist]);
-    const currentScore = useMemo(() => calculateScore(checklist, statuses), [checklist, statuses]);
-    const complianceLevel = useMemo(() => getComplianceLevel(currentScore, totalPoints), [currentScore, totalPoints]);
-
-    // Group items by category
-    const groupedItems = useMemo(() => {
-        const groups: Record<string, ChecklistItem[]> = {
-            planear: [],
-            hacer: [],
-            verificar: [],
-            actuar: [],
-        };
-        checklist.forEach(item => {
-            groups[item.category].push(item);
-        });
-        return groups;
-    }, [checklist]);
-
-    // Progress calculation
-    const completedCount = useMemo(() => {
-        return statuses.filter(s => s.status !== 'pendiente').length;
-    }, [statuses]);
-
-    const handleStatusChange = useCallback((itemId: string, status: ComplianceStatus['status']) => {
-        setStatuses(prev => {
-            const existing = prev.find(s => s.itemId === itemId);
-            if (existing) {
-                return prev.map(s => s.itemId === itemId ? { ...s, status } : s);
-            }
-            return [...prev, { itemId, status }];
-        });
-    }, []);
-
-    const toggleItemExpanded = useCallback((itemId: string) => {
-        setExpandedItems(prev => {
-            const next = new Set(prev);
-            if (next.has(itemId)) {
-                next.delete(itemId);
-            } else {
-                next.add(itemId);
-            }
-            return next;
-        });
-    }, []);
-
-    const toggleCategoryExpanded = useCallback((category: string) => {
-        setExpandedCategories(prev => {
-            const next = new Set(prev);
-            if (next.has(category)) {
-                next.delete(category);
-            } else {
-                next.add(category);
-            }
-            return next;
-        });
-    }, []);
-
-    const getItemStatus = useCallback((itemId: string): ComplianceStatus['status'] => {
-        return statuses.find(s => s.itemId === itemId)?.status || 'pendiente';
-    }, [statuses]);
-
-    const handleAnalyze = useCallback(async () => {
-        if (completedCount === 0) {
-            showToast({ message: t('com_ui_complete_one_item', 'Complete al menos un ítem antes de analizar'), status: 'warning' });
-            return;
-        }
-
-        setIsAnalyzing(true);
-
-        try {
-            // Prepare data for analysis
-            const analysisData = {
-                checklist,
-                score: currentScore,
-                totalPoints,
-                percentage: parseFloat(complianceLevel.percentage),
-                riskLevel: riskLevel,
-                companySize: companySize,
-                observations,
-                modelName: selectedModel,
-                complianceLevel,
-                userName: user?.name || user?.username || 'Usuario',
-                currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
-            };
-
-            // Call analysis API
-            console.log('[DiagnosticoChecklist] Sending analysis data:', analysisData);
-
-            const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const result = response.data;
-            setAnalysisReport(result.report);
-            setEditorContent(result.report);
-            setConversationId('new');
-            setReportMessageId(null);
-            onAnalysisComplete?.(result.report);
-            showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
-        } catch (error: any) {
-            console.error('Analysis error:', error);
-            const errorMsg = error.response?.data?.error || error.message || t('com_ui_analysis_error', 'Error al generar el análisis');
-            showToast({ message: `Error: ${errorMsg}`, status: 'error', duration: 5000 });
-        } finally {
-            setIsAnalyzing(false);
-        }
-    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations, token]);
-
-    const handleExportWord = useCallback(async () => {
-        const contentForExport = editorContent || analysisReport;
-        if (!contentForExport) {
-            showToast({ message: t('com_ui_generate_analysis_first', 'Primero genere el análisis'), status: 'warning' });
-            return;
-        }
-
-        // Convert HTML to plain text/markdown for Word export
-        const htmlToMarkdown = (html: string): string => {
-            // Extract body content if full HTML doc
-            let body = html;
-            const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-            if (bodyMatch) body = bodyMatch[1];
-
-            // Strip style/script tags entirely
-            body = body.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-            body = body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-
-            // Convert headings
-            body = body.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n');
-            body = body.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n');
-            body = body.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n');
-            body = body.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n');
-
-            // Convert tables to markdown
-            body = body.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_, tableContent) => {
-                const rows: string[] = [];
-                const rowMatches = tableContent.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
-                rowMatches.forEach((row: string, idx: number) => {
-                    const cells = (row.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi) || []).map((cell: string) =>
-                        cell.replace(/<t[hd][^>]*>/i, '').replace(/<\/t[hd]>/i, '').replace(/<[^>]+>/g, '').trim()
-                    );
-                    rows.push('| ' + cells.join(' | ') + ' |');
-                    if (idx === 0) {
-                        rows.push('| ' + cells.map(() => '---').join(' | ') + ' |');
-                    }
-                });
-                return rows.join('\n') + '\n';
-            });
-
-            // Convert lists
-            body = body.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
-            body = body.replace(/<\/?[uo]l[^>]*>/gi, '\n');
-
-            // Convert formatting
-            body = body.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
-            body = body.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-            body = body.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
-            body = body.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-
-            // Convert paragraphs and line breaks
-            body = body.replace(/<br\s*\/?>/gi, '\n');
-            body = body.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-            body = body.replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n');
-
-            // Strip remaining HTML tags
-            body = body.replace(/<[^>]+>/g, '');
-
-            // Decode HTML entities
-            body = body.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"');
-
-            // Clean up whitespace
-            body = body.replace(/\n{3,}/g, '\n\n').trim();
-
-            return body;
-        };
-
-        const markdownContent = htmlToMarkdown(contentForExport);
-
-        // Dynamic import of word export
-        const { exportToWord } = await import('~/utils/wordExport');
-
-        await exportToWord(markdownContent, {
-            documentTitle: 'Informe Diagnóstico SG-SST',
-            fontFamily: 'Arial',
-            fontSize: 11,
-            margins: 1,
-            logoUrl: '',
-            showPagination: true,
-            coverTitle: 'Informe de Diagnóstico Inicial\nSistema de Gestión de Seguridad y Salud en el Trabajo',
-            messageTitle: 'Evaluación según Resolución 0312 de 2019',
-        });
-
-        showToast({ message: t('com_ui_export_word_success', 'Informe exportado a Word'), status: 'success' });
-    }, [editorContent, analysisReport, showToast]);
+    // ... (keep existing state)
 
     // Save report using dedicated backend endpoint
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || analysisReport;
+        let contentToSave = editorContent || analysisReport;
         if (!contentToSave) {
             showToast({ message: t('com_ui_no_report_save', 'No hay informe para guardar'), status: 'warning' });
             return;
@@ -313,9 +113,23 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             return;
         }
 
+        // Embed state data as a hidden comment
+        const stateData = {
+            statuses,
+            observations,
+            companySize,
+            riskLevel
+        };
+        const stateString = `<!-- SGSST_DATA_V1:${JSON.stringify(stateData)} -->`;
+
+        // Remove any existing state data before appending new
+        contentToSave = contentToSave.replace(/<!-- SGSST_DATA_V1:.*? -->/g, '');
+        contentToSave += stateString;
+
         try {
             // Update existing report
             if (conversationId && conversationId !== 'new' && reportMessageId) {
+                // ... (rest of update logic)
                 console.log('[SGSST Save] Updating existing:', conversationId, reportMessageId);
                 const res = await fetch('/api/sgsst/diagnostico/save-report', {
                     method: 'PUT',
@@ -324,6 +138,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         conversationId,
                         messageId: reportMessageId,
                         content: contentToSave,
+                        title: `Diagnóstico SGSST - ${new Date().toLocaleDateString('es-CO')}`, // Refresh title date
                     }),
                 });
 
@@ -331,6 +146,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     setRefreshTrigger(prev => prev + 1);
                     showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success' });
                 } else {
+                    // ... error handling
                     const err = await res.json();
                     showToast({ message: `${t('com_ui_update_error', 'Error al actualizar')}: ${err.error || res.status}`, status: 'error' });
                 }
@@ -344,9 +160,10 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     content: contentToSave,
+                    title: `Diagnóstico SGSST - ${new Date().toLocaleDateString('es-CO')}`,
                 }),
             });
-
+            // ... (rest of create logic)
             if (res.ok) {
                 const data = await res.json();
                 setConversationId(data.conversationId);
@@ -357,11 +174,12 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 const err = await res.json();
                 showToast({ message: `${t('com_ui_save_error', 'Error al guardar')}: ${err.error || res.status}`, status: 'error' });
             }
+
         } catch (e) {
             console.error('[SGSST Save] Error:', e);
             showToast({ message: t('com_ui_save_network_error', 'Error de red al guardar el diagnóstico'), status: 'error' });
         }
-    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast]);
+    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast, statuses, observations, companySize, riskLevel]);
 
     // Load report from history
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
@@ -375,12 +193,38 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             // Find the last message with content
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
-                setAnalysisReport(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                // Extract embedded state data
+                const stateMatch = lastMsg.text.match(/<!-- SGSST_DATA_V1:(.*?) -->/);
+                let loadedContent = lastMsg.text;
+
+                if (stateMatch && stateMatch[1]) {
+                    try {
+                        const stateData = JSON.parse(stateMatch[1]);
+                        if (stateData) {
+                            console.log('[SGSST Load] Restoring state:', stateData);
+                            if (stateData.statuses) setStatuses(stateData.statuses);
+                            if (stateData.observations) setObservations(stateData.observations);
+                            if (stateData.companySize) setCompanySize(stateData.companySize);
+                            if (stateData.riskLevel) setRiskLevel(stateData.riskLevel);
+
+                            // Remove the hidden data from the editor view to avoid confusion
+                            // loadedContent = loadedContent.replace(/<!-- SGSST_DATA_V1:.*? -->/g, ''); 
+                            // Actually, keeping it in editorContent is fine as it's hidden HTML, but cleaner to strip for display if needed.
+                            // However, if we strip it, the next save might lose it if we don't re-append. 
+                            // My handleSave logic re-appends based on current state, so stripping it from editor is safer.
+                            loadedContent = loadedContent.replace(/<!-- SGSST_DATA_V1:.*? -->/g, '');
+                        }
+                    } catch (err) {
+                        console.error('[SGSST Load] Error parsing state data:', err);
+                    }
+                }
+
+                setAnalysisReport(loadedContent);
+                setEditorContent(loadedContent);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
-                showToast({ message: t('com_ui_diagnostic_loaded', 'Diagnóstico cargado'), status: 'success' });
+                showToast({ message: t('com_ui_diagnostic_loaded', 'Diagnóstico cargado y restaurado'), status: 'success' });
             }
         } catch (e) {
             console.error('Load error:', e);
@@ -424,7 +268,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         </label>
                         <select
                             value={companySize}
-                            onChange={(e) => setCompanySize(e.target.value as CompanySize)}
+                            onChange={(e) => handleCompanySizeChange(e.target.value as CompanySize)}
                             className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-blue-500 focus:outline-none"
                         >
                             {COMPANY_SIZE_OPTIONS.map(opt => (
@@ -439,7 +283,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         </label>
                         <select
                             value={riskLevel}
-                            onChange={(e) => setRiskLevel(Number(e.target.value) as RiskLevel)}
+                            onChange={(e) => handleRiskLevelChange(Number(e.target.value) as RiskLevel)}
                             className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-blue-500 focus:outline-none"
                         >
                             {RISK_LEVEL_OPTIONS.map(opt => (
