@@ -114,7 +114,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 **Auditor Líder:** ${userName || req.user?.name || 'Usuario del Sistema'}
 **Criterios de Auditoría:** Decreto 1072 de 2015 (Capítulo 6), Resolución 0312 de 2019.
 
-Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA completo.
+Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA INTERNA EXTENSO Y PROFESIONAL en formato HTML.
 
 ## DATOS DE LA AUDITORÍA
 
@@ -124,10 +124,9 @@ ${companyInfoBlock}
 **Resumen de Resultados (Doble Calificación):**
 1. **Auditoría de Cumplimiento (Dec 1072):**
    - Porcentaje de Conformidad: ${percentage}%
-   - Total Requisitos Evaluados: ${checklist.length}
    - Conformidades (Cumple): ${completedItems.length}
-   - No Conformidades Mayores/Menores: ${nonCompliantItems.length + partialItems.length}
-   - Observaciones (No Aplica): ${notApplicable.length}
+   - No Conformidades (No Cumple): ${nonCompliantItems.length}
+   - Observaciones (Parcial/No Aplica): ${partialItems.length + notApplicable.length}
 
 2. **Estándares Mínimos (Res 0312):**
    - Puntaje Obtenido: ${weightedScore || 'N/A'}
@@ -136,39 +135,63 @@ ${companyInfoBlock}
 **Detalle de No Conformidades y Hallazgos:**
 **NO CONFORMIDADES (Incumplimientos):**
 ${nonCompliantItems.map(item => {
-                const obs = observations && observations[item.id] ? ` (Evidencia/Obs: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? ` (Evidencia: ${observations[item.id]})` : '';
                 return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguna'}
 
-**OBSERVACIONES / OPORTUNIDADES DE MEJORA (Parciales):**
+**CUMPLIMIENTO PARCIAL (Observaciones):**
 ${partialItems.map(item => {
-                const obs = observations && observations[item.id] ? ` (Evidencia/Obs: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? ` (Evidencia: ${observations[item.id]})` : '';
                 return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguna'}
 
-## INSTRUCCIONES
+## INSTRUCCIONES - GENERACIÓN DE INFORME AUDITORÍA DETALLADO
 
-Genera un INFORME DE AUDITORÍA INTERNA en formato HTML con las siguientes secciones obligatorias:
+Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO en formato HTML RICO Y ESTILIZADO.
+**IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser idéntico al de un informe gerencial de alto nivel.
 
-1. **OBJETIVO Y ALCANCE**:
-   - Objetivo: Verificar el cumplimiento del SG-SST frente al Decreto 1072 y la mejora continua.
-   - Alcance: Todos los procesos del SG-SST evaluados.
+1. **ENCABEZADO Y CONTEXTO**:
+   - Crea una tabla elegante para la información de la empresa y del auditor.
+   - Usa un diseño limpio con bordes sutiles.
 
-2. **RESUMEN EJECUTIVO**: Concepto global sobre la eficacia del sistema, mencionando ambos puntajes (Cumplimiento Dec 1072 y Ponderado Res 0312).
+2. **RESUMEN EJECUTIVO (EXTENSO)**:
+   - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
+     Redacta un resumen ejecutivo profundo sobre el estado del SG-SST, mencionando explícitamente el cumplimiento del Decreto 1072 y la Resolución 0312.
+     </div>
 
-3. **FORTALEZAS**: Aspectos positivos destacados.
+3. **ANÁLISIS DE RESULTADOS (VISUAL Y GRÁFICO)**:
+   - **TARJETAS DE PUNTUACIÓN:** Genera dos recuadros (divs) visuales lado a lado para los dos puntajes (Dec 1072 y Res 0312).
+   - **GRÁFICOS DE BARRAS (PHVA):** Para cada ciclo (Planear, Hacer, Verificar, Actuar), genera una **BARRA DE PROGRESO** visual (HTML/CSS).
+   - **FORTALEZAS:** Lista las fortalezas encontradas.
 
-4. **HALLAZGOS DETALLADOS**:
-   - Análisis de las No Conformidades detectadas.
-   - Análisis de debilidades en el ciclo PHVA.
+4. **HALLAZGOS DETALLADOS (TABLA DE NO CONFORMIDADES)**:
+   - **OBLIGATORIO:** Debes incluir **TODAS** las "No Conformidades" y "Cumplimientos Parciales" en una tabla detallada.
+   - **TABLA HTML:**
+     - Columnas: Requisito/Norma | Hallazgo (Descripción) | Tipo (No Conformidad/Observación) | Recomendación.
+     - Si hay muchos ítems, la tabla debe ser larga. NO omitas ninguno.
 
 5. **CONCLUSIONES DE AUDITORÍA**:
-   - ¿El sistema es conforme con los requisitos propios y legales?
-   - ¿El sistema se implementa y mantiene eficazmente?
+   - Concepto final sobre la conformidad y eficacia del sistema.
+   - Riesgos legales implicados.
 
-6. **RECOMENDACIONES**: Acciones para abordar hallazgos y mejora continua.
+6. **RECOMENDACIONES Y PLAN DE MEJORA**:
+   - Acciones inmediatas sugeridas.
 
-IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). Usa etiquetas <h2>, <h3>, <p>, <ul>, <li>, <strong>. Estilos inline profesionales (ej: color azul corporativo para títulos).`;
+**ESTILOS OBLIGATORIOS (CSS INLINE):**
+- Títulos (h1, h2): Color azul oscuro (#004d99).
+- Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
+- Celdas (td): padding="10px", border-bottom="1px solid #ddd".
+
+**FIRMA OBLIGATORIA:**
+Al final del informe, firma estrictamente así (SIN IMÁGENES):
+<div style="margin-top: 50px; text-align: center;">
+    <strong>${userName || req.user?.name || 'Auditor Líder'}</strong><br>
+    Auditor Líder SG-SST (Certificado ISO 45001 / Dec. 1072)<br>
+    Licencia en Seguridad y Salud en el Trabajo Vigente
+</div>
+IMPORTANTE: NO incluyas ninguna etiqueta &lt;img&gt; ni placeholders de imagen para la firma. Solo texto.
+
+Genera SOLO el contenido del cuerpo (HTML body tags).`;
 
         } else {
             // Default Diagnostic Prompt (Resolución 0312)
@@ -264,12 +287,13 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 - Texto: Párrafos bien estructurados, no bloques de texto infinito.
 
 **FIRMA OBLIGATORIA:**
-Al final del informe, firma estrictamente así:
+Al final del informe, firma estrictamente así (SIN IMÁGENES):
 <div style="margin-top: 50px; text-align: center;">
     <strong>${userName || req.user?.name || 'Usuario del Sistema'}</strong><br>
     Consultor Experto en SG-SST<br>
     Licencia en Seguridad y Salud en el Trabajo Vigente
 </div>
+IMPORTANTE: NO incluyas ninguna etiqueta &lt;img&gt; ni placeholders de imagen para la firma. Solo texto.
 
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
         }

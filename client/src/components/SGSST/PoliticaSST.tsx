@@ -407,7 +407,7 @@ const PoliticaSST = () => {
                             );
                         })}
 
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-center pt-2">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating || !hazards.trim()}
