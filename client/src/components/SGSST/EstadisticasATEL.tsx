@@ -475,6 +475,7 @@ const EstadisticasATEL = () => {
                     </div>
                     <div className="h-[800px]">
                         <LiveEditor
+                            key={reportMessageId || 'editor'}
                             initialContent={generatedReport}
                             onUpdate={(html) => setEditorContent(html)}
                             onSave={handleSaveReport}
