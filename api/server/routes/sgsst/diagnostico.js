@@ -215,15 +215,17 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
      Cada hallazgo debe seguir esta estructura:
      "Se identificó que [DESCRIBIR LO ENCONTRADO / EVIDENCIA DEL AUDITOR], lo cual incumple lo establecido en [NORMA + ARTÍCULO ESPECÍFICO del CRITERIO NORMATIVO]."
      Ejemplo: "Se identificó que la empresa no cuenta con auditoría anual del SG-SST (evidencia: No cuenta con auditoría), incumpliendo lo establecido en el Decreto 1072 de 2015, Art. 2.2.4.6.29 y Resolución 0312 de 2019, Estándar E6.1.2."
-   - **TABLA HTML con las siguientes columnas:**
-     | # (NC-X / OBS-X) | Requisito/Norma (usar CRITERIO NORMATIVO completo) | Hallazgo (redacción ISO 19011 con evidencia) | Tipo (No Conformidad Mayor / No Conformidad Menor / Observación) | Acción Correctiva (detallada: qué hacer, cómo, cuándo) | Responsable | Plazo |
-   - **VERIFICACIÓN:** Antes de cerrar la tabla, cuenta las filas. Si tienes menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
-   - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
+    - **TABLA HTML con las siguientes columnas (SIN columna de Acción Correctiva ni Plazo — esas van en la sección del Plan de Acción):**
+      | # (NC-X / OBS-X) | Requisito/Norma (usar CRITERIO NORMATIVO completo) | Hallazgo (redacción ISO 19011 con evidencia) | Tipo (No Conformidad Mayor / No Conformidad Menor / Observación) | Responsable |
+    - **VERIFICACIÓN:** Antes de cerrar la tabla, cuenta las filas. Si tienes menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
+    - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
+    - **NO incluyas columnas de Acción Correctiva ni Plazo en esta tabla.** Esas columnas van SOLO en la tabla del Plan de Acción (sección 5).
 
-5. **PLAN DE ACCIÓN Y MEJORA (UNA FILA POR CADA HALLAZGO — NO AGRUPAR)**:
-   - **REGLA CRÍTICA: Cada hallazgo (NC-X u OBS-X) DEBE tener su PROPIA fila individual en la tabla. PROHIBIDO agrupar múltiples NCs en una sola fila. Si hay ${nonCompliantItems.length + partialItems.length} hallazgos, la tabla DEBE tener exactamente ${nonCompliantItems.length + partialItems.length} filas.**
+5. **PLAN DE ACCIÓN Y MEJORA RECOMENDADO (TABLA SEPARADA — UNA FILA POR CADA HALLAZGO)**:
+   - **IMPORTANTE: Esta es una tabla COMPLETAMENTE SEPARADA de los Hallazgos. NO la fusiones con la tabla anterior.**
+   - **REGLA CRÍTICA: Cada hallazgo (NC-X u OBS-X) DEBE tener su PROPIA fila individual. Si hay ${nonCompliantItems.length + partialItems.length} hallazgos, la tabla DEBE tener exactamente ${nonCompliantItems.length + partialItems.length} filas.**
    - **TABLA HTML con las siguientes columnas:**
-     | # (NC-X / OBS-X) | Hallazgo (descripción breve) | Norma Incumplida | Acción Correctiva (específica, ejecutable y detallada — NO genérica) | Responsable | Recurso Necesario | Evidencia de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
+     | # (NC-X / OBS-X) | Acción Correctiva Detallada (específica y ejecutable) | Recurso Necesario | Evidencia de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
    - Ordena las filas por prioridad (NC Mayores primero) pero SIN agrupar. Cada fila es independiente.
 
 6. **CONCLUSIONES DE AUDITORÍA (MUY EXTENSAS Y DETALLADAS)**:
