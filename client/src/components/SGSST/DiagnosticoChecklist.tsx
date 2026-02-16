@@ -191,9 +191,15 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         setIsAnalyzing(true);
 
         try {
+            // Merge statuses into checklist items so the backend knows each item's evaluation
+            const checklistWithStatuses = checklist.map(item => ({
+                ...item,
+                status: getItemStatus(item.id),
+            }));
+
             // Prepare data for analysis
             const analysisData = {
-                checklist,
+                checklist: checklistWithStatuses,
                 score: currentScore,
                 totalPoints,
                 percentage: parseFloat(complianceLevel.percentage),

@@ -86,6 +86,10 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         // 3. Initialize the Gemini SDK directly
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
 
+        // Convert numeric riskLevel to readable label
+        const riskLabels = { 1: 'I (Mínimo)', 2: 'II (Bajo)', 3: 'III (Medio)', 4: 'IV (Alto)', 5: 'V (Máximo)' };
+        const riskLevelLabel = riskLabels[riskLevel] || riskLevel;
+
         // Build checklist stats
         const completedItems = checklist.filter(item => item.status === 'cumple');
         const partialItems = checklist.filter(item => item.status === 'parcial');
@@ -113,6 +117,8 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 **Fecha de Auditoría:** ${currentDate || new Date().toLocaleDateString('es-CO')}
 **Auditor Líder:** ${userName || req.user?.name || 'Usuario del Sistema'}
 **Criterios de Auditoría:** Decreto 1072 de 2015 (Capítulo 6), Resolución 0312 de 2019.
+
+**REGLA CRÍTICA: Debes basar tu informe EXCLUSIVAMENTE en los datos proporcionados a continuación. NO inventes, supongas ni alucines hallazgos. Si un estándar aparece como "cumple", NO lo reportes como No Conformidad. Si aparece como "no_cumple", SÍ repórtalo. Respeta estrictamente las listas de conformidad/no conformidad dadas.**
 
 Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA INTERNA EXTENSO Y PROFESIONAL en formato HTML.
 
@@ -203,13 +209,15 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
     
 Analiza los resultados de la evaluación según la Resolución 0312 de 2019 y genera un INFORME GERENCIAL completo.
 
+**REGLA CRÍTICA: Debes basar tu informe EXCLUSIVAMENTE en los datos proporcionados a continuación. NO inventes, supongas ni alucines hallazgos. Si un estándar aparece como "CUMPLE", NO lo reportes como incumplido. Respeta estrictamente las listas de cumplimiento/incumplimiento dadas.**
+
 ## DATOS DE LA EVALUACIÓN
 
-**Información de la Empresa:**
-- Tamaño: ${companySize === 'small' ? '≤10 trabajadores' : companySize === 'medium' ? '11-50 trabajadores' : '>50 trabajadores'}
-- Nivel de Riesgo: ${riskLevel}
+**Información de la Empresa (Filtros de Evaluación Seleccionados):**
+- Tamaño de Empresa: ${companySize === 'small' ? '≤10 trabajadores' : companySize === 'medium' ? '11-50 trabajadores' : '>50 trabajadores'}
+- Nivel de Riesgo Seleccionado para Evaluación: ${riskLevelLabel}
 - Artículo Aplicable: Artículo ${applicableArticle}
-${companyInfoBlock}
+${companyInfoBlock ? `\n**Datos Registrados de la Empresa (referencia, NO usar si contradice los filtros anteriores):**\n${companyInfoBlock}` : ''}
 
 **Resultados:**
 - Puntuación Total: ${score}/${totalPoints} (${percentage}%)
