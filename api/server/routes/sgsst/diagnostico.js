@@ -167,19 +167,19 @@ ${companyInfoBlock}
 **PORCENTAJES POR CICLO PHVA (PRE-CALCULADOS — USAR EXACTAMENTE ESTOS VALORES):**
 ${phvaSummary}
 
-**Detalle de No Conformidades y Hallazgos:**
-**NO CONFORMIDADES (Incumplimientos):**
-${nonCompliantItems.map(item => {
+**Detalle de No Conformidades y Hallazgos (TOTAL: ${nonCompliantItems.length} No Conformidades + ${partialItems.length} Observaciones = ${nonCompliantItems.length + partialItems.length} hallazgos que DEBEN aparecer en la tabla):**
+**NO CONFORMIDADES (${nonCompliantItems.length} ítems — TODOS deben aparecer individualmente en la tabla):**
+${nonCompliantItems.map((item, idx) => {
                 const obs = observations && observations[item.id] ? `\n  → EVIDENCIA: "${observations[item.id]}"` : '';
                 const criteria = item.criteria ? `\n  → CRITERIO NORMATIVO: ${item.criteria}` : '';
-                return `- ${item.code} - ${item.name}: ${item.description}${criteria}${obs}`;
+                return `${idx + 1}. [NC-${idx + 1}] ${item.code} - ${item.name}: ${item.description}${criteria}${obs}`;
             }).join('\n') || 'Ninguna'}
 
-**CUMPLIMIENTO PARCIAL (Observaciones):**
-${partialItems.map(item => {
+**CUMPLIMIENTO PARCIAL (${partialItems.length} ítems — TODOS deben aparecer individualmente en la tabla):**
+${partialItems.map((item, idx) => {
                 const obs = observations && observations[item.id] ? `\n  → EVIDENCIA: "${observations[item.id]}"` : '';
                 const criteria = item.criteria ? `\n  → CRITERIO NORMATIVO: ${item.criteria}` : '';
-                return `- ${item.code} - ${item.name}: ${item.description}${criteria}${obs}`;
+                return `${idx + 1}. [OBS-${idx + 1}] ${item.code} - ${item.name}: ${item.description}${criteria}${obs}`;
             }).join('\n') || 'Ninguna'}
 
 ## INSTRUCCIONES - GENERACIÓN DE INFORME AUDITORÍA DETALLADO
@@ -206,14 +206,14 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
    - **FORTALEZAS:** Lista las fortalezas encontradas basándote en los ítems que cumplen.
 
 4. **HALLAZGOS DETALLADOS (TABLA DE NO CONFORMIDADES Y OBSERVACIONES)**:
-   - **OBLIGATORIO:** Debes incluir **TODAS** las No Conformidades y Cumplimientos Parciales.
+   - **OBLIGATORIO — CONTEO EXACTO:** La tabla DEBE tener exactamente **${nonCompliantItems.length + partialItems.length} filas** (${nonCompliantItems.length} No Conformidades + ${partialItems.length} Observaciones). Cada ítem listado arriba con su código [NC-X] o [OBS-X] DEBE tener su propia fila individual. NO agrupes, resumas ni omitas ninguno.
    - **FORMATO DE REDACCIÓN DE CADA HALLAZGO (ISO 19011):**
      Cada hallazgo debe seguir esta estructura:
      "Se identificó que [DESCRIBIR LO ENCONTRADO / EVIDENCIA DEL AUDITOR], lo cual incumple lo establecido en [NORMA + ARTÍCULO ESPECÍFICO del CRITERIO NORMATIVO]."
      Ejemplo: "Se identificó que la empresa no cuenta con auditoría anual del SG-SST (evidencia: No cuenta con auditoría), incumpliendo lo establecido en el Decreto 1072 de 2015, Art. 2.2.4.6.29 y Resolución 0312 de 2019, Estándar E6.1.2."
    - **TABLA HTML con las siguientes columnas:**
-     | Requisito/Norma (usar CRITERIO NORMATIVO completo) | Hallazgo (redacción ISO 19011 con evidencia) | Tipo (No Conformidad Mayor / No Conformidad Menor / Observación) | Acción Correctiva (detallada: qué hacer, cómo, cuándo) | Responsable | Plazo |
-   - Si hay muchos ítems, la tabla DEBE ser extensa. NO omitas ninguno.
+     | # (NC-X / OBS-X) | Requisito/Norma (usar CRITERIO NORMATIVO completo) | Hallazgo (redacción ISO 19011 con evidencia) | Tipo (No Conformidad Mayor / No Conformidad Menor / Observación) | Acción Correctiva (detallada: qué hacer, cómo, cuándo) | Responsable | Plazo |
+   - **VERIFICACIÓN:** Antes de cerrar la tabla, cuenta las filas. Si tienes menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
    - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
 
 5. **CONCLUSIONES DE AUDITORÍA (EXTENSAS Y DETALLADAS)**:
@@ -281,16 +281,16 @@ ${completedItems.map(item => {
                 return `- ${item.code} - ${item.name} (${item.category.toUpperCase()})`;
             }).join('\n') || 'Ninguno'}
 
-**Estándares que NO CUMPLEN (Críticos):**
-${nonCompliantItems.map(item => {
+**Estándares que NO CUMPLEN (Críticos — ${nonCompliantItems.length} ítems, TODOS deben aparecer en el plan de acción):**
+${nonCompliantItems.map((item, idx) => {
                 const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN DEL EVALUADOR: "${observations[item.id]}"` : '';
-                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+                return `${idx + 1}. [NC-${idx + 1}] ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguno'}
 
-**Estándares que CUMPLEN PARCIALMENTE:**
-${partialItems.map(item => {
+**Estándares que CUMPLEN PARCIALMENTE (${partialItems.length} ítems):**
+${partialItems.map((item, idx) => {
                 const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN DEL EVALUADOR: "${observations[item.id]}"` : '';
-                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+                return `${idx + 1}. [OBS-${idx + 1}] ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguno'}
 
 **Estándares que NO APLICAN:**
@@ -325,10 +325,10 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
    - Texto explicativo extenso sobre fortalezas y debilidades.
 
 4. **PLAN DE ACCIÓN COMPLETO (TODOS LOS HALLAZGOS)**:
-   - **IMPORTANTE:** NO hagas un "Top 5". Debes incluir **TODOS** los estándares que no cumplen.
+   - **CONTEO EXACTO:** La tabla DEBE tener exactamente **${nonCompliantItems.length}** filas de No Conformidades + **${partialItems.length}** filas de Parciales = **${nonCompliantItems.length + partialItems.length}** filas totales. Cada ítem [NC-X] y [OBS-X] DEBE tener su propia fila. NO agrupes, resumas ni omitas.
    - Usa una **TABLA HTML** extensa.
-   - Columnas: Estándar | Hallazgo | Acción Correctiva (Detallada) | Responsable | Plazo.
-   - Si hay muchos hallazgos, la tabla debe ser larga. NO omitas ninguno.
+   - Columnas: # (NC-X / OBS-X) | Estándar | Hallazgo (basado en observación del evaluador) | Acción Correctiva (Detallada) | Responsable | Plazo.
+   - **VERIFICACIÓN:** Si la tabla tiene menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
 
 5. **RIESGOS Y CONSECUENCIAS**:
    - Usa listas con iconos (puedes usar emojis como ⚠️ o ⚖️ sutilmente si encajan, o bullets estilizados) para enumerar consecuencias legales y operativas.
