@@ -227,6 +227,11 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
    - **TABLA HTML con las siguientes columnas:**
      | # (NC-X / OBS-X) | Acción Correctiva Detallada (específica y ejecutable) | Recurso Necesario | Evidencia de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
    - Ordena las filas por prioridad (NC Mayores primero) pero SIN agrupar. Cada fila es independiente.
+   - **COLORES POR PLAZO (aplicar background-color a cada fila <tr> según el plazo):**
+     * Inmediato (0-30d): fondo rojo claro (#ffe0e0)
+     * Corto (1-3m): fondo naranja claro (#fff0e0)
+     * Mediano (3-6m): fondo amarillo claro (#fff8e0)
+     * Largo (6-12m): fondo verde claro (#e0ffe0)
 
 6. **CONCLUSIONES DE AUDITORÍA (MUY EXTENSAS Y DETALLADAS)**:
    - Concepto final sobre la conformidad y eficacia del SG-SST (mínimo 3 párrafos extensos).
@@ -241,6 +246,7 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 - Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd".
 - NC Mayor: fondo rosa claro (#ffe0e0). NC Menor: fondo amarillo claro (#fff8e0). Observación: fondo azul claro (#e0f0ff).
+- Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo), Corto (#fff0e0 naranja), Mediano (#fff8e0 amarillo), Largo (#e0ffe0 verde).
 
 **FIRMA OBLIGATORIA:**
 Al final del informe, firma estrictamente así (SIN IMÁGENES):
