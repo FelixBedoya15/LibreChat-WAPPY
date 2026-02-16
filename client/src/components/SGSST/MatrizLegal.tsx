@@ -17,6 +17,7 @@ import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
+import ExportDropdown from './ExportDropdown';
 
 const MatrizLegal = () => {
     const { t } = useTranslation();
@@ -139,19 +140,7 @@ const MatrizLegal = () => {
         }
     }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast, t]);
 
-    const handleExportWord = useCallback(async () => {
-        const contentForExport = editorContent || generatedMatrix;
-        if (!contentForExport) return;
 
-        try {
-            const { exportToWord } = await import('~/utils/wordExport');
-            await exportToWord(contentForExport, `Matriz_Legal_SGSST_${new Date().toISOString().split('T')[0]}`);
-            showToast({ message: t('com_ui_export_success', 'Exportación exitosa'), status: 'success' });
-        } catch (error) {
-            console.error('Export error:', error);
-            showToast({ message: t('com_ui_export_error', 'Error al exportar'), status: 'error' });
-        }
-    }, [editorContent, generatedMatrix, showToast, t]);
 
     const handleSelectReport = (report: any) => {
         if (report && report.content) {
@@ -218,15 +207,10 @@ const MatrizLegal = () => {
                                     {t('com_ui_save', 'Guardar')}
                                 </span>
                             </button>
-                            <button
-                                onClick={handleExportWord}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                            >
-                                <Download className="h-5 w-5" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    {t('com_ui_export_word', 'Exportar Word')}
-                                </span>
-                            </button>
+                            <ExportDropdown
+                                content={editorContent || generatedMatrix || ''}
+                                fileName="Matriz_Legal_SGSST"
+                            />
                         </>
                     )}
                 </div>

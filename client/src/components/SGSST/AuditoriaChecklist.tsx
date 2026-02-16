@@ -25,6 +25,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 
 import ModelSelector, { AI_MODELS } from './ModelSelector';
+import ExportDropdown from './ExportDropdown';
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -238,35 +239,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         }
     }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations, selectedModel, conversationId]);
 
-    const handleExportWord = useCallback(async () => {
-        const contentForExport = editorContent || analysisReport;
-        if (!contentForExport) {
-            showToast({ message: 'Primero genere el informe', status: 'warning' });
-            return;
-        }
 
-        // Simple HTML to Markdown conversion (reused generic logic)
-        // In a real refactor, this should be a shared utility
-        let body = contentForExport.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-            .replace(/<[^>]+>/g, (tag) => tag.startsWith('<h') || tag.startsWith('<p') || tag.startsWith('<li') ? '\n' + tag : tag)
-            .replace(/<[^>]+>/g, '');
-
-        // Dynamic import of word export
-        const { exportToWord } = await import('~/utils/wordExport');
-
-        await exportToWord(body, {
-            documentTitle: 'Informe Auditoría SST',
-            fontFamily: 'Arial',
-            fontSize: 11,
-            margins: 1,
-            coverTitle: 'Informe de Auditoría Interna\nSistema de Gestión de Seguridad y Salud en el Trabajo',
-            messageTitle: 'Auditoría de cumplimiento Decreto 1072',
-            logoUrl: '',
-            showPagination: true,
-        });
-
-        showToast({ message: 'Informe exportado a Word', status: 'success' });
-    }, [editorContent, analysisReport, showToast]);
 
     // Save report
     const handleSave = useCallback(async () => {
@@ -530,12 +503,10 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     )}
 
                     {(analysisReport || editorContent) && (
-                        <button onClick={handleExportWord} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                            <Download className="h-5 w-5" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                Exportar
-                            </span>
-                        </button>
+                        <ExportDropdown
+                            content={editorContent || analysisReport || ''}
+                            fileName="Informe_Auditoria_SST"
+                        />
                     )}
                 </div>
             </div>

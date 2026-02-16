@@ -188,8 +188,12 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 **IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser profesional y de alto nivel.
 
 1. **ENCABEZADO Y CONTEXTO**:
-   - Crea una tabla elegante para la información de la empresa y del auditor.
-   - Incluir: Alcance, Objetivo, Criterios de auditoría (Dec 1072 Cap 6, Res 0312).
+   - **PRIMERO** genera un título grande y centrado como encabezado principal del informe:
+     <h1 style="text-align: center; color: #004d99; margin-bottom: 5px;">INFORME DE AUDITORÍA INTERNA</h1>
+     <h2 style="text-align: center; color: #666; margin-top: 0;">Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST)</h2>
+   - **DESPUÉS** del título, crea una tabla elegante con la información de la empresa y del auditor.
+   - Incluir en la tabla: Empresa, NIT, Fecha, Auditor Líder, Alcance, Criterios de auditoría (Dec 1072 Cap 6, Res 0312).
+   - El título NO debe estar dentro de la tabla.
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
    - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
@@ -216,19 +220,19 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
    - **VERIFICACIÓN:** Antes de cerrar la tabla, cuenta las filas. Si tienes menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
    - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
 
-5. **CONCLUSIONES DE AUDITORÍA (MUY EXTENSAS Y DETALLADAS)**:
+5. **PLAN DE ACCIÓN Y MEJORA (UNA FILA POR CADA HALLAZGO — NO AGRUPAR)**:
+   - **REGLA CRÍTICA: Cada hallazgo (NC-X u OBS-X) DEBE tener su PROPIA fila individual en la tabla. PROHIBIDO agrupar múltiples NCs en una sola fila. Si hay ${nonCompliantItems.length + partialItems.length} hallazgos, la tabla DEBE tener exactamente ${nonCompliantItems.length + partialItems.length} filas.**
+   - **TABLA HTML con las siguientes columnas:**
+     | # (NC-X / OBS-X) | Hallazgo (descripción breve) | Norma Incumplida | Acción Correctiva (específica, ejecutable y detallada — NO genérica) | Responsable | Recurso Necesario | Evidencia de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
+   - Ordena las filas por prioridad (NC Mayores primero) pero SIN agrupar. Cada fila es independiente.
+
+6. **CONCLUSIONES DE AUDITORÍA (MUY EXTENSAS Y DETALLADAS)**:
    - Concepto final sobre la conformidad y eficacia del SG-SST (mínimo 3 párrafos extensos).
    - **Análisis de cada NC Mayor:** Para CADA No Conformidad Mayor identificada, escribe un párrafo dedicado describiendo: qué se encontró, por qué es crítico para el sistema, cuál es la norma incumplida, y cuál es el riesgo legal específico (multas según Dec 472/15 de 1 a 500 SMLMV, sanciones del Ministerio de Trabajo, cierre temporal/definitivo, responsabilidad solidaria, etc.).
    - Fortalezas encontradas en el sistema (al menos 1 párrafo).
    - Comparación con los requisitos del Decreto 1072 y la Resolución 0312.
    - Recomendación sobre si el sistema es CONFORME, CONFORME CON OBSERVACIONES o NO CONFORME, con justificación detallada.
    - Las conclusiones deben ser extensas, descriptivas y autoexplicativas. NO sean breves ni genéricas.
-
-6. **PLAN DE ACCIÓN Y MEJORA (UNA FILA POR CADA HALLAZGO — NO AGRUPAR)**:
-   - **REGLA CRÍTICA: Cada hallazgo (NC-X u OBS-X) DEBE tener su PROPIA fila individual en la tabla. PROHIBIDO agrupar múltiples NCs en una sola fila. Si hay ${nonCompliantItems.length + partialItems.length} hallazgos, la tabla DEBE tener exactamente ${nonCompliantItems.length + partialItems.length} filas.**
-   - **TABLA HTML con las siguientes columnas:**
-     | # (NC-X / OBS-X) | Hallazgo (descripción breve) | Norma Incumplida | Acción Correctiva (específica, ejecutable y detallada — NO genérica) | Responsable | Recurso Necesario | Indicador de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
-   - Ordena las filas por prioridad (NC Mayores primero) pero SIN agrupar. Cada fila es independiente.
 
 **ESTILOS OBLIGATORIOS (CSS INLINE):**
 - Títulos (h1, h2): Color azul oscuro (#004d99).
@@ -239,8 +243,9 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 **FIRMA OBLIGATORIA:**
 Al final del informe, firma estrictamente así (SIN IMÁGENES):
 <div style="margin-top: 50px; text-align: center;">
+    <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
     <strong>${userName || req.user?.name || 'Auditor Líder'}</strong><br>
-    Auditor Líder SG-SST (Certificado ISO 45001 / Dec. 1072)<br>
+    Auditor Líder SG-SST (Dec. 1072/2015)<br>
     Licencia en Seguridad y Salud en el Trabajo Vigente
 </div>
 IMPORTANTE: NO incluyas ninguna etiqueta &lt;img&gt; ni placeholders de imagen para la firma. Solo texto.

@@ -37,6 +37,7 @@ import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
+import ExportDropdown from './ExportDropdown';
 
 // Force rebuild verification
 console.log('DiagnosticoChecklist loaded');
@@ -255,91 +256,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         }
     }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations, token, selectedModel, conversationId]);
 
-    const handleExportWord = useCallback(async () => {
-        const contentForExport = editorContent || analysisReport;
-        if (!contentForExport) {
-            showToast({ message: t('com_ui_generate_analysis_first', 'Primero genere el análisis'), status: 'warning' });
-            return;
-        }
 
-        // Convert HTML to plain text/markdown for Word export
-        const htmlToMarkdown = (html: string): string => {
-            // Extract body content if full HTML doc
-            let body = html;
-            const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-            if (bodyMatch) body = bodyMatch[1];
-
-            // Strip style/script tags entirely
-            body = body.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-            body = body.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-
-            // Convert headings
-            body = body.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n');
-            body = body.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n');
-            body = body.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n');
-            body = body.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n');
-
-            // Convert tables to markdown
-            body = body.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_, tableContent) => {
-                const rows: string[] = [];
-                const rowMatches = tableContent.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
-                rowMatches.forEach((row: string, idx: number) => {
-                    const cells = (row.match(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi) || []).map((cell: string) =>
-                        cell.replace(/<t[hd][^>]*>/i, '').replace(/<\/t[hd]>/i, '').replace(/<[^>]+>/g, '').trim()
-                    );
-                    rows.push('| ' + cells.join(' | ') + ' |');
-                    if (idx === 0) {
-                        rows.push('| ' + cells.map(() => '---').join(' | ') + ' |');
-                    }
-                });
-                return rows.join('\n') + '\n';
-            });
-
-            // Convert lists
-            body = body.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
-            body = body.replace(/<\/?[uo]l[^>]*>/gi, '\n');
-
-            // Convert formatting
-            body = body.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
-            body = body.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-            body = body.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
-            body = body.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-
-            // Convert paragraphs and line breaks
-            body = body.replace(/<br\s*\/?>/gi, '\n');
-            body = body.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
-            body = body.replace(/<div[^>]*>(.*?)<\/div>/gi, '$1\n');
-
-            // Strip remaining HTML tags
-            body = body.replace(/<[^>]+>/g, '');
-
-            // Decode HTML entities
-            body = body.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"');
-
-            // Clean up whitespace
-            body = body.replace(/\n{3,}/g, '\n\n').trim();
-
-            return body;
-        };
-
-        const markdownContent = htmlToMarkdown(contentForExport);
-
-        // Dynamic import of word export
-        const { exportToWord } = await import('~/utils/wordExport');
-
-        await exportToWord(markdownContent, {
-            documentTitle: 'Informe Diagnóstico SG-SST',
-            fontFamily: 'Arial',
-            fontSize: 11,
-            margins: 1,
-            logoUrl: '',
-            showPagination: true,
-            coverTitle: 'Informe de Diagnóstico Inicial\nSistema de Gestión de Seguridad y Salud en el Trabajo',
-            messageTitle: 'Evaluación según Resolución 0312 de 2019',
-        });
-
-        showToast({ message: t('com_ui_export_word_success', 'Informe exportado a Word'), status: 'success' });
-    }, [editorContent, analysisReport, showToast]);
 
     // Save report using dedicated backend endpoint
     const handleSave = useCallback(async () => {
@@ -618,15 +535,10 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                         {t('com_ui_save', 'Guardar')}
                                     </span>
                                 </button>
-                                <button
-                                    onClick={handleExportWord}
-                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                                >
-                                    <Download className="h-5 w-5" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                        {t('com_ui_export_word', 'Exportar Word')}
-                                    </span>
-                                </button>
+                                <ExportDropdown
+                                    content={editorContent || analysisReport || ''}
+                                    fileName="Informe_Diagnostico_SST"
+                                />
                             </>
                         )}
                     </div>
