@@ -649,11 +649,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
                     </div>
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                        <LiveEditor
-                            initialContent={analysisReport}
-                            onUpdate={(content) => setEditorContent(content)}
-                            onSave={handleSave}
-                        />
+                        <div style={{ minWidth: '650px' }}>
+                            <LiveEditor
+                                initialContent={analysisReport}
+                                onUpdate={(content) => setEditorContent(content)}
+                                onSave={handleSave}
+                            />
+                        </div>
                     </div>
                     <style>{`
                         [contenteditable] table {
