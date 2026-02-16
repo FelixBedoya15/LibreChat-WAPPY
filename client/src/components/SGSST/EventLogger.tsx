@@ -162,55 +162,106 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                     No hay eventos registrados en este mes.
                 </div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
-                        <thead className="bg-surface-tertiary text-text-secondary uppercase font-medium">
-                            <tr>
-                                <th className="px-3 py-2 rounded-tl-lg">Fecha</th>
-                                <th className="px-3 py-2">Tipo</th>
-                                <th className="px-3 py-2">Peligro</th>
-                                <th className="px-3 py-2">Causa</th>
-                                <th className="px-3 py-2">Consecuencia</th>
-                                <th className="px-3 py-2 text-center">Días Incap.</th>
-                                <th className="px-3 py-2 text-center">Días Carg.</th>
-                                <th className="px-3 py-2 rounded-tr-lg w-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border-medium">
-                            {events.map((event) => (
-                                <tr key={event.id} className="hover:bg-surface-tertiary/30 transition-colors">
-                                    <td className="px-3 py-2 whitespace-nowrap">{event.fecha}</td>
-                                    <td className="px-3 py-2">
+                <>
+                    {/* Desktop Table View */}
+                    <div className="hidden sm:block overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-surface-tertiary text-text-secondary uppercase font-medium">
+                                <tr>
+                                    <th className="px-3 py-2 rounded-tl-lg">Fecha</th>
+                                    <th className="px-3 py-2">Tipo</th>
+                                    <th className="px-3 py-2">Peligro</th>
+                                    <th className="px-3 py-2">Causa</th>
+                                    <th className="px-3 py-2">Consecuencia</th>
+                                    <th className="px-3 py-2 text-center">Días Incap.</th>
+                                    <th className="px-3 py-2 text-center">Días Carg.</th>
+                                    <th className="px-3 py-2 rounded-tr-lg w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border-medium">
+                                {events.map((event) => (
+                                    <tr key={event.id} className="hover:bg-surface-tertiary/30 transition-colors">
+                                        <td className="px-3 py-2 whitespace-nowrap">{event.fecha}</td>
+                                        <td className="px-3 py-2">
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(event.tipo)}`}>
+                                                {event.tipo}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-text-primary">{event.peligro || '-'}</td>
+                                        <td className="px-3 py-2 text-text-secondary">{event.causaInmediata || '-'}</td>
+                                        <td className="px-3 py-2 text-text-secondary">{event.consecuencia || '-'}</td>
+                                        <td className="px-3 py-2 text-center font-medium">{event.diasIncapacidad}</td>
+                                        <td className="px-3 py-2 text-center text-text-secondary">{event.diasCargados || 0}</td>
+                                        <td className="px-3 py-2 text-center">
+                                            <button
+                                                onClick={() => handleDelete(event.id)}
+                                                className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-surface-tertiary/50 font-semibold text-text-primary border-t border-border-medium">
+                                <tr>
+                                    <td colSpan={5} className="px-3 py-2 text-right">Totales Mes:</td>
+                                    <td className="px-3 py-2 text-center">{events.reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0)}</td>
+                                    <td className="px-3 py-2 text-center">{events.reduce((sum, e) => sum + (e.diasCargados || 0), 0)}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    {/* Mobile Card View */}
+                    <div className="sm:hidden space-y-3">
+                        {events.map((event) => (
+                            <div key={event.id} className="p-3 bg-surface-primary border border-border-medium rounded-lg shadow-sm flex flex-col gap-2">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-medium text-text-secondary">{event.fecha}</span>
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getBadgeColor(event.tipo)}`}>
                                             {event.tipo}
                                         </span>
-                                    </td>
-                                    <td className="px-3 py-2 text-text-primary">{event.peligro || '-'}</td>
-                                    <td className="px-3 py-2 text-text-secondary">{event.causaInmediata || '-'}</td>
-                                    <td className="px-3 py-2 text-text-secondary">{event.consecuencia || '-'}</td>
-                                    <td className="px-3 py-2 text-center font-medium">{event.diasIncapacidad}</td>
-                                    <td className="px-3 py-2 text-center text-text-secondary">{event.diasCargados || 0}</td>
-                                    <td className="px-3 py-2 text-center">
-                                        <button
-                                            onClick={() => handleDelete(event.id)}
-                                            className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="bg-surface-tertiary/50 font-semibold text-text-primary border-t border-border-medium">
-                            <tr>
-                                <td colSpan={5} className="px-3 py-2 text-right">Totales Mes:</td>
-                                <td className="px-3 py-2 text-center">{events.reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0)}</td>
-                                <td className="px-3 py-2 text-center">{events.reduce((sum, e) => sum + (e.diasCargados || 0), 0)}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDelete(event.id)}
+                                        className="text-red-400 hover:text-red-600 p-1"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span className="block text-[10px] text-text-secondary uppercase">Peligro</span>
+                                        <span className="text-text-primary font-medium">{event.peligro || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[10px] text-text-secondary uppercase">Causa</span>
+                                        <span className="text-text-primary">{event.causaInmediata || '-'}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="block text-[10px] text-text-secondary uppercase">Consecuencia</span>
+                                        <span className="text-text-primary">{event.consecuencia || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[10px] text-text-secondary uppercase">Días Incap.</span>
+                                        <span className="text-text-primary font-bold">{event.diasIncapacidad}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-[10px] text-text-secondary uppercase">Días Carg.</span>
+                                        <span className="text-text-primary">{event.diasCargados || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <div className="p-3 bg-surface-tertiary rounded-lg text-xs font-semibold text-text-primary flex justify-between">
+                            <span>Totales Mes:</span>
+                            <span>{events.reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0)} días incapacidad</span>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );
