@@ -253,14 +253,63 @@ const EstadisticasATEL = () => {
         }
     }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast, t, currentMonthIndex, year]);
 
-    const handleSelectReport = (report: any) => {
-        if (report && report.content) {
-            setGeneratedReport(report.content);
-            setEditorContent(report.content);
-            setConversationId(report.conversationId);
-            setReportMessageId(report.messageId);
+    const handleSelectReport = async (reportOrId: any) => {
+        let content = '';
+        let convId = '';
+        let msgId = '';
+
+        if (typeof reportOrId === 'string') {
+            convId = reportOrId;
+            try {
+                // Fetch messages for this conversation
+                const res = await fetch(`/api/messages/${convId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    const messages = await res.json();
+
+                    // Logic to find the correct message with content
+                    // Usually the last assistant message is the report
+                    // Or filter by sender 'SGSST Diagnóstico'
+                    const reportMsg = messages.reverse().find((m: any) =>
+                        m.sender === 'SGSST Diagnóstico' ||
+                        (m.isCreatedByUser === false && m.text && m.text.includes('<html')) ||
+                        (m.isCreatedByUser === false && m.text && m.text.length > 100)
+                    );
+
+                    if (reportMsg) {
+                        content = reportMsg.text;
+                        msgId = reportMsg.messageId;
+                    } else {
+                        // Fallback: try taking the very last message text
+                        const last = messages[0]; // reversed
+                        if (last) {
+                            content = last.text;
+                            msgId = last.messageId;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching report content:', error);
+                showToast({ message: 'Error al obtener el contenido del informe', status: 'error' });
+                return;
+            }
+        } else if (reportOrId && reportOrId.content) {
+            content = reportOrId.content;
+            convId = reportOrId.conversationId;
+            msgId = reportOrId.messageId;
+        }
+
+        if (content) {
+            setGeneratedReport(content);
+            setEditorContent(content);
+            setConversationId(convId);
+            setReportMessageId(msgId);
             setIsHistoryOpen(false);
             showToast({ message: t('com_ui_report_loaded', 'Informe cargado'), status: 'info' });
+        } else {
+            showToast({ message: 'No se encontró contenido válido en el informe', status: 'warning' });
         }
     };
 
