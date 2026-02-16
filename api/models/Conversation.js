@@ -170,7 +170,7 @@ module.exports = {
       filters.push({ tags: { $in: tags } });
     } else {
       // Exclude internal tool conversations from the main sidebar
-      const internalTags = ['sgsst-diagnostico', 'sgsst-politica', 'sgsst-auditoria', 'sgsst-matriz-legal', 'report'];
+      const internalTags = ['sgsst-diagnostico', 'sgsst-politica', 'sgsst-auditoria', 'sgsst-matriz-legal', 'report', 'sgsst-estadisticas-atel'];
       filters.push({ $or: [{ tags: { $exists: false } }, { tags: { $nin: internalTags } }] });
     }
 

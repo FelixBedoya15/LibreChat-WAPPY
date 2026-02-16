@@ -194,11 +194,11 @@ ${eventsSummary || 'No se registraron eventos en este periodo. El análisis debe
 **INSTRUCCIONES DE DISEÑO Y CONTENIDO (OBLIGATORIO):**
 
 Genera SOLAMENTE el código HTML del cuerpo del informe (dentro de un <div> contenedor). NO uses Markdown.
-Usa los siguientes estilos CSS en línea (inline styles) para garantizar un diseño "Premium":
+Usa los siguientes estilos CSS en línea (inline styles) para garantizar un diseño "Premium" que respete la tipografía del sistema (font-family: inherit):
 
 **ESTILOS CSS:**
-- **Encabezados:** Color #004d99 (Azul Institucional). Fuente Sans-Serif moderna.
-- **Tablas:** width="100%", border-collapse="collapse", shadow-qm box-shadow.
+- **Encabezados:** Color #004d99 (Azul Institucional). Fuente heredada (inherit).
+- **Tablas:** width="100%", border-collapse="collapse", shadow-qm box-shadow, font-family: inherit.
 - **Th (Cabeceras):** background-color="#004d99", color="white", padding="12px", text-transform="uppercase", font-size="12px".
 - **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0".
 - **KPI Cards (Indicadores):** background-color="#f8f9fa", border-left="5px solid #004d99", padding="15px", margin="10px", border-radius="4px", flex-based layout.
