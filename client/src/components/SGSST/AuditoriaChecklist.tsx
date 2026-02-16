@@ -550,54 +550,58 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                         const isItemExpanded = expandedItems.has(item.id);
 
                                         return (
-                                            <div key={item.id} className="bg-surface-primary/50 p-4">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="flex-1">
-                                                        <div className="flex flex-col gap-1.5">
-                                                            <h4 className="font-medium text-text-primary text-base">
-                                                                <span className="font-bold text-blue-600 mr-2">{item.code}</span>
-                                                                {item.name}
-                                                            </h4>
-                                                            <div className="group relative w-fit">
-                                                                <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
-                                                                    {item.criteria}
-                                                                </span>
-                                                                {item.normativeText && (
-                                                                    <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
-                                                                        <div className="font-semibold mb-1 text-blue-500">Fundamento Legal:</div>
-                                                                        {item.normativeText}
+                                            <div key={item.id} className="bg-surface-primary/50">
+                                                <div className="p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                                                    <div className="flex-1 w-full">
+                                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                                            <div className="flex-1">
+                                                                <div className="flex flex-col gap-1.5">
+                                                                    <h4 className="font-medium text-text-primary text-base">
+                                                                        <span className="font-bold text-blue-600 mr-2">{item.code}</span>
+                                                                        {item.name}
+                                                                    </h4>
+                                                                    <div className="group relative w-fit">
+                                                                        <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
+                                                                            {item.criteria}
+                                                                        </span>
+                                                                        {item.normativeText && (
+                                                                            <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
+                                                                                <div className="font-semibold mb-1 text-blue-500">Fundamento Legal:</div>
+                                                                                {item.normativeText}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
+                                                                {isItemExpanded && (
+                                                                    <div className="mt-2 text-xs text-text-tertiary bg-surface-tertiary p-2 rounded whitespace-pre-wrap">
+                                                                        {item.evaluation}
                                                                     </div>
                                                                 )}
+                                                                <button
+                                                                    onClick={() => toggleItemExpanded(item.id)}
+                                                                    className="mt-1 text-xs text-blue-500 hover:underline flex items-center gap-1"
+                                                                >
+                                                                    <HelpCircle className="h-3 w-3" /> Ver criterio de evaluación
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="flex sm:flex-col lg:flex-row flex-wrap gap-1 sm:ml-4 sm:flex-shrink-0 border-t sm:border-t-0 border-border-light pt-3 sm:pt-0 justify-between sm:justify-end">
+                                                                {STATUS_OPTIONS.map(opt => (
+                                                                    <button
+                                                                        key={opt.value}
+                                                                        onClick={() => handleStatusChange(item.id, opt.value)}
+                                                                        className={cn(
+                                                                            'rounded-lg p-2 transition-all flex-1 sm:flex-none flex justify-center',
+                                                                            status === opt.value ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary'
+                                                                        )}
+                                                                        title={opt.label}
+                                                                    >
+                                                                        <opt.icon className="h-5 w-5" />
+                                                                    </button>
+                                                                ))}
                                                             </div>
                                                         </div>
-                                                        <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
-                                                        {isItemExpanded && (
-                                                            <div className="mt-2 text-xs text-text-tertiary bg-surface-tertiary p-2 rounded whitespace-pre-wrap">
-                                                                {item.evaluation}
-                                                            </div>
-                                                        )}
-                                                        <button
-                                                            onClick={() => toggleItemExpanded(item.id)}
-                                                            className="mt-1 text-xs text-blue-500 hover:underline flex items-center gap-1"
-                                                        >
-                                                            <HelpCircle className="h-3 w-3" /> Ver criterio de evaluación
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="flex flex-shrink-0 gap-1">
-                                                        {STATUS_OPTIONS.map(opt => (
-                                                            <button
-                                                                key={opt.value}
-                                                                onClick={() => handleStatusChange(item.id, opt.value)}
-                                                                className={cn(
-                                                                    'rounded-lg p-2 transition-all',
-                                                                    status === opt.value ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary'
-                                                                )}
-                                                                title={opt.label}
-                                                            >
-                                                                <opt.icon className="h-5 w-5" />
-                                                            </button>
-                                                        ))}
                                                     </div>
                                                 </div>
 
@@ -651,6 +655,21 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                             onSave={handleSave}
                         />
                     </div>
+                    <style>{`
+                        [contenteditable] table {
+                            width: 100%;
+                            max-width: 100%;
+                            border-collapse: collapse;
+                            table-layout: auto;
+                            word-wrap: break-word;
+                            overflow-wrap: break-word;
+                        }
+                        [contenteditable] table td,
+                        [contenteditable] table th {
+                            padding: 8px 12px;
+                            border: 1px solid var(--border-medium, #ddd);
+                        }
+                    `}</style>
                 </div>
             )}
 

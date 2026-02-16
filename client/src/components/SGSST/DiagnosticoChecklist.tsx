@@ -520,24 +520,24 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
             {/* Progress Card */}
             <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                        <div>
-                            <p className="text-sm text-text-secondary">{t('com_ui_progress', 'Progreso')}</p>
-                            <p className="text-2xl font-bold text-text-primary">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 sm:gap-6 w-full md:w-auto">
+                        <div className="bg-surface-tertiary/50 p-2 rounded-lg sm:bg-transparent sm:p-0">
+                            <p className="text-xs sm:text-sm text-text-secondary">{t('com_ui_progress', 'Progreso')}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-text-primary">
                                 {completedCount}/{checklist.length}
                             </p>
                         </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">{t('com_ui_score', 'Puntuación')}</p>
-                            <p className="text-2xl font-bold text-text-primary">
+                        <div className="bg-surface-tertiary/50 p-2 rounded-lg sm:bg-transparent sm:p-0">
+                            <p className="text-xs sm:text-sm text-text-secondary">{t('com_ui_score', 'Puntuación')}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-text-primary">
                                 {currentScore.toFixed(1)}/{Math.round(totalPoints)}
                             </p>
                         </div>
-                        <div>
-                            <p className="text-sm text-text-secondary">{t('com_ui_level', 'Nivel')}</p>
+                        <div className="col-span-2 sm:col-span-1 bg-surface-tertiary/50 p-2 rounded-lg sm:bg-transparent sm:p-0 flex items-center justify-between sm:block">
+                            <p className="text-xs sm:text-sm text-text-secondary">{t('com_ui_level', 'Nivel')}</p>
                             <span className={cn(
-                                'inline-flex items-center rounded-full px-3 py-1 text-sm font-medium',
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium',
                                 complianceLevel.level === 'crítico' && 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
                                 complianceLevel.level === 'moderado' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
                                 complianceLevel.level === 'aceptable' && 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -659,28 +659,45 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
                                         return (
                                             <div key={item.id} className="bg-surface-primary/50">
-                                                <div className="flex items-start gap-4 p-4">
+                                                <div className="p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                                                    {/* Helper Icon */}
                                                     <button
                                                         onClick={() => toggleItemExpanded(item.id)}
-                                                        className="mt-1 flex-shrink-0 text-text-secondary hover:text-text-primary"
+                                                        className="hidden sm:block mt-1 flex-shrink-0 text-text-secondary hover:text-text-primary"
                                                     >
                                                         <HelpCircle className="h-4 w-4" />
                                                     </button>
 
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-start justify-between gap-4">
-                                                            <div>
-                                                                <p className="font-medium text-text-primary">
-                                                                    <span className="mr-2 text-text-secondary">{item.code}</span>
-                                                                    {item.name}
-                                                                </p>
-                                                                <p className="mt-1 text-sm text-text-secondary">{item.description}</p>
-                                                                <p className="mt-1 text-xs text-text-tertiary">
-                                                                    {t('com_ui_points', 'Puntaje')}: {item.points} pts | {item.subcategory}
-                                                                </p>
+                                                    <div className="min-w-0 flex-1 w-full">
+                                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                                            <div className="flex-1">
+                                                                <div className="flex items-start gap-2">
+                                                                    {/* Mobile Helper Icon */}
+                                                                    <button
+                                                                        onClick={() => toggleItemExpanded(item.id)}
+                                                                        className="sm:hidden mt-1 flex-shrink-0 text-text-secondary hover:text-text-primary"
+                                                                    >
+                                                                        <HelpCircle className="h-4 w-4" />
+                                                                    </button>
+                                                                    <div>
+                                                                        <p className="font-medium text-text-primary">
+                                                                            <span className="mr-2 text-text-secondary font-mono bg-surface-tertiary px-1.5 py-0.5 rounded text-xs">{item.code}</span>
+                                                                            {item.name}
+                                                                        </p>
+                                                                        <p className="mt-1 text-sm text-text-secondary leading-relaxed">{item.description}</p>
+                                                                        <p className="mt-2 text-xs text-text-tertiary flex items-center gap-2">
+                                                                            <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+                                                                                {item.points} pts
+                                                                            </span>
+                                                                            <span className="hidden sm:inline">|</span>
+                                                                            <span className="uppercase tracking-wide opacity-75">{item.subcategory}</span>
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
-                                                            <div className="flex flex-shrink-0 gap-1">
+                                                            {/* Action Buttons - Scrollable or Stacked */}
+                                                            <div className="flex sm:flex-col lg:flex-row flex-wrap gap-1 sm:ml-4 sm:flex-shrink-0 border-t sm:border-t-0 border-border-light pt-3 sm:pt-0 justify-between sm:justify-end">
                                                                 {STATUS_OPTIONS.map(opt => {
                                                                     const Icon = opt.icon;
                                                                     const isSelected = status === opt.value;
