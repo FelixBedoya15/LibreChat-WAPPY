@@ -320,20 +320,33 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
 
         const selectedModel = req.body.modelName || 'gemini-3-flash-preview';
 
+        // Helper: generate with timeout (90 seconds)
+        const generateWithTimeout = async (model, prompt, timeoutMs = 180000) => {
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT: La generación del informe excedió el tiempo límite. Intente de nuevo.')), timeoutMs)
+            );
+            const genPromise = (async () => {
+                const genResult = await model.generateContent(prompt);
+                const genResponse = await genResult.response;
+                return genResponse.text();
+            })();
+            return Promise.race([genPromise, timeoutPromise]);
+        };
+
         try {
             console.log(`[SGSST Diagnostico] Attempting Generation with ${selectedModel}`);
             const modelPrimary = genAI.getGenerativeModel({ model: selectedModel, generationConfig });
-            result = await modelPrimary.generateContent(promptText);
-            const response = await result.response;
-            text = response.text();
+            text = await generateWithTimeout(modelPrimary, promptText);
         } catch (primaryError) {
             console.warn(`[SGSST Diagnostico] Primary model (${selectedModel}) failed, attempting fallback to gemini-2.0-flash-exp. Error:`, primaryError.message);
+            // If it was a timeout, don't retry — inform user immediately
+            if (primaryError.message.includes('TIMEOUT')) {
+                throw primaryError;
+            }
             try {
                 // Fallback to previous stable/experimental version
                 const modelFallback = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp', generationConfig });
-                result = await modelFallback.generateContent(promptText);
-                const response = await result.response;
-                text = response.text();
+                text = await generateWithTimeout(modelFallback, promptText);
             } catch (fallbackError) {
                 console.error('[SGSST Diagnostico] All models failed.');
                 throw fallbackError; // Re-throw to main catch

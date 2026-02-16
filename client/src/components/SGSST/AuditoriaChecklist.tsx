@@ -202,8 +202,9 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 model: selectedModel,
             };
 
-            // Call analysis API (reusing diagnostic endpoint with type='auditoria')
-            const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData);
+            const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData, {
+                timeout: 200000, // 200 seconds timeout
+            });
 
             const result = response.data;
 
@@ -223,8 +224,15 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             showToast({ message: 'Informe de Auditoría generado exitosamente', status: 'success' });
         } catch (error: any) {
             console.error('Audit Analysis error:', error);
-            const errorMsg = error.response?.data?.error || error.message || 'Error desconocido';
-            showToast({ message: `Error al generar informe: ${errorMsg}`, status: 'error' });
+            let errorMsg: string;
+            if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+                errorMsg = 'El informe tardó demasiado en generarse. Intente de nuevo.';
+            } else if (error.response?.data?.error) {
+                errorMsg = error.response.data.error;
+            } else {
+                errorMsg = error.message || 'Error desconocido';
+            }
+            showToast({ message: `Error al generar informe: ${errorMsg}`, status: 'error', duration: 8000 });
         } finally {
             setIsAnalyzing(false);
         }

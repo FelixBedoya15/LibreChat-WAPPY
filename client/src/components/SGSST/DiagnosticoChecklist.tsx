@@ -218,7 +218,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData, {
                 headers: {
                     'Authorization': `Bearer ${token}`
-                }
+                },
+                timeout: 200000, // 200 seconds timeout
             });
 
             const result = response.data;
@@ -240,8 +241,15 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
         } catch (error: any) {
             console.error('Analysis error:', error);
-            const errorMsg = error.response?.data?.error || error.message || t('com_ui_analysis_error', 'Error al generar el análisis');
-            showToast({ message: `Error: ${errorMsg}`, status: 'error', duration: 5000 });
+            let errorMsg: string;
+            if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+                errorMsg = 'El informe tardó demasiado en generarse. Intente de nuevo.';
+            } else if (error.response?.data?.error) {
+                errorMsg = error.response.data.error;
+            } else {
+                errorMsg = error.message || t('com_ui_analysis_error', 'Error al generar el análisis');
+            }
+            showToast({ message: `Error: ${errorMsg}`, status: 'error', duration: 8000 });
         } finally {
             setIsAnalyzing(false);
         }
