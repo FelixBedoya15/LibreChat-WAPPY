@@ -164,13 +164,16 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         const periodLabel = scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`;
 
         const promptText = `
-Eres un experto consultor en Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
-Genera un **INFORME ${scope === 'ANNUAL' ? 'ANUAL/ACUMULADO' : 'MENSUAL'} DE ESTADÍSTICAS ATEL** detallado y profesional.
+Eres un Experto Consultor en Seguridad y Salud en el Trabajo (SGSST) y Análisis de Datos certificado.
+Actúas como Auditor Líder generando un **INFORME GERENCIAL DE ACCIDENTALIDAD (${scope === 'ANNUAL' ? 'ANUAL/ACUMULADO' : 'MENSUAL'})** oficial.
 
-**Periodo Evaluado:** ${periodLabel}
-**Referencia:** Resolución 0312 de 2019
-**Consultor:** ${userName || 'Consultor SST'}
-${companyInfoBlock}
+**OBJETIVO:** Generar un documento HTML profesional, altamente estilizado y visual para la Gerencia.
+
+**CONTEXTO DEL INFORME:**
+- **Periodo Analizado:** ${periodLabel}
+- **Empresa:** ${companyInfoBlock || 'No registrada'}
+- **Responsable:** ${userName || 'Consultor SST'}
+- **Fecha de Emisión:** ${new Date().toLocaleDateString('es-CO')}
 
 **DATOS CONSOLIDADOS:**
 - Promedio Trabajadores: ${avgWorkers.toFixed(1)}
@@ -179,36 +182,62 @@ ${companyInfoBlock}
 - Casos Nuevos Enfermedad (EL): ${aggregated.casosNuevosEL}
 - Días Ausentismo Médico: ${aggregated.diasAusencia}
 
-**INDICADORES CALCULADOS (NO MODIFICAR VALORES):**
-${indicators.map(i => `- ${i.nombre}: **${i.valor}** (${i.interpretacion})`).join('\n')}
+**INDICADORES CALCULADOS (Res. 0312 Art. 30) - VALORES OFICIALES:**
+${indicators.map(i => `- ${i.nombre}: **${i.valor}**
+  * Definición: ${i.definicion}
+  * Formula: ${i.formula}
+  * Interpretación Proyectada: ${i.interpretacion}`).join('\n')}
 
-**DETALLE DE EVENTOS REPORTADOS (PARA ANÁLISIS DE CAUSAS):**
-${eventsSummary || 'No se registraron eventos específicos en este periodo.'}
+**DETALLE DE EVENTOS (INSUMO PARA ANÁLISIS CUALITATIVO PROFUNDO):**
+${eventsSummary || 'No se registraron eventos en este periodo. El análisis debe resaltar esto como un aspecto positivo de la gestión preventiva.'}
 
-**INSTRUCCIONES DE GENERACIÓN (HTML):**
-Genera un informe HTML rico y estilizado con:
-1.  **Encabezado Profesional**: Título, periodo, empresa.
-2.  **Resumen Gerencial**: Visión general del comportamiento de la siniestralidad.
-3.  **DASHBOARD DE INDICADORES (Tabla)**:
-    - Columnas: Indicador | Resultado | Meta (asumir estándar) | Cumplimiento | Semáforo (Verde/Amarillo/Rojo).
-4.  **ANÁLISIS DE CAUSALIDAD (Nuevo - Importante):**
-    - Basado en la lista de eventos arriba, identifica:
-    - **Peligros Más Frecuentes**: ¿Qué peligros (químico, alturas, etc.) se repiten más?
-    - **Causas Raíz Comunes**: Analiza las "causas inmediatas" reportadas.
-    - **Partes del Cuerpo Afectadas**: Si se menciona en consecuencias.
-    - *Genera esta sección como texto narrativo analítico fuerte.*
-5.  **GRÁFICAS DE TEXTO (Bar Charts HTML):**
-    - Para los indicadores principales.
-    - Y una gráfica cualitativa de "Top 3 Causas de Accidentalidad" (si hay datos).
-6.  **CONCLUSIONES Y RECOMENDACIONES:**
-    - Focos de intervención inmediata.
-    - Plan de acción sugerido.
+**INSTRUCCIONES DE DISEÑO Y CONTENIDO (OBLIGATORIO):**
 
-**ESTILOS OBLIGATORIOS:**
--   Usa colores corporativos sobrios (Azul #0056b3, Gris).
--   Tablas con bordes colapsados y encabezados oscuros.
--   **Análisis Cualitativo**: Usa viñetas y negritas para resaltar hallazgos.
--   Firma del consultor al final.
+Genera SOLAMENTE el código HTML del cuerpo del informe (dentro de un <div> contenedor). NO uses Markdown.
+Usa los siguientes estilos CSS en línea (inline styles) para garantizar un diseño "Premium":
+
+**ESTILOS CSS:**
+- **Encabezados:** Color #004d99 (Azul Institucional). Fuente Sans-Serif moderna.
+- **Tablas:** width="100%", border-collapse="collapse", shadow-qm box-shadow.
+- **Th (Cabeceras):** background-color="#004d99", color="white", padding="12px", text-transform="uppercase", font-size="12px".
+- **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0".
+- **KPI Cards (Indicadores):** background-color="#f8f9fa", border-left="5px solid #004d99", padding="15px", margin="10px", border-radius="4px", flex-based layout.
+- **Alertas:** background-color="#e3f2fd" (azul claro) para informativos, "#ffebee" (rojo claro) para alertas de accidentalidad alta.
+
+**SECCIONES DEL INFORME:**
+
+1.  **ENCABEZADO OFICIAL:**
+    - Logo (placeholder texto "SGSST"), Título del Informe, Subtítulo con la Resolución 0312.
+    - Tabla compacta con datos de la empresa y del auditor.
+
+2.  **RESUMEN EJECUTIVO GERENCIAL:**
+    - Un recuadro destacado con un análisis narrativo profundo.
+    - No te limites a repetir números. Explica QUÉ SIGNIFICAN para la empresa en términos de productividad y cumplimiento legal.
+    - Si no hubo accidentes, felicita la gestión pero recomienda no bajar la guardia.
+
+3.  **TABLERO DE CONTROL (DASHBOARD):**
+    - Presenta los 6 indicadores en una cuadrícula de **TARJETAS VISUALES**.
+    - Cada tarjeta debe mostrar: Nombre del Indicador, EL VALOR EN GRANDE (ej: 2.50), y la interpretación resumida.
+
+4.  **ANÁLISIS DE SINIESTRALIDAD (CUALITATIVO):**
+    - Si hay eventos:
+      - Crea una tabla detallada de los eventos.
+      - **GRÁFICA DE BARRAS HTML:** Simula una gráfica de barras horizontal usando \`<div>\` con porcentajes de ancho (width: X%) para mostrar las "Causas Inmediatas" más frecuentes.
+      - Analiza los Peligros.
+    - Si NO hay eventos:
+      - Muestra un mensaje de "CERO ACCIDENTES" en verde, estilo certificado de logro.
+
+5.  **ANÁLISIS DE AUSENTISMO:**
+    - Evalúa el impacto del ausentismo médico.
+
+6.  **PLAN DE ACCIÓN Y RECOMENDACIONES:**
+    - Tabla con recomendaciones específicas (Técnicas, Administrativas, Humanas).
+    - Prioriza según los hallazgos.
+
+7.  **FIRMA:**
+    - Bloque de firma al final con línea superior y datos del responsable.
+
+**IMPORTANTE:** El resultado debe ser un HTML limpio, listo para renderizar, visualmente impactante y profesional.
 `;
 
         // ─── 5. Generation ─────────────────────────────────────────────
