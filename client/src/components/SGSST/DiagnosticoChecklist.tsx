@@ -230,8 +230,12 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
             setAnalysisReport(cleanReport);
             setEditorContent(cleanReport);
-            setConversationId('new');
-            setReportMessageId(null);
+            // Preserve existing conversationId/reportMessageId if re-generating on a loaded report
+            // Only set to 'new' if there's no existing report context
+            if (!conversationId || conversationId === 'new') {
+                setConversationId('new');
+                setReportMessageId(null);
+            }
             onAnalysisComplete?.(result.report);
             showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
         } catch (error: any) {
@@ -241,7 +245,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations, token, selectedModel]);
+    }, [completedCount, companySize, riskLevel, applicableArticle, checklist, currentScore, totalPoints, complianceLevel, getItemStatus, onAnalysisComplete, showToast, user, observations, token, selectedModel, conversationId]);
 
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;

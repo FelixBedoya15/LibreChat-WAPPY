@@ -214,8 +214,11 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
             setAnalysisReport(cleanReport);
             setEditorContent(cleanReport);
-            setConversationId('new');
-            setReportMessageId(null);
+            // Preserve existing conversationId/reportMessageId if re-generating on a loaded report
+            if (!conversationId || conversationId === 'new') {
+                setConversationId('new');
+                setReportMessageId(null);
+            }
             onAnalysisComplete?.(result.report);
             showToast({ message: 'Informe de Auditoría generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -225,7 +228,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations, selectedModel]);
+    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations, selectedModel, conversationId]);
 
     const handleExportWord = useCallback(async () => {
         const contentForExport = editorContent || analysisReport;
