@@ -338,30 +338,42 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
    - **TABLA PHVA:** Crea una tabla HTML con encabezados azules (#004d99) y filas alternadas.
    - Texto explicativo extenso sobre fortalezas y debilidades.
 
-4. **PLAN DE ACCIÓN COMPLETO (TODOS LOS HALLAZGOS)**:
+4. **HALLAZGOS DETALLADOS (TABLA DE NO CONFORMIDADES Y OBSERVACIONES)**:
    - **CONTEO EXACTO:** La tabla DEBE tener exactamente **${nonCompliantItems.length}** filas de No Conformidades + **${partialItems.length}** filas de Parciales = **${nonCompliantItems.length + partialItems.length}** filas totales. Cada ítem [NC-X] y [OBS-X] DEBE tener su propia fila. NO agrupes, resumas ni omitas.
-   - Usa una **TABLA HTML** extensa.
-   - Columnas: # (NC-X / OBS-X) | Estándar | Hallazgo (basado en observación del evaluador) | Acción Correctiva (Detallada) | Responsable | Plazo.
+   - Usa una **TABLA HTML**.
+   - **Columnas (SIN Acción Correctiva ni Plazo — esas van en la sección del Plan de Acción):**
+     | # (NC-X / OBS-X) | Estándar | Hallazgo (basado en observación del evaluador) | Tipo (NC Mayor / NC Menor / Observación) | Responsable |
    - **VERIFICACIÓN:** Si la tabla tiene menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
+   - **COLORES POR TIPO (aplicar background-color a cada fila <tr>):** NC Mayor: #ffe0e0 (rosa). NC Menor: #fff8e0 (amarillo). Observación: #e0f0ff (azul claro).
 
-5. **RIESGOS Y CONSECUENCIAS**:
+5. **PLAN DE ACCIÓN Y MEJORA RECOMENDADO (TABLA SEPARADA — UNA FILA POR CADA HALLAZGO)**:
+   - **IMPORTANTE: Esta es una tabla COMPLETAMENTE SEPARADA de los Hallazgos. NO la fusiones con la tabla anterior.**
+   - **REGLA CRÍTICA: Cada hallazgo DEBE tener su PROPIA fila individual. Si hay ${nonCompliantItems.length + partialItems.length} hallazgos, la tabla DEBE tener exactamente ${nonCompliantItems.length + partialItems.length} filas.**
+   - **TABLA HTML con las siguientes columnas:**
+     | # (NC-X / OBS-X) | Acción Correctiva Detallada (específica y ejecutable) | Recurso Necesario | Evidencia de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
+   - Ordena las filas por prioridad (NC Mayores primero) pero SIN agrupar.
+   - **COLORES POR PLAZO (aplicar background-color a cada fila <tr>):** Inmediato: #ffe0e0 (rojo). Corto: #fff0e0 (naranja). Mediano: #fff8e0 (amarillo). Largo: #e0ffe0 (verde).
+
+6. **RIESGOS Y CONSECUENCIAS**:
    - Usa listas con iconos (puedes usar emojis como ⚠️ o ⚖️ sutilmente si encajan, o bullets estilizados) para enumerar consecuencias legales y operativas.
    - Explicación profunda de cada riesgo.
 
-6. **RECOMENDACIONES FINALES**:
+7. **RECOMENDACIONES FINALES**:
    - Hoja de ruta en formato de lista estilizada o tabla de cronograma.
 
 **ESTILOS OBLIGATORIOS (CSS INLINE):**
 - Títulos (h1, h2): Color azul oscuro (#004d99).
 - Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd".
-- Texto: Párrafos bien estructurados, no bloques de texto infinito.
+- NC Mayor: fondo rosa (#ffe0e0). NC Menor: fondo amarillo (#fff8e0). Observación: fondo azul claro (#e0f0ff).
+- Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo), Corto (#fff0e0 naranja), Mediano (#fff8e0 amarillo), Largo (#e0ffe0 verde).
 
 **FIRMA OBLIGATORIA:**
 Al final del informe, firma estrictamente así (SIN IMÁGENES):
 <div style="margin-top: 50px; text-align: center;">
+    <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
     <strong>${userName || req.user?.name || 'Usuario del Sistema'}</strong><br>
-    Consultor Experto en SG-SST<br>
+    Consultor Experto en SG-SST (Dec. 1072/2015)<br>
     Licencia en Seguridad y Salud en el Trabajo Vigente
 </div>
 IMPORTANTE: NO incluyas ninguna etiqueta &lt;img&gt; ni placeholders de imagen para la firma. Solo texto.
