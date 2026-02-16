@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Save } from 'lucide-react';
 import { useLocalize } from '~/hooks';
+import { cn } from '~/utils';
 
 interface LiveEditorProps {
     initialContent: string;
