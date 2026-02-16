@@ -13,6 +13,7 @@ import DiagnosticoChecklist from './DiagnosticoChecklist';
 import PoliticaSST from './PoliticaSST';
 import AuditoriaChecklist from './AuditoriaChecklist';
 import MatrizLegal from './MatrizLegal';
+import EstadisticasATEL from './EstadisticasATEL';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -252,6 +253,13 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
                                         {category.id === 'legal' && (
                                             <div className="mb-6">
                                                 <MatrizLegal />
+                                            </div>
+                                        )}
+
+                                        {/* Show EstadisticasATEL for estadisticas category */}
+                                        {category.id === 'estadisticas' && (
+                                            <div className="mb-6">
+                                                <EstadisticasATEL />
                                             </div>
                                         )}
 
