@@ -206,8 +206,14 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             const response = await axios.post('/api/sgsst/diagnostico/analyze', analysisData);
 
             const result = response.data;
-            setAnalysisReport(result.report);
-            setEditorContent(result.report);
+
+            // Post-process report: Replace broken images with Signature Icon
+            const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-blue-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
+
+            const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
+
+            setAnalysisReport(cleanReport);
+            setEditorContent(cleanReport);
             setConversationId('new');
             setReportMessageId(null);
             onAnalysisComplete?.(result.report);
@@ -332,6 +338,11 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         console.error('[SGSST Audit Load] Error parsing state data:', err);
                     }
                 }
+
+                // Clean up content: Replace broken images with Signature Icon
+                const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-blue-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
+
+                loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
                 setAnalysisReport(loadedContent);
                 setEditorContent(loadedContent);
