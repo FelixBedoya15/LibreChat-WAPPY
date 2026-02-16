@@ -216,18 +216,19 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
    - **VERIFICACIÓN:** Antes de cerrar la tabla, cuenta las filas. Si tienes menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
    - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
 
-5. **CONCLUSIONES DE AUDITORÍA (EXTENSAS Y DETALLADAS)**:
-   - Concepto final sobre la conformidad y eficacia del SG-SST.
-   - Diagnóstico general: resumen de fortalezas del sistema y áreas críticas.
-   - **Riesgos legales detallados:** Para cada área de incumplimiento, mencionar la consecuencia legal específica (multas según Dec 472/15, sanciones del Ministerio de Trabajo, responsabilidad solidaria, etc.).
+5. **CONCLUSIONES DE AUDITORÍA (MUY EXTENSAS Y DETALLADAS)**:
+   - Concepto final sobre la conformidad y eficacia del SG-SST (mínimo 3 párrafos extensos).
+   - **Análisis de cada NC Mayor:** Para CADA No Conformidad Mayor identificada, escribe un párrafo dedicado describiendo: qué se encontró, por qué es crítico para el sistema, cuál es la norma incumplida, y cuál es el riesgo legal específico (multas según Dec 472/15 de 1 a 500 SMLMV, sanciones del Ministerio de Trabajo, cierre temporal/definitivo, responsabilidad solidaria, etc.).
+   - Fortalezas encontradas en el sistema (al menos 1 párrafo).
    - Comparación con los requisitos del Decreto 1072 y la Resolución 0312.
-   - Recomendación sobre si el sistema es CONFORME, CONFORME CON OBSERVACIONES o NO CONFORME.
+   - Recomendación sobre si el sistema es CONFORME, CONFORME CON OBSERVACIONES o NO CONFORME, con justificación detallada.
+   - Las conclusiones deben ser extensas, descriptivas y autoexplicativas. NO sean breves ni genéricas.
 
-6. **PLAN DE ACCIÓN Y MEJORA (EXTENSO - TABLA DETALLADA)**:
-   - **OBLIGATORIO:** Genera una TABLA HTML completa que cubra TODOS los hallazgos, con las siguientes columnas:
-     | # | Hallazgo/NC | Norma Incumplida | Acción Correctiva (descripción detallada) | Responsable | Recurso Necesario | Indicador de Cumplimiento | Plazo (Inmediato/Corto/Mediano/Largo) |
-   - Cada fila debe ser descriptiva y autoexplicativa. Las acciones NO deben ser genéricas sino específicas y ejecutables.
-   - Agrupa las acciones por prioridad: Inmediatas (0-30 días), Corto plazo (1-3 meses), Mediano plazo (3-6 meses), Largo plazo (6-12 meses).
+6. **PLAN DE ACCIÓN Y MEJORA (UNA FILA POR CADA HALLAZGO — NO AGRUPAR)**:
+   - **REGLA CRÍTICA: Cada hallazgo (NC-X u OBS-X) DEBE tener su PROPIA fila individual en la tabla. PROHIBIDO agrupar múltiples NCs en una sola fila. Si hay ${nonCompliantItems.length + partialItems.length} hallazgos, la tabla DEBE tener exactamente ${nonCompliantItems.length + partialItems.length} filas.**
+   - **TABLA HTML con las siguientes columnas:**
+     | # (NC-X / OBS-X) | Hallazgo (descripción breve) | Norma Incumplida | Acción Correctiva (específica, ejecutable y detallada — NO genérica) | Responsable | Recurso Necesario | Indicador de Cumplimiento | Plazo (Inmediato 0-30d / Corto 1-3m / Mediano 3-6m / Largo 6-12m) |
+   - Ordena las filas por prioridad (NC Mayores primero) pero SIN agrupar. Cada fila es independiente.
 
 **ESTILOS OBLIGATORIOS (CSS INLINE):**
 - Títulos (h1, h2): Color azul oscuro (#004d99).
