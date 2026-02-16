@@ -141,13 +141,13 @@ ${companyInfoBlock}
 **Detalle de No Conformidades y Hallazgos:**
 **NO CONFORMIDADES (Incumplimientos):**
 ${nonCompliantItems.map(item => {
-                const obs = observations && observations[item.id] ? ` (Evidencia: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN/EVIDENCIA DEL AUDITOR: "${observations[item.id]}"` : '';
                 return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguna'}
 
 **CUMPLIMIENTO PARCIAL (Observaciones):**
 ${partialItems.map(item => {
-                const obs = observations && observations[item.id] ? ` (Evidencia: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN/EVIDENCIA DEL AUDITOR: "${observations[item.id]}"` : '';
                 return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguna'}
 
@@ -155,6 +155,8 @@ ${partialItems.map(item => {
 
 Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO en formato HTML RICO Y ESTILIZADO.
 **IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser idéntico al de un informe gerencial de alto nivel.
+
+**REGLA SOBRE OBSERVACIONES:** Cuando un estándar tenga una OBSERVACIÓN/EVIDENCIA DEL AUDITOR, DEBES usar ese texto como base principal del hallazgo en el informe. NO inventes detalles diferentes. La observación del auditor refleja la realidad encontrada en campo y debe ser citada o parafraseada con fidelidad.
 
 1. **ENCABEZADO Y CONTEXTO**:
    - Crea una tabla elegante para la información de la empresa y del auditor.
@@ -236,19 +238,19 @@ ${completedItems.map(item => {
 
 **Estándares que NO CUMPLEN (Críticos):**
 ${nonCompliantItems.map(item => {
-                const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN DEL EVALUADOR: "${observations[item.id]}"` : '';
                 return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguno'}
 
 **Estándares que CUMPLEN PARCIALMENTE:**
 ${partialItems.map(item => {
-                const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN DEL EVALUADOR: "${observations[item.id]}"` : '';
                 return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
             }).join('\n') || 'Ninguno'}
 
 **Estándares que NO APLICAN:**
 ${notApplicable.map(item => {
-                const obs = observations && observations[item.id] ? ` (Observación: ${observations[item.id]})` : '';
+                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN DEL EVALUADOR: "${observations[item.id]}"` : '';
                 return `- ${item.code} - ${item.name}${obs}`;
             }).join('\n') || 'Ninguno'}
 
@@ -256,6 +258,8 @@ ${notApplicable.map(item => {
 
 Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RICO Y ESTILIZADO.
 **IMPORTANTE:** El informe debe verse profesional y hermoso. Usa tablas, colores y "tarjetas" visuales.
+
+**REGLA SOBRE OBSERVACIONES:** Cuando un estándar tenga una OBSERVACIÓN DEL EVALUADOR, DEBES usar ese texto como base principal del hallazgo en el informe. NO inventes detalles diferentes. La observación del evaluador refleja la realidad encontrada en campo y debe ser citada o parafraseada con fidelidad.
 
 1. **ENCABEZADO Y CONTEXTO**:
    - Crea una tabla elegante para la información de la empresa.
