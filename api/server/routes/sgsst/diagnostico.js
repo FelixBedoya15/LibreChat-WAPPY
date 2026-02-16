@@ -103,7 +103,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
         let promptText = '';
 
         if (type === 'auditoria') {
-            const { weightedScore = 0, weightedPercentage = 0 } = req.body;
+            const { weightedScore = 0, weightedPercentage = 0, phvaStats: clientPhvaStats } = req.body;
             console.log('[SGSST Audit Analysis] Payload:', {
                 score,
                 totalPoints,
@@ -112,13 +112,39 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
                 checklistLength: checklist?.length
             });
 
+            // Calculate PHVA percentages from actual checklist data
+            const phvaCycles = ['planear', 'hacer', 'verificar', 'actuar'];
+            const phvaData = {};
+            phvaCycles.forEach(cycle => {
+                const cycleItems = checklist.filter(item => item.category === cycle);
+                const cycleTotal = cycleItems.length;
+                const cycleCumple = cycleItems.filter(i => i.status === 'cumple').length;
+                const cycleNoCumple = cycleItems.filter(i => i.status === 'no_cumple').length;
+                const cycleParcial = cycleItems.filter(i => i.status === 'parcial').length;
+                const cycleNoAplica = cycleItems.filter(i => i.status === 'no_aplica').length;
+                const applicableCount = cycleTotal - cycleNoAplica;
+                const pct = applicableCount > 0 ? ((cycleCumple / applicableCount) * 100).toFixed(1) : '100.0';
+                phvaData[cycle] = { total: cycleTotal, cumple: cycleCumple, noCumple: cycleNoCumple, parcial: cycleParcial, noAplica: cycleNoAplica, percentage: pct };
+            });
+
+            const phvaLabels = { planear: 'PLANEAR', hacer: 'HACER', verificar: 'VERIFICAR', actuar: 'ACTUAR' };
+            const phvaSummary = phvaCycles.map(cycle => {
+                const d = phvaData[cycle];
+                return `- **${phvaLabels[cycle]}:** ${d.percentage}% (${d.cumple} cumplen / ${d.total} total | No cumplen: ${d.noCumple} | Parcial: ${d.parcial} | No aplica: ${d.noAplica})`;
+            }).join('\n');
+
             promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
 
 **Fecha de Auditoría:** ${currentDate || new Date().toLocaleDateString('es-CO')}
 **Auditor Líder:** ${userName || req.user?.name || 'Usuario del Sistema'}
 **Criterios de Auditoría:** Decreto 1072 de 2015 (Capítulo 6), Resolución 0312 de 2019.
 
-**REGLA CRÍTICA: Debes basar tu informe EXCLUSIVAMENTE en los datos proporcionados a continuación. NO inventes, supongas ni alucines hallazgos. Si un estándar aparece como "cumple", NO lo reportes como No Conformidad. Si aparece como "no_cumple", SÍ repórtalo. Respeta estrictamente las listas de conformidad/no conformidad dadas.**
+**REGLAS CRÍTICAS:**
+1. Debes basar tu informe EXCLUSIVAMENTE en los datos proporcionados a continuación. NO inventes, supongas ni alucines hallazgos.
+2. Si un estándar aparece como "cumple", NO lo reportes como No Conformidad. Si aparece como "no_cumple", SÍ repórtalo.
+3. USA EXCLUSIVAMENTE los porcentajes PHVA pre-calculados proporcionados abajo. NO los recalcules ni modifiques.
+4. Cuando un estándar tenga una OBSERVACIÓN/EVIDENCIA DEL AUDITOR, DEBES usar ese texto como base principal del hallazgo. NO inventes detalles diferentes.
+5. En la columna "Requisito/Norma" de cada hallazgo, usa el campo CRITERIO NORMATIVO proporcionado para cada ítem (incluye Decreto 1072 Y Resolución 0312 con artículos específicos).
 
 Analiza los hallazgos de la auditoría interna y genera un INFORME DE AUDITORÍA INTERNA EXTENSO Y PROFESIONAL en formato HTML.
 
@@ -138,57 +164,76 @@ ${companyInfoBlock}
    - Puntaje Obtenido: ${weightedScore || 'N/A'}
    - Porcentaje Ponderado: ${weightedPercentage ? parseFloat(weightedPercentage).toFixed(1) : 'N/A'}%
 
+**PORCENTAJES POR CICLO PHVA (PRE-CALCULADOS — USAR EXACTAMENTE ESTOS VALORES):**
+${phvaSummary}
+
 **Detalle de No Conformidades y Hallazgos:**
 **NO CONFORMIDADES (Incumplimientos):**
 ${nonCompliantItems.map(item => {
-                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN/EVIDENCIA DEL AUDITOR: "${observations[item.id]}"` : '';
-                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+                const obs = observations && observations[item.id] ? `\n  → EVIDENCIA: "${observations[item.id]}"` : '';
+                const criteria = item.criteria ? `\n  → CRITERIO NORMATIVO: ${item.criteria}` : '';
+                return `- ${item.code} - ${item.name}: ${item.description}${criteria}${obs}`;
             }).join('\n') || 'Ninguna'}
 
 **CUMPLIMIENTO PARCIAL (Observaciones):**
 ${partialItems.map(item => {
-                const obs = observations && observations[item.id] ? `\n  → OBSERVACIÓN/EVIDENCIA DEL AUDITOR: "${observations[item.id]}"` : '';
-                return `- ${item.code} - ${item.name}: ${item.description}${obs}`;
+                const obs = observations && observations[item.id] ? `\n  → EVIDENCIA: "${observations[item.id]}"` : '';
+                const criteria = item.criteria ? `\n  → CRITERIO NORMATIVO: ${item.criteria}` : '';
+                return `- ${item.code} - ${item.name}: ${item.description}${criteria}${obs}`;
             }).join('\n') || 'Ninguna'}
 
 ## INSTRUCCIONES - GENERACIÓN DE INFORME AUDITORÍA DETALLADO
 
-Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO en formato HTML RICO Y ESTILIZADO.
-**IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser idéntico al de un informe gerencial de alto nivel.
-
-**REGLA SOBRE OBSERVACIONES:** Cuando un estándar tenga una OBSERVACIÓN/EVIDENCIA DEL AUDITOR, DEBES usar ese texto como base principal del hallazgo en el informe. NO inventes detalles diferentes. La observación del auditor refleja la realidad encontrada en campo y debe ser citada o parafraseada con fidelidad.
+Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML RICO Y ESTILIZADO.
+**IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser profesional y de alto nivel.
 
 1. **ENCABEZADO Y CONTEXTO**:
    - Crea una tabla elegante para la información de la empresa y del auditor.
-   - Usa un diseño limpio con bordes sutiles.
+   - Incluir: Alcance, Objetivo, Criterios de auditoría (Dec 1072 Cap 6, Res 0312).
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
    - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
-     Redacta un resumen ejecutivo profundo sobre el estado del SG-SST, mencionando explícitamente el cumplimiento del Decreto 1072 y la Resolución 0312.
+     Redacta un resumen ejecutivo profundo sobre el estado del SG-SST, mencionando explícitamente el cumplimiento del Decreto 1072 y la Resolución 0312. Incluye los puntajes generales y una síntesis de las principales fortalezas y debilidades.
      </div>
 
 3. **ANÁLISIS DE RESULTADOS (VISUAL Y GRÁFICO)**:
    - **TARJETAS DE PUNTUACIÓN:** Genera dos recuadros (divs) visuales lado a lado para los dos puntajes (Dec 1072 y Res 0312).
-   - **GRÁFICOS DE BARRAS (PHVA):** Para cada ciclo (Planear, Hacer, Verificar, Actuar), genera una **BARRA DE PROGRESO** visual (HTML/CSS).
-   - **FORTALEZAS:** Lista las fortalezas encontradas.
+   - **GRÁFICOS DE BARRAS (PHVA):** Para cada ciclo PHVA, genera una **BARRA DE PROGRESO** visual (HTML/CSS). **USA EXACTAMENTE los porcentajes pre-calculados:**
+     * PLANEAR: ${phvaData['planear'].percentage}%
+     * HACER: ${phvaData['hacer'].percentage}%
+     * VERIFICAR: ${phvaData['verificar'].percentage}%
+     * ACTUAR: ${phvaData['actuar'].percentage}%
+   - **FORTALEZAS:** Lista las fortalezas encontradas basándote en los ítems que cumplen.
 
-4. **HALLAZGOS DETALLADOS (TABLA DE NO CONFORMIDADES)**:
-   - **OBLIGATORIO:** Debes incluir **TODAS** las "No Conformidades" y "Cumplimientos Parciales" en una tabla detallada.
-   - **TABLA HTML:**
-     - Columnas: Requisito/Norma | Hallazgo (Descripción) | Tipo (No Conformidad/Observación) | Recomendación.
-     - Si hay muchos ítems, la tabla debe ser larga. NO omitas ninguno.
+4. **HALLAZGOS DETALLADOS (TABLA DE NO CONFORMIDADES Y OBSERVACIONES)**:
+   - **OBLIGATORIO:** Debes incluir **TODAS** las No Conformidades y Cumplimientos Parciales.
+   - **FORMATO DE REDACCIÓN DE CADA HALLAZGO (ISO 19011):**
+     Cada hallazgo debe seguir esta estructura:
+     "Se identificó que [DESCRIBIR LO ENCONTRADO / EVIDENCIA DEL AUDITOR], lo cual incumple lo establecido en [NORMA + ARTÍCULO ESPECÍFICO del CRITERIO NORMATIVO]."
+     Ejemplo: "Se identificó que la empresa no cuenta con auditoría anual del SG-SST (evidencia: No cuenta con auditoría), incumpliendo lo establecido en el Decreto 1072 de 2015, Art. 2.2.4.6.29 y Resolución 0312 de 2019, Estándar E6.1.2."
+   - **TABLA HTML con las siguientes columnas:**
+     | Requisito/Norma (usar CRITERIO NORMATIVO completo) | Hallazgo (redacción ISO 19011 con evidencia) | Tipo (No Conformidad Mayor / No Conformidad Menor / Observación) | Acción Correctiva (detallada: qué hacer, cómo, cuándo) | Responsable | Plazo |
+   - Si hay muchos ítems, la tabla DEBE ser extensa. NO omitas ninguno.
+   - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
 
-5. **CONCLUSIONES DE AUDITORÍA**:
-   - Concepto final sobre la conformidad y eficacia del sistema.
-   - Riesgos legales implicados.
+5. **CONCLUSIONES DE AUDITORÍA (EXTENSAS Y DETALLADAS)**:
+   - Concepto final sobre la conformidad y eficacia del SG-SST.
+   - Diagnóstico general: resumen de fortalezas del sistema y áreas críticas.
+   - **Riesgos legales detallados:** Para cada área de incumplimiento, mencionar la consecuencia legal específica (multas según Dec 472/15, sanciones del Ministerio de Trabajo, responsabilidad solidaria, etc.).
+   - Comparación con los requisitos del Decreto 1072 y la Resolución 0312.
+   - Recomendación sobre si el sistema es CONFORME, CONFORME CON OBSERVACIONES o NO CONFORME.
 
-6. **RECOMENDACIONES Y PLAN DE MEJORA**:
-   - Acciones inmediatas sugeridas.
+6. **PLAN DE ACCIÓN Y MEJORA (EXTENSO - TABLA DETALLADA)**:
+   - **OBLIGATORIO:** Genera una TABLA HTML completa que cubra TODOS los hallazgos, con las siguientes columnas:
+     | # | Hallazgo/NC | Norma Incumplida | Acción Correctiva (descripción detallada) | Responsable | Recurso Necesario | Indicador de Cumplimiento | Plazo (Inmediato/Corto/Mediano/Largo) |
+   - Cada fila debe ser descriptiva y autoexplicativa. Las acciones NO deben ser genéricas sino específicas y ejecutables.
+   - Agrupa las acciones por prioridad: Inmediatas (0-30 días), Corto plazo (1-3 meses), Mediano plazo (3-6 meses), Largo plazo (6-12 meses).
 
 **ESTILOS OBLIGATORIOS (CSS INLINE):**
 - Títulos (h1, h2): Color azul oscuro (#004d99).
 - Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd".
+- NC Mayor: fondo rosa claro (#ffe0e0). NC Menor: fondo amarillo claro (#fff8e0). Observación: fondo azul claro (#e0f0ff).
 
 **FIRMA OBLIGATORIA:**
 Al final del informe, firma estrictamente así (SIN IMÁGENES):
