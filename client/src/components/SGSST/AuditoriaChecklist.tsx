@@ -648,8 +648,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         <FileText className="h-5 w-5 text-text-secondary" />
                         <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
                     </div>
-                    <div style={{ minHeight: '400px', overflowX: 'auto', textAlign: 'left' }}>
-                        <div style={{ display: 'inline-block', minWidth: '100%', paddingRight: '10px' }}>
+                    <div style={{ minHeight: '400px', overflowX: 'auto' }}>
+                        <div style={{ minWidth: '900px' }}>
                             <LiveEditor
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
