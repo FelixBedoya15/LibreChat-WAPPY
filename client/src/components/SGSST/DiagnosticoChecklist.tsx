@@ -232,12 +232,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
             setAnalysisReport(cleanReport);
             setEditorContent(cleanReport);
-            // Preserve existing conversationId/reportMessageId if re-generating on a loaded report
-            // Only set to 'new' if there's no existing report context
-            if (!conversationId || conversationId === 'new') {
-                setConversationId('new');
-                setReportMessageId(null);
-            }
+            // Always reset for a fresh save after regeneration
+            setConversationId('new');
+            setReportMessageId(null);
             onAnalysisComplete?.(result.report);
             showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
         } catch (error: any) {

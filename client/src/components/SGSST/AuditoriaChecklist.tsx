@@ -216,11 +216,9 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
             setAnalysisReport(cleanReport);
             setEditorContent(cleanReport);
-            // Preserve existing conversationId/reportMessageId if re-generating on a loaded report
-            if (!conversationId || conversationId === 'new') {
-                setConversationId('new');
-                setReportMessageId(null);
-            }
+            // Always reset for a fresh save after regeneration
+            setConversationId('new');
+            setReportMessageId(null);
             onAnalysisComplete?.(result.report);
             showToast({ message: 'Informe de Auditoría generado exitosamente', status: 'success' });
         } catch (error: any) {
