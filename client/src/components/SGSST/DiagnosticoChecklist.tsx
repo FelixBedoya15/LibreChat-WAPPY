@@ -778,7 +778,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         </div>
                     </div>
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                        <div style={{ minWidth: '650px' }}>
+                        <div style={{ minWidth: '900px' }}>
                             <LiveEditor
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
