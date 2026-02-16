@@ -777,8 +777,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             <h3 className="font-semibold text-text-primary">{t('com_ui_manager_report', 'Informe Gerencial')}</h3>
                         </div>
                     </div>
-                    <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                        <div style={{ minWidth: '900px' }}>
+                    <div style={{ minHeight: '400px', overflowX: 'auto', textAlign: 'left' }}>
+                        <div style={{ display: 'inline-block', minWidth: '100%', paddingRight: '10px' }}>
                             <LiveEditor
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}

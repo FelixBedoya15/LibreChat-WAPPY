@@ -6,9 +6,11 @@ interface LiveEditorProps {
     initialContent: string;
     onUpdate: (content: string) => void;
     onSave?: () => void;
+    className?: string;
+    style?: React.CSSProperties;
 }
 
-const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSave }) => {
+const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSave, className, style }) => {
     const localize = useLocalize();
     const editorRef = useRef<HTMLDivElement>(null);
     const [content, setContent] = useState(initialContent);
@@ -43,7 +45,7 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     );
 
     return (
-        <div className="w-full h-full flex flex-col">
+        <div className={cn("w-full h-full flex flex-col", className)} style={style}>
             {/* Toolbar */}
             <div className="bg-surface-secondary p-2 border-b border-light flex flex-wrap gap-2 items-center sticky top-0 z-10">
                 {/* Group 1: Formatting Text */}
@@ -79,7 +81,7 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                 contentEditable
                 onInput={handleInput}
                 suppressContentEditableWarning={true}
-                style={{ minHeight: '100%', maxWidth: '100%' }}
+                style={{ minHeight: '100%', outline: 'none' }}
             />
         </div>
     );
