@@ -10,4 +10,5 @@ module.exports = {
     politica,
     matriz,
     estadisticas,
+    atelData: require('./atel-data'),
 };

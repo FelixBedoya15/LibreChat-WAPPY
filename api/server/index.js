@@ -206,6 +206,7 @@ const startServer = async () => {
   app.use('/api/sgsst/politica', routes.sgsst.politica);
   app.use('/api/sgsst/matriz', routes.sgsst.matriz);
   app.use('/api/sgsst/estadisticas', routes.sgsst.estadisticas);
+  app.use('/api/sgsst/atel-data', routes.sgsst.atelData);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {

@@ -11,6 +11,7 @@ import {
     Loader2,
     Calendar,
     CalendarDays,
+    Database, // New icon for data persistence
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -52,6 +53,8 @@ const EstadisticasATEL = () => {
 
     // UI State
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isSavingData, setIsSavingData] = useState(false); // New persistence state
+    const [isLoadingData, setIsLoadingData] = useState(false); // New persistence state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState('');
     const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -59,6 +62,38 @@ const EstadisticasATEL = () => {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Load Data Effect
+    useEffect(() => {
+        const loadData = async () => {
+            if (!token) return;
+            setIsLoadingData(true);
+            try {
+                const res = await fetch(`/api/sgsst/atel-data/${year}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.months) {
+                        // Merge loaded data with default structure to ensure all months exist
+                        setAnnualData(prev => {
+                            const merged: Record<number, MonthData> = { ...prev };
+                            Object.keys(data.months).forEach(key => {
+                                merged[Number(key)] = data.months[key];
+                            });
+                            return merged;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading annual data:', error);
+                showToast({ message: 'Error al cargar datos guardados', status: 'error' });
+            } finally {
+                setIsLoadingData(false);
+            }
+        };
+        loadData();
+    }, [year, token, showToast]);
 
     // Helpers to update current month data
     const updateMonthData = (field: keyof MonthData, value: any) => {
@@ -71,25 +106,46 @@ const EstadisticasATEL = () => {
     // Calculate totals for current month based on events
     const currentData = annualData[currentMonthIndex];
     const stats = useMemo(() => {
-        const events = currentData.events;
+        const events = currentData.events || [];
         return {
             numAT: events.filter(e => e.tipo === 'AT').length,
-            diasIncapacidadAT: events.filter(e => e.tipo === 'AT').reduce((sum, e) => sum + e.diasIncapacidad, 0),
+            diasIncapacidadAT: events.filter(e => e.tipo === 'AT').reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0),
             diasCargados: events.filter(e => e.tipo === 'AT').reduce((sum, e) => sum + (e.diasCargados || 0), 0),
-            // Mortality is usually annual, but we can track it per month if needed or accumulative
-            // Let's assume mortality is inferred from consequence or simple count if we add a 'Mortal' flag later.
-            // For now, Res 0312 asks for mortality proportion annually. We'll leave inputs for annual totals if needed, or derive from events if we add a flag.
-            // The user asked for "detailed events", let's assume "consequence" text handles it for qualitative, 
-            // but for the formula we might need a manual override or specific flag. 
-            // For simplicity in this phase, we'll derive "Mortales" from numeric counters we might add or just manual override in generating.
-            // Actually, let's keep it simple: We will send the EVENTS to the backend, and the backend can count if we had a flag.
-            // Since we don't have a 'Mortal' checkbox in EventLogger yet, let's assume 0 for now or add it.
-            // User asked for "innovador", let's deduce it.
             casosNuevosEL: events.filter(e => e.tipo === 'EL').length,
-            casosAntiguosEL: 0, // Hard to track in events without specific flag 'antiguo'
-            diasAusencia: events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + e.diasIncapacidad, 0),
+            casosAntiguosEL: 0,
+            diasAusencia: events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0),
         };
-    }, [currentData.events]);
+    }, [currentData.events]); // Use specific dependency to avoid loop
+
+    // Save Logic (Persistence)
+    const handleSaveData = async () => {
+        if (!token) return;
+        setIsSavingData(true);
+        try {
+            const res = await fetch('/api/sgsst/atel-data/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    year,
+                    annualData
+                }),
+            });
+
+            if (res.ok) {
+                showToast({ message: 'Datos guardados correctamente', status: 'success' });
+            } else {
+                throw new Error('Error en respuesta del servidor');
+            }
+        } catch (error) {
+            console.error('Error saving annual data:', error);
+            showToast({ message: 'Error al guardar los datos', status: 'error' });
+        } finally {
+            setIsSavingData(false);
+        }
+    };
 
     const handleGenerate = useCallback(async (scope: 'MONTH' | 'ANNUAL') => {
         const currentMonthData = annualData[currentMonthIndex];
@@ -100,11 +156,12 @@ const EstadisticasATEL = () => {
             return;
         }
 
+        // Auto-save data before generating to ensure consistency
+        handleSaveData();
+
         setIsGenerating(true);
         try {
             // Prepare payload
-            // We send the whole annual structure so backend can aggregate for annual report,
-            // or just current month for monthly report.
             const payload = {
                 scope,
                 year,
@@ -147,7 +204,7 @@ const EstadisticasATEL = () => {
         }
     }, [annualData, currentMonthIndex, year, selectedModel, token, user, showToast]);
 
-    const handleSave = useCallback(async () => {
+    const handleSaveReport = useCallback(async () => {
         const contentToSave = editorContent || generatedReport;
         if (!contentToSave) {
             showToast({ message: t('com_ui_no_report_save', 'No hay informe para guardar'), status: 'warning' });
@@ -165,7 +222,7 @@ const EstadisticasATEL = () => {
             const body = {
                 content: contentToSave,
                 ...(isNew ? {
-                    title: `Estadísticas ATEL - ${MONTHS[currentMonthIndex]} ${year}`,
+                    title: `Estadísticas ATEL (Informe) - ${MONTHS[currentMonthIndex]} ${year}`,
                     tags: ['sgsst-estadisticas-atel']
                 } : {
                     conversationId,
@@ -230,24 +287,37 @@ const EstadisticasATEL = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Botón Guardar Datos (Persistencia) */}
+                    <button
+                        onClick={handleSaveData}
+                        disabled={isSavingData}
+                        title="Guardar cambios en los datos (eventos)"
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                    >
+                        {isSavingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500 group-hover:text-blue-500" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Guardar Datos
+                        </span>
+                    </button>
+
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
                         <History className="h-5 w-5" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                            {t('com_ui_history', 'Historial')}
+                            {t('com_ui_history', 'Historial Informes')}
                         </span>
                     </button>
                     {generatedReport && (
                         <>
                             <button
-                                onClick={handleSave}
+                                onClick={handleSaveReport}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                             >
                                 <Save className="h-5 w-5" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    {t('com_ui_save', 'Guardar')}
+                                    {t('com_ui_save', 'Guardar Informe')}
                                 </span>
                             </button>
                             <ExportDropdown
@@ -289,6 +359,7 @@ const EstadisticasATEL = () => {
                         <span className="font-semibold text-text-primary">
                             Registro Mensual de Eventos
                         </span>
+                        {isLoadingData && <span className="text-xs text-text-secondary animate-pulse ml-2">(Cargando datos...)</span>}
                     </div>
                 </button>
 
@@ -297,14 +368,15 @@ const EstadisticasATEL = () => {
                         {/* Month Selector Sidebar (Desktop) or Scroll (Mobile) */}
                         <div className="w-full md:w-48 bg-surface-tertiary/20 border-b md:border-b-0 md:border-r border-border-medium flex md:flex-col overflow-x-auto md:overflow-visible">
                             {MONTHS.map((month, index) => {
-                                const hasData = annualData[index].events.length > 0 || annualData[index].numTrabajadores !== '';
+                                const mData = annualData[index];
+                                const hasData = mData && (mData.events?.length > 0 || (mData.numTrabajadores !== '' && mData.numTrabajadores > 0));
                                 return (
                                     <button
                                         key={month}
                                         onClick={() => setCurrentMonthIndex(index)}
                                         className={`flex-shrink-0 flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors border-l-4 ${currentMonthIndex === index
-                                                ? 'bg-surface-primary border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                : 'border-transparent text-text-secondary hover:bg-surface-tertiary hover:text-text-primary'
+                                            ? 'bg-surface-primary border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                                            : 'border-transparent text-text-secondary hover:bg-surface-tertiary hover:text-text-primary'
                                             }`}
                                     >
                                         <span>{month}</span>
@@ -322,7 +394,7 @@ const EstadisticasATEL = () => {
                                     <label className="text-xs font-medium text-text-secondary">N° Trabajadores (Promedio) <span className="text-red-500">*</span></label>
                                     <input
                                         type="number"
-                                        value={currentData.numTrabajadores}
+                                        value={currentData?.numTrabajadores || ''}
                                         onChange={(e) => updateMonthData('numTrabajadores', Number(e.target.value))}
                                         placeholder="Ej: 50"
                                         className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors"
@@ -332,7 +404,7 @@ const EstadisticasATEL = () => {
                                     <label className="text-xs font-medium text-text-secondary">N° Días Programados (Trabajo)</label>
                                     <input
                                         type="number"
-                                        value={currentData.diasProgramados}
+                                        value={currentData?.diasProgramados || ''}
                                         onChange={(e) => updateMonthData('diasProgramados', Number(e.target.value))}
                                         placeholder="Ej: 24"
                                         className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors"
@@ -342,7 +414,7 @@ const EstadisticasATEL = () => {
 
                             {/* 2. Event Logger */}
                             <EventLogger
-                                events={currentData.events}
+                                events={currentData?.events || []}
                                 onChange={(events) => updateMonthData('events', events)}
                                 monthName={MONTHS[currentMonthIndex]}
                             />
@@ -360,18 +432,30 @@ const EstadisticasATEL = () => {
                                 <button
                                     onClick={() => handleGenerate('MONTH')}
                                     disabled={isGenerating || !currentData.numTrabajadores}
-                                    className="px-4 py-2 rounded-full border border-border-medium hover:bg-surface-tertiary text-text-primary text-sm font-medium transition-all"
+                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isGenerating ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : <Calendar className="h-4 w-4 inline mr-2" />}
-                                    Informe Mensual ({MONTHS[currentMonthIndex]})
+                                    {isGenerating ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <Calendar className="h-5 w-5" />
+                                    )}
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        Informe Mensual ({MONTHS[currentMonthIndex]})
+                                    </span>
                                 </button>
                                 <button
                                     onClick={() => handleGenerate('ANNUAL')}
                                     disabled={isGenerating || !currentData.numTrabajadores}
-                                    className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all"
+                                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white border border-transparent rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isGenerating ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : <Sparkles className="h-4 w-4 inline mr-2" />}
-                                    Informe Anual Acumulado {year}
+                                    {isGenerating ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-5 w-5" />
+                                    )}
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        Informe Anual Acumulado {year}
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -393,7 +477,7 @@ const EstadisticasATEL = () => {
                         <LiveEditor
                             initialContent={generatedReport}
                             onUpdate={(html) => setEditorContent(html)}
-                            onSave={handleSave}
+                            onSave={handleSaveReport}
                         />
                     </div>
                 </div>
