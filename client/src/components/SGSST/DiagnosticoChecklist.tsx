@@ -787,16 +787,15 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     <style>{`
                         [contenteditable] table {
                             width: 100%;
-                            max-width: 100%;
+                            min-width: 650px; /* Force scroll on mobile */
                             border-collapse: collapse;
                             table-layout: auto;
-                            word-wrap: break-word;
-                            overflow-wrap: break-word;
                         }
                         [contenteditable] table td,
                         [contenteditable] table th {
                             padding: 8px 12px;
                             border: 1px solid var(--border-medium, #ddd);
+                            word-wrap: break-word;
                         }
                     `}</style>
                 </div>
