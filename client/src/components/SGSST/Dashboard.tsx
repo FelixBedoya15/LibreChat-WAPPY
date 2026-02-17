@@ -76,7 +76,14 @@ const SGSSTDashboard = () => {
     };
 
     if (selectedPhase) {
-        return <PhaseDetail phase={selectedPhase} onBack={handleBack} />;
+        return (
+            <PhaseDetail
+                phase={selectedPhase}
+                onBack={handleBack}
+                navVisible={navVisible}
+                setNavVisible={setNavVisible}
+            />
+        );
     }
 
     return (

@@ -5,6 +5,7 @@ import {
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
     ClipboardCheck, Briefcase, GitMerge
 } from 'lucide-react';
+import { OpenSidebar } from '~/components/Chat/Menus';
 import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
@@ -31,9 +32,11 @@ interface PhaseDetailProps {
         color: string;
     };
     onBack: () => void;
+    navVisible: boolean;
+    setNavVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
+const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailProps) => {
     const localize = useLocalize();
     const navigate = useNavigate();
     const { showToast } = useToastContext();
@@ -150,6 +153,11 @@ const PhaseDetail = ({ phase, onBack }: PhaseDetailProps) => {
     return (
         <div className="flex h-full w-full flex-col bg-surface-primary p-6">
             <div className="mb-6 flex items-center gap-4 border-b border-border-medium pb-4">
+                {!navVisible && (
+                    <div className="mr-2">
+                        <OpenSidebar setNavVisible={setNavVisible} />
+                    </div>
+                )}
                 <button
                     onClick={onBack}
                     className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
