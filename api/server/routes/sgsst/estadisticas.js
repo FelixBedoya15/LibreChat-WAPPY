@@ -158,7 +158,39 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             `- [${e.tipo}] Fecha: ${e.fecha}, Causa: "${e.causaInmediata}", Peligro: "${e.peligro}", Consecuencia: "${e.consecuencia}", Días: ${e.diasIncapacidad}`
         ).join('\n');
 
-        const companyInfoBlock = await getCompanyInfoBlock(req.user.id);
+        // Fetch structured company info for the header
+        let companyName = 'EMPRESA';
+        let companyNit = 'NIT';
+        try {
+            const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            if (ci) {
+                companyName = ci.companyName || 'EMPRESA';
+                companyNit = ci.nit || 'NIT';
+            }
+        } catch (err) { }
+
+        // Custom Header HTML (Boxed Layout)
+        const reportDate = new Date().toLocaleDateString('es-CO');
+        const reportPeriod = scope === 'ANNUAL' ? `Año ${year} (Acumulado)` : `${monthName} ${year}`;
+
+        const headerHTML = `
+<div style="border: 2px solid #004d99; border-radius: 8px; display: flex; align-items: stretch; overflow: hidden; font-family: inherit; margin-bottom: 20px;">
+  <div style="flex: 0 0 20%; background-color: white; border-right: 2px solid #004d99; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px;">
+    <h1 style="color: #004d99; margin: 0; font-size: 24px; font-weight: bold; line-height: 1.2;">SGSST</h1>
+    <p style="color: #666; margin: 0; font-size: 10px; text-align: center; font-weight: bold; letter-spacing: 1px;">GESTIÓN DEBN</p>
+  </div>
+  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center;">
+    <h2 style="color: #004d99; margin: 0; font-size: 18px; font-weight: bold; text-transform: uppercase;">ACCIDENTALIDAD</h2>
+    <p style="color: #555; margin: 5px 0 0; font-size: 12px;">Seguimiento de Indicadores de Seguridad y Salud en el Trabajo - Res. 0312 de 2019</p>
+  </div>
+  <div style="flex: 0 0 25%; background-color: white; border-left: 2px solid #004d99; font-size: 10px; padding: 10px; display: flex; flex-direction: column; justify-content: center;">
+    <p style="margin: 2px 0;"><strong>EMPRESA:</strong> ${companyName}</p>
+    <p style="margin: 2px 0;"><strong>NIT:</strong> ${companyNit}</p>
+    <p style="margin: 2px 0;"><strong>FECHA:</strong> ${reportDate}</p>
+    <p style="margin: 2px 0;"><strong>PERIODO:</strong> ${reportPeriod}</p>
+  </div>
+</div>
+`;
 
         // ─── 4. Build Prompt ───────────────────────────────────────────
         const periodLabel = scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`;
@@ -171,7 +203,7 @@ Actúas como Auditor Líder generando un **INFORME GERENCIAL DE ACCIDENTALIDAD (
 
 **CONTEXTO DEL INFORME:**
 - **Periodo Analizado:** ${periodLabel}
-- **Empresa:** ${companyInfoBlock || 'No registrada'}
+- **Empresa:** ${companyName} (NIT: ${companyNit})
 - **Responsable:** ${userName || 'Consultor SST'}
 - **Fecha de Emisión:** ${new Date().toLocaleDateString('es-CO')}
 
@@ -207,8 +239,8 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
 **SECCIONES DEL INFORME:**
 
 1.  **ENCABEZADO OFICIAL:**
-    - Logo (placeholder texto "SGSST"), Título del Informe, Subtítulo con la Resolución 0312.
-    - Tabla compacta con datos de la empresa y del auditor.
+    - DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+    ${headerHTML}
 
 2.  **RESUMEN EJECUTIVO GERENCIAL:**
     - Un recuadro destacado con un análisis narrativo profundo.
