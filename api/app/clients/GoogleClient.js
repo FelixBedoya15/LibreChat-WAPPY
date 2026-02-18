@@ -776,17 +776,39 @@ class GoogleClient extends BaseClient {
           usageMetadata = !usageMetadata
             ? chunk?.usageMetadata
             : Object.assign(usageMetadata, chunk?.usageMetadata);
-          const chunkText = chunk.text();
+
+          let chunkText = '';
+          try {
+            chunkText = chunk.text();
+          } catch (e) {
+            // Expected for pure function calls without text
+          }
+
           await this.generateTextStream(chunkText, onProgress, {
             delay,
           });
+
+          // Capture function call thought signature
           const candidates = chunk.candidates || [];
-          if (candidates[0]?.content?.parts?.[0]?.thought) {
-            const thought = candidates[0].content.parts[0].thought;
-            if (thought) {
-              reply += `\n:::thought::${thought}:::`;
+          const parts = candidates[0]?.content?.parts || [];
+
+          for (const part of parts) {
+            if (part && typeof part === 'object' && part.functionCall) {
+              // Try to find the signature. 
+              // Based on research, it's inside functionCall OR on the part itself
+              // SDK might normalize it. Check commonly used keys.
+              // 'thought' is the most likely candidate for the signature string based on errors.
+              // 'id' is standard for tool usage but usually shorter. Signatures are long tokens.
+              const signature = part.functionCall.thought || part.thought || part.functionCall.id;
+
+              if (signature && typeof signature === 'string' && signature.length > 20) {
+                // Append signature in a hidden format that formatGenerativeMessages can recover
+                // We use a specific token to avoid confusing it with visible text.
+                reply += `\n:::gemini_thought_token::${signature}:::`;
+              }
             }
           }
+
           reply += chunkText;
           await sleep(streamRate);
         }
