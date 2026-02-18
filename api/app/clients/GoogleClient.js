@@ -26,6 +26,7 @@ const { encodeAndFormat } = require('~/server/services/Files/images');
 const { spendTokens } = require('~/models/spendTokens');
 const {
   formatMessage,
+  formatGoogleInputs,
   createContextHandlers,
   titleInstruction,
   truncateText,
@@ -272,7 +273,53 @@ class GoogleClient extends BaseClient {
     messages[messages.length - 1] = latestMessage;
 
     for (const _message of messages) {
-      const role = _message.isCreatedByUser ? this.userLabel : this.modelLabel;
+      if (role === 'tool') {
+        const parts = [{
+          functionResponse: {
+            name: _message.name,
+            response: {
+              name: _message.name,
+              content: formatGoogleInputs(_message.content).struct_val,
+            },
+          },
+        }];
+        formattedMessages.push({ role, parts });
+        continue;
+      }
+
+      if (_message.tool_calls?.length) {
+        const parts = [];
+        // Check for thought signature in text content (hidden) or from previous message
+        if (_message.text) {
+          const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
+          if (thoughtMatch) {
+            const thought = thoughtMatch[1];
+            parts.push({ thought });
+            // Remove the hidden thought from the text to avoid duplication if printed
+            // But we don't add text part here if it's just a tool call container?
+            // Actually, some models support text + tool_call. 
+            // Let's strip the thought and add the rest as text if it exists.
+            const cleanText = _message.text.replace(/:::thought::.*?:::/, '').trim();
+            if (cleanText) {
+              parts.push({ text: cleanText });
+            }
+          } else if (_message.text) {
+            parts.push({ text: _message.text });
+          }
+        }
+
+        for (const toolCall of _message.tool_calls) {
+          parts.push({
+            functionCall: {
+              name: toolCall.function.name,
+              args: JSON.parse(toolCall.function.arguments),
+            },
+          });
+        }
+        formattedMessages.push({ role, parts });
+        continue;
+      }
+
       const parts = [];
       parts.push({ text: _message.text });
       if (!_message.image_urls?.length) {
@@ -281,12 +328,8 @@ class GoogleClient extends BaseClient {
           const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
           if (thoughtMatch) {
             const thought = thoughtMatch[1];
-            // Remove the hidden thought from the text part so it's not sent as user text
             parts[0].text = _message.text.replace(/:::thought::.*?:::/, '').trim();
             // Add thought part
-            // Add thought part if present
-            // Based on error "missing a thought_signature", and docs implying we must pass back what we received.
-            // We received a string signature, so we pass it back as { thought: signature_string }
             parts.unshift({ thought });
           }
         }
