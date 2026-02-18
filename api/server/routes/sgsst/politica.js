@@ -81,7 +81,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         // 3. Initialize the Gemini SDK
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-09-2025' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
         const currentDate = new Date().toLocaleDateString('es-CO', {
             year: 'numeric',

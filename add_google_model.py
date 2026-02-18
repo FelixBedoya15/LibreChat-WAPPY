@@ -10,7 +10,7 @@ model_config = [
     '      default:\n',
     '        - "gemini-2.5-pro"\n',
     '        - "gemini-2.5-flash"\n',
-    '        - "gemini-2.5-flash-preview-09-2025"\n',
+    '        - "gemini-3-flash-preview"\n',
     '        - "gemini-2.5-flash-lite"\n',
     '        - "gemini-2.5-flash-lite-preview-09-2025"\n',
     '        - "gemini-2.0-flash"\n',

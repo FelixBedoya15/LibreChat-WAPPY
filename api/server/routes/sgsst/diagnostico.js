@@ -470,7 +470,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
                 checklistLength: checklist?.length,
                 score,
                 totalPoints,
-                modelName: 'gemini-2.5-flash-preview-09-2025 (+fallback)'
+                modelName: 'gemini-3-flash-preview (+fallback)'
             }
         });
         logger.error('[SGSST Diagnostico] Analysis error:', error);

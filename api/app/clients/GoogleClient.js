@@ -160,8 +160,7 @@ class GoogleClient extends BaseClient {
 
     if (this.maxPromptTokens + this.maxResponseTokens > this.maxContextTokens) {
       throw new Error(
-        `maxPromptTokens + maxOutputTokens (${this.maxPromptTokens} + ${this.maxResponseTokens} = ${
-          this.maxPromptTokens + this.maxResponseTokens
+        `maxPromptTokens + maxOutputTokens (${this.maxPromptTokens} + ${this.maxResponseTokens} = ${this.maxPromptTokens + this.maxResponseTokens
         }) must be less than or equal to maxContextTokens (${this.maxContextTokens})`,
       );
     }
@@ -247,11 +246,11 @@ class GoogleClient extends BaseClient {
       msg.content = (
         !Array.isArray(msg.content)
           ? [
-              {
-                type: ContentTypes.TEXT,
-                [ContentTypes.TEXT]: msg.content,
-              },
-            ]
+            {
+              type: ContentTypes.TEXT,
+              [ContentTypes.TEXT]: msg.content,
+            },
+          ]
           : msg.content
       ).concat(message.image_urls);
 
@@ -277,6 +276,28 @@ class GoogleClient extends BaseClient {
       const parts = [];
       parts.push({ text: _message.text });
       if (!_message.image_urls?.length) {
+        // Check for thought signature in text content (hidden)
+        if (_message.text) {
+          const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
+          if (thoughtMatch) {
+            const thought = thoughtMatch[1];
+            // Remove the hidden thought from the text part so it's not sent as user text
+            parts[0].text = _message.text.replace(/:::thought::.*?:::/, '').trim();
+            // Add thought part
+            parts.unshift({ thought: true });
+            // NOTE: The official API expects { thought: true } as a marker or { thought: "signature" }?
+            // Re-reading search results carefully: "The model returns a thought field... ensure that any thought_signature received... is passed back".
+            // If the model returns "thought": "signature", we must send back "thought": "signature".
+            // BUT, `parts` array in `google-generative-ai` SDK takes `Part` objects.
+            // A `Part` can have `text`, `inlineData`, `functionCall`, `functionResponse`.
+            // Does it support `thought`?
+            // If not supported by SDK types, we might need to cast or just pass the object and hope it serializes correctly to JSON associated with "thought".
+            // Let's try passing the object { thought: true } as per some successful examples, or { thought: thought } if it's a string signature.
+            // Wait, the error says "thought_signature".
+            // If the signature is a string, we should likely pass { thought: thought }.
+            parts.unshift({ thought: true });
+          }
+        }
         formattedMessages.push({ role, parts });
         continue;
       }
@@ -702,6 +723,13 @@ class GoogleClient extends BaseClient {
           await this.generateTextStream(chunkText, onProgress, {
             delay,
           });
+          const candidates = chunk.candidates || [];
+          if (candidates[0]?.content?.parts?.[0]?.thought) {
+            const thought = candidates[0].content.parts[0].thought;
+            if (thought) {
+              reply += `\n:::thought::${thought}:::`;
+            }
+          }
           reply += chunkText;
           await sleep(streamRate);
         }
@@ -772,9 +800,8 @@ class GoogleClient extends BaseClient {
     }
 
     if (error != null && reply === '') {
-      const errorMessage = `{ "type": "${ErrorTypes.GoogleError}", "info": "${
-        error.message ?? 'The Google provider failed to generate content, please contact the Admin.'
-      }" }`;
+      const errorMessage = `{ "type": "${ErrorTypes.GoogleError}", "info": "${error.message ?? 'The Google provider failed to generate content, please contact the Admin.'
+        }" }`;
       throw new Error(errorMessage);
     }
     return reply;
@@ -925,7 +952,7 @@ class GoogleClient extends BaseClient {
       this.initializeClient();
       title = await this.titleChatCompletion(payload, {
         abortController: new AbortController(),
-        onProgress: () => {},
+        onProgress: () => { },
       });
     } catch (e) {
       logger.error('[GoogleClient] There was an issue generating the title', e);

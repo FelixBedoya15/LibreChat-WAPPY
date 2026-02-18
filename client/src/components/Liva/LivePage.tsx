@@ -432,7 +432,7 @@ const LivePage = () => {
                 body: JSON.stringify({
                     text: contentToSave, // Save HTML directly
                     conversationId: null,
-                    model: 'gemini-2.5-flash-preview-09-2025',
+                    model: 'gemini-3-flash-preview',
                     endpoint: 'google',
                     parentMessageId: '00000000-0000-0000-0000-000000000000'
                 })
