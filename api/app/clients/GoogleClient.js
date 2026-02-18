@@ -289,22 +289,38 @@ class GoogleClient extends BaseClient {
 
       if (_message.tool_calls?.length) {
         const parts = [];
-        // Check for thought signature in text content (hidden) or from previous message
+        let thoughtFound = false;
+
+        // logger.debug('[GoogleClient] Processing message with tool_calls', { text: _message.text, content: _message.content });
+
+        // Check for thought signature in text content (hidden)
         if (_message.text) {
           const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
           if (thoughtMatch) {
             const thought = thoughtMatch[1];
             parts.push({ thought });
-            // Remove the hidden thought from the text to avoid duplication if printed
-            // But we don't add text part here if it's just a tool call container?
-            // Actually, some models support text + tool_call. 
-            // Let's strip the thought and add the rest as text if it exists.
+            thoughtFound = true;
+            // logger.debug('[GoogleClient] Extracted thought from text', { thought });
+
             const cleanText = _message.text.replace(/:::thought::.*?:::/, '').trim();
             if (cleanText) {
               parts.push({ text: cleanText });
             }
-          } else if (_message.text) {
-            parts.push({ text: _message.text });
+          } else {
+            // If text exists but no thought tag, just add text? 
+            // BEWARE: if the model generated a thought but we failed to parse it, adding just text might cause the error.
+            if (_message.text.trim()) {
+              parts.push({ text: _message.text });
+            }
+          }
+        }
+
+        // Also check content array for THINK type if text didn't yield result
+        if (!thoughtFound && Array.isArray(_message.content)) {
+          const thinkPart = _message.content.find(p => p.type === 'think' || p.type === 'thought'); // Adjust type constant based on LibreChat
+          if (thinkPart && thinkPart.thought) {
+            parts.push({ thought: thinkPart.thought });
+            thoughtFound = true;
           }
         }
 
@@ -321,17 +337,23 @@ class GoogleClient extends BaseClient {
       }
 
       const parts = [];
-      parts.push({ text: _message.text });
+      // parts.push({ text: _message.text }); // REMOVED: Don't push text blindly at start
       if (!_message.image_urls?.length) {
         // Check for thought signature in text content (hidden)
         if (_message.text) {
           const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
           if (thoughtMatch) {
             const thought = thoughtMatch[1];
-            parts[0].text = _message.text.replace(/:::thought::.*?:::/, '').trim();
-            // Add thought part
-            parts.unshift({ thought });
+            parts.push({ thought });
+            const cleanText = _message.text.replace(/:::thought::.*?:::/, '').trim();
+            if (cleanText) {
+              parts.push({ text: cleanText });
+            }
+          } else {
+            if (_message.text) parts.push({ text: _message.text });
           }
+        } else {
+          // No text?
         }
         formattedMessages.push({ role, parts });
         continue;
