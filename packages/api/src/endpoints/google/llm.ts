@@ -99,7 +99,10 @@ export function getGoogleConfig(
   const serviceKey =
     typeof serviceKeyRaw === 'string' ? JSON.parse(serviceKeyRaw) : (serviceKeyRaw ?? {});
 
-  const apiKey = creds[AuthKeys.GOOGLE_API_KEY] ?? null;
+  let apiKey = creds[AuthKeys.GOOGLE_API_KEY] ?? null;
+  if (apiKey && typeof apiKey === 'string') {
+    apiKey = apiKey.split(',')[0].trim();
+  }
   const project_id = !apiKey ? (serviceKey?.project_id ?? null) : null;
 
   const reverseProxyUrl = options.reverseProxyUrl;
