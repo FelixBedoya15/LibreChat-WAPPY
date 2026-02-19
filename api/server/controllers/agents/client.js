@@ -239,6 +239,17 @@ class AgentClient extends BaseClient {
       .join('\n')
       .trim();
 
+    // ✅ FIX 1: Load memory BEFORE building the payload/context strategy
+    // This ensure memory instructions are available for the model params
+    const withoutKeys = await this.useMemory();
+    if (withoutKeys) {
+      systemContent += `${memoryInstructions}\n\n# Existing memory about the user:\n${withoutKeys}`;
+    }
+
+    if (systemContent) {
+      this.options.agent.instructions = systemContent;
+    }
+
     if (this.options.attachments) {
       const attachments = await this.options.attachments;
       const latestMessage = orderedMessages[orderedMessages.length - 1];
@@ -358,12 +369,15 @@ class AgentClient extends BaseClient {
     /** @type {Record<string, number> | undefined} */
     let tokenCountMap;
 
-    if (this.contextStrategy) {
-      ({ payload, promptTokens, tokenCountMap, messages } = await this.handleContextStrategy({
-        orderedMessages,
-        formattedMessages,
-      }));
-    }
+    ({ payload, promptTokens, tokenCountMap, messages } = await this.handleContextStrategy({
+      orderedMessages,
+      formattedMessages,
+    }));
+    // }
+    //
+    // if (systemContent) {
+    //   this.options.agent.instructions = systemContent;
+    // }
 
     for (let i = 0; i < messages.length; i++) {
       this.indexTokenCountMap[i] = messages[i].tokenCount;
@@ -380,14 +394,7 @@ class AgentClient extends BaseClient {
       opts.getReqData({ promptTokens });
     }
 
-    const withoutKeys = await this.useMemory();
-    if (withoutKeys) {
-      systemContent += `${memoryInstructions}\n\n# Existing memory about the user:\n${withoutKeys}`;
-    }
 
-    if (systemContent) {
-      this.options.agent.instructions = systemContent;
-    }
 
     return result;
   }
@@ -471,6 +478,14 @@ class AgentClient extends BaseClient {
         '[api/server/controllers/agents/client.js #useMemory] Error loading agent for memory',
         error,
       );
+    }
+
+    // ✅ FIX 3: explicit guard for undefined prelimAgent
+    if (!prelimAgent) {
+      logger.warn(
+        '[api/server/controllers/agents/client.js #useMemory] No memory agent configured or failed to load, skipping memory',
+      );
+      return;
     }
 
     const agent = await initializeAgent({
@@ -761,6 +776,19 @@ class AgentClient extends BaseClient {
     let run;
     /** @type {Promise<(TAttachment | null)[] | undefined>} */
     let memoryPromise;
+
+    // ✅ FIX 4: Prevent double processing of memory
+    let memoryProcessed = false;
+    const handleMemory = async () => {
+      if (memoryProcessed) {
+        return;
+      }
+      memoryProcessed = true;
+      const attachments = await this.awaitMemoryWithTimeout(memoryPromise);
+      if (attachments && attachments.length > 0) {
+        this.artifactPromises.push(...attachments);
+      }
+    };
     try {
       if (!abortController) {
         abortController = new AbortController();
@@ -889,19 +917,19 @@ class AgentClient extends BaseClient {
           // 1. At or after the finalContentStart index
           // 2. Of type tool_call
           // 3. Have tool_call_ids property
+          // 4. ✅ FIX 2: Explicitly include tool_result and check for tool_call_id
           return (
             index >= this.contentParts.length - 1 ||
             part.type === ContentTypes.TOOL_CALL ||
-            part.tool_call_ids
+            part.type === ContentTypes.TOOL_RESULT ||
+            part.tool_call_ids != null ||
+            part.tool_call_id != null
           );
         });
       }
 
       try {
-        const attachments = await this.awaitMemoryWithTimeout(memoryPromise);
-        if (attachments && attachments.length > 0) {
-          this.artifactPromises.push(...attachments);
-        }
+        await handleMemory();
 
         const balanceConfig = getBalanceConfig(appConfig);
         const transactionsConfig = getTransactionsConfig(appConfig);
@@ -917,10 +945,7 @@ class AgentClient extends BaseClient {
         );
       }
     } catch (err) {
-      const attachments = await this.awaitMemoryWithTimeout(memoryPromise);
-      if (attachments && attachments.length > 0) {
-        this.artifactPromises.push(...attachments);
-      }
+      await handleMemory();
       logger.error(
         '[api/server/controllers/agents/client.js #sendCompletion] Operation aborted',
         err,
