@@ -915,56 +915,7 @@ class AgentClient extends BaseClient {
 
       memoryPromise = this.runMemory(initialMessages);
 
-      // Native Key Rotation for Agents
-      let keys = [this.options.agent?.model_parameters?.apiKey];
-      if (typeof keys[0] === 'string' && keys[0].includes(',')) {
-        keys = keys[0].split(',').map((k) => k.trim()).filter(Boolean);
-      }
-      if (!keys.length) {
-        keys = [null];
-      }
-
-      let attemptErrors = [];
-      let success = false;
-      let lastErr = null;
-      const initialContentPartsLength = this.contentParts.length;
-
-      for (let i = 0; i < keys.length; i++) {
-        try {
-          if (keys[i]) {
-            this.options.agent.model_parameters.apiKey = keys[i];
-            if (config?.configurable?.endpointOption?.model_parameters) {
-              config.configurable.endpointOption.model_parameters.apiKey = keys[i];
-            }
-          }
-          await runAgents(initialMessages);
-          success = true;
-          break; // Exit loop on success
-        } catch (err) {
-          lastErr = err;
-          const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
-          const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
-          const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
-
-          attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
-
-          if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
-            logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
-            // Clean up any artifacts from the failed run in-place to preserve closure reference
-            this.contentParts.splice(initialContentPartsLength);
-            continue;
-          } else {
-            break;
-          }
-        }
-      }
-
-      if (!success && lastErr) {
-        if (attemptErrors.length > 1) {
-          throw new Error(`All available API keys failed.\n` + attemptErrors.join('\n'));
-        }
-        throw lastErr;
-      }
+      await runAgents(initialMessages);
 
       /** @deprecated Agent Chain */
       if (config.configurable.hide_sequential_outputs) {

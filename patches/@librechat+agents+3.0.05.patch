@@ -1,0 +1,666 @@
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
+index 48c6de6..b5062f5 100644
+--- a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
+@@ -41,6 +41,11 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+                 'or in the `apiKey` field of the ' +
+                 'ChatGoogleGenerativeAI constructor');
+         }
++        this._apiKeys = this.apiKey.split(',').map((k) => k.trim()).filter(Boolean);
++        this._currentKeyIndex = 0;
++        this.apiKey = this._apiKeys[this._currentKeyIndex] || this.apiKey;
++        this._modelFields = fields;
++
+         this.safetySettings = fields.safetySettings ?? this.safetySettings;
+         if (this.safetySettings && this.safetySettings.length > 0) {
+             const safetySettingsSet = new Set(this.safetySettings.map((s) => s.category));
+@@ -50,7 +55,11 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+         }
+         this.thinkingConfig = fields.thinkingConfig ?? this.thinkingConfig;
+         this.streaming = fields.streaming ?? this.streaming;
+-        this.json = fields.json;
++        this.json = fields.json; console.log("====== CUSTOM GOOGLE CHAT LOADED ======");
++        this._initializeClient();
++        this.streamUsage = fields.streamUsage ?? this.streamUsage;
++    }
++    _initializeClient() {
+         // @ts-ignore - Accessing private property from parent class
+         this.client = new generativeAi.GoogleGenerativeAI(this.apiKey).getGenerativeModel({
+             model: this.model,
+@@ -66,11 +75,22 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+                     : {}),
+             },
+         }, {
+-            apiVersion: fields.apiVersion,
+-            baseUrl: fields.baseUrl,
+-            customHeaders: fields.customHeaders,
++            apiVersion: this._modelFields.apiVersion,
++            baseUrl: this._modelFields.baseUrl,
++            customHeaders: this._modelFields.customHeaders,
+         });
+-        this.streamUsage = fields.streamUsage ?? this.streamUsage;
++    }
++    rotateKey() {
++        if (this._apiKeys.length > 1) {
++            this._currentKeyIndex = (this._currentKeyIndex + 1) % this._apiKeys.length;
++            this.apiKey = this._apiKeys[this._currentKeyIndex];
++            this._initializeClient();
++            if (this._currentKeyIndex === 0) {
++                return false; // we wrapped around
++            }
++            return true; // Rotated to a new key
++        }
++        return false;
+     }
+     static lc_name() {
+         return 'LibreChatGoogleGenerativeAI';
+@@ -102,11 +122,36 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+             ...parameters,
+             contents: actualPrompt,
+         };
+-        const stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
+-            /** @ts-ignore */
+-            const { stream } = await this.client.generateContentStream(request);
+-            return stream;
+-        });
++        let stream;
++        throw new Error("TEST ERROR: Custom Google Chat is being used.");
++        while (true) {
++            try {
++                stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
++                    /** @ts-ignore */
++                    const { stream: genStream } = await this.client.generateContentStream(request);
++                    return genStream;
++                });
++                break;
++            } catch (e) {
++                const isQuotaEvent = e?.status === 429 || e?.message?.includes('429');
++                const isGenericQuota = e?.status === 403 || e?.message?.includes('403');
++                const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++
++                attemptErrors.push(`[Key ${this._currentKeyIndex + 1}]: ` + (e?.message || 'Error'));
++
++                if ((isQuotaEvent || isGenericQuota || isInvalidKey) && this.rotateKey()) {
++                    console.warn(`[CustomChatGoogleGenerativeAI] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with API key ${this._currentKeyIndex}...`);
++                    continue;
++                }
++
++                if (attemptErrors.length > 1) {
++                    const errorMsg = `All available API keys failed.\n` + attemptErrors.join('\n');
++                    throw new Error(errorMsg);
++                } else {
++                    throw e;
++                }
++            }
++        }
+         let lastUsageMetadata;
+         for await (const response of stream) {
+             if ('usageMetadata' in response &&
+@@ -122,7 +167,8 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+                 };
+             }
+             const chunk = common.convertResponseContentToChatGenerationChunk(response, {
+-                usageMetadata: undefined});
++                usageMetadata: undefined
++            });
+             if (!chunk) {
+                 continue;
+             }
+@@ -141,6 +187,35 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+             await runManager?.handleLLMNewToken(finalChunk.text || '', undefined, undefined, undefined, undefined, { chunk: finalChunk });
+         }
+     }
++    async completionWithRetry(request, options) {
++        let res;
++        let attemptErrors = [];
++        while (true) {
++            try {
++                res = await super.completionWithRetry(request, options);
++                break;
++            } catch (e) {
++                const isQuotaEvent = e?.status === 429 || e?.message?.includes('429');
++                const isGenericQuota = e?.status === 403 || e?.message?.includes('403');
++                const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++
++                attemptErrors.push(`[Key ${this._currentKeyIndex + 1}]: ` + (e?.message || 'Error'));
++
++                if ((isQuotaEvent || isGenericQuota || isInvalidKey) && this.rotateKey()) {
++                    console.warn(`[CustomChatGoogleGenerativeAI] completionWithRetry Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with API key ${this._currentKeyIndex}...`);
++                    continue;
++                }
++
++                if (attemptErrors.length > 1) {
++                    const errorMsg = `All available API keys failed.\n` + attemptErrors.join('\n');
++                    throw new Error(errorMsg);
++                } else {
++                    throw e;
++                }
++            }
++        }
++        return res;
++    }
+ }
+ 
+ exports.CustomChatGoogleGenerativeAI = CustomChatGoogleGenerativeAI;
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.js b/node_modules/@librechat/agents/dist/cjs/llm/google/index.js
+new file mode 100644
+index 0000000..29e5272
+--- /dev/null
++++ b/node_modules/@librechat/agents/dist/cjs/llm/google/index.js
+@@ -0,0 +1,190 @@
++"use strict";
++Object.defineProperty(exports, "__esModule", { value: true });
++exports.CustomChatGoogleGenerativeAI = void 0;
++/* eslint-disable @typescript-eslint/ban-ts-comment */
++const messages_1 = require("@langchain/core/messages");
++const outputs_1 = require("@langchain/core/outputs");
++const google_genai_1 = require("@langchain/google-genai");
++const env_1 = require("@langchain/core/utils/env");
++const generative_ai_1 = require("@google/generative-ai");
++const common_1 = require("./utils/common");
++class CustomChatGoogleGenerativeAI extends google_genai_1.ChatGoogleGenerativeAI {
++    thinkingConfig;
++    _apiKeys;
++    _currentKeyIndex;
++    _modelFields;
++    constructor(fields) {
++        super(fields);
++        this.model = fields.model.replace(/^models\//, '');
++        this.maxOutputTokens = fields.maxOutputTokens ?? this.maxOutputTokens;
++        if (this.maxOutputTokens != null && this.maxOutputTokens < 0) {
++            throw new Error('`maxOutputTokens` must be a positive integer');
++        }
++        this.temperature = fields.temperature ?? this.temperature;
++        if (this.temperature != null &&
++            (this.temperature < 0 || this.temperature > 2)) {
++            throw new Error('`temperature` must be in the range of [0.0,2.0]');
++        }
++        this.topP = fields.topP ?? this.topP;
++        if (this.topP != null && this.topP < 0) {
++            throw new Error('`topP` must be a positive integer');
++        }
++        if (this.topP != null && this.topP > 1) {
++            throw new Error('`topP` must be below 1.');
++        }
++        this.topK = fields.topK ?? this.topK;
++        if (this.topK != null && this.topK < 0) {
++            throw new Error('`topK` must be a positive integer');
++        }
++        this.stopSequences = fields.stopSequences ?? this.stopSequences;
++        this.apiKey = fields.apiKey ?? (0, env_1.getEnvironmentVariable)('GOOGLE_API_KEY');
++        if (this.apiKey == null || this.apiKey === '') {
++            throw new Error('Please set an API key for Google GenerativeAI ' +
++                'in the environment variable GOOGLE_API_KEY ' +
++                'or in the `apiKey` field of the ' +
++                'ChatGoogleGenerativeAI constructor');
++        }
++        // Parse potential comma-separated API keys
++        this._apiKeys = this.apiKey.split(',').map((k) => k.trim()).filter(Boolean);
++        this._currentKeyIndex = 0;
++        this.apiKey = this._apiKeys[this._currentKeyIndex] || this.apiKey;
++        this.safetySettings = fields.safetySettings ?? this.safetySettings;
++        if (this.safetySettings && this.safetySettings.length > 0) {
++            const safetySettingsSet = new Set(this.safetySettings.map((s) => s.category));
++            if (safetySettingsSet.size !== this.safetySettings.length) {
++                throw new Error('The categories in `safetySettings` array must be unique');
++            }
++        }
++        this.thinkingConfig = fields.thinkingConfig ?? this.thinkingConfig;
++        this.streaming = fields.streaming ?? this.streaming;
++        this.json = fields.json;
++        // Save fields to easily re-initialize the client on rotation
++        this._modelFields = fields;
++        this._initializeClient();
++        this.streamUsage = fields.streamUsage ?? this.streamUsage;
++    }
++    _initializeClient() {
++        // @ts-ignore - Accessing private property from parent class
++        this.client = new generative_ai_1.GoogleGenerativeAI(this.apiKey).getGenerativeModel({
++            model: this.model,
++            safetySettings: this.safetySettings,
++            generationConfig: {
++                stopSequences: this.stopSequences,
++                maxOutputTokens: this.maxOutputTokens,
++                temperature: this.temperature,
++                topP: this.topP,
++                topK: this.topK,
++                ...(this.json != null
++                    ? { responseMimeType: 'application/json' }
++                    : {}),
++            },
++        }, {
++            apiVersion: this._modelFields.apiVersion,
++            baseUrl: this._modelFields.baseUrl,
++            customHeaders: this._modelFields.customHeaders,
++        });
++    }
++    rotateKey() {
++        if (this._apiKeys.length > 1) {
++            this._currentKeyIndex = (this._currentKeyIndex + 1) % this._apiKeys.length;
++            this.apiKey = this._apiKeys[this._currentKeyIndex];
++            this._initializeClient();
++            if (this._currentKeyIndex === 0) {
++                return false; // we wrapped around
++            }
++            return true; // Rotated to a new key
++        }
++        return false;
++    }
++    static lc_name() {
++        return 'LibreChatGoogleGenerativeAI';
++    }
++    invocationParams(options) {
++        const params = super.invocationParams(options);
++        if (this.thinkingConfig) {
++            /** @ts-ignore */
++            this.client.generationConfig = {
++                /** @ts-ignore */
++                ...this.client.generationConfig,
++                /** @ts-ignore */
++                thinkingConfig: this.thinkingConfig,
++            };
++        }
++        return params;
++    }
++    async *_streamResponseChunks(messages, options, runManager) {
++        const prompt = (0, common_1.convertBaseMessagesToContent)(messages, this._isMultimodalModel, this.useSystemInstruction);
++        let actualPrompt = prompt;
++        if (prompt?.[0].role === 'system') {
++            const [systemInstruction] = prompt;
++            /** @ts-ignore */
++            this.client.systemInstruction = systemInstruction;
++            actualPrompt = prompt.slice(1);
++        }
++        const parameters = this.invocationParams(options);
++        const request = {
++            ...parameters,
++            contents: actualPrompt,
++        };
++        let stream;
++        while (true) {
++            try {
++                stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
++                    /** @ts-ignore */
++                    const { stream: genStream } = await this.client.generateContentStream(request);
++                    return genStream;
++                });
++                break; // Successfully got the stream, escape retry loop
++            }
++            catch (e) {
++                const isQuotaEvent = e?.status === 429 || e?.message?.includes('429');
++                const isGenericQuota = e?.status === 403 || e?.message?.includes('403');
++                const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++                if ((isQuotaEvent || isGenericQuota || isInvalidKey) && this.rotateKey()) {
++                    console.warn(`[CustomChatGoogleGenerativeAI] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with API key ${this._currentKeyIndex}...`);
++                    // Note: caller.callWithOptions respects its own retry logic as well, but this handles Google specific limits.
++                    continue;
++                }
++                throw e;
++            }
++        }
++        let index = 0;
++        let lastUsageMetadata;
++        for await (const response of stream) {
++            if ('usageMetadata' in response &&
++                this.streamUsage !== false &&
++                options.streamUsage !== false) {
++                const genAIUsageMetadata = response.usageMetadata;
++                const output_tokens = (genAIUsageMetadata?.candidatesTokenCount ?? 0) +
++                    (genAIUsageMetadata?.thoughtsTokenCount ?? 0);
++                lastUsageMetadata = {
++                    input_tokens: genAIUsageMetadata?.promptTokenCount ?? 0,
++                    output_tokens,
++                    total_tokens: genAIUsageMetadata?.totalTokenCount ?? 0,
++                };
++            }
++            const chunk = (0, common_1.convertResponseContentToChatGenerationChunk)(response, {
++                usageMetadata: undefined,
++                index,
++            });
++            index += 1;
++            if (!chunk) {
++                continue;
++            }
++            yield chunk;
++            await runManager?.handleLLMNewToken(chunk.text || '', undefined, undefined, undefined, undefined, { chunk });
++        }
++        if (lastUsageMetadata) {
++            const finalChunk = new outputs_1.ChatGenerationChunk({
++                text: '',
++                message: new messages_1.AIMessageChunk({
++                    content: '',
++                    usage_metadata: lastUsageMetadata,
++                }),
++            });
++            yield finalChunk;
++            await runManager?.handleLLMNewToken(finalChunk.text || '', undefined, undefined, undefined, undefined, { chunk: finalChunk });
++        }
++    }
++}
++exports.CustomChatGoogleGenerativeAI = CustomChatGoogleGenerativeAI;
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/testLocally.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/testLocally.cjs
+new file mode 100644
+index 0000000..effdef8
+--- /dev/null
++++ b/node_modules/@librechat/agents/dist/cjs/llm/google/testLocally.cjs
+@@ -0,0 +1,30 @@
++const { CustomChatGoogleGenerativeAI } = require('./index.cjs');
++
++async function main() {
++    const baseModel = new CustomChatGoogleGenerativeAI({
++        model: 'gemini-2.5-flash',
++        apiKey: 'fake1,fake2'
++    });
++
++    const tools = [{
++        type: 'function',
++        function: {
++            name: 'test_tool',
++            description: 'A test tool',
++            parameters: { type: 'object', properties: {} }
++        }
++    }];
++    const model = baseModel.bindTools(tools);
++
++    console.log("Starting script...");
++    try {
++        const res = await model.invoke('hello');
++        console.log(res);
++    } catch (e) {
++        console.log("Caught Error Message:", e.message);
++        const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++        console.log("isInvalidKey?", isInvalidKey);
++    }
++}
++
++main().catch(console.error);
+diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
+index f936ded..bf07796 100644
+--- a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
++++ b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
+@@ -39,6 +39,11 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+                 'or in the `apiKey` field of the ' +
+                 'ChatGoogleGenerativeAI constructor');
+         }
++        this._apiKeys = this.apiKey.split(',').map((k) => k.trim()).filter(Boolean);
++        this._currentKeyIndex = 0;
++        this.apiKey = this._apiKeys[this._currentKeyIndex] || this.apiKey;
++        this._modelFields = fields;
++
+         this.safetySettings = fields.safetySettings ?? this.safetySettings;
+         if (this.safetySettings && this.safetySettings.length > 0) {
+             const safetySettingsSet = new Set(this.safetySettings.map((s) => s.category));
+@@ -48,7 +53,11 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+         }
+         this.thinkingConfig = fields.thinkingConfig ?? this.thinkingConfig;
+         this.streaming = fields.streaming ?? this.streaming;
+-        this.json = fields.json;
++        this.json = fields.json; console.log("====== CUSTOM GOOGLE CHAT LOADED ======");
++        this._initializeClient();
++        this.streamUsage = fields.streamUsage ?? this.streamUsage;
++    }
++    _initializeClient() {
+         // @ts-ignore - Accessing private property from parent class
+         this.client = new GoogleGenerativeAI(this.apiKey).getGenerativeModel({
+             model: this.model,
+@@ -64,11 +73,22 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+                     : {}),
+             },
+         }, {
+-            apiVersion: fields.apiVersion,
+-            baseUrl: fields.baseUrl,
+-            customHeaders: fields.customHeaders,
++            apiVersion: this._modelFields.apiVersion,
++            baseUrl: this._modelFields.baseUrl,
++            customHeaders: this._modelFields.customHeaders,
+         });
+-        this.streamUsage = fields.streamUsage ?? this.streamUsage;
++    }
++    rotateKey() {
++        if (this._apiKeys.length > 1) {
++            this._currentKeyIndex = (this._currentKeyIndex + 1) % this._apiKeys.length;
++            this.apiKey = this._apiKeys[this._currentKeyIndex];
++            this._initializeClient();
++            if (this._currentKeyIndex === 0) {
++                return false; // we wrapped around
++            }
++            return true; // Rotated to a new key
++        }
++        return false;
+     }
+     static lc_name() {
+         return 'LibreChatGoogleGenerativeAI';
+@@ -100,11 +120,36 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+             ...parameters,
+             contents: actualPrompt,
+         };
+-        const stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
+-            /** @ts-ignore */
+-            const { stream } = await this.client.generateContentStream(request);
+-            return stream;
+-        });
++        let stream;
++        const attemptErrors = [];
++        while (true) {
++            try {
++                stream = await this.caller.callWithOptions({ signal: options.signal }, async () => {
++                    /** @ts-ignore */
++                    const { stream: genStream } = await this.client.generateContentStream(request);
++                    return genStream;
++                });
++                break;
++            } catch (e) {
++                const isQuotaEvent = e?.status === 429 || e?.message?.includes('429');
++                const isGenericQuota = e?.status === 403 || e?.message?.includes('403');
++                const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++
++                attemptErrors.push(`[Key ${this._currentKeyIndex + 1}]: ` + (e?.message || 'Error'));
++
++                if ((isQuotaEvent || isGenericQuota || isInvalidKey) && this.rotateKey()) {
++                    console.warn(`[CustomChatGoogleGenerativeAI] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with API key ${this._currentKeyIndex}...`);
++                    continue;
++                }
++
++                if (attemptErrors.length > 1) {
++                    const errorMsg = `All available API keys failed.\n` + attemptErrors.join('\n');
++                    throw new Error(errorMsg);
++                } else {
++                    throw e;
++                }
++            }
++        }
+         let lastUsageMetadata;
+         for await (const response of stream) {
+             if ('usageMetadata' in response &&
+@@ -120,7 +165,8 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+                 };
+             }
+             const chunk = convertResponseContentToChatGenerationChunk(response, {
+-                usageMetadata: undefined});
++                usageMetadata: undefined
++            });
+             if (!chunk) {
+                 continue;
+             }
+@@ -139,6 +185,36 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+             await runManager?.handleLLMNewToken(finalChunk.text || '', undefined, undefined, undefined, undefined, { chunk: finalChunk });
+         }
+     }
++
++    async completionWithRetry(request, options) {
++        let res;
++        const attemptErrors = [];
++        while (true) {
++            try {
++                res = await super.completionWithRetry(request, options);
++                break;
++            } catch (e) {
++                const isQuotaEvent = e?.status === 429 || e?.message?.includes('429');
++                const isGenericQuota = e?.status === 403 || e?.message?.includes('403');
++                const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++
++                attemptErrors.push(`[Key ${this._currentKeyIndex + 1}]: ` + (e?.message || 'Error'));
++
++                if ((isQuotaEvent || isGenericQuota || isInvalidKey) && this.rotateKey()) {
++                    console.warn(`[CustomChatGoogleGenerativeAI] completionWithRetry Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with API key ${this._currentKeyIndex}...`);
++                    continue;
++                }
++
++                if (attemptErrors.length > 1) {
++                    const errorMsg = `All available API keys failed.\n` + attemptErrors.join('\n');
++                    throw new Error(errorMsg);
++                } else {
++                    throw e;
++                }
++            }
++        }
++        return res;
++    }
+ }
+ 
+ export { CustomChatGoogleGenerativeAI };
+diff --git a/node_modules/@librechat/agents/src/llm/google/index.ts b/node_modules/@librechat/agents/src/llm/google/index.ts
+index 2ab8c94..a394fde 100644
+--- a/node_modules/@librechat/agents/src/llm/google/index.ts
++++ b/node_modules/@librechat/agents/src/llm/google/index.ts
+@@ -20,6 +20,10 @@ import {
+ 
+ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+   thinkingConfig?: GeminiGenerationConfig['thinkingConfig'];
++  _apiKeys: string[];
++  _currentKeyIndex: number;
++  _modelFields: any;
++
+   constructor(fields: GoogleClientOptions) {
+     super(fields);
+ 
+@@ -59,12 +63,17 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+     if (this.apiKey == null || this.apiKey === '') {
+       throw new Error(
+         'Please set an API key for Google GenerativeAI ' +
+-          'in the environment variable GOOGLE_API_KEY ' +
+-          'or in the `apiKey` field of the ' +
+-          'ChatGoogleGenerativeAI constructor'
++        'in the environment variable GOOGLE_API_KEY ' +
++        'or in the `apiKey` field of the ' +
++        'ChatGoogleGenerativeAI constructor'
+       );
+     }
+ 
++    // Parse potential comma-separated API keys
++    this._apiKeys = this.apiKey.split(',').map((k) => k.trim()).filter(Boolean);
++    this._currentKeyIndex = 0;
++    this.apiKey = this._apiKeys[this._currentKeyIndex] || this.apiKey;
++
+     this.safetySettings = fields.safetySettings ?? this.safetySettings;
+     if (this.safetySettings && this.safetySettings.length > 0) {
+       const safetySettingsSet = new Set(
+@@ -82,6 +91,14 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+     this.streaming = fields.streaming ?? this.streaming;
+     this.json = fields.json;
+ 
++    // Save fields to easily re-initialize the client on rotation
++    this._modelFields = fields;
++
++    this._initializeClient();
++    this.streamUsage = fields.streamUsage ?? this.streamUsage;
++  }
++
++  _initializeClient() {
+     // @ts-ignore - Accessing private property from parent class
+     this.client = new GenerativeAI(this.apiKey).getGenerativeModel(
+       {
+@@ -99,12 +116,24 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+         },
+       },
+       {
+-        apiVersion: fields.apiVersion,
+-        baseUrl: fields.baseUrl,
+-        customHeaders: fields.customHeaders,
++        apiVersion: this._modelFields.apiVersion,
++        baseUrl: this._modelFields.baseUrl,
++        customHeaders: this._modelFields.customHeaders,
+       }
+     );
+-    this.streamUsage = fields.streamUsage ?? this.streamUsage;
++  }
++
++  rotateKey(): boolean {
++    if (this._apiKeys.length > 1) {
++      this._currentKeyIndex = (this._currentKeyIndex + 1) % this._apiKeys.length;
++      this.apiKey = this._apiKeys[this._currentKeyIndex];
++      this._initializeClient();
++      if (this._currentKeyIndex === 0) {
++        return false; // we wrapped around
++      }
++      return true; // Rotated to a new key
++    }
++    return false;
+   }
+ 
+   static lc_name(): 'LibreChatGoogleGenerativeAI' {
+@@ -149,14 +178,32 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+       ...parameters,
+       contents: actualPrompt,
+     };
+-    const stream = await this.caller.callWithOptions(
+-      { signal: options.signal },
+-      async () => {
+-        /** @ts-ignore */
+-        const { stream } = await this.client.generateContentStream(request);
+-        return stream;
++
++    let stream;
++    while (true) {
++      try {
++        stream = await this.caller.callWithOptions(
++          { signal: options.signal },
++          async () => {
++            /** @ts-ignore */
++            const { stream: genStream } = await this.client.generateContentStream(request);
++            return genStream;
++          }
++        );
++        break; // Successfully got the stream, escape retry loop
++      } catch (e: any) {
++        const isQuotaEvent = e?.status === 429 || e?.message?.includes('429');
++        const isGenericQuota = e?.status === 403 || e?.message?.includes('403');
++        const isInvalidKey = e?.status === 400 || e?.message?.includes('API_KEY_INVALID');
++
++        if ((isQuotaEvent || isGenericQuota || isInvalidKey) && this.rotateKey()) {
++          console.warn(`[CustomChatGoogleGenerativeAI] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with API key ${this._currentKeyIndex}...`);
++          // Note: caller.callWithOptions respects its own retry logic as well, but this handles Google specific limits.
++          continue;
++        }
++        throw e;
+       }
+-    );
++    }
+ 
+     let index = 0;
+     let lastUsageMetadata: UsageMetadata | undefined;
+diff --git a/node_modules/@librechat/agents/test.cjs b/node_modules/@librechat/agents/test.cjs
+new file mode 100644
+index 0000000..3d339f3
+--- /dev/null
++++ b/node_modules/@librechat/agents/test.cjs
+@@ -0,0 +1,19 @@
++const { CustomChatGoogleGenerativeAI } = require('./dist/cjs/llm/google/index.cjs');
++
++async function test() {
++    console.log("Instantiating CustomChat...");
++    const agent = new CustomChatGoogleGenerativeAI({
++        model: 'gemini-2.5-flash',
++        apiKey: 'fake1,fake2,fake3'
++    });
++    console.log("Agent apiKey:", agent.apiKey);
++    console.log("Agent _apiKeys:", agent._apiKeys);
++    console.log("Agent client typeof:", typeof agent.client);
++
++    // Try to rotate
++    console.log("Rotating...");
++    agent.rotateKey();
++    console.log("Agent apiKey after rotate:", agent.apiKey);
++}
++
++test().catch(console.error);
