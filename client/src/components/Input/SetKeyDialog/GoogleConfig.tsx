@@ -45,15 +45,27 @@ const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 's
           setMultiKey(AuthKeys.GOOGLE_SERVICE_KEY, JSON.stringify(data), userKey);
         }}
       />
-      <InputWithLabel
-        id={AuthKeys.GOOGLE_API_KEY}
-        value={getMultiKey(AuthKeys.GOOGLE_API_KEY, userKey) ?? ''}
-        onChange={(e: { target: { value: string } }) =>
-          setMultiKey(AuthKeys.GOOGLE_API_KEY, e.target.value ?? '', userKey)
-        }
-        label={localize('com_endpoint_config_google_api_key')}
-        subLabel={localize('com_endpoint_config_google_gemini_api')}
-      />
+      {Array.from({ length: 3 }).map((_, index) => {
+        const currentKeys = (getMultiKey(AuthKeys.GOOGLE_API_KEY, userKey) ?? '').split(',');
+        // Ensure we always have at least 3 elements to map securely, filling with empty strings if needed
+        while (currentKeys.length < 3) currentKeys.push('');
+
+        return (
+          <InputWithLabel
+            key={index}
+            id={`${AuthKeys.GOOGLE_API_KEY}-${index}`}
+            value={currentKeys[index]?.trim() ?? ''}
+            onChange={(e: { target: { value: string } }) => {
+              const newKeys = [...currentKeys];
+              newKeys[index] = e.target.value;
+              // Join all keys with comma, even empty ones, to preserve position
+              setMultiKey(AuthKeys.GOOGLE_API_KEY, newKeys.join(','), userKey);
+            }}
+            label={`${localize('com_endpoint_config_google_api_key')} ${index + 1}`}
+            subLabel={index === 0 ? localize('com_endpoint_config_google_gemini_api') : ''}
+          />
+        );
+      })}
     </>
   );
 };

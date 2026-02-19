@@ -61,7 +61,7 @@ class GoogleClient extends BaseClient {
     this.access_token = null;
 
     const apiKey = creds[AuthKeys.GOOGLE_API_KEY];
-    this.apiKeys = apiKey ? apiKey.split(',').map((k) => k.trim()) : [];
+    this.apiKeys = apiKey ? apiKey.split(',').map((k) => k.trim()).filter((k) => k.length > 0) : [];
     this.currentKeyIndex = 0;
     this.apiKey = this.apiKeys[this.currentKeyIndex];
 
