@@ -881,7 +881,7 @@ class AgentClient extends BaseClient {
         //   messages = addCacheControl(messages);
         // }
 
-        memoryPromise = this.runMemory(messages);
+        // memoryPromise generation is extracted out of runAgents to prevent duplicate memory evaluations on key retry
 
         run = await createRun({
           agents,
@@ -912,6 +912,8 @@ class AgentClient extends BaseClient {
 
         config.signal = null;
       };
+
+      memoryPromise = this.runMemory(initialMessages);
 
       // Native Key Rotation for Agents
       let keys = [this.options.agent?.model_parameters?.apiKey];
