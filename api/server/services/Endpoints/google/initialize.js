@@ -10,9 +10,11 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
   const { key: expiresAt } = req.body;
 
   let userKey = null;
-  if (expiresAt && isUserProvided) {
-    checkUserKeyExpiry(expiresAt, EModelEndpoint.google);
+  if (isUserProvided) {
     userKey = await getUserKey({ userId: req.user.id, name: EModelEndpoint.google });
+    if (expiresAt) {
+      checkUserKeyExpiry(expiresAt, EModelEndpoint.google);
+    }
   }
 
   let serviceKey = {};

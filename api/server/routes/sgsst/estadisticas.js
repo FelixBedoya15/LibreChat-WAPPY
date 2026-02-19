@@ -290,14 +290,24 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
 
 // Helpers
 async function getApiKey(userId) {
+    let key;
     try {
         const storedKey = await getUserKey({ userId, name: 'google' });
         if (storedKey) {
-            try { return JSON.parse(storedKey)[AuthKeys.GOOGLE_API_KEY] || JSON.parse(storedKey).GOOGLE_API_KEY; }
-            catch { return storedKey; }
+            try { key = JSON.parse(storedKey)[AuthKeys.GOOGLE_API_KEY] || JSON.parse(storedKey).GOOGLE_API_KEY; }
+            catch { key = storedKey; }
         }
     } catch { }
-    return process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+
+    if (!key) {
+        key = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+    }
+
+    if (key && typeof key === 'string') {
+        key = key.split(',')[0].trim();
+    }
+
+    return key;
 }
 
 async function getCompanyInfoBlock(userId) {

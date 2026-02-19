@@ -55,6 +55,10 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
         }
 
+        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+        }
+
         if (!resolvedApiKey) {
             return res.status(400).json({
                 error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.',

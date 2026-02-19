@@ -995,6 +995,10 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             // Key is not JSON, use as-is
         }
 
+        if (parsedKey && typeof parsedKey === 'string') {
+            parsedKey = parsedKey.split(',')[0].trim();
+        }
+
         // Create session
         let config = {};
         if (configOrVoice) {

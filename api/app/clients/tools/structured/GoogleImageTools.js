@@ -95,6 +95,10 @@ class GoogleImageTools extends Tool {
                 }
             }
 
+            if (userApiKey && typeof userApiKey === 'string') {
+                userApiKey = userApiKey.split(',')[0].trim();
+            }
+
             if (!userApiKey && !this.override) {
                 throw new Error('Google API Key not configured. Please add your Google API Key in Settings or configure GOOGLE_KEY/GOOGLE_API_KEY in .env.');
             }

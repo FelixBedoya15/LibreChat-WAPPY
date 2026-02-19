@@ -344,10 +344,21 @@ class STTService {
       logger.info(`[STTService] Using correction model: ${correctionModelName}`);
 
       // Get user's Google API key
-      const apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
+      let apiKey = await getUserKey({ userId, name: EModelEndpoint.google });
       if (!apiKey) {
         logger.warn('[STTService] No Google API key found, skipping transcription correction');
         return userText;
+      }
+
+      try {
+        const parsed = JSON.parse(apiKey);
+        apiKey = parsed.GOOGLE_API_KEY || parsed;
+      } catch (e) {
+        // not json
+      }
+
+      if (apiKey && typeof apiKey === 'string') {
+        apiKey = apiKey.split(',')[0].trim();
       }
 
       const { GoogleGenerativeAI } = require('@google/generative-ai');

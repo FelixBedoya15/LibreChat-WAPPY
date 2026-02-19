@@ -64,9 +64,11 @@ class GoogleClient extends BaseClient {
     this.private_key = this.serviceKey.private_key;
     this.access_token = null;
 
+    const apiKey = creds[AuthKeys.GOOGLE_API_KEY];
+    this.apiKeys = apiKey ? apiKey.split(',').map((k) => k.trim()).filter((k) => k.length > 0) : [];
     this.currentKeyIndex = 0;
     this.apiKey = this.apiKeys[this.currentKeyIndex];
-    logger.debug(`[GoogleClient] Initialized with ${this.apiKeys.length} keys: ${JSON.stringify(this.apiKeys)}.`);
+    logger.debug(`[GoogleClient] Initialized with ${this.apiKeys.length} keys. First key: ${this.apiKey ? this.apiKey.substring(0, 5) + '...' : 'none'}`);
 
     this.reverseProxyUrl = options.reverseProxyUrl;
 
@@ -788,12 +790,14 @@ class GoogleClient extends BaseClient {
       error = e;
       logger.error('[GoogleClient] There was an issue generating the completion', e);
 
-      // Check for rate limit (429) or quota exceeded (403) errors
+      // Check for rate limit (429), quota exceeded (403), or invalid key (400) errors
       const isRateLimit = e.status === 429 || (e.response && e.response.status === 429);
       const isQuotaExceeded = e.status === 403 || (e.response && e.response.status === 403);
+      const isInvalidKey = (e.status === 400 || (e.response && e.response.status === 400)) &&
+        e.message && (e.message.includes('API_KEY_INVALID') || e.message.includes('API key not valid'));
 
-      if ((isRateLimit || isQuotaExceeded) && this.rotateKey()) {
-        logger.warn(`[GoogleClient] Encountered ${e.status} error. Retrying with next API key...`);
+      if ((isRateLimit || isQuotaExceeded || isInvalidKey) && this.rotateKey()) {
+        logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
         return this.getCompletion(_payload, options);
       }
     }
