@@ -181,12 +181,6 @@ const initializeAgent = async ({
     agent.model_parameters.configuration = options.configOptions;
   }
 
-  if (options.dropParams && Array.isArray(options.dropParams)) {
-    options.dropParams.forEach((param) => {
-      delete agent.model_parameters[param];
-    });
-  }
-
   if (agent.instructions && agent.instructions !== '') {
     agent.instructions = replaceSpecialVars({
       text: agent.instructions,
