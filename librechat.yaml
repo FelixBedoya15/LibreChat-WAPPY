@@ -291,7 +291,7 @@ endpoints:
       titleConvo: true
       titleModel: 'mixtral-8x7b-32768'
       modelDisplayLabel: 'Groq'
-      dropParams: ['reasoning_effort']
+      dropParams: ['reasoning_effort', 'parallel_tool_calls', 'service_tier']
 
     # Mistral AI Example
     #- name: 'Mistral' # Unique name for the endpoint
