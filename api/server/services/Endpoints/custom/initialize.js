@@ -152,6 +152,7 @@ const initializeClient = async ({ req, res, endpointOption, optionsOnly, overrid
     if (options != null) {
       options.useLegacyContent = true;
       options.endpointTokenConfig = endpointTokenConfig;
+      options.dropParams = clientOptions.dropParams;
     }
     if (!clientOptions.streamRate) {
       return options;
