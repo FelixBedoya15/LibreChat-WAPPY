@@ -46,7 +46,11 @@ class GoogleClient extends BaseClient {
     let creds = {};
 
     if (typeof credentials === 'string') {
-      creds = JSON.parse(credentials);
+      try {
+        creds = JSON.parse(credentials);
+      } catch {
+        creds = { [AuthKeys.GOOGLE_API_KEY]: credentials };
+      }
     } else if (credentials) {
       creds = credentials;
     }
