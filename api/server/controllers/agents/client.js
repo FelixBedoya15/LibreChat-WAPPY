@@ -237,7 +237,7 @@ class AgentClient extends BaseClient {
     let systemContent = [
       instructions ?? '',
       additional_instructions ?? '',
-      'IMPORTANT: Do not narrate your actions. Do not say "I will search...". If you need to use a tool, use it IMMEDIATELY without preamble.',
+      'IMPORTANT: Do not narrate your actions. Do not say "I will search...". If you need to use a tool, use it IMMEDIATELY without preamble. If you need to use multiple tools (e.g. file_search and web_search), use them BOTH in the SAME turn (parallel tool calls). Do not wait for one to finish before calling the other.',
     ]
       .filter(Boolean)
       .join('\n')
