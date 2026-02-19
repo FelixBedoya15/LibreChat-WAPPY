@@ -304,7 +304,7 @@ const SetKeyDialog = ({
             {`${localize('com_endpoint_config_key_for')} ${alternateName[endpoint] ?? endpoint}`}
           </OGDialogTitle>
         </OGDialogHeader>
-        <div className="grid w-full items-center gap-2 py-4">
+        <div className="grid w-full items-center gap-2 py-4 max-h-[60vh] overflow-y-auto">
           <small className="text-red-600">
             {expiryTime === 'never'
               ? localize('com_endpoint_config_key_never_expires')
