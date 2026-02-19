@@ -913,7 +913,57 @@ class AgentClient extends BaseClient {
         config.signal = null;
       };
 
-      await runAgents(initialMessages);
+      // Native Key Rotation for Agents
+      let keys = [this.options.agent?.model_parameters?.apiKey];
+      if (typeof keys[0] === 'string' && keys[0].includes(',')) {
+        keys = keys[0].split(',').map((k) => k.trim()).filter(Boolean);
+      }
+      if (!keys.length) {
+        keys = [null];
+      }
+
+      let attemptErrors = [];
+      let success = false;
+      let lastErr = null;
+      const initialContentPartsLength = this.contentParts.length;
+
+      for (let i = 0; i < keys.length; i++) {
+        try {
+          if (keys[i]) {
+            this.options.agent.model_parameters.apiKey = keys[i];
+            if (config?.configurable?.endpointOption?.model_parameters) {
+              config.configurable.endpointOption.model_parameters.apiKey = keys[i];
+            }
+          }
+          await runAgents(initialMessages);
+          success = true;
+          break; // Exit loop on success
+        } catch (err) {
+          lastErr = err;
+          const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
+          const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
+          const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+
+          attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
+
+          if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
+            logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
+            // Clean up any artifacts from the failed run
+            this.contentParts = this.contentParts.slice(0, initialContentPartsLength);
+            continue;
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (!success && lastErr) {
+        if (attemptErrors.length > 1) {
+          throw new Error(`All available API keys failed.\n` + attemptErrors.join('\n'));
+        }
+        throw lastErr;
+      }
+
       /** @deprecated Agent Chain */
       if (config.configurable.hide_sequential_outputs) {
         this.contentParts = this.contentParts.filter((part, index) => {
@@ -1100,29 +1150,75 @@ class AgentClient extends BaseClient {
       });
     }
 
-    try {
-      const titleResult = await this.run.generateTitle({
-        provider,
-        clientOptions,
-        inputText: text,
-        contentParts: this.contentParts,
-        titleMethod: endpointConfig?.titleMethod,
-        titlePrompt: endpointConfig?.titlePrompt,
-        titlePromptTemplate: endpointConfig?.titlePromptTemplate,
-        chainOptions: {
-          signal: abortController.signal,
-          callbacks: [
-            {
-              handleLLMEnd,
-            },
-          ],
-          configurable: {
-            thread_id: this.conversationId,
-            user_id: this.user ?? this.options.req.user?.id,
-          },
-        },
-      });
+    // Native Key Rotation for Title Generation
+    let keys = [clientOptions.apiKey];
+    if (typeof keys[0] === 'string' && keys[0].includes(',')) {
+      keys = keys[0].split(',').map((k) => k.trim()).filter(Boolean);
+    }
+    if (!keys.length) {
+      keys = [null];
+    }
 
+    let attemptErrors = [];
+    let success = false;
+    let lastErr = null;
+    let titleResult;
+
+    for (let i = 0; i < keys.length; i++) {
+      try {
+        if (keys[i]) {
+          clientOptions.apiKey = keys[i];
+        }
+        titleResult = await this.run.generateTitle({
+          provider,
+          clientOptions,
+          inputText: text,
+          contentParts: this.contentParts,
+          titleMethod: endpointConfig?.titleMethod,
+          titlePrompt: endpointConfig?.titlePrompt,
+          titlePromptTemplate: endpointConfig?.titlePromptTemplate,
+          chainOptions: {
+            signal: abortController.signal,
+            callbacks: [
+              {
+                handleLLMEnd,
+              },
+            ],
+            configurable: {
+              thread_id: this.conversationId,
+              user_id: this.user ?? this.options.req.user?.id,
+            },
+          },
+        });
+        success = true;
+        break; // Exit loop on success
+      } catch (err) {
+        lastErr = err;
+        const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
+        const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
+        const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+
+        attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
+
+        if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
+          logger.warn(`[AgentClient] titleConvo Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
+          continue;
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (!success && lastErr) {
+      if (attemptErrors.length > 1) {
+        logger.error('[api/server/controllers/agents/client.js #titleConvo] Error: All available API keys failed.\n' + attemptErrors.join('\n'));
+      } else {
+        logger.error('[api/server/controllers/agents/client.js #titleConvo] Error', lastErr);
+      }
+      return;
+    }
+
+    try {
       const collectedUsage = collectedMetadata.map((item) => {
         let input_tokens, output_tokens;
 
@@ -1159,7 +1255,7 @@ class AgentClient extends BaseClient {
 
       return sanitizeTitle(titleResult.title);
     } catch (err) {
-      logger.error('[api/server/controllers/agents/client.js #titleConvo] Error', err);
+      logger.error('[api/server/controllers/agents/client.js #titleConvo] Error after generating title', err);
       return;
     }
   }
