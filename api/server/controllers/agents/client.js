@@ -234,7 +234,11 @@ class AgentClient extends BaseClient {
     let promptTokens;
 
     /** @type {string} */
-    let systemContent = [instructions ?? '', additional_instructions ?? '']
+    let systemContent = [
+      instructions ?? '',
+      additional_instructions ?? '',
+      'IMPORTANT: Do not narrate your actions. Do not say "I will search...". If you need to use a tool, use it IMMEDIATELY without preamble.',
+    ]
       .filter(Boolean)
       .join('\n')
       .trim();
