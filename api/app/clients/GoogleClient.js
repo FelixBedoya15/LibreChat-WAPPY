@@ -60,7 +60,10 @@ class GoogleClient extends BaseClient {
     this.private_key = this.serviceKey.private_key;
     this.access_token = null;
 
-    this.apiKey = creds[AuthKeys.GOOGLE_API_KEY];
+    const apiKey = creds[AuthKeys.GOOGLE_API_KEY];
+    this.apiKeys = apiKey ? apiKey.split(',').map((k) => k.trim()) : [];
+    this.currentKeyIndex = 0;
+    this.apiKey = this.apiKeys[this.currentKeyIndex];
 
     this.reverseProxyUrl = options.reverseProxyUrl;
 
@@ -199,6 +202,18 @@ class GoogleClient extends BaseClient {
     this.systemMessage = promptPrefix;
     this.initializeClient();
     return this;
+  }
+
+  rotateKey() {
+    if (this.apiKeys.length <= 1) {
+      return false;
+    }
+
+    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
+    this.apiKey = this.apiKeys[this.currentKeyIndex];
+    logger.info(`[GoogleClient] Rotating API key to index ${this.currentKeyIndex}`);
+    this.initializeClient();
+    return true;
   }
 
   /**
@@ -762,12 +777,22 @@ class GoogleClient extends BaseClient {
         reply += chunkText;
       }
 
+
       if (usageMetadata) {
         this.usage = usageMetadata;
       }
     } catch (e) {
       error = e;
       logger.error('[GoogleClient] There was an issue generating the completion', e);
+
+      // Check for rate limit (429) or quota exceeded (403) errors
+      const isRateLimit = e.status === 429 || (e.response && e.response.status === 429);
+      const isQuotaExceeded = e.status === 403 || (e.response && e.response.status === 403);
+
+      if ((isRateLimit || isQuotaExceeded) && this.rotateKey()) {
+        logger.warn(`[GoogleClient] Encountered ${e.status} error. Retrying with next API key...`);
+        return this.getCompletion(_payload, options);
+      }
     }
 
     if (error != null && reply === '') {
