@@ -948,8 +948,8 @@ class AgentClient extends BaseClient {
 
           if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
             logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
-            // Clean up any artifacts from the failed run
-            this.contentParts = this.contentParts.slice(0, initialContentPartsLength);
+            // Clean up any artifacts from the failed run in-place to preserve closure reference
+            this.contentParts.splice(initialContentPartsLength);
             continue;
           } else {
             break;
