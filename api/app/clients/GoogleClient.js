@@ -26,7 +26,6 @@ const { encodeAndFormat } = require('~/server/services/Files/images');
 const { spendTokens } = require('~/models/spendTokens');
 const {
   formatMessage,
-  formatGoogleInputs,
   createContextHandlers,
   titleInstruction,
   truncateText,
@@ -273,88 +272,10 @@ class GoogleClient extends BaseClient {
     messages[messages.length - 1] = latestMessage;
 
     for (const _message of messages) {
-      if (role === 'tool') {
-        const parts = [{
-          functionResponse: {
-            name: _message.name,
-            response: {
-              name: _message.name,
-              content: formatGoogleInputs(_message.content).struct_val,
-            },
-          },
-        }];
-        formattedMessages.push({ role, parts });
-        continue;
-      }
-
-      if (_message.tool_calls?.length) {
-        const parts = [];
-        let thoughtFound = false;
-
-        // logger.debug('[GoogleClient] Processing message with tool_calls', { text: _message.text, content: _message.content });
-
-        // Check for thought signature in text content (hidden)
-        if (_message.text) {
-          const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
-          if (thoughtMatch) {
-            const thought = thoughtMatch[1];
-            parts.push({ thought });
-            thoughtFound = true;
-            // logger.debug('[GoogleClient] Extracted thought from text', { thought });
-
-            const cleanText = _message.text.replace(/:::thought::.*?:::/, '').trim();
-            if (cleanText) {
-              parts.push({ text: cleanText });
-            }
-          } else {
-            // If text exists but no thought tag, just add text? 
-            // BEWARE: if the model generated a thought but we failed to parse it, adding just text might cause the error.
-            if (_message.text.trim()) {
-              parts.push({ text: _message.text });
-            }
-          }
-        }
-
-        // Also check content array for THINK type if text didn't yield result
-        if (!thoughtFound && Array.isArray(_message.content)) {
-          const thinkPart = _message.content.find(p => p.type === 'think' || p.type === 'thought'); // Adjust type constant based on LibreChat
-          if (thinkPart && thinkPart.thought) {
-            parts.push({ thought: thinkPart.thought });
-            thoughtFound = true;
-          }
-        }
-
-        for (const toolCall of _message.tool_calls) {
-          parts.push({
-            functionCall: {
-              name: toolCall.function.name,
-              args: JSON.parse(toolCall.function.arguments),
-            },
-          });
-        }
-        formattedMessages.push({ role, parts });
-        continue;
-      }
-
+      const role = _message.isCreatedByUser ? this.userLabel : this.modelLabel;
       const parts = [];
-      // parts.push({ text: _message.text }); // REMOVED: Don't push text blindly at start
+      parts.push({ text: _message.text });
       if (!_message.image_urls?.length) {
-        // Check for thought signature in text content (hidden)
-        if (_message.text) {
-          const thoughtMatch = _message.text.match(/:::thought::(.*):::/);
-          if (thoughtMatch) {
-            const thought = thoughtMatch[1];
-            parts.push({ thought });
-            const cleanText = _message.text.replace(/:::thought::.*?:::/, '').trim();
-            if (cleanText) {
-              parts.push({ text: cleanText });
-            }
-          } else {
-            if (_message.text) parts.push({ text: _message.text });
-          }
-        } else {
-          // No text?
-        }
         formattedMessages.push({ role, parts });
         continue;
       }
@@ -776,39 +697,10 @@ class GoogleClient extends BaseClient {
           usageMetadata = !usageMetadata
             ? chunk?.usageMetadata
             : Object.assign(usageMetadata, chunk?.usageMetadata);
-
-          let chunkText = '';
-          try {
-            chunkText = chunk.text();
-          } catch (e) {
-            // Expected for pure function calls without text
-          }
-
+          const chunkText = chunk.text();
           await this.generateTextStream(chunkText, onProgress, {
             delay,
           });
-
-          // Capture function call thought signature
-          const candidates = chunk.candidates || [];
-          const parts = candidates[0]?.content?.parts || [];
-
-          for (const part of parts) {
-            if (part && typeof part === 'object' && part.functionCall) {
-              // Try to find the signature. 
-              // Based on research, it's inside functionCall OR on the part itself
-              // SDK might normalize it. Check commonly used keys.
-              // 'thought' is the most likely candidate for the signature string based on errors.
-              // 'id' is standard for tool usage but usually shorter. Signatures are long tokens.
-              const signature = part.functionCall.thought || part.thought || part.functionCall.id;
-
-              if (signature && typeof signature === 'string' && signature.length > 20) {
-                // Append signature in a hidden format that formatGenerativeMessages can recover
-                // We use a specific token to avoid confusing it with visible text.
-                reply += `\n:::gemini_thought_token::${signature}:::`;
-              }
-            }
-          }
-
           reply += chunkText;
           await sleep(streamRate);
         }
