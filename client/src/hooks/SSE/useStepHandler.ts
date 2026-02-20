@@ -444,15 +444,23 @@ export default function useStepHandler({
         const responseMessageId = (data as any)?.messageId;
         if (responseMessageId) {
           const currentMessages = getMessages() || [];
-          const updatedMessages = currentMessages.map((msg) =>
-            msg.messageId === responseMessageId
-              ? {
+          let cleanedMessage: TMessage | undefined;
+
+          const updatedMessages = currentMessages.map((msg) => {
+            if (msg.messageId === responseMessageId) {
+              cleanedMessage = {
                 ...msg,
                 text: submission?.initialResponse?.text || '',
                 content: initialContent,
-              }
-              : msg
-          );
+              };
+              return cleanedMessage;
+            }
+            return msg;
+          });
+
+          if (cleanedMessage) {
+            messageMap.current.set(responseMessageId, cleanedMessage);
+          }
           setMessages(updatedMessages);
         }
       }

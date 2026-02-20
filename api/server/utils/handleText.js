@@ -116,8 +116,8 @@ function formatAction(action) {
 
   if (action.tool.toLowerCase() === 'self-reflection' || formattedAction.plugin === 'N/A') {
     formattedAction.inputStr = `{\n\tthought: ${formattedAction.input}${!formattedAction.thought.includes(formattedAction.input)
-        ? ' - ' + formattedAction.thought
-        : ''
+      ? ' - ' + formattedAction.thought
+      : ''
       }\n}`;
     formattedAction.inputStr = formattedAction.inputStr.replace('N/A - ', '');
   } else {
