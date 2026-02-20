@@ -222,6 +222,7 @@ export default function useStepHandler({
 
           response = {
             ...responseMessage,
+            text: submission?.initialResponse?.text || '',
             parentMessageId,
             conversationId: userMessage.conversationId,
             messageId: responseMessageId,
