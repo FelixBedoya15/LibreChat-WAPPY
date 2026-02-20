@@ -915,7 +915,44 @@ class AgentClient extends BaseClient {
 
       memoryPromise = this.runMemory(initialMessages);
 
-      await runAgents(initialMessages);
+      const keys = this.apiKey ? this.apiKey.split(',').map(k => k.trim()).filter(Boolean) : [this.apiKey];
+      const initialContentPartsLength = this.contentParts.length;
+      let attemptErrors = [];
+
+      for (let i = 0; i < keys.length; i++) {
+        try {
+          // Temporarily override the agent API key for this LangGraph run
+          if (keys[i] && this.options.agent?.model_parameters) {
+            this.options.agent.model_parameters.apiKey = keys[i];
+          }
+
+          await runAgents(initialMessages);
+          break; // success, break out of loop
+        } catch (err) {
+          const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
+          const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
+          const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID');
+
+          attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
+
+          if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
+            // Revert contentParts to remove any streamed intro chunks
+            this.contentParts.splice(initialContentPartsLength);
+
+            // Allow LangGraph to restart a fresh stream with the new API key in the next iteration
+            continue;
+          }
+
+          if (attemptErrors.length > 1) {
+            const errorMsg = `All available API keys failed.\n` + attemptErrors.join('\n');
+            const error = new Error(errorMsg);
+            error.status = 500;
+            throw error;
+          } else {
+            throw err;
+          }
+        }
+      }
 
       /** @deprecated Agent Chain */
       if (config.configurable.hide_sequential_outputs) {
