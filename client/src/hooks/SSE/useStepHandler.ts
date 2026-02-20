@@ -439,6 +439,21 @@ export default function useStepHandler({
         toolCallIdMap.current.clear();
         messageMap.current.clear();
         stepMap.current.clear();
+
+        const responseMessageId = (data as any)?.messageId;
+        if (responseMessageId) {
+          const currentMessages = getMessages() || [];
+          const updatedMessages = currentMessages.map((msg) =>
+            msg.messageId === responseMessageId
+              ? {
+                ...msg,
+                text: submission?.initialResponse?.text || '',
+                content: initialContent,
+              }
+              : msg
+          );
+          setMessages(updatedMessages);
+        }
       }
 
       return () => {
