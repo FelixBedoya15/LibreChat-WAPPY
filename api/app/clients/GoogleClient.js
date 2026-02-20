@@ -800,6 +800,11 @@ class GoogleClient extends BaseClient {
         logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
         const { sendEvent } = require('@librechat/api');
         await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
+
+        if (options.onProgress) {
+          options.onProgress({ clear_step_maps: true });
+        }
+
         return this.getCompletion(_payload, options);
       }
     }

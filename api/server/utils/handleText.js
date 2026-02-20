@@ -33,6 +33,11 @@ const createOnProgress = (
   const basePayload = Object.assign({}, base, { text: tokens || '' });
 
   const progressCallback = (chunk, { res, ...rest }) => {
+    if (typeof chunk === 'object' && chunk !== null && chunk.clear_step_maps) {
+      basePayload.text = '';
+      return;
+    }
+
     basePayload.text = basePayload.text + chunk;
 
     const payload = Object.assign({}, basePayload, rest);
@@ -110,11 +115,10 @@ function formatAction(action) {
   formattedAction.thought = getString(formattedAction.thought);
 
   if (action.tool.toLowerCase() === 'self-reflection' || formattedAction.plugin === 'N/A') {
-    formattedAction.inputStr = `{\n\tthought: ${formattedAction.input}${
-      !formattedAction.thought.includes(formattedAction.input)
+    formattedAction.inputStr = `{\n\tthought: ${formattedAction.input}${!formattedAction.thought.includes(formattedAction.input)
         ? ' - ' + formattedAction.thought
         : ''
-    }\n}`;
+      }\n}`;
     formattedAction.inputStr = formattedAction.inputStr.replace('N/A - ', '');
   } else {
     const hasThought = formattedAction.thought.length > 0;
