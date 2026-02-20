@@ -798,6 +798,8 @@ class GoogleClient extends BaseClient {
 
       if ((isRateLimit || isQuotaExceeded || isInvalidKey) && this.rotateKey()) {
         logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
+        const { sendEvent } = require('@librechat/api');
+        await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
         return this.getCompletion(_payload, options);
       }
     }
