@@ -937,7 +937,17 @@ class AgentClient extends BaseClient {
               config.configurable.endpointOption.model_parameters.apiKey = keys[i];
             }
           }
-          await runAgents(initialMessages);
+          /** 
+           * Re-build the messages array from the raw payload on every retry 
+           * to prevent LangGraph's in-place mutations from bleeding partial 
+           * generations into the next API key's context history. 
+           */
+          const { messages: pristineMessages } = formatAgentMessages(
+            payload,
+            this.indexTokenCountMap,
+            toolSet,
+          );
+          await runAgents(pristineMessages);
           success = true;
           break; // Exit loop on success
         } catch (err) {
