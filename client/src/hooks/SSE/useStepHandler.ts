@@ -28,14 +28,14 @@ type TUseStepHandler = {
 type TStepEvent = {
   event: string;
   data:
-    | Agents.MessageDeltaEvent
-    | Agents.AgentUpdate
-    | Agents.RunStep
-    | Agents.ToolEndEvent
-    | {
-        runId?: string;
-        message: string;
-      };
+  | Agents.MessageDeltaEvent
+  | Agents.AgentUpdate
+  | Agents.RunStep
+  | Agents.ToolEndEvent
+  | {
+    runId?: string;
+    message: string;
+  };
 };
 
 type MessageDeltaUpdate = { type: ContentTypes.TEXT; text: string; tool_call_ids?: string[] };
@@ -153,8 +153,8 @@ export default function useStepHandler({
       /** When args are a valid object, they are likely already invoked */
       const args =
         finalUpdate ||
-        typeof existingToolCall?.args === 'object' ||
-        typeof toolCallArgs === 'object'
+          typeof existingToolCall?.args === 'object' ||
+          typeof toolCallArgs === 'object'
           ? contentPart.tool_call.args
           : (existingToolCall?.args ?? '') + (toolCallArgs ?? '');
 
@@ -435,6 +435,10 @@ export default function useStepHandler({
 
           setMessages(updatedMessages);
         }
+      } else if (event === 'clear_step_maps') {
+        toolCallIdMap.current.clear();
+        messageMap.current.clear();
+        stepMap.current.clear();
       }
 
       return () => {

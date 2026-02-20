@@ -952,6 +952,17 @@ class AgentClient extends BaseClient {
             logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
             // Clean up any artifacts from the failed run in-place to preserve closure reference
             this.contentParts.splice(initialContentPartsLength);
+
+            try {
+              const { sendEvent } = require('@librechat/api');
+              sendEvent(this.options.res, {
+                event: 'clear_step_maps',
+                data: { messageId: this.responseMessageId },
+              });
+            } catch (e) {
+              logger.error('Failed to send clear_step_maps event', e);
+            }
+
             continue;
           } else {
             break;
