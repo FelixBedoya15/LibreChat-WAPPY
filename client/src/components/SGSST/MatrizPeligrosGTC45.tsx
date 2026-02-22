@@ -19,6 +19,7 @@ interface PeligroEntry {
     actividad: string;
     tarea: string;
     rutinario: boolean;
+    controlesExistentes: string;
     descripcionPeligro: string;
     clasificacion: string;
     efectosPosibles: string;
@@ -47,7 +48,7 @@ interface PeligroEntry {
 }
 
 const EMPTY_ENTRY: Omit<PeligroEntry, 'id'> = {
-    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true,
+    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '',
     descripcionPeligro: '', clasificacion: '', efectosPosibles: '',
     fuenteGeneradora: '', medioExistente: '', individuoControl: '',
     nivelDeficiencia: 0, nivelExposicion: 0, nivelProbabilidad: 0,
@@ -82,7 +83,7 @@ const MatrizPeligrosGTC45 = () => {
     const [entries, setEntries] = useState<PeligroEntry[]>([]);
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
     const [isAdding, setIsAdding] = useState(false);
-    const [newEntry, setNewEntry] = useState({ proceso: '', zona: '', actividad: '', tarea: '', rutinario: true });
+    const [newEntry, setNewEntry] = useState({ proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '' });
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
@@ -132,7 +133,7 @@ const MatrizPeligrosGTC45 = () => {
         };
         setEntries(prev => [...prev, entry]);
         setExpandedIds(prev => new Set(prev).add(entry.id));
-        setNewEntry({ proceso: '', zona: '', actividad: '', tarea: '', rutinario: true });
+        setNewEntry({ proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '' });
         setIsAdding(false);
     };
 
@@ -240,6 +241,7 @@ const MatrizPeligrosGTC45 = () => {
       <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Zona / Lugar</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.zona || '-'}</td></tr>
       <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Tarea</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.tarea || '-'}</td></tr>
       <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Rutinario</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.rutinario ? 'Sí' : 'No'}</td></tr>
+      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Controles Existentes</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.controlesExistentes || '-'}</td></tr>
       <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Peligro</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.descripcionPeligro || '-'}</td></tr>
       <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Clasificación</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.clasificacion || '-'}</td></tr>
       <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Efectos Posibles</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.efectosPosibles || '-'}</td></tr>
@@ -443,6 +445,12 @@ const MatrizPeligrosGTC45 = () => {
                                     <option value="no">No</option>
                                 </select>
                             </div>
+                            <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+                                <label className="text-xs font-medium text-text-secondary">Controles Existentes</label>
+                                <textarea value={newEntry.controlesExistentes} onChange={e => setNewEntry({ ...newEntry, controlesExistentes: e.target.value })}
+                                    placeholder="Ej: Uso de EPP (guantes, gafas), capacitación en trabajo seguro, señalización..."
+                                    rows={2} className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors resize-none" />
+                            </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg">Cancelar</button>
@@ -546,6 +554,11 @@ const MatrizPeligrosGTC45 = () => {
                                                     <option value="no">No</option>
                                                 </select>
                                             </div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <label className="text-[10px] font-medium text-text-secondary uppercase">Controles Existentes</label>
+                                            <textarea value={entry.controlesExistentes || ''} onChange={e => updateField(entry.id, 'controlesExistentes', e.target.value)}
+                                                rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none" />
                                         </div>
 
                                         {entry.completedByAI && (

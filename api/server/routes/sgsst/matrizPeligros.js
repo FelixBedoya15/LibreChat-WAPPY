@@ -16,6 +16,7 @@ const PeligroEntrySchema = new mongoose.Schema({
     actividad: String,
     tarea: String,
     rutinario: { type: Boolean, default: true },
+    controlesExistentes: String,
     // AI-completed fields
     descripcionPeligro: String,
     clasificacion: String,
@@ -190,6 +191,7 @@ ${companyContext ? `**Contexto de la empresa:** ${companyContext}` : ''}
 - Actividad: ${entry.actividad}
 - Tarea: ${entry.tarea || 'No especificada'}
 - Rutinario: ${entry.rutinario ? 'Sí' : 'No'}
+- Controles Existentes reportados por el usuario: ${entry.controlesExistentes || 'No reportados'}
 
 ${GTC45_TABLES}
 
