@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Trash2, Sparkles, Save, History, Loader2,
     ChevronDown, ChevronRight, AlertTriangle, Shield,
-    Database, Zap,
+    Database, Zap, FileText,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -431,7 +431,7 @@ const MatrizPeligrosGTC45 = () => {
                         <>
                             <button onClick={generateReport}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <Save className="h-5 w-5" />
+                                <FileText className="h-5 w-5" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
                             </button>
                             {generatedReport && (
@@ -514,9 +514,9 @@ const MatrizPeligrosGTC45 = () => {
             {entries.some(e => !e.completedByAI) && (
                 <div className="flex justify-end">
                     <button onClick={handleCompleteAll} disabled={isCompletingAll}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all text-sm font-medium disabled:opacity-50">
+                        className="group flex items-center px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all text-sm font-medium disabled:opacity-50">
                         {isCompletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                        Completar Todos con IA ({entries.filter(e => !e.completedByAI).length} pendientes)
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Completar Todos con IA ({entries.filter(e => !e.completedByAI).length} pendientes)</span>
                     </button>
                 </div>
             )}
@@ -565,9 +565,9 @@ const MatrizPeligrosGTC45 = () => {
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                         {!entry.completedByAI && (
                                             <button onClick={(e) => { e.stopPropagation(); handleComplete(entry); }} disabled={isCompletingThis}
-                                                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all">
+                                                className="group flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all">
                                                 {isCompletingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                                                Completar con IA
+                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">Completar con IA</span>
                                             </button>
                                         )}
                                         <button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
@@ -795,9 +795,9 @@ const MatrizPeligrosGTC45 = () => {
                                         {!entry.completedByAI && (
                                             <div className="flex items-center justify-center py-6 border-t border-border-medium">
                                                 <button onClick={() => handleComplete(entry)} disabled={isCompletingThis}
-                                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all font-medium disabled:opacity-50">
+                                                    className="group flex items-center px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:shadow-lg transition-all font-medium disabled:opacity-50">
                                                     {isCompletingThis ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                                                    Completar este peligro con IA (GTC 45)
+                                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Completar este peligro con IA (GTC 45)</span>
                                                 </button>
                                             </div>
                                         )}
