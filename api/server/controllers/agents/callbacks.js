@@ -124,6 +124,22 @@ function getDefaultHandlers({ res, aggregateContent, toolEndCallback, collectedU
       `[getDefaultHandlers] Missing required options: res: ${!res}, aggregateContent: ${!aggregateContent}`,
     );
   }
+
+  /**
+   * Deduplication sets for ON_MESSAGE_DELTA and ON_REASONING_DELTA events.
+   *
+   * LangChain's `streamEvents()` emits `on_chat_model_stream` at every nesting
+   * level of the computation graph (model → agent node → parent graph).
+   * Each emission fires `ChatModelStreamHandler.handle()`, which dispatches
+   * `ON_MESSAGE_DELTA` / `ON_REASONING_DELTA` custom events. Without dedup,
+   * every token is sent to the frontend and aggregated into contentParts N times,
+   * causing exact text multiplication (typically 3×).
+   *
+   * We track `stepId:chunkContent` pairs and skip already-seen deltas.
+   */
+  const messageDeltaDedupeSet = new Set();
+  const reasoningDeltaDedupeSet = new Set();
+
   const handlers = {
     [GraphEvents.CHAT_MODEL_END]: new ModelEndHandler(collectedUsage),
     [GraphEvents.TOOL_END]: new ToolEndHandler(toolEndCallback),
@@ -201,6 +217,24 @@ function getDefaultHandlers({ res, aggregateContent, toolEndCallback, collectedU
        * @param {GraphRunnableConfig['configurable']} [metadata] The runnable metadata.
        */
       handle: (event, data, metadata) => {
+        // Deduplicate: streamEvents() emits on_chat_model_stream at every graph
+        // nesting level, so each token triggers this handler N times.
+        const messageDelta = data;
+        const contentPart = Array.isArray(messageDelta?.delta?.content)
+          ? messageDelta.delta.content[0]
+          : messageDelta?.delta?.content;
+        const chunkText = contentPart?.text ?? contentPart?.think ?? '';
+        if (chunkText) {
+          const dedupeKey = `${messageDelta?.id || ''}:${chunkText}`;
+          if (messageDeltaDedupeSet.has(dedupeKey)) {
+            return;
+          }
+          messageDeltaDedupeSet.add(dedupeKey);
+          if (messageDeltaDedupeSet.size > 2000) {
+            messageDeltaDedupeSet.clear();
+          }
+        }
+
         if (checkIfLastAgent(metadata?.last_agent_id, metadata?.langgraph_node)) {
           sendEvent(res, { event, data });
         } else if (!metadata?.hide_sequential_outputs) {
@@ -217,6 +251,23 @@ function getDefaultHandlers({ res, aggregateContent, toolEndCallback, collectedU
        * @param {GraphRunnableConfig['configurable']} [metadata] The runnable metadata.
        */
       handle: (event, data, metadata) => {
+        // Deduplicate reasoning deltas (same nesting issue as message deltas)
+        const reasoningDelta = data;
+        const contentPart = Array.isArray(reasoningDelta?.delta?.content)
+          ? reasoningDelta.delta.content[0]
+          : reasoningDelta?.delta?.content;
+        const chunkText = contentPart?.think ?? '';
+        if (chunkText) {
+          const dedupeKey = `${reasoningDelta?.id || ''}:${chunkText}`;
+          if (reasoningDeltaDedupeSet.has(dedupeKey)) {
+            return;
+          }
+          reasoningDeltaDedupeSet.add(dedupeKey);
+          if (reasoningDeltaDedupeSet.size > 2000) {
+            reasoningDeltaDedupeSet.clear();
+          }
+        }
+
         if (checkIfLastAgent(metadata?.last_agent_id, metadata?.langgraph_node)) {
           sendEvent(res, { event, data });
         } else if (!metadata?.hide_sequential_outputs) {
