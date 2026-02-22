@@ -598,7 +598,8 @@ const MatrizPeligrosGTC45 = () => {
                                             <>
                                                 {/* Segment 2: Hazard & Controls */}
                                                 <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-2 flex items-center gap-1">
+                                                    <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-2 flex items-center gap-1 cursor-help"
+                                                        title="Identificación del peligro según GTC 45: descripción, clasificación, efectos posibles, fuente generadora y controles existentes en fuente, medio e individuo.">
                                                         <AlertTriangle className="h-3.5 w-3.5" /> Peligro y Controles Existentes
                                                     </h4>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
@@ -621,19 +622,20 @@ const MatrizPeligrosGTC45 = () => {
 
                                                 {/* Segment 3: Risk Valuation */}
                                                 <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase mb-2">Valoración del Riesgo (GTC 45)</h4>
+                                                    <h4 className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase mb-2 cursor-help"
+                                                        title="Valoración cuantitativa del riesgo según GTC 45. NR = NP × NC. El nivel de riesgo determina la aceptabilidad y la prioridad de intervención.">Valoración del Riesgo (GTC 45)</h4>
                                                     <div className="overflow-x-auto">
                                                         <table className="w-full text-xs border-collapse">
                                                             <thead>
                                                                 <tr className="bg-cyan-700 text-white">
-                                                                    <th className="px-3 py-2 text-center">ND</th>
-                                                                    <th className="px-3 py-2 text-center">NE</th>
-                                                                    <th className="px-3 py-2 text-center">NP</th>
-                                                                    <th className="px-3 py-2 text-center">Int. NP</th>
-                                                                    <th className="px-3 py-2 text-center">NC</th>
-                                                                    <th className="px-3 py-2 text-center">NR</th>
-                                                                    <th className="px-3 py-2 text-center">Aceptabilidad</th>
-                                                                    <th className="px-3 py-2 text-center">Expuestos</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Deficiencia (ND): Magnitud de la relación entre el peligro y su eliminación/control. Valores: 0 (Bajo), 2 (Medio), 6 (Alto), 10 (Muy Alto).">ND</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Exposición (NE): Frecuencia con que se da la exposición al peligro. Valores: 1 (Esporádica), 2 (Ocasional), 3 (Frecuente), 4 (Continua).">NE</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Probabilidad (NP = ND × NE): Producto del nivel de deficiencia por el nivel de exposición. Indica la probabilidad de que el peligro se materialice.">NP</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Interpretación del Nivel de Probabilidad: Bajo (2-4), Medio (6-8), Alto (10-20), Muy Alto (24-40).">Int. NP</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Consecuencia (NC): Gravedad de las consecuencias esperadas. Valores: 10 (Leve), 25 (Grave/ILT), 60 (Muy Grave/Invalidez), 100 (Mortal/Catastrófico).">NC</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Riesgo (NR = NP × NC): Magnitud total del riesgo. Nivel I (600-4000): No Aceptable. Nivel II (150-500): Control específico. Nivel III (40-120): Aceptable. Nivel IV (20): Aceptable.">NR</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Aceptabilidad del riesgo: determina si el riesgo es aceptable, requiere control específico, o no es aceptable y requiere intervención inmediata.">Aceptabilidad</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Número de trabajadores expuestos al peligro identificado.">Expuestos</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -670,7 +672,8 @@ const MatrizPeligrosGTC45 = () => {
 
                                                 {/* Segment 4: Hygiene */}
                                                 <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-2">Valoración Higiénica</h4>
+                                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-2 cursor-help"
+                                                        title="Valoración higiénica según GTC 45 (Anexo D): evaluación cualitativa y cuantitativa de peligros higiénicos (físicos, químicos, biológicos) comparando con valores límite permisibles (TLV/LEP).">Valoración Higiénica</h4>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-3">
                                                         {[
                                                             { label: 'Deficiencia Higiénica (Cualitativa)', field: 'deficienciaHigienica' as const },
@@ -687,17 +690,18 @@ const MatrizPeligrosGTC45 = () => {
 
                                                 {/* Segment 5: Anexo E — Factores de Reducción y Justificación */}
                                                 <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">Anexo E — Factores de Reducción y Justificación</h4>
+                                                    <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-2 cursor-help"
+                                                        title="GTC 45 Anexo E: Herramientas matemáticas para analizar la reducción del riesgo (F) y la justificación costo-beneficio (J) de las medidas de intervención propuestas.">Anexo E — Factores de Reducción y Justificación</h4>
                                                     <div className="overflow-x-auto">
                                                         <table className="w-full text-xs border-collapse">
                                                             <thead>
                                                                 <tr className="bg-purple-700 text-white">
-                                                                    <th className="px-3 py-2 text-center">NR Inicial</th>
-                                                                    <th className="px-3 py-2 text-center">NR Final (estimado)</th>
-                                                                    <th className="px-3 py-2 text-center">F (Reducción %)</th>
-                                                                    <th className="px-3 py-2 text-center">Costo Intervención</th>
-                                                                    <th className="px-3 py-2 text-center">d</th>
-                                                                    <th className="px-3 py-2 text-center">J (Justificación)</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Riesgo Inicial (NRi): El nivel de riesgo calculado antes de aplicar las medidas de intervención. NRi = NP × NC.">NR Inicial</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Nivel de Riesgo Final (NRf): El nivel de riesgo estimado después de implementar las medidas de intervención propuestas.">NR Final (estimado)</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Factor de Reducción (F): Porcentaje de disminución del riesgo. F = 100 × (NRi − NRf) / NRi. Verde ≥75%, Amarillo ≥50%, Rojo <50%.">F (Reducción %)</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Costo estimado de la intervención en Salarios Mínimos Mensuales Legales Vigentes (SMMLV). Determina el factor de costo (d) según la tabla del Anexo E.">Costo Intervención</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Factor de costo (d): Valor numérico que representa el costo de la intervención. Rangos: 0.5 (<0.06 SMMLV) hasta 10 (>150 SMMLV).">d</th>
+                                                                    <th className="px-3 py-2 text-center cursor-help" title="Factor de Justificación (J): Relación costo-beneficio. J = (NRi × F) / d. A mayor valor de J, más justificada está la inversión en la medida de intervención.">J (Justificación)</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
