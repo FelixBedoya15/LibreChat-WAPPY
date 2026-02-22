@@ -191,7 +191,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                 />
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-6">
+            <div className="flex-1 min-w-0 overflow-y-auto space-y-6">
                 {categories.length === 0 ? (
                     <div className="p-8 text-center text-text-secondary">
                         No hay categorías definidas para esta fase.

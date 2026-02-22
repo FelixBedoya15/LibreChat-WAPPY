@@ -436,7 +436,7 @@ const EstadisticasATEL = () => {
                         </div>
 
                         {/* Content Area */}
-                        <div className="flex-1 p-4 md:p-6 space-y-6 bg-surface-primary/10">
+                        <div className="flex-1 min-w-0 p-4 md:p-6 space-y-6 bg-surface-primary/10">
                             {/* 1. Basic Stats Inputs */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
