@@ -813,37 +813,25 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_4_1_3',
         code: '4.1.3',
-        name: 'Identificación y priorización de la naturaleza de los peligros',
-        description: 'Se deben identificar y priorizar los peligros químicos, físicos, biológicos, etc.',
-        evaluation: 'Verificar que la matriz incluya todos los tipos de peligros priorizados.',
-        category: 'hacer',
-        subcategory: 'Identificación de peligros',
-        points: 3,
-        criteria: 'Res 0312/19: E4.1.3 | Dec 1072/15: 2.2.4.6.15 (Identificación Peligros)',
-        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_15_PELIGROS
-    },
-    {
-        id: 'aud_4_1_4',
-        code: '4.1.4',
         name: 'Identificación de sustancias catalogadas como carcinógenas o con toxicidad aguda',
         description: 'Se debe verificar si se manipulan sustancias carcinógenas o tóxicas.',
         evaluation: 'Verificar lista de sustancias químicas y su clasificación (carcinógenas/tóxicas).',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
-        points: 0,
-        criteria: 'Res 0312/19: E4.1.4 | Dec 1072/15: 2.2.4.6.15 (Peligros) | Dec 1496/18 (SGA)',
+        points: 3,
+        criteria: 'Res 0312/19: E4.1.3 | Dec 1072/15: 2.2.4.6.15 (Peligros) | Dec 1496/18 (SGA)',
         normativeText: NORMATIVE_FRAGMENTS.SUSTANCIAS_CARCINOGENAS_DETALLE
     },
     {
-        id: 'aud_4_1_5',
-        code: '4.1.5',
-        name: 'Realización de mediciones ambientales',
+        id: 'aud_4_1_4',
+        code: '4.1.4',
+        name: 'Realización de mediciones ambientales, químicos, físicos y biológicos',
         description: 'Deben realizarse mediciones ambientales cuando se requiera.',
         evaluation: 'Verificar informes de mediciones ambientales y su análisis.',
         category: 'hacer',
         subcategory: 'Identificación de peligros',
         points: 4,
-        criteria: 'Res 0312/19: E4.1.5 | Dec 1072/15: 2.2.4.6.15 (Identificación Peligros) | Res 2400/79 (Estándares)',
+        criteria: 'Res 0312/19: E4.1.4 | Dec 1072/15: 2.2.4.6.15 (Identificación Peligros) | Res 2400/79 (Estándares)',
         normativeText: NORMATIVE_FRAGMENTS.MEDICIONES_AMBIENTALES_DETALLE
     },
 
@@ -856,7 +844,7 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         evaluation: 'Verificar implementación de medidas según jerarquía de controles.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 3.0,
+        points: 2.5,
         criteria: 'Res 0312/19: E4.2.1 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención y Control)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
@@ -920,81 +908,95 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
     {
         id: 'aud_4_2_2',
         code: '4.2.2',
-        name: 'Procedimientos, instructivos y fichas técnicas',
-        description: 'Deben existir procedimientos e instructivos para trabajos de alto riesgo.',
-        evaluation: 'Verificar procedimientos de trabajo seguro para tareas críticas.',
+        name: 'Verificación de medidas de prevención y control',
+        description: 'Verificación de aplicación de medidas de prevención y control por parte de los trabajadores.',
+        evaluation: 'Verificar evidencias de que los trabajadores aplican las medidas de prevención y control.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 3.0,
+        points: 2.5,
         criteria: 'Res 0312/19: E4.2.2 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_4_2_3',
         code: '4.2.3',
-        name: 'Inspecciones de seguridad',
-        description: 'Deben realizarse inspecciones sistemáticas de seguridad.',
-        evaluation: 'Verificar programa de inspecciones, formatos y registros.',
+        name: 'Elaboración de procedimientos, instructivos y fichas técnicas',
+        description: 'Deben existir procedimientos e instructivos para trabajos de alto riesgo.',
+        evaluation: 'Verificar procedimientos de trabajo seguro para tareas críticas.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 3.0,
-        criteria: 'Res 0312/19: E4.2.3 | Dec 1072/15: 2.2.4.6.24 (Inspecciones)',
+        points: 2.5,
+        criteria: 'Res 0312/19: E4.2.3 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_4_2_4',
         code: '4.2.4',
-        name: 'Mantenimiento periódico de instalaciones y equipos',
-        description: 'Debe existir programa de mantenimiento de instalaciones y equipos.',
-        evaluation: 'Verificar programa y registros de mantenimiento preventivo y correctivo.',
+        name: 'Inspecciones de seguridad',
+        description: 'Deben realizarse inspecciones sistemáticas de seguridad.',
+        evaluation: 'Verificar programa de inspecciones, formatos y registros.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 3.0,
-        criteria: 'Res 0312/19: E4.2.4 | Dec 1072/15: 2.2.4.6.24 (Mantenimiento)',
+        points: 2.5,
+        criteria: 'Res 0312/19: E4.2.4 | Dec 1072/15: 2.2.4.6.24 (Inspecciones)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_4_2_5',
         code: '4.2.5',
-        name: 'Entrega de EPP y capacitación en uso',
-        description: 'Se deben entregar EPP y capacitar en su uso.',
-        evaluation: 'Verificar matriz de EPP, registros de entrega y capacitación.',
+        name: 'Mantenimiento periódico de instalaciones y equipos',
+        description: 'Debe existir programa de mantenimiento de instalaciones y equipos.',
+        evaluation: 'Verificar programa y registros de mantenimiento preventivo y correctivo.',
         category: 'hacer',
         subcategory: 'Medidas de prevención y control',
-        points: 3.0,
-        criteria: 'Res 0312/19: E4.2.5 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
+        points: 2.5,
+        criteria: 'Res 0312/19: E4.2.5 | Dec 1072/15: 2.2.4.6.24 (Mantenimiento)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
     },
     {
         id: 'aud_4_2_6',
         code: '4.2.6',
-        name: 'Plan de prevención y preparación ante emergencias',
+        name: 'Entrega de EPP y capacitación en uso',
+        description: 'Se deben entregar EPP y capacitar en su uso.',
+        evaluation: 'Verificar matriz de EPP, registros de entrega y capacitación.',
+        category: 'hacer',
+        subcategory: 'Medidas de prevención y control',
+        points: 2.5,
+        criteria: 'Res 0312/19: E4.2.6 | Dec 1072/15: 2.2.4.6.24 (Medidas de Prevención)',
+        normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_24_MEDIDAS
+    },
+
+    // Gestión de Amenazas (10%)
+    {
+        id: 'aud_5_1_1',
+        code: '5.1.1',
+        name: 'Plan de prevención, preparación y respuesta ante emergencias',
         description: 'Debe existir plan de emergencias documentado.',
         evaluation: 'Verificar plan de emergencias, brigadas y simulacros.',
         category: 'hacer',
-        subcategory: 'Medidas de prevención y control',
+        subcategory: 'Gestión de amenazas',
         points: 5.0,
-        criteria: 'Res 0312/19: E4.2.6 | Dec 1072/15: 2.2.4.6.25 (Emergencias)',
+        criteria: 'Res 0312/19: E5.1.1 | Dec 1072/15: 2.2.4.6.25 (Emergencias)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_25_EMERGENCIAS
     },
     {
-        id: 'aud_4_2_7',
-        code: '4.2.7',
+        id: 'aud_5_1_2',
+        code: '5.1.2',
         name: 'Brigada de prevención, preparación y respuesta ante emergencias',
         description: 'Debe existir brigada de emergencias conformada, capacitada y dotada.',
         evaluation: 'Verificar conformación de brigada, actas de capacitación, dotación y simulacros realizados.',
         category: 'hacer',
-        subcategory: 'Medidas de prevención y control',
-        points: 5,
+        subcategory: 'Gestión de amenazas',
+        points: 5.0,
         criteria: 'Res 0312/19: E5.1.2 | Dec 1072/15: 2.2.4.6.25 (Emergencias)',
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_25_EMERGENCIAS
     },
 
     // --- III. VERIFICAR ---
     {
-        id: 'aud_5_1_1',
-        code: '5.1.1',
-        name: 'Indicadores de estructura, proceso y resultado',
+        id: 'aud_6_1_1',
+        code: '6.1.1',
+        name: 'Definición de indicadores del SG-SST',
         description: 'Se deben definir indicadores para evaluar el SG-SST.',
         evaluation: 'Verificar fichas técnicas de indicadores y su medición.',
         category: 'verificar',
@@ -1004,8 +1006,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_22_INDICADORES
     },
     {
-        id: 'aud_5_1_2',
-        code: '5.1.2',
+        id: 'aud_6_1_2',
+        code: '6.1.2',
         name: 'Auditoría anual',
         description: 'Debe realizarse auditoría anual del SG-SST.',
         evaluation: 'Verificar programa de auditoría, informe y plan de mejora.',
@@ -1016,8 +1018,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_29_AUDITORIA
     },
     {
-        id: 'aud_5_1_3',
-        code: '5.1.3',
+        id: 'aud_6_1_3',
+        code: '6.1.3',
         name: 'Revisión por la alta dirección',
         description: 'La alta dirección debe revisar el SG-SST al menos una vez al año.',
         evaluation: 'Verificar acta de revisión por la dirección con decisiones tomadas.',
@@ -1028,9 +1030,9 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_31_DIRECCION
     },
     {
-        id: 'aud_5_1_4',
-        code: '5.1.4',
-        name: 'Planificación de auditoría con el COPASST',
+        id: 'aud_6_1_4',
+        code: '6.1.4',
+        name: 'Planificación auditorías con el COPASST',
         description: 'La auditoría debe planificarse con participación del COPASST.',
         evaluation: 'Verificar participación del COPASST en la planificación de auditoría.',
         category: 'verificar',
@@ -1042,8 +1044,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
 
     // --- IV. ACTUAR ---
     {
-        id: 'aud_6_1_1',
-        code: '6.1.1',
+        id: 'aud_7_1_1',
+        code: '7.1.1',
         name: 'Acciones preventivas y correctivas con base en resultados',
         description: 'Se deben definir acciones preventivas y correctivas.',
         evaluation: 'Verificar plan de acciones correctivas, preventivas y de mejora.',
@@ -1054,8 +1056,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_33_MEJORA
     },
     {
-        id: 'aud_6_1_2',
-        code: '6.1.2',
+        id: 'aud_7_1_2',
+        code: '7.1.2',
         name: 'Acciones de mejora según revisión de la alta dirección',
         description: 'Se deben implementar acciones de mejora de la revisión por la dirección.',
         evaluation: 'Verificar seguimiento a acciones derivadas de la revisión por dirección.',
@@ -1066,8 +1068,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_33_MEJORA
     },
     {
-        id: 'aud_6_1_3',
-        code: '6.1.3',
+        id: 'aud_7_1_3',
+        code: '7.1.3',
         name: 'Acciones de mejora basadas en investigaciones de ATEL',
         description: 'Se deben implementar acciones de las investigaciones de ATEL.',
         evaluation: 'Verificar seguimiento a recomendaciones de investigaciones de ATEL.',
@@ -1078,8 +1080,8 @@ export const AUDITORIA_ITEMS: AuditoriaItem[] = [
         normativeText: NORMATIVE_FRAGMENTS.DEC_1072_ART_33_MEJORA
     },
     {
-        id: 'aud_6_1_4',
-        code: '6.1.4',
+        id: 'aud_7_1_4',
+        code: '7.1.4',
         name: 'Plan de mejoramiento continuo',
         description: 'Debe existir un plan de mejoramiento continuo del SG-SST.',
         evaluation: 'Verificar plan de mejoramiento basado en evaluación de estándares.',
