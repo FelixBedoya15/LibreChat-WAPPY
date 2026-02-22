@@ -708,7 +708,7 @@ const MatrizPeligrosGTC45 = () => {
                                                 {/* Segment 5: Anexo E — Factores de Reducción y Justificación */}
                                                 <div className="border-t border-border-medium pt-3">
                                                     <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">
-                                                        <Tip text="GTC 45 Anexo E: Herramientas matemáticas para analizar la reducción del riesgo (F) y la justificación costo-beneficio (J) de las medidas de intervención propuestas.">Anexo E — Factores de Reducción y Justificación</Tip>
+                                                        <Tip text="GTC 45 Anexo E: Herramientas matemáticas para analizar la reducción del riesgo (F) y la justificación costo-beneficio (J) de las medidas de intervención propuestas.">Factores de Reducción y Justificación</Tip>
                                                     </h4>
                                                     <div className="overflow-x-auto rounded-xl border border-border-medium">
                                                         <table className="w-full text-xs border-collapse">
