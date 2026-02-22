@@ -45,10 +45,10 @@ const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 's
           setMultiKey(AuthKeys.GOOGLE_SERVICE_KEY, JSON.stringify(data), userKey);
         }}
       />
-      {Array.from({ length: 3 }).map((_, index) => {
+      {Array.from({ length: 10 }).map((_, index) => {
         const currentKeys = (getMultiKey(AuthKeys.GOOGLE_API_KEY, userKey) ?? '').split(',');
-        // Ensure we always have at least 3 elements to map securely, filling with empty strings if needed
-        while (currentKeys.length < 3) currentKeys.push('');
+        // Ensure we always have at least 10 elements to map securely, filling with empty strings if needed
+        while (currentKeys.length < 10) currentKeys.push('');
 
         return (
           <InputWithLabel
