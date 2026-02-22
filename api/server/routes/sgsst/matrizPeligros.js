@@ -39,6 +39,11 @@ const PeligroEntrySchema = new mongoose.Schema({
     valoracionCuantitativa: String,
     factorReduccion: String,
     justificacion: String,
+    // Anexo E: Factores de Reducción y Justificación
+    nrFinal: Number,
+    costoIntervencion: String,
+    factorCosto: Number,
+    factorJustificacion: Number,
     // Intervention
     eliminacion: String,
     sustitucion: String,
@@ -224,7 +229,9 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el 
   "sustitucion": "Medida de sustitución recomendada (o 'No aplica')",
   "controlIngenieria": "Medida de ingeniería recomendada",
   "controlAdministrativo": "Medidas administrativas recomendadas",
-  "epp": "EPP requerido específico"
+  "epp": "EPP requerido específico",
+  "nrFinal": <número: NR estimado después de implementar todas las medidas de intervención propuestas>,
+  "costoIntervencion": "Rango estimado del costo en SMMLV (opciones: 'Más de 150 SMMLV', '60 a 150 SMMLV', '30 a 59 SMMLV', '3 a 29 SMMLV', '0.3 a 2.9 SMMLV', '0.06 a 0.29 SMMLV', 'Menos de 0.06 SMMLV')"
 }
 
 Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
@@ -247,6 +254,22 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
         // Validate calculated fields
         parsed.nivelProbabilidad = (parsed.nivelDeficiencia || 0) * (parsed.nivelExposicion || 0);
         parsed.nivelRiesgo = parsed.nivelProbabilidad * (parsed.nivelConsecuencia || 0);
+
+        // Anexo E: Calculate F and J
+        const costFactorMap = {
+            'Más de 150 SMMLV': 10, '60 a 150 SMMLV': 8, '30 a 59 SMMLV': 6,
+            '3 a 29 SMMLV': 4, '0.3 a 2.9 SMMLV': 2, '0.06 a 0.29 SMMLV': 1,
+            'Menos de 0.06 SMMLV': 0.5,
+        };
+        const nri = parsed.nivelRiesgo || 1;
+        const nrf = parsed.nrFinal || 0;
+        const f = nri > 0 ? Math.round((100 * (nri - nrf)) / nri * 10) / 10 : 0;
+        const d = costFactorMap[parsed.costoIntervencion] || 4;
+        const j = d > 0 ? Math.round((nri * f) / d) : 0;
+
+        parsed.factorReduccion = f;
+        parsed.factorCosto = d;
+        parsed.factorJustificacion = j;
         parsed.completedByAI = true;
 
         res.json({ completed: parsed });

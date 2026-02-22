@@ -37,7 +37,12 @@ interface PeligroEntry {
     numExpuestos: number;
     deficienciaHigienica: string;
     valoracionCuantitativa: string;
-    factorReduccion: string;
+    // Anexo E: Factores de Reducción y Justificación
+    nrFinal: number;
+    factorReduccion: number;
+    costoIntervencion: string;
+    factorCosto: number;
+    factorJustificacion: number;
     justificacion: string;
     eliminacion: string;
     sustitucion: string;
@@ -55,10 +60,21 @@ const EMPTY_ENTRY: Omit<PeligroEntry, 'id'> = {
     interpretacionNP: '', nivelConsecuencia: 0, nivelRiesgo: 0,
     interpretacionNR: '', aceptabilidad: '', numExpuestos: 0,
     deficienciaHigienica: '', valoracionCuantitativa: '',
-    factorReduccion: '', justificacion: '',
+    nrFinal: 0, factorReduccion: 0, costoIntervencion: '', factorCosto: 0, factorJustificacion: 0, justificacion: '',
     eliminacion: '', sustitucion: '', controlIngenieria: '',
     controlAdministrativo: '', epp: '', completedByAI: false,
 };
+
+// ─── GTC 45 Anexo E: Cost Factor Table (SMMLV) ──────────────────────
+const COST_FACTOR_OPTIONS = [
+    { label: 'Más de 150 SMMLV', d: 10 },
+    { label: '60 a 150 SMMLV', d: 8 },
+    { label: '30 a 59 SMMLV', d: 6 },
+    { label: '3 a 29 SMMLV', d: 4 },
+    { label: '0.3 a 2.9 SMMLV', d: 2 },
+    { label: '0.06 a 0.29 SMMLV', d: 1 },
+    { label: 'Menos de 0.06 SMMLV', d: 0.5 },
+];
 
 // ─── Risk Color Helpers ───────────────────────────────────────────────
 const getRiskColor = (nr: number) => {
@@ -268,11 +284,28 @@ const MatrizPeligrosGTC45 = () => {
     </table>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
-      <tr><th style="background: #065f46; color: white; padding: 6px; text-align: center;" colspan="2">Valoración Higiénica y Medidas de Intervención</th></tr>
+      <tr><th style="background: #065f46; color: white; padding: 6px; text-align: center;" colspan="2">Valoración Higiénica</th></tr>
       <tr><td style="padding: 6px 10px; border: 1px solid #eee; font-weight: 600; width: 30%;">Deficiencia Higiénica (Cualitativa)</td><td style="padding: 6px 10px; border: 1px solid #eee;">${e.deficienciaHigienica || 'N/A'}</td></tr>
       <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border: 1px solid #eee; font-weight: 600;">Valoración Cuantitativa</td><td style="padding: 6px 10px; border: 1px solid #eee;">${e.valoracionCuantitativa || 'N/A'}</td></tr>
-      <tr><td style="padding: 6px 10px; border: 1px solid #eee; font-weight: 600;">Factores de Reducción</td><td style="padding: 6px 10px; border: 1px solid #eee;">${e.factorReduccion || '-'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border: 1px solid #eee; font-weight: 600;">Justificación</td><td style="padding: 6px 10px; border: 1px solid #eee;">${e.justificacion || '-'}</td></tr>
+    </table>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
+      <tr><th style="background: #9333ea; color: white; padding: 6px; text-align: center;" colspan="5">Anexo E — Factores de Reducción y Justificación</th></tr>
+      <tr style="background: #f3e8ff; font-weight: 600; text-align: center; font-size: 12px;">
+        <td style="padding: 6px; border: 1px solid #ddd;">NR Inicial</td>
+        <td style="padding: 6px; border: 1px solid #ddd;">NR Final (estimado)</td>
+        <td style="padding: 6px; border: 1px solid #ddd;">F (Reducción %)</td>
+        <td style="padding: 6px; border: 1px solid #ddd;">Costo (d)</td>
+        <td style="padding: 6px; border: 1px solid #ddd;">J (Justificación)</td>
+      </tr>
+      <tr style="text-align: center;">
+        <td style="padding: 6px; border: 1px solid #ddd;">${e.nivelRiesgo}</td>
+        <td style="padding: 6px; border: 1px solid #ddd;">${e.nrFinal || '-'}</td>
+        <td style="padding: 6px; border: 1px solid #ddd; font-weight: 700; color: ${e.factorReduccion >= 75 ? '#16a34a' : e.factorReduccion >= 50 ? '#ca8a04' : '#dc2626'};">${e.factorReduccion ? e.factorReduccion.toFixed(1) + '%' : '-'}</td>
+        <td style="padding: 6px; border: 1px solid #ddd;">${e.costoIntervencion || '-'} (d=${e.factorCosto || '-'})</td>
+        <td style="padding: 6px; border: 1px solid #ddd; font-weight: 700;">${e.factorJustificacion ? e.factorJustificacion.toFixed(0) : '-'}</td>
+      </tr>
+      <tr><td colspan="5" style="padding: 6px 10px; border: 1px solid #eee; font-size: 12px;"><strong>Justificación:</strong> ${e.justificacion || '-'}</td></tr>
     </table>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
@@ -635,15 +668,13 @@ const MatrizPeligrosGTC45 = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Segment 4: Hygiene + Intervention */}
+                                                {/* Segment 4: Hygiene */}
                                                 <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-2">Valoración Higiénica y Medidas de Intervención</h4>
+                                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-2">Valoración Higiénica</h4>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-3">
                                                         {[
                                                             { label: 'Deficiencia Higiénica (Cualitativa)', field: 'deficienciaHigienica' as const },
                                                             { label: 'Valoración Cuantitativa', field: 'valoracionCuantitativa' as const },
-                                                            { label: 'Factor de Reducción', field: 'factorReduccion' as const },
-                                                            { label: 'Justificación', field: 'justificacion' as const },
                                                         ].map(({ label, field }) => (
                                                             <div key={field} className="space-y-1">
                                                                 <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
@@ -652,6 +683,73 @@ const MatrizPeligrosGTC45 = () => {
                                                             </div>
                                                         ))}
                                                     </div>
+                                                </div>
+
+                                                {/* Segment 5: Anexo E — Factores de Reducción y Justificación */}
+                                                <div className="border-t border-border-medium pt-3">
+                                                    <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">Anexo E — Factores de Reducción y Justificación</h4>
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-xs border-collapse">
+                                                            <thead>
+                                                                <tr className="bg-purple-700 text-white">
+                                                                    <th className="px-3 py-2 text-center">NR Inicial</th>
+                                                                    <th className="px-3 py-2 text-center">NR Final (estimado)</th>
+                                                                    <th className="px-3 py-2 text-center">F (Reducción %)</th>
+                                                                    <th className="px-3 py-2 text-center">Costo Intervención</th>
+                                                                    <th className="px-3 py-2 text-center">d</th>
+                                                                    <th className="px-3 py-2 text-center">J (Justificación)</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td className="px-2 py-1 border border-border-medium text-center font-bold">{entry.nivelRiesgo}</td>
+                                                                    <td className="px-2 py-1 border border-border-medium text-center">
+                                                                        <input type="number" value={entry.nrFinal || ''} onChange={e => {
+                                                                            const nrf = Number(e.target.value);
+                                                                            const nri = entry.nivelRiesgo || 1;
+                                                                            const f = nri > 0 ? (100 * (nri - nrf)) / nri : 0;
+                                                                            const j = entry.factorCosto > 0 ? (nri * f) / entry.factorCosto : 0;
+                                                                            setEntries(prev => prev.map(en => en.id === entry.id ? { ...en, nrFinal: nrf, factorReduccion: Math.round(f * 10) / 10, factorJustificacion: Math.round(j) } : en));
+                                                                        }}
+                                                                            className="w-20 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary" />
+                                                                    </td>
+                                                                    <td className={`px-2 py-1 border border-border-medium text-center font-bold ${entry.factorReduccion >= 75 ? 'text-green-600' : entry.factorReduccion >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                                                        {entry.factorReduccion ? `${entry.factorReduccion}%` : '-'}
+                                                                    </td>
+                                                                    <td className="px-2 py-1 border border-border-medium text-center">
+                                                                        <select value={entry.costoIntervencion || ''} onChange={e => {
+                                                                            const selected = COST_FACTOR_OPTIONS.find(o => o.label === e.target.value);
+                                                                            const d = selected?.d || 0;
+                                                                            const nri = entry.nivelRiesgo || 1;
+                                                                            const f = entry.factorReduccion || 0;
+                                                                            const j = d > 0 ? (nri * f) / d : 0;
+                                                                            setEntries(prev => prev.map(en => en.id === entry.id ? { ...en, costoIntervencion: e.target.value, factorCosto: d, factorJustificacion: Math.round(j) } : en));
+                                                                        }}
+                                                                            className="text-xs p-1 rounded border border-border-medium bg-surface-primary">
+                                                                            <option value="">Seleccionar...</option>
+                                                                            {COST_FACTOR_OPTIONS.map(o => (
+                                                                                <option key={o.d} value={o.label}>{o.label} (d={o.d})</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </td>
+                                                                    <td className="px-2 py-1 border border-border-medium text-center font-mono">{entry.factorCosto || '-'}</td>
+                                                                    <td className="px-2 py-1 border border-border-medium text-center font-bold text-lg text-purple-700 dark:text-purple-400">
+                                                                        {entry.factorJustificacion || '-'}
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <div className="mt-2">
+                                                        <label className="text-[10px] font-medium text-text-secondary uppercase">Justificación Técnica</label>
+                                                        <textarea value={entry.justificacion || ''} onChange={e => updateField(entry.id, 'justificacion', e.target.value)}
+                                                            rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none"
+                                                            placeholder="Justificación de la medida de intervención y análisis costo-beneficio..." />
+                                                    </div>
+                                                </div>
+
+                                                {/* Segment 6: Jerarquía de Controles */}
+                                                <div className="border-t border-border-medium pt-3">
                                                     <h5 className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">Jerarquía de Controles</h5>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
                                                         {[
@@ -690,27 +788,29 @@ const MatrizPeligrosGTC45 = () => {
             )}
 
             {/* ═══ Generated Report — LiveEditor ═══ */}
-            {generatedReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                            Informe Matriz de Peligros GTC 45
-                        </h3>
-                        <div className="flex items-center gap-2">
-                            <button onClick={handleSaveReport}
-                                className="group flex items-center px-3 py-1.5 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all text-xs font-medium">
-                                <Save className="h-4 w-4 mr-1" /> Guardar Informe
-                            </button>
+            {
+                generatedReport && (
+                    <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
+                        <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
+                            <h3 className="font-semibold text-text-primary flex items-center gap-2">
+                                <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                Informe Matriz de Peligros GTC 45
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <button onClick={handleSaveReport}
+                                    className="group flex items-center px-3 py-1.5 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all text-xs font-medium">
+                                    <Save className="h-4 w-4 mr-1" /> Guardar Informe
+                                </button>
+                            </div>
+                        </div>
+                        <div className="h-[800px]">
+                            <LiveEditor key={reportMessageId || 'editor'} initialContent={generatedReport}
+                                onUpdate={(html) => setEditorContent(html)} onSave={handleSaveReport} />
                         </div>
                     </div>
-                    <div className="h-[800px]">
-                        <LiveEditor key={reportMessageId || 'editor'} initialContent={generatedReport}
-                            onUpdate={(html) => setEditorContent(html)} onSave={handleSaveReport} />
-                    </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 
