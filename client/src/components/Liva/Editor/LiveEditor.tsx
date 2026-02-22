@@ -75,14 +75,71 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
             </div>
             <div
                 ref={editorRef}
-                className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full"
+                className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content"
                 contentEditable
                 onInput={handleInput}
                 suppressContentEditableWarning={true}
                 style={{ minHeight: '100%', maxWidth: '100%' }}
             />
+            {/* Standardized report styles matching Diagnóstico/Auditoría */}
+            <style>{`
+                .live-editor-content h1 {
+                    color: #004d99;
+                    text-align: center;
+                    margin-bottom: 5px;
+                    font-size: 1.8em;
+                    border-bottom: 2px solid #004d99;
+                    padding-bottom: 8px;
+                }
+                .live-editor-content h2 {
+                    color: #004d99;
+                    border-bottom: 2px solid #004d99;
+                    padding-bottom: 5px;
+                    font-size: 1.4em;
+                }
+                .live-editor-content h3 {
+                    color: #333;
+                    font-size: 1.2em;
+                }
+                .live-editor-content table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 15px 0;
+                    font-size: 0.9em;
+                }
+                .live-editor-content table th {
+                    background-color: #004d99;
+                    color: white;
+                    padding: 10px 8px;
+                    text-align: left;
+                    font-weight: 600;
+                }
+                .live-editor-content table td {
+                    padding: 10px 8px;
+                    border-bottom: 1px solid #ddd;
+                    vertical-align: top;
+                }
+                .live-editor-content table tr:nth-child(even) {
+                    background-color: #f8f9fa;
+                }
+                .live-editor-content table tr:hover {
+                    background-color: #e8f0fe;
+                }
+                .live-editor-content table td,
+                .live-editor-content table th {
+                    border: 1px solid #ddd;
+                }
+                .live-editor-content img {
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 8px;
+                    border: 1px solid #ddd;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+            `}</style>
         </div>
     );
 };
 
 export default LiveEditor;
+

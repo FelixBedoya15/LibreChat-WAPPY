@@ -7,6 +7,8 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { OpenSidebar } from '~/components/Chat/Menus';
+import ModelSelector from '~/components/SGSST/ModelSelector';
+import ExportDropdown from '~/components/SGSST/ExportDropdown';
 import type { ContextType } from '~/common';
 
 const LivePage = () => {
@@ -18,6 +20,7 @@ const LivePage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
+    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
 
     // REMOVED useNewConvo because it forces a redirect to /c/new.
     // We handle "new" state locally.
@@ -505,6 +508,10 @@ const LivePage = () => {
                         )}
                     </div>
                     <div className="flex items-center space-x-3">
+                        <ModelSelector
+                            selectedModel={selectedModel}
+                            onSelectModel={setSelectedModel}
+                        />
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                             className={`group flex items-center px-3 py-2 border border-light rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700' : 'bg-surface-primary text-primary hover:bg-surface-hover'}`}
@@ -532,6 +539,10 @@ const LivePage = () => {
                                 {localize('com_ui_save_report')}
                             </span>
                         </button>
+                        <ExportDropdown
+                            content={editorContent || initialReportContent}
+                            fileName="Informe_Analisis_Riesgos"
+                        />
                     </div>
                 </div>
             </div>
@@ -557,6 +568,7 @@ const LivePage = () => {
                 onConversationIdUpdate={setConversationId}
                 onTextReceived={handleTextReceived}
                 onReportReceived={handleReportReceived}
+                selectedModel={selectedModel}
             />
         </div>
     );

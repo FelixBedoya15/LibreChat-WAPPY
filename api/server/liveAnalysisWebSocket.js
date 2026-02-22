@@ -35,6 +35,7 @@ function setupLiveAnalysisWebSocket(server) {
             const token = params.token || request.headers['sec-websocket-protocol'];
             const conversationId = params.conversationId;
             const initialVoice = params.initialVoice;
+            const selectedModel = params.model;
 
             if (!token) {
                 logger.warn('[LiveAnalysisWS] No token provided');
@@ -136,6 +137,10 @@ El sistema te indicará el modo o tú deberás inferirlo según la solicitud del
 
             if (initialVoice) {
                 config.voice = initialVoice;
+            }
+
+            if (selectedModel) {
+                config.model = selectedModel;
             }
 
             // Create voice session with forced config

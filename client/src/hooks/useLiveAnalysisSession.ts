@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 interface VoiceMessage {
-    type: 'audio' | 'text' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated';
+    type: 'audio' | 'text' | 'report' | 'status' | 'error' | 'interrupted' | 'conversationId' | 'conversationUpdated';
     data: any;
 }
 
@@ -17,11 +17,12 @@ interface UseLiveAnalysisSessionOptions {
     onConversationUpdated?: () => void;
     disableAudio?: boolean;
     initialVoice?: string;
+    selectedModel?: string;
 }
 
 export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = {}) => {
     const { token } = useAuthContext();
-    const { conversationId, disableAudio, initialVoice } = options;
+    const { conversationId, disableAudio, initialVoice, selectedModel } = options;
     const [isConnected, setIsConnected] = useState(false);
     const [isConnecting, setIsConnecting] = useState(false);
     const [status, setStatus] = useState<'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking'>('idle');
@@ -250,6 +251,10 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
 
             if (initialVoice) {
                 wsUrl += `&initialVoice=${encodeURIComponent(initialVoice)}`;
+            }
+
+            if (selectedModel) {
+                wsUrl += `&model=${encodeURIComponent(selectedModel)}`;
             }
 
             console.log('[LiveAnalysisSession] Connecting to:', wsUrl);

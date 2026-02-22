@@ -16,9 +16,10 @@ interface LiveAnalysisModalProps {
     onTextReceived?: (text: string) => void;
     onReportReceived?: (html: string) => void;
     onConversationUpdated?: () => void;
+    selectedModel?: string;
 }
 
-const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onReportReceived, onConversationUpdated }) => {
+const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onReportReceived, onConversationUpdated, selectedModel }) => {
     const localize = useLocalize();
     const voiceLiveAnalysis = useRecoilValue(store.voiceLiveAnalysis);
     const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
@@ -75,6 +76,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onConversationIdUpdate,
         disableAudio: false,
         initialVoice: voiceLiveAnalysis,
+        selectedModel,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
@@ -158,7 +160,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             console.error('[LiveAnalysisModal] Error:', err);
             setStatusText(`Error: ${err}`);
         },
-    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport]);
+    }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel]);
 
     const {
         isConnected,
