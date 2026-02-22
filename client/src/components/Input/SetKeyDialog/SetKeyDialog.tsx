@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import {
   OGDialog,
@@ -192,6 +192,18 @@ const SetKeyDialog = ({
   const { getExpiry, saveUserKey } = useUserKey(endpoint);
   const { showToast } = useToastContext();
   const localize = useLocalize();
+
+  // Re-read keys from localStorage every time the dialog opens
+  useEffect(() => {
+    if (open) {
+      try {
+        const stored = localStorage.getItem(`librechat_user_key_${endpoint}`) || '';
+        setUserKey(stored);
+      } catch {
+        setUserKey('');
+      }
+    }
+  }, [open, endpoint]);
 
   const expirationOptions = Object.values(EXPIRY);
 
