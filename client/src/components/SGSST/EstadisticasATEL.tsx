@@ -413,7 +413,7 @@ const EstadisticasATEL = () => {
                 </button>
 
                 {isFormExpanded && (
-                    <div className="flex flex-col md:flex-row min-h-[500px]">
+                    <div className="flex flex-col md:flex-row min-h-[500px] overflow-hidden">
                         {/* Month Selector Sidebar (Desktop) or Scroll (Mobile) */}
                         <div className="w-full md:w-48 bg-surface-tertiary/20 border-b md:border-b-0 md:border-r border-border-medium flex md:flex-col overflow-x-auto md:overflow-visible">
                             {MONTHS.map((month, index) => {
@@ -436,7 +436,7 @@ const EstadisticasATEL = () => {
                         </div>
 
                         {/* Content Area */}
-                        <div className="flex-1 min-w-0 p-4 md:p-6 space-y-6 bg-surface-primary/10">
+                        <div className="flex-1 p-4 md:p-6 space-y-6 bg-surface-primary/10 overflow-auto">
                             {/* 1. Basic Stats Inputs */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
