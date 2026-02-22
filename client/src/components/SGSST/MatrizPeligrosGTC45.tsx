@@ -431,7 +431,7 @@ const MatrizPeligrosGTC45 = () => {
                         <>
                             <button onClick={generateReport}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <FileText className="h-5 w-5" />
+                                <Sparkles className="h-5 w-5" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
                             </button>
                             {generatedReport && (
