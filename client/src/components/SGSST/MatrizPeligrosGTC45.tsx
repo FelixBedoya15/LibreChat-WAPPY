@@ -13,15 +13,15 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 
 // ─── Styled Tooltip ───────────────────────────────────────────────────
 const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
-    <span className="relative group/tip inline-flex items-center cursor-help">
+    <span className="relative group/tip inline-flex items-center">
         {children}
-        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50
+        <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-[100]
             opacity-0 group-hover/tip:opacity-100 transition-all duration-200 scale-95 group-hover/tip:scale-100
             w-64 max-w-xs px-3 py-2 rounded-xl text-[11px] leading-relaxed font-normal normal-case text-left
             text-text-primary bg-surface-secondary border border-border-medium shadow-lg
             backdrop-blur-sm">
             {text}
-            <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-border-medium" />
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px] border-4 border-transparent border-b-border-medium" />
         </span>
     </span>
 );
