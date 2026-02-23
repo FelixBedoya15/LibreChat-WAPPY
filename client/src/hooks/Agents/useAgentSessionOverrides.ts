@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useRecoilState } from 'recoil';
-import { Tools, Constants, PermissionBits } from 'librechat-data-provider';
+import { Tools, Constants } from 'librechat-data-provider';
 import type { TEphemeralAgent } from 'librechat-data-provider';
-import { useListAgentsQuery } from '~/data-provider';
+import { useGetAgentByIdQuery } from '~/data-provider';
 import { ephemeralAgentByConvoId } from '~/store';
 
 const BUILTIN_TOOLS = new Set([
@@ -52,15 +52,7 @@ export default function useAgentSessionOverrides({
     const key = conversationId ?? Constants.NEW_CONVO;
     const [ephemeralAgent, setEphemeralAgent] = useRecoilState(ephemeralAgentByConvoId(key));
 
-    const { data: agentsList } = useListAgentsQuery(
-        { requiredPermission: PermissionBits.VIEW },
-        { enabled: !!agentId },
-    );
-
-    const agent = useMemo(() => {
-        if (!agentId || !agentsList?.data) return null;
-        return agentsList.data.find((a) => a.id === agentId) ?? null;
-    }, [agentId, agentsList]);
+    const { data: agent } = useGetAgentByIdQuery(agentId);
 
     const { hasWebSearch, hasFileSearch, hasCodeInterpreter, externalTools } = useMemo(() => {
         const tools = agent?.tools ?? [];

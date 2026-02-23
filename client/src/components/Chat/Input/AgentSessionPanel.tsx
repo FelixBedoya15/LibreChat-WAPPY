@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as Ariakit from '@ariakit/react';
 import { Settings2, Globe, FolderSearch, TerminalSquare, Wrench } from 'lucide-react';
-import { EModelEndpoint } from 'librechat-data-provider';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { TooltipAnchor } from '@librechat/client';
@@ -101,19 +100,19 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     const modelsQuery = useGetModelsQuery();
     const modelList = useMemo(() => {
         const data = modelsQuery.data ?? {};
-        // Try agents endpoint first, then fallback to provider-specific
-        const agentModels: string[] =
-            data[EModelEndpoint.agents] ??
-            (agentProvider ? data[agentProvider] : undefined) ??
-            [];
-        return agentModels;
+        // Collect all models from all endpoints (flatten unique)
+        const allModels = new Set<string>();
+        Object.values(data).forEach((list) => {
+            if (Array.isArray(list)) {
+                list.forEach((m) => allModels.add(m));
+            }
+        });
+        // Try agent-provider–specific list first, else use flat set
+        const providerModels = agentProvider ? (data[agentProvider] ?? []) : [];
+        return providerModels.length > 0 ? providerModels : [...allModels].sort();
     }, [modelsQuery.data, agentProvider]);
 
     const hasAnyTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || externalTools.length > 0;
-
-    if (!hasAnyTools && modelList.length === 0) {
-        return null;
-    }
 
     const sessionModel = (overrides as TEphemeralAgentExtended | null)?.model ?? agentModel ?? '';
 
@@ -189,7 +188,6 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                     </div>
                 )}
 
-                {/* Built-in tool toggles */}
                 {hasAnyTools && (
                     <div className="py-1.5">
                         {hasWebSearch && (
@@ -256,6 +254,11 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 />
                             );
                         })}
+                    </div>
+                )}
+                {!hasAnyTools && (
+                    <div className="px-3 py-3 text-center">
+                        <p className="text-xs text-text-tertiary">Este agente no tiene herramientas adicionales configuradas.</p>
                     </div>
                 )}
 
