@@ -81,7 +81,9 @@ const Conversations: FC<ConversationsProps> = ({
   const convoHeight = isSmallScreen ? 44 : 34;
 
   const filteredConversations = useMemo(
-    () => rawConversations.filter(Boolean) as TConversation[],
+    () => rawConversations.filter((c): c is TConversation =>
+      c != null && !(c.endpoint && typeof c.endpoint === 'string' && c.endpoint.startsWith('sgsst-'))
+    ),
     [rawConversations],
   );
 
