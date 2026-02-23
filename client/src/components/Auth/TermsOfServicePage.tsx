@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { ThemeSelector } from '@librechat/client';
 
 /* ─── Animated SVG Icons ───────────────────────────────────────────── */
 const DocumentSVG = () => (
@@ -137,7 +138,8 @@ export default function TermsOfServicePage() {
                         Volver
                     </button>
                     <div className="flex-1" />
-                    <span className="text-xs text-text-tertiary">Vigente desde: 27 de Enero de 2026</span>
+                    <ThemeSelector />
+                    <span className="ml-3 text-xs text-text-tertiary">Vigente desde: 27 de Enero de 2026</span>
                 </div>
             </div>
 

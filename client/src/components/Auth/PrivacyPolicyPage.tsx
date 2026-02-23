@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { ThemeSelector } from '@librechat/client';
 
 /* ─── Animated SVG Icons ───────────────────────────────────────────── */
 const ShieldSVG = () => (
@@ -114,7 +115,8 @@ export default function PrivacyPolicyPage() {
                         Volver
                     </button>
                     <div className="flex-1" />
-                    <span className="text-xs text-text-tertiary">Última actualización: Febrero 2026</span>
+                    <ThemeSelector />
+                    <span className="ml-3 text-xs text-text-tertiary">Última actualización: Febrero 2026</span>
                 </div>
             </div>
 

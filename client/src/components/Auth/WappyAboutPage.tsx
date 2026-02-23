@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { ThemeSelector } from '@librechat/client';
 
 /* ─── Company Logo ─────────────────────────────────────────────────── */
 const CompanyLogo = () => (
@@ -164,7 +165,8 @@ export default function WappyAboutPage() {
                         Volver
                     </button>
                     <div className="flex-1" />
-                    <span className="text-xs text-text-tertiary">NIT 901437310-3</span>
+                    <ThemeSelector />
+                    <span className="ml-3 text-xs text-text-tertiary">NIT 901437310-3</span>
                 </div>
             </div>
 
