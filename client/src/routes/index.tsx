@@ -1,4 +1,6 @@
 import SGSSTDashboard from '~/components/SGSST/Dashboard';
+import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
+import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import {
   Login,
@@ -72,6 +74,16 @@ export const router = createBrowserRouter(
           element: <ResetPassword />,
         },
       ],
+    },
+    {
+      path: 'privacy',
+      element: <PrivacyPolicyPage />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'terms',
+      element: <TermsOfServicePage />,
+      errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'verify',

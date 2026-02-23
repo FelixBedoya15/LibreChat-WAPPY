@@ -9,26 +9,19 @@ export default function Footer({ className }: { className?: string }) {
   const { data: config } = useGetStartupConfig();
   const localize = useLocalize();
 
-  const privacyPolicy = config?.interface?.privacyPolicy;
-  const termsOfService = config?.interface?.termsOfService;
-
-  const privacyPolicyRender = privacyPolicy?.externalUrl != null && (
+  const privacyPolicyRender = (
     <a
       className="text-text-secondary underline"
-      href={privacyPolicy.externalUrl}
-      target={privacyPolicy.openNewTab === true ? '_blank' : undefined}
-      rel="noreferrer"
+      href="/privacy"
     >
       {localize('com_ui_privacy_policy')}
     </a>
   );
 
-  const termsOfServiceRender = termsOfService?.externalUrl != null && (
+  const termsOfServiceRender = (
     <a
       className="text-text-secondary underline"
-      href={termsOfService.externalUrl}
-      target={termsOfService.openNewTab === true ? '_blank' : undefined}
-      rel="noreferrer"
+      href="/terms"
     >
       {localize('com_ui_terms_of_service')}
     </a>
@@ -38,9 +31,9 @@ export default function Footer({ className }: { className?: string }) {
     typeof config?.customFooter === 'string'
       ? config.customFooter
       : '[LibreChat ' +
-        Constants.VERSION +
-        '](https://librechat.ai) - ' +
-        localize('com_ui_latest_footer')
+      Constants.VERSION +
+      '](https://librechat.ai) - ' +
+      localize('com_ui_latest_footer')
   ).split('|');
 
   useEffect(() => {
