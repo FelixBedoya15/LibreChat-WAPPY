@@ -1,6 +1,7 @@
 import SGSSTDashboard from '~/components/SGSST/Dashboard';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
+import WappyAboutPage from '~/components/Auth/WappyAboutPage';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import {
   Login,
@@ -83,6 +84,11 @@ export const router = createBrowserRouter(
     {
       path: 'terms',
       element: <TermsOfServicePage />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'about',
+      element: <WappyAboutPage />,
       errorElement: <RouteErrorBoundary />,
     },
     {

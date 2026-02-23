@@ -50,12 +50,13 @@ export default function Footer({ className }: { className?: string }) {
       <ReactMarkdown
         components={{
           a: ({ node: _n, href, children, ...otherProps }) => {
+            const isInternal = href?.startsWith('/');
             return (
               <a
                 className="text-text-secondary underline"
                 href={href}
-                target="_blank"
-                rel="noreferrer"
+                target={isInternal ? undefined : '_blank'}
+                rel={isInternal ? undefined : 'noreferrer'}
                 {...otherProps}
               >
                 {children}
