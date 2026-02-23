@@ -99,6 +99,10 @@ export type TEphemeralAgent = {
   web_search?: boolean;
   file_search?: boolean;
   execute_code?: boolean;
+  /** Session-only model override (does not modify the agent) */
+  model?: string;
+  /** Session-only active external tools override */
+  tools?: string[];
 };
 
 export type TPayload = Partial<TMessage> &
@@ -114,15 +118,15 @@ export type TPayload = Partial<TMessage> &
 
 export type TEditedContent =
   | {
-      index: number;
-      type: ContentTypes.THINK;
-      [ContentTypes.THINK]: string;
-    }
+    index: number;
+    type: ContentTypes.THINK;
+    [ContentTypes.THINK]: string;
+  }
   | {
-      index: number;
-      type: ContentTypes.TEXT;
-      [ContentTypes.TEXT]: string;
-    };
+    index: number;
+    type: ContentTypes.TEXT;
+    [ContentTypes.TEXT]: string;
+  };
 
 export type TSubmission = {
   plugin?: TResPlugin;

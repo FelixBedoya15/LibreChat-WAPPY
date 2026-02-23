@@ -157,6 +157,56 @@ const loadAgent = async ({ req, spec, agent_id, endpoint, model_parameters }) =>
   }
 
   agent.version = agent.versions ? agent.versions.length : 0;
+
+  /** Apply session-level ephemeralAgent overrides (from AgentSessionPanel) without modifying the DB */
+  const ephemeralAgent = req.body?.ephemeralAgent;
+  if (ephemeralAgent) {
+    const toolSet = new Set(agent.tools ?? []);
+
+    // Built-in tool toggles
+    if (ephemeralAgent.web_search === true) {
+      toolSet.add(Tools.web_search);
+    } else if (ephemeralAgent.web_search === false) {
+      toolSet.delete(Tools.web_search);
+    }
+    if (ephemeralAgent.file_search === true) {
+      toolSet.add(Tools.file_search);
+    } else if (ephemeralAgent.file_search === false) {
+      toolSet.delete(Tools.file_search);
+    }
+    if (ephemeralAgent.execute_code === true) {
+      toolSet.add(Tools.execute_code);
+    } else if (ephemeralAgent.execute_code === false) {
+      toolSet.delete(Tools.execute_code);
+    }
+
+    // External tool overrides: replace the non-builtin tools with the session selection
+    if (Array.isArray(ephemeralAgent.tools)) {
+      const builtinTools = new Set([
+        Tools.web_search,
+        Tools.file_search,
+        Tools.execute_code,
+        Tools.code_interpreter,
+        Tools.memory,
+      ]);
+      for (const t of [...toolSet]) {
+        if (!builtinTools.has(t)) {
+          toolSet.delete(t);
+        }
+      }
+      for (const t of ephemeralAgent.tools) {
+        toolSet.add(t);
+      }
+    }
+
+    agent.tools = [...toolSet];
+
+    // Session model override
+    if (ephemeralAgent.model && typeof ephemeralAgent.model === 'string') {
+      agent.model = ephemeralAgent.model;
+    }
+  }
+
   return agent;
 };
 

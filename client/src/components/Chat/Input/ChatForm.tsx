@@ -34,6 +34,7 @@ import StreamAudio from './StreamAudio';
 import StopButton from './StopButton';
 import SendButton from './SendButton';
 import EditBadges from './EditBadges';
+import AgentSessionPanel from './AgentSessionPanel';
 import BadgeRow from './BadgeRow';
 import Mention from './Mention';
 import { VoiceModeButton, VoiceModal } from '~/components/Voice';
@@ -336,6 +337,12 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                   <AttachFileChat conversation={conversation} disableInputs={disableInputs} />
                 )}
               </div>
+              {isAgentsEndpoint(endpoint) && conversation?.agent_id && (
+                <AgentSessionPanel
+                  agentId={conversation.agent_id}
+                  conversationId={conversationId}
+                />
+              )}
               <BadgeRow
                 showEphemeralBadges={!isAgentsEndpoint(endpoint) && !isAssistantsEndpoint(endpoint)}
                 isSubmitting={isSubmitting || isSubmittingAdded}
