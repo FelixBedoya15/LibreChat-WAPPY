@@ -252,6 +252,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         placeholder={t('com_ui_activities_placeholder', 'Describa las actividades principales que se desarrollan en la empresa...')}
                                         rows={3}
                                     />
+                                    <p className="mt-1.5 text-xs italic text-amber-500/90">
+                                        ⚠️ Describa con el mayor detalle posible las actividades de su empresa. Esta información alimenta todos los informes, diagnósticos, políticas y análisis generados por IA en el sistema.
+                                    </p>
                                 </div>
                             </div>
                         </div>

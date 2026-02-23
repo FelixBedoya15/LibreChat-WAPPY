@@ -84,6 +84,8 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 - Nivel de Riesgo: ${ci.riskLevel || 'No registrado'}
 - Sector: ${ci.sector || 'No registrado'}
 - Dirección: ${ci.address || 'No registrada'}, ${ci.city || ''}
+- Responsable SG-SST: ${ci.responsibleSST || 'No registrado'}
+- Actividades Generales: ${ci.generalActivities || 'No registradas'}
 `;
             }
         } catch (ciErr) {

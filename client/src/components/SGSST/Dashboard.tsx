@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { useLocalize } from '~/hooks';
-import { FileText, ClipboardCheck, BarChart2, ShieldAlert, Building2 } from 'lucide-react';
+import { useLocalize, useAuthContext } from '~/hooks';
+import { FileText, ClipboardCheck, BarChart2, ShieldAlert, Building2, AlertTriangle } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
@@ -9,6 +9,11 @@ import type { ContextType } from '~/common';
 import { PHASE_CATEGORIES } from './constants';
 import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
+
+const REQUIRED_FIELDS = [
+    'companyName', 'nit', 'legalRepresentative', 'arl',
+    'riskLevel', 'sector', 'generalActivities',
+] as const;
 
 const phases = [
     {
@@ -47,10 +52,45 @@ const phases = [
 
 const SGSSTDashboard = () => {
     const localize = useLocalize();
+    const { token } = useAuthContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
     const [showCompanyInfo, setShowCompanyInfo] = React.useState(false);
+    const [missingFields, setMissingFields] = useState<string[]>([]);
+    const [checkedOnce, setCheckedOnce] = useState(false);
+
+    // Check company info on mount — auto-show modal if fields missing
+    useEffect(() => {
+        if (!token || checkedOnce) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(info => {
+                if (!info) {
+                    setMissingFields([...REQUIRED_FIELDS]);
+                    setShowCompanyInfo(true);
+                    return;
+                }
+                const missing = REQUIRED_FIELDS.filter(f => {
+                    const val = info[f];
+                    return val === undefined || val === null || val === '' || val === 0;
+                });
+                setMissingFields(missing);
+                if (missing.length > 0) {
+                    setShowCompanyInfo(true);
+                }
+            })
+            .catch(() => { })
+            .finally(() => setCheckedOnce(true));
+    }, [token, checkedOnce]);
+
+    // Re-check after modal closes
+    const handleModalClose = useCallback(() => {
+        setShowCompanyInfo(false);
+        setCheckedOnce(false); // trigger re-check
+    }, []);
 
     // Sync state with URL on mount and update
     useEffect(() => {
@@ -105,6 +145,22 @@ const SGSSTDashboard = () => {
                 <p className="mt-2 text-text-secondary">Ciclo PHVA (Planear - Hacer - Verificar - Actuar)</p>
             </div>
 
+            {/* Warning banner for missing company info */}
+            {missingFields.length > 0 && (
+                <div
+                    onClick={() => setShowCompanyInfo(true)}
+                    className="mx-auto mb-6 flex max-w-3xl cursor-pointer items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 transition-colors hover:bg-amber-500/20"
+                >
+                    <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-500" />
+                    <div className="text-sm">
+                        <span className="font-semibold text-amber-600 dark:text-amber-400">Información incompleta:</span>
+                        <span className="ml-1 text-text-secondary">
+                            Faltan {missingFields.length} campo(s) obligatorio(s) en la información de su empresa. Haga clic aquí para completarlos.
+                        </span>
+                    </div>
+                </div>
+            )}
+
             <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2 lg:h-[600px]">
                 {phases.map((phase) => (
                     <div
@@ -136,10 +192,9 @@ const SGSSTDashboard = () => {
                 ))}
             </div>
 
-            <CompanyInfoModal isOpen={showCompanyInfo} onClose={() => setShowCompanyInfo(false)} />
+            <CompanyInfoModal isOpen={showCompanyInfo} onClose={handleModalClose} />
         </div>
     );
 };
 
 export default SGSSTDashboard;
-

@@ -72,6 +72,9 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 - Ciudad: ${ci.city || 'N/A'}
 - Tamaño: ${mapSizeToLabel(ci.companySize)}
 - Riesgo Principal: ${mapRiskToLabel(ci.riskLevel)}
+- Sector: ${ci.sector || 'N/A'}
+- Responsable SG-SST: ${ci.responsibleSST || 'N/A'}
+- Actividades Generales: ${ci.generalActivities || 'No registradas'}
 `;
             }
         } catch (error) {
