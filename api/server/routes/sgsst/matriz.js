@@ -6,6 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader } = require('./reportHeader');
 
 const mapSizeToLabel = (size) => {
     switch (size) {
@@ -59,8 +60,10 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         // 2. Get Company Info
         let companyInfoBlock = '';
+        let loadedCompanyInfo = null;
         try {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
                 companyInfoBlock = `
 **Datos de la Empresa:**
@@ -94,7 +97,15 @@ NO inventes normas. Usa normas reales colombianas (Leyes, Decretos, Resoluciones
 Prioriza normas del sector STT y normas específicas de la actividad económica mencionada.
 
 **Formato HTML del Entregable:**
-Debes generar SOLO el código HTML de una tabla con los siguientes estilos inline obligatorios:
+Primero, incluye EXACTAMENTE el siguiente encabezado HTML al inicio del informe:
+${buildStandardHeader({
+            title: 'MATRIZ DE REQUISITOS LEGALES SST',
+            companyInfo: loadedCompanyInfo,
+            date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+            norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
+        })}
+
+Después del encabezado, genera una tabla con los siguientes estilos inline obligatorios:
 - <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
 - Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
 - Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top;

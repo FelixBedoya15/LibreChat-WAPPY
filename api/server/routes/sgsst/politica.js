@@ -6,6 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/politica/generate
@@ -58,8 +59,10 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         // 2. Load company info from DB
         let companyInfoBlock = '';
+        let loadedCompanyInfo = null;
         try {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
                 companyInfoBlock = `
 **Datos de la Empresa:**
@@ -93,6 +96,14 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             day: 'numeric',
         });
 
+        const policyHeaderHTML = buildStandardHeader({
+            title: 'POLÍTICA DE SEGURIDAD Y SALUD EN EL TRABAJO',
+            companyInfo: loadedCompanyInfo,
+            date: currentDate,
+            norm: 'Decreto 1072 de 2015 / Resolución 0312 de 2019',
+            responsibleName: req.user?.name,
+        });
+
         const promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
 
 **Fecha de Emisión:** ${currentDate}
@@ -120,7 +131,8 @@ ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 
 Genera una POLÍTICA DE SEGURIDAD Y SALUD EN EL TRABAJO (SST) completa y profesional en formato HTML con las siguientes secciones:
 
-1. **ENCABEZADO**: Título formal "POLÍTICA DE SEGURIDAD Y SALUD EN EL TRABAJO", nombre de la empresa, NIT y fecha.
+1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+${policyHeaderHTML}
 
 2. **DECLARACIÓN DE LA DIRECCIÓN**: Compromiso formal de la alta dirección con la SST, incluyendo:
    - Compromiso con la protección de la seguridad y salud de los trabajadores

@@ -6,6 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/estadisticas/generate
@@ -169,27 +170,16 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             }
         } catch (err) { }
 
-        // Custom Header HTML (Boxed Layout)
-        const reportDate = new Date().toLocaleDateString('es-CO');
+        // Custom Header HTML (Standardized)
+        const reportDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
         const reportPeriod = scope === 'ANNUAL' ? `Año ${year} (Acumulado)` : `${monthName} ${year}`;
 
-        const headerHTML = `
-<div style="border: 2px solid #004d99; border-radius: 8px; display: flex; align-items: stretch; overflow: hidden; font-family: inherit; margin-bottom: 20px;">
-  <div style="flex: 0 0 20%; background-color: white; border-right: 2px solid #004d99; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px;">
-    <h1 style="color: #004d99; margin: 0; font-size: 24px; font-weight: bold; line-height: 1.2;">SGSST</h1>
-  </div>
-  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px; text-align: center;">
-    <h2 style="color: #004d99; margin: 0; font-size: 18px; font-weight: bold; text-transform: uppercase;">INDICADORES ATEL</h2>
-    <p style="color: #555; margin: 5px 0 0; font-size: 12px;">Seguimiento de Indicadores de Seguridad y Salud en el Trabajo - Res. 0312 de 2019</p>
-  </div>
-  <div style="flex: 0 0 25%; background-color: white; border-left: 2px solid #004d99; font-size: 10px; padding: 10px; display: flex; flex-direction: column; justify-content: center;">
-    <p style="margin: 2px 0;"><strong>EMPRESA:</strong> ${companyName}</p>
-    <p style="margin: 2px 0;"><strong>NIT:</strong> ${companyNit}</p>
-    <p style="margin: 2px 0;"><strong>FECHA:</strong> ${reportDate}</p>
-    <p style="margin: 2px 0;"><strong>PERIODO:</strong> ${reportPeriod}</p>
-  </div>
-</div>
-`;
+        const headerHTML = buildStandardHeader({
+            title: `INDICADORES ATEL — INFORME GERENCIAL (${scope === 'ANNUAL' ? 'ANUAL' : 'MENSUAL'})`,
+            companyInfo: { companyName: companyName, nit: companyNit },
+            date: reportDate,
+            norm: `Res. 0312 de 2019 | Periodo: ${reportPeriod}`,
+        });
 
         // ─── 4. Build Prompt ───────────────────────────────────────────
         const periodLabel = scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`;

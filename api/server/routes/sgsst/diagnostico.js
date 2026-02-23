@@ -10,6 +10,7 @@ const { saveConvo } = require('~/models/Conversation');
 const { saveMessage, updateMessageText, getMessages } = require('~/models/Message');
 const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -67,8 +68,10 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         // 2. Load company info from DB
         let companyInfoBlock = '';
+        let loadedCompanyInfo = null;
         try {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
                 companyInfoBlock = `
 - Razón Social: ${ci.companyName || 'No registrado'}
@@ -137,6 +140,14 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
                 return `- **${phvaLabels[cycle]}:** ${d.percentage}% (${d.cumple} cumplen / ${d.total} total | No cumplen: ${d.noCumple} | Parcial: ${d.parcial} | No aplica: ${d.noAplica})`;
             }).join('\n');
 
+            const auditHeaderHTML = buildStandardHeader({
+                title: 'INFORME DE AUDITORÍA INTERNA SG-SST',
+                companyInfo: loadedCompanyInfo,
+                date: currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+                norm: 'Decreto 1072 de 2015 / Resolución 0312 de 2019',
+                responsibleName: userName || req.user?.name,
+            });
+
             promptText = `Eres un Auditor Líder experto en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia, certificado en ISO 45001 y Decreto 1072 de 2015.
 
 **Fecha de Auditoría:** ${currentDate || new Date().toLocaleDateString('es-CO')}
@@ -192,12 +203,9 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 **IMPORTANTE:** Usa tablas, colores y "tarjetas" visuales. El diseño debe ser profesional y de alto nivel.
 
 1. **ENCABEZADO Y CONTEXTO**:
-   - **PRIMERO** genera un título grande y centrado como encabezado principal del informe:
-     <h1 style="text-align: center; color: #004d99; margin-bottom: 5px;">INFORME DE AUDITORÍA INTERNA</h1>
-     <h2 style="text-align: center; color: #666; margin-top: 0;">Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST)</h2>
-   - **DESPUÉS** del título, crea una tabla elegante con la información de la empresa y del auditor.
-   - Incluir en la tabla: Empresa, NIT, Fecha, Auditor Líder, Alcance, Criterios de auditoría (Dec 1072 Cap 6, Res 0312).
-   - El título NO debe estar dentro de la tabla.
+   - DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+   ${auditHeaderHTML}
+   - **DESPUÉS** del encabezado, incluye: Auditor Líder, Alcance, Criterios de auditoría.
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
    - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
@@ -266,6 +274,15 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
 
         } else {
             // Default Diagnostic Prompt (Resolución 0312)
+            const diagnosticHeaderHTML = buildStandardHeader({
+                title: 'INFORME GERENCIAL DE EVALUACIÓN SG-SST',
+                companyInfo: loadedCompanyInfo,
+                date: currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+                riskLevel: riskLevelLabel,
+                norm: `Resolución 0312 de 2019 (Art. ${applicableArticle})`,
+                responsibleName: userName || req.user?.name,
+            });
+
             promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
 
 **Fecha de Emisión:** ${currentDate || new Date().toLocaleDateString('es-CO')}
@@ -325,8 +342,8 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 **REGLA SOBRE OBSERVACIONES:** Cuando un estándar tenga una OBSERVACIÓN DEL EVALUADOR, DEBES usar ese texto como base principal del hallazgo en el informe. NO inventes detalles diferentes. La observación del evaluador refleja la realidad encontrada en campo y debe ser citada o parafraseada con fidelidad.
 
 1. **ENCABEZADO Y CONTEXTO**:
-   - Crea una tabla elegante para la información de la empresa.
-   - Usa un diseño limpio con bordes sutiles.
+   - DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+   ${diagnosticHeaderHTML}
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
    - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">

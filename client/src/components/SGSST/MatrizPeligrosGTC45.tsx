@@ -120,6 +120,7 @@ const MatrizPeligrosGTC45 = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isCompletingAll, setIsCompletingAll] = useState(false);
+    const [companyInfo, setCompanyInfo] = useState<any>(null);
 
     // Report state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
@@ -149,6 +150,17 @@ const MatrizPeligrosGTC45 = () => {
             }
         };
         loadData();
+    }, [token]);
+
+    // ─── Load Company Info for Report Header ─────────────────────
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+            .catch(() => { });
     }, [token]);
 
     // ─── Add Entry ──────────────────────────────────────────────
@@ -253,10 +265,46 @@ const MatrizPeligrosGTC45 = () => {
             return;
         }
         const date = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+        const ci = companyInfo || {};
+        const headerHTML = `
+<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
+  <thead>
+    <tr>
+      <th colspan="4" style="background-color: #004d99; color: white; text-align: center; padding: 16px 12px; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
+        MATRIZ DE PELIGROS Y VALORACIÓN DE RIESGOS (GTC 45)
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Empresa:</td>
+      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${ci.companyName || 'EMPRESA'}</td>
+      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">NIT:</td>
+      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd;">${ci.nit || 'NIT'}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Representante:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${ci.legalRepresentative || 'No registrado'}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">N° Trabajadores:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${ci.workerCount || 'N/A'}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Nivel de Riesgo:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${ci.riskLevel || 'N/A'}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Fecha de Emisión:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${date}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">ARL:</td>
+      <td style="padding: 10px 14px; border-right: 1px solid #eee;">${ci.arl || 'N/A'}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">Norma:</td>
+      <td style="padding: 10px 14px;">GTC 45 / Decreto 1072 de 2015</td>
+    </tr>
+  </tbody>
+</table>`;
         const html = `
 <div style="font-family: sans-serif; max-width: 100%;">
-  <h1 style="color: #004d99; text-align: center; border-bottom: 2px solid #004d99; padding-bottom: 8px;">Matriz de Identificación de Peligros y Valoración de Riesgos</h1>
-  <p style="text-align: center; color: #666;">Metodología GTC 45 | Fecha: ${date}</p>
+  ${headerHTML}
 
   ${entries.map((e, i) => {
             const risk = getRiskColor(e.nivelRiesgo);
@@ -344,7 +392,7 @@ const MatrizPeligrosGTC45 = () => {
         setEditorContent(html);
         setConversationId('new');
         setReportMessageId(null);
-    }, [entries, showToast]);
+    }, [entries, companyInfo, showToast]);
 
     // ─── Save Report ─────────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
