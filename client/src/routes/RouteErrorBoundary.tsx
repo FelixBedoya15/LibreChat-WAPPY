@@ -71,6 +71,85 @@ const getBrowserInfo = async () => {
   };
 };
 
+/* ─── Animated Error SVG ───────────────────────────────────────────── */
+const BrokenShieldSVG = () => (
+  <svg viewBox="0 0 120 120" className="mx-auto h-32 w-32" fill="none">
+    <defs>
+      <linearGradient id="errGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#ef4444" />
+        <stop offset="100%" stopColor="#f97316" />
+      </linearGradient>
+    </defs>
+    {/* Shield outline */}
+    <path
+      d="M60 10L20 30V55C20 78.5 37.5 100 60 106C82.5 100 100 78.5 100 55V30L60 10Z"
+      stroke="url(#errGrad)"
+      strokeWidth="2.5"
+      opacity="0.2"
+      fill="url(#errGrad)"
+    >
+      <animate attributeName="opacity" values="0.1;0.25;0.1" dur="3s" repeatCount="indefinite" />
+    </path>
+    <path
+      d="M60 10L20 30V55C20 78.5 37.5 100 60 106C82.5 100 100 78.5 100 55V30L60 10Z"
+      stroke="url(#errGrad)"
+      strokeWidth="2.5"
+      fill="none"
+    >
+      <animate attributeName="stroke-dasharray" from="0 350" to="350 0" dur="2s" fill="freeze" />
+    </path>
+    {/* Crack line */}
+    <path
+      d="M50 35L55 52L45 58L55 72L48 85"
+      stroke="#ef4444"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      opacity="0"
+    >
+      <animate attributeName="opacity" from="0" to="0.8" begin="1.2s" dur="0.5s" fill="freeze" />
+      <animate attributeName="stroke-dasharray" from="0 80" to="80 0" begin="1.2s" dur="0.8s" fill="freeze" />
+    </path>
+    {/* X mark */}
+    <line x1="65" y1="50" x2="78" y2="63" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" begin="1.8s" dur="0.3s" fill="freeze" />
+    </line>
+    <line x1="78" y1="50" x2="65" y2="63" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" opacity="0">
+      <animate attributeName="opacity" from="0" to="1" begin="2s" dur="0.3s" fill="freeze" />
+    </line>
+    {/* Sparks */}
+    <circle cx="42" cy="40" r="1.5" fill="#f97316" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="2.5s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="80" cy="42" r="1" fill="#ef4444" opacity="0">
+      <animate attributeName="opacity" values="0;1;0" dur="2s" begin="3s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="55" cy="90" r="1.2" fill="#f97316" opacity="0">
+      <animate attributeName="opacity" values="0;0.8;0" dur="1.8s" begin="2.8s" repeatCount="indefinite" />
+    </circle>
+  </svg>
+);
+
+/* ─── Background Particles ─────────────────────────────────────────── */
+const ErrorParticles = () => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <svg className="absolute h-full w-full">
+      <circle cx="15%" cy="20%" r="60" fill="#ef4444" opacity="0.03">
+        <animate attributeName="r" values="50;70;50" dur="8s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="85%" cy="75%" r="45" fill="#f97316" opacity="0.03">
+        <animate attributeName="r" values="35;55;35" dur="10s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="90%" cy="10%" r="3" fill="#ef4444" opacity="0.08">
+        <animate attributeName="opacity" values="0.05;0.15;0.05" dur="4s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="8%" cy="85%" r="2" fill="#f97316" opacity="0.08">
+        <animate attributeName="opacity" values="0.05;0.12;0.05" dur="5s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  </div>
+);
+
 export default function RouteErrorBoundary() {
   const localize = useLocalize();
   const typedError = useRouteError() as {
@@ -128,16 +207,18 @@ export default function RouteErrorBoundary() {
   return (
     <div
       role="alert"
-      className="flex min-h-screen flex-col items-center justify-center bg-surface-primary bg-gradient-to-br"
+      className="relative flex min-h-screen flex-col items-center justify-center bg-surface-primary"
     >
-      <div className="bg-surface-primary/60 mx-4 w-11/12 max-w-4xl rounded-2xl border border-border-light p-8 shadow-2xl backdrop-blur-xl">
-        <h2 className="mb-6 text-center text-3xl font-medium tracking-tight text-text-primary">
-          Oops! Something Unexpected Occurred
+      <ErrorParticles />
+      <div className="relative mx-4 w-11/12 max-w-4xl rounded-2xl border border-border-light/50 bg-surface-primary/60 p-8 shadow-2xl shadow-red-500/[0.03] backdrop-blur-xl">
+        <BrokenShieldSVG />
+        <h2 className="mb-6 mt-4 text-center text-3xl font-medium tracking-tight text-text-primary">
+          ¡Algo inesperado ocurrió!
         </h2>
 
         {/* Error Message */}
         <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-gray-600 dark:text-gray-200">
-          <h3 className="mb-2 font-medium">Error Message:</h3>
+          <h3 className="mb-2 font-medium">Error:</h3>
           <pre className="whitespace-pre-wrap text-sm font-light leading-relaxed text-text-primary">
             {errorDetails.message}
           </pre>
@@ -146,14 +227,14 @@ export default function RouteErrorBoundary() {
         {/* Status Information */}
         {(typeof errorDetails.status === 'number' ||
           typeof errorDetails.statusText === 'string') && (
-          <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-text-primary">
-            <h3 className="mb-2 font-medium">Status:</h3>
-            <p className="text-text-primary">
-              {typeof errorDetails.status === 'number' && `${errorDetails.status} `}
-              {typeof errorDetails.statusText === 'string' && errorDetails.statusText}
-            </p>
-          </div>
-        )}
+            <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-text-primary">
+              <h3 className="mb-2 font-medium">Estado:</h3>
+              <p className="text-text-primary">
+                {typeof errorDetails.status === 'number' && `${errorDetails.status} `}
+                {typeof errorDetails.statusText === 'string' && errorDetails.statusText}
+              </p>
+            </div>
+          )}
 
         {/* Stack Trace - Collapsible */}
         {errorDetails.stack != null && errorDetails.stack.trim() !== '' && (
@@ -168,7 +249,7 @@ export default function RouteErrorBoundary() {
                   className="ml-2 px-2 py-1 text-xs"
                   aria-label={localize('com_ui_copy_stack_trace')}
                 >
-                  Copy
+                  Copiar
                 </Button>
               </div>
             </summary>
@@ -191,7 +272,7 @@ export default function RouteErrorBoundary() {
         {errorDetails.data != null && (
           <details className="group mb-4 rounded-xl border border-border-light p-4">
             <summary className="mb-2 flex cursor-pointer items-center justify-between text-sm font-medium text-text-primary">
-              <span>Additional Details</span>
+              <span>Detalles adicionales</span>
               <span className="transition-transform group-open:rotate-90">{'>'}</span>
             </summary>
             <pre className="whitespace-pre-wrap text-xs font-light leading-relaxed text-text-primary">
@@ -201,12 +282,12 @@ export default function RouteErrorBoundary() {
         )}
 
         <div className="mt-6 flex flex-col gap-4">
-          <p className="text-sm font-light text-text-secondary">Please try one of the following:</p>
+          <p className="text-sm font-light text-text-secondary">Por favor intente lo siguiente:</p>
           <ul className="list-inside list-disc text-sm text-text-secondary">
-            <li>Refresh the page</li>
-            <li>Clear your browser cache</li>
-            <li>Check your internet connection</li>
-            <li>Contact the Admin if the issue persists</li>
+            <li>Refrescar la página</li>
+            <li>Limpiar la caché del navegador</li>
+            <li>Verificar su conexión a Internet</li>
+            <li>Contactar al administrador si el problema persiste</li>
           </ul>
           <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Button
