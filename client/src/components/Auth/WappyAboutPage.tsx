@@ -1,38 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-/* ─── Animated SVG: Wappy Logo / Company ───────────────────────────── */
-const CompanySVG = () => (
-    <svg viewBox="0 0 100 100" className="h-20 w-20 mx-auto" fill="none">
-        <defs>
-            <linearGradient id="compGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#22c55e" />
-                <stop offset="50%" stopColor="#10b981" />
-                <stop offset="100%" stopColor="#0ea5e9" />
-            </linearGradient>
-        </defs>
-        <circle cx="50" cy="50" r="42" stroke="url(#compGrad)" strokeWidth="2.5" opacity="0.15" fill="url(#compGrad)">
-            <animate attributeName="opacity" values="0.08;0.2;0.08" dur="4s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="50" cy="50" r="42" stroke="url(#compGrad)" strokeWidth="2.5" fill="none">
-            <animate attributeName="stroke-dasharray" from="0 280" to="280 0" dur="2s" fill="freeze" />
-        </circle>
-        <text x="50" y="42" textAnchor="middle" fill="#22c55e" fontSize="14" fontWeight="800" letterSpacing="2" opacity="0">
-            WAPPY
-            <animate attributeName="opacity" from="0" to="1" begin="1s" dur="0.8s" fill="freeze" />
-        </text>
-        <text x="50" y="58" textAnchor="middle" fill="#10b981" fontSize="9" fontWeight="600" letterSpacing="3" opacity="0">
-            LTDA
-            <animate attributeName="opacity" from="0" to="0.8" begin="1.3s" dur="0.5s" fill="freeze" />
-        </text>
-        <line x1="30" y1="65" x2="70" y2="65" stroke="#22c55e" strokeWidth="1" opacity="0">
-            <animate attributeName="opacity" from="0" to="0.4" begin="1.6s" dur="0.5s" fill="freeze" />
-        </line>
-        <text x="50" y="75" textAnchor="middle" fill="#0ea5e9" fontSize="6" fontWeight="500" opacity="0">
-            INNOVACIÓN TECNOLÓGICA
-            <animate attributeName="opacity" from="0" to="0.6" begin="1.8s" dur="0.5s" fill="freeze" />
-        </text>
-    </svg>
+/* ─── Company Logo ─────────────────────────────────────────────────── */
+const CompanyLogo = () => (
+    <div className="flex justify-center">
+        <img
+            src="/assets/Wappy.png"
+            alt="WAPPY LTDA"
+            className="h-28 w-auto object-contain drop-shadow-md"
+        />
+    </div>
 );
 
 /* ─── Section SVGs ─────────────────────────────────────────────────── */
@@ -180,7 +157,7 @@ export default function WappyAboutPage() {
             <div className="sticky top-0 z-10 border-b border-border-medium/50 bg-surface-secondary/80 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-4xl items-center gap-4 px-6 py-4">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/')}
                         className="flex items-center gap-2 rounded-xl bg-surface-primary px-4 py-2 text-sm font-medium text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
                     >
                         <ArrowLeft className="h-4 w-4" />
@@ -194,7 +171,7 @@ export default function WappyAboutPage() {
             <div className="mx-auto max-w-4xl px-6 py-12">
                 {/* Hero */}
                 <div className="mb-12 text-center">
-                    <CompanySVG />
+                    <CompanyLogo />
                     <h1 className="mt-6 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
                         WAPPY LTDA
                     </h1>
