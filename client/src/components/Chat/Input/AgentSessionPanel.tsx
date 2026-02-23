@@ -147,46 +147,8 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                     'animate-in fade-in-0 zoom-in-95 data-[leave]:animate-out data-[leave]:fade-out-0 data-[leave]:zoom-out-95',
                 )}
             >
-                {/* Header */}
-                <div className="border-b border-border-medium/50 px-3 py-2.5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-text-tertiary">
-                        Herramientas de sesión
-                    </p>
-                    <p className="mt-0.5 text-xs text-text-tertiary">
-                        Solo para este chat · no modifica el agente
-                    </p>
-                </div>
 
-                {/* Model selector */}
-                {modelList.length > 0 && (
-                    <div className="border-b border-border-medium/50 px-3 py-2.5">
-                        <label className="mb-1.5 block text-xs font-medium text-text-secondary">
-                            Modelo
-                        </label>
-                        <select
-                            value={sessionModel}
-                            onChange={(e) => setSessionModel(e.target.value)}
-                            className={cn(
-                                'w-full rounded-lg border border-border-light bg-surface-secondary px-2 py-1.5 text-xs text-text-primary',
-                                'focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500',
-                                'cursor-pointer',
-                            )}
-                        >
-                            {agentModel && (
-                                <option value={agentModel}>
-                                    {agentModel} (por defecto)
-                                </option>
-                            )}
-                            {modelList
-                                .filter((m) => m !== agentModel)
-                                .map((model) => (
-                                    <option key={model} value={model}>
-                                        {model}
-                                    </option>
-                                ))}
-                        </select>
-                    </div>
-                )}
+
 
                 {hasAnyTools && (
                     <div className="py-1.5">
