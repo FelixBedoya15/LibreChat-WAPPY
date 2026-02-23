@@ -196,7 +196,12 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                         )}
                         {externalTools.map((toolId) => {
                             const isActive = (overrides as TEphemeralAgentExtended | null)?.tools?.includes(toolId) ?? false;
-                            const displayName = toolId
+                            const toolTranslations: Record<string, string> = {
+                                context: 'Contexto',
+                                calculator: 'Calculadora',
+                                memory: 'Memoria',
+                            };
+                            const displayName = toolTranslations[toolId] ?? toolId
                                 .split('_')
                                 .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
                                 .join(' ');
