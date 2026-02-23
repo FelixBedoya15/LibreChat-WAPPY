@@ -58,38 +58,46 @@ const SGSSTDashboard = () => {
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
     const [showCompanyInfo, setShowCompanyInfo] = React.useState(false);
     const [missingFields, setMissingFields] = useState<string[]>([]);
-    const [checkedOnce, setCheckedOnce] = useState(false);
+    const hasCheckedRef = React.useRef(false);
 
     // Check company info on mount — auto-show modal if fields missing
     useEffect(() => {
-        if (!token || checkedOnce) return;
+        if (!token || hasCheckedRef.current) return;
+        hasCheckedRef.current = true;
+        console.log('[SGSST Dashboard] Checking company info with token:', token ? 'present' : 'missing');
         fetch('/api/sgsst/company-info', {
             headers: { 'Authorization': `Bearer ${token}` },
         })
-            .then(res => res.json())
+            .then(res => {
+                console.log('[SGSST Dashboard] API response status:', res.status);
+                return res.json();
+            })
             .then(info => {
-                if (!info) {
+                console.log('[SGSST Dashboard] Company info:', JSON.stringify(info));
+                if (!info || Object.keys(info).length === 0) {
                     setMissingFields([...REQUIRED_FIELDS]);
                     setShowCompanyInfo(true);
                     return;
                 }
                 const missing = REQUIRED_FIELDS.filter(f => {
-                    const val = info[f];
+                    const val = (info as any)[f];
                     return val === undefined || val === null || val === '' || val === 0;
                 });
+                console.log('[SGSST Dashboard] Missing fields:', missing);
                 setMissingFields(missing);
                 if (missing.length > 0) {
                     setShowCompanyInfo(true);
                 }
             })
-            .catch(() => { })
-            .finally(() => setCheckedOnce(true));
-    }, [token, checkedOnce]);
+            .catch(err => {
+                console.error('[SGSST Dashboard] Error checking company info:', err);
+            });
+    }, [token]);
 
     // Re-check after modal closes
     const handleModalClose = useCallback(() => {
         setShowCompanyInfo(false);
-        setCheckedOnce(false); // trigger re-check
+        hasCheckedRef.current = false;
     }, []);
 
     // Sync state with URL on mount and update
