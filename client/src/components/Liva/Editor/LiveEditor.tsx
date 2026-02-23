@@ -103,9 +103,13 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                 }
                 .live-editor-content table {
                     width: 100%;
-                    border-collapse: collapse;
+                    border-collapse: separate;
+                    border-spacing: 0;
                     margin: 15px 0;
                     font-size: 0.9em;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    border: 1px solid #ddd;
                 }
                 .live-editor-content table th {
                     background-color: #004d99;
@@ -113,21 +117,29 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     padding: 10px 8px;
                     text-align: left;
                     font-weight: 600;
+                    border-bottom: 1px solid #ddd;
+                    border-right: 1px solid rgba(255,255,255,0.15);
+                }
+                .live-editor-content table th:last-child {
+                    border-right: none;
                 }
                 .live-editor-content table td {
                     padding: 10px 8px;
                     border-bottom: 1px solid #ddd;
+                    border-right: 1px solid #eee;
                     vertical-align: top;
+                }
+                .live-editor-content table td:last-child {
+                    border-right: none;
+                }
+                .live-editor-content table tr:last-child td {
+                    border-bottom: none;
                 }
                 .live-editor-content table tr:nth-child(even) {
                     background-color: #f8f9fa;
                 }
                 .live-editor-content table tr:hover {
                     background-color: #e8f0fe;
-                }
-                .live-editor-content table td,
-                .live-editor-content table th {
-                    border: 1px solid #ddd;
                 }
                 .live-editor-content img {
                     max-width: 100%;

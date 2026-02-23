@@ -95,7 +95,7 @@ Prioriza normas del sector STT y normas específicas de la actividad económica 
 
 **Formato HTML del Entregable:**
 Debes generar SOLO el código HTML de una tabla con los siguientes estilos inline obligatorios:
-- <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 14px;">
+- <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
 - Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
 - Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top;
 

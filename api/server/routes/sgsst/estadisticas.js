@@ -229,7 +229,7 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
 
 **ESTILOS CSS:**
 - **Encabezados:** Color #004d99 (Azul Institucional). Fuente heredada (inherit).
-- **Tablas:** width="100%", border-collapse="collapse", shadow-qm box-shadow, font-family: inherit.
+- **Tablas:** width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", font-family: inherit.
 - **Th (Cabeceras):** background-color="#004d99", color="white", padding="12px", text-transform="uppercase", font-size="12px".
 - **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0".
 - **KPI Cards (Indicadores):** background-color="#f8f9fa", border-left="5px solid #004d99", padding="15px", margin="10px", border-radius="4px", flex-based layout.

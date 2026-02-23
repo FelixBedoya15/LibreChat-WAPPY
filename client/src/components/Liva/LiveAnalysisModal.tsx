@@ -272,7 +272,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     </ul>
 
                     <h2>4. Matriz de Valoración de Riesgos y Peligros (GTC 45 / Norma Técnica)</h2>
-                    <table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">
+                    <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left;">
                       <thead style="background-color: #ecf0f1;">
                         <tr>
                             <th style="padding: 8px;">Proceso / Zona</th>
@@ -296,7 +296,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                     <h2>5. Medidas de Intervención Recomendadas (Jerarquía de Controles)</h2>
                     <p>[Propone soluciones detalladas para cada hallazgo].</p>
-                    <table border="1" style="border-collapse: collapse; width: 100%; text-align: left;">
+                    <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left;">
                       <thead style="background-color: #ecf0f1;">
                         <tr>
                             <th style="padding: 8px;">Eliminación / Sustitución</th>

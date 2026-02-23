@@ -55,9 +55,13 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
         h3 { color: #333; font-size: 1.2em; }
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             margin: 15px 0;
             font-size: 0.9em;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #ddd;
         }
         th {
             background-color: #004d99;
@@ -65,12 +69,18 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
             padding: 10px 8px;
             text-align: left;
             font-weight: 600;
+            border-bottom: 1px solid #ddd;
+            border-right: 1px solid rgba(255,255,255,0.15);
         }
+        th:last-child { border-right: none; }
         td {
             padding: 10px 8px;
             border-bottom: 1px solid #ddd;
+            border-right: 1px solid #eee;
             vertical-align: top;
         }
+        td:last-child { border-right: none; }
+        tr:last-child td { border-bottom: none; }
         tr:nth-child(even) { background-color: #f8f9fa; }
         tr:hover { background-color: #e8f0fe; }
     </style>

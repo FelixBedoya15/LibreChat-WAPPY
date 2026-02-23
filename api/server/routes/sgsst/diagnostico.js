@@ -247,7 +247,7 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 
 **ESTILOS OBLIGATORIOS (CSS INLINE):**
 - Títulos (h1, h2): Color azul oscuro (#004d99).
-- Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
+- Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd".
 - NC Mayor: fondo rosa claro (#ffe0e0). NC Menor: fondo amarillo claro (#fff8e0). Observación: fondo azul claro (#e0f0ff).
 - Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo), Corto (#fff0e0 naranja), Mediano (#fff8e0 amarillo), Largo (#e0ffe0 verde).
@@ -367,7 +367,7 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 
 **ESTILOS OBLIGATORIOS (CSS INLINE):**
 - Títulos (h1, h2): Color azul oscuro (#004d99).
-- Tablas: width="100%", border-collapse="collapse", th con background-color="#004d99" y color="white".
+- Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd".
 - NC Mayor: fondo rosa (#ffe0e0). NC Menor: fondo amarillo (#fff8e0). Observación: fondo azul claro (#e0f0ff).
 - Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo), Corto (#fff0e0 naranja), Mediano (#fff8e0 amarillo), Largo (#e0ffe0 verde).

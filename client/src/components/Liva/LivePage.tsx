@@ -160,7 +160,7 @@ const LivePage = () => {
                             // End of table or non-table line
                             if (inTable && tableRows.length > 0) {
                                 // Convert collected table rows to HTML
-                                let tableHtml = '<table border="1" style="width: 100%; border-collapse: collapse; margin: 10px 0;"><tbody>';
+                                let tableHtml = '<table border="0" style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin: 10px 0;"><tbody>';
                                 tableRows.forEach((row, idx) => {
                                     const cells = row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
                                     const tag = idx === 0 ? 'th' : 'td';
@@ -177,7 +177,7 @@ const LivePage = () => {
 
                     // Handle remaining table if file ends with table
                     if (inTable && tableRows.length > 0) {
-                        let tableHtml = '<table border="1" style="width: 100%; border-collapse: collapse;"><tbody>';
+                        let tableHtml = '<table border="0" style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd;"><tbody>';
                         tableRows.forEach((row, idx) => {
                             const cells = row.replace(/^\||\|$/g, '').split('|').map(c => c.trim());
                             const tag = idx === 0 ? 'th' : 'td';
