@@ -372,6 +372,8 @@ class VoiceSession {
                 if (data && data.image) {
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
+                        // Save last video frame to attach to the next chat message if needed
+                        this.lastVideoFrame = data.image;
                     } else {
                         logger.warn('[VoiceSession] Received video but Gemini client is not ready');
                     }
@@ -570,12 +572,29 @@ class VoiceSession {
             }
 
             const messageId = uuidv4();
+            const contentArray = [{ type: 'text', text: text }];
+
+            // Regex for visual triggers: "mira", "ves", "esto", "aquí", "observa", "pantalla", "imagen", "video"
+            const visualRegex = /(mir|ve(s|r|o)|est[oa]|aqu|obser|pantall|ima|vid|fija|nota|cu[aá]l|qu[eé])/i;
+
+            // If the user's text contains visual cues and we have a video frame, 
+            // attach the frame to the chat message so they can see what the AI saw.
+            if (this.lastVideoFrame && visualRegex.test(text)) {
+                contentArray.push({
+                    type: 'image_url',
+                    image_url: { url: `data:image/jpeg;base64,${this.lastVideoFrame}` }
+                });
+                logger.info(`[VoiceSession] Appended visual reference to user message.`);
+                // Clean the current frame so we don't send it again blindly
+                this.lastVideoFrame = null;
+            }
+
             const messageData = {
                 messageId,
                 conversationId,
                 parentMessageId: this.lastMessageId, // Link to previous message in conversation
                 text: text,
-                content: [{ type: 'text', text: text }],
+                content: contentArray,
                 user: this.userId,
                 sender: 'User',
                 isCreatedByUser: true,
