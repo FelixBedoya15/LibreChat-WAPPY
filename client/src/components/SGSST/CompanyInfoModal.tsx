@@ -115,8 +115,24 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
     if (!isOpen) return null;
 
+    const REQUIRED_FIELDS = [
+        'companyName', 'nit', 'legalRepresentative', 'workerCount',
+        'arl', 'economicActivity', 'riskLevel', 'ciiu',
+        'address', 'city', 'phone', 'email',
+        'sector', 'responsibleSST', 'generalActivities',
+    ] as const;
+
+    const isFormValid = REQUIRED_FIELDS.every(field => {
+        const val = data[field as keyof CompanyInfoData];
+        if (typeof val === 'string') {
+            const t = val.trim();
+            return t !== '' && t !== 'N/A' && t !== 'No registrado';
+        }
+        return val !== undefined && val !== null && val !== 0 && !isNaN(val as number);
+    });
+
     const inputClass = 'w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
-    const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary';
+    const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
     const selectClass = cn(inputClass, 'appearance-none cursor-pointer');
 
     return (
@@ -271,8 +287,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     </button>
                     <button
                         onClick={handleSave}
-                        disabled={saving}
-                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        disabled={saving || !isFormValid}
+                        title={!isFormValid ? "Debe completar todos los campos obligatorios (*)" : ""}
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Save className="h-4 w-4" />
                         {saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar')}
