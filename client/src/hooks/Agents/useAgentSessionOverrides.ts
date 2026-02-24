@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useRecoilState } from 'recoil';
 import { Tools, Constants } from 'librechat-data-provider';
 import type { TEphemeralAgent } from 'librechat-data-provider';
@@ -17,6 +17,7 @@ const BUILTIN_TOOLS = new Set([
 type TEphemeralAgentExtended = TEphemeralAgent & {
     model?: string;
     tools?: string[];
+    _defaultsApplied?: string; // tracks which agentId defaults have been applied
 };
 
 interface UseAgentSessionOverridesProps {
@@ -65,6 +66,53 @@ export default function useAgentSessionOverrides({
             externalTools: external,
         };
     }, [agent]);
+
+    // Track which agent we've already applied defaults for (avoids re-applying on every render)
+    const defaultsAppliedRef = useRef<string>('');
+
+    /**
+     * Auto-activate all agent tools on first load.
+     * - Built-in tools: web_search, file_search, execute_code are set to true.
+     * - External tools (context, etc.): added to the tools array.
+     * Only runs once per agentId+conversationId combination.
+     */
+    useEffect(() => {
+        if (!agentId || !agent) return;
+
+        const appliedKey = `${agentId}:${key}`;
+        if (defaultsAppliedRef.current === appliedKey) return;
+
+        const ext = agent.tools?.filter((t) => !BUILTIN_TOOLS.has(t as Tools)) ?? [];
+
+        setEphemeralAgent((prev) => {
+            const prevExt = prev as TEphemeralAgentExtended | null;
+            // If we've already applied defaults for this agent in this session, skip
+            if (prevExt?._defaultsApplied === appliedKey) return prev;
+
+            const updates: Partial<TEphemeralAgentExtended> = {
+                _defaultsApplied: appliedKey,
+            };
+
+            // Activate built-in tools if the agent has them
+            const toolSet = new Set(agent.tools ?? []);
+            if (toolSet.has(Tools.web_search)) updates[Tools.web_search] = true;
+            if (toolSet.has(Tools.file_search)) updates[Tools.file_search] = true;
+            if (toolSet.has(Tools.execute_code) || toolSet.has(Tools.code_interpreter)) {
+                updates[Tools.execute_code] = true;
+            }
+
+            // Activate external tools by merging them into the tools array
+            if (ext.length > 0) {
+                const prevTools = prevExt?.tools ?? [];
+                const merged = Array.from(new Set([...prevTools, ...ext]));
+                updates.tools = merged;
+            }
+
+            return { ...(prev ?? {}), ...updates } as TEphemeralAgent;
+        });
+
+        defaultsAppliedRef.current = appliedKey;
+    }, [agentId, agent, key, setEphemeralAgent]);
 
     const toggleBuiltinTool = useCallback(
         (toolKey: 'web_search' | 'file_search' | 'execute_code') => {
