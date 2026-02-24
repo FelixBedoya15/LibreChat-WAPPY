@@ -51,11 +51,8 @@ const phases = [
 ];
 
 const SGSSTDashboard = () => {
-    // LOUD DEBUG ALERT - should show up as soon as the component renders
-    React.useEffect(() => { alert('NUEVA VERSION DETECTADA v20:05'); }, []);
-
     const localize = useLocalize();
-    const { token, isAuthenticated } = useAuthContext();
+    const { token } = useAuthContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
@@ -65,17 +62,12 @@ const SGSSTDashboard = () => {
 
     // Check company info on mount — auto-show modal if fields missing
     useEffect(() => {
-        console.log('[SGSST DEBUG] Token status:', !!token, 'Auth status:', isAuthenticated);
-
-        if (!token) {
-            // We might be waiting for token
+        if (!token || hasCheckedRef.current) {
             return;
         }
 
-        if (hasCheckedRef.current) return;
         hasCheckedRef.current = true;
 
-        alert('DEBUG: Iniciando fetch de datos de empresa...');
         const url = `/api/sgsst/company-info?cb=${Date.now()}`;
         fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` },
@@ -86,7 +78,6 @@ const SGSSTDashboard = () => {
             })
             .then(info => {
                 if (!info || Object.keys(info).length === 0) {
-                    alert('DEBUG: No se encontró info de empresa.');
                     setMissingFields([...REQUIRED_FIELDS]);
                     setShowCompanyInfo(true);
                     return;
@@ -99,13 +90,16 @@ const SGSSTDashboard = () => {
                     }
                     return val === undefined || val === null || val === 0;
                 });
+
+                setMissingFields(missing);
                 if (missing.length > 0) {
-                    alert(`DEBUG: Faltan campos: ${missing.join(', ')}`);
-                    setMissingFields(missing);
                     setShowCompanyInfo(true);
                 }
             })
-            .catch(err => alert(`DEBUG ERROR: ${err.message}`));
+            .catch(err => {
+                console.error('[SGSST Dashboard] Error checking company info:', err.message);
+                hasCheckedRef.current = false; // allow retry if failed
+            });
     }, [token]);
 
     // Re-check after modal closes
