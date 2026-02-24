@@ -8,19 +8,14 @@ import {
   Permissions,
   ArtifactModes,
   PermissionTypes,
-  EModelEndpoint,
-  isAgentsEndpoint,
   defaultAgentCapabilities,
 } from 'librechat-data-provider';
-import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { useLocalize, useHasAccess, useAgentCapabilities } from '~/hooks';
 import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import ArtifactsSubMenu from '~/components/Chat/Input/ArtifactsSubMenu';
 import MCPSubMenu from '~/components/Chat/Input/MCPSubMenu';
-import ModelSubMenu from '~/components/Chat/Input/ModelSubMenu';
-import { useGetAgentByIdQuery } from '~/data-provider';
 import { useGetStartupConfig } from '~/data-provider';
-import { useBadgeRowContext, useChatContext } from '~/Providers';
+import { useBadgeRowContext } from '~/Providers';
 import { cn } from '~/utils';
 
 interface ToolsDropdownProps {
@@ -134,45 +129,6 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
       artifacts.debouncedChange({ value: ArtifactModes.CUSTOM });
     }
   }, [artifacts]);
-
-  const { conversation, setConversation } = useChatContext();
-  const { data: modelsData } = useGetModelsQuery();
-
-  const isAgentConvo = isAgentsEndpoint(conversation?.endpoint);
-  const agentId = isAgentConvo ? (conversation?.agent_id ?? '') : '';
-
-  const { data: currentAgent } = useGetAgentByIdQuery(agentId, {
-    enabled: !!agentId && isAgentConvo,
-  });
-
-  const agentProvider = currentAgent?.provider ?? '';
-
-  const availableModels = useMemo(() => {
-    if (!agentProvider || !modelsData) {
-      return [];
-    }
-    return (modelsData[agentProvider] as string[]) ?? [];
-  }, [agentProvider, modelsData]);
-
-  const selectedModel = useMemo(() => {
-    return conversation?.model || currentAgent?.model || '';
-  }, [conversation?.model, currentAgent?.model]);
-
-  const onSelectModel = useCallback(
-    (model: string) => {
-      setConversation((prev) => {
-        if (!prev) {
-          return prev;
-        }
-        return {
-          ...prev,
-          model,
-          spec: null,
-        };
-      });
-    },
-    [setConversation],
-  );
 
   const mcpPlaceholder = startupConfig?.interface?.mcpServers?.placeholder;
 
@@ -340,20 +296,6 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     dropdownItems.push({
       hideOnClick: false,
       render: (props) => <MCPSubMenu {...props} placeholder={mcpPlaceholder} />,
-    });
-  }
-
-  if (isAgentConvo && availableModels.length > 0) {
-    dropdownItems.push({
-      hideOnClick: false,
-      render: (props) => (
-        <ModelSubMenu
-          {...props}
-          models={availableModels}
-          selectedModel={selectedModel}
-          onSelectModel={onSelectModel}
-        />
-      ),
     });
   }
 
