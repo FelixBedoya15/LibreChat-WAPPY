@@ -176,6 +176,13 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                             Restablecer a {agentModel}
                         </button>
                     )}
+                    {sessionModel.toLowerCase().includes('gemini-3') && (
+                        <p className="mt-2 text-[10px] text-amber-500 bg-amber-500/10 p-1.5 rounded-md leading-tight">
+                            ⚠️ Por limitaciones actuales del API de Google Gemini 3 (thought_signature),
+                            las herramientas se han desactivado para evitar errores. Use Gemini 2.5
+                            para soportar Búsqueda y Contexto.
+                        </p>
+                    )}
                 </div>
 
                 {/* ── Tools ── */}

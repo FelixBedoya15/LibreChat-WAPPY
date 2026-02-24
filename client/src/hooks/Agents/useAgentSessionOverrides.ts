@@ -141,7 +141,23 @@ export default function useAgentSessionOverrides({
 
     const setSessionModel = useCallback(
         (model: string) => {
-            setEphemeralAgent((prev) => ({ ...(prev ?? {}), model } as TEphemeralAgent));
+            setEphemeralAgent((prev) => {
+                const isGemini3 = model.toLowerCase().includes('gemini-3');
+
+                // If it's a Gemini 3 model, auto-disable all tools to prevent thought_signature errors
+                if (isGemini3) {
+                    return {
+                        ...(prev ?? {}),
+                        model,
+                        [Tools.web_search]: false,
+                        [Tools.file_search]: false,
+                        [Tools.execute_code]: false,
+                        tools: [], // disable external tools
+                    } as TEphemeralAgent;
+                }
+
+                return { ...(prev ?? {}), model } as TEphemeralAgent;
+            });
         },
         [setEphemeralAgent],
     );
