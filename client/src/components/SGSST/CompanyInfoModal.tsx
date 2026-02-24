@@ -120,7 +120,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const selectClass = cn(inputClass, 'appearance-none cursor-pointer');
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="relative mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-2xl">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-border-medium px-6 py-4">
