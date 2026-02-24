@@ -126,12 +126,24 @@ const SGSSTDashboard = () => {
     }, [searchParams]);
 
     const handlePhaseSelect = (phase: any) => {
+        if (missingFields.length > 0) {
+            setShowCompanyInfo(true);
+            return;
+        }
         setSearchParams({ phase: phase.id });
     };
 
     const handleBack = () => {
         setSearchParams({});
     };
+
+    // If a phase is selected via URL but info is missing, kick them back to dashboard
+    useEffect(() => {
+        if (selectedPhase && missingFields.length > 0) {
+            setSearchParams({});
+            setShowCompanyInfo(true);
+        }
+    }, [selectedPhase, missingFields, setSearchParams]);
 
     if (selectedPhase) {
         return (
