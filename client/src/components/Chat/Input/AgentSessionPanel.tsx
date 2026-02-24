@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as Ariakit from '@ariakit/react';
-import { Settings2, Globe, FolderSearch, TerminalSquare, Wrench } from 'lucide-react';
+import { Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu } from 'lucide-react';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { TooltipAnchor } from '@librechat/client';
@@ -100,20 +100,17 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
     const modelsQuery = useGetModelsQuery();
     const modelList = useMemo(() => {
         const data = modelsQuery.data ?? {};
-        // Collect all models from all endpoints (flatten unique)
         const allModels = new Set<string>();
         Object.values(data).forEach((list) => {
             if (Array.isArray(list)) {
                 list.forEach((m) => allModels.add(m));
             }
         });
-        // Try agent-provider–specific list first, else use flat set
         const providerModels = agentProvider ? (data[agentProvider] ?? []) : [];
         return providerModels.length > 0 ? providerModels : [...allModels].sort();
     }, [modelsQuery.data, agentProvider]);
 
     const hasAnyTools = hasWebSearch || hasFileSearch || hasCodeInterpreter || externalTools.length > 0;
-
     const sessionModel = (overrides as TEphemeralAgentExtended | null)?.model ?? agentModel ?? '';
 
     const trigger = (
@@ -131,7 +128,7 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                 </Ariakit.MenuButton>
             }
             id="agent-session-panel-button"
-            description={localize('com_ui_tools') + ' · ' + 'Sesión'}
+            description={localize('com_ui_tools') + ' · Sesión'}
         />
     );
 
@@ -147,9 +144,41 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                     'animate-in fade-in-0 zoom-in-95 data-[leave]:animate-out data-[leave]:fade-out-0 data-[leave]:zoom-out-95',
                 )}
             >
+                {/* ── Model Selector ── */}
+                <div className="border-b border-border-medium/50 px-3 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                        <Cpu className="h-3.5 w-3.5 text-text-secondary" />
+                        <span className="text-xs font-medium text-text-secondary">Modelo IA</span>
+                    </div>
+                    <select
+                        value={sessionModel}
+                        onChange={(e) => setSessionModel(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                            'w-full rounded-lg border border-border-medium bg-surface-secondary px-2.5 py-1.5',
+                            'text-xs text-text-primary appearance-none cursor-pointer',
+                            'focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500',
+                        )}
+                    >
+                        {modelList.length === 0 && (
+                            <option value={agentModel ?? ''}>{agentModel ?? 'Cargando...'}</option>
+                        )}
+                        {modelList.map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                        ))}
+                    </select>
+                    {sessionModel !== agentModel && agentModel && (
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setSessionModel(agentModel); }}
+                            className="mt-1 text-[10px] text-text-tertiary hover:text-text-secondary underline"
+                        >
+                            Restablecer a {agentModel}
+                        </button>
+                    )}
+                </div>
 
-
-
+                {/* ── Tools ── */}
                 {hasAnyTools && (
                     <div className="py-1.5">
                         {hasWebSearch && (
@@ -226,15 +255,6 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                 {!hasAnyTools && (
                     <div className="px-3 py-3 text-center">
                         <p className="text-xs text-text-tertiary">Este agente no tiene herramientas adicionales configuradas.</p>
-                    </div>
-                )}
-
-                {/* Footer note */}
-                {(overrides as TEphemeralAgentExtended | null)?.model && (overrides as TEphemeralAgentExtended | null)?.model !== agentModel && (
-                    <div className="border-t border-border-medium/50 px-3 py-2">
-                        <p className="text-xs text-text-tertiary">
-                            Modelo activo: <span className="font-medium text-green-500">{(overrides as TEphemeralAgentExtended | null)?.model}</span>
-                        </p>
                     </div>
                 )}
             </Ariakit.Menu>
