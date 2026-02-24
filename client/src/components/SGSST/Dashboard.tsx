@@ -11,8 +11,10 @@ import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
 
 const REQUIRED_FIELDS = [
-    'companyName', 'nit', 'legalRepresentative', 'arl',
-    'riskLevel', 'sector', 'generalActivities',
+    'companyName', 'nit', 'legalRepresentative', 'workerCount',
+    'arl', 'economicActivity', 'riskLevel', 'ciiu',
+    'address', 'city', 'phone', 'email',
+    'sector', 'responsibleSST', 'generalActivities',
 ] as const;
 
 const phases = [
