@@ -18,8 +18,9 @@ import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import ArtifactsSubMenu from '~/components/Chat/Input/ArtifactsSubMenu';
 import MCPSubMenu from '~/components/Chat/Input/MCPSubMenu';
 import ModelSubMenu from '~/components/Chat/Input/ModelSubMenu';
+import { useGetAgentByIdQuery } from '~/data-provider';
 import { useGetStartupConfig } from '~/data-provider';
-import { useBadgeRowContext, useChatContext, useAgentsMapContext } from '~/Providers';
+import { useBadgeRowContext, useChatContext } from '~/Providers';
 import { cn } from '~/utils';
 
 interface ToolsDropdownProps {
@@ -135,17 +136,22 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
   }, [artifacts]);
 
   const { conversation, setConversation } = useChatContext();
-  const agentsMap = useAgentsMapContext();
   const { data: modelsData } = useGetModelsQuery();
 
   const isAgentConvo = isAgentsEndpoint(conversation?.endpoint);
-  const currentAgent = isAgentConvo ? agentsMap?.[conversation?.agent_id ?? ''] : null;
-  const agentProvider = currentAgent?.provider;
+  const agentId = isAgentConvo ? (conversation?.agent_id ?? '') : '';
+
+  const { data: currentAgent } = useGetAgentByIdQuery(agentId, {
+    enabled: !!agentId && isAgentConvo,
+  });
+
+  const agentProvider = currentAgent?.provider ?? '';
+
   const availableModels = useMemo(() => {
     if (!agentProvider || !modelsData) {
       return [];
     }
-    return modelsData[agentProvider] ?? [];
+    return (modelsData[agentProvider] as string[]) ?? [];
   }, [agentProvider, modelsData]);
 
   const selectedModel = useMemo(() => {
