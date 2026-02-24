@@ -51,8 +51,11 @@ const phases = [
 ];
 
 const SGSSTDashboard = () => {
+    // LOUD DEBUG ALERT - should show up as soon as the component renders
+    React.useEffect(() => { alert('NUEVA VERSION DETECTADA v20:05'); }, []);
+
     const localize = useLocalize();
-    const { token } = useAuthContext();
+    const { token, isAuthenticated } = useAuthContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedPhase, setSelectedPhase] = React.useState<any>(null);
@@ -62,8 +65,17 @@ const SGSSTDashboard = () => {
 
     // Check company info on mount — auto-show modal if fields missing
     useEffect(() => {
-        if (!token || hasCheckedRef.current) return;
+        console.log('[SGSST DEBUG] Token status:', !!token, 'Auth status:', isAuthenticated);
+
+        if (!token) {
+            // We might be waiting for token
+            return;
+        }
+
+        if (hasCheckedRef.current) return;
         hasCheckedRef.current = true;
+
+        alert('DEBUG: Iniciando fetch de datos de empresa...');
         const url = `/api/sgsst/company-info?cb=${Date.now()}`;
         fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` },
