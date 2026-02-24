@@ -74,15 +74,26 @@ const SGSSTDashboard = () => {
             })
             .then(info => {
                 console.log('[SGSST Dashboard] Company info:', JSON.stringify(info));
+
+                // --- DEBUG ALERT ---
+                const debugStr = JSON.stringify(info);
+
                 if (!info || Object.keys(info).length === 0) {
+                    // alert(`DEBUG INFO VACÍO: ${debugStr}`);
                     setMissingFields([...REQUIRED_FIELDS]);
                     setShowCompanyInfo(true);
                     return;
                 }
                 const missing = REQUIRED_FIELDS.filter(f => {
                     const val = (info as any)[f];
+                    // Also treat "N/A" or whitespace-only strings as missing for testing
+                    if (typeof val === 'string' && val.trim() === '') return true;
+                    if (val === 'N/A' || val === 'No registrado') return true;
                     return val === undefined || val === null || val === '' || val === 0;
                 });
+
+                // alert(`DEBUG INFO:\nData: ${debugStr.substring(0, 100)}...\nMissing: ${missing.join(', ')}`);
+
                 console.log('[SGSST Dashboard] Missing fields:', missing);
                 setMissingFields(missing);
                 if (missing.length > 0) {
