@@ -83,7 +83,7 @@
     "migrate:prompt-permissions:dry-run": "node config/migrate-prompt-permissions.js --dry-run",
     "migrate:prompt-permissions": "node config/migrate-prompt-permissions.js",
     "migrate:prompt-permissions:batch": "node config/migrate-prompt-permissions.js --batch-size=50",
-    "postinstall": "node config/apply-patches.js"
+    "postinstall": "node -e \"const fs=require('fs'),p=require('path'),base=p.join('node_modules','@langchain','google-common','dist','utils'),find='if (signatures.length === parts.length) {\\\\n            for (let co = 0; co < signatures.length; co += 1) {',rep='if (signatures.length > 0) {\\\\n            for (let co = 0; co < Math.min(signatures.length, parts.length); co += 1) {';['gemini.js','gemini.cjs'].forEach(f=>{const fp=p.join(base,f);if(!fs.existsSync(fp)){console.log('[patch] skip:',f);return;}let c=fs.readFileSync(fp,'utf8');if(c.includes(rep)){console.log('[patch] already applied:',f);return;}if(!c.includes(find)){console.warn('[patch] target not found (version changed?):',f);return;}fs.writeFileSync(fp,c.split(find).join(rep));console.log('[patch] applied thought_signature fix:',f);})\""
   },
   "repository": {
     "type": "git",
