@@ -64,45 +64,36 @@ const SGSSTDashboard = () => {
     useEffect(() => {
         if (!token || hasCheckedRef.current) return;
         hasCheckedRef.current = true;
-        console.log('[SGSST Dashboard] Checking company info with token:', token ? 'present' : 'missing');
-        fetch('/api/sgsst/company-info', {
+        const url = `/api/sgsst/company-info?cb=${Date.now()}`;
+        fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` },
         })
             .then(res => {
-                console.log('[SGSST Dashboard] API response status:', res.status);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
                 return res.json();
             })
             .then(info => {
-                console.log('[SGSST Dashboard] Company info:', JSON.stringify(info));
-
-                // --- DEBUG ALERT ---
-                const debugStr = JSON.stringify(info);
-
                 if (!info || Object.keys(info).length === 0) {
-                    // alert(`DEBUG INFO VACÍO: ${debugStr}`);
+                    alert('DEBUG: No se encontró info de empresa.');
                     setMissingFields([...REQUIRED_FIELDS]);
                     setShowCompanyInfo(true);
                     return;
                 }
                 const missing = REQUIRED_FIELDS.filter(f => {
                     const val = (info as any)[f];
-                    // Also treat "N/A" or whitespace-only strings as missing for testing
-                    if (typeof val === 'string' && val.trim() === '') return true;
-                    if (val === 'N/A' || val === 'No registrado') return true;
-                    return val === undefined || val === null || val === '' || val === 0;
+                    if (typeof val === 'string') {
+                        const t = val.trim();
+                        return t === '' || t === 'N/A' || t === 'No registrado';
+                    }
+                    return val === undefined || val === null || val === 0;
                 });
-
-                // alert(`DEBUG INFO:\nData: ${debugStr.substring(0, 100)}...\nMissing: ${missing.join(', ')}`);
-
-                console.log('[SGSST Dashboard] Missing fields:', missing);
-                setMissingFields(missing);
                 if (missing.length > 0) {
+                    alert(`DEBUG: Faltan campos: ${missing.join(', ')}`);
+                    setMissingFields(missing);
                     setShowCompanyInfo(true);
                 }
             })
-            .catch(err => {
-                console.error('[SGSST Dashboard] Error checking company info:', err);
-            });
+            .catch(err => alert(`DEBUG ERROR: ${err.message}`));
     }, [token]);
 
     // Re-check after modal closes
