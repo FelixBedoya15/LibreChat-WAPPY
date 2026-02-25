@@ -370,6 +370,7 @@ class VoiceSession {
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
+                    logger.debug(`[VoiceSession] Received video frame (${data.image.length} chars)`);
                     this.latestFrame = data.image; // Guarda el último frame capturado para el análisis
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
@@ -575,6 +576,7 @@ class VoiceSession {
             // Check if user is asking the AI to look at something
             const observationRegex = /(mira|observa|qué ves|analiza|pantalla|imagen|foto|qué hay|describe|veas|vea)/i;
             const isAskingToLook = observationRegex.test(text);
+            logger.info(`[VoiceSession] Processing user message: "${text}". isAskingToLook: ${isAskingToLook}, latestFrame: ${!!this.latestFrame}`);
 
             let messageContent = [{ type: 'text', text: text }];
 

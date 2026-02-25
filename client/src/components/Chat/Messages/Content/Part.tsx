@@ -211,6 +211,20 @@ const Part = memo(
           }}
         />
       );
+    } else if (part.type === 'image_url') {
+      const imageUrlData = part['image_url'];
+      const imagePath = typeof imageUrlData === 'string' ? imageUrlData : imageUrlData?.url;
+      if (!imagePath) {
+        return null;
+      }
+      return (
+        <Image
+          imagePath={imagePath}
+          height={512}
+          width={512}
+          altText="Visual Analysis"
+        />
+      );
     }
 
     return null;

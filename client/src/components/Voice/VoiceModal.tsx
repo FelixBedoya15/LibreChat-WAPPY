@@ -18,6 +18,40 @@ interface VoiceModalProps {
     endpoint?: string;
 }
 
+const playStartupSound = () => {
+    try {
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        const ctx = new AudioContextClass();
+
+        // Play a soft, pleasant chord (C major 7th: C, E, G, B)
+        const frequencies = [523.25, 659.25, 783.99, 987.77]; // C5, E5, G5, B5
+
+        frequencies.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+            // Envelope
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.1 + (i * 0.05));
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(ctx.currentTime + (i * 0.05));
+            osc.stop(ctx.currentTime + 1.5);
+        });
+
+    } catch (e) {
+        console.warn('Startup sound could not be played:', e);
+    }
+};
+
 const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint }) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
@@ -98,6 +132,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         // Only reconnect if modal was closed and now is opening
         if (!wasOpen && isOpen && !isConnected && !isConnecting) {
             console.log('[VoiceModal] Modal reopened, reconnecting...');
+            playStartupSound();
             connect();
         }
 
