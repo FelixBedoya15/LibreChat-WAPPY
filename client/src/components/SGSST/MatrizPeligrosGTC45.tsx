@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Trash2, Sparkles, Save, History, Loader2,
     ChevronDown, ChevronRight, AlertTriangle, Shield,
-    Database, Zap, FileText,
+    Database, Zap, FileText, LayoutList, Layers,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -27,14 +27,8 @@ const Tip = ({ children, text }: { children: React.ReactNode; text: string }) =>
 );
 
 // ─── Types ────────────────────────────────────────────────────────────
-interface PeligroEntry {
+interface PeligroItem {
     id: string;
-    proceso: string;
-    zona: string;
-    actividad: string;
-    tarea: string;
-    rutinario: boolean;
-    controlesExistentes: string;
     descripcionPeligro: string;
     clasificacion: string;
     efectosPosibles: string;
@@ -52,7 +46,6 @@ interface PeligroEntry {
     numExpuestos: number;
     deficienciaHigienica: string;
     valoracionCuantitativa: string;
-    // Anexo E: Factores de Reducción y Justificación
     nrFinal: number;
     factorReduccion: number;
     costoIntervencion: string;
@@ -67,8 +60,18 @@ interface PeligroEntry {
     completedByAI: boolean;
 }
 
-const EMPTY_ENTRY: Omit<PeligroEntry, 'id'> = {
-    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '',
+interface ProcesoEntry {
+    id: string;
+    proceso: string;
+    zona: string;
+    actividad: string;
+    tarea: string;
+    rutinario: boolean;
+    controlesExistentes: string;
+    peligros: PeligroItem[];
+}
+
+const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
     descripcionPeligro: '', clasificacion: '', efectosPosibles: '',
     fuenteGeneradora: '', medioExistente: '', individuoControl: '',
     nivelDeficiencia: 0, nivelExposicion: 0, nivelProbabilidad: 0,
@@ -80,7 +83,10 @@ const EMPTY_ENTRY: Omit<PeligroEntry, 'id'> = {
     controlAdministrativo: '', epp: '', completedByAI: false,
 };
 
-// ─── GTC 45 Anexo E: Cost Factor Table (SMMLV) ──────────────────────
+const EMPTY_PROCESO: Omit<ProcesoEntry, 'id' | 'peligros'> = {
+    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '',
+};
+
 const COST_FACTOR_OPTIONS = [
     { label: 'Más de 150 SMMLV', d: 10 },
     { label: '60 a 150 SMMLV', d: 8 },
@@ -91,7 +97,6 @@ const COST_FACTOR_OPTIONS = [
     { label: 'Menos de 0.06 SMMLV', d: 0.5 },
 ];
 
-// ─── Risk Color Helpers ───────────────────────────────────────────────
 const getRiskColor = (nr: number) => {
     if (nr >= 600) return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', border: 'border-red-300', label: 'I - No Aceptable' };
     if (nr >= 150) return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-300', label: 'II - No Aceptable / Control' };
@@ -106,20 +111,18 @@ const getAcceptabilityBadge = (a: string) => {
     return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
 };
 
-// ─── Component ────────────────────────────────────────────────────────
 const MatrizPeligrosGTC45 = () => {
     const { token } = useAuthContext();
     const { showToast } = useToastContext();
 
-    const [entries, setEntries] = useState<PeligroEntry[]>([]);
+    const [procesos, setProcesos] = useState<ProcesoEntry[]>([]);
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
-    const [isAdding, setIsAdding] = useState(false);
-    const [newEntry, setNewEntry] = useState({ proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '' });
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
-    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const [expandedProcesos, setExpandedProcesos] = useState<Set<string>>(new Set());
+    const [expandedPeligros, setExpandedPeligros] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [isCompletingAll, setIsCompletingAll] = useState(false);
+    const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
 
     // Report state
@@ -141,7 +144,7 @@ const MatrizPeligrosGTC45 = () => {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.entries?.length) setEntries(data.entries);
+                    if (data.procesos?.length) setProcesos(data.procesos);
                 }
             } catch (err) {
                 console.error('Error loading hazard matrix:', err);
@@ -152,7 +155,6 @@ const MatrizPeligrosGTC45 = () => {
         loadData();
     }, [token]);
 
-    // ─── Load Company Info for Report Header ─────────────────────
     useEffect(() => {
         if (!token) return;
         fetch('/api/sgsst/company-info', {
@@ -163,124 +165,125 @@ const MatrizPeligrosGTC45 = () => {
             .catch(() => { });
     }, [token]);
 
-    // ─── Add Entry ──────────────────────────────────────────────
-    const handleAdd = () => {
-        if (!newEntry.proceso || !newEntry.actividad) {
-            showToast({ message: 'Proceso y Actividad son obligatorios', status: 'warning' });
-            return;
-        }
-        const entry: PeligroEntry = {
-            ...EMPTY_ENTRY,
-            ...newEntry,
+    // ─── Handlers ───────────────────────────────────────────────
+    const handleAddProceso = () => {
+        const newProc: ProcesoEntry = {
             id: crypto.randomUUID(),
+            ...EMPTY_PROCESO,
+            peligros: [],
         };
-        setEntries(prev => [...prev, entry]);
-        setExpandedIds(prev => new Set(prev).add(entry.id));
-        setNewEntry({ proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '' });
-        setIsAdding(false);
+        setProcesos(prev => [...prev, newProc]);
+        setExpandedProcesos(prev => new Set(prev).add(newProc.id));
     };
 
-    // ─── Delete Entry ───────────────────────────────────────────
-    const handleDelete = (id: string) => {
-        setEntries(prev => prev.filter(e => e.id !== id));
+    const handleAddPeligro = (procesoId: string) => {
+        const newHazard: PeligroItem = {
+            id: crypto.randomUUID(),
+            ...EMPTY_HAZARD,
+        };
+        setProcesos(prev => prev.map(p =>
+            p.id === procesoId ? { ...p, peligros: [...p.peligros, newHazard] } : p
+        ));
+        setExpandedPeligros(prev => new Set(prev).add(newHazard.id));
     };
 
-    // ─── Toggle Expand ──────────────────────────────────────────
-    const toggleExpand = (id: string) => {
-        setExpandedIds(prev => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
-        });
+    const handleDeleteProceso = (procesoId: string) => {
+        setProcesos(prev => prev.filter(p => p.id !== procesoId));
     };
 
-    // ─── AI Complete Single ─────────────────────────────────────
-    const handleComplete = useCallback(async (entry: PeligroEntry) => {
+    const handleDeletePeligro = (procesoId: string, peligroId: string) => {
+        setProcesos(prev => prev.map(p =>
+            p.id === procesoId ? { ...p, peligros: p.peligros.filter(h => h.id !== peligroId) } : p
+        ));
+    };
+
+    const updateProcesoField = (procesoId: string, field: keyof ProcesoEntry, value: any) => {
+        setProcesos(prev => prev.map(p => p.id === procesoId ? { ...p, [field]: value } : p));
+    };
+
+    const updatePeligroField = (procesoId: string, peligroId: string, field: keyof PeligroItem, value: any) => {
+        setProcesos(prev => prev.map(p => {
+            if (p.id !== procesoId) return p;
+            return {
+                ...p,
+                peligros: p.peligros.map(h => h.id === peligroId ? { ...h, [field]: value } : h)
+            };
+        }));
+    };
+
+    // ─── AI Logic ───────────────────────────────────────────────
+    const handleGenerateFull = async () => {
         if (!token) return;
-        setLoadingIds(prev => new Set(prev).add(entry.id));
+        setIsGeneratingFull(true);
+        try {
+            const res = await fetch('/api/sgsst/matriz-peligros/generate-full', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ modelName: selectedModel }),
+            });
+            if (!res.ok) throw new Error('Error al generar matriz');
+            const data = await res.json();
+            if (data.procesos) {
+                setProcesos(data.procesos);
+                showToast({ message: 'Matriz generada con éxito (5 procesos)', status: 'success' });
+            }
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        } finally {
+            setIsGeneratingFull(false);
+        }
+    };
+
+    const handleCompletePeligro = async (proceso: ProcesoEntry, peligro: PeligroItem) => {
+        if (!token) return;
+        setLoadingIds(prev => new Set(prev).add(peligro.id));
         try {
             const res = await fetch('/api/sgsst/matriz-peligros/complete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ entry, modelName: selectedModel }),
+                body: JSON.stringify({ proceso, peligro, modelName: selectedModel }),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Error al completar');
-            }
+            if (!res.ok) throw new Error('Error al completar peligro');
             const data = await res.json();
-            const completedPayload = data.completed || {};
+            const completed = data.completed || {};
 
-            // Auto-calculate F and J if AI provided nrFinal and costoIntervencion
-            if (completedPayload.nrFinal !== undefined && completedPayload.costoIntervencion) {
-                const nrf = Number(completedPayload.nrFinal) || 0;
-                const nri = entry.nivelRiesgo || 1;
-                const f = nri > 0 ? (100 * (nri - nrf)) / nri : 0;
-
-                // Map the text back to 'd' using COST_FACTOR_OPTIONS
-                const selected = COST_FACTOR_OPTIONS.find(o => o.label === completedPayload.costoIntervencion);
-                const d = selected?.d || 0;
-                const j = d > 0 ? (nri * f) / d : 0;
-
-                completedPayload.nrFinal = nrf;
-                completedPayload.factorReduccion = Math.round(f * 10) / 10;
-                completedPayload.factorCosto = d;
-                completedPayload.factorJustificacion = Math.round(j);
-            }
-
-            setEntries(prev => prev.map(e =>
-                e.id === entry.id ? { ...e, ...completedPayload, completedByAI: true } : e
-            ));
-            setExpandedIds(prev => new Set(prev).add(entry.id));
-            showToast({ message: 'Peligro completado con IA', status: 'success' });
+            setProcesos(prev => prev.map(p => {
+                if (p.id !== proceso.id) return p;
+                return {
+                    ...p,
+                    peligros: p.peligros.map(h => h.id === peligro.id ? { ...h, ...completed } : h)
+                };
+            }));
+            showToast({ message: 'Peligro valorado con IA', status: 'success' });
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
-            setLoadingIds(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
+            setLoadingIds(prev => { const n = new Set(prev); n.delete(peligro.id); return n; });
         }
-    }, [token, selectedModel, showToast]);
+    };
 
-    // ─── AI Complete All ────────────────────────────────────────
-    const handleCompleteAll = useCallback(async () => {
-        const incomplete = entries.filter(e => !e.completedByAI);
-        if (!incomplete.length) {
-            showToast({ message: 'Todos los peligros ya están completados', status: 'info' });
-            return;
-        }
-        setIsCompletingAll(true);
-        for (const entry of incomplete) {
-            await handleComplete(entry);
-        }
-        setIsCompletingAll(false);
-        showToast({ message: `${incomplete.length} peligros completados con IA`, status: 'success' });
-    }, [entries, handleComplete, showToast]);
-
-    // ─── Save Data ──────────────────────────────────────────────
-    const handleSaveData = useCallback(async () => {
+    const handleSaveData = async () => {
         if (!token) return;
         setIsSaving(true);
         try {
             const res = await fetch('/api/sgsst/matriz-peligros/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ entries }),
+                body: JSON.stringify({ procesos }),
             });
-            if (res.ok) {
-                showToast({ message: 'Matriz guardada correctamente', status: 'success' });
-            } else {
-                throw new Error('Error al guardar');
-            }
+            if (res.ok) showToast({ message: 'Matriz guardada', status: 'success' });
+            else throw new Error('Error al guardar');
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
             setIsSaving(false);
         }
-    }, [token, entries, showToast]);
+    };
 
-    // ─── Generate HTML Report ────────────────────────────────────
+    // ─── Report Logic ───────────────────────────────────────────
     const generateReport = useCallback(() => {
-        if (!entries.length) {
-            showToast({ message: 'No hay peligros para generar reporte', status: 'warning' });
+        if (!procesos.length) {
+            showToast({ message: 'No hay procesos para generar reporte', status: 'warning' });
             return;
         }
         const date = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -321,99 +324,49 @@ const MatrizPeligrosGTC45 = () => {
     </tr>
   </tbody>
 </table>`;
-        const html = `
-<div style="font-family: sans-serif; max-width: 100%;">
-  ${headerHTML}
 
-  ${entries.map((e, i) => {
-            const risk = getRiskColor(e.nivelRiesgo);
-            return `
-  <div style="border: 1px solid #ddd; border-radius: 8px; margin: 15px 0; overflow: hidden;">
-    <div style="background: ${e.nivelRiesgo >= 600 ? '#fee2e2' : e.nivelRiesgo >= 150 ? '#fff7ed' : e.nivelRiesgo >= 40 ? '#fefce8' : '#f0fdf4'}; padding: 10px 15px;">
-      <strong>${i + 1}. ${e.proceso} — ${e.actividad}</strong>
-      <span style="float: right; padding: 2px 10px; border-radius: 12px; font-size: 12px; background: ${e.nivelRiesgo >= 600 ? '#dc2626' : e.nivelRiesgo >= 150 ? '#ea580c' : e.nivelRiesgo >= 40 ? '#ca8a04' : '#16a34a'}; color: white;">NR: ${e.nivelRiesgo} - ${e.aceptabilidad || 'Sin valorar'}</span>
+        let rowsHTML = '';
+        procesos.forEach((p, pIdx) => {
+            p.peligros.forEach((h, hIdx) => {
+                const risk = getRiskColor(h.nivelRiesgo);
+                rowsHTML += `
+  <div style="border: 2px solid #004d99; border-radius: 8px; margin: 15px 0; overflow: hidden; page-break-inside: avoid;">
+    <div style="background: #eef2ff; padding: 10px 15px; border-bottom: 1px solid #ddd;">
+      <strong>${pIdx + 1}.${hIdx + 1} PROCESO: ${p.proceso} — ACTIVIDAD: ${p.actividad}</strong>
+      <span style="float: right; padding: 2px 10px; border-radius: 12px; font-size: 12px; background: ${h.nivelRiesgo >= 600 ? '#dc2626' : h.nivelRiesgo >= 150 ? '#ea580c' : h.nivelRiesgo >= 40 ? '#ca8a04' : '#16a34a'}; color: white;">NR: ${h.nivelRiesgo}</span>
     </div>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-      <tr><th style="background: #004d99; color: white; padding: 6px 10px; text-align: left; width: 30%;">Campo</th><th style="background: #004d99; color: white; padding: 6px 10px; text-align: left;">Valor</th></tr>
-      <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Zona / Lugar</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.zona || '-'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Tarea</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.tarea || '-'}</td></tr>
-      <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Rutinario</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.rutinario ? 'Sí' : 'No'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Controles Existentes</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.controlesExistentes || '-'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Peligro</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.descripcionPeligro || '-'}</td></tr>
-      <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Clasificación</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.clasificacion || '-'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Efectos Posibles</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.efectosPosibles || '-'}</td></tr>
-      <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Fuente Generadora</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.fuenteGeneradora || '-'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Control Medio</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.medioExistente || '-'}</td></tr>
-      <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-weight: 600;">Control Individuo</td><td style="padding: 6px 10px; border-bottom: 1px solid #eee;">${e.individuoControl || '-'}</td></tr>
+      <tr><th style="background: #004d99; color: white; padding: 6px; text-align: left; width: 30%;">Campo</th><th style="background: #004d99; color: white; padding: 6px; text-align: left;">Valor</th></tr>
+      <tr><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Zona / Lugar</td><td style="padding: 6px; border-bottom: 1px solid #eee;">${p.zona || '-'}</td></tr>
+      <tr style="background: #f8f9fa;"><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Tarea / Rutinario</td><td style="padding: 6px; border-bottom: 1px solid #eee;">${p.tarea || '-'} (${p.rutinario ? 'Sí' : 'No'})</td></tr>
+      <tr><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Peligro Identified</td><td style="padding: 6px; border-bottom: 1px solid #eee;"><strong>${h.descripcionPeligro}</strong> (${h.clasificacion})</td></tr>
+      <tr style="background: #f8f9fa;"><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Efectos Posibles</td><td style="padding: 6px; border-bottom: 1px solid #eee;">${h.efectosPosibles}</td></tr>
+      <tr><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Fuente/Medio/Indiv.</td><td style="padding: 6px; border-bottom: 1px solid #eee;">F: ${h.fuenteGeneradora} | M: ${h.medioExistente} | I: ${h.individuoControl}</td></tr>
     </table>
 
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
-      <tr><th style="background: #0369a1; color: white; padding: 6px; text-align: center;" colspan="7">Valoración del Riesgo (GTC 45)</th></tr>
-      <tr style="background: #e0f2fe; font-weight: 600; text-align: center; font-size: 12px;">
-        <td style="padding: 6px; border: 1px solid #ddd;">ND</td><td style="padding: 6px; border: 1px solid #ddd;">NE</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">NP (ND×NE)</td><td style="padding: 6px; border: 1px solid #ddd;">Int. NP</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">NC</td><td style="padding: 6px; border: 1px solid #ddd;">NR (NP×NC)</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">Aceptabilidad</td>
-      </tr>
-      <tr style="text-align: center;">
-        <td style="padding: 6px; border: 1px solid #ddd;">${e.nivelDeficiencia}</td><td style="padding: 6px; border: 1px solid #ddd;">${e.nivelExposicion}</td>
-        <td style="padding: 6px; border: 1px solid #ddd; font-weight: 600;">${e.nivelProbabilidad}</td><td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${e.interpretacionNP || '-'}</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">${e.nivelConsecuencia}</td>
-        <td style="padding: 6px; border: 1px solid #ddd; font-weight: 700; color: ${e.nivelRiesgo >= 600 ? '#dc2626' : e.nivelRiesgo >= 150 ? '#ea580c' : '#16a34a'};">${e.nivelRiesgo}</td>
-        <td style="padding: 6px; border: 1px solid #ddd; font-size: 11px;">${e.aceptabilidad || '-'}</td>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; border-top: 1px solid #ddd;">
+      <tr style="background: #0369a1; color: white; text-align: center;">
+        <td style="padding: 4px;">ND: ${h.nivelDeficiencia}</td><td style="padding: 4px;">NE: ${h.nivelExposicion}</td>
+        <td style="padding: 4px;">NP: ${h.nivelProbabilidad}</td><td style="padding: 4px;">NC: ${h.nivelConsecuencia}</td>
+        <td style="padding: 4px;"><strong>NR: ${h.nivelRiesgo}</strong></td><td style="padding: 4px;">${h.aceptabilidad}</td>
       </tr>
     </table>
 
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
-      <tr><th style="background: #065f46; color: white; padding: 6px; text-align: center;" colspan="2">Valoración Higiénica</th></tr>
-      <tr><td style="padding: 6px 10px; border: 1px solid #eee; font-weight: 600; width: 30%;">Deficiencia Higiénica (Cualitativa)</td><td style="padding: 6px 10px; border: 1px solid #eee;">${e.deficienciaHigienica || 'N/A'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px 10px; border: 1px solid #eee; font-weight: 600;">Valoración Cuantitativa</td><td style="padding: 6px 10px; border: 1px solid #eee;">${e.valoracionCuantitativa || 'N/A'}</td></tr>
-    </table>
-
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
-      <tr><th style="background: #9333ea; color: white; padding: 6px; text-align: center;" colspan="5">Anexo E — Factores de Reducción y Justificación</th></tr>
-      <tr style="background: #f3e8ff; font-weight: 600; text-align: center; font-size: 12px;">
-        <td style="padding: 6px; border: 1px solid #ddd;">NR Inicial</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">NR Final (estimado)</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">F (Reducción %)</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">Costo (d)</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">J (Justificación)</td>
-      </tr>
-      <tr style="text-align: center;">
-        <td style="padding: 6px; border: 1px solid #ddd;">${e.nivelRiesgo}</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">${e.nrFinal || '-'}</td>
-        <td style="padding: 6px; border: 1px solid #ddd; font-weight: 700; color: ${e.factorReduccion >= 75 ? '#16a34a' : e.factorReduccion >= 50 ? '#ca8a04' : '#dc2626'};">${e.factorReduccion ? e.factorReduccion.toFixed(1) + '%' : '-'}</td>
-        <td style="padding: 6px; border: 1px solid #ddd;">${e.costoIntervencion || '-'} (d=${e.factorCosto || '-'})</td>
-        <td style="padding: 6px; border: 1px solid #ddd; font-weight: 700;">${e.factorJustificacion ? e.factorJustificacion.toFixed(0) : '-'}</td>
-      </tr>
-      <tr><td colspan="5" style="padding: 6px 10px; border: 1px solid #eee; font-size: 12px;"><strong>Justificación:</strong> ${e.justificacion || '-'}</td></tr>
-    </table>
-
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 2px;">
-      <tr style="background: #7c3aed; color: white; font-weight: 600;">
-        <th style="padding: 6px; text-align: center;">Eliminación</th><th style="padding: 6px; text-align: center;">Sustitución</th>
-        <th style="padding: 6px; text-align: center;">Ingeniería</th><th style="padding: 6px; text-align: center;">Administrativo</th>
-        <th style="padding: 6px; text-align: center;">EPP</th>
-      </tr>
-      <tr style="font-size: 12px;">
-        <td style="padding: 6px; border: 1px solid #eee; vertical-align: top;">${e.eliminacion || '-'}</td>
-        <td style="padding: 6px; border: 1px solid #eee; vertical-align: top;">${e.sustitucion || '-'}</td>
-        <td style="padding: 6px; border: 1px solid #eee; vertical-align: top;">${e.controlIngenieria || '-'}</td>
-        <td style="padding: 6px; border: 1px solid #eee; vertical-align: top;">${e.controlAdministrativo || '-'}</td>
-        <td style="padding: 6px; border: 1px solid #eee; vertical-align: top;">${e.epp || '-'}</td>
-      </tr>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #faf5ff;">
+      <tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Intervención:</strong> Elim: ${h.eliminacion} | Sust: ${h.sustitucion} | Ing: ${h.controlIngenieria} | Admin: ${h.controlAdministrativo} | EPP: ${h.epp}</td></tr>
     </table>
   </div>`;
-        }).join('')}
-</div>`;
+            });
+        });
+
+        const html = `<div style="font-family: sans-serif; max-width: 100%; color: #333;">${headerHTML}${rowsHTML}</div>`;
         setGeneratedReport(html);
         setEditorContent(html);
         setConversationId('new');
         setReportMessageId(null);
-    }, [entries, companyInfo, showToast]);
+    }, [procesos, companyInfo, showToast]);
 
-    // ─── Save Report ─────────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
         const content = editorContent || generatedReport;
         if (!content || !token) return;
@@ -439,7 +392,6 @@ const MatrizPeligrosGTC45 = () => {
         }
     }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
 
-    // ─── Select Report from History ──────────────────────────────
     const handleSelectReport = async (reportOrId: any) => {
         let content = '', convId = '', msgId = '';
         if (typeof reportOrId === 'string') {
@@ -464,9 +416,20 @@ const MatrizPeligrosGTC45 = () => {
         }
     };
 
-    // ─── Edit AI field inline ────────────────────────────────────
-    const updateField = (id: string, field: keyof PeligroEntry, value: any) => {
-        setEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
+    const toggleProceso = (id: string) => {
+        setExpandedProcesos(prev => {
+            const n = new Set(prev);
+            n.has(id) ? n.delete(id) : n.add(id);
+            return n;
+        });
+    };
+
+    const togglePeligro = (id: string) => {
+        setExpandedPeligros(prev => {
+            const n = new Set(prev);
+            n.has(id) ? n.delete(id) : n.add(id);
+            return n;
+        });
     };
 
     // ─── Render ──────────────────────────────────────────────────
@@ -475,36 +438,36 @@ const MatrizPeligrosGTC45 = () => {
             {/* ═══ Toolbar ═══ */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
-                        <AlertTriangle className="h-6 w-6" />
+                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                        <LayoutList className="h-6 w-6" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-text-primary">Matriz de Peligros GTC 45</h2>
-                        <span className="text-sm text-text-secondary">IPVR — {entries.length} peligros registrados</span>
+                        <h2 className="text-lg font-bold text-text-primary">Matriz de Peligros (GTC 45)</h2>
+                        <span className="text-sm text-text-secondary">{procesos.length} Procesos / {procesos.reduce((a, b) => a + b.peligros.length, 0)} Peligros</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={handleGenerateFull} disabled={isGeneratingFull}
+                        className="group flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50">
+                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                        Generar Matriz con IA
+                    </button>
                     <button onClick={handleSaveData} disabled={isSaving}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500 group-hover:text-blue-500" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar Datos</span>
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
                     </button>
                     <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary'}`}>
                         <History className="h-5 w-5" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Historial</span>
                     </button>
-                    {entries.length > 0 && (
-                        <>
-                            <button onClick={generateReport}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <Sparkles className="h-5 w-5" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
-                            </button>
-                            {generatedReport && (
-                                <ExportDropdown content={editorContent || generatedReport} fileName="Matriz_Peligros_GTC45" />
-                            )}
-                        </>
+                    {procesos.length > 0 && (
+                        <button onClick={generateReport}
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                            <FileText className="h-5 w-5" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Informe</span>
+                        </button>
                     )}
                     <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
                 </div>
@@ -519,387 +482,208 @@ const MatrizPeligrosGTC45 = () => {
                 </div>
             )}
 
-            {/* ═══ Add Hazard Form ═══ */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                <button onClick={() => setIsAdding(!isAdding)}
-                    className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors">
-                    <div className="flex items-center gap-2">
-                        {isAdding ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
-                        <Plus className="h-5 w-5 text-blue-500" />
-                        <span className="font-semibold text-text-primary">Agregar Peligro</span>
+            {/* ═══ Processes List ═══ */}
+            <div className="space-y-4">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-12 text-text-secondary">
+                        <Loader2 className="h-8 w-8 animate-spin mr-3 text-blue-500" /> Cargando matriz...
                     </div>
-                </button>
-                {isAdding && (
-                    <div className="p-4 bg-surface-primary/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-medium text-text-secondary">Proceso <span className="text-red-500">*</span></label>
-                                <input type="text" value={newEntry.proceso} onChange={e => setNewEntry({ ...newEntry, proceso: e.target.value })}
-                                    placeholder="Ej: Construcción, Soldadura..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-medium text-text-secondary">Zona / Lugar</label>
-                                <input type="text" value={newEntry.zona} onChange={e => setNewEntry({ ...newEntry, zona: e.target.value })}
-                                    placeholder="Ej: Planta 2, Oficina, Bodega..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-medium text-text-secondary">Actividad <span className="text-red-500">*</span></label>
-                                <input type="text" value={newEntry.actividad} onChange={e => setNewEntry({ ...newEntry, actividad: e.target.value })}
-                                    placeholder="Ej: Soldadura de estructura metálica..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-medium text-text-secondary">Tarea</label>
-                                <input type="text" value={newEntry.tarea} onChange={e => setNewEntry({ ...newEntry, tarea: e.target.value })}
-                                    placeholder="Ej: Punteado de perfiles..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-medium text-text-secondary">Rutinario</label>
-                                <select value={newEntry.rutinario ? 'si' : 'no'} onChange={e => setNewEntry({ ...newEntry, rutinario: e.target.value === 'si' })}
-                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors">
-                                    <option value="si">Sí</option>
-                                    <option value="no">No</option>
-                                </select>
-                            </div>
-                            <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                                <label className="text-xs font-medium text-text-secondary">Controles Existentes</label>
-                                <textarea value={newEntry.controlesExistentes} onChange={e => setNewEntry({ ...newEntry, controlesExistentes: e.target.value })}
-                                    placeholder="Ej: Uso de EPP (guantes, gafas), capacitación en trabajo seguro, señalización..."
-                                    rows={2} className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors resize-none" />
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                            <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover rounded-lg">Cancelar</button>
-                            <button onClick={handleAdd} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                                <Plus className="h-4 w-4" /> Agregar
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* ═══ Batch Actions ═══ */}
-            {entries.some(e => !e.completedByAI) && (
-                <div className="flex justify-end">
-                    <button onClick={handleCompleteAll} disabled={isCompletingAll}
-                        className="group flex items-center px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all text-sm font-medium disabled:opacity-50">
-                        {isCompletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Completar Todos con IA ({entries.filter(e => !e.completedByAI).length} pendientes)</span>
-                    </button>
-                </div>
-            )}
-
-            {/* ═══ Hazard Entries List ═══ */}
-            {isLoading ? (
-                <div className="flex items-center justify-center py-12 text-text-secondary">
-                    <Loader2 className="h-6 w-6 animate-spin mr-2" /> Cargando datos...
-                </div>
-            ) : entries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-text-secondary border-2 border-dashed border-border-medium/50 rounded-xl">
-                    <Shield className="h-12 w-12 mb-3 opacity-30" />
-                    <p className="text-sm">No hay peligros registrados. Haz clic en "Agregar Peligro" para comenzar.</p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {entries.map((entry, idx) => {
-                        const isExpanded = expandedIds.has(entry.id);
-                        const isCompletingThis = loadingIds.has(entry.id);
-                        const riskStyle = entry.completedByAI ? getRiskColor(entry.nivelRiesgo) : { bg: 'bg-gray-50 dark:bg-gray-800/30', text: 'text-gray-500', border: 'border-gray-200', label: 'Sin valorar' };
-
-                        return (
-                            <div key={entry.id} className={`rounded-xl border ${riskStyle.border} overflow-hidden transition-all duration-300 shadow-sm`}>
-                                {/* Header */}
-                                <div className={`flex items-center justify-between p-4 ${riskStyle.bg} cursor-pointer`} onClick={() => toggleExpand(entry.id)}>
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="text-text-secondary flex-shrink-0">
-                                            {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                ) : (
+                    <>
+                        {procesos.map((p, pIdx) => (
+                            <div key={p.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-blue-500 transition-all">
+                                {/* Proceso Header */}
+                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleProceso(p.id)}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-blue-500">
+                                            {expandedProcesos.has(p.id) ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                                         </div>
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-semibold text-text-primary">{idx + 1}. {entry.proceso}</span>
-                                                <span className="text-xs text-text-secondary">• {entry.actividad}</span>
-                                                {entry.zona && <span className="text-xs bg-surface-tertiary px-2 py-0.5 rounded">{entry.zona}</span>}
-                                            </div>
-                                            {entry.completedByAI && (
-                                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getAcceptabilityBadge(entry.aceptabilidad)}`}>
-                                                        NR: {entry.nivelRiesgo} — {entry.aceptabilidad}
-                                                    </span>
-                                                    <span className="text-xs text-text-secondary">{entry.clasificacion}</span>
-                                                </div>
-                                            )}
+                                        <div>
+                                            <h3 className="font-bold text-text-primary text-base">
+                                                {pIdx + 1}. {p.proceso || 'Nuevo Proceso'}
+                                                <span className="ml-2 text-xs font-normal text-text-secondary">— {p.actividad || 'Sin actividad'}</span>
+                                            </h3>
+                                            <p className="text-xs text-text-secondary mt-0.5">{p.peligros.length} peligros identificados</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        {!entry.completedByAI && (
-                                            <button onClick={(e) => { e.stopPropagation(); handleComplete(entry); }} disabled={isCompletingThis}
-                                                className="group flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs rounded-full hover:bg-blue-700 disabled:opacity-50 transition-all">
-                                                {isCompletingThis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 whitespace-nowrap">Completar con IA</span>
-                                            </button>
-                                        )}
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
-                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all">
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); handleAddPeligro(p.id); }}
+                                            className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors">
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteProceso(p.id); }}
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* Expanded Details — 4 Segments */}
-                                {isExpanded && (
-                                    <div className="p-4 bg-surface-primary space-y-4 overflow-auto">
-                                        {/* Segment 1: Identification */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
-                                            {[
-                                                { label: 'Proceso', field: 'proceso' as const, value: entry.proceso },
-                                                { label: 'Zona', field: 'zona' as const, value: entry.zona },
-                                                { label: 'Actividad', field: 'actividad' as const, value: entry.actividad },
-                                                { label: 'Tarea', field: 'tarea' as const, value: entry.tarea },
-                                            ].map(({ label, field, value }) => (
-                                                <div key={field} className="space-y-1">
-                                                    <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
-                                                    <input type="text" value={value || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary" />
-                                                </div>
-                                            ))}
+                                {/* Proceso Body */}
+                                {expandedProcesos.has(p.id) && (
+                                    <div className="p-4 space-y-4 animate-in fade-in duration-300">
+                                        {/* Process Details Inputs */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 border-bottom border-border-light">
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-medium text-text-secondary uppercase">Rutinario</label>
-                                                <select value={entry.rutinario ? 'si' : 'no'} onChange={e => updateField(entry.id, 'rutinario', e.target.value === 'si')}
-                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                    <option value="si">Sí</option>
-                                                    <option value="no">No</option>
-                                                </select>
+                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Proceso</label>
+                                                <input type="text" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
+                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary font-medium" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
+                                                <input type="text" value={p.zona} onChange={e => updateProcesoField(p.id, 'zona', e.target.value)}
+                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Actividad</label>
+                                                <input type="text" value={p.actividad} onChange={e => updateProcesoField(p.id, 'actividad', e.target.value)}
+                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Tarea / Rut.</label>
+                                                <div className="flex gap-2">
+                                                    <input type="text" value={p.tarea} onChange={e => updateProcesoField(p.id, 'tarea', e.target.value)}
+                                                        className="flex-1 text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    <select value={p.rutinario ? 'si' : 'no'} onChange={e => updateProcesoField(p.id, 'rutinario', e.target.value === 'si')}
+                                                        className="w-16 text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                        <option value="si">SÍ</option>
+                                                        <option value="no">NO</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="mt-2">
-                                            <label className="text-[10px] font-medium text-text-secondary uppercase">Controles Existentes</label>
-                                            <textarea value={entry.controlesExistentes || ''} onChange={e => updateField(entry.id, 'controlesExistentes', e.target.value)}
-                                                rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
-                                        </div>
 
-                                        {entry.completedByAI && (
-                                            <>
-                                                {/* Segment 2: Hazard & Controls */}
-                                                <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-2 flex items-center gap-1">
-                                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                                        <Tip text="Identificación del peligro según GTC 45: descripción, clasificación, efectos posibles, fuente generadora y controles existentes en fuente, medio e individuo.">Peligro y Controles Existentes</Tip>
-                                                    </h4>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                                                        {[
-                                                            { label: 'Descripción del Peligro', field: 'descripcionPeligro' as const },
-                                                            { label: 'Clasificación', field: 'clasificacion' as const },
-                                                            { label: 'Efectos Posibles', field: 'efectosPosibles' as const },
-                                                            { label: 'Fuente Generadora', field: 'fuenteGeneradora' as const },
-                                                            { label: 'Control en el Medio', field: 'medioExistente' as const },
-                                                            { label: 'Control en el Individuo', field: 'individuoControl' as const },
-                                                        ].map(({ label, field }) => (
-                                                            <div key={field} className="space-y-1">
-                                                                <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
-                                                                <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                        {/* Hazards Sub-List */}
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between border-b border-border-medium pb-1">
+                                                <h5 className="text-[11px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <Layers className="h-3.5 w-3.5" /> Peligros en este Proceso
+                                                </h5>
+                                                {p.peligros.length === 0 && (
+                                                    <span className="text-[10px] text-text-secondary italic">Haz clic en + para agregar un peligro</span>
+                                                )}
+                                            </div>
+                                            {p.peligros.map((h, hIdx) => {
+                                                const hStyle = h.completedByAI ? getRiskColor(h.nivelRiesgo) : { bg: 'bg-surface-tertiary/20', text: 'text-text-secondary', border: 'border-border-medium' };
+                                                const isHExp = expandedPeligros.has(h.id);
+                                                return (
+                                                    <div key={h.id} className={`rounded-xl border ${hStyle.border} overflow-hidden transition-all duration-200`}>
+                                                        <div className={`p-3 flex items-center justify-between cursor-pointer ${hStyle.bg}`} onClick={() => togglePeligro(h.id)}>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="text-text-secondary">{isHExp ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</div>
+                                                                <div>
+                                                                    <span className="text-sm font-bold text-text-primary">{hIdx + 1}. {h.descripcionPeligro || 'Peligro No Identificado'}</span>
+                                                                    {h.completedByAI && (
+                                                                        <div className="flex gap-2 mt-0.5">
+                                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${getAcceptabilityBadge(h.aceptabilidad)}`}>
+                                                                                NR: {h.nivelRiesgo}
+                                                                            </span>
+                                                                            <span className="text-[10px] text-text-secondary font-medium tracking-tight bg-white/30 dark:bg-black/20 px-1.5 rounded-full">{h.clasificacion}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Segment 3: Risk Valuation */}
-                                                <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase mb-2">
-                                                        <Tip text="Valoración cuantitativa del riesgo según GTC 45. NR = NP × NC. El nivel de riesgo determina la aceptabilidad y la prioridad de intervención.">Valoración del Riesgo (GTC 45)</Tip>
-                                                    </h4>
-                                                    <div className="overflow-x-auto rounded-xl border border-border-medium">
-                                                        <table className="w-full text-xs border-collapse">
-                                                            <thead>
-                                                                <tr className="bg-cyan-700 text-white">
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Deficiencia (ND): Magnitud de la relación entre el peligro y su eliminación/control. Valores: 0 (Bajo), 2 (Medio), 6 (Alto), 10 (Muy Alto).">ND</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Exposición (NE): Frecuencia con que se da la exposición al peligro. Valores: 1 (Esporádica), 2 (Ocasional), 3 (Frecuente), 4 (Continua).">NE</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Probabilidad (NP = ND × NE): Producto del nivel de deficiencia por el nivel de exposición. Indica la probabilidad de que el peligro se materialice.">NP</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Interpretación del Nivel de Probabilidad: Bajo (2-4), Medio (6-8), Alto (10-20), Muy Alto (24-40).">Int. NP</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Consecuencia (NC): Gravedad de las consecuencias esperadas. Valores: 10 (Leve), 25 (Grave/ILT), 60 (Muy Grave/Invalidez), 100 (Mortal/Catastrófico).">NC</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Riesgo (NR = NP × NC): Magnitud total del riesgo. Nivel I (600-4000): No Aceptable. Nivel II (150-500): Control específico. Nivel III (40-120): Aceptable. Nivel IV (20): Aceptable.">NR</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Aceptabilidad del riesgo: determina si el riesgo es aceptable, requiere control específico, o no es aceptable y requiere intervención inmediata.">Aceptabilidad</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Número de trabajadores expuestos al peligro identificado.">Expuestos</Tip></th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <input type="number" value={entry.nivelDeficiencia} onChange={e => updateField(entry.id, 'nivelDeficiencia', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
-                                                                    </td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <input type="number" value={entry.nivelExposicion} onChange={e => updateField(entry.id, 'nivelExposicion', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
-                                                                    </td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center font-bold">{entry.nivelProbabilidad}</td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center text-[11px]">{entry.interpretacionNP}</td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <input type="number" value={entry.nivelConsecuencia} onChange={e => updateField(entry.id, 'nivelConsecuencia', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
-                                                                    </td>
-                                                                    <td className={`px-2 py-1 border border-border-medium text-center font-bold text-lg ${riskStyle.text}`}>{entry.nivelRiesgo}</td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getAcceptabilityBadge(entry.aceptabilidad)}`}>
-                                                                            {entry.aceptabilidad}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <input type="number" value={entry.numExpuestos || 0} onChange={e => updateField(entry.id, 'numExpuestos', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-
-                                                {/* Segment 4: Hygiene */}
-                                                <div className="border-t border-border-medium pt-3">
-                                                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-2">
-                                                        <Tip text="Valoración higiénica según GTC 45 (Anexo D): evaluación cualitativa y cuantitativa de peligros higiénicos (físicos, químicos, biológicos) comparando con valores límite permisibles (TLV/LEP).">Valoración Higiénica</Tip>
-                                                    </h4>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-3">
-                                                        {[
-                                                            { label: 'Deficiencia Higiénica (Cualitativa)', field: 'deficienciaHigienica' as const },
-                                                            { label: 'Valoración Cuantitativa', field: 'valoracionCuantitativa' as const },
-                                                        ].map(({ label, field }) => (
-                                                            <div key={field} className="space-y-1">
-                                                                <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
-                                                                <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                            <div className="flex items-center gap-2">
+                                                                <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); }} disabled={loadingIds.has(h.id)}
+                                                                    className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1">
+                                                                    {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                                                    IA
+                                                                </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); handleDeletePeligro(p.id, h.id); }}
+                                                                    className="text-red-400 hover:text-red-600 p-1">
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </button>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                        </div>
 
-                                                {/* Segment 5: Jerarquía de Controles */}
-                                                <div className="border-t border-border-medium pt-3">
-                                                    <h5 className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">Jerarquía de Controles</h5>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
-                                                        {[
-                                                            { label: 'Eliminación', field: 'eliminacion' as const },
-                                                            { label: 'Sustitución', field: 'sustitucion' as const },
-                                                            { label: 'Control de Ingeniería', field: 'controlIngenieria' as const },
-                                                            { label: 'Control Administrativo', field: 'controlAdministrativo' as const },
-                                                            { label: 'EPP', field: 'epp' as const },
-                                                        ].map(({ label, field }) => (
-                                                            <div key={field} className="space-y-1">
-                                                                <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
-                                                                <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                        {isHExp && (
+                                                            <div className="p-4 bg-surface-primary animate-in zoom-in-95 duration-200 space-y-4">
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Descripción del Peligro</label>
+                                                                        <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
+                                                                            rows={2} className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Clasificación</label>
+                                                                        <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
+                                                                            className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                                    </div>
+                                                                </div>
 
-                                                {/* Segment 6: Anexo E — Factores de Reducción y Justificación (Moved here) */}
-                                                <div className="border-t border-border-medium pt-3 mt-3">
-                                                    <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">
-                                                        <Tip text="GTC 45 Anexo E: Herramientas matemáticas para analizar la reducción del riesgo (F) y la justificación costo-beneficio (J) de las medidas de intervención propuestas.">Factores de Reducción y Justificación</Tip>
-                                                    </h4>
-                                                    <div className="overflow-x-auto rounded-xl border border-border-medium">
-                                                        <table className="w-full text-xs border-collapse">
-                                                            <thead>
-                                                                <tr className="bg-purple-700 text-white">
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Riesgo Inicial (NRi): El nivel de riesgo calculado antes de aplicar las medidas de intervención. NRi = NP × NC.">NR Inicial</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Nivel de Riesgo Final (NRf): El nivel de riesgo estimado después de implementar las medidas de intervención propuestas.">NR Final (estimado)</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Factor de Reducción (F): Porcentaje de disminución del riesgo. F = 100 × (NRi − NRf) / NRi. Verde ≥75%, Amarillo ≥50%, Rojo <50%.">F (Reducción %)</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Costo estimado de la intervención en Salarios Mínimos Mensuales Legales Vigentes (SMMLV). Determina el factor de costo (d) según la tabla del Anexo E.">Costo Intervención</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Factor de costo (d): Valor numérico que representa el costo de la intervención. Rangos: 0.5 (<0.06 SMMLV) hasta 10 (>150 SMMLV).">d</Tip></th>
-                                                                    <th className="px-3 py-2 text-center"><Tip text="Factor de Justificación (J): Relación costo-beneficio. J = (NRi × F) / d. A mayor valor de J, más justificada está la inversión en la medida de intervención.">J (Justificación)</Tip></th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                <tr>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center font-bold">{entry.nivelRiesgo}</td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <input type="number" value={entry.nrFinal || ''} onChange={e => {
-                                                                            const nrf = Number(e.target.value);
-                                                                            const nri = entry.nivelRiesgo || 1;
-                                                                            const f = nri > 0 ? (100 * (nri - nrf)) / nri : 0;
-                                                                            const j = entry.factorCosto > 0 ? (nri * f) / entry.factorCosto : 0;
-                                                                            setEntries(prev => prev.map(en => en.id === entry.id ? { ...en, nrFinal: nrf, factorReduccion: Math.round(f * 10) / 10, factorJustificacion: Math.round(j) } : en));
-                                                                        }}
-                                                                            className="w-20 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
-                                                                    </td>
-                                                                    <td className={`px-2 py-1 border border-border-medium text-center font-bold ${entry.factorReduccion >= 75 ? 'text-green-600' : entry.factorReduccion >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                                                        {entry.factorReduccion ? `${entry.factorReduccion}%` : '-'}
-                                                                    </td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center">
-                                                                        <select value={entry.costoIntervencion || ''} onChange={e => {
-                                                                            const selected = COST_FACTOR_OPTIONS.find(o => o.label === e.target.value);
-                                                                            const d = selected?.d || 0;
-                                                                            const nri = entry.nivelRiesgo || 1;
-                                                                            const f = entry.factorReduccion || 0;
-                                                                            const j = d > 0 ? (nri * f) / d : 0;
-                                                                            setEntries(prev => prev.map(en => en.id === entry.id ? { ...en, costoIntervencion: e.target.value, factorCosto: d, factorJustificacion: Math.round(j) } : en));
-                                                                        }}
-                                                                            className="text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                            <option value="">Seleccionar...</option>
-                                                                            {COST_FACTOR_OPTIONS.map(o => (
-                                                                                <option key={o.d} value={o.label}>{o.label} (d={o.d})</option>
+                                                                {h.completedByAI && (
+                                                                    <>
+                                                                        {/* Simple valuation grid */}
+                                                                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-2 border-t border-border-light">
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">ND</label>
+                                                                                <input type="number" value={h.nivelDeficiencia} onChange={e => updatePeligroField(p.id, h.id, 'nivelDeficiencia', Number(e.target.value))}
+                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">NE</label>
+                                                                                <input type="number" value={h.nivelExposicion} onChange={e => updatePeligroField(p.id, h.id, 'nivelExposicion', Number(e.target.value))}
+                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">NC</label>
+                                                                                <input type="number" value={h.nivelConsecuencia} onChange={e => updatePeligroField(p.id, h.id, 'nivelConsecuencia', Number(e.target.value))}
+                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">NR</label>
+                                                                                <div className={`w-full text-sm p-1.5 rounded font-black text-center ${hStyle.text}`}>{h.nivelRiesgo}</div>
+                                                                            </div>
+                                                                            <div className="sm:col-span-2 space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">Aceptabilidad</label>
+                                                                                <div className={`w-full text-[10px] p-1.5 rounded font-bold text-center ${getAcceptabilityBadge(h.aceptabilidad)}`}>{h.aceptabilidad}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* Hierarchy of controls */}
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-2 border-t border-border-light">
+                                                                            {['eliminacion', 'sustitucion', 'controlIngenieria', 'controlAdministrativo', 'epp'].map(field => (
+                                                                                <div key={field} className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">{field.replace('control', '')}</label>
+                                                                                    <textarea value={(h as any)[field]} onChange={e => updatePeligroField(p.id, h.id, field as any, e.target.value)}
+                                                                                        className="w-full text-[10px] p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
+                                                                                </div>
                                                                             ))}
-                                                                        </select>
-                                                                    </td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center font-mono">{entry.factorCosto || '-'}</td>
-                                                                    <td className="px-2 py-1 border border-border-medium text-center font-bold text-lg text-purple-700 dark:text-purple-400">
-                                                                        {entry.factorJustificacion || '-'}
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <div className="mt-2">
-                                                        <label className="text-[10px] font-medium text-text-secondary uppercase">Justificación Técnica</label>
-                                                        <textarea value={entry.justificacion || ''} onChange={e => updateField(entry.id, 'justificacion', e.target.value)}
-                                                            rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none"
-                                                            placeholder="Justificación de la medida de intervención y análisis costo-beneficio..." />
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-
-                                        {!entry.completedByAI && (
-                                            <div className="flex items-center justify-center py-6 border-t border-border-medium">
-                                                <button onClick={() => handleComplete(entry)} disabled={isCompletingThis}
-                                                    className="group flex items-center px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:shadow-lg transition-all font-medium disabled:opacity-50">
-                                                    {isCompletingThis ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Completar este peligro con IA (GTC 45)</span>
-                                                </button>
-                                            </div>
-                                        )}
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        );
-                    })}
+                        ))}
+                    </>
+                )}
+
+                <button onClick={handleAddProceso}
+                    className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-blue-500 transition-all">
+                    <Plus className="h-5 w-5" />
+                    <span className="font-bold">Agregar Nuevo Proceso</span>
+                </button>
+            </div>
+
+            {generatedReport && (
+                <div className="mt-8 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
+                        <button onClick={handleSaveReport} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 text-sm font-bold">
+                            <Save className="h-4 w-4" /> Guardar Informe
+                        </button>
+                    </div>
+                    <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1">
+                        <LiveEditor initialValue={generatedReport} onChange={setEditorContent} />
+                    </div>
                 </div>
             )}
-
-            {/* ═══ Generated Report — LiveEditor ═══ */}
-            {
-                generatedReport && (
-                    <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                        <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                            <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                                <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                Informe Matriz de Peligros GTC 45
-                            </h3>
-                            <div className="flex items-center gap-2">
-                                <button onClick={handleSaveReport}
-                                    className="group flex items-center px-3 py-1.5 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all text-xs font-medium">
-                                    <Save className="h-4 w-4 mr-1" /> Guardar Informe
-                                </button>
-                            </div>
-                        </div>
-                        <div className="h-[800px]">
-                            <LiveEditor key={reportMessageId || 'editor'} initialContent={generatedReport}
-                                onUpdate={(html) => setEditorContent(html)} onSave={handleSaveReport} />
-                        </div>
-                    </div>
-                )
-            }
-        </div >
+        </div>
     );
 };
 

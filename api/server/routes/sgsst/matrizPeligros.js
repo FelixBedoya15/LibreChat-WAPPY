@@ -10,15 +10,9 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildCompanyContextString } = require('./reportHeader');
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
-const PeligroEntrySchema = new mongoose.Schema({
+const PeligroItemSchema = new mongoose.Schema({
     id: String,
-    proceso: String,
-    zona: String,
-    actividad: String,
-    tarea: String,
-    rutinario: { type: Boolean, default: true },
-    controlesExistentes: String,
-    // AI-completed fields
+    // AI-completed fields / Valuation fields
     descripcionPeligro: String,
     clasificacion: String,
     efectosPosibles: String,
@@ -38,13 +32,13 @@ const PeligroEntrySchema = new mongoose.Schema({
     // Hygiene
     deficienciaHigienica: String,
     valoracionCuantitativa: String,
-    factorReduccion: String,
-    justificacion: String,
     // Anexo E: Factores de Reducción y Justificación
     nrFinal: Number,
+    factorReduccion: Number,
     costoIntervencion: String,
     factorCosto: Number,
     factorJustificacion: Number,
+    justificacion: String,
     // Intervention
     eliminacion: String,
     sustitucion: String,
@@ -55,9 +49,20 @@ const PeligroEntrySchema = new mongoose.Schema({
     completedByAI: { type: Boolean, default: false },
 }, { _id: false });
 
+const ProcesoEntrySchema = new mongoose.Schema({
+    id: String,
+    proceso: String,
+    zona: String,
+    actividad: String,
+    tarea: String,
+    rutinario: { type: Boolean, default: true },
+    controlesExistentes: String,
+    peligros: [PeligroItemSchema],
+}, { _id: false });
+
 const MatrizPeligrosDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    entries: [PeligroEntrySchema],
+    procesos: [ProcesoEntrySchema],
     updatedAt: { type: Date, default: Date.now },
 });
 
@@ -160,10 +165,10 @@ Considerar: controles de ingeniería implementados, capacitación, rotación, EP
 // ─── POST /complete — AI completion for a single hazard ──────────────
 router.post('/complete', requireJwtAuth, async (req, res) => {
     try {
-        const { entry, modelName } = req.body;
+        const { proceso, peligro, modelName } = req.body;
 
-        if (!entry || !entry.proceso || !entry.actividad) {
-            return res.status(400).json({ error: 'Proceso y Actividad son obligatorios.' });
+        if (!proceso || !proceso.proceso || !proceso.actividad) {
+            return res.status(400).json({ error: 'Contexto de Proceso y Actividad son obligatorios.' });
         }
 
         const apiKey = await getApiKey(req.user.id);
@@ -191,13 +196,14 @@ Eres un experto en Seguridad y Salud en el Trabajo (SST) en Colombia, especializ
 
 ${companyContext ? `**Contexto de la empresa:** ${companyContext}` : ''}
 
-**DATOS DEL PELIGRO A ANALIZAR (ingresados por el usuario):**
-- Proceso: ${entry.proceso}
-- Zona / Lugar: ${entry.zona || 'No especificada'}
-- Actividad: ${entry.actividad}
-- Tarea: ${entry.tarea || 'No especificada'}
-- Rutinario: ${entry.rutinario ? 'Sí' : 'No'}
-- Controles Existentes reportados por el usuario: ${entry.controlesExistentes || 'No reportados'}
+**DATOS DEL PELIGRO A ANALIZAR (Contexto de Proceso):**
+- Proceso: ${proceso.proceso}
+- Zona / Lugar: ${proceso.zona || 'No especificada'}
+- Actividad: ${proceso.actividad}
+- Tarea: ${proceso.tarea || 'No especificada'}
+- Rutinario: ${proceso.rutinario ? 'Sí' : 'No'}
+- Controles Existentes reportados: ${proceso.controlesExistentes || 'No reportados'}
+${peligro?.descripcionPeligro ? `- Peligro específico ya identificado: ${peligro.descripcionPeligro}` : ''}
 
 ${GTC45_TABLES}
 
@@ -281,11 +287,133 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
     }
 });
 
+// ─── POST /generate-full — Generate 5 processes with hazards and valuation ─
+router.post('/generate-full', requireJwtAuth, async (req, res) => {
+    try {
+        const { modelName } = req.body;
+        const apiKey = await getApiKey(req.user.id);
+        if (!apiKey) return res.status(400).json({ error: 'No API Key' });
+
+        let companyContext = '';
+        const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        if (ci) companyContext = buildCompanyContextString(ci);
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+
+        const prompt = `
+Eres un Experto en SST en Colombia. Basándote en la información de la empresa:
+${companyContext}
+
+**TAREA:**
+Identifica exactamente 5 procesos operativos/administrativos fundamentales para esta empresa.
+Para CADA proceso, identifica de 1 a 2 peligros críticos (GTC 45).
+Realiza la valoración completa del riesgo (ND, NE, NC, etc) y sugiere controles.
+
+Responde ÚNICAMENTE con un JSON válido con esta estructura:
+{
+  "procesos": [
+    {
+      "id": "uuid-temp-1",
+      "proceso": "Nombre del Proceso",
+      "zona": "Zona/Lugar",
+      "actividad": "Actividad principal",
+      "tarea": "Tarea específica",
+      "rutinario": true,
+      "controlesExistentes": "Descripción de controles actuales",
+      "peligros": [
+        {
+          "id": "hazard-uuid-1",
+          "descripcionPeligro": "...",
+          "clasificacion": "...",
+          "efectosPosibles": "...",
+          "fuenteGeneradora": "...",
+          "medioExistente": "...",
+          "individuoControl": "...",
+          "nivelDeficiencia": 6,
+          "nivelExposicion": 3,
+          "nivelConsecuencia": 25,
+          "interpretacionNP": "Alto",
+          "interpretacionNR": "II",
+          "aceptabilidad": "No Aceptable",
+          "numExpuestos": 5,
+          "eliminacion": "...",
+          "sustitucion": "...",
+          "controlIngenieria": "...",
+          "controlAdministrativo": "...",
+          "epp": "...",
+          "nrFinal": 100,
+          "costoIntervencion": "0.3 a 2.9 SMMLV",
+          "justificacion": "..."
+        }
+      ]
+    }
+  ]
+}
+
+REGLAS:
+1. Genera exactamente 5 procesos.
+2. Cada proceso debe tener al menos 1 o 2 peligros.
+3. Sigue estrictamente la metodología GTC 45.
+4. No incluyas markdown, solo JSON puro.`;
+
+        const result = await model.generateContent(prompt);
+        let text = result.response.text().trim();
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        const parsed = JSON.parse(text);
+
+        // Map and validate calculations for all hazards
+        const costFactorMap = {
+            'Más de 150 SMMLV': 10, '60 a 150 SMMLV': 8, '30 a 59 SMMLV': 6,
+            '3 a 29 SMMLV': 4, '0.3 a 2.9 SMMLV': 2, '0.06 a 0.29 SMMLV': 1,
+            'Menos de 0.06 SMMLV': 0.5,
+        };
+
+        const finalProcesos = (parsed.procesos || []).map(proc => ({
+            ...proc,
+            id: proc.id || Math.random().toString(36).substr(2, 9),
+            peligros: (proc.peligros || []).map(p => {
+                const nd = p.nivelDeficiencia || 0;
+                const ne = p.nivelExposicion || 0;
+                const nc = p.nivelConsecuencia || 0;
+                const np = nd * ne;
+                const nr = np * nc;
+                const nrf = p.nrFinal || 0;
+                const f = nr > 0 ? Math.round((100 * (nr - nrf)) / nr * 10) / 10 : 0;
+                const d = costFactorMap[p.costoIntervencion] || 4;
+                const j = d > 0 ? Math.round((nr * f) / d) : 0;
+
+                return {
+                    ...p,
+                    id: p.id || Math.random().toString(36).substr(2, 9),
+                    nivelProbabilidad: np,
+                    nivelRiesgo: nr,
+                    factorReduccion: f,
+                    factorCosto: d,
+                    factorJustificacion: j,
+                    completedByAI: true
+                };
+            })
+        }));
+
+        res.json({ procesos: finalProcesos });
+    } catch (error) {
+        logger.error('[SGSST MatrizPeligros] Generate-full error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ─── GET /data — Load saved hazard matrix ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const data = await MatrizPeligrosData.findOne({ user: req.user.id });
-        res.json({ entries: data?.entries || [] });
+        if (data && data.procesos?.length) {
+            return res.json({ procesos: data.procesos });
+        }
+        // Migration: If legacy entries exist, we could return them, but for simplicity we start fresh
+        // or the client can handle the transition.
+        res.json({ procesos: [] });
     } catch (error) {
         logger.error('[SGSST MatrizPeligros] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
@@ -295,14 +423,14 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save — Save hazard matrix data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { entries } = req.body;
-        if (!entries) {
+        const { procesos } = req.body;
+        if (!procesos) {
             return res.status(400).json({ error: 'Datos requeridos' });
         }
 
         await MatrizPeligrosData.findOneAndUpdate(
             { user: req.user.id },
-            { $set: { entries, updatedAt: new Date() } },
+            { $set: { procesos, updatedAt: new Date() } },
             { upsert: true, new: true }
         );
 
