@@ -7,7 +7,8 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildCompanyContextString } = require('./reportHeader');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const PeligroItemSchema = new mongoose.Schema({
@@ -434,6 +435,91 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     } catch (error) {
         logger.error('[SGSST MatrizPeligros] Save error:', error);
         res.status(500).json({ error: 'Error al guardar datos' });
+    }
+});
+
+// ─── POST /analyze — Generate AI Exec Report for Matrix ─────────────────────────────
+router.post('/analyze', requireJwtAuth, async (req, res) => {
+    try {
+        const { procesos, currentDate, userName, modelName = 'gemini-3-flash-preview' } = req.body;
+
+        if (!procesos || !Array.isArray(procesos) || procesos.length === 0) {
+            return res.status(400).json({ error: 'No hay procesos para analizar.' });
+        }
+
+        const resolvedApiKey = await getApiKey(req.user.id);
+        if (!resolvedApiKey) {
+            return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
+        }
+
+        let loadedCompanyInfo = null;
+        try {
+            loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        } catch (ciErr) {
+            logger.warn('[SGSST MatrizPeligros] Error loading company info:', ciErr.message);
+        }
+
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+
+        const headerHTML = buildStandardHeader({
+            title: 'INFORME EJECUTIVO DE MATRIZ DE PELIGROS (GTC 45)',
+            companyInfo: loadedCompanyInfo,
+            date: currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+            norm: 'GTC 45 / Decreto 1072 de 2015',
+            responsibleName: userName || req.user?.name || 'Usuario',
+        });
+
+        // Summary of risks for the prompt
+        let totalPeligros = 0;
+        let riskLevels = { I: 0, II: 0, III: 0, IV: 0 };
+        let criticalPeligros = [];
+
+        procesos.forEach(p => {
+            p.peligros.forEach(h => {
+                totalPeligros++;
+                if (h.nivelRiesgo >= 600) { riskLevels.I++; criticalPeligros.push(`${p.proceso}: ${h.descripcionPeligro}`); }
+                else if (h.nivelRiesgo >= 150) { riskLevels.II++; criticalPeligros.push(`${p.proceso}: ${h.descripcionPeligro}`); }
+                else if (h.nivelRiesgo >= 40) riskLevels.III++;
+                else riskLevels.IV++;
+            });
+        });
+
+        const promptText = `Eres un Experto en Seguridad y Salud en el Trabajo (SGSST) en Colombia, especializado en la Guía Técnica Colombiana GTC 45.
+Se ha evaluado la Matriz de Peligros de la empresa.
+
+**Resumen de Hallazgos:**
+- Total de Procesos Evaluados: ${procesos.length}
+- Total de Peligros Identificados: ${totalPeligros}
+- Peligros Críticos (I - No Aceptable): ${riskLevels.I}
+- Peligros Altos (II - No Aceptable o Aceptable con Control Specifico): ${riskLevels.II}
+- Peligros Medios (III - Mejorable): ${riskLevels.III}
+- Peligros Bajos (IV - Aceptable): ${riskLevels.IV}
+
+${criticalPeligros.length > 0 ? `**Principales Peligros (Nivel I y II):**\n${criticalPeligros.slice(0, 10).map(c => `- ${c}`).join('\n')}` : ''}
+
+**Tu tarea:**
+Escribe un INFORME EJECUTIVO profesional (en formato HTML) que documente los hallazgos de esta Matriz de Peligros.
+ESTRUCTURA EXACTA REQUERIDA (en div y HTML limpio sin markdown):
+1. Un resumen analítico del estado actual de los riesgos en la empresa según los datos reportados.
+2. Un análisis cualitativo o conclusiones de los principales peligros evaluados (menciona los procesos afectados).
+3. Recomendaciones prioritarias urgentes (Jerarquía de Controles) enfocadas a la mitigación.
+
+Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`\`\`html. Utiliza clases de Tailwind para dar formato, por ejemplo: "text-lg font-bold text-gray-800 mb-4", "mb-4 text-gray-700 leading-relaxed", "list-disc pl-6 mb-4 text-gray-700". No incluyas un título principal (<code>h1</code>) porque ya está en el encabezado.`;
+
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(promptText);
+        let aiHtml = result.response.text().trim();
+        aiHtml = aiHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+
+        const fullReport = `${headerHTML}
+<div class="mt-8 space-y-6">
+  ${aiHtml}
+</div>`;
+
+        res.json({ report: fullReport });
+    } catch (error) {
+        logger.error('[SGSST MatrizPeligros] Analyze error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 

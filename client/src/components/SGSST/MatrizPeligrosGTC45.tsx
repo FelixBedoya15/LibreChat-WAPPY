@@ -112,7 +112,7 @@ const getAcceptabilityBadge = (a: string) => {
 };
 
 const MatrizPeligrosGTC45 = () => {
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
     const { showToast } = useToastContext();
 
     const [procesos, setProcesos] = useState<ProcesoEntry[]>([]);
@@ -123,6 +123,7 @@ const MatrizPeligrosGTC45 = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
 
     // Report state
@@ -281,66 +282,37 @@ const MatrizPeligrosGTC45 = () => {
     };
 
     // ─── Report Logic ───────────────────────────────────────────
-    const generateReport = useCallback(() => {
+    const handleAnalyze = useCallback(async () => {
         if (!procesos.length) {
             showToast({ message: 'No hay procesos para generar reporte', status: 'warning' });
             return;
         }
-        const date = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-        const ci = companyInfo || {};
-        const headerHTML = `
-<div style="font-family: ui-sans-serif, system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; color: #1e293b; line-height: 1.6;">
-  
-  <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e2e8f0;">
-    <h1 style="color: #0f172a; font-size: 28px; margin: 0 0 10px 0; font-weight: 800; text-transform: uppercase;">
-      Matriz de Peligros y Valoración de Riesgos (GTC 45)
-    </h1>
-    <h2 style="color: #475569; font-size: 18px; margin: 0; font-weight: 500;">
-      ${ci.companyName || 'Empresa No Registrada'}
-    </h2>
-  </div>
 
-  <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-    <h3 style="color: #0f172a; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">
-      Información de la Entidad
-    </h3>
-    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-      <tbody>
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600; width: 25%; color: #475569;">NIT:</td>
-          <td style="padding: 8px 0; width: 25%; color: #0f172a;">${ci.nit || 'No registrado'}</td>
-          <td style="padding: 8px 0; font-weight: 600; width: 25%; color: #475569;">Representante:</td>
-          <td style="padding: 8px 0; width: 25%; color: #0f172a;">${ci.legalRepresentative || 'No registrado'}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600; color: #475569;">Nivel de Riesgo:</td>
-          <td style="padding: 8px 0; color: #0f172a;">${ci.riskLevel || 'N/A'}</td>
-          <td style="padding: 8px 0; font-weight: 600; color: #475569;">N° Trabajadores:</td>
-          <td style="padding: 8px 0; color: #0f172a;">${ci.workerCount || 'N/A'}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; font-weight: 600; color: #475569;">ARL:</td>
-          <td style="padding: 8px 0; color: #0f172a;">${ci.arl || 'N/A'}</td>
-          <td style="padding: 8px 0; font-weight: 600; color: #475569;">Fecha de Emisión:</td>
-          <td style="padding: 8px 0; color: #0f172a;">${date}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+        setIsAnalyzing(true);
+        try {
+            const payload = {
+                procesos,
+                currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+                userName: user?.name || user?.username || 'Usuario',
+                modelName: selectedModel,
+            };
 
-  <div style="margin-bottom: 20px;">
-    <h3 style="color: #0f172a; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-      Identificación de Peligros y Valoración de Riesgos
-    </h3>
-  </div>`;
+            const res = await fetch('/api/sgsst/matriz-peligros/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload),
+            });
 
-        let rowsHTML = '';
-        procesos.forEach((p, pIdx) => {
-            p.peligros.forEach((h, hIdx) => {
-                const riskColor = h.nivelRiesgo >= 600 ? '#ef4444' : h.nivelRiesgo >= 150 ? '#f97316' : h.nivelRiesgo >= 40 ? '#eab308' : '#22c55e';
-                const riskBg = h.nivelRiesgo >= 600 ? '#fef2f2' : h.nivelRiesgo >= 150 ? '#fff7ed' : h.nivelRiesgo >= 40 ? '#fefce8' : '#f0fdf4';
+            if (!res.ok) throw new Error('Error al generar informe con IA');
+            const data = await res.json();
 
-                rowsHTML += `
+            let rowsHTML = '';
+            procesos.forEach((p, pIdx) => {
+                p.peligros.forEach((h, hIdx) => {
+                    const riskColor = h.nivelRiesgo >= 600 ? '#ef4444' : h.nivelRiesgo >= 150 ? '#f97316' : h.nivelRiesgo >= 40 ? '#eab308' : '#22c55e';
+                    const riskBg = h.nivelRiesgo >= 600 ? '#fef2f2' : h.nivelRiesgo >= 150 ? '#fff7ed' : h.nivelRiesgo >= 40 ? '#fefce8' : '#f0fdf4';
+
+                    rowsHTML += `
   <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; page-break-inside: avoid;">
     <div style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
       <div style="font-weight: 700; color: #0f172a; font-size: 15px;">
@@ -410,15 +382,22 @@ const MatrizPeligrosGTC45 = () => {
       </div>
     </div>
   </div>`;
+                });
             });
-        });
 
-        const html = `${headerHTML}${rowsHTML}</div>`;
-        setGeneratedReport(html);
-        setEditorContent(html);
-        setConversationId('new');
-        setReportMessageId(null);
-    }, [procesos, companyInfo, showToast]);
+            const html = `${data.report}\n<div class="mt-12">\n<h3 style="color: #0f172a; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">Anexo: Detalle de Matriz de Peligros y Riesgos</h3>\n${rowsHTML}</div>`;
+
+            setGeneratedReport(html);
+            setEditorContent(html);
+            setConversationId('new');
+            setReportMessageId(null);
+            showToast({ message: 'Informe gerencial generado con éxito', status: 'success' });
+        } catch (err: any) {
+            showToast({ message: err.message, status: 'error' });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    }, [procesos, companyInfo, showToast, token, user, selectedModel]);
 
     const handleSaveReport = useCallback(async () => {
         const content = editorContent || generatedReport;
@@ -517,10 +496,10 @@ const MatrizPeligrosGTC45 = () => {
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Historial</span>
                     </button>
                     {procesos.length > 0 && (
-                        <button onClick={generateReport}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                            <Sparkles className="h-5 w-5 text-indigo-500" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Informe</span>
+                        <button onClick={handleAnalyze} disabled={isAnalyzing}
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin text-indigo-500" /> : <Sparkles className="h-5 w-5 text-indigo-500" />}
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
                         </button>
                     )}
                     <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
