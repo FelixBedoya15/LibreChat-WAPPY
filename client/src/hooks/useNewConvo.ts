@@ -31,11 +31,13 @@ import useAssistantListMap from './Assistants/useAssistantListMap';
 import { useResetChatBadges } from './useChatBadges';
 import { useApplyModelSpecEffects } from './Agents';
 import { usePauseGlobalAudio } from './Audio';
+import useLocalize from './useLocalize';
 import { logger } from '~/utils';
 import store from '~/store';
 
 const useNewConvo = (index = 0) => {
   const navigate = useNavigate();
+  const localize = useLocalize();
   const [searchParams] = useSearchParams();
   const { data: startupConfig } = useGetStartupConfig();
   const applyModelSpecEffects = useApplyModelSpecEffects();
@@ -84,9 +86,9 @@ const useNewConvo = (index = 0) => {
           // endpoint matches or is null (to allow endpoint change),
           // and buildDefaultConversation is true
           defaultPreset &&
-          !preset &&
-          (defaultPreset.endpoint === endpoint || !endpoint) &&
-          buildDefaultConversation
+            !preset &&
+            (defaultPreset.endpoint === endpoint || !endpoint) &&
+            buildDefaultConversation
             ? defaultPreset
             : preset;
 
@@ -246,7 +248,7 @@ const useNewConvo = (index = 0) => {
 
       const conversation = {
         conversationId: Constants.NEW_CONVO as string,
-        title: 'New Chat',
+        title: localize('com_ui_new_chat'),
         endpoint: null,
         ...template,
         createdAt: '',

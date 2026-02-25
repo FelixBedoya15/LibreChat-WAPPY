@@ -17,7 +17,7 @@ export default function MobileNav({
   const queryClient = useQueryClient();
   const { newConversation } = useNewConvo();
   const conversation = useRecoilValue(store.conversationByIndex(0));
-  const { title = 'New Chat' } = conversation || {};
+  const { title } = conversation || {};
 
   return (
     <div className="bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-center bg-white pl-1 dark:bg-gray-800 dark:text-white md:hidden">

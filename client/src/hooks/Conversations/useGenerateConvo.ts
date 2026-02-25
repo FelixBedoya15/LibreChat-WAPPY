@@ -14,6 +14,7 @@ import type { AssistantListItem } from '~/common';
 import { getEndpointField, buildDefaultConvo, getDefaultEndpoint, logger } from '~/utils';
 import useAssistantListMap from '~/hooks/Assistants/useAssistantListMap';
 import { useGetEndpointsQuery } from '~/data-provider';
+import useLocalize from '~/hooks/useLocalize';
 import { mainTextareaId } from '~/common';
 import store from '~/store';
 
@@ -27,6 +28,7 @@ const useGenerateConvo = ({
   setConversation?: SetterOrUpdater<TConversation | null>;
 }) => {
   const modelsQuery = useGetModelsQuery();
+  const localize = useLocalize();
   const assistantsListMap = useAssistantListMap();
   const { data: endpointsConfig = {} as TEndpointsConfig } = useGetEndpointsQuery();
 
@@ -62,7 +64,7 @@ const useGenerateConvo = ({
     } = {}) => {
       let conversation = {
         conversationId: 'new',
-        title: 'New Chat',
+        title: localize('com_ui_new_chat'),
         endpoint: null,
         ...template,
         createdAt: '',

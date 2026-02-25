@@ -98,7 +98,7 @@ export default function UserChatsModal({ isOpen, onClose, userId, userName }) {
                                 <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white flex justify-between items-center mb-4">
                                     <span>
                                         Chat History: {userName}
-                                        {selectedConvo && <span className="text-sm font-normal text-gray-500 ml-2"> / {selectedConvo.title || 'New Chat'}</span>}
+                                        {selectedConvo && <span className="text-sm font-normal text-gray-500 ml-2"> / {selectedConvo.title || localize('com_ui_new_chat')}</span>}
                                     </span>
                                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                                         ✕
@@ -121,7 +121,7 @@ export default function UserChatsModal({ isOpen, onClose, userId, userName }) {
                                                             className="p-3 border rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-700 transition-colors"
                                                         >
                                                             <div className="flex justify-between">
-                                                                <span className="font-semibold text-gray-800 dark:text-gray-200 truncate pr-4">{convo.title || 'New Chat'}</span>
+                                                                <span className="font-semibold text-gray-800 dark:text-gray-200 truncate pr-4">{convo.title || localize('com_ui_new_chat')}</span>
                                                                 <span className="text-xs text-gray-500 whitespace-nowrap">{new Date(convo.updatedAt).toLocaleString()}</span>
                                                             </div>
                                                             <div className="text-xs text-gray-400 mt-1">{convo.model}</div>
