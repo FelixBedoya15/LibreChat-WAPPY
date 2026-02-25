@@ -362,16 +362,18 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                   isSubmitting={isSubmitting}
                 />
               )}
-              {/* Voice Mode Button */}
+              {/* Live Button - Mobile only */}
               {hasPermission(PermissionTypes.LIVE_CHAT) && (
-                <VoiceModeButton
-                  onClick={() => {
-                    console.log('[ChatForm] Opening Live with conversationId:', conversationId);
-                    setShowVoiceModal(true);
-                  }}
-                  disabled={disableInputs || isNotAppendable}
-                  isActive={showVoiceModal}
-                />
+                <div className="block sm:hidden">
+                  <VoiceModeButton
+                    onClick={() => {
+                      console.log('[ChatForm] Opening Live with conversationId:', conversationId);
+                      setShowVoiceModal(true);
+                    }}
+                    disabled={disableInputs || isNotAppendable}
+                    isActive={showVoiceModal}
+                  />
+                </div>
               )}
               <div className={`${isRTL ? 'ml-2' : 'mr-2'}`}>
                 {(isSubmitting || isSubmittingAdded) && (showStopButton || showStopAdded) ? (
