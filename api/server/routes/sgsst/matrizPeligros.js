@@ -7,7 +7,6 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
