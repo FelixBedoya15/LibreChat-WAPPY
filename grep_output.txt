@@ -1,0 +1,14 @@
+api/app/clients/AnthropicClient.js:924:   * @returns {Promise<string | 'New Chat'>} A promise that resolves to the generated conversation title.
+api/app/clients/AnthropicClient.js:925:   *                            In case of failure, it will return the default title, "New Chat".
+api/app/clients/AnthropicClient.js:928:    let title = 'New Chat';
+api/app/clients/GoogleClient.js:943:    let title = 'New Chat';
+api/server/middleware/abortMiddleware.js:243:      return { final: true, conversation: {}, title: 'New Chat' };
+api/server/middleware/abortMiddleware.js:290:      title: conversation && !conversation.title ? null : conversation?.title || 'New Chat',
+api/server/utils/import/importers.spec.js:721:      const title = 'New Chat Title';
+api/server/utils/import/importers.spec.js:730:          title: 'New Chat Title',
+api/server/utils/import/importers.spec.js:743:        title: 'New Chat Title',
+api/server/controllers/agents/request.js:225:      conversation && !conversation.title ? null : conversation?.title || 'New Chat';
+api/server/controllers/EditController.js:192:      conversation && !conversation.title ? null : conversation?.title || 'New Chat';
+api/models/Conversation.js:272:        return convo?.title || 'New Chat';
+api/models/Conversation.spec.js:459:    it('should return "New Chat" if conversation not found', async () => {
+api/models/Conversation.spec.js:461:      expect(result).toBe('New Chat');

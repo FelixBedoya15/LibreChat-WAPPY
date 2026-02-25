@@ -70,32 +70,39 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    // Filter out any orphaned statuses (from old saved audits)
+    const validStatuses = useMemo(() => {
+        const itemIds = new Set(AUDITORIA_ITEMS.map(i => i.id));
+        return statuses.filter(s => itemIds.has(s.itemId));
+    }, [statuses]);
+
     // Calculate progress
     const totalItems = AUDITORIA_ITEMS.length;
     const completedCount = useMemo(() => {
-        return statuses.filter(s => s.status !== 'pendiente').length;
-    }, [statuses]);
+        return validStatuses.filter(s => s.status !== 'pendiente').length;
+    }, [validStatuses]);
 
     const compliantCount = useMemo(() => {
-        return statuses.filter(s => s.status === 'cumple').length;
-    }, [statuses]);
+        return validStatuses.filter(s => s.status === 'cumple').length;
+    }, [validStatuses]);
 
     const compliancePercentage = useMemo(() => {
-        const noAplicaCount = statuses.filter(s => s.status === 'no_aplica').length;
+        const noAplicaCount = validStatuses.filter(s => s.status === 'no_aplica').length;
         if (totalItems === 0) return 0;
-        return ((compliantCount + noAplicaCount) / totalItems) * 100;
-    }, [statuses, compliantCount, totalItems]);
+        const percentage = ((compliantCount + noAplicaCount) / totalItems) * 100;
+        return Math.min(percentage, 100); // Cap at 100% as a safety measure
+    }, [validStatuses, compliantCount, totalItems]);
 
     // Weighted Score (Res 0312) Calculation
     const weightedScore = useMemo(() => {
-        return statuses.reduce((acc, status) => {
+        return validStatuses.reduce((acc, status) => {
             if (status.status === 'cumple' || status.status === 'no_aplica') {
                 const item = AUDITORIA_ITEMS.find(i => i.id === status.itemId);
                 return acc + (item?.points || 0);
             }
             return acc;
         }, 0);
-    }, [statuses]);
+    }, [validStatuses]);
 
     // Maximum possible score (all items)
     const maxPossibleScore = useMemo(() => {
@@ -188,7 +195,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     points: item.points || 0
                 })),
                 score: compliantCount,
-                totalPoints: statuses.filter(s => s.status !== 'pendiente' && s.status !== 'no_aplica').length, // Total applicable items evaluated
+                totalPoints: validStatuses.filter(s => s.status !== 'pendiente' && s.status !== 'no_aplica').length, // Total applicable items evaluated
 
                 // Use the Weighted Level (Res 0312) for consistency with UI
                 complianceLevel: { level: complianceLevel.label },
@@ -235,7 +242,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         } finally {
             setIsAnalyzing(false);
         }
-    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, statuses, observations, selectedModel, conversationId]);
+    }, [completedCount, compliantCount, complianceLevel, weightedScore, weightedPercentage, getItemStatus, onAnalysisComplete, showToast, user, validStatuses, observations, selectedModel, conversationId]);
 
 
 
@@ -250,7 +257,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
         // Embed state data as a hidden comment
         const stateData = {
-            statuses,
+            statuses: validStatuses,
             observations
         };
         const stateString = `<!-- SGSST_AUDIT_DATA_V1:${JSON.stringify(stateData)} -->`;
@@ -289,7 +296,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             console.error('Save error:', e);
             showToast({ message: 'Error de red al guardar', status: 'error' });
         }
-    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast, statuses, observations]);
+    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast, validStatuses, observations]);
 
     // Load report from history
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {

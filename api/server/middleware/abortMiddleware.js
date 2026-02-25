@@ -37,7 +37,7 @@ function cleanupAbortController(abortKey) {
 
     // First, execute a dummy listener removal to handle potential composed signals
     for (const eventType of eventTypes) {
-      const dummyHandler = () => {};
+      const dummyHandler = () => { };
       composedSignal.addEventListener(eventType, dummyHandler);
       composedSignal.removeEventListener(eventType, dummyHandler);
 
@@ -114,7 +114,7 @@ async function abortMessage(req, res) {
   const finalEvent = await abortController.abortCompletion?.();
   logger.debug(
     `[abortMessage] ID: ${req.user.id} | ${req.user.email} | Aborted request: ` +
-      JSON.stringify({ abortKey }),
+    JSON.stringify({ abortKey }),
   );
   cleanupAbortController(abortKey);
 
