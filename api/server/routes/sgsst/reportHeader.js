@@ -16,17 +16,17 @@
  * @returns {string} HTML string
  */
 function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, responsibleName }) {
-    const ci = companyInfo || {};
-    const empresa = ci.companyName || 'EMPRESA';
-    const nit = ci.nit || 'NIT';
-    const representante = ci.legalRepresentative || responsibleName || 'No registrado';
-    const trabajadores = ci.workerCount || 'N/A';
-    const riesgo = riskLevel || ci.riskLevel || 'N/A';
-    const arl = ci.arl || 'N/A';
-    const norma = norm || 'Decreto 1072 de 2015';
-    const fecha = date || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+  const ci = companyInfo || {};
+  const empresa = ci.companyName || 'EMPRESA';
+  const nit = ci.nit || 'NIT';
+  const representante = ci.legalRepresentative || responsibleName || 'No registrado';
+  const trabajadores = ci.workerCount || 'N/A';
+  const riesgo = riskLevel || ci.riskLevel || 'N/A';
+  const arl = ci.arl || 'N/A';
+  const norma = norm || 'Decreto 1072 de 2015';
+  const fecha = date || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    return `
+  return `
 <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
   <thead>
     <tr>
@@ -64,4 +64,32 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 </table>`;
 }
 
-module.exports = { buildStandardHeader };
+/**
+ * Builds a standardized company context text block for AI prompts.
+ * Helps the AI understand the organization's background, risk level, and main activities.
+ * @param {Object} companyInfo - Company info from CompanyInfo model
+ * @returns {string} Text block to be injected into the AI prompt
+ */
+function buildCompanyContextString(companyInfo) {
+  if (!companyInfo || !companyInfo.companyName) return '';
+
+  return `
+**Datos Registrados de la Organización:**
+- Razón Social: ${companyInfo.companyName || 'No registrado'}
+- NIT: ${companyInfo.nit || 'No registrado'}
+- Representante Legal: ${companyInfo.legalRepresentative || 'No registrado'}
+- Número de Trabajadores: ${companyInfo.workerCount || 'No registrado'}
+- ARL: ${companyInfo.arl || 'No registrada'}
+- Actividad Económica: ${companyInfo.economicActivity || 'No registrada'}
+- Código CIIU: ${companyInfo.ciiu || 'No registrado'}
+- Nivel de Riesgo: ${companyInfo.riskLevel || 'No registrado'}
+- Sector Económico: ${companyInfo.sector || 'No registrado'}
+- Dirección: ${companyInfo.address || 'No registrada'}, ${companyInfo.city || ''}
+- Responsable SG-SST: ${companyInfo.responsibleSST || 'No registrado'}
+
+**Actividades Generales de la Empresa (Contexto Crítico para la IA):**
+${companyInfo.generalActivities || 'No registradas (Asume un entorno operativo general asociado a su sector económico vigente).'}
+`;
+}
+
+module.exports = { buildStandardHeader, buildCompanyContextString };

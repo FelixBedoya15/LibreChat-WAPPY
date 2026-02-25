@@ -10,7 +10,7 @@ const { saveConvo } = require('~/models/Conversation');
 const { saveMessage, updateMessageText, getMessages } = require('~/models/Message');
 const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -73,20 +73,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
-                companyInfoBlock = `
-- Razón Social: ${ci.companyName || 'No registrado'}
-- NIT: ${ci.nit || 'No registrado'}
-- Representante Legal: ${ci.legalRepresentative || 'No registrado'}
-- Número de Trabajadores: ${ci.workerCount || 'No registrado'}
-- ARL: ${ci.arl || 'No registrada'}
-- Actividad Económica: ${ci.economicActivity || 'No registrada'}
-- Código CIIU: ${ci.ciiu || 'No registrado'}
-- Nivel de Riesgo: ${ci.riskLevel || 'No registrado'}
-- Sector: ${ci.sector || 'No registrado'}
-- Dirección: ${ci.address || 'No registrada'}, ${ci.city || ''}
-- Responsable SG-SST: ${ci.responsibleSST || 'No registrado'}
-- Actividades Generales: ${ci.generalActivities || 'No registradas'}
-`;
+                companyInfoBlock = buildCompanyContextString(ci);
             }
         } catch (ciErr) {
             logger.warn('[SGSST Diagnostico] Error loading company info:', ciErr.message);
@@ -255,12 +242,14 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
    - Recomendación sobre si el sistema es CONFORME, CONFORME CON OBSERVACIONES o NO CONFORME, con justificación detallada.
    - Las conclusiones deben ser extensas, descriptivas y autoexplicativas. NO sean breves ni genéricas.
 
-**ESTILOS OBLIGATORIOS (CSS INLINE):**
-- Títulos (h1, h2): Color azul oscuro (#004d99).
+**ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
+- **Regla Crítica:** NO uses tablas "striped" (filas intercaladas claras/oscuras) porque rompen la lectura en modo oscuro.
+- Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` (si el fondo es claro) o \`color: #fff;\` (si el fondo es oscuro).
+- Títulos (h1, h2): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
 - Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
-- Celdas (td): padding="10px", border-bottom="1px solid #ddd".
-- NC Mayor: fondo rosa claro (#ffe0e0). NC Menor: fondo amarillo claro (#fff8e0). Observación: fondo azul claro (#e0f0ff).
-- Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo), Corto (#fff0e0 naranja), Mediano (#fff8e0 amarillo), Largo (#e0ffe0 verde).
+- Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).
+- NC Mayor: fondo rosa claro (\`background-color: #ffe0e0; color: #000;\`). NC Menor: fondo amarillo claro (\`background-color: #fff8e0; color: #000;\`). Observación: fondo azul claro (\`background-color: #e0f0ff; color: #000;\`).
+- Plan de Acción por Plazo: Inmediato (\`background-color: #ffe0e0; color: #000;\`), Corto (\`background-color: #fff0e0; color: #000;\`), Mediano (\`background-color: #fff8e0; color: #000;\`), Largo (\`background-color: #e0ffe0; color: #000;\`).
 
 **FIRMA OBLIGATORIA:**
 Al final del informe, firma estrictamente así (SIN IMÁGENES):
@@ -384,12 +373,14 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 7. **RECOMENDACIONES FINALES**:
    - Hoja de ruta en formato de lista estilizada o tabla de cronograma.
 
-**ESTILOS OBLIGATORIOS (CSS INLINE):**
-- Títulos (h1, h2): Color azul oscuro (#004d99).
+**ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
+- **Regla Crítica:** NO uses tablas "striped" (filas intercaladas claras/oscuras) porque rompen la lectura en modo oscuro.
+- Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` (si el fondo es claro) o \`color: #fff;\` (si el fondo es oscuro).
+- Títulos (h1, h2): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
 - Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
-- Celdas (td): padding="10px", border-bottom="1px solid #ddd".
-- NC Mayor: fondo rosa (#ffe0e0). NC Menor: fondo amarillo (#fff8e0). Observación: fondo azul claro (#e0f0ff).
-- Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo), Corto (#fff0e0 naranja), Mediano (#fff8e0 amarillo), Largo (#e0ffe0 verde).
+- Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).
+- NC Mayor: fondo rosa (#ffe0e0) con \`color: #000;\`. NC Menor: fondo amarillo (#fff8e0) con \`color: #000;\`. Observación: fondo azul claro (#e0f0ff) con \`color: #000;\`.
+- Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo, \`color: #000;\`), Corto (#fff0e0 naranja, \`color: #000;\`), Mediano (#fff8e0 amarillo, \`color: #000;\`), Largo (#e0ffe0 verde, \`color: #000;\`).
 
 **FIRMA OBLIGATORIA:**
 Al final del informe, firma estrictamente así (SIN IMÁGENES):

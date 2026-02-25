@@ -7,6 +7,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildCompanyContextString } = require('./reportHeader');
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const PeligroEntrySchema = new mongoose.Schema({
@@ -175,7 +176,7 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
         try {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             if (ci && ci.companyName) {
-                companyContext = `Empresa: ${ci.companyName}, Sector: ${ci.economicActivity || 'General'}, Riesgo: ${ci.riskLevel || 'No especificado'}`;
+                companyContext = buildCompanyContextString(ci);
             }
         } catch (err) {
             logger.debug('[SGSST MatrizPeligros] No company info');

@@ -6,7 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/estadisticas/generate
@@ -162,11 +162,13 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         // Fetch structured company info for the header
         let companyName = 'EMPRESA';
         let companyNit = 'NIT';
+        let companyContext = '';
         try {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             if (ci) {
                 companyName = ci.companyName || 'EMPRESA';
                 companyNit = ci.nit || 'NIT';
+                companyContext = buildCompanyContextString(ci);
             }
         } catch (err) { }
 
@@ -196,6 +198,8 @@ Actúas como Auditor Líder generando un **INFORME GERENCIAL DE ACCIDENTALIDAD (
 - **Responsable:** ${userName || 'Consultor SST'}
 - **Fecha de Emisión:** ${new Date().toLocaleDateString('es-CO')}
 
+${companyContext}
+
 **DATOS CONSOLIDADOS:**
 - Promedio Trabajadores: ${avgWorkers.toFixed(1)}
 - Total Accidentes (AT): ${aggregated.numAT}
@@ -217,13 +221,15 @@ ${eventsSummary || 'No se registraron eventos en este periodo. El análisis debe
 Genera SOLAMENTE el código HTML del cuerpo del informe (dentro de un <div> contenedor). NO uses Markdown.
 Usa los siguientes estilos CSS en línea (inline styles) para garantizar un diseño "Premium" que respete la tipografía del sistema (font-family: inherit):
 
-**ESTILOS CSS:**
-- **Encabezados:** Color #004d99 (Azul Institucional). Fuente heredada (inherit).
+**ESTILOS CSS - PRECAUCIÓN MODO OSCURO:**
+- **Regla Crítica:** NO uses tablas "striped" (filas con colores alternos) porque rompen la lectura en modo oscuro del sistema.
+- CADA VEZ que uses \`background-color\`, DEBES especificar \`color: #000;\` (si es fondo claro) o \`color: #fff;\` (si es fondo oscuro).
+- **Encabezados:** Color #004d99 (Azul Institucional) con \`color: #004d99;\`. Fuente heredada (inherit).
 - **Tablas:** width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", font-family: inherit.
 - **Th (Cabeceras):** background-color="#004d99", color="white", padding="12px", text-transform="uppercase", font-size="12px".
-- **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0".
-- **KPI Cards (Indicadores):** background-color="#f8f9fa", border-left="5px solid #004d99", padding="15px", margin="10px", border-radius="4px", flex-based layout.
-- **Alertas:** background-color="#e3f2fd" (azul claro) para informativos, "#ffebee" (rojo claro) para alertas de accidentalidad alta.
+- **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0" (SIN background-color para que hereden el modo oscuro).
+- **KPI Cards (Indicadores):** background-color="#f8f9fa", color="#000", border-left="5px solid #004d99", padding="15px", margin="10px", border-radius="4px", flex-based layout.
+- **Alertas:** background-color="#e3f2fd" (azul claro) con color="#000" para informativos, "#ffebee" (rojo claro) con color="#000" para alertas de accidentalidad alta.
 
 **SECCIONES DEL INFORME:**
 
@@ -298,14 +304,6 @@ async function getApiKey(userId) {
     }
 
     return key;
-}
-
-async function getCompanyInfoBlock(userId) {
-    try {
-        const ci = await CompanyInfo.findOne({ user: userId }).lean();
-        if (ci) return `**Empresa:** ${ci.companyName || 'N/A'} (NIT: ${ci.nit || 'N/A'}) - Sector: ${ci.sector || 'N/A'}`;
-    } catch { }
-    return '';
 }
 
 function cleanHtmlOutput(text) {

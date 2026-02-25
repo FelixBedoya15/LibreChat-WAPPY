@@ -6,7 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 const mapSizeToLabel = (size) => {
     switch (size) {
@@ -65,17 +65,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
-                companyInfoBlock = `
-**Datos de la Empresa:**
-- Nombre: ${ci.companyName}
-- NIT: ${ci.nit || 'N/A'}
-- Ciudad: ${ci.city || 'N/A'}
-- Tamaño: ${mapSizeToLabel(ci.companySize)}
-- Riesgo Principal: ${mapRiskToLabel(ci.riskLevel)}
-- Sector: ${ci.sector || 'N/A'}
-- Responsable SG-SST: ${ci.responsibleSST || 'N/A'}
-- Actividades Generales: ${ci.generalActivities || 'No registradas'}
-`;
+                companyInfoBlock = buildCompanyContextString(ci);
             }
         } catch (error) {
             logger.error('[SGSST Matriz] Error fetching company info', error);
@@ -108,10 +98,11 @@ ${buildStandardHeader({
             norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
         })}
 
-Después del encabezado, genera una tabla con los siguientes estilos inline obligatorios:
+Después del encabezado, genera una tabla con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
+- NO uses filas intercaladas claras/oscuras (striped) sin forzar el color de texto.
 - <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
 - Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
-- Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top;
+- Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top; (SIN background-color para heredar el modo oscuro del sistema).
 
 Columnas de la tabla:
 1. **Norma** (Tipo, Número y Año)

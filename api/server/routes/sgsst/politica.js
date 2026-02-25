@@ -6,7 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/politica/generate
@@ -64,23 +64,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             loadedCompanyInfo = ci;
             if (ci && ci.companyName) {
-                companyInfoBlock = `
-**Datos de la Empresa:**
-- Razón Social: ${ci.companyName || 'No registrado'}
-- NIT: ${ci.nit || 'No registrado'}
-- Representante Legal: ${ci.legalRepresentative || 'No registrado'}
-- Número de Trabajadores: ${ci.workerCount || 'No registrado'}
-- ARL: ${ci.arl || 'No registrada'}
-- Actividad Económica: ${ci.economicActivity || 'No registrada'}
-- Código CIIU: ${ci.ciiu || 'No registrado'}
-- Nivel de Riesgo: ${ci.riskLevel || 'No registrado'}
-- Sector: ${ci.sector || 'No registrado'}
-- Dirección: ${ci.address || 'No registrada'}, ${ci.city || ''}
-- Teléfono: ${ci.phone || 'No registrado'}
-- Email: ${ci.email || 'No registrado'}
-- Responsable SG-SST: ${ci.responsibleSST || 'No registrado'}
-- Actividades Generales: ${ci.generalActivities || 'No registradas'}
-`;
+                companyInfoBlock = buildCompanyContextString(ci);
             }
         } catch (ciErr) {
             logger.warn('[SGSST Politica] Error loading company info:', ciErr.message);
@@ -164,9 +148,9 @@ ${policyHeaderHTML}
 
 IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
 Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
-Para estilos, usa atributos style inline en los elementos.
+Para estilos, usa atributos style inline en los elementos (PRECAUCIÓN MODO OSCURO: Cuando uses \`background-color\`, OBLIGATORIAMENTE declara \`color: #000;\` si el fondo es claro, o \`color: #fff;\` si es oscuro. NO uses filas de tablas intercaladas claras/oscuras).
 La política debe ser formal, profesional y cumplir con los requisitos del Decreto 1072 de 2015, Art. 2.2.4.6.5 y 2.2.4.6.6.
-El diseño debe ser elegante con colores institucionales (azul #004d99 para encabezados, bordes sutiles, tipografía profesional).`;
+El diseño debe ser elegante con colores institucionales (azul #004d99 para encabezados con \`color: #004d99;\` explícito, bordes sutiles, tipografía profesional).`;
 
         // 4. Generate the policy
         const result = await model.generateContent(promptText);

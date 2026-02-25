@@ -446,7 +446,7 @@ const EstadisticasATEL = () => {
                                         value={currentData?.numTrabajadores || ''}
                                         onChange={(e) => updateMonthData('numTrabajadores', Number(e.target.value))}
                                         placeholder="Ej: 50"
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors"
+                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
@@ -456,7 +456,7 @@ const EstadisticasATEL = () => {
                                         value={currentData?.diasProgramados || ''}
                                         onChange={(e) => updateMonthData('diasProgramados', Number(e.target.value))}
                                         placeholder="Ej: 24"
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors"
+                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors"
                                     />
                                 </div>
                             </div>

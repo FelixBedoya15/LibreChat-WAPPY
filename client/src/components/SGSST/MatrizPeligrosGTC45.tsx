@@ -516,27 +516,27 @@ const MatrizPeligrosGTC45 = () => {
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-text-secondary">Proceso <span className="text-red-500">*</span></label>
                                 <input type="text" value={newEntry.proceso} onChange={e => setNewEntry({ ...newEntry, proceso: e.target.value })}
-                                    placeholder="Ej: Construcción, Soldadura..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors" />
+                                    placeholder="Ej: Construcción, Soldadura..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-text-secondary">Zona / Lugar</label>
                                 <input type="text" value={newEntry.zona} onChange={e => setNewEntry({ ...newEntry, zona: e.target.value })}
-                                    placeholder="Ej: Planta 2, Oficina, Bodega..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors" />
+                                    placeholder="Ej: Planta 2, Oficina, Bodega..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-text-secondary">Actividad <span className="text-red-500">*</span></label>
                                 <input type="text" value={newEntry.actividad} onChange={e => setNewEntry({ ...newEntry, actividad: e.target.value })}
-                                    placeholder="Ej: Soldadura de estructura metálica..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors" />
+                                    placeholder="Ej: Soldadura de estructura metálica..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-text-secondary">Tarea</label>
                                 <input type="text" value={newEntry.tarea} onChange={e => setNewEntry({ ...newEntry, tarea: e.target.value })}
-                                    placeholder="Ej: Punteado de perfiles..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors" />
+                                    placeholder="Ej: Punteado de perfiles..." className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-text-secondary">Rutinario</label>
                                 <select value={newEntry.rutinario ? 'si' : 'no'} onChange={e => setNewEntry({ ...newEntry, rutinario: e.target.value === 'si' })}
-                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors">
+                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors">
                                     <option value="si">Sí</option>
                                     <option value="no">No</option>
                                 </select>
@@ -545,7 +545,7 @@ const MatrizPeligrosGTC45 = () => {
                                 <label className="text-xs font-medium text-text-secondary">Controles Existentes</label>
                                 <textarea value={newEntry.controlesExistentes} onChange={e => setNewEntry({ ...newEntry, controlesExistentes: e.target.value })}
                                     placeholder="Ej: Uso de EPP (guantes, gafas), capacitación en trabajo seguro, señalización..."
-                                    rows={2} className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm focus:border-blue-500 transition-colors resize-none" />
+                                    rows={2} className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors resize-none" />
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
@@ -639,13 +639,13 @@ const MatrizPeligrosGTC45 = () => {
                                                 <div key={field} className="space-y-1">
                                                     <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
                                                     <input type="text" value={value || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary" />
+                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary" />
                                                 </div>
                                             ))}
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-medium text-text-secondary uppercase">Rutinario</label>
                                                 <select value={entry.rutinario ? 'si' : 'no'} onChange={e => updateField(entry.id, 'rutinario', e.target.value === 'si')}
-                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary">
+                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
                                                     <option value="si">Sí</option>
                                                     <option value="no">No</option>
                                                 </select>
@@ -654,7 +654,7 @@ const MatrizPeligrosGTC45 = () => {
                                         <div className="mt-2">
                                             <label className="text-[10px] font-medium text-text-secondary uppercase">Controles Existentes</label>
                                             <textarea value={entry.controlesExistentes || ''} onChange={e => updateField(entry.id, 'controlesExistentes', e.target.value)}
-                                                rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none" />
+                                                rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                         </div>
 
                                         {entry.completedByAI && (
@@ -677,7 +677,7 @@ const MatrizPeligrosGTC45 = () => {
                                                             <div key={field} className="space-y-1">
                                                                 <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
                                                                 <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none" />
+                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                             </div>
                                                         ))}
                                                     </div>
@@ -706,17 +706,17 @@ const MatrizPeligrosGTC45 = () => {
                                                                 <tr>
                                                                     <td className="px-2 py-1 border border-border-medium text-center">
                                                                         <input type="number" value={entry.nivelDeficiencia} onChange={e => updateField(entry.id, 'nivelDeficiencia', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary" />
+                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
                                                                     </td>
                                                                     <td className="px-2 py-1 border border-border-medium text-center">
                                                                         <input type="number" value={entry.nivelExposicion} onChange={e => updateField(entry.id, 'nivelExposicion', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary" />
+                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
                                                                     </td>
                                                                     <td className="px-2 py-1 border border-border-medium text-center font-bold">{entry.nivelProbabilidad}</td>
                                                                     <td className="px-2 py-1 border border-border-medium text-center text-[11px]">{entry.interpretacionNP}</td>
                                                                     <td className="px-2 py-1 border border-border-medium text-center">
                                                                         <input type="number" value={entry.nivelConsecuencia} onChange={e => updateField(entry.id, 'nivelConsecuencia', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary" />
+                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
                                                                     </td>
                                                                     <td className={`px-2 py-1 border border-border-medium text-center font-bold text-lg ${riskStyle.text}`}>{entry.nivelRiesgo}</td>
                                                                     <td className="px-2 py-1 border border-border-medium text-center">
@@ -726,7 +726,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                     </td>
                                                                     <td className="px-2 py-1 border border-border-medium text-center">
                                                                         <input type="number" value={entry.numExpuestos || 0} onChange={e => updateField(entry.id, 'numExpuestos', Number(e.target.value))}
-                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary" />
+                                                                            className="w-14 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
                                                                     </td>
                                                                 </tr>
                                                             </tbody>
@@ -747,7 +747,7 @@ const MatrizPeligrosGTC45 = () => {
                                                             <div key={field} className="space-y-1">
                                                                 <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
                                                                 <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none" />
+                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                             </div>
                                                         ))}
                                                     </div>
@@ -781,7 +781,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             const j = entry.factorCosto > 0 ? (nri * f) / entry.factorCosto : 0;
                                                                             setEntries(prev => prev.map(en => en.id === entry.id ? { ...en, nrFinal: nrf, factorReduccion: Math.round(f * 10) / 10, factorJustificacion: Math.round(j) } : en));
                                                                         }}
-                                                                            className="w-20 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary" />
+                                                                            className="w-20 text-center text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary" />
                                                                     </td>
                                                                     <td className={`px-2 py-1 border border-border-medium text-center font-bold ${entry.factorReduccion >= 75 ? 'text-green-600' : entry.factorReduccion >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
                                                                         {entry.factorReduccion ? `${entry.factorReduccion}%` : '-'}
@@ -795,7 +795,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             const j = d > 0 ? (nri * f) / d : 0;
                                                                             setEntries(prev => prev.map(en => en.id === entry.id ? { ...en, costoIntervencion: e.target.value, factorCosto: d, factorJustificacion: Math.round(j) } : en));
                                                                         }}
-                                                                            className="text-xs p-1 rounded border border-border-medium bg-surface-primary">
+                                                                            className="text-xs p-1 rounded border border-border-medium bg-surface-primary text-text-primary">
                                                                             <option value="">Seleccionar...</option>
                                                                             {COST_FACTOR_OPTIONS.map(o => (
                                                                                 <option key={o.d} value={o.label}>{o.label} (d={o.d})</option>
@@ -813,7 +813,7 @@ const MatrizPeligrosGTC45 = () => {
                                                     <div className="mt-2">
                                                         <label className="text-[10px] font-medium text-text-secondary uppercase">Justificación Técnica</label>
                                                         <textarea value={entry.justificacion || ''} onChange={e => updateField(entry.id, 'justificacion', e.target.value)}
-                                                            rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none"
+                                                            rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none"
                                                             placeholder="Justificación de la medida de intervención y análisis costo-beneficio..." />
                                                     </div>
                                                 </div>
@@ -832,7 +832,7 @@ const MatrizPeligrosGTC45 = () => {
                                                             <div key={field} className="space-y-1">
                                                                 <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
                                                                 <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary resize-none" />
+                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                             </div>
                                                         ))}
                                                     </div>

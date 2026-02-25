@@ -84,7 +84,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 type="date"
                                 value={newEvent.fecha || ''}
                                 onChange={e => setNewEvent({ ...newEvent, fecha: e.target.value })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             />
                         </div>
                         <div className="space-y-1">
@@ -92,7 +92,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                             <select
                                 value={newEvent.tipo}
                                 onChange={e => setNewEvent({ ...newEvent, tipo: e.target.value as any })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             >
                                 <option value="AT">Accidente de Trabajo</option>
                                 <option value="EL">Enfermedad Laboral</option>
@@ -106,7 +106,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 placeholder="Ej: Trabajo en Alturas, Químico..."
                                 value={newEvent.peligro || ''}
                                 onChange={e => setNewEvent({ ...newEvent, peligro: e.target.value })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             />
                         </div>
                         <div className="space-y-1">
@@ -116,7 +116,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 placeholder="Ej: Piso resbaloso, Falta EPP..."
                                 value={newEvent.causaInmediata || ''}
                                 onChange={e => setNewEvent({ ...newEvent, causaInmediata: e.target.value })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             />
                         </div>
                         <div className="space-y-1">
@@ -126,7 +126,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 min="0"
                                 value={newEvent.diasIncapacidad}
                                 onChange={e => setNewEvent({ ...newEvent, diasIncapacidad: Number(e.target.value) })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             />
                         </div>
                         <div className="space-y-1">
@@ -136,7 +136,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 min="0"
                                 value={newEvent.diasCargados}
                                 onChange={e => setNewEvent({ ...newEvent, diasCargados: Number(e.target.value) })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             />
                         </div>
                         <div className="space-y-1 col-span-2">
@@ -146,7 +146,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 placeholder="Ej: Fractura tibia, Lumbago..."
                                 value={newEvent.consecuencia || ''}
                                 onChange={e => setNewEvent({ ...newEvent, consecuencia: e.target.value })}
-                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary"
+                                className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary"
                             />
                         </div>
                     </div>
