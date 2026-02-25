@@ -713,7 +713,7 @@ const MatrizPeligrosGTC45 = () => {
                         </button>
                     </div>
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1">
-                        <LiveEditor initialValue={generatedReport} onChange={setEditorContent} />
+                        <LiveEditor initialContent={generatedReport} onUpdate={setEditorContent} />
                     </div>
                 </div>
             )}
