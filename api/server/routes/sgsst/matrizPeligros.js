@@ -351,7 +351,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
       ]
     }
   ]
-}
+}`;
 
         const result = await model.generateContent(systemPrompt);
         let text = result.response.text().trim();
