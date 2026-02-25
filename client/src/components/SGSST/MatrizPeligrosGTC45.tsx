@@ -209,8 +209,27 @@ const MatrizPeligrosGTC45 = () => {
                 throw new Error(err.error || 'Error al completar');
             }
             const data = await res.json();
+            const completedPayload = data.completed || {};
+
+            // Auto-calculate F and J if AI provided nrFinal and costoIntervencion
+            if (completedPayload.nrFinal !== undefined && completedPayload.costoIntervencion) {
+                const nrf = Number(completedPayload.nrFinal) || 0;
+                const nri = entry.nivelRiesgo || 1;
+                const f = nri > 0 ? (100 * (nri - nrf)) / nri : 0;
+
+                // Map the text back to 'd' using COST_FACTOR_OPTIONS
+                const selected = COST_FACTOR_OPTIONS.find(o => o.label === completedPayload.costoIntervencion);
+                const d = selected?.d || 0;
+                const j = d > 0 ? (nri * f) / d : 0;
+
+                completedPayload.nrFinal = nrf;
+                completedPayload.factorReduccion = Math.round(f * 10) / 10;
+                completedPayload.factorCosto = d;
+                completedPayload.factorJustificacion = Math.round(j);
+            }
+
             setEntries(prev => prev.map(e =>
-                e.id === entry.id ? { ...e, ...data.completed, completedByAI: true } : e
+                e.id === entry.id ? { ...e, ...completedPayload, completedByAI: true } : e
             ));
             setExpandedIds(prev => new Set(prev).add(entry.id));
             showToast({ message: 'Peligro completado con IA', status: 'success' });
@@ -753,8 +772,28 @@ const MatrizPeligrosGTC45 = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* Segment 5: Anexo E — Factores de Reducción y Justificación */}
+                                                {/* Segment 5: Jerarquía de Controles */}
                                                 <div className="border-t border-border-medium pt-3">
+                                                    <h5 className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">Jerarquía de Controles</h5>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
+                                                        {[
+                                                            { label: 'Eliminación', field: 'eliminacion' as const },
+                                                            { label: 'Sustitución', field: 'sustitucion' as const },
+                                                            { label: 'Control de Ingeniería', field: 'controlIngenieria' as const },
+                                                            { label: 'Control Administrativo', field: 'controlAdministrativo' as const },
+                                                            { label: 'EPP', field: 'epp' as const },
+                                                        ].map(({ label, field }) => (
+                                                            <div key={field} className="space-y-1">
+                                                                <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
+                                                                <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
+                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Segment 6: Anexo E — Factores de Reducción y Justificación (Moved here) */}
+                                                <div className="border-t border-border-medium pt-3 mt-3">
                                                     <h4 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">
                                                         <Tip text="GTC 45 Anexo E: Herramientas matemáticas para analizar la reducción del riesgo (F) y la justificación costo-beneficio (J) de las medidas de intervención propuestas.">Factores de Reducción y Justificación</Tip>
                                                     </h4>
@@ -815,26 +854,6 @@ const MatrizPeligrosGTC45 = () => {
                                                         <textarea value={entry.justificacion || ''} onChange={e => updateField(entry.id, 'justificacion', e.target.value)}
                                                             rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none"
                                                             placeholder="Justificación de la medida de intervención y análisis costo-beneficio..." />
-                                                    </div>
-                                                </div>
-
-                                                {/* Segment 6: Jerarquía de Controles */}
-                                                <div className="border-t border-border-medium pt-3">
-                                                    <h5 className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase mb-2">Jerarquía de Controles</h5>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
-                                                        {[
-                                                            { label: 'Eliminación', field: 'eliminacion' as const },
-                                                            { label: 'Sustitución', field: 'sustitucion' as const },
-                                                            { label: 'Control de Ingeniería', field: 'controlIngenieria' as const },
-                                                            { label: 'Control Administrativo', field: 'controlAdministrativo' as const },
-                                                            { label: 'EPP', field: 'epp' as const },
-                                                        ].map(({ label, field }) => (
-                                                            <div key={field} className="space-y-1">
-                                                                <label className="text-[10px] font-medium text-text-secondary uppercase">{label}</label>
-                                                                <textarea value={entry[field] || ''} onChange={e => updateField(entry.id, field, e.target.value)}
-                                                                    rows={2} className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
-                                                            </div>
-                                                        ))}
                                                     </div>
                                                 </div>
                                             </>
