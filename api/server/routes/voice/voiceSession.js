@@ -54,6 +54,10 @@ class VoiceSession {
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
 
+        // Visual Memory
+        this.latestVideoFrame = null;
+        this.latestVideoFrameTimestamp = 0;
+
         logger.info(`[VoiceSession] Created for user: ${userId}, conversationId: ${conversationId || 'NULL'}`);
 
         // Setup client handlers once
@@ -230,13 +234,30 @@ class VoiceSession {
                 logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
                 logger.info(`[VoiceSession] Current lastMessageId before user save: ${this.lastMessageId}`);
 
+                // Visual Memory: Check for visual keywords to attach the latest camera frame
+                const visualKeywords = ['mira', 'observa', 'ves', 'qué hay', 'esto', 'aquí', 'pantalla', 'cámara', 'video'];
+                const textLower = currentUserText.toLowerCase();
+                const hasVisualContext = visualKeywords.some(keyword => textLower.includes(keyword));
+
+                let imageToAttach = null;
+                if (hasVisualContext && this.latestVideoFrame) {
+                    const timeSinceLastFrame = Date.now() - (this.latestVideoFrameTimestamp || 0);
+                    // Use the frame if it's less than 15 seconds old
+                    if (timeSinceLastFrame < 15000) {
+                        imageToAttach = this.latestVideoFrame;
+                        logger.info(`[VoiceSession] Visual keyword detected. Attaching frame from ${Math.round(timeSinceLastFrame / 1000)}s ago`);
+                    } else {
+                        logger.warn(`[VoiceSession] Visual keyword detected, but latest frame is too old (${Math.round(timeSinceLastFrame / 1000)}s)`);
+                    }
+                }
+
                 // FASE 6: Transcription Correction
                 let textToSave = currentUserText.trim();
                 if (currentAiText.trim()) {
                     textToSave = await this.correctTranscription(textToSave, currentAiText.trim());
                 }
 
-                const result = await this.saveUserMessage(textToSave);
+                const result = await this.saveUserMessage(textToSave, imageToAttach);
                 if (result) {
                     messagesSaved = true;
                     isNewConversation = result.isNewConversation;
@@ -370,6 +391,10 @@ class VoiceSession {
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
+                    // Update the latest frame in memory for "Visual Memory"
+                    this.latestVideoFrame = data.image;
+                    this.latestVideoFrameTimestamp = Date.now();
+
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
                     } else {
@@ -554,7 +579,7 @@ class VoiceSession {
     /**
      * Save User Message to database
      */
-    async saveUserMessage(text) {
+    async saveUserMessage(text, imageBase64 = null) {
         if (!text) return null;
 
         try {
@@ -570,12 +595,23 @@ class VoiceSession {
             }
 
             const messageId = uuidv4();
+
+            // Build content array, appending image if available
+            const content = [{ type: 'text', text: text }];
+            if (imageBase64) {
+                logger.info(`[VoiceSession] Attaching visual memory (image) to user message.`);
+                content.push({
+                    type: 'image_url',
+                    image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
+                });
+            }
+
             const messageData = {
                 messageId,
                 conversationId,
                 parentMessageId: this.lastMessageId, // Link to previous message in conversation
                 text: text,
-                content: [{ type: 'text', text: text }],
+                content: content,
                 user: this.userId,
                 sender: 'User',
                 isCreatedByUser: true,
@@ -587,7 +623,7 @@ class VoiceSession {
 
             if (savedMessage) {
                 this.lastMessageId = messageId; // Update for next message
-                logger.info(`[VoiceSession] Saved user message: ${messageId}`);
+                logger.info(`[VoiceSession] Saved user message: ${messageId} (with image: ${!!imageBase64})`);
                 return { isNewConversation, messageId };
             }
             return null;
