@@ -370,6 +370,7 @@ class VoiceSession {
             case 'video':
                 // Forward video frame to Gemini
                 if (data && data.image) {
+                    this.latestFrame = data.image; // Guarda el último frame capturado para el análisis
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
                     } else {
@@ -570,12 +571,32 @@ class VoiceSession {
             }
 
             const messageId = uuidv4();
+
+            // Check if user is asking the AI to look at something
+            const observationRegex = /(mira|observa|qué ves|analiza|pantalla|imagen|foto|qué hay|describe|veas|vea)/i;
+            const isAskingToLook = observationRegex.test(text);
+
+            let messageContent = [{ type: 'text', text: text }];
+
+            // If the user is asking to look at something, and we have a recent frame from the camera/screen
+            if (isAskingToLook && this.latestFrame) {
+                logger.info('[VoiceSession] User requested visual analysis, attaching latest frame to message.');
+                messageContent.push({
+                    type: 'image_url',
+                    image_url: {
+                        url: `data:image/jpeg;base64,${this.latestFrame}`
+                    }
+                });
+                // We consume the frame so it isn't accidentally reused in unrelated future messages
+                this.latestFrame = null;
+            }
+
             const messageData = {
                 messageId,
                 conversationId,
                 parentMessageId: this.lastMessageId, // Link to previous message in conversation
                 text: text,
-                content: [{ type: 'text', text: text }],
+                content: messageContent,
                 user: this.userId,
                 sender: 'User',
                 isCreatedByUser: true,

@@ -123,8 +123,16 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     }, [isOpen, isConnected]);
 
     const handleClose = () => {
+        console.log('[VoiceModal] Closing modal, clearing audio queue & updating chat.');
+        clearAudioQueue();
         stopMediaTracks();
         disconnect();
+
+        // Notify chat form that the conversation has updated so we can immediately see the text/images
+        if (onConversationUpdated && conversationId) {
+            onConversationUpdated();
+        }
+
         onClose();
     };
 
