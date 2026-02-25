@@ -289,78 +289,131 @@ const MatrizPeligrosGTC45 = () => {
         const date = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
         const ci = companyInfo || {};
         const headerHTML = `
-<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
-  <thead>
-    <tr>
-      <th colspan="4" style="background-color: #004d99; color: white; text-align: center; padding: 16px 12px; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
-        MATRIZ DE PELIGROS Y VALORACIÓN DE RIESGOS (GTC 45)
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Empresa:</td>
-      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${ci.companyName || 'EMPRESA'}</td>
-      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">NIT:</td>
-      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd;">${ci.nit || 'NIT'}</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Representante:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${ci.legalRepresentative || 'No registrado'}</td>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">N° Trabajadores:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${ci.workerCount || 'N/A'}</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Nivel de Riesgo:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${ci.riskLevel || 'N/A'}</td>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Fecha de Emisión:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${date}</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">ARL:</td>
-      <td style="padding: 10px 14px; border-right: 1px solid #eee;">${ci.arl || 'N/A'}</td>
-      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">Norma:</td>
-      <td style="padding: 10px 14px;">GTC 45 / Decreto 1072 de 2015</td>
-    </tr>
-  </tbody>
-</table>`;
+<div style="font-family: ui-sans-serif, system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; color: #1e293b; line-height: 1.6;">
+  
+  <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #e2e8f0;">
+    <h1 style="color: #0f172a; font-size: 28px; margin: 0 0 10px 0; font-weight: 800; text-transform: uppercase;">
+      Matriz de Peligros y Valoración de Riesgos (GTC 45)
+    </h1>
+    <h2 style="color: #475569; font-size: 18px; margin: 0; font-weight: 500;">
+      ${ci.companyName || 'Empresa No Registrada'}
+    </h2>
+  </div>
+
+  <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+    <h3 style="color: #0f172a; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">
+      Información de la Entidad
+    </h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <tbody>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; width: 25%; color: #475569;">NIT:</td>
+          <td style="padding: 8px 0; width: 25%; color: #0f172a;">${ci.nit || 'No registrado'}</td>
+          <td style="padding: 8px 0; font-weight: 600; width: 25%; color: #475569;">Representante:</td>
+          <td style="padding: 8px 0; width: 25%; color: #0f172a;">${ci.legalRepresentative || 'No registrado'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569;">Nivel de Riesgo:</td>
+          <td style="padding: 8px 0; color: #0f172a;">${ci.riskLevel || 'N/A'}</td>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569;">N° Trabajadores:</td>
+          <td style="padding: 8px 0; color: #0f172a;">${ci.workerCount || 'N/A'}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569;">ARL:</td>
+          <td style="padding: 8px 0; color: #0f172a;">${ci.arl || 'N/A'}</td>
+          <td style="padding: 8px 0; font-weight: 600; color: #475569;">Fecha de Emisión:</td>
+          <td style="padding: 8px 0; color: #0f172a;">${date}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <h3 style="color: #0f172a; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+      Identificación de Peligros y Valoración de Riesgos
+    </h3>
+  </div>`;
 
         let rowsHTML = '';
         procesos.forEach((p, pIdx) => {
             p.peligros.forEach((h, hIdx) => {
-                const risk = getRiskColor(h.nivelRiesgo);
+                const riskColor = h.nivelRiesgo >= 600 ? '#ef4444' : h.nivelRiesgo >= 150 ? '#f97316' : h.nivelRiesgo >= 40 ? '#eab308' : '#22c55e';
+                const riskBg = h.nivelRiesgo >= 600 ? '#fef2f2' : h.nivelRiesgo >= 150 ? '#fff7ed' : h.nivelRiesgo >= 40 ? '#fefce8' : '#f0fdf4';
+
                 rowsHTML += `
-  <div style="border: 2px solid #004d99; border-radius: 8px; margin: 15px 0; overflow: hidden; page-break-inside: avoid;">
-    <div style="background: #eef2ff; padding: 10px 15px; border-bottom: 1px solid #ddd;">
-      <strong>${pIdx + 1}.${hIdx + 1} PROCESO: ${p.proceso} — ACTIVIDAD: ${p.actividad}</strong>
-      <span style="float: right; padding: 2px 10px; border-radius: 12px; font-size: 12px; background: ${h.nivelRiesgo >= 600 ? '#dc2626' : h.nivelRiesgo >= 150 ? '#ea580c' : h.nivelRiesgo >= 40 ? '#ca8a04' : '#16a34a'}; color: white;">NR: ${h.nivelRiesgo}</span>
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; page-break-inside: avoid;">
+    <div style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+      <div style="font-weight: 700; color: #0f172a; font-size: 15px;">
+        <span style="color: #3b82f6;">${pIdx + 1}.${hIdx + 1}</span> PROCESO: ${p.proceso}
+      </div>
+      <div style="background-color: ${riskColor}; color: white; padding: 4px 12px; border-radius: 9999px; font-size: 13px; font-weight: 700;">
+        NR: ${h.nivelRiesgo}
+      </div>
     </div>
 
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-      <tr><th style="background: #004d99; color: white; padding: 6px; text-align: left; width: 30%;">Campo</th><th style="background: #004d99; color: white; padding: 6px; text-align: left;">Valor</th></tr>
-      <tr><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Zona / Lugar</td><td style="padding: 6px; border-bottom: 1px solid #eee;">${p.zona || '-'}</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Tarea / Rutinario</td><td style="padding: 6px; border-bottom: 1px solid #eee;">${p.tarea || '-'} (${p.rutinario ? 'Sí' : 'No'})</td></tr>
-      <tr><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Peligro Identified</td><td style="padding: 6px; border-bottom: 1px solid #eee;"><strong>${h.descripcionPeligro}</strong> (${h.clasificacion})</td></tr>
-      <tr style="background: #f8f9fa;"><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Efectos Posibles</td><td style="padding: 6px; border-bottom: 1px solid #eee;">${h.efectosPosibles}</td></tr>
-      <tr><td style="padding: 6px; border-bottom: 1px solid #eee; font-weight: 600;">Fuente/Medio/Indiv.</td><td style="padding: 6px; border-bottom: 1px solid #eee;">F: ${h.fuenteGeneradora} | M: ${h.medioExistente} | I: ${h.individuoControl}</td></tr>
-    </table>
+    <div style="padding: 20px;">
+      <div style="margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div>
+          <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Actividad / Tarea</span>
+          <span style="color: #1e293b; font-size: 14px;">${p.actividad} / ${p.tarea || '-'} (${p.rutinario ? 'Rutinario' : 'No Rutinario'})</span>
+        </div>
+        <div>
+          <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Zona / Lugar</span>
+          <span style="color: #1e293b; font-size: 14px;">${p.zona || '-'}</span>
+        </div>
+      </div>
 
-    <table style="width: 100%; border-collapse: collapse; font-size: 12px; border-top: 1px solid #ddd;">
-      <tr style="background: #0369a1; color: white; text-align: center;">
-        <td style="padding: 4px;">ND: ${h.nivelDeficiencia}</td><td style="padding: 4px;">NE: ${h.nivelExposicion}</td>
-        <td style="padding: 4px;">NP: ${h.nivelProbabilidad}</td><td style="padding: 4px;">NC: ${h.nivelConsecuencia}</td>
-        <td style="padding: 4px;"><strong>NR: ${h.nivelRiesgo}</strong></td><td style="padding: 4px;">${h.aceptabilidad}</td>
-      </tr>
-    </table>
+      <div style="background-color: ${riskBg}; border: 1px solid ${riskColor}40; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <div style="margin-bottom: 12px;">
+          <span style="display: block; font-size: 12px; font-weight: 700; color: ${riskColor}; text-transform: uppercase; margin-bottom: 4px;">Peligro Identificado (${h.clasificacion})</span>
+          <strong style="color: #0f172a; font-size: 15px;">${h.descripcionPeligro}</strong>
+        </div>
+        <div>
+          <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Efectos Posibles</span>
+          <span style="color: #334155; font-size: 14px;">${h.efectosPosibles}</span>
+        </div>
+      </div>
 
-    <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #faf5ff;">
-      <tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Intervención:</strong> Elim: ${h.eliminacion} | Sust: ${h.sustitucion} | Ing: ${h.controlIngenieria} | Admin: ${h.controlAdministrativo} | EPP: ${h.epp}</td></tr>
-    </table>
+      <div style="margin-bottom: 16px;">
+        <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Valoración del Riesgo</span>
+        <table style="width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <thead style="background-color: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700;">
+            <tr>
+              <th style="padding: 10px; border-right: 1px solid #e2e8f0;">Nivel Deficiencia (ND)</th>
+              <th style="padding: 10px; border-right: 1px solid #e2e8f0;">Nivel Exposición (NE)</th>
+              <th style="padding: 10px; border-right: 1px solid #e2e8f0;">Nivel Probabilidad (NP)</th>
+              <th style="padding: 10px; border-right: 1px solid #e2e8f0;">Nivel Consecuencia (NC)</th>
+              <th style="padding: 10px;">Aceptabilidad</th>
+            </tr>
+          </thead>
+          <tbody style="color: #0f172a; font-size: 14px;">
+            <tr>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelDeficiencia}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelExposicion}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelProbabilidad}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelConsecuencia}</td>
+              <td style="padding: 10px; font-weight: 600;">${h.aceptabilidad}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Jerarquía de Controles Recomendada</span>
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px;">
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Eliminación:</strong> <span style="color: #334155;">${h.eliminacion || 'N/A'}</span></div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Sustitución:</strong> <span style="color: #334155;">${h.sustitucion || 'N/A'}</span></div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles de Ingeniería:</strong> <span style="color: #334155;">${h.controlIngenieria || 'N/A'}</span></div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles Administrativos:</strong> <span style="color: #334155;">${h.controlAdministrativo || 'N/A'}</span></div>
+          <div><strong style="color: #475569;">Equipos de Protección (EPP):</strong> <span style="color: #334155;">${h.epp || 'N/A'}</span></div>
+        </div>
+      </div>
+    </div>
   </div>`;
             });
         });
 
-        const html = `<div style="font-family: sans-serif; max-width: 100%; color: #333;">${headerHTML}${rowsHTML}</div>`;
+        const html = `${headerHTML}${rowsHTML}</div>`;
         setGeneratedReport(html);
         setEditorContent(html);
         setConversationId('new');
@@ -385,6 +438,7 @@ const MatrizPeligrosGTC45 = () => {
                 const data = await res.json();
                 if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
                 setRefreshTrigger(prev => prev + 1);
+                setIsHistoryOpen(false); // Hide the history panel
                 showToast({ message: 'Informe guardado', status: 'success' });
             }
         } catch (err: any) {
@@ -449,8 +503,8 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={handleGenerateFull} disabled={isGeneratingFull}
                         className="group flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50">
-                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
-                        Generar Matriz con IA
+                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Matriz con IA</span>
                     </button>
                     <button onClick={handleSaveData} disabled={isSaving}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
@@ -465,7 +519,7 @@ const MatrizPeligrosGTC45 = () => {
                     {procesos.length > 0 && (
                         <button onClick={generateReport}
                             className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                            <FileText className="h-5 w-5" />
+                            <Sparkles className="h-5 w-5 text-indigo-500" />
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Informe</span>
                         </button>
                     )}
@@ -674,8 +728,9 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="mt-8 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
-                        <button onClick={handleSaveReport} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 text-sm font-bold">
-                            <Save className="h-4 w-4" /> Guardar Informe
+                        <button onClick={handleSaveReport} className="group flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-300 text-sm font-bold">
+                            <Save className="h-4 w-4" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
                         </button>
                     </div>
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1">

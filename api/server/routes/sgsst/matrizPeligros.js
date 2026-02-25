@@ -301,26 +301,28 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
 
-        const prompt = `
-Eres un Experto en SST en Colombia. Basándote en la información de la empresa:
-${companyContext}
+        const systemPrompt = `Eres un experto en SST de Colombia (GTC 45 y Decreto 1072/2015).
+Tu tarea es generar la estructura inicial de una Matriz de Peligros para la siguiente empresa:
+Nombre: ${ci.companyName || 'Empresa'}
+Sector/Actividad: ${ci.economicActivity || 'General'}
+Nivel de Riesgo: ${ci.riskLevel || 'N/A'}
 
-**TAREA:**
-Identifica exactamente 5 procesos operativos/administrativos fundamentales para esta empresa.
-Para CADA proceso, identifica de 1 a 2 peligros críticos (GTC 45).
-Realiza la valoración completa del riesgo (ND, NE, NC, etc) y sugiere controles.
+Genera exactamente 5 procesos principales que sean lógicos para este tipo de empresa.
+Para CADA proceso, identifica hasta 5 peligros críticos (GTC 45) si aplican para ese proceso. Trata de ser exhaustivo e incluir los peligros más relevantes (biomecánicos, físicos, psicosociales, biológicos, de seguridad, etc.).
+Para CADA peligro, realiza la valoración de riesgo GTC 45 completa:
+- Proporciona ND, NE. NC será calculado por la IA basándose en posibles efectos. NR = (ND x NE) x NC.
+- Proporciona la aceptabilidad, controles sugeridos, y completa *todos* los campos numéricos y de texto del esquema.
 
-Responde ÚNICAMENTE con un JSON válido con esta estructura:
+Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 {
   "procesos": [
     {
-      "id": "uuid-temp-1",
-      "proceso": "Nombre del Proceso",
-      "zona": "Zona/Lugar",
-      "actividad": "Actividad principal",
-      "tarea": "Tarea específica",
-      "rutinario": true,
-      "controlesExistentes": "Descripción de controles actuales",
+      "proceso": "string",
+      "zona": "string",
+      "actividad": "string",
+      "tarea": "string",
+      "rutinario": boolean,
+      "controlesExistentes": "string",
       "peligros": [
         {
           "id": "hazard-uuid-1",
