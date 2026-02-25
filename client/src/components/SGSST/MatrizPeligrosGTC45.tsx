@@ -355,7 +355,7 @@ const MatrizPeligrosGTC45 = () => {
       <div style="margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
           <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Actividad / Tarea</span>
-          <span style="color: #1e293b; font-size: 14px;">${p.actividad} / ${p.tarea || '-'} (${p.rutinario ? 'Rutinario' : 'No Rutinario'})</span>
+          <span style="color: #1e293b; font-size: 14px;">${p.actividad || '-'} / ${p.tarea || '-'} (${p.rutinario ? 'Rutinario' : 'No Rutinario'})</span>
         </div>
         <div>
           <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Zona / Lugar</span>
@@ -365,12 +365,12 @@ const MatrizPeligrosGTC45 = () => {
 
       <div style="background-color: ${riskBg}; border: 1px solid ${riskColor}40; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
         <div style="margin-bottom: 12px;">
-          <span style="display: block; font-size: 12px; font-weight: 700; color: ${riskColor}; text-transform: uppercase; margin-bottom: 4px;">Peligro Identificado (${h.clasificacion})</span>
-          <strong style="color: #0f172a; font-size: 15px;">${h.descripcionPeligro}</strong>
+          <span style="display: block; font-size: 12px; font-weight: 700; color: ${riskColor}; text-transform: uppercase; margin-bottom: 4px;">Peligro Identificado (${h.clasificacion || '-'})</span>
+          <strong style="color: #0f172a; font-size: 15px;">${h.descripcionPeligro || 'Sin descripción'}</strong>
         </div>
         <div>
           <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Efectos Posibles</span>
-          <span style="color: #334155; font-size: 14px;">${h.efectosPosibles}</span>
+          <span style="color: #334155; font-size: 14px;">${h.efectosPosibles || '-'}</span>
         </div>
       </div>
 
@@ -388,11 +388,11 @@ const MatrizPeligrosGTC45 = () => {
           </thead>
           <tbody style="color: #0f172a; font-size: 14px;">
             <tr>
-              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelDeficiencia}</td>
-              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelExposicion}</td>
-              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelProbabilidad}</td>
-              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelConsecuencia}</td>
-              <td style="padding: 10px; font-weight: 600;">${h.aceptabilidad}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelDeficiencia || 0}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelExposicion || 0}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelProbabilidad || 0}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelConsecuencia || 0}</td>
+              <td style="padding: 10px; font-weight: 600;">${h.aceptabilidad || '-'}</td>
             </tr>
           </tbody>
         </table>

@@ -353,13 +353,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
   ]
 }
 
-REGLAS:
-1. Genera exactamente 5 procesos.
-2. Cada proceso debe tener al menos 1 o 2 peligros.
-3. Sigue estrictamente la metodología GTC 45.
-4. No incluyas markdown, solo JSON puro.`;
-
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent(systemPrompt);
         let text = result.response.text().trim();
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
