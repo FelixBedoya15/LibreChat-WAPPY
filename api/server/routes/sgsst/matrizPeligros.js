@@ -298,32 +298,47 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
         };
 
         // Normalization functions for UI dropdown alignment
-        const snapFR = (val) => {
+        const snapFR = (val, measureText) => {
             const valid = [0, 25, 50, 75, 100];
             const cleanVal = String(val).replace(/[^\d.-]/g, '');
-            const num = Number(cleanVal);
-            if (isNaN(num)) return 0;
+            let num = Number(cleanVal);
+            if (num > 0 && num <= 1) num *= 100; // Hand fractional AI responses like 0.75 -> 75%
+
+            const hasText = measureText && typeof measureText === 'string' && measureText.trim() !== '' && measureText.toLowerCase() !== 'no aplica' && measureText.toLowerCase() !== 'ninguno';
+
+            if ((isNaN(num) || num === 0) && hasText) {
+                num = 25; // Force minimum FR if a measure is proposed
+            } else if (isNaN(num)) {
+                return 0;
+            }
             return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
         };
 
-        const snapFC = (val) => {
+        const snapFC = (val, measureText) => {
             const valid = [0.5, 1, 2, 4, 6, 8, 10];
             const cleanVal = String(val).replace(/[^\d.-]/g, '');
-            const num = Number(cleanVal);
-            if (isNaN(num) || num === 0) return 1;
+            let num = Number(cleanVal);
+
+            const hasText = measureText && typeof measureText === 'string' && measureText.trim() !== '' && measureText.toLowerCase() !== 'no aplica' && measureText.toLowerCase() !== 'ninguno';
+
+            if ((isNaN(num) || num === 0) && hasText) {
+                num = 1; // Force minimum FC if a measure is proposed
+            } else if (isNaN(num) || num === 0) {
+                return 1;
+            }
             return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
         };
 
-        parsed.fr_eliminacion = snapFR(parsed.fr_eliminacion);
-        parsed.fc_eliminacion = snapFC(parsed.fc_eliminacion);
-        parsed.fr_sustitucion = snapFR(parsed.fr_sustitucion);
-        parsed.fc_sustitucion = snapFC(parsed.fc_sustitucion);
-        parsed.fr_ingenieria = snapFR(parsed.fr_ingenieria);
-        parsed.fc_ingenieria = snapFC(parsed.fc_ingenieria);
-        parsed.fr_administrativo = snapFR(parsed.fr_administrativo);
-        parsed.fc_administrativo = snapFC(parsed.fc_administrativo);
-        parsed.fr_epp = snapFR(parsed.fr_epp);
-        parsed.fc_epp = snapFC(parsed.fc_epp);
+        parsed.fr_eliminacion = snapFR(parsed.fr_eliminacion, parsed.eliminacion);
+        parsed.fc_eliminacion = snapFC(parsed.fc_eliminacion, parsed.eliminacion);
+        parsed.fr_sustitucion = snapFR(parsed.fr_sustitucion, parsed.sustitucion);
+        parsed.fc_sustitucion = snapFC(parsed.fc_sustitucion, parsed.sustitucion);
+        parsed.fr_ingenieria = snapFR(parsed.fr_ingenieria, parsed.controlIngenieria);
+        parsed.fc_ingenieria = snapFC(parsed.fc_ingenieria, parsed.controlIngenieria);
+        parsed.fr_administrativo = snapFR(parsed.fr_administrativo, parsed.controlAdministrativo);
+        parsed.fc_administrativo = snapFC(parsed.fc_administrativo, parsed.controlAdministrativo);
+        parsed.fr_epp = snapFR(parsed.fr_epp, parsed.epp);
+        parsed.fc_epp = snapFC(parsed.fc_epp, parsed.epp);
 
         parsed.j_eliminacion = calcJ(parsed.fr_eliminacion, parsed.fc_eliminacion);
         parsed.j_sustitucion = calcJ(parsed.fr_sustitucion, parsed.fc_sustitucion);
@@ -430,32 +445,47 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
                 const nr = np * nc;
 
                 // Normalization functions for UI dropdown alignment
-                const snapFR = (val) => {
+                const snapFR = (val, measureText) => {
                     const valid = [0, 25, 50, 75, 100];
                     const cleanVal = String(val).replace(/[^\d.-]/g, '');
-                    const num = Number(cleanVal);
-                    if (isNaN(num)) return 0;
+                    let num = Number(cleanVal);
+                    if (num > 0 && num <= 1) num *= 100;
+
+                    const hasText = measureText && typeof measureText === 'string' && measureText.trim() !== '' && measureText.toLowerCase() !== 'no aplica' && measureText.toLowerCase() !== 'ninguno';
+
+                    if ((isNaN(num) || num === 0) && hasText) {
+                        num = 25;
+                    } else if (isNaN(num)) {
+                        return 0;
+                    }
                     return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
                 };
 
-                const snapFC = (val) => {
+                const snapFC = (val, measureText) => {
                     const valid = [0.5, 1, 2, 4, 6, 8, 10];
                     const cleanVal = String(val).replace(/[^\d.-]/g, '');
-                    const num = Number(cleanVal);
-                    if (isNaN(num) || num === 0) return 1;
+                    let num = Number(cleanVal);
+
+                    const hasText = measureText && typeof measureText === 'string' && measureText.trim() !== '' && measureText.toLowerCase() !== 'no aplica' && measureText.toLowerCase() !== 'ninguno';
+
+                    if ((isNaN(num) || num === 0) && hasText) {
+                        num = 1;
+                    } else if (isNaN(num) || num === 0) {
+                        return 1;
+                    }
                     return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
                 };
 
-                const snapped_fr_eliminacion = snapFR(h.fr_eliminacion);
-                const snapped_fc_eliminacion = snapFC(h.fc_eliminacion);
-                const snapped_fr_sustitucion = snapFR(h.fr_sustitucion);
-                const snapped_fc_sustitucion = snapFC(h.fc_sustitucion);
-                const snapped_fr_ingenieria = snapFR(h.fr_ingenieria);
-                const snapped_fc_ingenieria = snapFC(h.fc_ingenieria);
-                const snapped_fr_administrativo = snapFR(h.fr_administrativo);
-                const snapped_fc_administrativo = snapFC(h.fc_administrativo);
-                const snapped_fr_epp = snapFR(h.fr_epp);
-                const snapped_fc_epp = snapFC(h.fc_epp);
+                const snapped_fr_eliminacion = snapFR(h.fr_eliminacion, h.eliminacion);
+                const snapped_fc_eliminacion = snapFC(h.fc_eliminacion, h.eliminacion);
+                const snapped_fr_sustitucion = snapFR(h.fr_sustitucion, h.sustitucion);
+                const snapped_fc_sustitucion = snapFC(h.fc_sustitucion, h.sustitucion);
+                const snapped_fr_ingenieria = snapFR(h.fr_ingenieria, h.controlIngenieria);
+                const snapped_fc_ingenieria = snapFC(h.fc_ingenieria, h.controlIngenieria);
+                const snapped_fr_administrativo = snapFR(h.fr_administrativo, h.controlAdministrativo);
+                const snapped_fc_administrativo = snapFC(h.fc_administrativo, h.controlAdministrativo);
+                const snapped_fr_epp = snapFR(h.fr_epp, h.epp);
+                const snapped_fc_epp = snapFC(h.fc_epp, h.epp);
 
                 return {
                     ...h,
