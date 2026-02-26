@@ -267,7 +267,7 @@ const MatrizPeligrosGTC45 = () => {
                 acept = 'Aceptable (10% - 50% límite exposición)';
                 interp = 'Zona de exposición moderada: Comprendida entre el nivel de acción y el VLP. Deben ser muestreados con cierta frecuencia.';
             } else if (h.deficienciaHigienica === 'Bajo (B)') {
-                acept = 'Aceptable';
+                acept = 'Aceptable (< 10% límite exposición)';
                 interp = 'Zona de exposición mínima/baja: Corresponde a los valores inferiores al 10% del límite de exposición. Los riesgos no existen o son leves, se toman como calidad de aire o medidas preventivas.';
             }
         } else {
