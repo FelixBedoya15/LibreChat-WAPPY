@@ -48,6 +48,7 @@ interface PeligroItem {
     costoIntervencion: string;
     factorCosto: number;
     factorJustificacion: number;
+    medidaSeleccionada: string;
     justificacion: string;
 
     // Medidas de intervención individuales
@@ -88,7 +89,7 @@ const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
     interpretacionNP: '', nivelConsecuencia: 0, nivelRiesgo: 0,
     interpretacionNR: '', aceptabilidad: '', numExpuestos: 0,
     deficienciaHigienica: '', valoracionCuantitativa: '',
-    nrFinal: 0, factorReduccion: 0, costoIntervencion: '', factorCosto: 0, factorJustificacion: 0, justificacion: '',
+    nrFinal: 0, factorReduccion: 0, costoIntervencion: '', factorCosto: 0, factorJustificacion: 0, medidaSeleccionada: '', justificacion: '',
 
     eliminacion: '', fr_eliminacion: 0, costo_eliminacion: '', fc_eliminacion: 0, j_eliminacion: 0,
     sustitucion: '', fr_sustitucion: 0, costo_sustitucion: '', fc_sustitucion: 0, j_sustitucion: 0,
@@ -570,6 +571,7 @@ const MatrizPeligrosGTC45 = () => {
           <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles de Ingeniería:</strong> <span style="color: #334155;">${h.controlIngenieria || 'N/A'}</span> ${h.j_ingenieria ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_ingenieria})</span>` : ''}</div>
           <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles Administrativos:</strong> <span style="color: #334155;">${h.controlAdministrativo || 'N/A'}</span> ${h.j_administrativo ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_administrativo})</span>` : ''}</div>
           <div><strong style="color: #475569;">Equipos de Protección (EPP):</strong> <span style="color: #334155;">${h.epp || 'N/A'}</span> ${h.j_epp ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_epp})</span>` : ''}</div>
+          ${h.medidaSeleccionada ? `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;"><strong style="color: #10b981;">✔ Medida Seleccionada (Costo-Beneficio):</strong> <span style="color: #0f172a; font-weight: 600;">${h.medidaSeleccionada}</span></div>` : ''}
         </div>
       </div>
     </div>
@@ -1018,11 +1020,22 @@ const MatrizPeligrosGTC45 = () => {
                                                                                     );
                                                                                 })}
                                                                             </div>
-                                                                            <div className="mt-3 space-y-1">
-                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase">Justificación Descriptiva</label>
-                                                                                <textarea value={h.justificacion || ''} onChange={e => updatePeligroField(p.id, h.id, 'justificacion', e.target.value)}
-                                                                                    placeholder="Ej: Controles recomendados tienen un J > 20..." rows={3}
-                                                                                    className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-y" />
+                                                                            <div className="mt-3 space-y-3">
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                                                                        <Zap className="h-3 w-3" />
+                                                                                        Medida Seleccionada (Mayor Costo-Beneficio)
+                                                                                    </label>
+                                                                                    <input type="text" value={h.medidaSeleccionada || ''} onChange={e => updatePeligroField(p.id, h.id, 'medidaSeleccionada', e.target.value)}
+                                                                                        placeholder="Ej: Dotar a los trabajadores con guantes..."
+                                                                                        className="w-full text-xs p-1.5 rounded border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10 text-text-primary" />
+                                                                                </div>
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Justificación Descriptiva</label>
+                                                                                    <textarea value={h.justificacion || ''} onChange={e => updatePeligroField(p.id, h.id, 'justificacion', e.target.value)}
+                                                                                        placeholder="Ej: Controles recomendados tienen un J > 20..." rows={3}
+                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-y" />
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </>

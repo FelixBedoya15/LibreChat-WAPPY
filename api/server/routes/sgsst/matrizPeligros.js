@@ -210,8 +210,9 @@ ${GTC45_TABLES}
 **INSTRUCCIONES:**
 Analiza la actividad/tarea descrita y genera la valoración completa según GTC 45.
 - SI la clasificación sugerida es Físico, Químico o Biológico (Higiénico), OBLIGATORIAMENTE evalúa "deficienciaHigienica" usando la escala cualitativa (Muy Alto (MA), Alto (A), Medio (M), Bajo (B)) y asigna el "nivelDeficiencia" numérico correspondiente (MA=10, A=6, M=2, B=0).
-- Usa "factorReduccion" (valor de 0 a 100), "factorCosto" (valor numérico: 10, 8, 6, 4, 2, 1, 0.5) y calcula el "factorJustificacion" (J = (NR * FR) / FC). 
-- Añade "justificacion" (Anexo E) descriptiva para argumentar técnicamente tu decisión.
+- Para CADA medida de intervención propuesta (eliminacion, sustitucion, ingenieria, administrativo, epp), DEBES asignar obligatoriamente un FR (>0) y FC (>0) asumiendo que el control SÍ se implementará. NUNCA los dejes en 0 si propones una medida.
+- Evalúa mentalmente J = (NR * FR) / FC para cada medida y elige la más costo-efectiva. Llena "medidaSeleccionada" con esa medida.
+- Añade "justificacion" (Anexo E) argumentando tu elección de la medida seleccionada.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el objeto JSON puro).
 
 **ESTRUCTURA JSON REQUERIDA (OBLIGATORIO RESPETAR ESTAS LLAVES):**
@@ -234,6 +235,7 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el 
   "deficienciaHigienica": "Valoración cualitativa: MA/A/M/B con justificación (solo para peligros higiénicos, o N/A)",
   "valoracionCuantitativa": "Indicar si existen mediciones, valor vs TLV, grado (o N/A si no aplica)",
   "justificacion": "Justificación técnica de la valoración (Anexo E)",
+  "medidaSeleccionada": "Escribe aquí la medida sugerida (de las 5 de abajo) que tenga el mayor Costo-Beneficio",
   
   "eliminacion": "Medida de eliminación recomendada (o 'No aplica')",
   "fr_eliminacion": <número: porcentaje reducción estimado (100, 75, 50, 25, 0)>,
@@ -335,6 +337,8 @@ Para CADA proceso, identifica de 5 a 8 peligros críticos (GTC 45) aplicables pa
 Para CADA peligro, realiza la valoración de riesgo GTC 45 completa:
 - Proporciona ND, NE. NC será calculado por la IA basándose en posibles efectos. NR = (ND x NE) x NC.
 - Proporciona la aceptabilidad, controles sugeridos, y completa *todos* los campos numéricos y de texto del esquema.
+- Para CADA medida de intervención propuesta, asigna un FR y FC mayor a 0, asumiendo que se implementará.
+- Define "medidaSeleccionada" indicando la de mayor costo-beneficio (mayor J).
 
 Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 {
@@ -367,6 +371,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
           "controlAdministrativo": "...", "fr_administrativo": 0, "fc_administrativo": 0, "j_administrativo": 0,
           "epp": "...", "fr_epp": 0, "fc_epp": 0, "j_epp": 0,
           "nrFinal": 100,
+          "medidaSeleccionada": "...",
           "justificacion": "..."
         }
       ]
