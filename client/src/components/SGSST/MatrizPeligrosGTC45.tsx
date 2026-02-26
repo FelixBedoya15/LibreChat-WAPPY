@@ -409,7 +409,7 @@ const MatrizPeligrosGTC45 = () => {
                     fuenteGeneradora: fuenteGeneradora || p.fuenteGeneradora || '',
                     medioExistente: medioExistente || p.medioExistente || '',
                     individuoControl: individuoControl || p.individuoControl || '',
-                    peligros: p.peligros.map(h => h.id === peligro.id ? { ...h, ...hazardFields } : h)
+                    peligros: p.peligros.map(h => h.id === peligro.id ? recalculateHazard({ ...h, ...hazardFields }) : h)
                 };
             }));
             showToast({ message: 'Peligro valorado con IA', status: 'success' });
