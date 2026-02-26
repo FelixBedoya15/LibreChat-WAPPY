@@ -597,7 +597,8 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
     </h2>
 </div>
 
-<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
+<div style="overflow-x: auto; width: 100%; margin-bottom: 24px; padding-bottom: 8px;">
+<table style="width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: inherit;">
   <thead>
     <tr>
       <th colspan="4" style="background-color: #004d99; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -631,7 +632,8 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
       <td style="padding: 10px 14px;">GTC 45 / Decreto 1072</td>
     </tr>
   </tbody>
-</table>`;
+</table>
+</div>`;
 
         // Summary of risks for the prompt
         let totalPeligros = 0;
@@ -673,10 +675,10 @@ Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`
 
 **ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
 - **Regla Crítica:** NO uses clases de Tailwind, usa exclusivamente CSS inline.
-- Los contenedores principales (divs, cajas, tarjetas) deben tener \`style="width: 100%; box-sizing: border-box;"\` para no quedar angostos respecto a la tabla superior.
-- Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` (si el fondo es claro) o \`color: #fff;\` (si el fondo es oscuro).
+- Los contenedores principales (divs, cajas, tarjetas) deben tener \`style="width: 100%; box-sizing: border-box;"\` para no quedar angostos.
+- Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` o \`color: #fff;\`.
 - Títulos (h2, h3): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
-- Tablas generadas por la IA: width="100%", table-layout="fixed", word-wrap="break-word", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
+- Tablas generadas por la IA DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\`. La tabla debe tener los estilos: \`width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`, th con background-color="#004d99" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).`;
 
         const model = genAI.getGenerativeModel({ model: modelName });

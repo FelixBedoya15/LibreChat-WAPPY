@@ -498,7 +498,8 @@ const MatrizPeligrosGTC45 = () => {
 
       <div style="margin-bottom: 24px;">
         <span style="display: block; font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">Controles Existentes del Proceso</span>
-        <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: collapse; text-align: left; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="overflow-x: auto; width: 100%; margin-bottom: 16px;">
+        <table style="width: 100%; min-width: 600px; word-wrap: break-word; border-collapse: collapse; text-align: left; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <thead style="background-color: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700;">
             <tr>
               <th style="padding: 10px; border-right: 1px solid #e2e8f0;">En la Fuente</th>
@@ -514,6 +515,7 @@ const MatrizPeligrosGTC45 = () => {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div style="background-color: ${riskBg}; border: 1px solid ${riskColor}40; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
@@ -529,7 +531,8 @@ const MatrizPeligrosGTC45 = () => {
 
       <div style="margin-bottom: 16px;">
         <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Valoración del Riesgo</span>
-        <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: collapse; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="overflow-x: auto; width: 100%; margin-bottom: 16px;">
+        <table style="width: 100%; min-width: 700px; word-wrap: break-word; border-collapse: collapse; text-align: center; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <thead style="background-color: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700;">
             <tr>
               <th style="padding: 10px; border-right: 1px solid #e2e8f0;">Nivel Deficiencia (ND)</th>
@@ -552,6 +555,7 @@ const MatrizPeligrosGTC45 = () => {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       ${h.deficienciaHigienica && h.deficienciaHigienica.trim() !== '' && h.deficienciaHigienica.toUpperCase() !== 'N/A' && h.deficienciaHigienica.toUpperCase() !== 'NA' ? `
