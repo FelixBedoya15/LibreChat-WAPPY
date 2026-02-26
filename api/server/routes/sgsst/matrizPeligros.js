@@ -460,13 +460,59 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
 
-        const headerHTML = buildStandardHeader({
-            title: 'INFORME EJECUTIVO DE MATRIZ DE PELIGROS (GTC 45)',
-            companyInfo: loadedCompanyInfo,
-            date: currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
-            norm: 'GTC 45 / Decreto 1072 de 2015',
-            responsibleName: userName || req.user?.name || 'Usuario',
-        });
+        const empresa = loadedCompanyInfo?.companyName || 'EMPRESA';
+        const nit = loadedCompanyInfo?.nit || 'NIT';
+        const representante = loadedCompanyInfo?.legalRepresentative || userName || 'No registrado';
+        const trabajadores = loadedCompanyInfo?.workerCount || 'N/A';
+        const riesgo = loadedCompanyInfo?.riskLevel || 'N/A';
+        const arl = loadedCompanyInfo?.arl || 'N/A';
+        const fechaEmision = currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        const headerHTML = `
+<div style="text-align: center; margin-bottom: 24px;">
+    <h1 style="color: #004d99; font-size: 26px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; border-bottom: none; padding-bottom: 0;">
+        INFORME EJECUTIVO DE MATRIZ DE PELIGROS
+    </h1>
+    <h2 style="color: #475569; font-size: 18px; font-weight: 600; border-bottom: 3px solid #004d99; padding-bottom: 12px; margin-top: 0; display: inline-block;">
+        Guía Técnica Colombiana GTC 45
+    </h2>
+</div>
+
+<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
+  <thead>
+    <tr>
+      <th colspan="4" style="background-color: #004d99; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+        INFORMACIÓN RESUMIDA DE LA ENTIDAD
+      </th>
+    </tr>
+  </thead>
+  <tbody style="font-size: 14px; color: #1e293b;">
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Empresa:</td>
+      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${empresa}</td>
+      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">NIT:</td>
+      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd;">${nit}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Representante:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${representante}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">N° Trabajadores:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${trabajadores}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Nivel de Riesgo:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${riesgo}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Fecha de Emisión:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${fechaEmision}</td>
+    </tr>
+    <tr>
+      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">ARL:</td>
+      <td style="padding: 10px 14px; border-right: 1px solid #eee;">${arl}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">Norma:</td>
+      <td style="padding: 10px 14px;">GTC 45 / Decreto 1072</td>
+    </tr>
+  </tbody>
+</table>`;
 
         // Summary of risks for the prompt
         let totalPeligros = 0;
