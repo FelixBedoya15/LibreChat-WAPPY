@@ -759,32 +759,34 @@ const MatrizPeligrosGTC45 = () => {
                                 {expandedProcesos.has(p.id) && (
                                     <div className="p-4 space-y-4 animate-in fade-in duration-300">
                                         {/* Process Details Inputs */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-4 border-bottom border-border-light">
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Proceso</label>
-                                                <input type="text" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary font-medium" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
-                                                <input type="text" value={p.zona} onChange={e => updateProcesoField(p.id, 'zona', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Actividad</label>
-                                                <input type="text" value={p.actividad} onChange={e => updateProcesoField(p.id, 'actividad', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Tarea / Rut.</label>
-                                                <div className="flex gap-2">
-                                                    <input type="text" value={p.tarea} onChange={e => updateProcesoField(p.id, 'tarea', e.target.value)}
-                                                        className="flex-1 text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
-                                                    <select value={p.rutinario ? 'si' : 'no'} onChange={e => updateProcesoField(p.id, 'rutinario', e.target.value === 'si')}
-                                                        className="w-16 text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
-                                                        <option value="si">SÍ</option>
-                                                        <option value="no">NO</option>
-                                                    </select>
+                                        <div className="overflow-x-auto overflow-y-hidden pb-4 mb-4 border-bottom border-border-light classic-scrollbar">
+                                            <div className="flex flex-nowrap gap-4 min-w-[800px] pb-2">
+                                                <div className="space-y-1 flex-1">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Proceso</label>
+                                                    <input type="text" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
+                                                        className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary font-medium" />
+                                                </div>
+                                                <div className="space-y-1 flex-1">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
+                                                    <input type="text" value={p.zona} onChange={e => updateProcesoField(p.id, 'zona', e.target.value)}
+                                                        className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                </div>
+                                                <div className="space-y-1 flex-[1.5]">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Actividad</label>
+                                                    <input type="text" value={p.actividad} onChange={e => updateProcesoField(p.id, 'actividad', e.target.value)}
+                                                        className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                </div>
+                                                <div className="space-y-1 flex-[1.5]">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Tarea / Rut.</label>
+                                                    <div className="flex gap-2">
+                                                        <input type="text" value={p.tarea} onChange={e => updateProcesoField(p.id, 'tarea', e.target.value)}
+                                                            className="flex-1 text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                        <select value={p.rutinario ? 'si' : 'no'} onChange={e => updateProcesoField(p.id, 'rutinario', e.target.value === 'si')}
+                                                            className="w-16 text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                            <option value="si">SÍ</option>
+                                                            <option value="no">NO</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
