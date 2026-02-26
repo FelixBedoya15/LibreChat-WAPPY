@@ -214,14 +214,14 @@ Analiza la actividad/tarea descrita y genera la valoración completa según GTC 
 - Añade "justificacion" (Anexo E) descriptiva para argumentar técnicamente tu decisión.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el objeto JSON puro).
 
-**ESTRUCTURA JSON REQUERIDA:**
+**ESTRUCTURA JSON REQUERIDA (OBLIGATORIO RESPETAR ESTAS LLAVES):**
 {
+  "fuenteGeneradora": "Controles existentes en la fuente aplicables a la tarea (mención si no existen)",
+  "medioExistente": "Controles existentes en el medio aplicables a la tarea (mención si no existen)",
+  "individuoControl": "Controles existentes en el individuo aplicables a la tarea",
   "descripcionPeligro": "Descripción detallada del peligro identificado",
   "clasificacion": "Categoría del peligro (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de seguridad, Fenómenos naturales)",
   "efectosPosibles": "Efectos posibles sobre la salud del trabajador",
-  "fuenteGeneradora": "Fuente que genera el peligro",
-  "medioExistente": "Controles existentes en el medio (mención si no existen)",
-  "individuoControl": "Controles existentes en el individuo/EPP",
   "nivelDeficiencia": <número: 0, 2, 6 o 10>,
   "nivelExposicion": <número: 1, 2, 3 o 4>,
   "nivelProbabilidad": <número: ND × NE>,
@@ -322,21 +322,20 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 {
   "procesos": [
     {
-      "proceso": "string",
-      "zona": "string",
-      "actividad": "string",
-      "tarea": "string",
-      "rutinario": boolean,
-      "controlesExistentes": "string",
+      "proceso": "Nombre del Proceso",
+      "zona": "Lugar o área",
+      "actividad": "Descripción de la actividad principal",
+      "tarea": "Tarea específica",
+      "rutinario": true,
+      "fuenteGeneradora": "Controles existentes en la fuente aplicables a todo el proceso",
+      "medioExistente": "Controles existentes en el medio aplicables a todo el proceso",
+      "individuoControl": "Controles existentes en el individuo aplicables a todo el proceso",
       "peligros": [
         {
           "id": "hazard-uuid-1",
-          "descripcionPeligro": "...",
-          "clasificacion": "...",
-          "efectosPosibles": "...",
-          "fuenteGeneradora": "...",
-          "medioExistente": "...",
-          "individuoControl": "...",
+          "descripcionPeligro": "Descripción específica",
+          "clasificacion": "Biomécanico",
+          "efectosPosibles": "Lesiones osteomusculares",
           "nivelDeficiencia": 6,
           "nivelExposicion": 3,
           "nivelConsecuencia": 25,

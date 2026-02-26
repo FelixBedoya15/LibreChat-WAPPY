@@ -32,9 +32,6 @@ interface PeligroItem {
     descripcionPeligro: string;
     clasificacion: string;
     efectosPosibles: string;
-    fuenteGeneradora: string;
-    medioExistente: string;
-    individuoControl: string;
     nivelDeficiencia: number;
     nivelExposicion: number;
     nivelProbabilidad: number;
@@ -67,13 +64,14 @@ interface ProcesoEntry {
     actividad: string;
     tarea: string;
     rutinario: boolean;
-    controlesExistentes: string;
+    fuenteGeneradora: string;
+    medioExistente: string;
+    individuoControl: string;
     peligros: PeligroItem[];
 }
 
 const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
     descripcionPeligro: '', clasificacion: '', efectosPosibles: '',
-    fuenteGeneradora: '', medioExistente: '', individuoControl: '',
     nivelDeficiencia: 0, nivelExposicion: 0, nivelProbabilidad: 0,
     interpretacionNP: '', nivelConsecuencia: 0, nivelRiesgo: 0,
     interpretacionNR: '', aceptabilidad: '', numExpuestos: 0,
@@ -84,7 +82,8 @@ const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
 };
 
 const EMPTY_PROCESO: Omit<ProcesoEntry, 'id' | 'peligros'> = {
-    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true, controlesExistentes: '',
+    proceso: '', zona: '', actividad: '', tarea: '', rutinario: true,
+    fuenteGeneradora: '', medioExistente: '', individuoControl: '',
 };
 
 const COST_FACTOR_OPTIONS = [
@@ -371,9 +370,16 @@ const MatrizPeligrosGTC45 = () => {
 
             setProcesos(prev => prev.map(p => {
                 if (p.id !== proceso.id) return p;
+
+                // Extract process-level controls mapped by AI, default to existing if empty
+                const { fuenteGeneradora, medioExistente, individuoControl, ...hazardFields } = completed;
+
                 return {
                     ...p,
-                    peligros: p.peligros.map(h => h.id === peligro.id ? { ...h, ...completed } : h)
+                    fuenteGeneradora: fuenteGeneradora || p.fuenteGeneradora || '',
+                    medioExistente: medioExistente || p.medioExistente || '',
+                    individuoControl: individuoControl || p.individuoControl || '',
+                    peligros: p.peligros.map(h => h.id === peligro.id ? { ...h, ...hazardFields } : h)
                 };
             }));
             showToast({ message: 'Peligro valorado con IA', status: 'success' });
@@ -456,19 +462,8 @@ const MatrizPeligrosGTC45 = () => {
         </div>
       </div>
 
-      <div style="background-color: ${riskBg}; border: 1px solid ${riskColor}40; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-        <div style="margin-bottom: 12px;">
-          <span style="display: block; font-size: 12px; font-weight: 700; color: ${riskColor}; text-transform: uppercase; margin-bottom: 4px;">Peligro Identificado (${h.clasificacion || '-'})</span>
-          <strong style="color: #0f172a; font-size: 15px;">${h.descripcionPeligro || 'Sin descripción'}</strong>
-        </div>
-        <div>
-          <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Efectos Posibles</span>
-          <span style="color: #334155; font-size: 14px;">${h.efectosPosibles || '-'}</span>
-        </div>
-      </div>
-
-      <div style="margin-bottom: 16px;">
-        <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Controles Existentes</span>
+      <div style="margin-bottom: 24px;">
+        <span style="display: block; font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">Controles Existentes del Proceso</span>
         <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: collapse; text-align: left; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <thead style="background-color: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700;">
             <tr>
@@ -479,12 +474,23 @@ const MatrizPeligrosGTC45 = () => {
           </thead>
           <tbody style="color: #334155; font-size: 13px;">
             <tr>
-              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.fuenteGeneradora || 'Ninguno'}</td>
-              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.medioExistente || 'Ninguno'}</td>
-              <td style="padding: 10px;">${h.individuoControl || 'Ninguno'}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${p.fuenteGeneradora || 'Ninguno'}</td>
+              <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${p.medioExistente || 'Ninguno'}</td>
+              <td style="padding: 10px;">${p.individuoControl || 'Ninguno'}</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div style="background-color: ${riskBg}; border: 1px solid ${riskColor}40; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <div style="margin-bottom: 12px;">
+          <span style="display: block; font-size: 12px; font-weight: 700; color: ${riskColor}; text-transform: uppercase; margin-bottom: 4px;">Peligro Identificado (${h.clasificacion || '-'})</span>
+          <strong style="color: #0f172a; font-size: 15px;">${h.descripcionPeligro || 'Sin descripción'}</strong>
+        </div>
+        <div>
+          <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Efectos Posibles</span>
+          <span style="color: #334155; font-size: 14px;">${h.efectosPosibles || '-'}</span>
+        </div>
       </div>
 
       <div style="margin-bottom: 16px;">
@@ -747,6 +753,31 @@ const MatrizPeligrosGTC45 = () => {
                                             </div>
                                         </div>
 
+                                        {/* Controles Existentes del Proceso */}
+                                        <div className="pt-2 pb-4">
+                                            <label className="text-xs font-bold text-blue-600 dark:text-blue-400 tracking-tight uppercase mb-3 block border-b border-border-light pb-1">Controles Existentes (Aplicables al Proceso)</label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">En la Fuente</label>
+                                                    <textarea value={p.fuenteGeneradora || ''} onChange={e => updateProcesoField(p.id, 'fuenteGeneradora', e.target.value)}
+                                                        placeholder="Ej: Aislamiento acústico de la máquina..." rows={2}
+                                                        className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">En el Medio</label>
+                                                    <textarea value={p.medioExistente || ''} onChange={e => updateProcesoField(p.id, 'medioExistente', e.target.value)}
+                                                        placeholder="Ej: Extractores, mamparas..." rows={2}
+                                                        className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">En el Individuo</label>
+                                                    <textarea value={p.individuoControl || ''} onChange={e => updateProcesoField(p.id, 'individuoControl', e.target.value)}
+                                                        placeholder="Ej: EPP suministrado (casco, guantes)..." rows={2}
+                                                        className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         {/* Hazards Sub-List */}
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between border-b border-border-medium pb-1">
@@ -849,31 +880,6 @@ const MatrizPeligrosGTC45 = () => {
                                                                                     placeholder="Describa el peligro aquí..."
                                                                                     rows={2} className="w-full text-xs p-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900/20 text-text-primary resize-none" />
                                                                             )}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Controles Existentes */}
-                                                                <div className="pt-2">
-                                                                    <label className="text-[10px] font-bold text-text-secondary uppercase mb-2 block border-b border-border-light pb-1">Controles Existentes</label>
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[9px] font-bold text-text-secondary uppercase">En la Fuente</label>
-                                                                            <textarea value={h.fuenteGeneradora || ''} onChange={e => updatePeligroField(p.id, h.id, 'fuenteGeneradora', e.target.value)}
-                                                                                placeholder="Ej: Aislamiento..." rows={2}
-                                                                                className="w-full text-[10px] p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
-                                                                        </div>
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[9px] font-bold text-text-secondary uppercase">En el Medio</label>
-                                                                            <textarea value={h.medioExistente || ''} onChange={e => updatePeligroField(p.id, h.id, 'medioExistente', e.target.value)}
-                                                                                placeholder="Ej: Ventilación..." rows={2}
-                                                                                className="w-full text-[10px] p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
-                                                                        </div>
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[9px] font-bold text-text-secondary uppercase">En el Individuo</label>
-                                                                            <textarea value={h.individuoControl || ''} onChange={e => updatePeligroField(p.id, h.id, 'individuoControl', e.target.value)}
-                                                                                placeholder="Ej: Uso de tapabocas..." rows={2}
-                                                                                className="w-full text-[10px] p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                                         </div>
                                                                     </div>
                                                                 </div>
