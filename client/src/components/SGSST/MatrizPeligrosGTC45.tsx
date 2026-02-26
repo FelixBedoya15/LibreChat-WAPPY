@@ -375,7 +375,11 @@ const MatrizPeligrosGTC45 = () => {
             if (!res.ok) throw new Error('Error al generar matriz');
             const data = await res.json();
             if (data.procesos) {
-                setProcesos(data.procesos);
+                const refreshedProcesos = data.procesos.map((p: any) => ({
+                    ...p,
+                    peligros: (p.peligros || []).map((h: any) => recalculateHazard({ ...EMPTY_HAZARD, ...h }))
+                }));
+                setProcesos(refreshedProcesos);
                 showToast({ message: 'Matriz generada con éxito (7 procesos)', status: 'success' });
             }
         } catch (err: any) {
