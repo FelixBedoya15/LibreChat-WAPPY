@@ -300,15 +300,17 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
         // Normalization functions for UI dropdown alignment
         const snapFR = (val) => {
             const valid = [0, 25, 50, 75, 100];
-            const num = Number(val);
+            const cleanVal = String(val).replace(/[^\d.-]/g, '');
+            const num = Number(cleanVal);
             if (isNaN(num)) return 0;
             return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
         };
 
         const snapFC = (val) => {
             const valid = [0.5, 1, 2, 4, 6, 8, 10];
-            const num = Number(val);
-            if (isNaN(num)) return 1;
+            const cleanVal = String(val).replace(/[^\d.-]/g, '');
+            const num = Number(cleanVal);
+            if (isNaN(num) || num === 0) return 1;
             return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
         };
 
@@ -430,15 +432,17 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
                 // Normalization functions for UI dropdown alignment
                 const snapFR = (val) => {
                     const valid = [0, 25, 50, 75, 100];
-                    const num = Number(val);
+                    const cleanVal = String(val).replace(/[^\d.-]/g, '');
+                    const num = Number(cleanVal);
                     if (isNaN(num)) return 0;
                     return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
                 };
 
                 const snapFC = (val) => {
                     const valid = [0.5, 1, 2, 4, 6, 8, 10];
-                    const num = Number(val);
-                    if (isNaN(num)) return 1;
+                    const cleanVal = String(val).replace(/[^\d.-]/g, '');
+                    const num = Number(cleanVal);
+                    if (isNaN(num) || num === 0) return 1;
                     return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
                 };
 
