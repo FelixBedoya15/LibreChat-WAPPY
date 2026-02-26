@@ -202,12 +202,62 @@ const MatrizPeligrosGTC45 = () => {
         setProcesos(prev => prev.map(p => p.id === procesoId ? { ...p, [field]: value } : p));
     };
 
+    const recalculateHazard = (h: PeligroItem): PeligroItem => {
+        const nd = Number(h.nivelDeficiencia) || 0;
+        const ne = Number(h.nivelExposicion) || 0;
+        const nc = Number(h.nivelConsecuencia) || 0;
+
+        let np = nd * ne;
+        let nr = np * nc;
+
+        // Determine acceptability
+        let acept = '';
+        if (nr >= 600) acept = 'No Aceptable';
+        else if (nr >= 150) acept = 'No Aceptable o Aceptable con control específico';
+        else if (nr >= 40) acept = 'Aceptable';
+        else if (nr > 0) acept = 'Aceptable';
+
+        // Calculate Justification Factor (J) = (NR * FR) / FC
+        let j = 0;
+        const frNum = Number(h.factorReduccion) || 0;
+        const fcNum = Number(h.factorCosto) || 1; // avoid div by 0
+        if (fcNum > 0) {
+            j = (nr * frNum) / fcNum;
+        }
+
+        return {
+            ...h,
+            nivelProbabilidad: np,
+            nivelRiesgo: nr,
+            aceptabilidad: acept,
+            factorJustificacion: Number(j.toFixed(2))
+        };
+    };
+
     const updatePeligroField = (procesoId: string, peligroId: string, field: keyof PeligroItem, value: any) => {
         setProcesos(prev => prev.map(p => {
             if (p.id !== procesoId) return p;
             return {
                 ...p,
-                peligros: p.peligros.map(h => h.id === peligroId ? { ...h, [field]: value } : h)
+                peligros: p.peligros.map(h => {
+                    if (h.id !== peligroId) return h;
+                    let updatedH = { ...h, [field]: value };
+
+                    // Specific mapping for Anexo C Qualitative -> ND
+                    if (field === 'deficienciaHigienica') {
+                        if (value === 'Muy Alto (MA)') updatedH.nivelDeficiencia = 10;
+                        else if (value === 'Alto (A)') updatedH.nivelDeficiencia = 6;
+                        else if (value === 'Medio (M)') updatedH.nivelDeficiencia = 2;
+                        else if (value === 'Bajo (B)') updatedH.nivelDeficiencia = 0;
+                    }
+
+                    // For fields that require recalculation
+                    if (['nivelDeficiencia', 'nivelExposicion', 'nivelConsecuencia', 'deficienciaHigienica', 'factorReduccion', 'factorCosto'].includes(field)) {
+                        updatedH = recalculateHazard(updatedH);
+                    }
+
+                    return updatedH;
+                })
             };
         }));
     };
@@ -377,11 +427,15 @@ const MatrizPeligrosGTC45 = () => {
         ${h.valoracionCuantitativa ? `<br/><span style="color: #334155; font-size: 13px;"><strong>Detalle:</strong> ${h.valoracionCuantitativa}</span>` : ''}
       </div>` : ''}
 
-      ${h.justificacion && h.justificacion.trim() !== '' ? `
+      ${h.factorReduccion || h.justificacion ? `
       <div style="background-color: #fdf4ff; border: 1px solid #f5d0fe; border-left: 4px solid #d946ef; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-        <span style="display: block; font-size: 11px; font-weight: 700; color: #a21caf; text-transform: uppercase; margin-bottom: 4px;">Anexo E: Factores de Reducción y Justificación</span>
-        <span style="color: #0f172a; font-size: 13px;"><strong>Factor de Reducción:</strong> ${h.factorReduccion || 'Ninguno'}</span><br/>
-        <span style="color: #334155; font-size: 13px;"><strong>Justificación:</strong> ${h.justificacion}</span>
+        <span style="display: block; font-size: 11px; font-weight: 700; color: #a21caf; text-transform: uppercase; margin-bottom: 4px;">Anexo E: Justificación de Intervención (J)</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <span style="color: #0f172a; font-size: 12px;"><strong>Factor Reducción (FR):</strong> ${h.factorReduccion || 0}%</span>
+          <span style="color: #0f172a; font-size: 12px;"><strong>Factor Costo (FC):</strong> d=${h.factorCosto || 1}</span>
+          <span style="color: #a21caf; font-size: 13px; font-weight: 800;"><strong>Valor (J):</strong> ${h.factorJustificacion || 0}</span>
+        </div>
+        ${h.justificacion ? `<span style="color: #334155; font-size: 13px;"><strong>Justificación:</strong> ${h.justificacion}</span>` : ''}
       </div>` : ''}
 
       <div>
@@ -710,18 +764,40 @@ const MatrizPeligrosGTC45 = () => {
                                                                         </div>
 
                                                                         {/* Anexo E: Justificacion y Reduccion (only show if completed by AI or heavily evaluated) */}
-                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border-light">
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase text-fuchsia-500">Factor de Reducción (Anexo E)</label>
-                                                                                <textarea value={h.factorReduccion || ''} onChange={e => updatePeligroField(p.id, h.id, 'factorReduccion', e.target.value)}
-                                                                                    placeholder="Ej: Controles de ingeniería efectivos..."
-                                                                                    className="w-full text-[10px] p-2 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
-                                                                            </div>
-                                                                            <div className="space-y-1">
-                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase text-fuchsia-500">Justificación de Valoración</label>
-                                                                                <textarea value={h.justificacion || ''} onChange={e => updatePeligroField(p.id, h.id, 'justificacion', e.target.value)}
-                                                                                    placeholder="Justificación técnica de la evaluación..."
-                                                                                    className="w-full text-[10px] p-2 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
+                                                                        <div className="pt-4 mt-2 border-t border-border-light">
+                                                                            <h5 className="text-[10px] font-black text-fuchsia-600 uppercase mb-3 flex items-center justify-between">
+                                                                                Anexo E: Justificación de Intervención (J)
+                                                                                <span className="bg-fuchsia-100 dark:bg-fuchsia-900/30 px-2 py-0.5 rounded text-fuchsia-700 dark:text-fuchsia-400">
+                                                                                    J = {h.factorJustificacion || 0}
+                                                                                </span>
+                                                                            </h5>
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Reducción (FR)</label>
+                                                                                    <select value={h.factorReduccion || 0} onChange={e => updatePeligroField(p.id, h.id, 'factorReduccion', Number(e.target.value))}
+                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
+                                                                                        <option value={0}>Seleccione (0%)</option>
+                                                                                        <option value={100}>100% - Eliminación Total</option>
+                                                                                        <option value={75}>75% - Alto (Ingeniería)</option>
+                                                                                        <option value={50}>50% - Medio (Administrativo)</option>
+                                                                                        <option value={25}>25% - Bajo (EPP)</option>
+                                                                                    </select>
+                                                                                </div>
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Costo (FC)</label>
+                                                                                    <select value={h.factorCosto || 1} onChange={e => updatePeligroField(p.id, h.id, 'factorCosto', Number(e.target.value))}
+                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
+                                                                                        {COST_FACTOR_OPTIONS.map(opt => (
+                                                                                            <option key={opt.d} value={opt.d}>{opt.label} (d={opt.d})</option>
+                                                                                        ))}
+                                                                                    </select>
+                                                                                </div>
+                                                                                <div className="space-y-1 md:col-span-2">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Justificación Descriptiva</label>
+                                                                                    <input type="text" value={h.justificacion || ''} onChange={e => updatePeligroField(p.id, h.id, 'justificacion', e.target.value)}
+                                                                                        placeholder="Ej: Controles recomendados tienen un J > 20..."
+                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary" />
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </>

@@ -210,7 +210,8 @@ ${GTC45_TABLES}
 **INSTRUCCIONES:**
 Analiza la actividad/tarea descrita y genera la valoración completa según GTC 45.
 - SI la clasificación sugerida es Físico, Químico o Biológico (Higiénico), OBLIGATORIAMENTE evalúa "deficienciaHigienica" usando la escala cualitativa (Muy Alto (MA), Alto (A), Medio (M), Bajo (B)) y asigna el "nivelDeficiencia" numérico correspondiente (MA=10, A=6, M=2, B=0).
-- Usa "factorReduccion" y "justificacion" (Anexo E) para argumentar técnicamente la reducción o mantenimiento del nivel de riesgo, detallando el porqué de los controles elegidos.
+- Usa "factorReduccion" (valor de 0 a 100), "factorCosto" (valor numérico: 10, 8, 6, 4, 2, 1, 0.5) y calcula el "factorJustificacion" (J = (NR * FR) / FC). 
+- Añade "justificacion" (Anexo E) descriptiva para argumentar técnicamente tu decisión.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el objeto JSON puro).
 
 **ESTRUCTURA JSON REQUERIDA:**
@@ -232,8 +233,10 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el 
   "numExpuestos": <número estimado>,
   "deficienciaHigienica": "Valoración cualitativa: MA/A/M/B con justificación (solo para peligros higiénicos, o N/A)",
   "valoracionCuantitativa": "Indicar si existen mediciones, valor vs TLV, grado (o N/A si no aplica)",
-  "factorReduccion": "Factores que reducen el riesgo (o 'Ninguno identificado')",
-  "justificacion": "Justificación técnica de la valoración",
+  "factorReduccion": <número: porcentaje de reducción estimado (100, 75, 50, 25, 0)>,
+  "factorCosto": <número: factor 'd' asociado al costo. Usa 10, 8, 6, 4, 2, 1, o 0.5>,
+  "factorJustificacion": <número: J = (NR * factorReduccion) / factorCosto>,
+  "justificacion": "Justificación técnica de la valoración (Anexo E)",
   "eliminacion": "Medida de eliminación recomendada (o 'No aplica')",
   "sustitucion": "Medida de sustitución recomendada (o 'No aplica')",
   "controlIngenieria": "Medida de ingeniería recomendada",
