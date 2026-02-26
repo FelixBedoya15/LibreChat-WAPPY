@@ -209,6 +209,8 @@ ${GTC45_TABLES}
 
 **INSTRUCCIONES:**
 Analiza la actividad/tarea descrita y genera la valoración completa según GTC 45.
+- SI la clasificación sugerida es Físico, Químico o Biológico (Higiénico), OBLIGATORIAMENTE evalúa "deficienciaHigienica" usando la escala cualitativa (Muy Alto (MA), Alto (A), Medio (M), Bajo (B)) y asigna el "nivelDeficiencia" numérico correspondiente (MA=10, A=6, M=2, B=0).
+- Usa "factorReduccion" y "justificacion" (Anexo E) para argumentar técnicamente la reducción o mantenimiento del nivel de riesgo, detallando el porqué de los controles elegidos.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el objeto JSON puro).
 
 **ESTRUCTURA JSON REQUERIDA:**
@@ -547,7 +549,8 @@ Escribe un INFORME EJECUTIVO profesional (en formato HTML) que documente los hal
 ESTRUCTURA EXACTA REQUERIDA (en div y HTML limpio sin markdown):
 1. Un resumen analítico del estado actual de los riesgos en la empresa según los datos reportados.
 2. Un análisis cualitativo o conclusiones de los principales peligros evaluados (menciona los procesos afectados).
-3. Recomendaciones prioritarias urgentes (Jerarquía de Controles) enfocadas a la mitigación.
+3. Asegúrate de incluir en tu análisis reflexiones sobre la evaluación cualitativa de riesgos higiénicos (Anexo C) y/o los factores de justificación de intervención (Anexo E), si están presentes en los peligros críticos.
+4. Recomendaciones prioritarias urgentes (Jerarquía de Controles) enfocadas a la mitigación.
 
 Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`\`\`html. Utiliza clases de Tailwind para dar formato, por ejemplo: "text-lg font-bold text-gray-800 mb-4", "mb-4 text-gray-700 leading-relaxed", "list-disc pl-6 mb-4 text-gray-700". No incluyas un título principal (<code>h1</code>) porque ya está en el encabezado.`;
 

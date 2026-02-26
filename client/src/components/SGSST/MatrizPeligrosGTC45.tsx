@@ -370,6 +370,20 @@ const MatrizPeligrosGTC45 = () => {
         </table>
       </div>
 
+      ${h.deficienciaHigienica && h.deficienciaHigienica.trim() !== '' && h.deficienciaHigienica.toUpperCase() !== 'N/A' && h.deficienciaHigienica.toUpperCase() !== 'NA' ? `
+      <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+        <span style="display: block; font-size: 11px; font-weight: 700; color: #0284c7; text-transform: uppercase; margin-bottom: 4px;">Anexo C: Deficiencia Higiénica / Cuantitativa</span>
+        <span style="color: #0f172a; font-size: 13px;"><strong>Valoración:</strong> ${h.deficienciaHigienica}</span>
+        ${h.valoracionCuantitativa ? `<br/><span style="color: #334155; font-size: 13px;"><strong>Detalle:</strong> ${h.valoracionCuantitativa}</span>` : ''}
+      </div>` : ''}
+
+      ${h.justificacion && h.justificacion.trim() !== '' ? `
+      <div style="background-color: #fdf4ff; border: 1px solid #f5d0fe; border-left: 4px solid #d946ef; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+        <span style="display: block; font-size: 11px; font-weight: 700; color: #a21caf; text-transform: uppercase; margin-bottom: 4px;">Anexo E: Factores de Reducción y Justificación</span>
+        <span style="color: #0f172a; font-size: 13px;"><strong>Factor de Reducción:</strong> ${h.factorReduccion || 'Ninguno'}</span><br/>
+        <span style="color: #334155; font-size: 13px;"><strong>Justificación:</strong> ${h.justificacion}</span>
+      </div>` : ''}
+
       <div>
         <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Jerarquía de Controles Recomendada</span>
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px;">
@@ -657,6 +671,19 @@ const MatrizPeligrosGTC45 = () => {
                                                                                 <input type="number" value={h.nivelExposicion} onChange={e => updatePeligroField(p.id, h.id, 'nivelExposicion', Number(e.target.value))}
                                                                                     className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary text-center" />
                                                                             </div>
+                                                                            {h.clasificacion && (h.clasificacion.toLowerCase().includes('físico') || h.clasificacion.toLowerCase().includes('químico') || h.clasificacion.toLowerCase().includes('biológico')) && (
+                                                                                <div className="space-y-1 col-span-2">
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase text-blue-500">Deficiencia Higiénica (Anexo C)</label>
+                                                                                    <select value={h.deficienciaHigienica || ''} onChange={e => updatePeligroField(p.id, h.id, 'deficienciaHigienica', e.target.value)}
+                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
+                                                                                        <option value="">Seleccionar...</option>
+                                                                                        <option value="Muy Alto (MA)">Muy Alto (MA)</option>
+                                                                                        <option value="Alto (A)">Alto (A)</option>
+                                                                                        <option value="Medio (M)">Medio (M)</option>
+                                                                                        <option value="Bajo (B)">Bajo (B)</option>
+                                                                                    </select>
+                                                                                </div>
+                                                                            )}
                                                                             <div className="space-y-1">
                                                                                 <label className="text-[9px] font-bold text-text-secondary uppercase">NC</label>
                                                                                 <input type="number" value={h.nivelConsecuencia} onChange={e => updatePeligroField(p.id, h.id, 'nivelConsecuencia', Number(e.target.value))}
@@ -680,6 +707,22 @@ const MatrizPeligrosGTC45 = () => {
                                                                                         className="w-full text-[10px] p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
                                                                                 </div>
                                                                             ))}
+                                                                        </div>
+
+                                                                        {/* Anexo E: Justificacion y Reduccion (only show if completed by AI or heavily evaluated) */}
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border-light">
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase text-fuchsia-500">Factor de Reducción (Anexo E)</label>
+                                                                                <textarea value={h.factorReduccion || ''} onChange={e => updatePeligroField(p.id, h.id, 'factorReduccion', e.target.value)}
+                                                                                    placeholder="Ej: Controles de ingeniería efectivos..."
+                                                                                    className="w-full text-[10px] p-2 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[9px] font-bold text-text-secondary uppercase text-fuchsia-500">Justificación de Valoración</label>
+                                                                                <textarea value={h.justificacion || ''} onChange={e => updatePeligroField(p.id, h.id, 'justificacion', e.target.value)}
+                                                                                    placeholder="Justificación técnica de la evaluación..."
+                                                                                    className="w-full text-[10px] p-2 rounded border border-border-medium bg-surface-primary text-text-primary resize-none" rows={2} />
+                                                                            </div>
                                                                         </div>
                                                                     </>
                                                                 )}
