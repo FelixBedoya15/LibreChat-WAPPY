@@ -100,7 +100,7 @@ ${buildStandardHeader({
 
 Después del encabezado, genera una tabla con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
 - NO uses filas intercaladas claras/oscuras (striped) sin forzar el color de texto.
-- <table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
+- <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
 - Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
 - Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top; (SIN background-color para heredar el modo oscuro del sistema).
 

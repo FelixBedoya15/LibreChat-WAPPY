@@ -483,7 +483,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
     </h2>
 </div>
 
-<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
+<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
   <thead>
     <tr>
       <th colspan="4" style="background-color: #004d99; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -555,7 +555,15 @@ ESTRUCTURA EXACTA REQUERIDA (en div y HTML limpio sin markdown):
 3. Asegúrate de incluir en tu análisis reflexiones sobre la evaluación cualitativa de riesgos higiénicos (Anexo C) y/o los factores de justificación de intervención (Anexo E), si están presentes en los peligros críticos.
 4. Recomendaciones prioritarias urgentes (Jerarquía de Controles) enfocadas a la mitigación.
 
-Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`\`\`html. Utiliza clases de Tailwind para dar formato, por ejemplo: "text-lg font-bold text-gray-800 mb-4", "mb-4 text-gray-700 leading-relaxed", "list-disc pl-6 mb-4 text-gray-700". No incluyas un título principal (<code>h1</code>) porque ya está en el encabezado.`;
+Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`\`\`html. No incluyas un título principal (<code>h1</code>) porque ya está en el encabezado.
+
+**ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
+- **Regla Crítica:** NO uses clases de Tailwind, usa exclusivamente CSS inline.
+- Los contenedores principales (divs, cajas, tarjetas) deben tener \`style="width: 100%; box-sizing: border-box;"\` para no quedar angostos respecto a la tabla superior.
+- Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` (si el fondo es claro) o \`color: #fff;\` (si el fondo es oscuro).
+- Títulos (h2, h3): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
+- Tablas generadas por la IA: width="100%", table-layout="fixed", word-wrap="break-word", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
+- Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).`;
 
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent(promptText);

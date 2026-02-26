@@ -27,7 +27,7 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   const fecha = date || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return `
-<table style="width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
+<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; margin-bottom: 24px; font-family: inherit;">
   <thead>
     <tr>
       <th colspan="4" style="background-color: #004d99; color: white; text-align: center; padding: 16px 12px; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">
