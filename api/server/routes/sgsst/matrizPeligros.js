@@ -292,7 +292,7 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
         const nr = parsed.nivelRiesgo;
 
         const calcJ = (fr, fc) => {
-            const frNum = Number(fr) || 0;
+            const frNum = (Number(fr) || 0) / 100; // Treat FR as a percentage decimal
             const fcNum = Number(fc) || 1;
             return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
         };
@@ -429,7 +429,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
         const parsed = JSON.parse(text);
 
         const calcJ = (nr, fr, fc) => {
-            const frNum = Number(fr) || 0;
+            const frNum = (Number(fr) || 0) / 100; // Treat FR as a percentage decimal
             const fcNum = Number(fc) || 1;
             return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
         };

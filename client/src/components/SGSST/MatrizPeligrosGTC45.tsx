@@ -307,7 +307,7 @@ const MatrizPeligrosGTC45 = () => {
 
         // Calculate Justification Factor (J) = (NR * FR) / FC for each intervention
         const calcJ = (fr?: number, fc?: number) => {
-            const frNum = Number(fr) || 0;
+            const frNum = (Number(fr) || 0) / 100; // Treat FR as a percentage decimal
             const fcNum = Number(fc) || 1;
             return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
         };
