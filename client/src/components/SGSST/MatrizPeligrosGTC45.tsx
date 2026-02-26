@@ -251,13 +251,41 @@ const MatrizPeligrosGTC45 = () => {
         let np = nd * ne;
         let nr = np * nc;
 
-        // Determine acceptability
+        // Determine acceptability and interpretations
         let acept = '';
-        if (nr >= 600) acept = 'No Aceptable';
-        else if (nr >= 150) acept = 'No Aceptable o Aceptable con control específico';
-        else if (nr >= 40) acept = 'Aceptable';
-        else if (nr > 0) acept = 'Aceptable';
-        else if (nr === 0 && h.deficienciaHigienica === 'Bajo (B)') acept = 'Aceptable (Exposición Baja)';
+        let interp = '';
+
+        const isAnexoC = ['Muy Alto (MA)', 'Alto (A)', 'Medio (M)', 'Bajo (B)'].includes(h.deficienciaHigienica);
+
+        if (isAnexoC) {
+            if (h.deficienciaHigienica === 'Muy Alto (MA)') {
+                acept = 'No Aceptable (> Límite exposición ocupacional)';
+                interp = 'Zona de exposición muy alta: Valores superiores al límite de exposición ocupacional (VLP). Implica adopción de medidas correctivas ambientales y médicas urgentes.';
+            } else if (h.deficienciaHigienica === 'Alto (A)') {
+                acept = 'No Aceptable o Control (50% - 100% límite exposición)';
+                interp = 'Zona de exposición alta: Se requieren controles médicos y ambientales, con medidas técnicas correctoras de fácil ejecución.';
+            } else if (h.deficienciaHigienica === 'Medio (M)') {
+                acept = 'Aceptable (10% - 50% límite exposición)';
+                interp = 'Zona de exposición moderada: Comprendida entre el nivel de acción y el VLP. Deben ser muestreados con cierta frecuencia.';
+            } else if (h.deficienciaHigienica === 'Bajo (B)') {
+                acept = 'Aceptable (< 10% límite exposición)';
+                interp = 'Zona de exposición mínima/baja: Corresponde a los valores inferiores al 10% del límite de exposición. Los riesgos no existen o son leves, se toman como calidad de aire o medidas preventivas.';
+            }
+        } else {
+            if (nr >= 600) {
+                acept = 'No Aceptable';
+                interp = 'Valor NR I (4000 - 600): Situación crítica. Suspender actividades hasta que el riesgo esté bajo control. Intervención urgente.';
+            } else if (nr >= 150) {
+                acept = 'No Aceptable o Aceptable con control específico';
+                interp = 'Valor NR II (500 - 150): Corregir y adoptar medidas de control de inmediato. Sin embargo, suspenda actividades si el nivel de riesgo está por encima o igual de 360.';
+            } else if (nr >= 40) {
+                acept = 'Aceptable';
+                interp = 'Valor NR III (120 - 40): Mejorar si es posible. Sería conveniente justificar la intervención y su rentabilidad.';
+            } else if (nr > 0) {
+                acept = 'Aceptable';
+                interp = 'Valor NR IV (20): Mantener las medidas de control existentes, pero se deberían considerar soluciones o mejoras y se deben hacer comprobaciones periódicas.';
+            }
+        }
 
         // Calculate Justification Factor (J) = (NR * FR) / FC
         let j = 0;
@@ -272,6 +300,7 @@ const MatrizPeligrosGTC45 = () => {
             nivelProbabilidad: np,
             nivelRiesgo: nr,
             aceptabilidad: acept,
+            interpretacionNR: interp,
             factorJustificacion: Number(j.toFixed(2))
         };
     };
@@ -456,7 +485,10 @@ const MatrizPeligrosGTC45 = () => {
               <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelExposicion || 0}</td>
               <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelProbabilidad || 0}</td>
               <td style="padding: 10px; border-right: 1px solid #e2e8f0;">${h.nivelConsecuencia || 0}</td>
-              <td style="padding: 10px; font-weight: 600;">${h.aceptabilidad || '-'}</td>
+              <td style="padding: 10px;">
+                <div style="font-weight: 600; margin-bottom: 4px;">${h.aceptabilidad || '-'}</div>
+                ${h.interpretacionNR ? `<div style="font-size: 10.5px; font-weight: normal; font-style: italic; color: #64748b; line-height: 1.3;">${h.interpretacionNR}</div>` : ''}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -839,9 +871,17 @@ const MatrizPeligrosGTC45 = () => {
                                                                             </div>
                                                                             <div className="sm:col-span-2 space-y-1">
                                                                                 <label className="text-[9px] font-bold text-text-secondary uppercase">Aceptabilidad</label>
-                                                                                <div className={`w-full text-[10px] p-1.5 rounded font-bold text-center ${getAcceptabilityBadge(h.aceptabilidad)}`}>{h.aceptabilidad}</div>
+                                                                                <div className={`w-full text-xs p-1.5 rounded font-bold text-center ${getAcceptabilityBadge(h.aceptabilidad)}`}>{h.aceptabilidad}</div>
                                                                             </div>
                                                                         </div>
+                                                                        {h.interpretacionNR && (
+                                                                            <div className="pt-3 px-1 pb-1">
+                                                                                <p className="text-[11px] text-text-secondary leading-snug italic border-l-2 border-indigo-400 pl-2">
+                                                                                    <strong className="text-indigo-600 dark:text-indigo-400">Interpretación GTC 45: </strong>
+                                                                                    {h.interpretacionNR}
+                                                                                </p>
+                                                                            </div>
+                                                                        )}
                                                                         {/* Hierarchy of controls */}
                                                                         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-2 border-t border-border-light">
                                                                             {['eliminacion', 'sustitucion', 'controlIngenieria', 'controlAdministrativo', 'epp'].map(field => (
