@@ -49,11 +49,23 @@ interface PeligroItem {
     factorCosto: number;
     factorJustificacion: number;
     justificacion: string;
+
+    // Medidas de intervención individuales
     eliminacion: string;
+    fr_eliminacion?: number; costo_eliminacion?: string; fc_eliminacion?: number; j_eliminacion?: number;
+
     sustitucion: string;
+    fr_sustitucion?: number; costo_sustitucion?: string; fc_sustitucion?: number; j_sustitucion?: number;
+
     controlIngenieria: string;
+    fr_ingenieria?: number; costo_ingenieria?: string; fc_ingenieria?: number; j_ingenieria?: number;
+
     controlAdministrativo: string;
+    fr_administrativo?: number; costo_administrativo?: string; fc_administrativo?: number; j_administrativo?: number;
+
     epp: string;
+    fr_epp?: number; costo_epp?: string; fc_epp?: number; j_epp?: number;
+
     completedByAI: boolean;
 }
 
@@ -77,8 +89,14 @@ const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
     interpretacionNR: '', aceptabilidad: '', numExpuestos: 0,
     deficienciaHigienica: '', valoracionCuantitativa: '',
     nrFinal: 0, factorReduccion: 0, costoIntervencion: '', factorCosto: 0, factorJustificacion: 0, justificacion: '',
-    eliminacion: '', sustitucion: '', controlIngenieria: '',
-    controlAdministrativo: '', epp: '', completedByAI: false,
+
+    eliminacion: '', fr_eliminacion: 0, costo_eliminacion: '', fc_eliminacion: 0, j_eliminacion: 0,
+    sustitucion: '', fr_sustitucion: 0, costo_sustitucion: '', fc_sustitucion: 0, j_sustitucion: 0,
+    controlIngenieria: '', fr_ingenieria: 0, costo_ingenieria: '', fc_ingenieria: 0, j_ingenieria: 0,
+    controlAdministrativo: '', fr_administrativo: 0, costo_administrativo: '', fc_administrativo: 0, j_administrativo: 0,
+    epp: '', fr_epp: 0, costo_epp: '', fc_epp: 0, j_epp: 0,
+
+    completedByAI: false,
 };
 
 const EMPTY_PROCESO: Omit<ProcesoEntry, 'id' | 'peligros'> = {
@@ -286,13 +304,12 @@ const MatrizPeligrosGTC45 = () => {
             }
         }
 
-        // Calculate Justification Factor (J) = (NR * FR) / FC
-        let j = 0;
-        const frNum = Number(h.factorReduccion) || 0;
-        const fcNum = Number(h.factorCosto) || 1; // avoid div by 0
-        if (fcNum > 0) {
-            j = (nr * frNum) / fcNum;
-        }
+        // Calculate Justification Factor (J) = (NR * FR) / FC for each intervention
+        const calcJ = (fr?: number, fc?: number) => {
+            const frNum = Number(fr) || 0;
+            const fcNum = Number(fc) || 1;
+            return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
+        };
 
         return {
             ...h,
@@ -300,7 +317,11 @@ const MatrizPeligrosGTC45 = () => {
             nivelRiesgo: nr,
             aceptabilidad: acept,
             interpretacionNR: interp,
-            factorJustificacion: Number(j.toFixed(2))
+            j_eliminacion: calcJ(h.fr_eliminacion, h.fc_eliminacion),
+            j_sustitucion: calcJ(h.fr_sustitucion, h.fc_sustitucion),
+            j_ingenieria: calcJ(h.fr_ingenieria, h.fc_ingenieria),
+            j_administrativo: calcJ(h.fr_administrativo, h.fc_administrativo),
+            j_epp: calcJ(h.fr_epp, h.fc_epp),
         };
     };
 
@@ -322,7 +343,15 @@ const MatrizPeligrosGTC45 = () => {
                     }
 
                     // For fields that require recalculation
-                    if (['nivelDeficiencia', 'nivelExposicion', 'nivelConsecuencia', 'deficienciaHigienica', 'factorReduccion', 'factorCosto'].includes(field)) {
+                    const recalcFields = [
+                        'nivelDeficiencia', 'nivelExposicion', 'nivelConsecuencia', 'deficienciaHigienica',
+                        'fr_eliminacion', 'fc_eliminacion',
+                        'fr_sustitucion', 'fc_sustitucion',
+                        'fr_ingenieria', 'fc_ingenieria',
+                        'fr_administrativo', 'fc_administrativo',
+                        'fr_epp', 'fc_epp'
+                    ];
+                    if (recalcFields.includes(field)) {
                         updatedH = recalculateHazard(updatedH);
                     }
 
@@ -527,25 +556,20 @@ const MatrizPeligrosGTC45 = () => {
         ${h.valoracionCuantitativa ? `<br/><span style="color: #334155; font-size: 13px;"><strong>Detalle:</strong> ${h.valoracionCuantitativa}</span>` : ''}
       </div>` : ''}
 
-      ${h.factorReduccion || h.justificacion ? `
+      ${h.justificacion ? `
       <div style="background-color: #fdf4ff; border: 1px solid #f5d0fe; border-left: 4px solid #d946ef; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
         <span style="display: block; font-size: 11px; font-weight: 700; color: #a21caf; text-transform: uppercase; margin-bottom: 4px;">Anexo E: Justificación de Intervención (J)</span>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-          <span style="color: #0f172a; font-size: 12px;"><strong>Factor Reducción (FR):</strong> ${h.factorReduccion || 0}%</span>
-          <span style="color: #0f172a; font-size: 12px;"><strong>Factor Costo (FC):</strong> d=${h.factorCosto || 1}</span>
-          <span style="color: #a21caf; font-size: 13px; font-weight: 800;"><strong>Valor (J):</strong> ${h.factorJustificacion || 0}</span>
-        </div>
-        ${h.justificacion ? `<span style="color: #334155; font-size: 13px;"><strong>Justificación:</strong> ${h.justificacion}</span>` : ''}
+        <span style="color: #334155; font-size: 13px;">${h.justificacion}</span>
       </div>` : ''}
 
       <div>
         <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Jerarquía de Controles Recomendada</span>
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px;">
-          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Eliminación:</strong> <span style="color: #334155;">${h.eliminacion || 'N/A'}</span></div>
-          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Sustitución:</strong> <span style="color: #334155;">${h.sustitucion || 'N/A'}</span></div>
-          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles de Ingeniería:</strong> <span style="color: #334155;">${h.controlIngenieria || 'N/A'}</span></div>
-          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles Administrativos:</strong> <span style="color: #334155;">${h.controlAdministrativo || 'N/A'}</span></div>
-          <div><strong style="color: #475569;">Equipos de Protección (EPP):</strong> <span style="color: #334155;">${h.epp || 'N/A'}</span></div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Eliminación:</strong> <span style="color: #334155;">${h.eliminacion || 'N/A'}</span> ${h.j_eliminacion ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_eliminacion})</span>` : ''}</div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Sustitución:</strong> <span style="color: #334155;">${h.sustitucion || 'N/A'}</span> ${h.j_sustitucion ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_sustitucion})</span>` : ''}</div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles de Ingeniería:</strong> <span style="color: #334155;">${h.controlIngenieria || 'N/A'}</span> ${h.j_ingenieria ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_ingenieria})</span>` : ''}</div>
+          <div style="margin-bottom: 6px;"><strong style="color: #475569;">Controles Administrativos:</strong> <span style="color: #334155;">${h.controlAdministrativo || 'N/A'}</span> ${h.j_administrativo ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_administrativo})</span>` : ''}</div>
+          <div><strong style="color: #475569;">Equipos de Protección (EPP):</strong> <span style="color: #334155;">${h.epp || 'N/A'}</span> ${h.j_epp ? `<span style="color:#a21caf;font-weight:bold;font-size:11px;margin-left:6px;">(J=${h.j_epp})</span>` : ''}</div>
         </div>
       </div>
     </div>
@@ -947,32 +971,52 @@ const MatrizPeligrosGTC45 = () => {
                                                                         {/* Anexo E: Justificacion y Reduccion (only show if completed by AI or heavily evaluated) */}
                                                                         <div className="pt-4 mt-2 border-t border-border-light">
                                                                             <h5 className="text-[10px] font-black text-fuchsia-600 uppercase mb-3 flex items-center justify-between">
-                                                                                Anexo E: Justificación de Intervención (J)
-                                                                                <span className="bg-fuchsia-100 dark:bg-fuchsia-900/30 px-2 py-0.5 rounded text-fuchsia-700 dark:text-fuchsia-400">
-                                                                                    J = {h.factorJustificacion || 0}
-                                                                                </span>
+                                                                                Anexo E: Justificación de Intervención (J) Individual
                                                                             </h5>
-                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                                                <div className="space-y-1">
-                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Reducción (FR)</label>
-                                                                                    <select value={h.factorReduccion || 0} onChange={e => updatePeligroField(p.id, h.id, 'factorReduccion', Number(e.target.value))}
-                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                                        <option value={0}>Seleccione (0%)</option>
-                                                                                        <option value={100}>100% - Eliminación Total</option>
-                                                                                        <option value={75}>75% - Alto (Ingeniería)</option>
-                                                                                        <option value={50}>50% - Medio (Administrativo)</option>
-                                                                                        <option value={25}>25% - Bajo (EPP)</option>
-                                                                                    </select>
-                                                                                </div>
-                                                                                <div className="space-y-1">
-                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Costo (FC)</label>
-                                                                                    <select value={h.factorCosto || 1} onChange={e => updatePeligroField(p.id, h.id, 'factorCosto', Number(e.target.value))}
-                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                                        {COST_FACTOR_OPTIONS.map(opt => (
-                                                                                            <option key={opt.d} value={opt.d}>{opt.label} (d={opt.d})</option>
-                                                                                        ))}
-                                                                                    </select>
-                                                                                </div>
+                                                                            <div className="space-y-4">
+                                                                                {['eliminacion', 'sustitucion', 'controlIngenieria', 'controlAdministrativo', 'epp'].map(measure => {
+                                                                                    const textMeasure = (h as any)[measure];
+                                                                                    if (!textMeasure || textMeasure.trim() === '' || textMeasure.toLowerCase() === 'no aplica' || textMeasure.toLowerCase() === 'ninguno') return null;
+
+                                                                                    // Helper names
+                                                                                    const frKey = `fr_${measure}` as keyof PeligroItem;
+                                                                                    const fcKey = `fc_${measure}` as keyof PeligroItem;
+                                                                                    const jKey = `j_${measure}` as keyof PeligroItem;
+
+                                                                                    return (
+                                                                                        <div key={measure} className="bg-surface-secondary/50 rounded p-2.5 border border-border-light">
+                                                                                            <div className="flex justify-between items-center mb-2">
+                                                                                                <span className="text-[10px] font-extrabold text-blue-500 uppercase">{measure.replace('control', '')}</span>
+                                                                                                <span className="bg-fuchsia-100 dark:bg-fuchsia-900/30 px-2 py-0.5 rounded text-[10px] font-bold text-fuchsia-700 dark:text-fuchsia-400 border border-fuchsia-200 dark:border-fuchsia-800">
+                                                                                                    J = {(h as any)[jKey] || 0}
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <p className="text-[11px] text-text-primary mb-3 bg-surface-primary p-1.5 rounded border border-border-light">{textMeasure}</p>
+                                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                                                <div className="space-y-1">
+                                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Reducción (FR)</label>
+                                                                                                    <select value={(h as any)[frKey] || 0} onChange={e => updatePeligroField(p.id, h.id, frKey, Number(e.target.value))}
+                                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
+                                                                                                        <option value={0}>Seleccione (0%)</option>
+                                                                                                        <option value={100}>100% - Eliminación Total</option>
+                                                                                                        <option value={75}>75% - Alto (Ingeniería)</option>
+                                                                                                        <option value={50}>50% - Medio (Administrativo)</option>
+                                                                                                        <option value={25}>25% - Bajo (EPP)</option>
+                                                                                                    </select>
+                                                                                                </div>
+                                                                                                <div className="space-y-1">
+                                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Costo (FC)</label>
+                                                                                                    <select value={(h as any)[fcKey] || 1} onChange={e => updatePeligroField(p.id, h.id, fcKey, Number(e.target.value))}
+                                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
+                                                                                                        {COST_FACTOR_OPTIONS.map(opt => (
+                                                                                                            <option key={opt.d} value={opt.d}>{opt.label} (d={opt.d})</option>
+                                                                                                        ))}
+                                                                                                    </select>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                             </div>
                                                                             <div className="mt-3 space-y-1">
                                                                                 <label className="text-[9px] font-bold text-text-secondary uppercase">Justificación Descriptiva</label>

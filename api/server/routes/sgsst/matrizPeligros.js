@@ -233,17 +233,28 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el 
   "numExpuestos": <número estimado>,
   "deficienciaHigienica": "Valoración cualitativa: MA/A/M/B con justificación (solo para peligros higiénicos, o N/A)",
   "valoracionCuantitativa": "Indicar si existen mediciones, valor vs TLV, grado (o N/A si no aplica)",
-  "factorReduccion": <número: porcentaje de reducción estimado (100, 75, 50, 25, 0)>,
-  "factorCosto": <número: factor 'd' asociado al costo. Usa 10, 8, 6, 4, 2, 1, o 0.5>,
-  "factorJustificacion": <número: J = (NR * factorReduccion) / factorCosto>,
   "justificacion": "Justificación técnica de la valoración (Anexo E)",
+  
   "eliminacion": "Medida de eliminación recomendada (o 'No aplica')",
+  "fr_eliminacion": <número: porcentaje reducción estimado (100, 75, 50, 25, 0)>,
+  "fc_eliminacion": <número: factor 'd' asociado al costo. Usa 10, 8, 6, 4, 2, 1, o 0.5 (o 0 si no aplica)>,
+
   "sustitucion": "Medida de sustitución recomendada (o 'No aplica')",
+  "fr_sustitucion": <número: porcentaje reducción (100, 75, 50, 25, 0)>,
+  "fc_sustitucion": <número: factor 'd' (10, 8, 6, 4, 2, 1, 0.5 o 0)>,
+
   "controlIngenieria": "Medida de ingeniería recomendada",
+  "fr_ingenieria": <número: porcentaje reducción (100, 75, 50, 25, 0)>,
+  "fc_ingenieria": <número: factor 'd' (10, 8, 6, 4, 2, 1, 0.5 o 0)>,
+
   "controlAdministrativo": "Medidas administrativas recomendadas",
+  "fr_administrativo": <número: porcentaje reducción (100, 75, 50, 25, 0)>,
+  "fc_administrativo": <número: factor 'd' (10, 8, 6, 4, 2, 1, 0.5 o 0)>,
+
   "epp": "EPP requerido específico",
-  "nrFinal": <número: NR estimado después de implementar todas las medidas de intervención propuestas>,
-  "costoIntervencion": "Rango estimado del costo en SMMLV (opciones: 'Más de 150 SMMLV', '60 a 150 SMMLV', '30 a 59 SMMLV', '3 a 29 SMMLV', '0.3 a 2.9 SMMLV', '0.06 a 0.29 SMMLV', 'Menos de 0.06 SMMLV')"
+  "fr_epp": <número: porcentaje reducción (100, 75, 50, 25, 0)>,
+  "fc_epp": <número: factor 'd' (10, 8, 6, 4, 2, 1, 0.5 o 0)>,
+  "nrFinal": <número: NR estimado después de implementar todas las medidas de intervención propuestas>
 }
 
 Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
@@ -263,25 +274,32 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
             return res.status(500).json({ error: 'Error al procesar la respuesta de IA. Intente de nuevo.' });
         }
 
+        // Map qualitative to quantitative if not done correctly by AI
+        if (['Muy Alto (MA)', 'Alto (A)', 'Medio (M)', 'Bajo (B)'].includes(parsed.deficienciaHigienica)) {
+            if (parsed.deficienciaHigienica === 'Muy Alto (MA)') parsed.nivelDeficiencia = 10;
+            else if (parsed.deficienciaHigienica === 'Alto (A)') parsed.nivelDeficiencia = 6;
+            else if (parsed.deficienciaHigienica === 'Medio (M)') parsed.nivelDeficiencia = 2;
+            else if (parsed.deficienciaHigienica === 'Bajo (B)') parsed.nivelDeficiencia = 0;
+        }
+
         // Validate calculated fields
-        parsed.nivelProbabilidad = (parsed.nivelDeficiencia || 0) * (parsed.nivelExposicion || 0);
-        parsed.nivelRiesgo = parsed.nivelProbabilidad * (parsed.nivelConsecuencia || 0);
+        parsed.nivelProbabilidad = (Number(parsed.nivelDeficiencia) || 0) * (Number(parsed.nivelExposicion) || 0);
+        parsed.nivelRiesgo = parsed.nivelProbabilidad * (Number(parsed.nivelConsecuencia) || 0);
 
-        // Anexo E: Calculate F and J
-        const costFactorMap = {
-            'Más de 150 SMMLV': 10, '60 a 150 SMMLV': 8, '30 a 59 SMMLV': 6,
-            '3 a 29 SMMLV': 4, '0.3 a 2.9 SMMLV': 2, '0.06 a 0.29 SMMLV': 1,
-            'Menos de 0.06 SMMLV': 0.5,
+        // Calibrate J individually
+        const nr = parsed.nivelRiesgo;
+
+        const calcJ = (fr, fc) => {
+            const frNum = Number(fr) || 0;
+            const fcNum = Number(fc) || 1;
+            return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
         };
-        const nri = parsed.nivelRiesgo || 1;
-        const nrf = parsed.nrFinal || 0;
-        const f = nri > 0 ? Math.round((100 * (nri - nrf)) / nri * 10) / 10 : 0;
-        const d = costFactorMap[parsed.costoIntervencion] || 4;
-        const j = d > 0 ? Math.round((nri * f) / d) : 0;
 
-        parsed.factorReduccion = f;
-        parsed.factorCosto = d;
-        parsed.factorJustificacion = j;
+        parsed.j_eliminacion = calcJ(parsed.fr_eliminacion, parsed.fc_eliminacion);
+        parsed.j_sustitucion = calcJ(parsed.fr_sustitucion, parsed.fc_sustitucion);
+        parsed.j_ingenieria = calcJ(parsed.fr_ingenieria, parsed.fc_ingenieria);
+        parsed.j_administrativo = calcJ(parsed.fr_administrativo, parsed.fc_administrativo);
+        parsed.j_epp = calcJ(parsed.fr_epp, parsed.fc_epp);
         parsed.completedByAI = true;
 
         res.json({ completed: parsed });
@@ -343,13 +361,12 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
           "interpretacionNR": "II",
           "aceptabilidad": "No Aceptable",
           "numExpuestos": 5,
-          "eliminacion": "...",
-          "sustitucion": "...",
-          "controlIngenieria": "...",
-          "controlAdministrativo": "...",
-          "epp": "...",
+          "eliminacion": "...", "fr_eliminacion": 0, "fc_eliminacion": 0, "j_eliminacion": 0,
+          "sustitucion": "...", "fr_sustitucion": 0, "fc_sustitucion": 0, "j_sustitucion": 0,
+          "controlIngenieria": "...", "fr_ingenieria": 0, "fc_ingenieria": 0, "j_ingenieria": 0,
+          "controlAdministrativo": "...", "fr_administrativo": 0, "fc_administrativo": 0, "j_administrativo": 0,
+          "epp": "...", "fr_epp": 0, "fc_epp": 0, "j_epp": 0,
           "nrFinal": 100,
-          "costoIntervencion": "0.3 a 2.9 SMMLV",
           "justificacion": "..."
         }
       ]
@@ -363,35 +380,32 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 
         const parsed = JSON.parse(text);
 
-        // Map and validate calculations for all hazards
-        const costFactorMap = {
-            'Más de 150 SMMLV': 10, '60 a 150 SMMLV': 8, '30 a 59 SMMLV': 6,
-            '3 a 29 SMMLV': 4, '0.3 a 2.9 SMMLV': 2, '0.06 a 0.29 SMMLV': 1,
-            'Menos de 0.06 SMMLV': 0.5,
+        const calcJ = (nr, fr, fc) => {
+            const frNum = Number(fr) || 0;
+            const fcNum = Number(fc) || 1;
+            return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
         };
 
         const finalProcesos = (parsed.procesos || []).map(proc => ({
             ...proc,
-            id: proc.id || Math.random().toString(36).substr(2, 9),
-            peligros: (proc.peligros || []).map(p => {
-                const nd = p.nivelDeficiencia || 0;
-                const ne = p.nivelExposicion || 0;
-                const nc = p.nivelConsecuencia || 0;
+            id: proc.id || crypto.randomUUID(),
+            peligros: (proc.peligros || []).map(h => {
+                const nd = Number(h.nivelDeficiencia) || 0;
+                const ne = Number(h.nivelExposicion) || 0;
+                const nc = Number(h.nivelConsecuencia) || 0;
                 const np = nd * ne;
                 const nr = np * nc;
-                const nrf = p.nrFinal || 0;
-                const f = nr > 0 ? Math.round((100 * (nr - nrf)) / nr * 10) / 10 : 0;
-                const d = costFactorMap[p.costoIntervencion] || 4;
-                const j = d > 0 ? Math.round((nr * f) / d) : 0;
 
                 return {
-                    ...p,
-                    id: p.id || Math.random().toString(36).substr(2, 9),
+                    ...h,
+                    id: h.id || crypto.randomUUID(),
                     nivelProbabilidad: np,
                     nivelRiesgo: nr,
-                    factorReduccion: f,
-                    factorCosto: d,
-                    factorJustificacion: j,
+                    j_eliminacion: calcJ(nr, h.fr_eliminacion, h.fc_eliminacion),
+                    j_sustitucion: calcJ(nr, h.fr_sustitucion, h.fc_sustitucion),
+                    j_ingenieria: calcJ(nr, h.fr_ingenieria, h.fc_ingenieria),
+                    j_administrativo: calcJ(nr, h.fr_administrativo, h.fc_administrativo),
+                    j_epp: calcJ(nr, h.fr_epp, h.fc_epp),
                     completedByAI: true
                 };
             })
