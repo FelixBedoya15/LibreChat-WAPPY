@@ -297,6 +297,32 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
             return fcNum > 0 ? Number(((nr * frNum) / fcNum).toFixed(2)) : 0;
         };
 
+        // Normalization functions for UI dropdown alignment
+        const snapFR = (val) => {
+            const valid = [0, 25, 50, 75, 100];
+            const num = Number(val);
+            if (isNaN(num)) return 0;
+            return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
+        };
+
+        const snapFC = (val) => {
+            const valid = [0.5, 1, 2, 4, 6, 8, 10];
+            const num = Number(val);
+            if (isNaN(num)) return 1;
+            return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
+        };
+
+        parsed.fr_eliminacion = snapFR(parsed.fr_eliminacion);
+        parsed.fc_eliminacion = snapFC(parsed.fc_eliminacion);
+        parsed.fr_sustitucion = snapFR(parsed.fr_sustitucion);
+        parsed.fc_sustitucion = snapFC(parsed.fc_sustitucion);
+        parsed.fr_ingenieria = snapFR(parsed.fr_ingenieria);
+        parsed.fc_ingenieria = snapFC(parsed.fc_ingenieria);
+        parsed.fr_administrativo = snapFR(parsed.fr_administrativo);
+        parsed.fc_administrativo = snapFC(parsed.fc_administrativo);
+        parsed.fr_epp = snapFR(parsed.fr_epp);
+        parsed.fc_epp = snapFC(parsed.fc_epp);
+
         parsed.j_eliminacion = calcJ(parsed.fr_eliminacion, parsed.fc_eliminacion);
         parsed.j_sustitucion = calcJ(parsed.fr_sustitucion, parsed.fc_sustitucion);
         parsed.j_ingenieria = calcJ(parsed.fr_ingenieria, parsed.fc_ingenieria);
@@ -401,16 +427,52 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
                 const np = nd * ne;
                 const nr = np * nc;
 
+                // Normalization functions for UI dropdown alignment
+                const snapFR = (val) => {
+                    const valid = [0, 25, 50, 75, 100];
+                    const num = Number(val);
+                    if (isNaN(num)) return 0;
+                    return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
+                };
+
+                const snapFC = (val) => {
+                    const valid = [0.5, 1, 2, 4, 6, 8, 10];
+                    const num = Number(val);
+                    if (isNaN(num)) return 1;
+                    return valid.reduce((prev, curr) => Math.abs(curr - num) < Math.abs(prev - num) ? curr : prev);
+                };
+
+                const snapped_fr_eliminacion = snapFR(h.fr_eliminacion);
+                const snapped_fc_eliminacion = snapFC(h.fc_eliminacion);
+                const snapped_fr_sustitucion = snapFR(h.fr_sustitucion);
+                const snapped_fc_sustitucion = snapFC(h.fc_sustitucion);
+                const snapped_fr_ingenieria = snapFR(h.fr_ingenieria);
+                const snapped_fc_ingenieria = snapFC(h.fc_ingenieria);
+                const snapped_fr_administrativo = snapFR(h.fr_administrativo);
+                const snapped_fc_administrativo = snapFC(h.fc_administrativo);
+                const snapped_fr_epp = snapFR(h.fr_epp);
+                const snapped_fc_epp = snapFC(h.fc_epp);
+
                 return {
                     ...h,
                     id: h.id || crypto.randomUUID(),
                     nivelProbabilidad: np,
                     nivelRiesgo: nr,
-                    j_eliminacion: calcJ(nr, h.fr_eliminacion, h.fc_eliminacion),
-                    j_sustitucion: calcJ(nr, h.fr_sustitucion, h.fc_sustitucion),
-                    j_ingenieria: calcJ(nr, h.fr_ingenieria, h.fc_ingenieria),
-                    j_administrativo: calcJ(nr, h.fr_administrativo, h.fc_administrativo),
-                    j_epp: calcJ(nr, h.fr_epp, h.fc_epp),
+                    fr_eliminacion: snapped_fr_eliminacion,
+                    fc_eliminacion: snapped_fc_eliminacion,
+                    fr_sustitucion: snapped_fr_sustitucion,
+                    fc_sustitucion: snapped_fc_sustitucion,
+                    fr_ingenieria: snapped_fr_ingenieria,
+                    fc_ingenieria: snapped_fc_ingenieria,
+                    fr_administrativo: snapped_fr_administrativo,
+                    fc_administrativo: snapped_fc_administrativo,
+                    fr_epp: snapped_fr_epp,
+                    fc_epp: snapped_fc_epp,
+                    j_eliminacion: calcJ(nr, snapped_fr_eliminacion, snapped_fc_eliminacion),
+                    j_sustitucion: calcJ(nr, snapped_fr_sustitucion, snapped_fc_sustitucion),
+                    j_ingenieria: calcJ(nr, snapped_fr_ingenieria, snapped_fc_ingenieria),
+                    j_administrativo: calcJ(nr, snapped_fr_administrativo, snapped_fc_administrativo),
+                    j_epp: calcJ(nr, snapped_fr_epp, snapped_fc_epp),
                     completedByAI: true
                 };
             })
