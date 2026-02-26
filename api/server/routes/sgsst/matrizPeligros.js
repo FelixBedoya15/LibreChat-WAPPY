@@ -312,8 +312,8 @@ Nombre: ${ci.companyName || 'Empresa'}
 Sector/Actividad: ${ci.economicActivity || 'General'}
 Nivel de Riesgo: ${ci.riskLevel || 'N/A'}
 
-Genera exactamente 5 procesos principales que sean lógicos para este tipo de empresa.
-Para CADA proceso, identifica hasta 5 peligros críticos (GTC 45) si aplican para ese proceso. Trata de ser exhaustivo e incluir los peligros más relevantes (biomecánicos, físicos, psicosociales, biológicos, de seguridad, etc.).
+Genera exactamente 7 procesos principales que sean lógicos para este tipo de empresa.
+Para CADA proceso, identifica de 5 a 8 peligros críticos (GTC 45) aplicables para ese proceso. Sé exhaustivo e incluye los peligros más relevantes (biomecánicos, físicos, psicosociales, biológicos, de seguridad, etc.).
 Para CADA peligro, realiza la valoración de riesgo GTC 45 completa:
 - Proporciona ND, NE. NC será calculado por la IA basándose en posibles efectos. NR = (ND x NE) x NC.
 - Proporciona la aceptabilidad, controles sugeridos, y completa *todos* los campos numéricos y de texto del esquema.

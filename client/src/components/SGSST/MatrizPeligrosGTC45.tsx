@@ -346,7 +346,7 @@ const MatrizPeligrosGTC45 = () => {
             const data = await res.json();
             if (data.procesos) {
                 setProcesos(data.procesos);
-                showToast({ message: 'Matriz generada con éxito (5 procesos)', status: 'success' });
+                showToast({ message: 'Matriz generada con éxito (7 procesos)', status: 'success' });
             }
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
