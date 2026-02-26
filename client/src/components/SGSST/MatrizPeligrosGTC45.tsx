@@ -985,9 +985,10 @@ const MatrizPeligrosGTC45 = () => {
                                                                                     if (!textMeasure || textMeasure.trim() === '' || textMeasure.toLowerCase() === 'no aplica' || textMeasure.toLowerCase() === 'ninguno') return null;
 
                                                                                     // Helper names
-                                                                                    const frKey = `fr_${measure}` as keyof PeligroItem;
-                                                                                    const fcKey = `fc_${measure}` as keyof PeligroItem;
-                                                                                    const jKey = `j_${measure}` as keyof PeligroItem;
+                                                                                    const suffix = measure.replace('control', '').toLowerCase();
+                                                                                    const frKey = `fr_${suffix}` as keyof PeligroItem;
+                                                                                    const fcKey = `fc_${suffix}` as keyof PeligroItem;
+                                                                                    const jKey = `j_${suffix}` as keyof PeligroItem;
 
                                                                                     return (
                                                                                         <div key={measure} className="bg-surface-secondary/50 rounded p-2.5 border border-border-light">
@@ -1000,22 +1001,22 @@ const MatrizPeligrosGTC45 = () => {
                                                                                             <p className="text-[11px] text-text-primary mb-3 bg-surface-primary p-1.5 rounded border border-border-light">{textMeasure}</p>
                                                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                                                 <div className="space-y-1">
-                                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Reducción (FR)</label>
-                                                                                                    <select value={(h as any)[frKey] || 0} onChange={e => updatePeligroField(p.id, h.id, frKey, Number(e.target.value))}
+                                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase">% FACTOR DE REDUCCIÓN (FR)</label>
+                                                                                                    <select value={String((h as any)[frKey] || 0)} onChange={e => updatePeligroField(p.id, h.id, frKey, Number(e.target.value))}
                                                                                                         className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                                                        <option value={0}>Seleccione (0%)</option>
-                                                                                                        <option value={100}>100% - Eliminación Total</option>
-                                                                                                        <option value={75}>75% - Alto (Ingeniería)</option>
-                                                                                                        <option value={50}>50% - Medio (Administrativo)</option>
-                                                                                                        <option value={25}>25% - Bajo (EPP)</option>
+                                                                                                        <option value="0">Seleccione (0%)</option>
+                                                                                                        <option value="100">100% - Eliminación Total</option>
+                                                                                                        <option value="75">75% - Alto (Ingeniería)</option>
+                                                                                                        <option value="50">50% - Medio (Administrativo)</option>
+                                                                                                        <option value="25">25% - Bajo (EPP)</option>
                                                                                                     </select>
                                                                                                 </div>
                                                                                                 <div className="space-y-1">
                                                                                                     <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Costo (FC)</label>
-                                                                                                    <select value={(h as any)[fcKey] || 1} onChange={e => updatePeligroField(p.id, h.id, fcKey, Number(e.target.value))}
+                                                                                                    <select value={String((h as any)[fcKey] || 1)} onChange={e => updatePeligroField(p.id, h.id, fcKey, Number(e.target.value))}
                                                                                                         className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
                                                                                                         {COST_FACTOR_OPTIONS.map(opt => (
-                                                                                                            <option key={opt.d} value={opt.d}>{opt.label} (d={opt.d})</option>
+                                                                                                            <option key={opt.d} value={String(opt.d)}>{opt.label} (d={opt.d})</option>
                                                                                                         ))}
                                                                                                     </select>
                                                                                                 </div>
