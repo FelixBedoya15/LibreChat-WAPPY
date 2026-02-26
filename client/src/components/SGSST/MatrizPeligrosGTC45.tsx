@@ -701,6 +701,12 @@ const MatrizPeligrosGTC45 = () => {
                         </button>
                     )}
                     <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
+                    {generatedReport && (
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Matriz_Peligros_GTC45"
+                        />
+                    )}
                 </div>
             </div>
 
@@ -1069,10 +1075,16 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="mt-8 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
-                        <button onClick={handleSaveReport} className="group flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-300 text-sm font-bold">
-                            <Save className="h-4 w-4" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button onClick={handleSaveReport} className="group flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-300 text-sm font-bold">
+                                <Save className="h-4 w-4" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                            </button>
+                            <ExportDropdown
+                                content={editorContent || generatedReport || ''}
+                                fileName="Matriz_Peligros_GTC45"
+                            />
+                        </div>
                     </div>
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1">
                         <LiveEditor initialContent={generatedReport} onUpdate={setEditorContent} />
