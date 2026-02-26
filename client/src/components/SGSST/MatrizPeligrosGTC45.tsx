@@ -136,11 +136,13 @@ const GTC45_CATEGORIES: Record<string, string[]> = {
     ]
 };
 
-const getRiskColor = (nr: number) => {
+const getRiskColor = (nr: number, h?: PeligroItem) => {
     if (nr >= 600) return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', border: 'border-red-300', label: 'I - No Aceptable' };
     if (nr >= 150) return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-300', label: 'II - No Aceptable / Control' };
     if (nr >= 40) return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', border: 'border-yellow-300', label: 'III - Aceptable' };
-    return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', border: 'border-green-300', label: 'IV - Aceptable' };
+    if (nr > 0) return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', border: 'border-green-300', label: 'IV - Aceptable' };
+    if (h && h.deficienciaHigienica === 'Bajo (B)' && nr === 0) return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', border: 'border-green-300', label: 'IV - Aceptable (Anexo C)' };
+    return { bg: 'bg-surface-tertiary/20', text: 'text-text-secondary', border: 'border-border-medium', label: 'Sin Valorar' };
 };
 
 const getAcceptabilityBadge = (a: string) => {
@@ -255,6 +257,7 @@ const MatrizPeligrosGTC45 = () => {
         else if (nr >= 150) acept = 'No Aceptable o Aceptable con control específico';
         else if (nr >= 40) acept = 'Aceptable';
         else if (nr > 0) acept = 'Aceptable';
+        else if (nr === 0 && h.deficienciaHigienica === 'Bajo (B)') acept = 'Aceptable (Exposición Baja)';
 
         // Calculate Justification Factor (J) = (NR * FR) / FC
         let j = 0;
@@ -703,7 +706,7 @@ const MatrizPeligrosGTC45 = () => {
                                                 )}
                                             </div>
                                             {p.peligros.map((h, hIdx) => {
-                                                const hStyle = h.completedByAI ? getRiskColor(h.nivelRiesgo) : { bg: 'bg-surface-tertiary/20', text: 'text-text-secondary', border: 'border-border-medium' };
+                                                const hStyle = h.completedByAI ? getRiskColor(h.nivelRiesgo, h) : { bg: 'bg-surface-tertiary/20', text: 'text-text-secondary', border: 'border-border-medium' };
                                                 const isHExp = expandedPeligros.has(h.id);
                                                 return (
                                                     <div key={h.id} className={`rounded-xl border ${hStyle.border} overflow-hidden transition-all duration-200`}>
