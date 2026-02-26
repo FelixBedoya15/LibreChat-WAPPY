@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -23,10 +24,38 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             modelName,
         } = req.body;
 
-        if (!hazards || !hazards.trim()) {
-            return res.status(400).json({
-                error: 'Debe ingresar al menos los peligros asociados a la actividad.',
-            });
+        let finalHazards = hazards;
+
+        if (!finalHazards || !finalHazards.trim()) {
+            try {
+                // Try to fallback to Matriz de Peligros data
+                const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, procesos: Array }, { strict: false }));
+                const matrizData = await MatrizPeligrosData.findOne({ user: req.user.id }).lean();
+
+                if (matrizData && matrizData.procesos && matrizData.procesos.length > 0) {
+                    const fallbackHazards = [];
+                    matrizData.procesos.forEach(p => {
+                        if (p.peligros && p.peligros.length > 0) {
+                            p.peligros.forEach(h => {
+                                fallbackHazards.push(`- **Proceso:** ${p.proceso} (Actividad: ${p.actividad}): ${h.descripcionPeligro || h.clasificacion}`);
+                            });
+                        }
+                    });
+
+                    if (fallbackHazards.length > 0) {
+                        finalHazards = `Peligros identificados en la Matriz GTC 45:\n${fallbackHazards.join('\n')}`;
+                        logger.info('[SGSST Politica] Using fallback hazards from Matriz de Peligros');
+                    }
+                }
+            } catch (err) {
+                logger.warn('[SGSST Politica] Error fetching Matriz de Peligros fallback:', err.message);
+            }
+
+            if (!finalHazards || !finalHazards.trim()) {
+                return res.status(400).json({
+                    error: 'Debe ingresar los peligros, o debe haber completado al menos un peligro en el módulo de Matriz de Peligros previamente.',
+                });
+            }
         }
 
         // 1. Retrieve the user's Google API key
@@ -97,7 +126,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 ${companyInfoBlock}
 
 **Peligros y Riesgos Asociados a la Actividad:**
-${hazards}
+${finalHazards}
 
 **Alcance de la Política:**
 ${scope || 'Aplica a todos los trabajadores, contratistas, subcontratistas y visitantes en todas las sedes y centros de trabajo de la organización.'}

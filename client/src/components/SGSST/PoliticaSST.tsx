@@ -49,11 +49,6 @@ const PoliticaSST = () => {
     const [isFormExpanded, setIsFormExpanded] = useState(true);
 
     const handleGenerate = useCallback(async () => {
-        if (!hazards.trim()) {
-            showToast({ message: 'Ingrese los peligros asociados a la actividad', status: 'warning' });
-            return;
-        }
-
         setIsGenerating(true);
         try {
             const response = await fetch('/api/sgsst/politica/generate', {
@@ -186,8 +181,7 @@ const PoliticaSST = () => {
             icon: AlertTriangle,
             value: hazards,
             setter: setHazards,
-            placeholder: 'Ej: Riesgo biomecánico por posturas prolongadas, riesgo psicosocial por carga laboral, riesgo físico por ruido, riesgo químico por manejo de sustancias...',
-            required: true,
+            placeholder: 'Ej: Riesgo biomecánico por posturas prolongadas... (Si deja en blanco, la IA usará automáticamente los peligros guardados en su Matriz de Peligros).',
             rows: 4,
         },
         {
@@ -243,7 +237,7 @@ const PoliticaSST = () => {
                 </button>
                 <button
                     onClick={handleGenerate}
-                    disabled={isGenerating || !hazards.trim()}
+                    disabled={isGenerating}
                     className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGenerating ? (
@@ -310,10 +304,14 @@ const PoliticaSST = () => {
 
                 {isFormExpanded && (
                     <div className="p-4 space-y-4">
-                        <p className="text-sm text-text-secondary mb-4">
-                            Complete los campos a continuación. Solo los <strong>peligros</strong> son obligatorios — los demás campos se generarán automáticamente si se dejan vacíos.
-                            Los datos de la empresa se cargan automáticamente desde la configuración.
-                        </p>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
+                            <p className="text-sm text-blue-800 dark:text-blue-300 mb-1 font-medium flex items-center gap-2">
+                                <Sparkles className="h-4 w-4" /> Generación Inteligente
+                            </p>
+                            <p className="text-sm text-text-secondary">
+                                Puede dejar <strong>todos los campos vacíos</strong>. Si no ingresa "Peligros y Riesgos", la IA buscará y utilizará automáticamente los que haya guardado en el módulo <strong>Matriz de Peligros GTC 45</strong>.
+                            </p>
+                        </div>
 
                         {formFields.map((field) => {
                             const Icon = field.icon;
@@ -342,7 +340,7 @@ const PoliticaSST = () => {
                         <div className="flex justify-center pt-2">
                             <button
                                 onClick={handleGenerate}
-                                disabled={isGenerating || !hazards.trim()}
+                                disabled={isGenerating}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isGenerating ? (
