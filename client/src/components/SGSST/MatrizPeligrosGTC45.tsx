@@ -97,6 +97,45 @@ const COST_FACTOR_OPTIONS = [
     { label: 'Menos de 0.06 SMMLV', d: 0.5 },
 ];
 
+const GTC45_CATEGORIES: Record<string, string[]> = {
+    'Biológico': [
+        'Virus', 'Bacterias', 'Hongos', 'Ricketsias', 'Parásitos', 'Picaduras', 'Mordeduras', 'Fluidos o excrementos'
+    ],
+    'Físico': [
+        'Ruido (de impacto, intermitente, continuo)', 'Iluminación (luz visible por exceso o deficiencia)',
+        'Vibración (cuerpo entero, segmentaria)', 'Temperaturas extremas (calor y frío)',
+        'Presión atmosférica (normal y ajustada)', 'Radiaciones ionizantes (rayos x, gama, beta y alfa)',
+        'Radiaciones no ionizantes (láser, ultravioleta, infrarroja, radiofrecuencia, microondas)'
+    ],
+    'Químico': [
+        'Polvos orgánicos inorgánicos', 'Fibras', 'Líquidos (nieblas y rocíos)', 'Gases y vapores',
+        'Humos metálicos, no metálicos', 'Material particulado'
+    ],
+    'Psicosocial': [
+        'Gestión organizacional (estilo de mando, pago, contratación, participación, inducción y capacitación, bienestar social, evaluación del desempeño, manejo de cambios)',
+        'Características de la organización del trabajo (comunicación, tecnología, organización del trabajo, demandas cualitativas y cuantitativas de la labor)',
+        'Características del grupo social de trabajo (relaciones, cohesión, calidad de interacciones, trabajo en equipo)',
+        'Condiciones de la tarea (carga mental, contenido de la tarea, demandas emocionales, sistemas de control, definición de roles, monotonía, etc)',
+        'Interfase persona - tarea (conocimientos, habilidades en relación con la demanda de la tarea, iniciativa, autonomía y reconocimiento, identificación de la persona con la tarea y la organización)',
+        'Jornada de trabajo (pausas, trabajo nocturno, rotación, horas extras, descansos)'
+    ],
+    'Biomecánicos': [
+        'Postura (prolongada mantenida, forzada, antigravitacional)', 'Esfuerzo',
+        'Movimiento repetitivo', 'Manipulación manual de cargas'
+    ],
+    'Condiciones de seguridad': [
+        'Mecánico (elementos o partes de máquinas, herramientas, equipos, piezas a trabajar, materiales proyectados sólidos o fluidos)',
+        'Eléctrico (alta y baja tensión, estática)',
+        'Locativo (sistemas y medios de almacenamiento), superficies de trabajo (irregulares, deslizantes, con diferencia del nivel), condiciones de orden y aseo, (caídas de objeto)',
+        'Tecnológico (explosión, fuga, derrame, incendio)', 'Accidentes de tránsito',
+        'Públicos (robos, atracos, asaltos, atentados, de orden público, etc.)',
+        'Trabajo en alturas', 'Espacios confinados'
+    ],
+    'Fenómenos naturales': [
+        'Sismo', 'Terremoto', 'Vendaval', 'Inundación', 'Derrumbe', 'Precipitaciones (lluvias, granizadas, heladas)'
+    ]
+};
+
 const getRiskColor = (nr: number) => {
     if (nr >= 600) return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', border: 'border-red-300', label: 'I - No Aceptable' };
     if (nr >= 150) return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-300', label: 'II - No Aceptable / Control' };
@@ -700,14 +739,62 @@ const MatrizPeligrosGTC45 = () => {
                                                             <div className="p-4 bg-surface-primary animate-in zoom-in-95 duration-200 space-y-4">
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                     <div className="space-y-1">
-                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Descripción del Peligro</label>
-                                                                        <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
-                                                                            rows={2} className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Clasificación</label>
+                                                                        <div className="flex flex-col gap-2">
+                                                                            <select
+                                                                                value={GTC45_CATEGORIES[h.clasificacion] ? h.clasificacion : (h.clasificacion ? "OTRO" : "")}
+                                                                                onChange={e => {
+                                                                                    if (e.target.value === 'OTRO') {
+                                                                                        updatePeligroField(p.id, h.id, 'clasificacion', 'Otro');
+                                                                                    } else {
+                                                                                        updatePeligroField(p.id, h.id, 'clasificacion', e.target.value);
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', '');
+                                                                                    }
+                                                                                }}
+                                                                                className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                                                <option value="">Seleccionar Clasificación...</option>
+                                                                                {Object.keys(GTC45_CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
+                                                                                <option value="OTRO">✏️ Edición Manual / Generado por IA</option>
+                                                                            </select>
+                                                                            {(!GTC45_CATEGORIES[h.clasificacion] && h.clasificacion !== '') && (
+                                                                                <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
+                                                                                    placeholder="Especifique la clasificación manual..."
+                                                                                    className="w-full text-xs p-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900/20 text-text-primary" />
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                     <div className="space-y-1">
-                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Clasificación</label>
-                                                                        <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
-                                                                            className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">Descripción del Peligro</label>
+                                                                        <div className="flex flex-col gap-2">
+                                                                            <select
+                                                                                value={
+                                                                                    (h.clasificacion && GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro))
+                                                                                        ? h.descripcionPeligro
+                                                                                        : (h.descripcionPeligro ? "OTRO" : "")
+                                                                                }
+                                                                                onChange={e => {
+                                                                                    if (e.target.value === 'OTRO') {
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', 'Otro...');
+                                                                                    } else {
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value);
+                                                                                    }
+                                                                                }}
+                                                                                disabled={!h.clasificacion && !h.descripcionPeligro}
+                                                                                className="w-full text-[11px] p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary overflow-hidden text-ellipsis"
+                                                                            >
+                                                                                <option value="">Seleccionar Componente...</option>
+                                                                                {h.clasificacion && GTC45_CATEGORIES[h.clasificacion] && GTC45_CATEGORIES[h.clasificacion].map(d => (
+                                                                                    <option key={d} value={d}>{d}</option>
+                                                                                ))}
+                                                                                <option value="OTRO">✏️ Edición Manual / Generado por IA</option>
+                                                                            </select>
+
+                                                                            {(!h.clasificacion || !GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro)) && h.descripcionPeligro !== '' && (
+                                                                                <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
+                                                                                    placeholder="Describa el peligro aquí..."
+                                                                                    rows={2} className="w-full text-xs p-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900/20 text-text-primary resize-none" />
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
 
