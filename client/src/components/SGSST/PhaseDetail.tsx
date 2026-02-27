@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
 import DiagnosticoChecklist from './DiagnosticoChecklist';
 import PoliticaSST from './PoliticaSST';
+import ObjetivosSST from './ObjetivosSST';
 import AuditoriaChecklist from './AuditoriaChecklist';
 import MatrizLegal from './MatrizLegal';
 import EstadisticasATEL from './EstadisticasATEL';
@@ -248,6 +249,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                         {category.id === 'politica' && (
                                             <div className="mb-6">
                                                 <PoliticaSST />
+                                            </div>
+                                        )}
+
+                                        {/* Show ObjetivosSST for objetivos category */}
+                                        {category.id === 'objetivos' && (
+                                            <div className="mb-6">
+                                                <ObjetivosSST />
                                             </div>
                                         )}
 

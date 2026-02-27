@@ -4,6 +4,7 @@ const politica = require('./politica');
 const matriz = require('./matriz');
 const estadisticas = require('./estadisticas');
 const matrizPeligros = require('./matrizPeligros');
+const objetivos = require('./objetivos');
 
 module.exports = {
     diagnostico,
@@ -13,4 +14,5 @@ module.exports = {
     estadisticas,
     atelData: require('./atel-data'),
     matrizPeligros,
+    objetivos,
 };
