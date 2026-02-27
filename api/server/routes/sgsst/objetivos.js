@@ -7,6 +7,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { Conversation, Message } = require('~/db/models');
 const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
 
 /**
@@ -114,6 +115,22 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             logger.warn('[SGSST Objetivos] Error fetching ATEL data:', err.message);
         }
 
+        // 4.5 Fetch Auditoria Fallback
+        let auditoriaContext = 'No hay datos de auditoría recientes registrados.';
+        try {
+            const auditConvo = await Conversation.findOne({ user: req.user.id, tags: 'sgsst-auditoria' }).sort({ createdAt: -1 }).lean();
+            if (auditConvo) {
+                const auditMessage = await Message.findOne({ conversationId: auditConvo.conversationId, isCreatedByUser: false }).sort({ createdAt: -1 }).lean();
+                if (auditMessage && auditMessage.text) {
+                    // Extract text and strip basic HTML to give context to the AI without over-saturating tokens
+                    let plainText = auditMessage.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 1500)}...`;
+                }
+            }
+        } catch (err) {
+            logger.warn('[SGSST Objetivos] Error fetching Auditoria data:', err.message);
+        }
+
         // 5. Initialize Gemini
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
@@ -137,42 +154,44 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 ## CONTEXTO DE LA EMPRESA
 ${companyInfoBlock}
 
-## FUENTES DE INFORMACIÓN INTEGRADAS
+## FUENTES DE INFORMACIÓN INTEGRADAS (BASE ESTRICTA PARA LOS OBJETIVOS)
 **1. Matriz de Peligros GTC 45 (Riesgos Prioritarios Identificados):**
 ${matrixContext}
 
 **2. Estadísticas ATEL (Accidentalidad y Ausentismo Reciente):**
 ${atelContext}
 
-**3. Directrices de la Política SST (Si el usuario las propuso):**
+**3. Informe de la Última Auditoría:**
+${auditoriaContext}
+
+**4. Directrices de la Política SST (Si el usuario las propuso):**
 ${policySummary || 'El usuario no proporcionó fragmentos de la política. Infiere la alineación estándar con el Decreto 1072.'}
 
-**4. Resultados del Diagnóstico Inicial (Si el usuario los propuso):**
+**5. Resultados del Diagnóstico Inicial (Si el usuario los propuso):**
 ${diagnosticSummary || 'El usuario no proporcionó el diagnóstico. Concéntrate en la mejora continua por defecto.'}
 
 **Marco Normativo Adicional:**
 ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 
-## INSTRUCCIONES DE GENERACIÓN
+## INSTRUCCIONES ESTRICTAS DE GENERACIÓN
 
-Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML.
+Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. ES VITAL que los objetivos NO SEAN GENÉRICOS, sino ALTAMENTE ESPECÍFICOS a los datos proporcionados arriba.
 
 1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
 ${headerHTML}
 
-2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, y las estadísticas de accidentalidad.
+2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas de accidentalidad.
 
-3. **OBJETIVOS GENERALES Y ESPECÍFICOS (Requisitos del Decreto 1072)**:
-   Los objetivos deben ser medibles, claros, tener metas, ser alcanzables, y estar directamente relacionados con el control de los peligros prioritarios (Matriz de Peligros) y la reducción de accidentalidad (Estadísticas ATEL) mostrados arriba. 
-   - Objetivo General.
-   - Objetivos Específicos (Mínimo 4 o 5) que abarquen:
-     - Identificar los peligros, evaluar y valorar los riesgos y establecer los respectivos controles.
-     - Proteger la seguridad y salud de todos los trabajadores mediante la mejora continua del SG-SST.
-     - Cumplir la normatividad nacional vigente aplicable.
-     - Reducir incidentes/accidentes basándose en el reporte ATEL actual.
+3. **OBJETIVOS GENERALES Y ESPECÍFICOS**:
+   - Objetivo General: Específico al giro de la empresa.
+   - Objetivos Específicos (Mínimo 5): DEBEN mencionar LITERALMENTE los hallazgos críticos de la información brindada:
+     * Si la Matriz menciona "riesgo psicosocial" o "ruido", formula un objetivo directo para mitigarlo.
+     * Si el reporte ATEL menciona X cantidad de accidentes, el objetivo debe hablar sobre la reducción tomando esa cifra como base.
+     * Si el reporte de Auditoría tiene "CRÍTICO" o hallazgos específicos deficientes, formula el objetivo sobre el plan de acción para subsanar ese mismo ítem mencionado.
+     * NO uses frases genéricas como "identificar los peligros en general", aterriza el texto a lo que muestran los datos.
 
 4. **METAS E INDICADORES (TABLA INTERACTIVA)**:
-   Genera una tabla HTML atractiva y limpia que asocie cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, <5%) y su Indicador de medición.
+   Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, <5%) y su Indicador de medición.
 
 5. **COMUNICACIÓN Y REVISIÓN**:
    Un párrafo indicando la obligación de comunicar los objetivos a todos los trabajadores y revisarlos mínimo una vez al año, tal como exige la norma.

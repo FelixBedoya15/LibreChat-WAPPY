@@ -280,7 +280,7 @@ const ObjetivosSST = () => {
                                 <Sparkles className="h-4 w-4" /> Integración Automática de Módulos
                             </p>
                             <p className="text-sm text-text-secondary">
-                                La IA buscará automáticamente los peligros desde su <strong>Matriz de Peligros</strong> y la información de accidentabilidad desde el módulo <strong>Estadísticas ATEL</strong> para cruzarlos e inyectarlos directamente en la formulación de los Objetivos, cumpliendo con los requisitos del Decreto 1072. Todos los campos a continuación son opcionales.
+                                La IA buscará automáticamente los peligros desde su <strong>Matriz de Peligros</strong>, la información de accidentabilidad desde <strong>Estadísticas ATEL</strong> y los hallazgos críticos de su última <strong>Auditoría Interna</strong> para cruzarlos e inyectarlos directamente en la formulación de los Objetivos. ES VITAL que la IA resuelva sus problemas reales. Todos los campos a continuación son opcionales.
                             </p>
                         </div>
 
