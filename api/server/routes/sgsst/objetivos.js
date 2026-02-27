@@ -76,13 +76,13 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                     if (p.peligros && p.peligros.length > 0) {
                         p.peligros.forEach(h => {
                             if (h.nivelRiesgo && (h.nivelRiesgo === 'I' || h.nivelRiesgo === 'II' || h.nivelRiesgo === 'III' || h.nivelRiesgo === 'IV')) {
-                                fallbackHazards.push(`- Proceso: ${p.proceso}: ${h.descripcionPeligro || h.clasificacion} (Niv. Riesgo: ${h.nivelRiesgo})`);
+                                fallbackHazards.push(`- Proceso ${p.proceso}: ${h.descripcionPeligro || h.clasificacion}. Efectos posibles: ${h.efectosPosibles || 'N/A'}`);
                             }
                         });
                     }
                 });
                 if (fallbackHazards.length > 0) {
-                    matrixContext = `Peligros Prioritarios (Matriz GTC 45):\n${fallbackHazards.slice(0, 15).join('\n')}`;
+                    matrixContext = `Peligros Prioritarios y Efectos (Matriz GTC 45):\n${fallbackHazards.slice(0, 20).join('\n')}`;
                 }
             }
         } catch (err) {
@@ -100,15 +100,26 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                 let totalAT = 0;
                 let totalEL = 0;
                 let ausentismoDias = 0;
+                let eventDetails = [];
                 Object.values(atelData.months).forEach(m => {
                     if (m.events) {
                         totalAT += m.events.filter(e => e.tipo === 'AT').length;
                         totalEL += m.events.filter(e => e.tipo === 'EL').length;
                         ausentismoDias += m.events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
+                        m.events.forEach(e => {
+                            if (e.tipo === 'AT' || e.tipo === 'EL') {
+                                eventDetails.push(`Tipo: ${e.tipo}. Diagnóstico/Causa: ${e.diagnostico || e.descripcion || 'No especificado'}`);
+                            }
+                        });
                     }
                 });
                 if (totalAT > 0 || totalEL > 0 || ausentismoDias > 0) {
-                    atelContext = `Estadísticas ATEL registradas en el año ${currentYear}:\n- Accidentes de Trabajo (AT): ${totalAT}\n- Enfermedades Laborales (EL): ${totalEL}\n- Días de Ausentismo: ${ausentismoDias}`;
+                    atelContext = `Estadísticas ATEL registradas en el año ${currentYear}:
+- Accidentes de Trabajo (AT): ${totalAT}
+- Enfermedades Laborales (EL): ${totalEL}
+- Días de Ausentismo: ${ausentismoDias}
+Detalle exacto de incidentes ocurridos:
+${eventDetails.length > 0 ? eventDetails.join('\n') : 'No hay detalle disponible.'}`;
                 }
             }
         } catch (err) {
@@ -173,27 +184,26 @@ ${diagnosticSummary || 'El usuario no proporcionó el diagnóstico. Concéntrate
 **Marco Normativo Adicional:**
 ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 
-## INSTRUCCIONES ESTRICTAS, OBLIGATORIAS E INQUEBRANTABLES DE GENERACIÓN
+## INSTRUCCIONES ESTRICTAS DE GENERACIÓN
 
-Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. 
-REGLA DE ORO: TIENES PROHIBIDO INVENTAR PORCENTAJES (ej. "Reducir en un 50%"), INVENTAR FECHAS (ej. "próximo ciclo"), O USAR FRASES DE CAJÓN (ej. "fomentar la cultura"). TODO OBJETIVO DEBE NACER ESTRICTAMENTE DE LOS DATOS CRÍTICOS LISTADOS ARRIBA.
+Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. ES VITAL que los objetivos NO SEAN GENÉRICOS, sino ALTAMENTE ESPECÍFICOS a los datos proporcionados arriba.
 
 1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
 ${headerHTML}
 
-2. **INTRODUCCIÓN**: Breve y concisa. Define el propósito del documento alineando la política, la normatividad (Decreto 1072 / Res 0312) y enfocándose en resolver los problemas reales de la empresa.
+2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas (mencionando las cifras y hallazgos específicos).
 
-3. **OBJETIVO GENERAL**:
-   - Plantea UN objetivo macro que unifique la gestión del riesgo de la empresa (menciona a qué se dedica según la cabecera) y ordene el cumplimiento normativo.
+3. **OBJETIVOS GENERALES Y ESPECÍFICOS**:
+   - Objetivo General: Específico al giro de la empresa, nombrando su misión principal.
+   - Objetivos Específicos (Mínimo 5): **PROHIBIDO USAR FRASES GENÉRICAS**. Debes atacar EXACTAMENTE las causas, diagnósticos, posibles efectos y hallazgos listados arriba.
+     * Ejemplo MALO: "Reducir la tasa de accidentalidad interviniendo las causas raíz de los 2 accidentes de trabajo reportados".
+     * Ejemplo BUENO: "Prevenir patologías osteomusculares en el personal operativo mediante un plan de rediseño ergonómico, atacando directamente la causa raíz de los 2 accidentes por sobreesfuerzo lumbar presentados en el último semestre."
+     * Si la matriz menciona efectos como "sordera" o "lumbalgia", el objetivo debe decir "Prevenir la lumbalgia...".
+     * Si el ATEL menciona un diagnóstico exacto, aborda ESE diagnóstico particular en tu objetivo para reducirlo.
+     * Si la Auditoría arrojó ítems críticos específicos ("Plan de emergencias", etc.), formula un objetivo enfocado textualmente en llevar a cumplimiento ese ítem particular.
 
-4. **OBJETIVOS ESPECÍFICOS (El núcleo del reporte)**:
-   - Crea un objetivo específico POR CADA HALLAZGO CRÍTICO en la Matriz de Peligros, en las Estadísticas ATEL o en los hallazgos de Auditoría. 
-   - REGLA: Si la auditoría falló en "Evaluación inicial", el objetivo es "Actualizar y documentar la evaluación inicial para subsanar la no conformidad...".
-   - REGLA: Si el reporte ATEL tiene "2 accidentes", el objetivo es investigar, cerrar las causas de esos eventos y garantizar 0 repeticiones. NO uses "reducir en un 50%".
-   - Los objetivos deben mencionar explícitamente el origen del dato (Ej: "Abordar el estado Crítico identificado en la Auditoría Interna frente a...", o "Mitigar los riesgos derivados del proceso de Soldadura listados en la Matriz..."). NO INVENTES SI NO TIENES EL DATO.
-
-5. **METAS E INDICADORES (TABLA INTERACTIVA)**:
-   Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta realista (ej. 100% de cobertura, 0 incidentes repetidos) y su Fórmula/Indicador de medición.
+4. **METAS E INDICADORES (TABLA INTERACTIVA)**:
+   Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, cero accidentes por [CAUSA ESPECÍFICA]) y su Indicador de medición.
 
 5. **COMUNICACIÓN Y REVISIÓN**:
    Un párrafo indicando la obligación de comunicar los objetivos a todos los trabajadores y revisarlos mínimo una vez al año, tal como exige la norma.
