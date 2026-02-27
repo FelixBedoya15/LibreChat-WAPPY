@@ -186,21 +186,20 @@ ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 
 ## INSTRUCCIONES ESTRICTAS DE GENERACIÓN
 
-Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. ES VITAL que los objetivos NO SEAN GENÉRICOS, sino ALTAMENTE ESPECÍFICOS a los datos proporcionados arriba.
+Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. ES VITAL que los objetivos NO SEAN GENÉRICOS ni asuman riesgos comunes del sector. Deben ser ALTAMENTE ESPECÍFICOS y basarse ÚNICA Y EXCLUSIVAMENTE en los datos proporcionados arriba.
 
 1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
 ${headerHTML}
 
-2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas (mencionando las cifras y hallazgos específicos).
+2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con los hallazgos reales de la empresa (mencionando las cifras y hallazgos específicos provistos en el contexto).
 
 3. **OBJETIVOS GENERALES Y ESPECÍFICOS**:
-   - Objetivo General: Específico al giro de la empresa, nombrando su misión principal.
-   - Objetivos Específicos (Mínimo 5): **PROHIBIDO USAR FRASES GENÉRICAS**. Debes atacar EXACTAMENTE las causas, diagnósticos, posibles efectos y hallazgos listados arriba.
-     * Ejemplo MALO: "Reducir la tasa de accidentalidad interviniendo las causas raíz de los 2 accidentes de trabajo reportados".
-     * Ejemplo BUENO: "Prevenir patologías osteomusculares en el personal operativo mediante un plan de rediseño ergonómico, atacando directamente la causa raíz de los 2 accidentes por sobreesfuerzo lumbar presentados en el último semestre."
-     * Si la matriz menciona efectos como "sordera" o "lumbalgia", el objetivo debe decir "Prevenir la lumbalgia...".
-     * Si el ATEL menciona un diagnóstico exacto, aborda ESE diagnóstico particular en tu objetivo para reducirlo.
-     * Si la Auditoría arrojó ítems críticos específicos ("Plan de emergencias", etc.), formula un objetivo enfocado textualmente en llevar a cumplimiento ese ítem particular.
+   - Objetivo General: Específico al giro de la empresa, nombrando su misión principal y su compromiso con intervenir los hallazgos reales identificados.
+   - Objetivos Específicos (Mínimo 5): **PROHIBICIÓN ABSOLUTA: NO INVENTES NI SUPONGAS riesgos o peligros**. No menciones "caídas", "riesgos mecánicos", "material particulado" ni ningún otro riesgo a menos que aparezcan EXPLÍCITAMENTE y LITERALMENTE en las fuentes de información integradas (Matriz, ATEL o Auditoría).
+     * Si la información provista dice que hubo accidentes por "laceración en mano", el objetivo DEBE ser textualmente "Implementar controles para prevenir lesiones por laceración en mano...".
+     * Si la Matriz menciona el riesgo de "lumbalgia", el objetivo debe decir "Prevenir la lumbalgia...".
+     * Si la Auditoría arrojó ítems deficientes en un área específica, formula un objetivo enfocado textualmente en llevar a cumplimiento ese ítem particular.
+     * Prohibido crear objetivos genéricos. TODO OBJETIVO debe tener una trazabilidad directa a los datos de las fuentes de información proporcionadas.
 
 4. **METAS E INDICADORES (TABLA INTERACTIVA)**:
    Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, cero accidentes por [CAUSA ESPECÍFICA]) y su Indicador de medición.
