@@ -173,25 +173,27 @@ ${diagnosticSummary || 'El usuario no proporcionó el diagnóstico. Concéntrate
 **Marco Normativo Adicional:**
 ${additionalNorms || 'Decreto 1072 de 2015, Resolución 0312 de 2019'}
 
-## INSTRUCCIONES ESTRICTAS DE GENERACIÓN
+## INSTRUCCIONES ESTRICTAS, OBLIGATORIAS E INQUEBRANTABLES DE GENERACIÓN
 
-Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. ES VITAL que los objetivos NO SEAN GENÉRICOS, sino ALTAMENTE ESPECÍFICOS a los datos proporcionados arriba.
+Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en formato HTML. 
+REGLA DE ORO: TIENES PROHIBIDO INVENTAR PORCENTAJES (ej. "Reducir en un 50%"), INVENTAR FECHAS (ej. "próximo ciclo"), O USAR FRASES DE CAJÓN (ej. "fomentar la cultura"). TODO OBJETIVO DEBE NACER ESTRICTAMENTE DE LOS DATOS CRÍTICOS LISTADOS ARRIBA.
 
 1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
 ${headerHTML}
 
-2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas de accidentalidad.
+2. **INTRODUCCIÓN**: Breve y concisa. Define el propósito del documento alineando la política, la normatividad (Decreto 1072 / Res 0312) y enfocándose en resolver los problemas reales de la empresa.
 
-3. **OBJETIVOS GENERALES Y ESPECÍFICOS**:
-   - Objetivo General: Específico al giro de la empresa.
-   - Objetivos Específicos (Mínimo 5): DEBEN mencionar LITERALMENTE los hallazgos críticos de la información brindada:
-     * Si la Matriz menciona "riesgo psicosocial" o "ruido", formula un objetivo directo para mitigarlo.
-     * Si el reporte ATEL menciona X cantidad de accidentes, el objetivo debe hablar sobre la reducción tomando esa cifra como base.
-     * Si el reporte de Auditoría tiene "CRÍTICO" o hallazgos específicos deficientes, formula el objetivo sobre el plan de acción para subsanar ese mismo ítem mencionado.
-     * NO uses frases genéricas como "identificar los peligros en general", aterriza el texto a lo que muestran los datos.
+3. **OBJETIVO GENERAL**:
+   - Plantea UN objetivo macro que unifique la gestión del riesgo de la empresa (menciona a qué se dedica según la cabecera) y ordene el cumplimiento normativo.
 
-4. **METAS E INDICADORES (TABLA INTERACTIVA)**:
-   Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, <5%) y su Indicador de medición.
+4. **OBJETIVOS ESPECÍFICOS (El núcleo del reporte)**:
+   - Crea un objetivo específico POR CADA HALLAZGO CRÍTICO en la Matriz de Peligros, en las Estadísticas ATEL o en los hallazgos de Auditoría. 
+   - REGLA: Si la auditoría falló en "Evaluación inicial", el objetivo es "Actualizar y documentar la evaluación inicial para subsanar la no conformidad...".
+   - REGLA: Si el reporte ATEL tiene "2 accidentes", el objetivo es investigar, cerrar las causas de esos eventos y garantizar 0 repeticiones. NO uses "reducir en un 50%".
+   - Los objetivos deben mencionar explícitamente el origen del dato (Ej: "Abordar el estado Crítico identificado en la Auditoría Interna frente a...", o "Mitigar los riesgos derivados del proceso de Soldadura listados en la Matriz..."). NO INVENTES SI NO TIENES EL DATO.
+
+5. **METAS E INDICADORES (TABLA INTERACTIVA)**:
+   Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta realista (ej. 100% de cobertura, 0 incidentes repetidos) y su Fórmula/Indicador de medición.
 
 5. **COMUNICACIÓN Y REVISIÓN**:
    Un párrafo indicando la obligación de comunicar los objetivos a todos los trabajadores y revisarlos mínimo una vez al año, tal como exige la norma.
