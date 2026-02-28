@@ -106,10 +106,10 @@ A continuación, te presento el resultado EXACTO de la evaluación de la matriz 
 ${itemsLogText}
 
 **Instrucciones ESTRICTAS:**
-1. DEBES generar una tabla exhaustiva que contenga TODOS y CADA UNO de los ítems evaluados en el texto anterior, manteniendo al pie de la letra la calificación (CUMPLE, NO CUMPLE, NO APLICA) y las observaciones exactas aportadas por el usuario.
-2. No inventes criterios adicionales. Tu trabajo principal es ponerle formato hiper profesional, redactar un resumen ejecutivo inicial basado en los fallos y aciertos, y estructurar la tabla final obligatoria.
-3. Al inicio del documento, justo después del encabezado y antes de la tabla, debes presentar un **Indicador General de Cumplimiento de la Matriz**. Usa un recuadro HTML destacado indicando "Cumplimiento Legal: ${compliancePercentage || 0}%". 
-   - Acompaña este indicador de un párrafo redactado por ti (resumen ejecutivo legal) que le informe a la gerencia sobre los hallazgos críticos de la matriz según lo listado arriba.
+1. Redacta un **resumen ejecutivo** inicial basado en los niveles de cumplimiento encontrados (qué % cumple, qué % no cumple).
+2. Presenta un **Indicador General de Cumplimiento**. Usa un recuadro HTML destacado indicando "Cumplimiento Legal: ${compliancePercentage || 0}%". 
+3. Proporciona una serie de recomendaciones gerenciales para abordar los ítems con estado "NO CUMPLE". Haz mención a estos problemas de manera general o agrupada.
+4. **NO VUELVAS A ESCRIBIR UNA TABLA CON LOS ÍTEMS**. El sistema añadirá el anexo detallado automáticamente. Tu trabajo es solo la narrativa ejecutiva y analítica.
 
 **Formato HTML del Entregable:**
 Primero, incluye EXACTAMENTE el siguiente encabezado HTML al inicio del informe:
@@ -120,21 +120,9 @@ ${buildStandardHeader({
             norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
         })}
 
-Después del encabezado, el resumen ejecutivo y el Indicador de Cumplimiento (${compliancePercentage || 0}%), genera la tabla legal estricta con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
-- NO uses filas intercaladas claras/oscuras (striped) sin forzar el color de texto.
-- <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
-- Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
-- Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top; (SIN background-color para heredar el modo oscuro del sistema).
+Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${compliancePercentage || 0}%) y las recomendaciones para la alta dirección.
 
-Columnas OBLIGATORIAS de la tabla (en este orden exacto):
-1. **Norma** (Ej: Res 0312 o Dec 1072)
-2. **Artículo / Criterio** (Numeral exacto)
-3. **Requisito Específico** (Descripción legal)
-4. **Evidencia de Cumplimiento** (Qué documento lo prueba)
-5. **Estado** (CUMPLE / NO CUMPLE / NO APLICA en negrita y color verde/rojo/gris)
-6. **Seguimiento / Observaciones** (El texto exacto de la observación del usuario, más tus sugerencias legales de cierre si es NO CUMPLE)
-
-¡El documento debe renderizarse como HTML válido completo listo para enmarcar!
+¡El documento debe renderizarse como HTML válido!
 `;
 
         // 4. Generate Content
@@ -145,17 +133,55 @@ Columnas OBLIGATORIAS de la tabla (en este orden exacto):
         const response = await result.response;
         const text = response.text();
 
-        // 5. Clean Output
+        // 5. Clean Output & append table
         let cleanedMatrix = text
             .replace(/```html\n?/g, '')
             .replace(/```\n?/g, '')
             .trim();
 
-        res.json({ matrix: cleanedMatrix });
+        // Generar tabla manual en HTML
+        let tableRowsHTML = processedItems.map((item, idx) => {
+            const statusColor = item.statusLabel === 'CUMPLE' ? '#22c55e' : item.statusLabel === 'NO CUMPLE' ? '#ef4444' : item.statusLabel === 'NO APLICA' ? '#64748b' : '#3b82f6';
+            const statusBg = item.statusLabel === 'CUMPLE' ? '#f0fdf4' : item.statusLabel === 'NO CUMPLE' ? '#fef2f2' : item.statusLabel === 'NO APLICA' ? '#f8fafc' : '#eff6ff';
+
+            return `
+  <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; page-break-inside: avoid;">
+    <div style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+      <div style="font-weight: 700; color: #004d99; font-size: 15px;">
+        <span style="color: #64748b;">${idx + 1}.</span> ${item.norma} - ${item.articulo}
+      </div>
+      <div style="background-color: ${statusColor}; color: white; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase;">
+        ${item.statusLabel}
+      </div>
+    </div>
+
+    <div style="padding: 20px;">
+      <div style="margin-bottom: 16px;">
+        <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Requisito Específico</span>
+        <span style="color: #1e293b; font-size: 14px;">${item.descripcion || '-'}</span>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <span style="display: block; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Evidencia de Cumplimiento</span>
+        <span style="color: #334155; font-size: 13px;">${item.evidencia || '-'}</span>
+      </div>
+
+      ${item.observacion ? `
+      <div style="background-color: ${statusBg}; border: 1px solid ${statusColor}40; border-radius: 8px; padding: 12px;">
+        <span style="display: block; font-size: 11px; font-weight: 700; color: ${statusColor}; text-transform: uppercase; margin-bottom: 4px;">Seguimiento / Observaciones (Usuario)</span>
+        <span style="color: #0f172a; font-size: 13px;">${item.observacion}</span>
+      </div>` : ''}
+    </div>
+  </div>`;
+        }).join('\\n');
+
+        const finalContent = \`\${cleanedMatrix}\\n<div class="mt-12">\\n<h3 style="color: #0f172a; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">Anexo: Detalle de Criterios Ley / Matriz Evaluada</h3>\\n\${tableRowsHTML}</div>\`;
+
+        res.json({ matrix: finalContent });
 
     } catch (error) {
         console.error('[SGSST Matriz] Generation error:', error);
-        res.status(500).json({ error: `Error generando matriz: ${error.message}` });
+        res.status(500).json({ error: `Error generando matriz: ${ error.message } ` });
     }
 });
 
