@@ -14,7 +14,8 @@ import {
     CheckCircle2,
     XCircle,
     MinusCircle,
-    FileText
+    FileText,
+    Database
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -273,10 +274,29 @@ const MatrizLegal = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isAnalyzing || completedCount === 0}
+                        className="group flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50"
+                    >
+                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                            Generar Documento IA
+                        </span>
+                    </button>
+                    {generatedMatrix && (
+                        <button
+                            onClick={handleSave}
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                        >
+                            <Database className="h-5 w-5 text-gray-500" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
+                        </button>
+                    )}
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
                         <History className="h-5 w-5" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -289,18 +309,10 @@ const MatrizLegal = () => {
                         disabled={isAnalyzing}
                     />
                     {generatedMatrix && (
-                        <>
-                            <button
-                                onClick={handleSave}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                            >
-                                <Save className="h-5 w-5" />
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || generatedMatrix || ''}
-                                fileName="Matriz_Legal_SGSST"
-                            />
-                        </>
+                        <ExportDropdown
+                            content={editorContent || generatedMatrix || ''}
+                            fileName="Matriz_Legal_SGSST"
+                        />
                     )}
                 </div>
             </div>
@@ -349,10 +361,10 @@ const MatrizLegal = () => {
                         <button
                             onClick={handleGenerate}
                             disabled={isAnalyzing || completedCount === 0}
-                            className="shrink-0 flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 flex items-center gap-2 px-6 py-2.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50 rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                            Generar Documento IA
+                            {generatedMatrix ? 'Regenerar Documento IA' : 'Generar Documento IA'}
                         </button>
                     </div>
 
