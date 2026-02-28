@@ -80,6 +80,35 @@ const MatrizLegal = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            if (!token) {
+                setIsLoadingInitial(false);
+                return;
+            }
+            try {
+                const res = await fetch('/api/sgsst/matriz/data', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.statuses && data.statuses.length > 0) setStatuses(data.statuses);
+                    if (data.seguimientos) setSeguimientos(data.seguimientos);
+                    if (data.activity) setActivity(data.activity);
+                    if (data.location) setLocation(data.location);
+                    if (data.entityType) setEntityType(data.entityType);
+                }
+            } catch (err) {
+                console.error('Error loading initial Matriz Legal data:', err);
+            } finally {
+                setIsLoadingInitial(false);
+            }
+        };
+        loadInitialData();
+    }, [token]);
+
     // Filter out any orphaned statuses
     const validStatuses = useMemo(() => {
         const itemIds = new Set(MATRIZ_LEGAL_ITEMS.map(i => i.id));
@@ -183,37 +212,60 @@ const MatrizLegal = () => {
         }
     }, [activity, location, entityType, selectedModel, token, showToast, validStatuses, seguimientos, compliancePercentage]);
 
-    const [isSaving, setIsSaving] = useState(false);
+    const [isSavingData, setIsSavingData] = useState(false);
 
-    const handleSave = useCallback(async () => {
+    const handleSaveData = useCallback(async () => {
+        if (!token) {
+            showToast({ message: 'Error: No autorizado', status: 'error' });
+            return;
+        }
+        setIsSavingData(true);
         try {
-            setIsSaving(true);
-            let contentToSave = editorContent || generatedMatrix || '';
-            if (!token) {
-                showToast({ message: 'Error: No autorizado', status: 'error' });
-                return;
-            }
-
-            const stateData = {
+            const body = {
                 statuses: validStatuses,
                 seguimientos,
                 activity,
                 location,
                 entityType
             };
-            const stateString = `<!-- SGSST_MATRIZ_DATA_V1:${JSON.stringify(stateData)} -->`;
+            const res = await fetch('/api/sgsst/matriz/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body),
+            });
+            if (res.ok) {
+                showToast({ message: 'Avance guardado exitosamente', status: 'success' });
+            } else {
+                throw new Error('Error al guardar datos');
+            }
+        } catch (error: any) {
+            showToast({ message: error.message, status: 'error' });
+        } finally {
+            setIsSavingData(false);
+        }
+    }, [token, showToast, validStatuses, seguimientos, activity, location, entityType]);
 
-            contentToSave = contentToSave.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '');
-            contentToSave += stateString;
+    const [isSaving, setIsSaving] = useState(false);
 
+    const handleSaveReport = useCallback(async () => {
+        const content = editorContent || generatedMatrix;
+        if (!content || content.trim() === '') {
+            showToast({ message: 'No hay documento generado para guardar en el historial', status: 'warning' });
+            return;
+        }
+
+        try {
+            setIsSaving(true);
+
+            const isNew = !conversationId || conversationId === 'new';
             const body = {
-                content: contentToSave,
+                content,
                 title: `Matriz Legal SST - ${new Date().toLocaleDateString('es-CO')}`,
                 tags: ['sgsst-matriz-legal'],
-                ...(conversationId !== 'new' ? { conversationId, messageId: reportMessageId } : {})
+                ...(isNew ? {} : { conversationId, messageId: reportMessageId })
             };
 
-            const method = conversationId !== 'new' ? 'PUT' : 'POST';
+            const method = isNew ? 'POST' : 'PUT';
             const res = await fetch('/api/sgsst/diagnostico/save-report', {
                 method,
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -227,16 +279,17 @@ const MatrizLegal = () => {
                     setReportMessageId(data.messageId);
                 }
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Matriz guardada exitosamente', status: 'success' });
+                setIsHistoryOpen(false);
+                showToast({ message: 'Documento guardado en historial', status: 'success' });
             } else {
-                showToast({ message: 'Error al guardar matriz', status: 'error' });
+                showToast({ message: 'Error al guardar el documento', status: 'error' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         } finally {
             setIsSaving(false);
         }
-    }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast, validStatuses, seguimientos, activity, location, entityType]);
+    }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = async (reportOrId: any) => {
         let content = '', convId = '', msgId = '';
@@ -257,30 +310,24 @@ const MatrizLegal = () => {
         }
 
         if (content) {
+            // Support legacy embedded states just in case
             const cleanContent = content.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '').trim();
             setGeneratedMatrix(cleanContent || null);
             setEditorContent(cleanContent || null);
             setConversationId(convId);
             setReportMessageId(msgId);
-
-            const stateMatch = content.match(/<!-- SGSST_MATRIZ_DATA_V1:(.*?) -->/);
-            if (stateMatch && stateMatch[1]) {
-                try {
-                    const parsedState = JSON.parse(stateMatch[1]);
-                    if (parsedState.statuses) setStatuses(parsedState.statuses);
-                    if (parsedState.seguimientos) setSeguimientos(parsedState.seguimientos);
-                    if (parsedState.activity) setActivity(parsedState.activity);
-                    if (parsedState.location) setLocation(parsedState.location);
-                    if (parsedState.entityType) setEntityType(parsedState.entityType);
-                } catch (e) {
-                    console.error('Error parsing matrix state:', e);
-                }
-            }
-
             setIsHistoryOpen(false);
-            showToast({ message: t('com_ui_report_loaded', 'Matriz cargada'), status: 'info' });
+            showToast({ message: t('com_ui_report_loaded', 'Documento de historial cargado'), status: 'info' });
         }
     };
+
+    if (isLoadingInitial) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -308,11 +355,11 @@ const MatrizLegal = () => {
                         </span>
                     </button>
                     <button
-                        onClick={handleSave}
-                        disabled={isSaving}
+                        onClick={handleSaveData}
+                        disabled={isSavingData}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                     >
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
+                        {isSavingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
                     </button>
                     <button
@@ -502,7 +549,7 @@ const MatrizLegal = () => {
                             <LiveEditor
                                 initialContent={generatedMatrix}
                                 onUpdate={(html) => setEditorContent(html)}
-                                onSave={handleSave}
+                                onSave={handleSaveReport}
                             />
                         </div>
                     ) : (

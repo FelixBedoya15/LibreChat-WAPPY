@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { logger } = require('~/config');
@@ -7,6 +8,21 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+
+// ─── Mongoose Schema for Raw Data ──────────────────────────────────────
+const MatrizLegalDataSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    statuses: { type: Array, default: [] },
+    seguimientos: { type: Object, default: {} },
+    activity: { type: String, default: '' },
+    location: { type: String, default: '' },
+    entityType: { type: String, default: 'private' },
+    updatedAt: { type: Date, default: Date.now },
+});
+
+MatrizLegalDataSchema.index({ user: 1 }, { unique: true });
+
+const MatrizLegalData = mongoose.models.MatrizLegalData || mongoose.model('MatrizLegalData', MatrizLegalDataSchema);
 
 const mapSizeToLabel = (size) => {
     switch (size) {
@@ -20,6 +36,44 @@ const mapSizeToLabel = (size) => {
 const mapRiskToLabel = (risk) => {
     return risk ? `Riesgo ${risk}` : 'No especificado';
 };
+
+// ─── GET /data — Load saved matriz legal data ─────────────────────────────
+router.get('/data', requireJwtAuth, async (req, res) => {
+    try {
+        const data = await MatrizLegalData.findOne({ user: req.user.id });
+        if (data) {
+            return res.json({
+                statuses: data.statuses || [],
+                seguimientos: data.seguimientos || {},
+                activity: data.activity || '',
+                location: data.location || '',
+                entityType: data.entityType || 'private'
+            });
+        }
+        res.json({ statuses: [], seguimientos: {}, activity: '', location: '', entityType: 'private' });
+    } catch (error) {
+        logger.error('[SGSST MatrizLegal] Load error:', error);
+        res.status(500).json({ error: 'Error al cargar datos' });
+    }
+});
+
+// ─── POST /save — Save matriz legal data ─────────────────────────────
+router.post('/save', requireJwtAuth, async (req, res) => {
+    try {
+        const { statuses, seguimientos, activity, location, entityType } = req.body;
+
+        await MatrizLegalData.findOneAndUpdate(
+            { user: req.user.id },
+            { $set: { statuses, seguimientos, activity, location, entityType, updatedAt: new Date() } },
+            { upsert: true, new: true }
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('[SGSST MatrizLegal] Save error:', error);
+        res.status(500).json({ error: 'Error al guardar datos' });
+    }
+});
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
 
