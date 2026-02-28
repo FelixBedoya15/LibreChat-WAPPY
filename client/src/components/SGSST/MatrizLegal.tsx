@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -44,6 +44,22 @@ const MatrizLegal = () => {
     const [activity, setActivity] = useState('');
     const [location, setLocation] = useState('');
     const [entityType, setEntityType] = useState('private');
+
+    // Fetch company info to auto-fill
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (data) {
+                    setActivity(prev => prev || data.activities || '');
+                    setLocation(prev => prev || data.city || '');
+                }
+            })
+            .catch(err => console.error('Error fetching company info', err));
+    }, [token]);
 
     // Checklist State
     const [statuses, setStatuses] = useState<ComplianceStatus[]>([]);
