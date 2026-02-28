@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -11,13 +11,29 @@ import {
     ChevronRight,
     Search,
     BookOpen,
+    CheckCircle2,
+    XCircle,
+    MinusCircle,
+    FileText
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
-import ModelSelector from './ModelSelector';
+import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
+import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
+
+interface ComplianceStatus {
+    itemId: string;
+    status: 'cumple' | 'no_cumple' | 'no_aplica' | 'pendiente';
+}
+
+const STATUS_OPTIONS = [
+    { value: 'cumple' as const, label: 'Cumple', icon: CheckCircle2, color: 'text-green-500 bg-green-500/10' },
+    { value: 'no_cumple' as const, label: 'No Cumple', icon: XCircle, color: 'text-red-500 bg-red-500/10' },
+    { value: 'no_aplica' as const, label: 'No Aplica', icon: MinusCircle, color: 'text-gray-400 bg-gray-400/10' },
+];
 
 const MatrizLegal = () => {
     const { t } = useTranslation();
@@ -26,27 +42,90 @@ const MatrizLegal = () => {
 
     // Form state
     const [activity, setActivity] = useState('');
-    const [location, setLocation] = useState(''); // Specific city/department can affect norms
-    const [entityType, setEntityType] = useState('private'); // private, public, mixed
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [location, setLocation] = useState('');
+    const [entityType, setEntityType] = useState('private');
 
-    // State
-    const [isGenerating, setIsGenerating] = useState(false);
+    // Checklist State
+    const [statuses, setStatuses] = useState<ComplianceStatus[]>([]);
+    const [seguimientos, setSeguimientos] = useState<Record<string, string>>({});
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+
+    // Analysis state  
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [generatedMatrix, setGeneratedMatrix] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState('');
-    const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+    const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0].id);
+
+    // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    // Filter out any orphaned statuses
+    const validStatuses = useMemo(() => {
+        const itemIds = new Set(MATRIZ_LEGAL_ITEMS.map(i => i.id));
+        return statuses.filter(s => itemIds.has(s.itemId));
+    }, [statuses]);
+
+    // Calculate progress
+    const totalItems = MATRIZ_LEGAL_ITEMS.length;
+    const completedCount = useMemo(() => {
+        return validStatuses.filter(s => s.status !== 'pendiente').length;
+    }, [validStatuses]);
+    const compliantCount = useMemo(() => {
+        return validStatuses.filter(s => s.status === 'cumple').length;
+    }, [validStatuses]);
+
+    const compliancePercentage = useMemo(() => {
+        const noAplicaCount = validStatuses.filter(s => s.status === 'no_aplica').length;
+        if (totalItems === 0) return 0;
+        const percentage = ((compliantCount + noAplicaCount) / totalItems) * 100;
+        return Math.min(percentage, 100);
+    }, [validStatuses, compliantCount, totalItems]);
+
+    // Group items by category
+    const itemsByCategory = useMemo(() => {
+        return MATRIZ_LEGAL_ITEMS.reduce((acc, item) => {
+            if (!acc[item.categoria]) acc[item.categoria] = [];
+            acc[item.categoria].push(item);
+            return acc;
+        }, {} as Record<string, MatrizLegalItem[]>);
+    }, []);
+
+    const getItemStatus = useCallback((id: string) => {
+        return validStatuses.find(s => s.itemId === id)?.status || 'pendiente';
+    }, [validStatuses]);
+
+    const handleStatusChange = useCallback((id: string, status: ComplianceStatus['status']) => {
+        setStatuses(prev => {
+            const existing = prev.findIndex(s => s.itemId === id);
+            if (existing >= 0) {
+                const newStatuses = [...prev];
+                newStatuses[existing] = { itemId: id, status };
+                return newStatuses;
+            }
+            return [...prev, { itemId: id, status }];
+        });
+    }, []);
+
+    const toggleCategory = useCallback((category: string) => {
+        setExpandedCategories(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(category)) newSet.delete(category);
+            else newSet.add(category);
+            return newSet;
+        });
+    }, []);
+
     const handleGenerate = useCallback(async () => {
         if (!activity.trim()) {
-            showToast({ message: 'Ingrese la actividad económica específica', status: 'warning' });
+            showToast({ message: 'Ingrese la actividad económica e inicie la calificación', status: 'warning' });
             return;
         }
 
-        setIsGenerating(true);
+        setIsAnalyzing(true);
         try {
             const response = await fetch('/api/sgsst/matriz/generate', {
                 method: 'POST',
@@ -58,6 +137,9 @@ const MatrizLegal = () => {
                     activity,
                     location,
                     entityType,
+                    statuses: validStatuses,
+                    seguimientos,
+                    compliancePercentage: Math.round(compliancePercentage),
                     modelName: selectedModel,
                 }),
             });
@@ -70,77 +152,67 @@ const MatrizLegal = () => {
             const data = await response.json();
             setGeneratedMatrix(data.matrix);
             setEditorContent(data.matrix);
-            setIsFormExpanded(false);
+            setConversationId('new');
+            setReportMessageId(null);
             showToast({ message: 'Matriz Legal generada exitosamente', status: 'success' });
         } catch (error: any) {
             console.error('Matrix generation error:', error);
             showToast({ message: error.message || 'Error al generar la matriz', status: 'error' });
         } finally {
-            setIsGenerating(false);
+            setIsAnalyzing(false);
         }
-    }, [activity, location, entityType, selectedModel, token, showToast]);
+    }, [activity, location, entityType, selectedModel, token, showToast, validStatuses, seguimientos, compliancePercentage]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedMatrix;
-        if (!contentToSave) {
-            showToast({ message: t('com_ui_no_report_save', 'No hay matriz para guardar'), status: 'warning' });
-            return;
-        }
+        let contentToSave = editorContent || generatedMatrix;
+        if (!contentToSave) return;
         if (!token) {
-            showToast({ message: t('com_ui_error_unauthorized', 'Error: No autorizado'), status: 'error' });
+            showToast({ message: 'Error: No autorizado', status: 'error' });
             return;
         }
+
+        const stateData = {
+            statuses: validStatuses,
+            seguimientos,
+            activity,
+            location,
+            entityType
+        };
+        const stateString = `<!-- SGSST_MATRIZ_DATA_V1:${JSON.stringify(stateData)} -->`;
+
+        contentToSave = contentToSave.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '');
+        contentToSave += stateString;
 
         try {
-            // Update existing
-            if (conversationId && conversationId !== 'new' && reportMessageId) {
-                const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        conversationId,
-                        messageId: reportMessageId,
-                        content: contentToSave,
-                    }),
-                });
+            const body = {
+                content: contentToSave,
+                title: `Matriz Legal SST - ${new Date().toLocaleDateString('es-CO')}`,
+                tags: ['sgsst-matriz-legal'],
+                ...(conversationId !== 'new' ? { conversationId, messageId: reportMessageId } : {})
+            };
 
-                if (res.ok) {
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Matriz actualizada exitosamente', status: 'success' });
-                } else {
-                    const err = await res.json();
-                    showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
-                }
-                return;
-            }
-
-            // Create new
+            const method = conversationId !== 'new' ? 'PUT' : 'POST';
             const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                method: 'POST',
+                method,
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    content: contentToSave,
-                    title: `Matriz Legal - ${new Date().toLocaleDateString('es-CO')}`,
-                    tags: ['sgsst-matriz-legal'],
-                }),
+                body: JSON.stringify(body),
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setConversationId(data.conversationId);
-                setReportMessageId(data.messageId);
+                if (method === 'POST') {
+                    setConversationId(data.conversationId);
+                    setReportMessageId(data.messageId);
+                }
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Matriz guardada exitosamente', status: 'success' });
             } else {
-                const err = await res.json();
-                showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
+                showToast({ message: 'Error al guardar matriz', status: 'error' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast, t]);
-
-
+    }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast, validStatuses, seguimientos, activity, location, entityType]);
 
     const handleSelectReport = (report: any) => {
         if (report && report.content) {
@@ -148,6 +220,21 @@ const MatrizLegal = () => {
             setEditorContent(report.content);
             setConversationId(report.conversationId);
             setReportMessageId(report.messageId);
+
+            const stateMatch = report.content.match(/<!-- SGSST_MATRIZ_DATA_V1:(.*?) -->/);
+            if (stateMatch && stateMatch[1]) {
+                try {
+                    const parsedState = JSON.parse(stateMatch[1]);
+                    if (parsedState.statuses) setStatuses(parsedState.statuses);
+                    if (parsedState.seguimientos) setSeguimientos(parsedState.seguimientos);
+                    if (parsedState.activity) setActivity(parsedState.activity);
+                    if (parsedState.location) setLocation(parsedState.location);
+                    if (parsedState.entityType) setEntityType(parsedState.entityType);
+                } catch (e) {
+                    console.error('Error parsing matrix state:', e);
+                }
+            }
+
             setIsHistoryOpen(false);
             showToast({ message: t('com_ui_report_loaded', 'Matriz cargada'), status: 'info' });
         }
@@ -163,7 +250,7 @@ const MatrizLegal = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Matriz Legal SG-SST</h2>
-                        <p className="text-sm text-text-secondary">Identificación de requisitos normativos</p>
+                        <p className="text-sm text-text-secondary">Resolución 0312 de 2019 / Decreto 1072 de 2015</p>
                     </div>
                 </div>
 
@@ -174,27 +261,13 @@ const MatrizLegal = () => {
                     >
                         <History className="h-5 w-5" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                            {t('com_ui_history', 'Historial')}
-                        </span>
-                    </button>
-                    <button
-                        onClick={handleGenerate}
-                        disabled={isGenerating || !activity.trim()}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isGenerating ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                            <Sparkles className="h-5 w-5" />
-                        )}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                            Generar Matriz IA
+                            Historial
                         </span>
                     </button>
                     <ModelSelector
                         selectedModel={selectedModel}
                         onSelectModel={setSelectedModel}
-                        disabled={isGenerating}
+                        disabled={isAnalyzing}
                     />
                     {generatedMatrix && (
                         <>
@@ -203,9 +276,6 @@ const MatrizLegal = () => {
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                             >
                                 <Save className="h-5 w-5" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    {t('com_ui_save', 'Guardar')}
-                                </span>
                             </button>
                             <ExportDropdown
                                 content={editorContent || generatedMatrix || ''}
@@ -229,109 +299,169 @@ const MatrizLegal = () => {
                 </div>
             )}
 
-            {/* Input Form */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                <button
-                    onClick={() => setIsFormExpanded(!isFormExpanded)}
-                    className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"
-                >
-                    <div className="flex items-center gap-2">
-                        {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
-                        <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <span className="font-semibold text-text-primary flex items-center gap-2">
-                            Datos para Generar la Matriz Legal
-                            <span className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full">BETA</span>
-                        </span>
-                    </div>
-                    {activity.trim() && (
-                        <span className="text-xs text-green-600 font-medium">✓ Datos ingresados</span>
-                    )}
-                </button>
+            {/* Main Content Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {isFormExpanded && (
-                    <div className="p-4 space-y-4">
-                        <p className="text-sm text-text-secondary mb-4">
-                            Complete la información para generar la Matriz Legal personalizada. La <strong>Actividad Económica</strong> es obligatoria para identificar las normas sectoriales aplicables.
-                        </p>
-
-                        <div className="space-y-1.5">
-                            <label className="flex items-center gap-2 text-sm font-medium text-text-primary">
-                                <Search className="h-4 w-4 text-text-secondary" />
-                                Actividad Económica Específica <span className="text-red-500">*</span>
-                            </label>
-                            <textarea
-                                value={activity}
-                                onChange={(e) => setActivity(e.target.value)}
-                                placeholder="Ej: Construcción de edificios residenciales, Transporte de carga terrestre..."
-                                rows={2}
-                                className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-text-primary">Ubicación (Ciudad/Depto) - Opcional</label>
-                                <input
-                                    type="text"
-                                    value={location}
-                                    onChange={(e) => setLocation(e.target.value)}
-                                    placeholder="Ej: Bogotá D.C."
-                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                {/* Left Column: Checklist */}
+                <div className="lg:col-span-2 space-y-4">
+                    {/* Progress Overview Card */}
+                    <div className="p-5 rounded-xl border border-border-medium bg-surface-secondary shadow-sm flex items-center gap-6">
+                        <div className="relative w-20 h-20 flex-shrink-0">
+                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-200 dark:text-gray-700" />
+                                <circle
+                                    cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8"
+                                    strokeDasharray={`${2 * Math.PI * 45}`}
+                                    strokeDashoffset={`${2 * Math.PI * 45 * (1 - compliancePercentage / 100)}`}
+                                    className="text-blue-500 transition-all duration-1000 ease-in-out"
+                                    strokeLinecap="round"
                                 />
+                            </svg>
+                            <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
+                                <span className="text-xl font-bold text-text-primary">{Math.round(compliancePercentage)}%</span>
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-text-primary">Tipo de Entidad</label>
-                                <select
-                                    value={entityType}
-                                    onChange={(e) => setEntityType(e.target.value)}
-                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                >
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-text-primary mb-1">Cumplimiento Legal Inicial</h3>
+                            <p className="text-sm text-text-secondary">
+                                Progreso de evaluación: {completedCount} de {totalItems} ítems evaluados.
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isAnalyzing || completedCount === 0}
+                            className="shrink-0 flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                            Generar Documento IA
+                        </button>
+                    </div>
+
+                    {/* Metadata Form */}
+                    <div className="p-4 rounded-xl border border-border-medium bg-surface-secondary shadow-sm">
+                        <h4 className="font-semibold text-sm mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" /> Variables Organizacionales</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1 md:col-span-2">
+                                <label className="text-xs font-medium text-text-secondary">Actividad Económica <span className="text-red-500">*</span></label>
+                                <input type="text" value={activity} onChange={(e) => setActivity(e.target.value)} placeholder="Ej: Construcción residencial..." className="w-full rounded-md border border-border-medium bg-surface-primary px-3 py-1.5 text-sm" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-text-secondary">Ciudad / Depto</label>
+                                <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Ej: Bogotá" className="w-full rounded-md border border-border-medium bg-surface-primary px-3 py-1.5 text-sm" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-text-secondary">Tipo de Entidad</label>
+                                <select value={entityType} onChange={(e) => setEntityType(e.target.value)} className="w-full rounded-md border border-border-medium bg-surface-primary px-3 py-1.5 text-sm">
                                     <option value="private">Privada</option>
                                     <option value="public">Pública</option>
                                     <option value="mixed">Mixta</option>
                                 </select>
                             </div>
                         </div>
-
-                        <div className="flex justify-end pt-2">
-                            <button
-                                onClick={handleGenerate}
-                                disabled={isGenerating || !activity.trim()}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isGenerating ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    <Sparkles className="h-5 w-5" />
-                                )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    Generar Matriz con IA
-                                </span>
-                            </button>
-                        </div>
                     </div>
-                )}
-            </div>
 
-            {/* Generated Matrix - LiveEditor */}
-            {generatedMatrix && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <Scale className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                            Matriz Legal Generada
-                        </h3>
-                        <span className="text-xs text-text-secondary">Edita directamente en la tabla</span>
-                    </div>
-                    <div className="h-[600px]">
-                        <LiveEditor
-                            initialContent={generatedMatrix}
-                            onUpdate={(html) => setEditorContent(html)}
-                            onSave={handleSave}
-                        />
+                    {/* Checklist Accordion */}
+                    <div className="space-y-3">
+                        {Object.entries(itemsByCategory).map(([category, items]) => {
+                            const isExpanded = expandedCategories.has(category);
+                            const categoryItemsCount = items.length;
+                            const categoryCompletedCount = items.filter(i => getItemStatus(i.id) !== 'pendiente').length;
+
+                            return (
+                                <div key={category} className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden shadow-sm">
+                                    <button
+                                        onClick={() => toggleCategory(category)}
+                                        className="w-full flex items-center justify-between p-4 bg-surface-tertiary/30 hover:bg-surface-tertiary transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {isExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
+                                            <div className="text-left">
+                                                <h3 className="font-semibold text-text-primary">{category}</h3>
+                                                <div className="text-xs text-text-secondary mt-0.5">
+                                                    Avance: {categoryCompletedCount} / {categoryItemsCount}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {isExpanded && (
+                                        <div className="divide-y divide-border-medium">
+                                            {items.map((item) => {
+                                                const status = getItemStatus(item.id);
+                                                return (
+                                                    <div key={item.id} className="p-4 hover:bg-surface-tertiary/10 transition-colors">
+                                                        <div className="flex flex-col gap-3">
+                                                            <div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded uppercase">{item.norma} - {item.articulo}</span>
+                                                                </div>
+                                                                <p className="text-sm font-medium text-text-primary leading-snug">{item.descripcion}</p>
+                                                                <p className="text-xs text-text-secondary mt-1">Evidencia: {item.evidencia}</p>
+                                                            </div>
+
+                                                            <div className="flex flex-col sm:flex-row gap-3 mt-1 items-start sm:items-center">
+                                                                {/* Status Buttons */}
+                                                                <div className="flex rounded-lg border border-border-medium overflow-hidden shrink-0">
+                                                                    {STATUS_OPTIONS.map((opt) => {
+                                                                        const isSelected = status === opt.value;
+                                                                        const Icon = opt.icon;
+                                                                        return (
+                                                                            <button
+                                                                                key={opt.value}
+                                                                                onClick={() => handleStatusChange(item.id, opt.value)}
+                                                                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-r border-border-medium last:border-r-0 hover:bg-surface-hover ${isSelected ? opt.color : 'text-text-secondary bg-surface-primary'
+                                                                                    }`}
+                                                                                title={opt.label}
+                                                                            >
+                                                                                <Icon className="h-3.5 w-3.5" />
+                                                                                <span className="hidden sm:inline">{opt.label}</span>
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                                {/* Seguimiento Input */}
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Notas de seguimiento o justificación..."
+                                                                    value={seguimientos[item.id] || ''}
+                                                                    onChange={(e) => setSeguimientos({ ...seguimientos, [item.id]: e.target.value })}
+                                                                    className="w-full rounded text-xs border border-border-medium bg-surface-primary px-2 py-1.5 focus:border-blue-500 focus:outline-none"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
-            )}
+
+                {/* Right Column: LiveEditor */}
+                <div className="lg:col-span-1 border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col h-[calc(100vh-140px)] sticky top-4">
+                    <div className="p-3 bg-surface-tertiary/50 border-b border-border-medium flex justify-between items-center shrink-0">
+                        <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
+                    </div>
+                    {generatedMatrix ? (
+                        <div className="flex-1 overflow-hidden" style={{ height: '0', minHeight: '400px' }}>
+                            <LiveEditor
+                                initialContent={generatedMatrix}
+                                onUpdate={(html) => setEditorContent(html)}
+                                onSave={handleSave}
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-text-secondary">
+                            <Scale className="h-12 w-12 mb-3 opacity-20" />
+                            <p className="font-medium">No hay matriz generada</p>
+                            <p className="text-sm mt-1">Califica los criterios en los paneles de la izquierda y haz clic en "Generar Documento IA".</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

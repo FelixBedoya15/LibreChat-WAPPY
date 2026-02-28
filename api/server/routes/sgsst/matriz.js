@@ -24,7 +24,7 @@ const mapRiskToLabel = (risk) => {
 router.post('/generate', requireJwtAuth, async (req, res) => {
 
     try {
-        const { activity, location, entityType, modelName } = req.body;
+        const { activity, location, entityType, modelName, statuses = [], seguimientos = {}, compliancePercentage = 0 } = req.body;
 
         if (!activity) {
             return res.status(400).json({ error: 'La actividad económica es obligatoria.' });
@@ -73,10 +73,30 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
 
+        const { MATRIZ_LEGAL_ITEMS } = require('../../../../client/src/components/SGSST/matrizLegalData');
+
+        // Translate the statuses array back into full items
+        const processedItems = statuses.map(s => {
+            const definition = MATRIZ_LEGAL_ITEMS.find(i => i.id === s.itemId) || {};
+            return {
+                ...definition,
+                statusLabel: s.status === 'cumple' ? 'CUMPLE' : s.status === 'no_cumple' ? 'NO CUMPLE' : s.status === 'no_aplica' ? 'NO APLICA' : 'PENDIENTE',
+                observacion: seguimientos[s.itemId] || ''
+            };
+        });
+
+        const itemsLogText = processedItems.map(item =>
+            `- Norma: ${item.norma} | Artículo: ${item.articulo}
+  Req: ${item.descripcion}
+  Evidencia: ${item.evidencia}
+  ESTADO MARCADO: ${item.statusLabel}
+  OBSERVACIÓN: ${item.observacion}`
+        ).join('\n\n');
+
         // 3. Construct Prompt
         const promptText = `
 Eres un abogado experto en Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
-Tu tarea es generar una **MATRIZ LEGAL** personalizada y actualizada al año ${new Date().getFullYear()}.
+Tu tarea es generar el informe final de la **MATRIZ LEGAL** de la empresa, estructurado en base a la evaluación cualitativa que acaba de realizar el usuario.
 
 **Contexto de la Organización:**
 - Actividad Económica Específica: ${activity}
@@ -84,21 +104,26 @@ Tu tarea es generar una **MATRIZ LEGAL** personalizada y actualizada al año ${n
 - Tipo de Entidad: ${entityType === 'public' ? 'Pública' : entityType === 'mixed' ? 'Mixta' : 'Privada'}
 ${companyInfoBlock}
 
+A continuación, te presento el resultado EXACTO de la evaluación de la matriz legal ítem por ítem:
+
+${itemsLogText}
+
 **Instrucciones ESTRICTAS:**
-1. DEBES generar una tabla exhaustiva que contenga **CADA UNO de los criterios de la Resolución 0312 de 2019** (todos los estándares mínimos según aplique al tamaño de la empresa, pero lístalos todos) y **CADA UNO de los artículos del Decreto 1072 de 2015, Libro 2, Parte 2, Título 4, Capítulo 6** (SG-SST).
-2. NO incluyas solo 8 o 12 normas aleatorias. El objetivo es crear la plantilla de auditoría legal COMPLETA basada en estas dos normas por el momento.
-3. Al inicio del documento, justo después del encabezado y antes de la tabla, debes presentar un **Indicador General de Cumplimiento de la Matriz**. Usa un recuadro HTML destacado indicando "Cumplimiento Legal Inicial: 0% (Pendiente de Evaluación por la Empresa)".
+1. DEBES generar una tabla exhaustiva que contenga TODOS y CADA UNO de los ítems evaluados en el texto anterior, manteniendo al pie de la letra la calificación (CUMPLE, NO CUMPLE, NO APLICA) y las observaciones exactas aportadas por el usuario.
+2. No inventes criterios adicionales. Tu trabajo principal es ponerle formato hiper profesional, redactar un resumen ejecutivo inicial basado en los fallos y aciertos, y estructurar la tabla final obligatoria.
+3. Al inicio del documento, justo después del encabezado y antes de la tabla, debes presentar un **Indicador General de Cumplimiento de la Matriz**. Usa un recuadro HTML destacado indicando "Cumplimiento Legal: ${compliancePercentage || 0}%". 
+   - Acompaña este indicador de un párrafo redactado por ti (resumen ejecutivo legal) que le informe a la gerencia sobre los hallazgos críticos de la matriz según lo listado arriba.
 
 **Formato HTML del Entregable:**
 Primero, incluye EXACTAMENTE el siguiente encabezado HTML al inicio del informe:
 ${buildStandardHeader({
-            title: 'MATRIZ DE REQUISITOS LEGALES SST (0312 & 1072)',
+            title: 'MATRIZ DE REQUISITOS LEGALES SG-SST Evaluada',
             companyInfo: loadedCompanyInfo,
             date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
             norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
         })}
 
-Después del encabezado y del Indicador de Cumplimiento, genera la tabla con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
+Después del encabezado, el resumen ejecutivo y el Indicador de Cumplimiento (${compliancePercentage || 0}%), genera la tabla legal estricta con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
 - NO uses filas intercaladas claras/oscuras (striped) sin forzar el color de texto.
 - <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
 - Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
@@ -109,11 +134,10 @@ Columnas OBLIGATORIAS de la tabla (en este orden exacto):
 2. **Artículo / Criterio** (Numeral exacto)
 3. **Requisito Específico** (Descripción legal)
 4. **Evidencia de Cumplimiento** (Qué documento lo prueba)
-5. **Cumple (X)** (Dejar la celda en blanco para que el usuario la llene)
-6. **No Cumple (X)** (Dejar la celda en blanco)
-7. **Seguimiento / Observaciones** (Espacio para planes de acción planificados)
+5. **Estado** (CUMPLE / NO CUMPLE / NO APLICA en negrita y color verde/rojo/gris)
+6. **Seguimiento / Observaciones** (El texto exacto de la observación del usuario, más tus sugerencias legales de cierre si es NO CUMPLE)
 
-Es de vital importancia que la lista sea LARGA y EXHAUSTIVA. Extiéndete todo lo que el token limit permita listando los criterios. No resumas.
+¡El documento debe renderizarse como HTML válido completo listo para enmarcar!
 `;
 
         // 4. Generate Content
