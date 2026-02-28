@@ -84,35 +84,36 @@ Tu tarea es generar una **MATRIZ LEGAL** personalizada y actualizada al año ${n
 - Tipo de Entidad: ${entityType === 'public' ? 'Pública' : entityType === 'mixed' ? 'Mixta' : 'Privada'}
 ${companyInfoBlock}
 
-**Instrucciones:**
-Genera una tabla HTML profesional y detallada con las normas legales vigentes aplicables a esta actividad específica.
-NO inventes normas. Usa normas reales colombianas (Leyes, Decretos, Resoluciones).
-Prioriza normas del sector STT y normas específicas de la actividad económica mencionada.
+**Instrucciones ESTRICTAS:**
+1. DEBES generar una tabla exhaustiva que contenga **CADA UNO de los criterios de la Resolución 0312 de 2019** (todos los estándares mínimos según aplique al tamaño de la empresa, pero lístalos todos) y **CADA UNO de los artículos del Decreto 1072 de 2015, Libro 2, Parte 2, Título 4, Capítulo 6** (SG-SST).
+2. NO incluyas solo 8 o 12 normas aleatorias. El objetivo es crear la plantilla de auditoría legal COMPLETA basada en estas dos normas por el momento.
+3. Al inicio del documento, justo después del encabezado y antes de la tabla, debes presentar un **Indicador General de Cumplimiento de la Matriz**. Usa un recuadro HTML destacado indicando "Cumplimiento Legal Inicial: 0% (Pendiente de Evaluación por la Empresa)".
 
 **Formato HTML del Entregable:**
 Primero, incluye EXACTAMENTE el siguiente encabezado HTML al inicio del informe:
 ${buildStandardHeader({
-            title: 'MATRIZ DE REQUISITOS LEGALES SST',
+            title: 'MATRIZ DE REQUISITOS LEGALES SST (0312 & 1072)',
             companyInfo: loadedCompanyInfo,
             date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
             norm: 'Decreto 1072 de 2015 / Res. 0312 de 2019',
         })}
 
-Después del encabezado, genera una tabla con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
+Después del encabezado y del Indicador de Cumplimiento, genera la tabla con los siguientes estilos inline obligatorios (PRECAUCIÓN MODO OSCURO):
 - NO uses filas intercaladas claras/oscuras (striped) sin forzar el color de texto.
 - <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: sans-serif; font-size: 14px;">
 - Encabezados (th): background-color: #004d99; color: white; padding: 10px; border: 1px solid #ddd;
 - Celdas (td): padding: 8px; border: 1px solid #ddd; vertical-align: top; (SIN background-color para heredar el modo oscuro del sistema).
 
-Columnas de la tabla:
-1. **Norma** (Tipo, Número y Año)
-2. **Entidad Emisora**
-3. **Título / Descripción**
-4. **Artículos Aplicables**
-5. **Requisito Específico** (¿Qué debe cumplir la empresa?)
-6. **Evidencia de Cumplimiento** (¿Qué documento lo prueba?)
+Columnas OBLIGATORIAS de la tabla (en este orden exacto):
+1. **Norma** (Ej: Res 0312 o Dec 1072)
+2. **Artículo / Criterio** (Numeral exacto)
+3. **Requisito Específico** (Descripción legal)
+4. **Evidencia de Cumplimiento** (Qué documento lo prueba)
+5. **Cumple (X)** (Dejar la celda en blanco para que el usuario la llene)
+6. **No Cumple (X)** (Dejar la celda en blanco)
+7. **Seguimiento / Observaciones** (Espacio para planes de acción planificados)
 
-Incluye al menos 8-12 normas relevantes, iniciando por las generales (Ley 1562, Dec 1072, Res 0312) y bajando a las específicas de la actividad "${activity}".
+Es de vital importancia que la lista sea LARGA y EXHAUSTIVA. Extiéndete todo lo que el token limit permita listando los criterios. No resumas.
 `;
 
         // 4. Generate Content
