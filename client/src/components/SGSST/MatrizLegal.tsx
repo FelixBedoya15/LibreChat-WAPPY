@@ -331,10 +331,10 @@ const MatrizLegal = () => {
             )}
 
             {/* Main Content Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-6">
 
-                {/* Left Column: Checklist */}
-                <div className="lg:col-span-2 space-y-4">
+                {/* Checklist Section */}
+                <div className="space-y-4">
                     {/* Progress Overview Card */}
                     <div className="p-5 rounded-xl border border-border-medium bg-surface-secondary shadow-sm flex items-center gap-6">
                         <div className="relative w-20 h-20 flex-shrink-0">
@@ -471,13 +471,13 @@ const MatrizLegal = () => {
                     </div>
                 </div>
 
-                {/* Right Column: LiveEditor */}
-                <div className="lg:col-span-1 border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col h-[calc(100vh-140px)] sticky top-4">
+                {/* Report Viewer Section */}
+                <div className="border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col mt-6">
                     <div className="p-3 bg-surface-tertiary/50 border-b border-border-medium flex justify-between items-center shrink-0">
                         <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
                     </div>
                     {generatedMatrix ? (
-                        <div className="flex-1 overflow-hidden" style={{ height: '0', minHeight: '400px' }}>
+                        <div className="w-full flex-1 overflow-visible min-h-[600px]">
                             <LiveEditor
                                 initialContent={generatedMatrix}
                                 onUpdate={(html) => setEditorContent(html)}
@@ -485,10 +485,10 @@ const MatrizLegal = () => {
                             />
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-text-secondary">
-                            <Scale className="h-12 w-12 mb-3 opacity-20" />
-                            <p className="font-medium">No hay matriz generada</p>
-                            <p className="text-sm mt-1">Califica los criterios en los paneles de la izquierda y haz clic en "Generar Documento IA".</p>
+                        <div className="w-full h-48 flex flex-col items-center justify-center p-6 text-center text-text-secondary bg-surface-secondary/50">
+                            <Scale className="h-10 w-10 mb-3 opacity-20" />
+                            <p className="font-medium text-sm">No hay matriz generada</p>
+                            <p className="text-xs mt-1 max-w-sm">Califica los criterios en los paneles superiores y haz clic en "Generar Documento IA".</p>
                         </div>
                     )}
                 </div>
