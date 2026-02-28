@@ -67,8 +67,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         // 3. Fetch Matriz de Peligros Fallback
         let matrixContext = 'No hay datos de matriz de peligros registrados.';
         try {
-            const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, procesos: Array }, { strict: false }));
-            const matrizData = await MatrizPeligrosData.findOne({ user: req.user.id }).lean();
+            const matrizData = await mongoose.connection.db.collection('matrizpeligrosdatas').findOne({ user: mongoose.Types.ObjectId(req.user.id) })
+                || await mongoose.connection.db.collection('matrizpeligrosdatas').findOne({ user: req.user.id });
 
             if (matrizData && matrizData.procesos && matrizData.procesos.length > 0) {
                 const fallbackHazards = [];
@@ -93,8 +93,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         let atelContext = 'No hay datos de accidentabilidad (ATEL) registrados para el año en curso.';
         try {
             const currentYear = new Date().getFullYear();
-            const ATELAnnualData = mongoose.models.ATELAnnualData || mongoose.model('ATELAnnualData', new mongoose.Schema({ user: mongoose.Schema.Types.ObjectId, year: Number, months: Map }, { strict: false }));
-            const atelData = await ATELAnnualData.findOne({ user: req.user.id, year: currentYear }).lean();
+            const atelData = await mongoose.connection.db.collection('atelannualdatas').findOne({ user: mongoose.Types.ObjectId(req.user.id), year: currentYear })
+                || await mongoose.connection.db.collection('atelannualdatas').findOne({ user: req.user.id, year: currentYear });
 
             if (atelData && atelData.months) {
                 let totalAT = 0;
@@ -102,7 +102,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                 let ausentismoDias = 0;
                 let eventDetails = [];
                 Object.values(atelData.months).forEach(m => {
-                    if (m.events) {
+                    if (m && m.events) {
                         totalAT += m.events.filter(e => e.tipo === 'AT').length;
                         totalEL += m.events.filter(e => e.tipo === 'EL').length;
                         ausentismoDias += m.events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
