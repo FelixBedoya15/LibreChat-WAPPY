@@ -186,27 +186,26 @@ const MatrizLegal = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSave = useCallback(async () => {
-        setIsSaving(true);
-        let contentToSave = editorContent || generatedMatrix || '';
-        if (!token) {
-            showToast({ message: 'Error: No autorizado', status: 'error' });
-            setIsSaving(false);
-            return;
-        }
-
-        const stateData = {
-            statuses: validStatuses,
-            seguimientos,
-            activity,
-            location,
-            entityType
-        };
-        const stateString = `<!-- SGSST_MATRIZ_DATA_V1:${JSON.stringify(stateData)} -->`;
-
-        contentToSave = contentToSave.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '');
-        contentToSave += stateString;
-
         try {
+            setIsSaving(true);
+            let contentToSave = editorContent || generatedMatrix || '';
+            if (!token) {
+                showToast({ message: 'Error: No autorizado', status: 'error' });
+                return;
+            }
+
+            const stateData = {
+                statuses: validStatuses,
+                seguimientos,
+                activity,
+                location,
+                entityType
+            };
+            const stateString = `<!-- SGSST_MATRIZ_DATA_V1:${JSON.stringify(stateData)} -->`;
+
+            contentToSave = contentToSave.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '');
+            contentToSave += stateString;
+
             const body = {
                 content: contentToSave,
                 title: `Matriz Legal SST - ${new Date().toLocaleDateString('es-CO')}`,
@@ -258,8 +257,9 @@ const MatrizLegal = () => {
         }
 
         if (content) {
-            setGeneratedMatrix(content);
-            setEditorContent(content);
+            const cleanContent = content.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '').trim();
+            setGeneratedMatrix(cleanContent || null);
+            setEditorContent(cleanContent || null);
             setConversationId(convId);
             setReportMessageId(msgId);
 
