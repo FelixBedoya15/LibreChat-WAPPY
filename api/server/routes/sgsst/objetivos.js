@@ -9,6 +9,25 @@ const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { Conversation, Message } = require('~/db/models');
 const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const auditoriaMap = require('./auditoriaMap');
+
+/**
+ * Helper to fetch the latest saved report for a given user and tag.
+ */
+async function fetchLatestReportText(userId, tag) {
+    try {
+        const convo = await Conversation.findOne({ user: userId, tags: tag }).sort({ createdAt: -1 }).lean();
+        if (convo) {
+            const msg = await Message.findOne({ conversationId: convo.conversationId, isCreatedByUser: false }).sort({ createdAt: -1 }).lean();
+            if (msg && msg.text) {
+                return msg.text;
+            }
+        }
+    } catch (e) {
+        logger.warn(`[SGSST Objetivos] Error fetching last report for tag ${tag}:`, e.message);
+    }
+    return null;
+}
 
 /**
  * POST /api/sgsst/objetivos/generate
@@ -64,100 +83,53 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             logger.warn('[SGSST Objetivos] Error loading company info:', ciErr.message);
         }
 
-        // 3. Fetch Matriz de Peligros Fallback
+        // 3. Fetch Política SST Fallback
+        let politicaContext = policySummary || 'No hay datos previos de la Política SST registrados.';
+        if (!policySummary) {
+            const polText = await fetchLatestReportText(req.user.id, 'sgsst-politica');
+            if (polText) {
+                politicaContext = `Política SST Actual:\n${polText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 1500)}...`;
+            }
+        }
+
+        // 4. Fetch Matriz de Peligros Fallback
         let matrixContext = 'No hay datos de matriz de peligros registrados.';
-        try {
-            const matrizData = await mongoose.connection.db.collection('matrizpeligrosdatas').findOne({ user: mongoose.Types.ObjectId(req.user.id) })
-                || await mongoose.connection.db.collection('matrizpeligrosdatas').findOne({ user: req.user.id });
-
-            if (matrizData && matrizData.procesos && matrizData.procesos.length > 0) {
-                const fallbackHazards = [];
-                matrizData.procesos.forEach(p => {
-                    if (p.peligros && p.peligros.length > 0) {
-                        p.peligros.forEach(h => {
-                            if (h.nivelRiesgo && (h.nivelRiesgo === 'I' || h.nivelRiesgo === 'II' || h.nivelRiesgo === 'III' || h.nivelRiesgo === 'IV')) {
-                                fallbackHazards.push(`- Proceso ${p.proceso}: ${h.descripcionPeligro || h.clasificacion}. Efectos posibles: ${h.efectosPosibles || 'N/A'}`);
-                            }
-                        });
-                    }
-                });
-                if (fallbackHazards.length > 0) {
-                    matrixContext = `Peligros Prioritarios y Efectos (Matriz GTC 45):\n${fallbackHazards.slice(0, 20).join('\n')}`;
-                }
-            }
-        } catch (err) {
-            logger.warn('[SGSST Objetivos] Error fetching Matriz data:', err.message);
+        const matText = await fetchLatestReportText(req.user.id, 'sgsst-matriz-peligros');
+        if (matText) {
+            matrixContext = `Documento de Identificación de Peligros y Valoración de Riesgos GTC45 más reciente (Extrae los riesgos de nivel V, IV o III mencionados aquí):\n${matText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 2000)}...`;
         }
 
-        // 4. Fetch ATEL Statistics Fallback
+        // 5. Fetch ATEL Statistics Fallback
         let atelContext = 'No hay datos de accidentabilidad (ATEL) registrados para el año en curso.';
-        try {
-            const currentYear = new Date().getFullYear();
-            const atelData = await mongoose.connection.db.collection('atelannualdatas').findOne({ user: mongoose.Types.ObjectId(req.user.id), year: currentYear })
-                || await mongoose.connection.db.collection('atelannualdatas').findOne({ user: req.user.id, year: currentYear });
-
-            if (atelData && atelData.months) {
-                let totalAT = 0;
-                let totalEL = 0;
-                let ausentismoDias = 0;
-                let eventDetails = [];
-                Object.values(atelData.months).forEach(m => {
-                    if (m && m.events) {
-                        totalAT += m.events.filter(e => e.tipo === 'AT').length;
-                        totalEL += m.events.filter(e => e.tipo === 'EL').length;
-                        ausentismoDias += m.events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
-                        m.events.forEach(e => {
-                            if (e.tipo === 'AT' || e.tipo === 'EL') {
-                                eventDetails.push(`- Tipo: ${e.tipo}. Peligro: ${e.peligro || 'N/A'}. Causa Inst: ${e.causaInmediata || 'N/A'}. Consecuencia: ${e.consecuencia || 'N/A'}`);
-                            }
-                        });
-                    }
-                });
-                if (totalAT > 0 || totalEL > 0 || ausentismoDias > 0) {
-                    atelContext = `Estadísticas ATEL registradas en el año ${currentYear}:
-- Accidentes de Trabajo (AT): ${totalAT}
-- Enfermedades Laborales (EL): ${totalEL}
-- Días de Ausentismo: ${ausentismoDias}
-Detalle exacto de incidentes ocurridos:
-${eventDetails.length > 0 ? eventDetails.join('\n') : 'No hay detalle disponible.'}`;
-                }
-            }
-        } catch (err) {
-            logger.warn('[SGSST Objetivos] Error fetching ATEL data:', err.message);
+        const atelText = await fetchLatestReportText(req.user.id, 'sgsst-estadisticas-atel');
+        if (atelText) {
+            atelContext = `Estadísticas ATEL registradas en el periodo (Extrae exactamente si hubieron accidentes o no, los diagnósticos y las ausencias reportadas):\n${atelText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').substring(0, 1500)}...`;
         }
 
-        // 4.5 Fetch Auditoria Fallback
+        // 6. Fetch Auditoria Fallback
         let auditoriaContext = 'No hay datos de auditoría recientes registrados.';
-        try {
-            const auditConvo = await Conversation.findOne({ user: req.user.id, tags: 'sgsst-auditoria' }).sort({ createdAt: -1 }).lean();
-            if (auditConvo) {
-                const auditMessage = await Message.findOne({ conversationId: auditConvo.conversationId, isCreatedByUser: false }).sort({ createdAt: -1 }).lean();
-                if (auditMessage && auditMessage.text) {
-                    // Try to extract the JSON state if it exists
-                    const stateMatch = auditMessage.text.match(/<!-- SGSST_AUDIT_DATA_V1:(.*?) -->/);
-                    if (stateMatch && stateMatch[1]) {
-                        try {
-                            const stateData = JSON.parse(stateMatch[1]);
-                            const failedItems = stateData.statuses?.filter(s => s.status === 'no_cumple' || s.status === 'no_aplica') || [];
-                            if (failedItems.length > 0) {
-                                auditoriaContext = `La última auditoría encontró hallazgos Críticos/No Conformidades en los ítems con IDs: ${failedItems.map(f => f.itemId).join(', ')}. Formula objetivos para subsanarlos.`;
-                            } else {
-                                auditoriaContext = 'La última auditoría tuvo 100% de cumplimiento. Formula objetivos de mantenimiento y mejora continua de los estándares evaluados.';
-                            }
-                        } catch (e) {
-                            // Fallback to plain text slicing
-                            let plainText = auditMessage.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                            auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 2000)}...`;
-                        }
+        const audText = await fetchLatestReportText(req.user.id, 'sgsst-auditoria');
+        if (audText) {
+            // Try to extract the JSON state if it exists
+            const stateMatch = audText.match(/<!-- SGSST_AUDIT_DATA_V1:(.*?) -->/);
+            if (stateMatch && stateMatch[1]) {
+                try {
+                    const stateData = JSON.parse(stateMatch[1]);
+                    const failedItems = stateData.statuses?.filter(s => s.status === 'no_cumple' || s.status === 'no_aplica') || [];
+                    if (failedItems.length > 0) {
+                        const fallasTextuales = failedItems.map(f => `[${f.itemId}] ${auditoriaMap[f.itemId] || 'Norma no especificada'}`).join(', ');
+                        auditoriaContext = `La última auditoría encontró hallazgos Críticos/No Conformidades en los siguientes estándares de la Resolución 0312: ${fallasTextuales}. Formula objetivos para subsanarlos textualmente.`;
                     } else {
-                        // Fallback to plain text
-                        let plainText = auditMessage.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                        auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 2000)}...`;
+                        auditoriaContext = 'La última auditoría tuvo 100% de cumplimiento. Formula objetivos de mantenimiento y mejora continua de los estándares de la Resolución 0312 evaluados.';
                     }
+                } catch (e) {
+                    let plainText = audText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 2000)}...`;
                 }
+            } else {
+                let plainText = audText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 2000)}...`;
             }
-        } catch (err) {
-            logger.warn('[SGSST Objetivos] Error fetching Auditoria data:', err.message);
         }
 
         // 5. Initialize Gemini
@@ -193,8 +165,8 @@ ${atelContext}
 **3. Informe de la Última Auditoría:**
 ${auditoriaContext}
 
-**4. Directrices de la Política SST (Si el usuario las propuso):**
-${policySummary || 'El usuario no proporcionó fragmentos de la política. Infiere la alineación estándar con el Decreto 1072.'}
+**4. Política SST Actual:**
+${politicaContext}
 
 **5. Resultados del Diagnóstico Inicial (Si el usuario los propuso):**
 ${diagnosticSummary || 'El usuario no proporcionó el diagnóstico. Concéntrate en la mejora continua por defecto.'}
@@ -210,16 +182,17 @@ Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en form
 1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
 ${headerHTML}
 
-2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas (mencionando explícitamente las consecuencias y peligros extraídos de los accidentes reportados).
+2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas presentadas. IMPORTANTÍSIMO MENCIONAR CON EXACTITUD EL NOMBRE DE LOS TEXTOS PROVISTOS QUE NO SE CUMPLEN.
 
 3. **OBJETIVOS GENERALES Y ESPECÍFICOS (Mínimo 5)**:
    - **Objetivo General**: Específico al giro exacto de la empresa, nombrando su misión principal.
-   - **Objetivos de Peligros (Extraídos de la Matriz)**: Crea un objetivo POR CADA peligro prioritario listado arriba. MENCIONA EXACTAMENTE el nombre del Peligro y su Efecto Posible textual. 
+   - **Objetivos de Peligros (Extraídos de la Matriz)**: MENCIONA EXACTAMENTE el nombre del Peligro y su Efecto Posible textual, de acuerdo con el documento de Matriz provisto (Si aparece). 
      * *Ejemplo Obligatorio:* "Implementar controles de ingeniería para el riesgo [NOMBRE DEL RIESGO EXACTO] con el fin de prevenir [EFECTO POSIBLE EXACTO] en el proceso [NOMBRE DEL PROCESO]."
-   - **Objetivos de Accidentalidad (Extraídos de ATEL)**: Crea un objetivo POR CADA accidente/enfermedad listado arriba, mencionando el peligro, causa y consecuencia específica.
-     * *Ejemplo Obligatorio:* "Implementar un plan de corrección de actos inseguros enfocado en el peligro de [PELIGRO DEL EVENTO ATEL] para erradicar las consecuencias de [CONSECUENCIA DEL EVENTO ATEL] (ej. lesiones, lumbalgia, fractura) presentadas tras los eventos con causas de [CAUSA INMEDIATA]."
-   - **Objetivos de Auditoría (Extraídos de la Auditoría)**: Si te pasé IDs de ítems fallidos en la auditoría (o texto de hallazgos), redacta un objetivo enfocado TEXTUALMENTE en solucionar esas inconformidades o mantener el 100%.
-   - **CERO GENERALIDADES**: No escribas metas como "Reducir los 2 accidentes de trabajo". Debes decir QUÉ tipo exacto de accidente vas a evitar (basado en la consecuencia reportada).
+   - **Objetivos de Accidentalidad (Extraídos de ATEL)**: Si hubo accidentes, crea un objetivo citando su información textual. Si NO hubo, crea un objetivo de mantenimiento.
+     * *Ejemplo Obligatorio (Si hay ATEL):* "Implementar un plan para erradicar las consecuencias de [CONSECUENCIA DEL EVENTO] presentadas tras los eventos con causas de [CAUSA]."
+     * *Ejemplo Obligatorio (Cero ATEL):* "Fortalecer la cultura de prevención para mantener en cero (0) el índice de accidentalidad."
+   - **Objetivos de Auditoría (Hallazgos Críticos)**: Redacta un objetivo enfocado TEXTUALMENTE en solucionar las No Conformidades mencionadas (Ej. "Subsanar la no conformidad sobre el Reporte de Accidentes" o "Afiliación de Trabajadores"). JAMÁS MENCIONES SU ID INTERNO (aud_X_X_X) en el producto final. Sólo usa EL NOMBRE Y DESCRIPCIÓN en español de lo que no cumple.
+   - **CERO GENERALIDADES NI MENTIRAS**: Si recibiste de la base de datos "No hay datos", no hagas objetivos refiriendo "los 3 accidentes ocurridos". Solo usa la info provista.
 
 4. **METAS E INDICADORES (TABLA INTERACTIVA)**:
    Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, cero accidentes por [CAUSA ESPECÍFICA]) y su Indicador de medición.
