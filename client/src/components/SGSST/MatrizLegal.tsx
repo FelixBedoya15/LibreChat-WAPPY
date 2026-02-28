@@ -153,7 +153,10 @@ const MatrizLegal = () => {
                     activity,
                     location,
                     entityType,
-                    statuses: validStatuses,
+                    statuses: validStatuses.map(s => {
+                        const definition = MATRIZ_LEGAL_ITEMS.find(i => i.id === s.itemId) || {};
+                        return { ...s, ...definition };
+                    }),
                     seguimientos,
                     compliancePercentage: Math.round(compliancePercentage),
                     modelName: selectedModel,

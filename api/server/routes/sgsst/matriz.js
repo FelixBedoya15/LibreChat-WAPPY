@@ -73,13 +73,10 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
 
-        const { MATRIZ_LEGAL_ITEMS } = require('../../../../client/src/components/SGSST/matrizLegalData');
-
         // Translate the statuses array back into full items
         const processedItems = statuses.map(s => {
-            const definition = MATRIZ_LEGAL_ITEMS.find(i => i.id === s.itemId) || {};
             return {
-                ...definition,
+                ...s,
                 statusLabel: s.status === 'cumple' ? 'CUMPLE' : s.status === 'no_cumple' ? 'NO CUMPLE' : s.status === 'no_aplica' ? 'NO APLICA' : 'PENDIENTE',
                 observacion: seguimientos[s.itemId] || ''
             };
