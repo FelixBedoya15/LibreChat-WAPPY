@@ -183,11 +183,14 @@ const MatrizLegal = () => {
         }
     }, [activity, location, entityType, selectedModel, token, showToast, validStatuses, seguimientos, compliancePercentage]);
 
+    const [isSaving, setIsSaving] = useState(false);
+
     const handleSave = useCallback(async () => {
-        let contentToSave = editorContent || generatedMatrix;
-        if (!contentToSave) return;
+        setIsSaving(true);
+        let contentToSave = editorContent || generatedMatrix || '';
         if (!token) {
             showToast({ message: 'Error: No autorizado', status: 'error' });
+            setIsSaving(false);
             return;
         }
 
@@ -231,17 +234,36 @@ const MatrizLegal = () => {
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
+        } finally {
+            setIsSaving(false);
         }
     }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast, validStatuses, seguimientos, activity, location, entityType]);
 
-    const handleSelectReport = (report: any) => {
-        if (report && report.content) {
-            setGeneratedMatrix(report.content);
-            setEditorContent(report.content);
-            setConversationId(report.conversationId);
-            setReportMessageId(report.messageId);
+    const handleSelectReport = async (reportOrId: any) => {
+        let content = '', convId = '', msgId = '';
+        if (typeof reportOrId === 'string') {
+            convId = reportOrId;
+            try {
+                const res = await fetch(`/api/messages/${convId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const messages = await res.json();
+                    const reportMsg = messages.reverse().find((m: any) =>
+                        m.sender === 'SGSST Diagnóstico' || (m.isCreatedByUser === false && m.text?.length > 100)
+                    );
+                    if (reportMsg) { content = reportMsg.text; msgId = reportMsg.messageId; }
+                }
+            } catch { /* ignore */ }
+        } else if (reportOrId?.content) {
+            content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
+        }
 
-            const stateMatch = report.content.match(/<!-- SGSST_MATRIZ_DATA_V1:(.*?) -->/);
+        if (content) {
+            setGeneratedMatrix(content);
+            setEditorContent(content);
+            setConversationId(convId);
+            setReportMessageId(msgId);
+
+            const stateMatch = content.match(/<!-- SGSST_MATRIZ_DATA_V1:(.*?) -->/);
             if (stateMatch && stateMatch[1]) {
                 try {
                     const parsedState = JSON.parse(stateMatch[1]);
@@ -285,15 +307,14 @@ const MatrizLegal = () => {
                             Generar Documento IA
                         </span>
                     </button>
-                    {generatedMatrix && (
-                        <button
-                            onClick={handleSave}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                        >
-                            <Database className="h-5 w-5 text-gray-500" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
-                        </button>
-                    )}
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
+                    >
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
+                    </button>
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
