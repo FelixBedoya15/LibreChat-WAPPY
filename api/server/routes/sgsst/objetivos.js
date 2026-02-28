@@ -108,7 +108,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                         ausentismoDias += m.events.filter(e => e.tipo === 'Ausentismo').reduce((sum, e) => sum + (Number(e.diasIncapacidad) || 0), 0);
                         m.events.forEach(e => {
                             if (e.tipo === 'AT' || e.tipo === 'EL') {
-                                eventDetails.push(`Tipo: ${e.tipo}. Diagnóstico/Causa: ${e.diagnostico || e.descripcion || 'No especificado'}`);
+                                eventDetails.push(`- Tipo: ${e.tipo}. Peligro: ${e.peligro || 'N/A'}. Causa Inst: ${e.causaInmediata || 'N/A'}. Consecuencia: ${e.consecuencia || 'N/A'}`);
                             }
                         });
                     }
@@ -133,9 +133,27 @@ ${eventDetails.length > 0 ? eventDetails.join('\n') : 'No hay detalle disponible
             if (auditConvo) {
                 const auditMessage = await Message.findOne({ conversationId: auditConvo.conversationId, isCreatedByUser: false }).sort({ createdAt: -1 }).lean();
                 if (auditMessage && auditMessage.text) {
-                    // Extract text and strip basic HTML to give context to the AI without over-saturating tokens
-                    let plainText = auditMessage.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                    auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 1500)}...`;
+                    // Try to extract the JSON state if it exists
+                    const stateMatch = auditMessage.text.match(/<!-- SGSST_AUDIT_DATA_V1:(.*?) -->/);
+                    if (stateMatch && stateMatch[1]) {
+                        try {
+                            const stateData = JSON.parse(stateMatch[1]);
+                            const failedItems = stateData.statuses?.filter(s => s.status === 'no_cumple' || s.status === 'no_aplica') || [];
+                            if (failedItems.length > 0) {
+                                auditoriaContext = `La última auditoría encontró hallazgos Críticos/No Conformidades en los ítems con IDs: ${failedItems.map(f => f.itemId).join(', ')}. Formula objetivos para subsanarlos.`;
+                            } else {
+                                auditoriaContext = 'La última auditoría tuvo 100% de cumplimiento. Formula objetivos de mantenimiento y mejora continua de los estándares evaluados.';
+                            }
+                        } catch (e) {
+                            // Fallback to plain text slicing
+                            let plainText = auditMessage.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                            auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 2000)}...`;
+                        }
+                    } else {
+                        // Fallback to plain text
+                        let plainText = auditMessage.text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                        auditoriaContext = `Resultados de la última Auditoría Interna:\n${plainText.substring(0, 2000)}...`;
+                    }
                 }
             }
         } catch (err) {
@@ -192,16 +210,16 @@ Genera el documento formal de OBJETIVOS DEL SISTEMA DE GESTIÓN (SG-SST) en form
 1. **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
 ${headerHTML}
 
-2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas (mencionando explícitamente los diagnósticos y peligros extraídos).
+2. **INTRODUCCIÓN**: Breve declaración indicando que los objetivos están alineados con la Política de SST, la matriz de peligros, las auditorías previas y las estadísticas (mencionando explícitamente las consecuencias y peligros extraídos de los accidentes reportados).
 
 3. **OBJETIVOS GENERALES Y ESPECÍFICOS (Mínimo 5)**:
    - **Objetivo General**: Específico al giro exacto de la empresa, nombrando su misión principal.
    - **Objetivos de Peligros (Extraídos de la Matriz)**: Crea un objetivo POR CADA peligro prioritario listado arriba. MENCIONA EXACTAMENTE el nombre del Peligro y su Efecto Posible textual. 
      * *Ejemplo Obligatorio:* "Implementar controles de ingeniería para el riesgo [NOMBRE DEL RIESGO EXACTO] con el fin de prevenir [EFECTO POSIBLE EXACTO] en el proceso [NOMBRE DEL PROCESO]."
-   - **Objetivos de Accidentalidad (Extraídos de ATEL)**: Crea un objetivo POR CADA diagnóstico listado arriba.
-     * *Ejemplo Obligatorio:* "Implementar un plan de vigilancia médica y corrección de actos inseguros para erradicar los incidentes de [DIAGNÓSTICO EXACTO DEL ACCIDENTE] presentados en el periodo."
-   - **Objetivos de Auditoría (Extraídos de la Auditoría)**: Si hay auditoría, redacta un objetivo enfocado TEXTUALMENTE en solucionar los ítems deficientes mencionados.
-   - **CERO GENERALIDADES**: Si usas la frase "intervenir las causas raíz de los accidentes" habrás fallado. Debes decir QUÉ accidente exacto vas a evitar basándote en el diagnóstico dado.
+   - **Objetivos de Accidentalidad (Extraídos de ATEL)**: Crea un objetivo POR CADA accidente/enfermedad listado arriba, mencionando el peligro, causa y consecuencia específica.
+     * *Ejemplo Obligatorio:* "Implementar un plan de corrección de actos inseguros enfocado en el peligro de [PELIGRO DEL EVENTO ATEL] para erradicar las consecuencias de [CONSECUENCIA DEL EVENTO ATEL] (ej. lesiones, lumbalgia, fractura) presentadas tras los eventos con causas de [CAUSA INMEDIATA]."
+   - **Objetivos de Auditoría (Extraídos de la Auditoría)**: Si te pasé IDs de ítems fallidos en la auditoría (o texto de hallazgos), redacta un objetivo enfocado TEXTUALMENTE en solucionar esas inconformidades o mantener el 100%.
+   - **CERO GENERALIDADES**: No escribas metas como "Reducir los 2 accidentes de trabajo". Debes decir QUÉ tipo exacto de accidente vas a evitar (basado en la consecuencia reportada).
 
 4. **METAS E INDICADORES (TABLA INTERACTIVA)**:
    Genera una tabla HTML atractiva. Asocia cada Objetivo Específico con su respectiva Meta (ej. 100%, >80%, cero accidentes por [CAUSA ESPECÍFICA]) y su Indicador de medición.
