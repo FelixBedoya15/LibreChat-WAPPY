@@ -9,414 +9,492 @@ export interface MatrizLegalItem {
 
 export const MATRIZ_LEGAL_ITEMS: MatrizLegalItem[] = [
     // RESOLUCIÓN 0312 DE 2019 - ESTÁNDARES MÍNIMOS
-    // --- PLANEAR (RECURSOS) ---
+    
+    
     {
         id: 'ml_0312_1_1_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.1',
-        descripcion: 'Asignación de una persona que diseñe e implemente el Sistema de Gestión de SST.',
-        evidencia: 'Documento de designación con firmas, licencia en SST y certificado del curso de 50 horas.',
+        descripcion: "Responsable del SG-SST. Se debe designar un responsable del SG-SST con licencia vigente en SST y curso de 50 horas.",
+        evidencia: "Verificar documento de designación, licencia vigente en SST y certificado del curso de 50 horas.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.2',
-        descripcion: 'Asignación de responsabilidades en SST en todos los niveles de la organización.',
-        evidencia: 'Manual de funciones o documento de asignación de responsabilidades firmado.',
+        descripcion: "Responsabilidades en el SG-SST. Deben estar definidas y asignadas las responsabilidades en SST a todos los niveles.",
+        evidencia: "Verificar documento con asignación de responsabilidades en SST por niveles.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.3',
-        descripcion: 'Asignación de recursos (financieros, técnicos, humanos) para el SG-SST.',
-        evidencia: 'Presupuesto aprobado y evidencia de ejecución para el SG-SST.',
+        descripcion: "Asignación de recursos para el SG-SST. Se deben asignar recursos financieros, técnicos, humanos y de otra índole.",
+        evidencia: "Verificar documento de asignación de recursos con presupuesto específico para SST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_4',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.4',
-        descripcion: 'Afiliación al Sistema General de Riesgos Laborales de todos los trabajadores.',
-        evidencia: 'Soportes de pago a Riesgos Laborales (PILA).',
+        descripcion: "Afiliación al Sistema General de Riesgos Laborales. Todos los trabajadores deben estar afiliados al SGRL.",
+        evidencia: "Verificar planillas de aportes y afiliación de todos los trabajadores al SGRL.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_5',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.5',
-        descripcion: 'Identificación y pago de pensión especial de trabajadores de alto riesgo (Si aplica).',
-        evidencia: 'Soportes de pago especial a pensión en la PILA.',
+        descripcion: "Pago de pensión de trabajadores de alto riesgo. Se debe realizar el pago de pensión especial para trabajadores de alto riesgo.",
+        evidencia: "Verificar pago de aportes adicionales de pensión para actividades de alto riesgo.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_6',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.6',
-        descripcion: 'Conformación y funcionamiento del COPASST o Vigía de SST.',
-        evidencia: 'Actas de conformación y reuniones mensuales del COPASST/Actas de gestión del Vigía.',
+        descripcion: "Conformación del COPASST. Debe estar conformado el COPASST con representantes del empleador y trabajadores.",
+        evidencia: "Verificar acta de conformación del COPASST con la participación paritaria.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_7',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.7',
-        descripcion: 'Capacitación a los integrantes del COPASST o Vigía de SST.',
-        evidencia: 'Certificados de capacitación en funciones, identificación de peligros y normatividad.',
+        descripcion: "Capacitación del COPASST. Los integrantes del COPASST deben estar capacitados para cumplir sus funciones.",
+        evidencia: "Verificar registros de capacitación de los miembros del COPASST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_1_8',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.1.8',
-        descripcion: 'Conformación y funcionamiento del Comité de Convivencia Laboral.',
-        evidencia: 'Actas de conformación y actas de reuniones trimestrales.',
+        descripcion: "Conformación del Comité de Convivencia. Debe estar conformado el Comité de Convivencia Laboral.",
+        evidencia: "Verificar acta de conformación y reuniones del Comité de Convivencia Laboral.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
-    // --- PLANEAR (CAPACITACIÓN) ---
     {
         id: 'ml_0312_1_2_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.2.1',
-        descripcion: 'Programa de Capacitación anual enfocado a los riesgos prioritarios.',
-        evidencia: 'Documento del plan de capacitación estructurado alineado a peligros.',
+        descripcion: "Programa de capacitación en promoción y prevención. Debe existir un programa de capacitación anual en promoción y prevención.",
+        evidencia: "Verificar programa de capacitación documentado con temas, fechas, responsables y recursos.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_2_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.2.2',
-        descripcion: 'Inducción y reinducción en SST para todos los trabajadores nuevos y antiguos.',
-        evidencia: 'Registros de asistencia a inducción de nuevos empleados y reinducción anual.',
+        descripcion: "Capacitación, inducción y reinducción en SG-SST. Todos los trabajadores deben recibir inducción y reinducción en SST.",
+        evidencia: "Verificar registros de inducción y reinducción de todos los trabajadores.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_1_2_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E1.2.3',
-        descripcion: 'Responsables del Sistema de Gestión Seguridad y Salud en el Trabajo con Curso Virtual de 50 horas.',
-        evidencia: 'Certificado vigente del curso de 50 horas del Ministerio de Trabajo.',
+        descripcion: "Responsables del SG-SST con curso virtual de 50 horas. Los responsables del SG-SST deben contar con el curso virtual de 50 horas.",
+        evidencia: "Verificar certificado del curso de 50 horas de los responsables del SG-SST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
-    // --- PLANEAR (GESTIÓN INTEGRAL) ---
     {
         id: 'ml_0312_2_1_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.1.1',
-        descripcion: 'Política de Seguridad y Salud en el Trabajo firmada, fechada y comunicada.',
-        evidencia: 'Documento de Política SST firmado y registros de socialización.',
+        descripcion: "Política del SG-SST firmada, fechada y comunicada. Debe existir una política de SST documentada, firmada y comunicada.",
+        evidencia: "Verificar política firmada por el representante legal, fechada, publicada y comunicada.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_2_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.2.1',
-        descripcion: 'Objetivos del SG-SST comunicados a todos los niveles.',
-        evidencia: 'Documento de objetivos alineados con la política y evidencias de divulgación.',
+        descripcion: "Objetivos definidos, claros, medibles y cuantificables. Los objetivos del SG-SST deben ser definidos, claros, medibles y cuantificables.",
+        evidencia: "Verificar que los objetivos cumplan las características y estén alineados con las prioridades.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_3_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.3.1',
-        descripcion: 'Evaluación Inicial del SG-SST documentada.',
-        evidencia: 'Documento de evaluación inicial o autoevaluación Res 0312.',
+        descripcion: "Evaluación inicial del SG-SST e identificación de prioridades. Debe realizarse una evaluación inicial del SG-SST.",
+        evidencia: "Verificar documento de evaluación inicial con identificación de prioridades.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_4_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.4.1',
-        descripcion: 'Plan Anual de Trabajo firmado por empleador y responsable SST.',
-        evidencia: 'Cronograma o Plan de Trabajo anual estructurado, fechado y firmado.',
+        descripcion: "Plan de trabajo anual. Debe existir un plan de trabajo anual firmado por el empleador.",
+        evidencia: "Verificar plan de trabajo con metas, responsables, recursos, cronograma y firmado.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_5_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.5.1',
-        descripcion: 'Archivo y retención documental del Sistema de Gestión.',
-        evidencia: 'Listado maestro de documentos estructurado para garantizar acceso y retención (min 20 años para registros médicos).',
+        descripcion: "Archivo y retención documental del SG-SST. Deben conservarse los documentos del SG-SST de forma ordenada.",
+        evidencia: "Verificar sistema de archivo y conservación de documentos del SG-SST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_6_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.6.1',
-        descripcion: 'Rendición de cuentas anual de los responsables.',
-        evidencia: 'Formato de rendición de cuentas anual para todos los niveles de la empresa.',
+        descripcion: "Rendición de cuentas sobre el desempeño. Debe existir rendición de cuentas anual sobre el desempeño del SG-SST.",
+        evidencia: "Verificar registros de rendición de cuentas de quienes tienen responsabilidades en SST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_7_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.7.1',
-        descripcion: 'Matriz Legal actualizada acorde con la empresa.',
-        evidencia: 'Matriz de requisitos legales aplicable al sector, actualizada.',
+        descripcion: "Matriz legal actualizada. Debe existir una matriz legal actualizada con la normatividad aplicable.",
+        evidencia: "Verificar matriz legal actualizada con normas aplicables a la empresa.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_8_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.8.1',
-        descripcion: 'Mecanismos de comunicación interna y externa (Peticiones, Quejas).',
-        evidencia: 'Procedimiento de comunicación interna y registro de participación de empleados.',
+        descripcion: "Mecanismos de comunicación interna y externa. Deben existir mecanismos de comunicación sobre temas de SST.",
+        evidencia: "Verificar mecanismos de comunicación definidos y funcionando.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_9_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.9.1',
-        descripcion: 'Identificación y evaluación para adquisición de bienes y servicios.',
-        evidencia: 'Procedimiento de compras con criterios de Seguridad y Salud en el Trabajo.',
+        descripcion: "Procedimiento de adquisiciones con criterios de SST. Debe existir un procedimiento que incluya criterios de SST para adquisiciones.",
+        evidencia: "Verificar procedimiento de adquisiciones que contemple aspectos de SST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_10_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.10.1',
-        descripcion: 'Evaluación y selección de proveedores y contratistas.',
-        evidencia: 'Criterios definidos para evaluación de contratistas frente a cumplimiento SST (Planillas de proveedores).',
+        descripcion: "Evaluación y selección de contratistas y proveedores. Debe existir procedimiento de evaluación de contratistas en SST.",
+        evidencia: "Verificar procedimiento de evaluación de contratistas que incluya aspectos de SST.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_2_11_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E2.11.1',
-        descripcion: 'Procedimiento de gestión del cambio (tecnológico, procesos).',
-        evidencia: 'Procedimiento documentado para evaluar impacto en SST antes de implementar cambios estructurales.',
+        descripcion: "Evaluación del impacto de cambios internos y externos. Debe existir procedimiento para evaluar el impacto de cambios sobre SST.",
+        evidencia: "Verificar procedimiento de gestión del cambio documentado.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
-    // --- HACER (GESTIÓN DE LA SALUD) ---
     {
         id: 'ml_0312_3_1_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.1',
-        descripcion: 'Descripción sociodemográfica y diagnóstico de condiciones de salud.',
-        evidencia: 'Perfil demográfico vigente e informe consolidado de condiciones de salud anual.',
+        descripcion: "Descripción sociodemográfica y Diagnóstico de condiciones de salud. Documento consolidado con la información sociodemográfica y el diagnóstico de salud de la población trabajadora.",
+        evidencia: "Verificar documento de evaluación médica ocupacional (Sociodemográfico y Diagnóstico) actualizado anualmente.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.2',
-        descripcion: 'Actividades de promoción y prevención en salud.',
-        evidencia: 'Cronograma ejecutado de actividades lúdicas, deportivas, higiene (SVE).',
+        descripcion: "Actividades de promoción y prevención en salud. Deben desarrollarse actividades de promoción y prevención.",
+        evidencia: "Verificar registros y evidencias de actividades de promoción y prevención.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.3',
-        descripcion: 'Información y realización de exámenes médicos ocupacionales.',
-        evidencia: 'Profesiograma documentado y soportes de exámenes de ingreso, periódicos y retiro.',
+        descripcion: "Información al médico de perfiles de cargo. Se debe informar al médico los perfiles de cargo para evaluaciones.",
+        evidencia: "Verificar suministro de **Profesiograma** (descripción de tareas y factores de riesgo) al médico especialista.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_4',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.4',
-        descripcion: 'Restricciones y recomendaciones médicas.',
-        evidencia: 'Firmas de notificación de restricciones y seguimientos a puestos de trabajo (Reubicación).',
+        descripcion: "Realización de evaluaciones médicas. Deben realizarse evaluaciones médicas de ingreso, periódicas y retiro.",
+        evidencia: "Verificar certificados de evaluaciones médicas según profesiograma.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_5',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.5',
-        descripcion: 'Conservación y custodia de historias clínicas.',
-        evidencia: 'Certificado que la IPS o médico especialista conserva exclusivamente y preserva la HC (Privacidad).',
+        descripcion: "Custodia de historias clínicas. Las historias clínicas ocupacionales deben estar custodiadas.",
+        evidencia: "Verificar documento que garantice la custodia de historias clínicas.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_6',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.6',
-        descripcion: 'Ausentismo laboral: registro e índice por causas de salud.',
-        evidencia: 'Reporte documentado y cuadro estadístico de ATEL vs ausentismo común/incapacidades.',
+        descripcion: "Restricciones y recomendaciones médicas. Se deben cumplir las restricciones y recomendaciones médico laborales.",
+        evidencia: "Verificar seguimiento a recomendaciones y restricciones médicas.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_7',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.7',
-        descripcion: 'Estilo de vida y entorno saludable.',
-        evidencia: 'Programas anti-tabaquismo, alcohol, drogas; programas pausas activas nutrición.',
+        descripcion: "Estilos de vida y entornos de trabajo saludable. Se deben desarrollar programas de estilos de vida saludable.",
+        evidencia: "Verificar programa de estilos de vida saludable documentado y ejecutado.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_8',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.8',
-        descripcion: 'Servicios de agua limpia abastecimiento (Sanitarios y vestuarios).',
-        evidencia: 'Inspecciones higiénico locativas, dispensadores de agua potabilizada operando y limpios baños.',
+        descripcion: "Agua potable, servicios sanitarios y disposición de basuras. Debe garantizarse agua potable, servicios sanitarios y manejo de basuras.",
+        evidencia: "Verificar condiciones de agua potable, servicios sanitarios y manejo de residuos.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_1_9',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.1.9',
-        descripcion: 'Manejo adecuado y disposición de residuos sólidos / peligrosos.',
-        evidencia: 'PGIRS o política de manejo ambiental, puntos ecológicos en sede con disposición adecuada (actas recolección bio / peligrosos).',
+        descripcion: "Eliminación adecuada de residuos. Debe existir manejo adecuado de residuos sólidos, líquidos y gaseosos.",
+        evidencia: "Verificar plan de manejo de residuos según normatividad ambiental.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
-    // --- HACER (REPORTE E INVESTIGACIÓN ATEL) ---
     {
         id: 'ml_0312_3_2_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.2.1',
-        descripcion: 'Reporte a ARL y EPS de Accidentes y Enfermedades de Trabajo.',
-        evidencia: 'Reporte FURAT y FUREL en físico enviados en las 48 hrs o 2 días hábiles (Radicados a ARL).',
+        descripcion: "Reporte de accidentes de trabajo a la ARL. Se deben reportar los accidentes de trabajo a la ARL.",
+        evidencia: "Verificar reportes de accidentes de trabajo dentro de los 2 días hábiles.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_2_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.2.2',
-        descripcion: 'Investigación de Accidentes, Incidentes y Enfermedades Laborales.',
-        evidencia: 'Actas y plantillas de investigación de TODO evento AT / EL bajo metodología en 15 días tras suceso (Con participación del COPASST).',
+        descripcion: "Investigación de accidentes, incidentes y enfermedades. Deben investigarse los accidentes, incidentes y enfermedades laborales.",
+        evidencia: "Verificar metodología e informes de investigación de ATEL.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_2_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.2.3',
-        descripcion: 'Registro y análisis de estadísticas de ATEL.',
-        evidencia: 'Tabla de severidad, frecuencia y letalidad consolidada en ficha técnica SG-SST (Estadísticas Anuales).',
+        descripcion: "Registro y análisis estadístico de ATEL. Debe llevarse registro estadístico de accidentes y enfermedades.",
+        evidencia: "Verificar indicadores de accidentalidad y análisis de tendencias.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
-    // --- HACER (GESTIÓN DE PELIGROS) ---
     {
         id: 'ml_0312_3_3_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.3.1',
-        descripcion: 'Metodología para Identificación de Peligros, Evaluación y Valoración de Riesgos.',
-        evidencia: 'Metodología oficial adoptada (ej. GTC 45) explicada y ajustada a contexto de empresa.',
+        descripcion: "Medición de la severidad de los AT. Se debe medir la severidad de los accidentes de trabajo.",
+        evidencia: "Verificar cálculo del indicador de severidad de AT.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_3_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.3.2',
-        descripcion: 'Identificación de peligros anual con participación de todos los niveles de la empresa.',
-        evidencia: 'Matriz de peligros documentada (actualizada anualmente) / Socializaciones al personal / Tareas rutinarias y no rutinarias catalogadas.',
+        descripcion: "Medición de la frecuencia de los AT. Se debe medir la frecuencia de los accidentes de trabajo.",
+        evidencia: "Verificar cálculo del indicador de frecuencia de AT.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_3_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.3.3',
-        descripcion: 'Mediciones ambientales priorizadas (higiene industrial químicos, físicos, biológicos).',
-        evidencia: 'Estudios luz, ruido, material articulado, vibración aplicados SI el riesgo resulta ALTO/CRITICO en Matriz GTC 45.',
+        descripcion: "Medición de la mortalidad por AT. Se debe medir la mortalidad por accidentes de trabajo.",
+        evidencia: "Verificar cálculo del indicador de mortalidad por AT.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_3_4',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.3.4',
-        descripcion: 'Ejecución priorizada de controles derivados de la Matriz de Peligros.',
-        evidencia: 'Comprobantes de Eliminación, Ingeniería, o EPP ejecutados del "Plan de Acción GTC 45" real / Cronograma operando.',
+        descripcion: "Medición de la prevalencia de la EL. Se debe medir la prevalencia de enfermedad laboral.",
+        evidencia: "Verificar cálculo del indicador de prevalencia de EL.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_3_5',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.3.5',
-        descripcion: 'Inspecciones periódicas de instalaciones, máquinas y equipos.',
-        evidencia: 'Formatos documentados: Inspecciones de orden y aseo, maquinaria crítica, vehículos y extintores / Ejecución cumpliendo lo planificado.',
+        descripcion: "Medición de la incidencia de la EL. Se debe medir la incidencia de enfermedad laboral.",
+        evidencia: "Verificar cálculo del indicador de incidencia de EL.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_3_3_6',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E3.3.6',
-        descripcion: 'Mantenimientos preventivos / correctivos periódicos.',
-        evidencia: 'Cronograma y Bitácoramantenimiento de instalaciones físicas operando.',
+        descripcion: "Medición del ausentismo por causa médica. Se debe medir el ausentismo por incapacidad médica.",
+        evidencia: "Verificar cálculo del indicador de ausentismo.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_4_1_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E4.1.1',
-        descripcion: 'Entrega de Elementos de Protección Personal (EPP) sin costo.',
-        evidencia: 'Registros o Kardex firmado por los trabajadores con Dotación y Entrega. Sustitución documentada de elementos deteriorados.',
+        descripcion: "Metodología para identificación de peligros, evaluación y valoración de riesgos. Debe existir metodología para la identificación de peligros, evaluación y valoración de los riesgos.",
+        evidencia: "Solicitar el documento donde conste la metodología.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_4_1_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E4.1.2',
-        descripcion: 'Plan de Prevención, Preparación y Respuesta ante Emergencias documentado y aprobado.',
-        evidencia: 'Documento base Plan de Emergencia y PONs alineados a amenaza regional vigente socializados.',
+        descripcion: "Identificación de peligros con participación de todos los niveles de la empresa. Realizar la identificación de peligros, evaluación y valoración de los riesgos con participación de los trabajadores.",
+        evidencia: "Solicitar las evidencias de la participación de los trabajadores en la identificación de peligros.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_4_1_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E4.1.3',
-        descripcion: 'Conformación, capacitación y dotación de Brigada de Emergencia.',
-        evidencia: 'Actas comité. Equipos dotación de respuesta. Constancias Curso básico de brigadas cruz roja / bomberos / ARL.',
+        descripcion: "Identificación de sustancias catalogadas como carcinógenas o con toxicidad aguda. Identificar las sustancias catalogadas como carcinógenas o con toxicidad aguda.",
+        evidencia: "Verificar la lista de materias primas e insumos y si existen sustancias carcinógenas (Grupo 1 IARC) o con toxicidad aguda (Cat I y II SGA).",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_4_1_4',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E4.1.4',
-        descripcion: 'Realización de Simulacros (Mínimo uno al año).',
-        evidencia: 'Registro escrito, fotográfico y acta evaluativa de participación simulacro regional/nacional. Fallas evaluadas.',
+        descripcion: "Realización de mediciones ambientales, químicos, físicos y biológicos. Realizar mediciones ambientales de riesgos químicos, físicos y biológicos.",
+        evidencia: "Solicitar los resultados de las mediciones ambientales higiénicas según los peligros identificados.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
-
-    // --- VERIFICAR Y ACTUAR ---
+    {
+        id: 'ml_0312_4_2_1',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E4.2.1',
+        descripcion: "Implementación de medidas de prevención y control. Implementación de medidas de prevención y control de peligros/riesgos identificados.",
+        evidencia: "Verificar implementación de medidas según jerarquía de controles (Eliminación, Sustitución, Controles de Ingeniería, Administrativos, EPP).",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_4_2_2',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E4.2.2',
+        descripcion: "Verificación de medidas de prevención y control. Verificación de aplicación de medidas de prevención y control por parte de los trabajadores.",
+        evidencia: "Verificar evidencias de que los trabajadores aplican las medidas de prevención y control.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_4_2_3',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E4.2.3',
+        descripcion: "Elaboración de procedimientos e instructivos. Elaboración de procedimientos, instructivos, fichas, protocolos.",
+        evidencia: "Verificar procedimientos, instructivos, fichas y protocolos de seguridad y salud en el trabajo.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_4_2_4',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E4.2.4',
+        descripcion: "Inspecciones de seguridad. Realización de inspecciones sistemáticas a las instalaciones, maquinaria o equipos con la participación del COPASST.",
+        evidencia: "Verificar programa de inspecciones, formatos y registros de inspecciones realizadas con el COPASST.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_4_2_5',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E4.2.5',
+        descripcion: "Mantenimiento de instalaciones y equipos. Mantenimiento periódico de instalaciones, equipos, máquinas, herramientas.",
+        evidencia: "Verificar programa y registros de mantenimiento preventivo y correctivo de instalaciones y equipos.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_4_2_6',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E4.2.6',
+        descripcion: "Entrega de EPP. Entrega de Elementos de Protección Personal EPP, se verifica con contratistas y subcontratistas.",
+        evidencia: "Verificar registros de entrega de EPP a trabajadores y soportes de exigencia a contratistas.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
     {
         id: 'ml_0312_5_1_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E5.1.1',
-        descripcion: 'Indicadores de Estructura, Proceso y Resultado definidos.',
-        evidencia: 'Fichas técnicas de los 3 rangos tabuladas midiendo gestión de actividades clave del SG-SST (Dec 1072 - Arts 20,21,22).',
+        descripcion: "Plan de prevención, preparación y respuesta ante emergencias. Se cuenta con el Plan de Prevención, Preparación y Respuesta ante emergencias.",
+        evidencia: "Verificar documento del plan de emergencias, análisis de vulnerabilidad y planes de acción.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_5_1_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E5.1.2',
-        descripcion: 'Auditoría Anual Obligatoria estructurada y programada con participación del COPASST.',
-        evidencia: 'Plan Auditoría / Informe Cierre de Hallazgos y Participantes, firmado y divulgado internamente.',
+        descripcion: "Brigada de prevención. Brigada de prevención conformada, capacitada y dotada.",
+        evidencia: "Verificar conformación de la brigada, actas de capacitación y soportes de dotación.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_6_1_1',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E6.1.1',
-        descripcion: 'Revisión por la Alta Dirección de los resultados del SG-SST.',
-        evidencia: 'Acta Gerencial Anual firmada por representante legal revisando políticas, indicadores y hallazgos auditoria.',
+        descripcion: "Definición de indicadores del SG-SST. Definición de indicadores del SG-SST de acuerdo condiciones de la empresa.",
+        evidencia: "Verificar fichas técnicas de los indicadores (estructura, proceso y resultado) y su medición.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_6_1_2',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E6.1.2',
-        descripcion: 'Plan de mejoramiento con base a acciones Preventivas / Correctivas (PHVA).',
-        evidencia: 'Formato diligenciado con correcciones sobre hallazgos provenientes de Alta dirección, ARL o Incidentes ATEL.',
+        descripcion: "Auditoría anual. La empresa adelanta auditoría por lo menos una vez al año.",
+        evidencia: "Verificar informe de auditoría interna anual, programa de auditoría y perfil del auditor.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_6_1_3',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E6.1.3',
-        descripcion: 'Ejecución del plan de mejoramiento del Fondo de Riesgos.',
-        evidencia: 'Reporte documentado y cierre efectivo documentado de la fase final ante Autoevaluaciones formales MinTrabajo (Dic).',
+        descripcion: "Revisión por la alta dirección. Revisión anual por la alta dirección, resultados y alcance de la auditoría.",
+        evidencia: "Verificar acta de la revisión por la dirección que incluya todos los elementos de entrada obligatorios.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
     {
         id: 'ml_0312_6_1_4',
         norma: 'Resolución 0312 de 2019',
         articulo: 'E6.1.4',
-        descripcion: 'Plan de mejoramiento ante Inspecciones ARL y el MinTrabajo ejecutado.',
-        evidencia: 'Planes de remediación que contestan a objeciones reportadas externamente evidenciando total cobertura de solicitudes extra-sistemas.',
+        descripcion: "Planificación auditorías con el COPASST. Planificación auditorías con el COPASST.",
+        evidencia: "Verificar evidencias de la participación del COPASST en la planificación de la auditoría.",
         categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
     },
+    {
+        id: 'ml_0312_7_1_1',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E7.1.1',
+        descripcion: "Acciones preventivas y correctivas. Definición de acciones preventivas y correctivas con base en resultados del SG-SST.",
+        evidencia: "Verificar implementación de acciones preventivas y correctivas derivadas de no conformidades.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_7_1_2',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E7.1.2',
+        descripcion: "Acciones de mejora (Dirección). Acciones de mejora conforme a revisión de la alta dirección.",
+        evidencia: "Verificar plan de trabajo o acciones derivadas de la revisión por la alta dirección.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_7_1_3',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E7.1.3',
+        descripcion: "Acciones de mejora (Investigación). Acciones de mejora con base en investigaciones de accidentes de trabajo y enfermedades laborales.",
+        evidencia: "Verificar cierre de planes de acción generados en las investigaciones de incidentes, accidentes y EL.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+    {
+        id: 'ml_0312_7_1_4',
+        norma: 'Resolución 0312 de 2019',
+        articulo: 'E7.1.4',
+        descripcion: "Plan de mejoramiento. Elaboración Plan de Mejoramiento e implementación de medidas y acciones correctivas solicitadas por autoridades y ARL.",
+        evidencia: "Verificar el Plan de Mejoramiento Consolidado y sus avances.",
+        categoria: 'I. Resolución 0312 de 2019 - Estándares Mínimos'
+    },
+
+
+
+
 
     // DECRETO 1072 DE 2015 (Capítulo 6: Sistema de Gestión de la Seguridad y Salud en el Trabajo SG-SST)
     { id: 'ml_1072_2_2_4_6_1', norma: 'Decreto 1072 de 2015', articulo: 'Art 2.2.4.6.1', descripcion: 'Objeto y Campo de Aplicación del SG-SST.', evidencia: 'Documento que defina el alcance del SG-SST a todos los trabajadores y centros de trabajo.', categoria: 'II. Decreto 1072 de 2015 - Capítulo 6 SG-SST' },
