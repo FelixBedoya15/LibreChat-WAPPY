@@ -54,7 +54,7 @@ const MatrizLegal = () => {
             .then(res => res.ok ? res.json() : null)
             .then(data => {
                 if (data) {
-                    setActivity(prev => prev || data.activities || '');
+                    setActivity(prev => prev || data.economicActivity || '');
                     setLocation(prev => prev || data.city || '');
                 }
             })
