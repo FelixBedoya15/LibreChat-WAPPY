@@ -115,7 +115,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             if (stateMatch && stateMatch[1]) {
                 try {
                     const stateData = JSON.parse(stateMatch[1]);
-                    const failedItems = stateData.statuses?.filter(s => s.status === 'no_cumple' || s.status === 'no_aplica') || [];
+                    const failedItems = stateData.statuses?.filter(s => s.status === 'no_cumple' || s.status === 'parcial') || [];
                     if (failedItems.length > 0) {
                         const fallasTextuales = failedItems.map(f => `[${f.itemId}] ${auditoriaMap[f.itemId] || 'Norma no especificada'}`).join(', ');
                         auditoriaContext = `La última auditoría encontró hallazgos Críticos/No Conformidades en los siguientes estándares de la Resolución 0312: ${fallasTextuales}. Formula objetivos para subsanarlos textualmente.`;
