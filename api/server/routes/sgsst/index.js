@@ -5,6 +5,8 @@ const matriz = require('./matriz');
 const estadisticas = require('./estadisticas');
 const matrizPeligros = require('./matrizPeligros');
 const objetivos = require('./objetivos');
+const rhs = require('./rhs');
+const rit = require('./rit');
 
 module.exports = {
     diagnostico,
@@ -15,4 +17,6 @@ module.exports = {
     atelData: require('./atel-data'),
     matrizPeligros,
     objetivos,
+    rhs,
+    rit,
 };

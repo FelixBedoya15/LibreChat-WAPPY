@@ -17,6 +17,8 @@ import AuditoriaChecklist from './AuditoriaChecklist';
 import MatrizLegal from './MatrizLegal';
 import EstadisticasATEL from './EstadisticasATEL';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
+import ReglamentoHigiene from './ReglamentoHigiene';
+import ReglamentoInterno from './ReglamentoInterno';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -284,6 +286,20 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                         {category.id === 'peligros' && (
                                             <div className="mb-6">
                                                 <MatrizPeligrosGTC45 />
+                                            </div>
+                                        )}
+
+                                        {/* Show ReglamentoHigiene for rhs category */}
+                                        {category.id === 'rhs' && (
+                                            <div className="mb-6">
+                                                <ReglamentoHigiene />
+                                            </div>
+                                        )}
+
+                                        {/* Show ReglamentoInterno for rit category */}
+                                        {category.id === 'rit' && (
+                                            <div className="mb-6">
+                                                <ReglamentoInterno />
                                             </div>
                                         )}
 
