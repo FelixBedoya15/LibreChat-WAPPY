@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { AuthKeys } = require('librechat-data-provider');
 const { requireJwtAuth } = require('../../middleware/');
 const CompanyInfo = require('../../../models/CompanyInfo');
-const { getCustomConfig } = require('../../services/Config');
-const { sendMessage } = require('../../services/Endpoints/custom');
+const { getUserKey } = require('~/server/services/UserService');
+const { logger } = require('~/config');
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
@@ -49,56 +51,60 @@ ${additionalContextContext}
 4.  **HTML:** Retorna **solamente** el documento formulado en código HTML, sin incluir ticks de markdown (\`\`\`). Utiliza etiquetas estructuradas como <h1>, <h2>, <p>, <ul>, <li>, <strong>. No uses CSS inline complejo, emplea etiquetas semánticas. No incluyas las etiquetas <html>, <head> o <body>, solo el contenido del documento.
 5.  **Tablas de Firmas:** Al final del documento, incluye una sección clara para la firma del Representante Legal, indicando fecha de publicación e implementación.`;
 
-        const reqObj = {
-            body: {
-                message: prompt,
-                endpoint: 'custom',
-                model: modelName || 'gemini-3-flash-preview',
-                conversationId: 'new',
-            },
-            user: { id: userId },
-            app: req.app,
-        };
-
-        let generatedHtml = '';
-
-        const mockRes = {
-            write: (data) => {
-                const str = data.toString();
-                const lines = str.split('\\n');
-                lines.forEach((line) => {
-                    if (line.startsWith('data: ')) {
-                        const jsonStr = line.substring(6);
-                        if (jsonStr === '[DONE]') return;
-                        try {
-                            const parsed = JSON.parse(jsonStr);
-                            if (parsed.text) generatedHtml += parsed.text;
-                        } catch (e) {
-                            // ignore json parse errors for fragments
-                        }
-                    }
-                });
-            },
-            setHeader: () => { },
-            end: () => { },
-            status: () => ({ send: () => { } }),
-            on: () => { },
-        };
-
-        const config = await getCustomConfig();
-        const customEndpoint = config?.endpoints?.custom;
-        if (!customEndpoint) {
-            throw new Error('Custom endpoint configuration missing.');
+        // Retrieve the user's Google API key
+        let resolvedApiKey;
+        try {
+            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+            try {
+                const parsed = JSON.parse(storedKey);
+                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+            } catch (parseErr) {
+                resolvedApiKey = storedKey;
+            }
+        } catch (err) {
+            logger.debug('[SGSST RHS] No user Google key found, trying env vars:', err.message);
         }
 
-        await sendMessage(reqObj, mockRes, () => { });
+        if (!resolvedApiKey) {
+            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+        }
+
+        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+        }
+
+        if (!resolvedApiKey) {
+            return res.status(400).json({
+                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.',
+            });
+        }
+
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const generatedHtml = response.text();
 
         // Clean up markdown block format
-        let cleanedHtml = generatedHtml.replace(/```html/g, '').replace(/```/g, '').trim();
+        let cleanedHtml = generatedHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+
+        // Strip out HTML document wrappers if they exist
+        const bodyMatch = cleanedHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch) {
+            cleanedHtml = bodyMatch[1].trim();
+        }
+        cleanedHtml = cleanedHtml
+            .replace(/<!DOCTYPE[^>]*>/gi, '')
+            .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+            .replace(/<head>[\s\S]*?<\/head>/gi, '')
+            .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .trim();
 
         res.json({ document: cleanedHtml });
     } catch (error) {
-        console.error('Error generating RHS:', error);
+        logger.error('[SGSST RHS] Error generating RHS:', error);
         res.status(500).json({ error: 'Failed to generate RHS', details: error.message });
     }
 });
