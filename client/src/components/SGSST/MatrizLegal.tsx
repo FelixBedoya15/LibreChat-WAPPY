@@ -545,12 +545,42 @@ const MatrizLegal = () => {
                         <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
                     </div>
                     {generatedMatrix ? (
-                        <div className="w-full flex-1 overflow-visible min-h-[600px]">
-                            <LiveEditor
-                                initialContent={generatedMatrix}
-                                onUpdate={(html) => setEditorContent(html)}
-                                onSave={handleSaveReport}
-                            />
+                        <div className="rounded-xl p-1 overflow-visible">
+                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                                <div style={{ minWidth: '900px', padding: '16px' }}>
+                                    <LiveEditor
+                                        initialContent={generatedMatrix}
+                                        onUpdate={(html) => setEditorContent(html)}
+                                        onSave={handleSaveReport}
+                                    />
+                                </div>
+                            </div>
+                            <style>{`
+                                [contenteditable] table {
+                                    width: 100%;
+                                    min-width: 650px;
+                                    border-collapse: separate;
+                                    border-spacing: 0;
+                                    table-layout: auto;
+                                    border-radius: 12px;
+                                    overflow: hidden;
+                                    border: 1px solid var(--border-medium, #ddd);
+                                }
+                                [contenteditable] table td,
+                                [contenteditable] table th {
+                                    padding: 8px 12px;
+                                    border-bottom: 1px solid var(--border-medium, #ddd);
+                                    border-right: 1px solid var(--border-medium, #eee);
+                                    word-wrap: break-word;
+                                }
+                                [contenteditable] table td:last-child,
+                                [contenteditable] table th:last-child {
+                                    border-right: none;
+                                }
+                                [contenteditable] table tr:last-child td {
+                                    border-bottom: none;
+                                }
+                            `}</style>
                         </div>
                     ) : (
                         <div className="w-full h-48 flex flex-col items-center justify-center p-6 text-center text-text-secondary bg-surface-secondary/50">

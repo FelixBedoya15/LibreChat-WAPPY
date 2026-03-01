@@ -367,12 +367,42 @@ const PoliticaSST = () => {
                         </h3>
                         <span className="text-xs text-text-secondary">Puedes editar el contenido directamente</span>
                     </div>
-                    <div className="h-[600px]">
-                        <LiveEditor
-                            initialContent={generatedPolicy}
-                            onUpdate={(html) => setEditorContent(html)}
-                            onSave={handleSave}
-                        />
+                    <div className="rounded-xl p-1 overflow-hidden">
+                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                            <div style={{ minWidth: '900px', padding: '16px' }}>
+                                <LiveEditor
+                                    initialContent={generatedPolicy}
+                                    onUpdate={(html) => setEditorContent(html)}
+                                    onSave={handleSave}
+                                />
+                            </div>
+                        </div>
+                        <style>{`
+                            [contenteditable] table {
+                                width: 100%;
+                                min-width: 650px;
+                                border-collapse: separate;
+                                border-spacing: 0;
+                                table-layout: auto;
+                                border-radius: 12px;
+                                overflow: hidden;
+                                border: 1px solid var(--border-medium, #ddd);
+                            }
+                            [contenteditable] table td,
+                            [contenteditable] table th {
+                                padding: 8px 12px;
+                                border-bottom: 1px solid var(--border-medium, #ddd);
+                                border-right: 1px solid var(--border-medium, #eee);
+                                word-wrap: break-word;
+                            }
+                            [contenteditable] table td:last-child,
+                            [contenteditable] table th:last-child {
+                                border-right: none;
+                            }
+                            [contenteditable] table tr:last-child td {
+                                border-bottom: none;
+                            }
+                        `}</style>
                     </div>
                 </div>
             )}
