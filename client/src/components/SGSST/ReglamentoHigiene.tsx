@@ -117,7 +117,7 @@ const ReglamentoHigiene = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     content: contentToSave,
-                    title: `Reglamento de Higiene y Seguridad - ${new Date().toLocaleDateString('es-CO')}`,
+                    title: `Reglamento de Higiene y Seguridad Industrial - ${new Date().toLocaleDateString('es-CO')}`,
                     tags: ['sgsst-rhs'],
                 }),
             });
@@ -237,7 +237,7 @@ const ReglamentoHigiene = () => {
                         </button>
                         <ExportDropdown
                             content={editorContent || generatedDocument || ''}
-                            fileName="Reglamento_Higiene_Seguridad"
+                            fileName="Reglamento_Higiene_Seguridad_Industrial"
                         />
                     </>
                 )}
@@ -263,7 +263,7 @@ const ReglamentoHigiene = () => {
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <span className="font-semibold text-text-primary">Datos para el Reglamento de Higiene y Seguridad</span>
+                        <span className="font-semibold text-text-primary">Datos para el Reglamento de Higiene y Seguridad Industrial</span>
                     </div>
                 </button>
 
@@ -326,7 +326,7 @@ const ReglamentoHigiene = () => {
                     <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
                         <h3 className="font-semibold text-text-primary flex items-center gap-2">
                             <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                            Reglamento de Higiene y Seguridad
+                            Reglamento de Higiene y Seguridad Industrial
                         </h3>
                         <span className="text-xs text-text-secondary">Edita el reglamento generado directamente</span>
                     </div>

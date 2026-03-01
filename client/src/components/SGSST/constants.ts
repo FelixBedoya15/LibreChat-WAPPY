@@ -5,7 +5,7 @@ export const PHASE_CATEGORIES = {
         { id: 'objetivos', title: 'Objetivos SST', icon: 'Target' },
         { id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope' },
         { id: 'legal', title: 'Matriz Legal', icon: 'Scale' },
-        { id: 'rhs', title: 'Reglamento de Higiene y Seguridad', icon: 'ShieldAlert' },
+        { id: 'rhs', title: 'Reglamento de Higiene y Seguridad Industrial', icon: 'ShieldAlert' },
         { id: 'rit', title: 'Reglamento Interno de Trabajo', icon: 'Briefcase' },
     ],
     do: [
