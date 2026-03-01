@@ -211,6 +211,7 @@ const startServer = async () => {
   app.use('/api/sgsst/matriz-peligros', routes.sgsst.matrizPeligros);
   app.use('/api/sgsst/rhs', routes.sgsst.rhs);
   app.use('/api/sgsst/rit', routes.sgsst.rit);
+  app.use('/api/sgsst/perfil-sociodemografico', routes.sgsst.perfilSociodemografico);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {

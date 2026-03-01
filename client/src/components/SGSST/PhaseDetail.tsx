@@ -19,6 +19,7 @@ import EstadisticasATEL from './EstadisticasATEL';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
+import PerfilSociodemografico from './PerfilSociodemografico';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -300,6 +301,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                         {category.id === 'rit' && (
                                             <div className="mb-6">
                                                 <ReglamentoInterno />
+                                            </div>
+                                        )}
+
+                                        {/* Show PerfilSociodemografico for perfil_socio category */}
+                                        {category.id === 'perfil_socio' && (
+                                            <div className="mb-6">
+                                                <PerfilSociodemografico />
                                             </div>
                                         )}
 
