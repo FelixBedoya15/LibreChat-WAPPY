@@ -161,7 +161,9 @@ const SGSSTDashboard = () => {
             <div className="mb-8 text-center">
                 <div className="flex items-center justify-center gap-3">
                     {!navVisible && (
-                        <OpenSidebar setNavVisible={setNavVisible} />
+                        <div className="hidden md:block shrink-0">
+                            <OpenSidebar setNavVisible={setNavVisible} />
+                        </div>
                     )}
                     <h1 className="text-3xl font-bold text-text-primary">Sistema de Gestión SST</h1>
                     <button

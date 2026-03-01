@@ -156,7 +156,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
         <div className="flex h-full w-full flex-col bg-surface-primary p-6">
             <div className="mb-6 flex items-center gap-4 border-b border-border-medium pb-4">
                 {!navVisible && (
-                    <div className="mr-2">
+                    <div className="mr-2 hidden md:block shrink-0">
                         <OpenSidebar setNavVisible={setNavVisible} />
                     </div>
                 )}
