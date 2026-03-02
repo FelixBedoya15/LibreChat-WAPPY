@@ -74,11 +74,11 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
             border-right: 1px solid rgba(255,255,255,0.15);
         }
         /* Specific column widths for SGSST Reports */
-        th:nth-child(1) { width: 45px; } /* # */
-        th:nth-child(2) { width: 17%; } /* Requisito / Norma / Estándar */
-        th:nth-child(3) { width: 43%; } /* Hallazgo (Evidencia) - Double width */
-        th:nth-child(4) { width: 12%; } /* Tipo */
-        th:nth-child(5) { width: auto; } /* Responsable */
+        th:nth-child(1) { width: 38px; } /* # - Narrowest */
+        th:nth-child(2) { width: 14%; } /* Requisito / Norma */
+        th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
+        th:nth-child(4) { width: 10%; } /* Tipo */
+        th:nth-child(5) { width: 15%; } /* Responsable */
 
         th:last-child { border-right: none; }
         td {

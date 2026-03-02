@@ -386,11 +386,11 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     border-right: 1px solid rgba(255,255,255,0.15);
                 }
                 /* Specific column widths for SGSST Reports */
-                .live-editor-content table th:nth-child(1) { width: 50px; } /* # */
-                .live-editor-content table th:nth-child(2) { width: 15%; } /* Requisito / Estándar */
-                .live-editor-content table th:nth-child(3) { width: 45%; } /* Hallazgo (Evidencia) - Double width approx */
-                .live-editor-content table th:nth-child(4) { width: 12%; } /* Tipo */
-                .live-editor-content table th:nth-child(5) { width: auto; } /* Responsable */
+                .live-editor-content table th:nth-child(1) { width: 38px; } /* # - Narrowest possible */
+                .live-editor-content table th:nth-child(2) { width: 14%; } /* Requisito / Estándar */
+                .live-editor-content table th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
+                .live-editor-content table th:nth-child(4) { width: 10%; } /* Tipo */
+                .live-editor-content table th:nth-child(5) { width: 15%; } /* Responsable - Wider */
 
                 .live-editor-content table th:last-child {
                     border-right: none;
