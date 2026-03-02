@@ -536,9 +536,6 @@ const PerfilSociodemografico = () => {
                             <div className="text-center text-slate-600 space-y-1">
                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Escanea para ver el perfil completo</p>
                                 <p className="text-sm font-bold text-slate-700">CC: {selectedQrWorker.identificacion || 'N/A'}</p>
-                                {selectedQrWorker.direccion && (
-                                    <p className="text-xs text-indigo-600 font-medium">📍 Incluye enlace a Google Maps</p>
-                                )}
                             </div>
                         </div>
 
