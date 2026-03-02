@@ -27,6 +27,7 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     const [tableToolbarPos, setTableToolbarPos] = useState({ top: 0, left: 0 });
     const [selectedGraphic, setSelectedGraphic] = useState<HTMLDivElement | null>(null);
     const [graphicToolbarPos, setGraphicToolbarPos] = useState({ top: 0, left: 0 });
+    const [activeSignaturePlaceholder, setActiveSignaturePlaceholder] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
         // Load signatures from localStorage on mount
@@ -91,8 +92,22 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     };
 
     const insertSignature = (signatureUrl: string) => {
-        const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma Digital" />`;
-        document.execCommand('insertHTML', false, img);
+        if (activeSignaturePlaceholder) {
+            // If we clicked a placeholder, replace it
+            const img = document.createElement('img');
+            img.src = signatureUrl;
+            img.style.maxHeight = '100px';
+            img.style.display = 'block';
+            img.style.margin = '10px auto';
+            img.alt = "Firma Digital";
+            activeSignaturePlaceholder.replaceWith(img);
+            setActiveSignaturePlaceholder(null);
+            onUpdate(editorRef.current?.innerHTML || '');
+        } else {
+            // Normal insertion at cursor
+            const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma Digital" />`;
+            document.execCommand('insertHTML', false, img);
+        }
         setIsSignatureModalOpen(false);
     };
 
@@ -140,6 +155,10 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                         left: rect.left - editorRect.left
                     });
                 }
+            } else if (target.closest('.signature-placeholder') && editorRef.current?.contains(target)) {
+                clearSelections();
+                setActiveSignaturePlaceholder(target.closest('.signature-placeholder') as HTMLElement);
+                setIsSignatureModalOpen(true);
             } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.signature-modal')) {
                 clearSelections();
             }

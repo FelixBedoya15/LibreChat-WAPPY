@@ -385,7 +385,12 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 
 **FIRMA OBLIGATORIA:**
 Al final del informe, incluye un espacio de firma:
-<div style="margin-top: 50px; text-align: center;">
+<div style="margin-top: 50px; text-align: center; cursor: pointer;" class="signature-section">
+    <div class="signature-placeholder" style="margin-bottom: 5px; color: #004d99; font-size: 10px; font-weight: bold; border: 1px dashed #004d99; padding: 10px; display: inline-block; border-radius: 8px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 5px;"><path d="m12 19 7-7 3 3-7 7-3-3z"></path><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="m2 2 5 5"></path><path d="m9.5 9.5 5 5"></path></svg><br>
+        FIRMADO DIGITALMENTE<br>
+        <span style="font-size: 8px; opacity: 0.7;">(Clic aquí para insertar firma)</span>
+    </div>
     <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
     <strong>${userName || req.user?.name || 'Usuario del Sistema'}</strong><br>
     Consultor Experto en SG-SST (Dec. 1072/2015)<br>
