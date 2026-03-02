@@ -114,7 +114,7 @@ const deleteUser = async (req, res) => {
 
 const bulkUpdateUsers = async (req, res) => {
     try {
-        const { userIds, activeAt, inactiveAt } = req.body;
+        const { userIds, activeAt, inactiveAt, accountStatus } = req.body;
 
         if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
             return res.status(400).json({ message: 'No users provided' });
@@ -125,6 +125,9 @@ const bulkUpdateUsers = async (req, res) => {
         // If undefined in body, do not update. If null, clear.
         if (activeAt !== undefined) updateData.activeAt = activeAt ? new Date(activeAt) : null;
         if (inactiveAt !== undefined) updateData.inactiveAt = inactiveAt ? new Date(inactiveAt) : null;
+        if (accountStatus && ['active', 'inactive', 'pending'].includes(accountStatus)) {
+            updateData.accountStatus = accountStatus;
+        }
 
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({ message: 'No updates provided' });

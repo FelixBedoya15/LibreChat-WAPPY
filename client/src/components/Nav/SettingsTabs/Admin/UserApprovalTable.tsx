@@ -188,12 +188,52 @@ export default function UserManagementTable() {
                     <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
                         {selectedUsers.size} {localize('com_ui_users_selected')}
                     </span>
-                    <button
-                        onClick={() => setIsBulkUpdateModalOpen(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
-                    >
-                        {localize('com_ui_update_dates')}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => {
+                                if (!window.confirm(localize('com_ui_confirm_bulk_activate'))) return;
+                                try {
+                                    await axios.post('/api/admin/users/bulk-update', {
+                                        userIds: Array.from(selectedUsers),
+                                        accountStatus: 'active',
+                                    });
+                                    showToast({ message: localize('com_ui_bulk_activate_success'), status: 'success' });
+                                    fetchUsers();
+                                    setSelectedUsers(new Set());
+                                } catch (error) {
+                                    showToast({ message: localize('com_ui_bulk_activate_error'), status: 'error' });
+                                }
+                            }}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
+                        >
+                            {localize('com_ui_activate')}
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (!window.confirm(localize('com_ui_confirm_bulk_inactivate'))) return;
+                                try {
+                                    await axios.post('/api/admin/users/bulk-update', {
+                                        userIds: Array.from(selectedUsers),
+                                        accountStatus: 'inactive',
+                                    });
+                                    showToast({ message: localize('com_ui_bulk_inactivate_success'), status: 'success' });
+                                    fetchUsers();
+                                    setSelectedUsers(new Set());
+                                } catch (error) {
+                                    showToast({ message: localize('com_ui_bulk_inactivate_error'), status: 'error' });
+                                }
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
+                        >
+                            {localize('com_ui_inactivate')}
+                        </button>
+                        <button
+                            onClick={() => setIsBulkUpdateModalOpen(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
+                        >
+                            {localize('com_ui_update_dates')}
+                        </button>
+                    </div>
                 </div>
             )}
 

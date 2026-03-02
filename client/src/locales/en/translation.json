@@ -1488,5 +1488,13 @@
   "com_ui_untitled_report": "Untitled Report",
   "com_ui_risk_report_title": "Labor Risk Report",
   "com_ui_date": "Date:",
+  "com_ui_activate": "Activate",
+  "com_ui_inactivate": "Inactivate",
+  "com_ui_confirm_bulk_activate": "Are you sure you want to activate the selected users?",
+  "com_ui_confirm_bulk_inactivate": "Are you sure you want to inactivate the selected users?",
+  "com_ui_bulk_activate_success": "Users activated successfully",
+  "com_ui_bulk_inactivate_success": "Users inactivated successfully",
+  "com_ui_bulk_activate_error": "Error activating users",
+  "com_ui_bulk_inactivate_error": "Error inactivating users",
   "com_ui_live_analysis_title": "Live Analysis"
 }
