@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon, PenTool, Trash2 } from 'lucide-react';
+import {
+    Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered,
+    AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon,
+    PenTool, Trash2, Maximize, Minimize, Move, Layers, ArrowUp, ArrowDown, X
+} from 'lucide-react';
 import { useLocalize } from '~/hooks';
 
 interface LiveEditorProps {
@@ -16,6 +20,8 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     const [content, setContent] = useState(initialContent);
     const [signatures, setSignatures] = useState<string[]>([]);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
+    const [imageToolbarPos, setImageToolbarPos] = useState({ top: 0, left: 0 });
 
     useEffect(() => {
         // Load signatures from localStorage on mount
@@ -87,6 +93,84 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
 
     const deleteSignature = (index: number) => {
         setSignatures(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Image manipulation functions
+    useEffect(() => {
+        const handleDocClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'IMG' && editorRef.current?.contains(target)) {
+                const img = target as HTMLImageElement;
+
+                // Remove selected attribute from any previously selected image
+                editorRef.current.querySelectorAll('img').forEach(i => i.removeAttribute('data-selected'));
+                img.setAttribute('data-selected', 'true');
+
+                setSelectedImage(img);
+                const rect = img.getBoundingClientRect();
+                const editorRect = editorRef.current.getBoundingClientRect();
+                setImageToolbarPos({
+                    top: rect.top - editorRect.top - 50 + editorRef.current.scrollTop,
+                    left: rect.left - editorRect.left
+                });
+            } else if (!target.closest('.image-toolbar') && !target.closest('.signature-modal')) {
+                editorRef.current?.querySelectorAll('img').forEach(i => i.removeAttribute('data-selected'));
+                setSelectedImage(null);
+            }
+        };
+
+        const editor = editorRef.current;
+        if (editor) {
+            editor.addEventListener('click', handleDocClick);
+        }
+        return () => {
+            if (editor) {
+                editor.removeEventListener('click', handleDocClick);
+            }
+        };
+    }, []);
+
+    const updateImageStyle = (styles: Partial<CSSStyleDeclaration>) => {
+        if (!selectedImage) return;
+        Object.assign(selectedImage.style, styles);
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const setImageAlign = (align: 'left' | 'center' | 'right' | 'none') => {
+        if (!selectedImage) return;
+        if (align === 'center') {
+            updateImageStyle({ display: 'block', margin: '10px auto', float: 'none' });
+        } else if (align === 'left') {
+            updateImageStyle({ display: 'inline-block', margin: '0 15px 10px 0', float: 'left' });
+        } else if (align === 'right') {
+            updateImageStyle({ display: 'inline-block', margin: '0 0 10px 15px', float: 'right' });
+        } else {
+            updateImageStyle({ display: 'inline-block', margin: '0', float: 'none', position: 'static' });
+        }
+    };
+
+    const setImageLayer = (layer: 'front' | 'back' | 'normal') => {
+        if (!selectedImage) return;
+        if (layer === 'front') {
+            updateImageStyle({ position: 'relative', zIndex: '10' });
+        } else if (layer === 'back') {
+            updateImageStyle({ position: 'relative', zIndex: '-1' });
+        } else {
+            updateImageStyle({ position: 'static', zIndex: '0' });
+        }
+    };
+
+    const setImageSize = (size: 'sm' | 'md' | 'lg' | 'full') => {
+        if (!selectedImage) return;
+        const width = size === 'sm' ? '150px' : size === 'md' ? '300px' : size === 'lg' ? '500px' : '100%';
+        updateImageStyle({ width, height: 'auto' });
+    };
+
+    const removeImage = () => {
+        if (!selectedImage) return;
+        selectedImage.remove();
+        setSelectedImage(null);
+        onUpdate(editorRef.current?.innerHTML || '');
     };
 
     const ToolbarButton = ({ icon: Icon, command, value, label, onClick }: { icon: any, command?: string, value?: string, label: string, onClick?: () => void }) => (
@@ -207,14 +291,60 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                 </div>
             )}
 
-            <div
-                ref={editorRef}
-                className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content"
-                contentEditable
-                onInput={handleInput}
-                suppressContentEditableWarning={true}
-                style={{ minHeight: '100%', maxWidth: '100%' }}
-            />
+            <div className="relative flex-1 overflow-hidden flex flex-col">
+                {/* Floating Image Toolbar */}
+                {selectedImage && (
+                    <div
+                        className="image-toolbar absolute z-50 bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
+                        style={{
+                            top: `${Math.max(10, imageToolbarPos.top)}px`,
+                            left: `${Math.max(10, Math.min(imageToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                        }}
+                    >
+                        <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
+                            <button onClick={() => setImageSize('sm')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Pequeño">S</button>
+                            <button onClick={() => setImageSize('md')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-bold border border-transparent hover:border-border-medium" title="Mediano">M</button>
+                            <button onClick={() => setImageSize('lg')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Grande">L</button>
+                            <button onClick={() => setImageSize('full')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Ancho Total">W</button>
+                        </div>
+
+                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                            <ToolbarButton icon={AlignLeft} onClick={() => setImageAlign('left')} label="Alinear Izquierda / Envolver" />
+                            <ToolbarButton icon={AlignCenter} onClick={() => setImageAlign('center')} label="Centrar" />
+                            <ToolbarButton icon={AlignRight} onClick={() => setImageAlign('right')} label="Alinear Derecha / Envolver" />
+                            <ToolbarButton icon={Move} onClick={() => setImageAlign('none')} label="Restablecer (En línea)" />
+                        </div>
+
+                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                            <ToolbarButton icon={ArrowUp} onClick={() => setImageLayer('front')} label="Traer al frente" />
+                            <ToolbarButton icon={ArrowDown} onClick={() => setImageLayer('back')} label="Enviar al fondo" />
+                        </div>
+
+                        <button
+                            onClick={removeImage}
+                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                            title="Eliminar imagen"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setSelectedImage(null)}
+                            className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
+                            title="Cerrar"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+                <div
+                    ref={editorRef}
+                    className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content"
+                    contentEditable
+                    onInput={handleInput}
+                    suppressContentEditableWarning={true}
+                    style={{ minHeight: '100%', maxWidth: '100%' }}
+                />
+            </div>
             {/* Standardized report styles matching Diagnóstico/Auditoría */}
             <style>{`
                 .live-editor-content h1 {
@@ -291,6 +421,26 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     border-radius: 8px;
                     border: 1px solid #ddd;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    transition: all 0.2s ease;
+                    cursor: pointer;
+                    user-select: none;
+                    -webkit-user-drag: none;
+                }
+                .live-editor-content img:hover {
+                    outline: 2px solid #3b82f6;
+                    outline-offset: 4px;
+                }
+                .live-editor-content img[data-selected="true"] {
+                    outline: 3px solid #3b82f6 !important;
+                    outline-offset: 6px;
+                    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+                }
+                .image-toolbar {
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                    backdrop-filter: blur(8px);
+                }
+                .signature-modal {
+                    backdrop-filter: blur(4px);
                 }
             `}</style>
         </div>
