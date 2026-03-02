@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit } from 'lucide-react';
+import { useUploadFileMutation } from '~/data-provider';
+import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useRef } from 'react';
 import remarkGfm from 'remark-gfm';
 
 export default function CourseEditor() {
@@ -14,6 +16,8 @@ export default function CourseEditor() {
 
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Course State
     const [title, setTitle] = useState('');
@@ -26,6 +30,36 @@ export default function CourseEditor() {
     // Lesson Editor State
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
     const [lessonForm, setLessonForm] = useState({ title: '', videoUrl: '', content: '' });
+
+    const uploadMutation = useUploadFileMutation({
+        onSuccess: (data) => {
+            setUploadingImage(false);
+            showToast({ message: 'Imagen subida correctamente', status: 'success' });
+            setThumbnail(data.filepath);
+        },
+        onError: (error) => {
+            setUploadingImage(false);
+            console.error('Upload failed', error);
+            showToast({ message: 'Error al subir la imagen', status: 'error' });
+        }
+    });
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setUploadingImage(true);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('endpoint', 'default');
+            formData.append('file_id', crypto.randomUUID());
+            formData.append('version', '1');
+
+            uploadMutation.mutate(formData);
+
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     useEffect(() => {
         if (!isNew) {
@@ -224,14 +258,50 @@ export default function CourseEditor() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL de la Miniatura (Imagen)</label>
-                                <input
-                                    type="text"
-                                    value={thumbnail}
-                                    onChange={(e) => setThumbnail(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="https://ejemplo.com/imagen.jpg"
-                                />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Miniatura del Curso (Imagen)
+                                </label>
+                                <div className="flex gap-2 items-start mt-1">
+                                    <div className="flex-1">
+                                        <div
+                                            className="w-full flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            {uploadingImage ? (
+                                                <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                                            ) : (
+                                                <ImageIcon className="w-5 h-5 text-gray-400" />
+                                            )}
+                                            <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
+                                                {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
+                                            </span>
+                                            {thumbnail && !uploadingImage && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setThumbnail('');
+                                                    }}
+                                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500"
+                                                    title="Eliminar imagen"
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleFileSelect}
+                                            className="hidden"
+                                            accept="image/*"
+                                        />
+                                    </div>
+                                    {thumbnail && (
+                                        <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                                            <img src={thumbnail.startsWith('http') ? thumbnail : `/api/files/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiquetas (separadas por coma)</label>
@@ -316,7 +386,7 @@ export default function CourseEditor() {
 
             {/* Lesson Editor Modal Overlay */}
             {editingLessonId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h3 className="font-bold text-lg">

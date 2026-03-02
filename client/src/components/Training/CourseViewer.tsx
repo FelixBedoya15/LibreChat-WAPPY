@@ -211,24 +211,38 @@ export default function CourseViewer() {
                                 </h2>
 
                                 {activeLesson.videoUrl && (
-                                    <div className="aspect-w-16 aspect-h-9 mb-8 bg-black rounded-xl overflow-hidden shadow-lg relative">
-                                        {/* A simple implementation. In production, parsing logic for YouTube/Vimeo embeds might be needed */}
-                                        {activeLesson.videoUrl.includes('youtube.com/watch?v=') ? (
-                                            <iframe
-                                                src={activeLesson.videoUrl.replace('watch?v=', 'embed/')}
-                                                title={activeLesson.title}
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                allowFullScreen
-                                                className="w-full h-full absolute inset-0"
-                                            ></iframe>
-                                        ) : (
-                                            <div className="flex items-center justify-center h-full flex-col text-gray-400">
-                                                <PlayCircle className="w-16 h-16 mb-4 opacity-50" />
-                                                <a href={activeLesson.videoUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
-                                                    Abrir Video en nueva pestaña
-                                                </a>
-                                            </div>
-                                        )}
+                                    <div className="aspect-video mb-8 bg-black rounded-xl overflow-hidden shadow-lg relative">
+                                        {(() => {
+                                            let embedUrl = '';
+                                            const url = activeLesson.videoUrl;
+                                            if (url.includes('youtube.com/watch?v=')) {
+                                                const videoId = url.split('v=')[1]?.split('&')[0];
+                                                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                                            } else if (url.includes('youtu.be/')) {
+                                                const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+                                                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                                            }
+
+                                            if (embedUrl) {
+                                                return (
+                                                    <iframe
+                                                        src={embedUrl}
+                                                        title={activeLesson.title}
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowFullScreen
+                                                        className="w-full h-full absolute inset-0"
+                                                    ></iframe>
+                                                );
+                                            }
+                                            return (
+                                                <div className="flex items-center justify-center h-full w-full flex-col text-gray-400 absolute inset-0">
+                                                    <PlayCircle className="w-16 h-16 mb-4 opacity-50" />
+                                                    <a href={url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
+                                                        Abrir Video en nueva pestaña
+                                                    </a>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
 

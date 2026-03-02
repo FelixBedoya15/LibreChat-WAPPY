@@ -121,7 +121,7 @@ export default function TrainingAdminDashboard() {
                                                 <th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                                                     <div className="flex items-center gap-3">
                                                         {course.thumbnail ? (
-                                                            <img src={course.thumbnail} alt="thumb" className="w-10 h-10 rounded object-cover bg-gray-100" />
+                                                            <img src={course.thumbnail.startsWith('http') ? course.thumbnail : `/api/files/images/${course.thumbnail.split('/').pop()}`} alt="thumb" className="w-10 h-10 rounded object-cover bg-gray-100" />
                                                         ) : (
                                                             <div className="w-10 h-10 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-500">
                                                                 <BookOpen className="w-5 h-5" />
