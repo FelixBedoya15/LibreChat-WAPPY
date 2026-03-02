@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Plus, Trash2, Sparkles, Save, History, Loader2,
-    ChevronDown, ChevronRight, AlertTriangle, Shield,
-    Database, Zap, FileText, LayoutList, Layers,
+    Loader2, AlertTriangle, Shield, Zap, Layers,
 } from 'lucide-react';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
@@ -674,7 +673,7 @@ const MatrizPeligrosGTC45 = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                        <LayoutList className="h-6 w-6" />
+                        <AnimatedIcon name="layout-list" size={24} />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Matriz de Peligros (GTC 45)</h2>
@@ -684,23 +683,23 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={handleGenerateFull} disabled={isGeneratingFull}
                         className="group flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50">
-                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5" />}
+                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="sparkles" size={20} className="mr-2" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Matriz con IA</span>
                     </button>
                     <button onClick={handleSaveData} disabled={isSaving}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="database" size={20} className="text-gray-500 mr-2" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
                     </button>
                     <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary'}`}>
-                        <History className="h-5 w-5" />
+                        <AnimatedIcon name="history" size={20} className="mr-2" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Historial</span>
                     </button>
                     {procesos.length > 0 && (
                         <button onClick={handleAnalyze} disabled={isAnalyzing}
                             className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin text-indigo-500" /> : <Sparkles className="h-5 w-5 text-indigo-500" />}
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin text-indigo-500 mr-2" /> : <AnimatedIcon name="sparkles" size={20} className="text-indigo-500 mr-2" />}
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
                         </button>
                     )}
@@ -737,7 +736,7 @@ const MatrizPeligrosGTC45 = () => {
                                 <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleProceso(p.id)}>
                                     <div className="flex items-center gap-3">
                                         <div className="text-blue-500">
-                                            {expandedProcesos.has(p.id) ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                            {expandedProcesos.has(p.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-text-primary text-base">
@@ -750,11 +749,11 @@ const MatrizPeligrosGTC45 = () => {
                                     <div className="flex items-center gap-2">
                                         <button onClick={(e) => { e.stopPropagation(); handleAddPeligro(p.id); }}
                                             className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors">
-                                            <Plus className="h-4 w-4" />
+                                            <AnimatedIcon name="plus" size={16} />
                                         </button>
                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteProceso(p.id); }}
                                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                            <Trash2 className="h-4 w-4" />
+                                            <AnimatedIcon name="trash" size={16} />
                                         </button>
                                     </div>
                                 </div>
@@ -837,7 +836,7 @@ const MatrizPeligrosGTC45 = () => {
                                                     <div key={h.id} className={`rounded-xl border ${hStyle.border} overflow-hidden transition-all duration-200`}>
                                                         <div className={`p-3 flex items-center justify-between cursor-pointer ${hStyle.bg}`} onClick={() => togglePeligro(h.id)}>
                                                             <div className="flex items-center gap-3">
-                                                                <div className="text-text-secondary">{isHExp ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</div>
+                                                                <div className="text-text-secondary">{isHExp ? <AnimatedIcon name="chevron-down" size={16} /> : <AnimatedIcon name="chevron-right" size={16} />}</div>
                                                                 <div>
                                                                     <span className="text-sm font-bold text-text-primary">{hIdx + 1}. {h.descripcionPeligro || 'Peligro No Identificado'}</span>
                                                                     {h.completedByAI && (
@@ -853,12 +852,12 @@ const MatrizPeligrosGTC45 = () => {
                                                             <div className="flex items-center gap-2">
                                                                 <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); }} disabled={loadingIds.has(h.id)}
                                                                     className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1">
-                                                                    {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                                                    {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <AnimatedIcon name="sparkles" size={12} />}
                                                                     IA
                                                                 </button>
                                                                 <button onClick={(e) => { e.stopPropagation(); handleDeletePeligro(p.id, h.id); }}
                                                                     className="text-red-400 hover:text-red-600 p-1">
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <AnimatedIcon name="trash" size={16} />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -1072,7 +1071,7 @@ const MatrizPeligrosGTC45 = () => {
 
                 <button onClick={handleAddProceso}
                     className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-blue-500 transition-all">
-                    <Plus className="h-5 w-5" />
+                    <AnimatedIcon name="plus" size={20} />
                     <span className="font-bold">Agregar Nuevo Proceso</span>
                 </button>
             </div>
@@ -1083,7 +1082,7 @@ const MatrizPeligrosGTC45 = () => {
                         <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
                         <div className="flex items-center gap-2">
                             <button onClick={handleSaveReport} className="group flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-300 text-sm font-bold">
-                                <Save className="h-4 w-4" />
+                                <AnimatedIcon name="save" size={16} className="mr-2" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
                             </button>
                             <ExportDropdown

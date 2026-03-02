@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Plus, Trash2, Sparkles, Save, History, Loader2,
-    ChevronDown, ChevronRight, QrCode, FileText, LayoutList, Database,
+    Loader2,
 } from 'lucide-react';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
@@ -253,7 +253,7 @@ const PerfilSociodemografico = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                        <LayoutList className="h-6 w-6" />
+                        <AnimatedIcon name="layout-list" size={24} />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Perfil Sociodemográfico</h2>
@@ -263,23 +263,23 @@ const PerfilSociodemografico = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={handleGenerateDummy} disabled={isGeneratingFull}
                         className="group flex items-center px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50">
-                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5" />}
+                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="sparkles" size={20} className="mr-2" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar con IA</span>
                     </button>
                     <button onClick={handleSaveData} disabled={isSaving}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="database" size={20} className="text-gray-500 mr-2" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
                     </button>
                     <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary'}`}>
-                        <History className="h-5 w-5" />
+                        <AnimatedIcon name="history" size={20} className="mr-2" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Historial</span>
                     </button>
                     {trabajadores.length > 0 && (
                         <button onClick={handleAnalyze} disabled={isAnalyzing}
                             className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin text-indigo-500" /> : <Sparkles className="h-5 w-5 text-indigo-500" />}
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin text-indigo-500 mr-2" /> : <AnimatedIcon name="sparkles" size={20} className="text-indigo-500 mr-2" />}
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
                         </button>
                     )}
@@ -320,7 +320,7 @@ const PerfilSociodemografico = () => {
                                 <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleWorker(w.id)}>
                                     <div className="flex items-center gap-3">
                                         <div className="text-teal-500">
-                                            {expandedWorkers.has(w.id) ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                            {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-text-primary text-base">
@@ -335,12 +335,12 @@ const PerfilSociodemografico = () => {
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
                                             title="Ver Carnet QR">
-                                            <QrCode className="h-4 w-4" />
+                                            <AnimatedIcon name="qrcode" size={18} />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteWorker(w.id); }}
                                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                            <Trash2 className="h-4 w-4" />
+                                            <AnimatedIcon name="trash" size={18} />
                                         </button>
                                     </div>
                                 </div>
@@ -447,7 +447,7 @@ const PerfilSociodemografico = () => {
                         {/* Add Worker Button */}
                         <button onClick={handleAddWorker}
                             className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-teal-500 transition-all">
-                            <Plus className="h-5 w-5" />
+                            <AnimatedIcon name="plus" size={20} />
                             <span className="font-bold">Agregar Nuevo Trabajador</span>
                         </button>
                     </>
@@ -459,14 +459,14 @@ const PerfilSociodemografico = () => {
                 <div className="mt-8 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-indigo-500" />
+                            <AnimatedIcon name="file-text" size={20} className="text-indigo-500" />
                             Vista Previa del Informe Sociodemográfico
                         </h3>
                         <div className="flex items-center gap-2">
                             <button onClick={handleSaveReport}
                                 className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-all duration-300 text-sm font-bold shadow-sm">
-                                <Save className="h-4 w-4" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                                <AnimatedIcon name="save" size={16} className="mr-2" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Guardar Informe</span>
                             </button>
                             <ExportDropdown
                                 content={editorContent || generatedReport || ''}
@@ -517,7 +517,7 @@ const PerfilSociodemografico = () => {
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-slate-800 to-indigo-900 text-white p-5 text-center">
                             <div className="inline-flex items-center justify-center w-12 h-12 bg-white/10 rounded-full mb-3">
-                                <QrCode className="h-6 w-6" />
+                                <AnimatedIcon name="qrcode" size={24} />
                             </div>
                             <h3 className="font-bold text-lg">{selectedQrWorker.nombre || 'Trabajador'}</h3>
                             <p className="text-sm text-slate-300 mt-1">{selectedQrWorker.cargo || 'Sin cargo'}</p>

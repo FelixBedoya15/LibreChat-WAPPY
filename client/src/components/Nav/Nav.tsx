@@ -10,7 +10,6 @@ import {
   useAuthContext,
   useLocalStorage,
   useNavScrolling,
-  useNavScrolling,
   useLocationSystem,
 } from '~/hooks';
 import useRolePermissions from '~/hooks/Roles/useRolePermissions';
