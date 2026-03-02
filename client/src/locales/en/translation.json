@@ -1476,6 +1476,8 @@
   "com_ui_view_image_in_dialog": "View {{0}} in dialog",
   "com_ui_risk_analysis": "Risk Analysis",
   "com_ui_updated_at": "Updated:",
+  "com_ui_update_dates": "Update Dates",
+  "com_ui_users_selected": "users selected",
   "com_ui_refresh_list": "Refresh list",
   "com_ui_no_reports": "No reports available.",
   "com_ui_report": "Report",

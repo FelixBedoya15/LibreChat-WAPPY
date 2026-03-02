@@ -186,13 +186,13 @@ export default function UserManagementTable() {
             {selectedUsers.size > 0 && (
                 <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-2 px-4 rounded-md border border-blue-200 dark:border-blue-800">
                     <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                        {selectedUsers.size} users selected
+                        {selectedUsers.size} {localize('com_ui_users_selected')}
                     </span>
                     <button
                         onClick={() => setIsBulkUpdateModalOpen(true)}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
                     >
-                        Update Dates
+                        {localize('com_ui_update_dates')}
                     </button>
                 </div>
             )}
