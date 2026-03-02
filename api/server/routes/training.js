@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const checkBalance = require('../middleware/checkBalance');
+const requireJwtAuth = require('../middleware/requireJwtAuth');
 const { getCourses, getCourseById, markLessonComplete } = require('../controllers/TrainingController');
 
-// All endpoints require authentication (assumed handled by parent router)
-router.get('/courses', checkBalance, getCourses);
-router.get('/courses/:id', checkBalance, getCourseById);
-router.post('/progress', checkBalance, markLessonComplete);
+// All endpoints require authentication
+router.get('/courses', requireJwtAuth, getCourses);
+router.get('/courses/:id', requireJwtAuth, getCourseById);
+router.post('/progress', requireJwtAuth, markLessonComplete);
 
 module.exports = router;
