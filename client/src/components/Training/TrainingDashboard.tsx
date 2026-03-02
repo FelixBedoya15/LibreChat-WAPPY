@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { BookOpen, CheckCircle, Clock } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Shield } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 export default function TrainingDashboard() {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const { showToast } = useToastContext();
     const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const isAdmin = user?.role === 'ADMIN';
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -41,16 +44,28 @@ export default function TrainingDashboard() {
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
             {/* Header section matching LibreChat styling */}
             <div className="flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div className="max-w-6xl mx-auto flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg">
-                        <BookOpen className="w-8 h-8" />
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg">
+                            <BookOpen className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Aula de estudio</h1>
+                            <p className="mt-1 text-gray-500 dark:text-gray-400">
+                                Bienvenido a tu plataforma de capacitación. Selecciona un curso para continuar tu aprendizaje.
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Aula de estudio</h1>
-                        <p className="mt-1 text-gray-500 dark:text-gray-400">
-                            Bienvenido a tu plataforma de capacitación. Selecciona un curso para continuar tu aprendizaje.
-                        </p>
-                    </div>
+
+                    {isAdmin && (
+                        <button
+                            onClick={() => navigate('/training/admin')}
+                            className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 dark:text-gray-900 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm self-start md:self-auto"
+                        >
+                            <Shield className="w-4 h-4" />
+                            Administrar Cursos
+                        </button>
+                    )}
                 </div>
             </div>
 

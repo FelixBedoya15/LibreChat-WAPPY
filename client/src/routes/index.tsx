@@ -25,6 +25,8 @@ import ChatRoute from './ChatRoute';
 import LivePage from '~/components/Liva/LivePage';
 import TrainingDashboard from '~/components/Training/TrainingDashboard';
 import CourseViewer from '~/components/Training/CourseViewer';
+import TrainingAdminDashboard from '~/components/Training/TrainingAdminDashboard';
+import CourseEditor from '~/components/Training/CourseEditor';
 import Search from './Search';
 import Root from './Root';
 
@@ -144,6 +146,14 @@ export const router = createBrowserRouter(
             {
               path: 'training',
               element: <TrainingDashboard />,
+            },
+            {
+              path: 'training/admin',
+              element: <TrainingAdminDashboard />,
+            },
+            {
+              path: 'training/admin/courses/:id',
+              element: <CourseEditor />,
             },
             {
               path: 'training/:courseId',
