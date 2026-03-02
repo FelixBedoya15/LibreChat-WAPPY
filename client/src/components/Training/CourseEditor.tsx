@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
-import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2, ClipboardCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useRef } from 'react';
 import remarkGfm from 'remark-gfm';
+import ExamEditorModal, { Exam } from './ExamEditorModal';
 
 export default function CourseEditor() {
     const { id } = useParams();
@@ -27,9 +28,14 @@ export default function CourseEditor() {
     const [isPublished, setIsPublished] = useState(false);
     const [lessons, setLessons] = useState<any[]>([]);
 
+    // Exam Editor State
+    const [showCourseExamModal, setShowCourseExamModal] = useState(false);
+    const [courseExam, setCourseExam] = useState<Exam | null>(null);
+    const [showLessonExamModal, setShowLessonExamModal] = useState(false);
+
     // Lesson Editor State
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-    const [lessonForm, setLessonForm] = useState({ title: '', videoUrl: '', content: '' });
+    const [lessonForm, setLessonForm] = useState<{ title: string; videoUrl: string; content: string; exam?: Exam }>({ title: '', videoUrl: '', content: '' });
 
     const uploadMutation = useUploadFileMutation({
         onSuccess: (data) => {
@@ -79,6 +85,7 @@ export default function CourseEditor() {
             setThumbnail(data.thumbnail || '');
             setTagsText((data.tags || []).join(', '));
             setIsPublished(data.isPublished || false);
+            setCourseExam(data.exam || null);
 
             // Sort lessons
             const sortedLessons = (data.lessons || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
@@ -105,7 +112,8 @@ export default function CourseEditor() {
                 description,
                 thumbnail,
                 tags: tagsText.split(',').map(t => t.trim()).filter(Boolean),
-                isPublished
+                isPublished,
+                exam: courseExam
             };
 
             if (isNew) {
@@ -145,7 +153,7 @@ export default function CourseEditor() {
             // Refresh course to get new lesson IDs
             fetchCourse();
             setEditingLessonId(null);
-            setLessonForm({ title: '', videoUrl: '', content: '' });
+            setLessonForm({ title: '', videoUrl: '', content: '', exam: undefined });
         } catch (error) {
             console.error('Error saving lesson:', error);
             showToast({ message: 'Error al guardar la lección.', status: 'error' });
@@ -171,11 +179,12 @@ export default function CourseEditor() {
             setLessonForm({
                 title: lesson.title || '',
                 videoUrl: lesson.videoUrl || '',
-                content: lesson.content || ''
+                content: lesson.content || '',
+                exam: lesson.exam || undefined
             });
         } else {
             setEditingLessonId('new');
-            setLessonForm({ title: '', videoUrl: '', content: '' });
+            setLessonForm({ title: '', videoUrl: '', content: '', exam: undefined });
         }
     };
 
@@ -318,6 +327,17 @@ export default function CourseEditor() {
                                 </div>
                             </div>
 
+                            {/* Course Exam Button */}
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <button
+                                    onClick={() => setShowCourseExamModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-lg transition-colors font-medium text-sm"
+                                >
+                                    <ClipboardCheck className="w-5 h-5" />
+                                    {courseExam?.isEnabled ? 'Editar Examen General (Habilitado)' : 'Configurar Examen General'}
+                                </button>
+                            </div>
+
                         </div>
                     </div>
 
@@ -442,6 +462,17 @@ export default function CourseEditor() {
                                     </div>
                                 </div>
                             </div>
+
+                            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
+                                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Evaluación de la Lección</label>
+                                <button
+                                    onClick={() => setShowLessonExamModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors font-medium text-sm border border-indigo-200 dark:border-indigo-800 shadow-sm"
+                                >
+                                    <ClipboardCheck className="w-5 h-5" />
+                                    {lessonForm.exam?.isEnabled ? 'Editar Examen de Lección (Habilitado)' : 'Configurar Examen de Lección'}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-end gap-3">
@@ -464,6 +495,30 @@ export default function CourseEditor() {
                     </div>
                 </div>
             )}
+
+            {/* Exam Editor Modal for Course */}
+            <ExamEditorModal
+                isOpen={showCourseExamModal}
+                onClose={() => setShowCourseExamModal(false)}
+                onSave={(exam) => {
+                    setCourseExam(exam);
+                    setShowCourseExamModal(false);
+                }}
+                initialExam={courseExam}
+                title="Examen General del Curso"
+            />
+
+            {/* Exam Editor Modal for Lesson */}
+            <ExamEditorModal
+                isOpen={showLessonExamModal}
+                onClose={() => setShowLessonExamModal(false)}
+                onSave={(exam) => {
+                    setLessonForm({ ...lessonForm, exam });
+                    setShowLessonExamModal(false);
+                }}
+                initialExam={lessonForm.exam}
+                title={`Examen de Lección: ${lessonForm.title || 'Nueva Lección'}`}
+            />
         </div>
     );
 }

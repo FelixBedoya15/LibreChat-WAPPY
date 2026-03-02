@@ -254,6 +254,21 @@ export default function CourseViewer() {
                                     </div>
                                 )}
 
+                                {activeLesson.exam?.isEnabled && (
+                                    <div className="mt-8 p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 flex flex-col items-center text-center">
+                                        <div className="w-16 h-16 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 shadow-sm border border-indigo-100 dark:border-indigo-700">
+                                            <span className="text-2xl">📝</span>
+                                        </div>
+                                        <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-100 mb-2">{activeLesson.exam.title || 'Evaluación de Lección'}</h3>
+                                        <p className="text-indigo-700 dark:text-indigo-300 max-w-xl mx-auto mb-6">
+                                            {activeLesson.exam.description || 'Para validar tu aprendizaje y completar esta lección, debes aprobar esta evaluación.'}
+                                        </p>
+                                        <button className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all" onClick={() => alert('La función para presentar exámenes estará disponible pronto!')}>
+                                            Comenzar Examen ({activeLesson.exam.questions?.length || 0} preguntas)
+                                        </button>
+                                    </div>
+                                )}
+
                                 {/* Bottom Navigation / Actions */}
                                 <div className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
                                     <button
