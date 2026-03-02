@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered,
     AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon,
-    PenTool, Trash2, Maximize, Minimize, Move, Layers, ArrowUp, ArrowDown, X
+    PenTool, Trash2, Maximize, Minimize, Move, Layers, ArrowUp, ArrowDown, X,
+    Plus, Minus, Table as TableIcon, Layout, ChevronRight, ChevronDown, Palette
 } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 
@@ -22,6 +23,10 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
     const [imageToolbarPos, setImageToolbarPos] = useState({ top: 0, left: 0 });
+    const [selectedTableCell, setSelectedTableCell] = useState<HTMLTableCellElement | null>(null);
+    const [tableToolbarPos, setTableToolbarPos] = useState({ top: 0, left: 0 });
+    const [selectedGraphic, setSelectedGraphic] = useState<HTMLDivElement | null>(null);
+    const [graphicToolbarPos, setGraphicToolbarPos] = useState({ top: 0, left: 0 });
 
     useEffect(() => {
         // Load signatures from localStorage on mount
@@ -99,13 +104,11 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
     useEffect(() => {
         const handleDocClick = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
+
             if (target.tagName === 'IMG' && editorRef.current?.contains(target)) {
                 const img = target as HTMLImageElement;
-
-                // Remove selected attribute from any previously selected image
-                editorRef.current.querySelectorAll('img').forEach(i => i.removeAttribute('data-selected'));
+                clearSelections();
                 img.setAttribute('data-selected', 'true');
-
                 setSelectedImage(img);
                 const rect = img.getBoundingClientRect();
                 const editorRect = editorRef.current.getBoundingClientRect();
@@ -113,10 +116,40 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     top: rect.top - editorRect.top - 50 + editorRef.current.scrollTop,
                     left: rect.left - editorRect.left
                 });
-            } else if (!target.closest('.image-toolbar') && !target.closest('.signature-modal')) {
-                editorRef.current?.querySelectorAll('img').forEach(i => i.removeAttribute('data-selected'));
-                setSelectedImage(null);
+            } else if (target.closest('td, th') && editorRef.current?.contains(target)) {
+                const cell = target.closest('td, th') as HTMLTableCellElement;
+                clearSelections();
+                cell.setAttribute('data-selected', 'true');
+                setSelectedTableCell(cell);
+                const rect = cell.getBoundingClientRect();
+                const editorRect = editorRef.current!.getBoundingClientRect();
+                setTableToolbarPos({
+                    top: rect.top - editorRect.top - 50 + editorRef.current!.scrollTop,
+                    left: rect.left - editorRect.left
+                });
+            } else if (target.closest('.progress-bar-container, [style*="width:"]') && editorRef.current?.contains(target)) {
+                const graphic = target.closest('div') as HTMLDivElement;
+                if (graphic.style.width || graphic.classList.contains('progress-bar')) {
+                    clearSelections();
+                    graphic.setAttribute('data-selected', 'true');
+                    setSelectedGraphic(graphic);
+                    const rect = graphic.getBoundingClientRect();
+                    const editorRect = editorRef.current!.getBoundingClientRect();
+                    setGraphicToolbarPos({
+                        top: rect.top - editorRect.top - 60 + editorRef.current!.scrollTop,
+                        left: rect.left - editorRect.left
+                    });
+                }
+            } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.signature-modal')) {
+                clearSelections();
             }
+        };
+
+        const clearSelections = () => {
+            editorRef.current?.querySelectorAll('img, td, th, div').forEach(i => i.removeAttribute('data-selected'));
+            setSelectedImage(null);
+            setSelectedTableCell(null);
+            setSelectedGraphic(null);
         };
 
         const editor = editorRef.current;
@@ -170,6 +203,90 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
         if (!selectedImage) return;
         selectedImage.remove();
         setSelectedImage(null);
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    // Table manipulation functions
+    const addTableRow = (where: 'above' | 'below') => {
+        if (!selectedTableCell) return;
+        const row = selectedTableCell.parentElement as HTMLTableRowElement;
+        const table = row.parentElement as HTMLTableSectionElement;
+        const newRow = table.insertRow(where === 'above' ? row.rowIndex : row.rowIndex + 1);
+        for (let i = 0; i < row.cells.length; i++) {
+            const newCell = newRow.insertCell(i);
+            newCell.innerHTML = '&nbsp;';
+        }
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const addTableCol = (where: 'left' | 'right') => {
+        if (!selectedTableCell) return;
+        const table = selectedTableCell.closest('table') as HTMLTableElement;
+        const colIndex = selectedTableCell.cellIndex;
+        const targetIndex = where === 'left' ? colIndex : colIndex + 1;
+
+        for (let i = 0; i < table.rows.length; i++) {
+            const row = table.rows[i];
+            const newCell = row.insertCell(targetIndex);
+            newCell.innerHTML = '&nbsp;';
+        }
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const deleteTableRow = () => {
+        if (!selectedTableCell) return;
+        const row = selectedTableCell.parentElement as HTMLTableRowElement;
+        const table = row.closest('table') as HTMLTableElement;
+        if (table.rows.length > 1) {
+            table.deleteRow(row.rowIndex);
+            setSelectedTableCell(null);
+            onUpdate(editorRef.current?.innerHTML || '');
+        }
+    };
+
+    const deleteTableCol = () => {
+        if (!selectedTableCell) return;
+        const table = selectedTableCell.closest('table') as HTMLTableElement;
+        const colIndex = selectedTableCell.cellIndex;
+        if (table.rows[0].cells.length > 1) {
+            for (let i = 0; i < table.rows.length; i++) {
+                table.rows[i].deleteCell(colIndex);
+            }
+            setSelectedTableCell(null);
+            onUpdate(editorRef.current?.innerHTML || '');
+        }
+    };
+
+    const deleteTable = () => {
+        if (!selectedTableCell) return;
+        const table = selectedTableCell.closest('table');
+        table?.remove();
+        setSelectedTableCell(null);
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const resizeColumn = (direction: 'wider' | 'narrower') => {
+        if (!selectedTableCell) return;
+        const colIndex = selectedTableCell.cellIndex;
+        const table = selectedTableCell.closest('table') as HTMLTableElement;
+        // We only apply widths to the first row of cells (usually headers)
+        const headerCell = table.rows[0].cells[colIndex];
+        const currentWidth = headerCell.offsetWidth;
+        const newWidth = direction === 'wider' ? currentWidth + 20 : Math.max(20, currentWidth - 20);
+        headerCell.style.width = `${newWidth}px`;
+        headerCell.style.minWidth = `${newWidth}px`;
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    // Graphic manipulation functions
+    const updateGraphic = (percent: number, color?: string) => {
+        if (!selectedGraphic) return;
+        const innerBar = selectedGraphic.querySelector('div') || selectedGraphic;
+        if (color) {
+            innerBar.style.backgroundColor = color;
+        }
+        innerBar.style.width = `${percent}%`;
+        innerBar.innerText = `${percent}%`;
         onUpdate(editorRef.current?.innerHTML || '');
     };
 
@@ -336,6 +453,58 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                         </button>
                     </div>
                 )}
+
+                {/* Floating Table Toolbar */}
+                {selectedTableCell && (
+                    <div
+                        className="table-toolbar absolute z-50 bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex flex-wrap items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-200"
+                        style={{
+                            top: `${Math.max(10, tableToolbarPos.top)}px`,
+                            left: `${Math.max(10, Math.min(tableToolbarPos.left, (editorRef.current?.clientWidth || 0) - 400))}px`
+                        }}
+                    >
+                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                            <ToolbarButton icon={Plus} onClick={() => addTableRow('above')} label="Fila Arriba" />
+                            <ToolbarButton icon={Plus} onClick={() => addTableRow('below')} label="Fila Abajo" />
+                            <ToolbarButton icon={Trash2} onClick={deleteTableRow} label="Eliminar Fila" />
+                        </div>
+                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                            <ToolbarButton icon={ChevronRight} onClick={() => addTableCol('right')} label="Columna Derecha" />
+                            <ToolbarButton icon={Trash2} onClick={deleteTableCol} label="Eliminar Columna" />
+                        </div>
+                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                            <ToolbarButton icon={Maximize} onClick={() => resizeColumn('wider')} label="Más Ancho" />
+                            <ToolbarButton icon={Minimize} onClick={() => resizeColumn('narrower')} label="Menos Ancho" />
+                        </div>
+                        <button onClick={deleteTable} className="p-1 px-2 text-red-500 hover:bg-red-50 rounded text-xs font-bold" title="Eliminar Tabla">TABLA</button>
+                        <button onClick={() => setSelectedTableCell(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
+                    </div>
+                )}
+
+                {/* Floating Graphic/Progress Toolbar */}
+                {selectedGraphic && (
+                    <div
+                        className="graphic-toolbar absolute z-50 bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200"
+                        style={{
+                            top: `${Math.max(10, graphicToolbarPos.top)}px`,
+                            left: `${Math.max(10, Math.min(graphicToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                        }}
+                    >
+                        <input
+                            type="range"
+                            min="0" max="100"
+                            defaultValue={parseInt(selectedGraphic.style.width) || 0}
+                            onChange={(e) => updateGraphic(parseInt(e.target.value))}
+                            className="w-24 accent-blue-600"
+                        />
+                        <div className="flex gap-1">
+                            <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#22c55e')} className="w-5 h-5 rounded-full bg-green-500 border border-white/20" title="Verde" />
+                            <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#eab308')} className="w-5 h-5 rounded-full bg-yellow-500 border border-white/20" title="Amarillo" />
+                            <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#ef4444')} className="w-5 h-5 rounded-full bg-red-500 border border-white/20" title="Rojo" />
+                        </div>
+                        <button onClick={() => setSelectedGraphic(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
+                    </div>
+                )}
                 <div
                     ref={editorRef}
                     className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content"
@@ -430,12 +599,19 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     outline: 2px solid #3b82f6;
                     outline-offset: 4px;
                 }
-                .live-editor-content img[data-selected="true"] {
+                .live-editor-content img[data-selected="true"],
+                .live-editor-content td[data-selected="true"],
+                .live-editor-content th[data-selected="true"],
+                .live-editor-content div[data-selected="true"] {
                     outline: 3px solid #3b82f6 !important;
-                    outline-offset: 6px;
-                    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+                    outline-offset: -3px;
+                    box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.2);
                 }
-                .image-toolbar {
+                .live-editor-content td[data-selected="true"],
+                .live-editor-content th[data-selected="true"] {
+                    background-color: rgba(59, 130, 246, 0.05) !important;
+                }
+                .image-toolbar, .table-toolbar, .graphic-toolbar {
                     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
                     backdrop-filter: blur(8px);
                 }
