@@ -112,6 +112,23 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
     };
 
     /**
+     * Download as HTML file.
+     */
+    const handleDownloadHtml = () => {
+        const fullHtml = buildFullHtml();
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsOpen(false);
+    };
+
+    /**
      * Export as Word (.doc) — uses MHTML format which Word can open with full styling.
      * This preserves tables, colors, fonts, and layout.
      */
@@ -167,6 +184,12 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
             icon: Globe,
             handler: handleExportHtml,
             description: 'Vista completa con estilos',
+        },
+        {
+            label: 'Descargar HTML (.html)',
+            icon: FileDown,
+            handler: handleDownloadHtml,
+            description: 'Archivo HTML independiente',
         },
         {
             label: 'Descargar Word (.doc)',
