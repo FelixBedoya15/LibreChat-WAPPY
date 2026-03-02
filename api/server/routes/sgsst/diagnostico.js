@@ -217,7 +217,8 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
      "Se identificó que [DESCRIBIR LO ENCONTRADO / EVIDENCIA DEL AUDITOR], lo cual incumple lo establecido en [NORMA + ARTÍCULO ESPECÍFICO del CRITERIO NORMATIVO]."
      Ejemplo: "Se identificó que la empresa no cuenta con auditoría anual del SG-SST (evidencia: No cuenta con auditoría), incumpliendo lo establecido en el Decreto 1072 de 2015, Art. 2.2.4.6.29 y Resolución 0312 de 2019, Estándar E6.1.2."
     - **TABLA HTML con las siguientes columnas (SIN columna de Acción Correctiva ni Plazo — esas van en la sección del Plan de Acción):**
-      | # (NC-X / OBS-X) | Requisito/Norma (usar CRITERIO NORMATIVO completo) | Hallazgo (redacción ISO 19011 con evidencia) | Tipo (No Conformidad Mayor / No Conformidad Menor / Observación) | Responsable |
+      | # (NC-X / OBS-X) | Requisito/Norma (CRITERIO) | Hallazgo (Evidencia con redacción ISO 19011) | Tipo (Clasificación) | Responsable |
+    - **IMPORTANTE — ANCHO DE COLUMNAS:** El campo de **Hallazgo (Evidencia)** debe ser muy amplio (el doble que los demás) para permitir una explicación detallada.
     - **VERIFICACIÓN:** Antes de cerrar la tabla, cuenta las filas. Si tienes menos de ${nonCompliantItems.length + partialItems.length} filas, FALTA información. Incluye los que falten.
     - Clasifica como NC Mayor si afecta la eficacia del sistema, NC Menor si es puntual, Observación si cumple parcialmente.
     - **NO incluyas columnas de Acción Correctiva ni Plazo en esta tabla.** Esas columnas van SOLO en la tabla del Plan de Acción (sección 5).
@@ -252,14 +253,14 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 - Plan de Acción por Plazo: Inmediato (\`background-color: #ffe0e0; color: #000;\`), Corto (\`background-color: #fff0e0; color: #000;\`), Mediano (\`background-color: #fff8e0; color: #000;\`), Largo (\`background-color: #e0ffe0; color: #000;\`).
 
 **FIRMA OBLIGATORIA:**
-Al final del informe, firma estrictamente así (SIN IMÁGENES):
+Al final del informe, incluye un espacio de firma:
 <div style="margin-top: 50px; text-align: center;">
     <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
     <strong>${userName || req.user?.name || 'Auditor Líder'}</strong><br>
     Auditor Líder SG-SST (Dec. 1072/2015)<br>
     Licencia en Seguridad y Salud en el Trabajo Vigente
 </div>
-IMPORTANTE: NO incluyas ninguna etiqueta &lt;img&gt; ni placeholders de imagen para la firma. Solo texto.
+IMPORTANTE: El auditor puede usar el editor para insertar su imagen de firma digital guardada encima o debajo de esta línea si así lo desea.
 
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
 
@@ -383,14 +384,14 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 - Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo, \`color: #000;\`), Corto (#fff0e0 naranja, \`color: #000;\`), Mediano (#fff8e0 amarillo, \`color: #000;\`), Largo (#e0ffe0 verde, \`color: #000;\`).
 
 **FIRMA OBLIGATORIA:**
-Al final del informe, firma estrictamente así (SIN IMÁGENES):
+Al final del informe, incluye un espacio de firma:
 <div style="margin-top: 50px; text-align: center;">
     <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
     <strong>${userName || req.user?.name || 'Usuario del Sistema'}</strong><br>
     Consultor Experto en SG-SST (Dec. 1072/2015)<br>
     Licencia en Seguridad y Salud en el Trabajo Vigente
 </div>
-IMPORTANTE: NO incluyas ninguna etiqueta &lt;img&gt; ni placeholders de imagen para la firma. Solo texto.
+IMPORTANTE: El usuario puede usar el editor para insertar su imagen de firma digital guardada encima o debajo de esta línea si así lo desea.
 
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
         }

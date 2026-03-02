@@ -658,27 +658,12 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <style>{`
                         [contenteditable] table {
                             width: 100%;
-                            min-width: 650px;
+                            min-width: 800px;
                             border-collapse: separate;
                             border-spacing: 0;
-                            table-layout: auto;
                             border-radius: 12px;
                             overflow: hidden;
                             border: 1px solid var(--border-medium, #ddd);
-                        }
-                        [contenteditable] table td,
-                        [contenteditable] table th {
-                            padding: 8px 12px;
-                            border-bottom: 1px solid var(--border-medium, #ddd);
-                            border-right: 1px solid var(--border-medium, #eee);
-                            word-wrap: break-word;
-                        }
-                        [contenteditable] table td:last-child,
-                        [contenteditable] table th:last-child {
-                            border-right: none;
-                        }
-                        [contenteditable] table tr:last-child td {
-                            border-bottom: none;
                         }
                     `}</style>
                 </div>

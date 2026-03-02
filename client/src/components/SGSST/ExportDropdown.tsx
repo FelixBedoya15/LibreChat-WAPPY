@@ -62,6 +62,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid #ddd;
+            table-layout: fixed;
         }
         th {
             background-color: #004d99;
@@ -72,12 +73,21 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
             border-bottom: 1px solid #ddd;
             border-right: 1px solid rgba(255,255,255,0.15);
         }
+        /* Specific column widths for SGSST Reports */
+        th:nth-child(1) { width: 45px; } /* # */
+        th:nth-child(2) { width: 17%; } /* Requisito / Norma / Estándar */
+        th:nth-child(3) { width: 43%; } /* Hallazgo (Evidencia) - Double width */
+        th:nth-child(4) { width: 12%; } /* Tipo */
+        th:nth-child(5) { width: auto; } /* Responsable */
+
         th:last-child { border-right: none; }
         td {
             padding: 10px 8px;
             border-bottom: 1px solid #ddd;
             border-right: 1px solid #eee;
             vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         td:last-child { border-right: none; }
         tr:last-child td { border-bottom: none; }
