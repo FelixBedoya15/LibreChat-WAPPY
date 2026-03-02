@@ -42,17 +42,16 @@ export default function TrainingDashboard() {
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-            {/* Header section matching LibreChat styling */}
             <div className="flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg">
-                            <BookOpen className="w-8 h-8" />
+                    <div className="flex items-start md:items-center gap-4">
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg shrink-0 mt-1 md:mt-0">
+                            <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-blue-600 dark:text-blue-300" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Aula de estudio</h1>
-                            <p className="mt-1 text-gray-500 dark:text-gray-400">
-                                Bienvenido a tu plataforma de capacitación. Selecciona un curso para continuar tu aprendizaje.
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white leading-tight">Aula de estudio</h1>
+                            <p className="mt-1 text-sm md:text-base text-gray-500 dark:text-gray-400">
+                                Bienvenido a tu plataforma de capacitación. Selecciona un curso para continuar.
                             </p>
                         </div>
                     </div>

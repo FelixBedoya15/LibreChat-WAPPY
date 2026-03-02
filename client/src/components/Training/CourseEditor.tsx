@@ -3,11 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
-import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2, ClipboardCheck, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useRef } from 'react';
 import remarkGfm from 'remark-gfm';
 import ExamEditorModal, { Exam } from './ExamEditorModal';
+import ModelSelector from '../SGSST/ModelSelector';
 
 export default function CourseEditor() {
     const { id } = useParams();
@@ -36,6 +37,53 @@ export default function CourseEditor() {
     // Lesson Editor State
     const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
     const [lessonForm, setLessonForm] = useState<{ title: string; videoUrl: string; content: string; exam?: Exam }>({ title: '', videoUrl: '', content: '' });
+
+    // AI States
+    const [isGeneratingCourse, setIsGeneratingCourse] = useState(false);
+    const [courseAIModel, setCourseAIModel] = useState('gemini-3-flash-preview');
+    const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
+    const [lessonAIModel, setLessonAIModel] = useState('gemini-3-flash-preview');
+
+    const handleGenerateCourse = async () => {
+        if (!title.trim()) {
+            showToast({ message: 'Ingresa un título tentativo para generar contenido.', status: 'warning' });
+            return;
+        }
+        setIsGeneratingCourse(true);
+        try {
+            const response = await axios.post('/api/training/admin/generate', { type: 'course', prompt: title, modelName: courseAIModel });
+            if (response.data?.data) {
+                const { title: newTitle, description: newDesc, tags: newTags } = response.data.data;
+                if (newTitle) setTitle(newTitle);
+                if (newDesc) setDescription(newDesc);
+                if (newTags) setTagsText(newTags);
+                showToast({ message: 'Curso autogenerado con AI.', status: 'success' });
+            }
+        } catch (e) {
+            showToast({ message: 'Error en generación AI.', status: 'error' });
+        } finally {
+            setIsGeneratingCourse(false);
+        }
+    };
+
+    const handleGenerateLesson = async () => {
+        if (!lessonForm.title.trim()) {
+            showToast({ message: 'Ingresa un título tentativo para la lección.', status: 'warning' });
+            return;
+        }
+        setIsGeneratingLesson(true);
+        try {
+            const response = await axios.post('/api/training/admin/generate', { type: 'lesson', prompt: lessonForm.title, modelName: lessonAIModel });
+            if (response.data?.data) {
+                setLessonForm(prev => ({ ...prev, content: response.data.data }));
+                showToast({ message: 'Lección autogenerada.', status: 'success' });
+            }
+        } catch (e) {
+            showToast({ message: 'Error en generación AI.', status: 'error' });
+        } finally {
+            setIsGeneratingLesson(false);
+        }
+    };
 
     const uploadMutation = useUploadFileMutation({
         onSuccess: (data) => {
@@ -338,6 +386,150 @@ export default function CourseEditor() {
                                 </button>
                             </div>
 
+                        </div>
+                    </div>
+
+                    {/* General Info */}
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden mb-8">
+                        <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <h2 className="text-xl font-bold">Información General</h2>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    onClick={handleGenerateCourse}
+                                    disabled={isGeneratingCourse || !title.trim()}
+                                    className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Generar Info del Curso con IA (Basado en el Título)"
+                                >
+                                    {isGeneratingCourse ? (
+                                        <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-5 h-5 flex-shrink-0" />
+                                    )}
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        Generar con IA
+                                    </span>
+                                </button>
+                                <ModelSelector
+                                    selectedModel={courseAIModel}
+                                    onSelectModel={setCourseAIModel}
+                                    disabled={isGeneratingCourse}
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
+                                <h2 className="text-lg font-semibold">Configuración General</h2>
+
+                                {/* Publish Toggle */}
+                                <label className="flex items-center cursor-pointer">
+                                    <span className="mr-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                        {isPublished ? 'Publicado' : 'Borrador'}
+                                    </span>
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={isPublished}
+                                            onChange={(e) => setIsPublished(e.target.checked)}
+                                        />
+                                        <div className={`block w-10 h-6 rounded-full transition-colors ${isPublished ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                                        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isPublished ? 'transform translate-x-4' : ''}`}></div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del Curso *</label>
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                    placeholder="Ej: Inducción de Seguridad..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={3}
+                                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none resize-y"
+                                    placeholder="Breve descripción de lo que aprenderán los usuarios..."
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Miniatura del Curso (Imagen)
+                                    </label>
+                                    <div className="flex gap-2 items-start mt-1">
+                                        <div className="flex-1 min-w-0">
+                                            <div
+                                                className="w-full flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                                onClick={() => fileInputRef.current?.click()}
+                                            >
+                                                {uploadingImage ? (
+                                                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                                                ) : (
+                                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                                )}
+                                                <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
+                                                    {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
+                                                </span>
+                                                {thumbnail && !uploadingImage && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setThumbnail('');
+                                                        }}
+                                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500"
+                                                        title="Eliminar imagen"
+                                                    >
+                                                        <XCircle className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleFileSelect}
+                                                className="hidden"
+                                                accept="image/*"
+                                            />
+                                        </div>
+                                        {thumbnail && (
+                                            <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                                                <img src={thumbnail.startsWith('http') || thumbnail.startsWith('/') ? thumbnail : `/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiquetas (separadas por coma)</label>
+                                    <input
+                                        type="text"
+                                        value={tagsText}
+                                        onChange={(e) => setTagsText(e.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="Seguridad, RRHH, General"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Course Exam Button */}
+                            <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <button
+                                    onClick={() => setShowCourseExamModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-lg transition-colors font-medium text-sm"
+                                >
+                                    <ClipboardCheck className="w-5 h-5" />
+                                    {courseExam?.isEnabled ? 'Editar Examen General (Habilitado)' : 'Configurar Examen General'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 

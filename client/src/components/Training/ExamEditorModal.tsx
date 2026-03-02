@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { XCircle, Plus, Trash2, Save, AlertCircle } from 'lucide-react';
+import { XCircle, Plus, Trash2, Save, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import { useToastContext } from '@librechat/client';
+import ModelSelector from '../SGSST/ModelSelector';
 
 export interface ExamQuestion {
     questionText: string;
@@ -44,7 +47,42 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
         };
     });
 
+    const { showToast } = useToastContext();
+    const [isGeneratingExam, setIsGeneratingExam] = useState(false);
+    const [examAIModel, setExamAIModel] = useState('gemini-3-flash-preview');
+
     if (!isOpen) return null;
+
+    const handleGenerateExam = async () => {
+        if (!exam.title.trim() && !exam.description.trim()) {
+            showToast({ message: 'Ingresa un título o descripción tentativa para generar el examen.', status: 'warning' });
+            return;
+        }
+        setIsGeneratingExam(true);
+        try {
+            const response = await axios.post('/api/training/admin/generate', {
+                type: 'exam',
+                prompt: exam.title || exam.description,
+                modelName: examAIModel
+            });
+            if (response.data?.data) {
+                const generatedExam = response.data.data;
+                setExam(prev => ({
+                    ...prev,
+                    title: generatedExam.title || prev.title,
+                    description: generatedExam.description || prev.description,
+                    passingScore: generatedExam.passingScore || prev.passingScore,
+                    questions: generatedExam.questions || prev.questions,
+                    isEnabled: true
+                }));
+                showToast({ message: 'Examen autogenerado con éxito.', status: 'success' });
+            }
+        } catch (e) {
+            showToast({ message: 'Error en generación AI. Verifica tu indicación.', status: 'error' });
+        } finally {
+            setIsGeneratingExam(false);
+        }
+    };
 
     const handleSave = () => {
         // Validate
@@ -114,14 +152,36 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden m-4 border border-gray-200 dark:border-gray-700">
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/80">
+                <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center bg-gray-50 dark:bg-gray-800/80 gap-4">
                     <div>
                         <h3 className="font-bold text-xl">{title}</h3>
                         <p className="text-sm text-gray-500 mt-1">Configura las preguntas, opciones y reglas para este examen.</p>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                        <XCircle className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleGenerateExam}
+                            disabled={isGeneratingExam || (!exam.title.trim() && !exam.description.trim())}
+                            className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Generar Examen con IA (Basado en el Título/Descripción)"
+                        >
+                            {isGeneratingExam ? (
+                                <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+                            ) : (
+                                <Sparkles className="w-5 h-5 flex-shrink-0" />
+                            )}
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                Generar Examen
+                            </span>
+                        </button>
+                        <ModelSelector
+                            selectedModel={examAIModel}
+                            onSelectModel={setExamAIModel}
+                            disabled={isGeneratingExam}
+                        />
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ml-2">
+                            <XCircle className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-6 overflow-y-auto flex-1 space-y-8">
@@ -234,8 +294,8 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
                                                         value={opt}
                                                         onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
                                                         className={`flex-1 rounded border px-3 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors ${q.correctOptionIndex === oIndex
-                                                                ? 'border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-900/10'
-                                                                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50'
+                                                            ? 'border-green-400 dark:border-green-500 bg-green-50/50 dark:bg-green-900/10'
+                                                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50'
                                                             }`}
                                                         placeholder={`Opción ${oIndex + 1}`}
                                                     />

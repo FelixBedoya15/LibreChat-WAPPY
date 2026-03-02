@@ -1,4 +1,7 @@
 const { Course } = require('../../models/Course');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { AuthKeys } = require('librechat-data-provider');
+const { getUserKey } = require('~/server/services/UserService');
 
 // --- Courses ---
 
@@ -177,6 +180,69 @@ const deleteLesson = async (req, res) => {
     }
 };
 
+const generateTrainingContent = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+
+        const { type, prompt, modelName } = req.body;
+
+        let resolvedApiKey;
+        try {
+            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+            try {
+                const parsed = JSON.parse(storedKey);
+                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+            } catch (pErr) {
+                resolvedApiKey = storedKey;
+            }
+        } catch (e) {
+            console.log('No user google key', e.message);
+        }
+        if (!resolvedApiKey) {
+            resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+        }
+        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+        }
+        if (!resolvedApiKey) {
+            return res.status(400).json({ error: 'No se configuró API Key de Google.' });
+        }
+
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+
+        let systemPrompt = "";
+        if (type === 'course') {
+            systemPrompt = "Actúa como un diseñador de cursos profesionales en español. Recibe un tema y genera un excelente título atractivo, una descripción de qué aprenderán los usuarios, y unas etiquetas separadas por comas. Devuélvelo estrictamente en JSON sin ningún bloque extra: { \"title\": \"...\", \"description\": \"...\", \"tags\": \"uno, dos\" }.";
+        } else if (type === 'lesson') {
+            systemPrompt = "Actúa como un creador de contenido de aprendizaje. Escribe una lección completa y detallada usando formato Markdown en español con títulos, listas, y énfasis, sobre el tema indicado. Devuelve únicamente el Markdown formateado.";
+        } else if (type === 'exam') {
+            systemPrompt = "Actúa como un diseñador instruccional. Diseña un examen de selección múltiple (de 2 a 5 preguntas) sobre el tema indicado. Devuélvelo ESTRICTAMENTE en JSON (sin usar markdown wrapping, sin texto suelto) con la siguiente estructura: { \"title\": \"Evaluación del tema\", \"description\": \"Breve descripción\", \"passingScore\": 80, \"questions\": [ { \"text\": \"Pregunta 1\", \"options\": [ { \"text\": \"Opcion A\", \"isCorrect\": false }, { \"text\": \"Opcion B\", \"isCorrect\": true } ], \"explanation\": \"Por qué es la B\" } ] }.";
+        }
+
+        const fullPrompt = `${systemPrompt}\n\nTema / Solicitud del usuario: ${prompt}`;
+        const result = await model.generateContent(fullPrompt);
+        const responseText = result.response.text();
+
+        let data = responseText;
+        if (type === 'course' || type === 'exam') {
+            try {
+                // remove codeblocks
+                const clean = data.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                data = JSON.parse(clean);
+            } catch (e) {
+                return res.status(500).json({ error: 'La IA no devolvió un formato válido.' });
+            }
+        }
+
+        res.json({ data });
+
+    } catch (error) {
+        console.error('Error generating training content:', error);
+        res.status(500).json({ error: 'Error al generar contenido (asegúrese de detallar mejor su solicitud)' });
+    }
+};
+
 module.exports = {
     getAllCoursesAdmin,
     createCourse,
@@ -184,5 +250,6 @@ module.exports = {
     deleteCourse,
     addLesson,
     updateLesson,
-    deleteLesson
+    deleteLesson,
+    generateTrainingContent
 };

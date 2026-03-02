@@ -61,26 +61,26 @@ export default function TrainingAdminDashboard() {
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
             {/* Header section */}
             <div className="flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div className="max-w-6xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start sm:items-center gap-3">
                         <button
                             onClick={() => navigate('/training')}
-                            className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
+                            className="rounded-full p-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shrink-0 mt-1 sm:mt-0"
                             aria-label="Back"
                         >
-                            <ArrowLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
+                            <ArrowLeft className="h-6 w-6 text-gray-900 dark:text-gray-300" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestión de Cursos</h1>
-                            <p className="mt-1 text-gray-500 dark:text-gray-400">
-                                Administra el contenido, crea nuevas lecciones y publica cursos.
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white leading-tight">Gestión de Cursos</h1>
+                            <p className="mt-1 text-sm md:text-base text-gray-500 dark:text-gray-400">
+                                Administra el contenido, crea lecciones y publica cursos.
                             </p>
                         </div>
                     </div>
 
                     <button
                         onClick={() => navigate('/training/admin/courses/new')}
-                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                        className="group flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm self-start sm:self-auto"
                     >
                         <Plus className="w-5 h-5 flex-shrink-0" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
