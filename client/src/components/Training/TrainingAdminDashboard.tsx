@@ -15,7 +15,7 @@ export default function TrainingAdminDashboard() {
             setLoading(true);
             const response = await axios.get('/api/training/admin/courses');
             setCourses(response.data);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching admin courses:', error);
             showToast({ message: 'Error al cargar los cursos.', status: 'error' });
             // Redirect if not admin
@@ -65,10 +65,10 @@ export default function TrainingAdminDashboard() {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate('/training')}
-                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
-                            title="Volver al Aula"
+                            className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
+                            aria-label="Back"
                         >
-                            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                            <ArrowLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
                         </button>
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Gestión de Cursos</h1>
@@ -80,10 +80,12 @@ export default function TrainingAdminDashboard() {
 
                     <button
                         onClick={() => navigate('/training/admin/courses/new')}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                     >
-                        <Plus className="w-5 h-5" />
-                        <span className="hidden sm:inline">Crear Curso</span>
+                        <Plus className="w-5 h-5 flex-shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Crear Curso
+                        </span>
                     </button>
                 </div>
             </div>
@@ -151,17 +153,21 @@ export default function TrainingAdminDashboard() {
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
                                                             onClick={() => navigate(`/training/admin/courses/${course._id}`)}
-                                                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                                                            title="Editar Curso"
+                                                            className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
                                                         >
-                                                            <Edit className="w-4 h-4" />
+                                                            <Edit className="w-4 h-4 flex-shrink-0" />
+                                                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                                Editar
+                                                            </span>
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteCourse(course._id, course.title)}
-                                                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                            title="Eliminar Curso"
+                                                            className="group flex items-center p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            <Trash2 className="w-4 h-4 flex-shrink-0" />
+                                                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                                Eliminar
+                                                            </span>
                                                         </button>
                                                     </div>
                                                 </td>

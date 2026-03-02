@@ -109,10 +109,10 @@ export default function CourseViewer() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate('/training')}
-                        className="p-1.5 hover:bg-surface-hover rounded-md text-secondary transition-colors"
-                        title="Volver al Aula"
+                        className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
+                        aria-label="Back"
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
                     </button>
                     <div className="h-6 w-px bg-light mx-1"></div>
                     <button
@@ -244,23 +244,26 @@ export default function CourseViewer() {
                                 <div className="mt-12 pt-6 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
                                     <button
                                         onClick={markCurrentComplete}
-                                        className={`
-                                            flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all shadow-md
+                                        className={`group flex items-center px-4 py-3 rounded-full transition-all duration-300 shadow-sm font-medium text-sm
                                             ${isCurrentCompleted
                                                 ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-default shadow-none'
-                                                : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg hover:-translate-y-0.5'}
+                                                : 'bg-green-500 hover:bg-green-600 text-white'}
                                         `}
                                         disabled={isCurrentCompleted}
                                     >
                                         {isCurrentCompleted ? (
                                             <>
-                                                <CheckCircle className="w-5 h-5" />
-                                                Lección Completada
+                                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                                                <span className="ml-2 whitespace-nowrap">
+                                                    Lección Completada
+                                                </span>
                                             </>
                                         ) : (
                                             <>
-                                                Marcar como Completado
-                                                <ChevronRight className="w-5 h-5" />
+                                                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                                    Marcar como Completado
+                                                </span>
                                             </>
                                         )}
                                     </button>

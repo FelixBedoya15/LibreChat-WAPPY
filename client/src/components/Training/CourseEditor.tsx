@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -154,9 +154,10 @@ export default function CourseEditor() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate('/training/admin')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                            className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
+                            aria-label="Back"
                         >
-                            <ArrowLeft className="w-5 h-5" />
+                            <ArrowLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
                         </button>
                         <h1 className="text-xl font-bold">
                             {isNew ? 'Crear Nuevo Curso' : 'Editar Curso'}
@@ -166,10 +167,12 @@ export default function CourseEditor() {
                     <button
                         onClick={handleSaveCourse}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                     >
-                        <Save className="w-4 h-4" />
-                        {saving ? 'Guardando...' : 'Guardar Curso'}
+                        <Save className="w-5 h-5 flex-shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            {saving ? 'Guardando...' : 'Guardar Curso'}
+                        </span>
                     </button>
                 </div>
 
@@ -254,9 +257,12 @@ export default function CourseEditor() {
                             </h2>
                             <button
                                 onClick={() => openLessonEditor(null)}
-                                className="flex items-center gap-1 text-sm bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                                className="group flex items-center px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                             >
-                                <Plus className="w-4 h-4" /> Agregar Lección
+                                <Plus className="w-5 h-5 flex-shrink-0" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Agregar Lección
+                                </span>
                             </button>
                         </div>
 
@@ -283,15 +289,21 @@ export default function CourseEditor() {
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => openLessonEditor(lesson)}
-                                                className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                                className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
                                             >
-                                                Editar
+                                                <Edit className="w-4 h-4 flex-shrink-0" />
+                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                    Editar
+                                                </span>
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteLesson(lesson._id)}
-                                                className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash2 className="w-4 h-4 flex-shrink-0" />
+                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                    Eliminar
+                                                </span>
                                             </button>
                                         </div>
                                     </div>
@@ -367,9 +379,12 @@ export default function CourseEditor() {
                             </button>
                             <button
                                 onClick={handleSaveLesson}
-                                className="px-5 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 font-medium"
+                                className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                             >
-                                Guardar Lección
+                                <Save className="w-5 h-5 flex-shrink-0" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Guardar Lección
+                                </span>
                             </button>
                         </div>
                     </div>
