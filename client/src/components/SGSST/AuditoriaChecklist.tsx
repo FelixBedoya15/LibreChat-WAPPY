@@ -287,6 +287,9 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
                 }
+                // Synchronize state
+                setAnalysisReport(contentToSave);
+                setEditorContent(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Auditoría guardada exitosamente', status: 'success' });
             } else {

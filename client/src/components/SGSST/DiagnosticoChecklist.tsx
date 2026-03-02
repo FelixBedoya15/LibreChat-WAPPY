@@ -297,6 +297,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 });
 
                 if (res.ok) {
+                    // Synchronize state
+                    setAnalysisReport(contentToSave);
+                    setEditorContent(contentToSave);
                     setRefreshTrigger(prev => prev + 1);
                     showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success' });
                 } else {
@@ -322,6 +325,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 const data = await res.json();
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
+                // Synchronize state
+                setAnalysisReport(contentToSave);
+                setEditorContent(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: t('com_ui_diagnostic_saved', 'Diagnóstico guardado exitosamente'), status: 'success' });
             } else {

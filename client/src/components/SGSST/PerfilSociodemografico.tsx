@@ -197,6 +197,11 @@ const PerfilSociodemografico = () => {
             if (res.ok) {
                 const data = await res.json();
                 if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
+
+                // Synchronize state
+                setGeneratedReport(content);
+                setEditorContent(content);
+
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
                 showToast({ message: 'Informe guardado', status: 'success' });

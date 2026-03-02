@@ -156,8 +156,11 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                     });
                 }
             } else if ((target.closest('.signature-placeholder') || target.innerText?.includes('FIRMADO DIGITALMENTE')) && editorRef.current?.contains(target)) {
-                const placeholder = (target.closest('.signature-placeholder') || target.closest('div')) as HTMLElement;
+                const placeholder = (target.closest('.signature-placeholder') || target.closest('div') || target.parentElement) as HTMLElement;
                 if (placeholder) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[LiveEditor] Signature placeholder clicked');
                     clearSelections();
                     setActiveSignaturePlaceholder(placeholder);
                     setIsSignatureModalOpen(true);
@@ -642,11 +645,19 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                 }
                 .signature-placeholder {
                     transition: all 0.3s ease;
+                    position: relative;
+                    z-index: 5;
+                    pointer-events: auto !important;
+                    user-select: none;
+                }
+                .signature-placeholder * {
+                    pointer-events: none; /* Make children non-blocking for click */
                 }
                 .signature-placeholder:hover {
                     background: rgba(0,77,153,0.1) !important;
                     border-color: #004d99 !important;
                     transform: scale(1.02);
+                    box-shadow: 0 4px 12px rgba(0,77,153,0.15);
                 }
             `}</style>
         </div>

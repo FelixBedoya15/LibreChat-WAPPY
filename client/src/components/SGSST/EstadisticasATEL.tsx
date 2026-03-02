@@ -242,6 +242,10 @@ const EstadisticasATEL = () => {
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
                 }
+                // Synchronize state
+                setGeneratedReport(contentToSave);
+                setEditorContent(contentToSave);
+
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Informe guardado exitosamente', status: 'success' });
             } else {

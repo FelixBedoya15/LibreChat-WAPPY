@@ -278,6 +278,10 @@ const MatrizLegal = () => {
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
                 }
+                // Synchronize state
+                setGeneratedMatrix(content);
+                setEditorContent(content);
+
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
                 showToast({ message: 'Documento guardado en historial', status: 'success' });
