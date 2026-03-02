@@ -155,10 +155,13 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                         left: rect.left - editorRect.left
                     });
                 }
-            } else if (target.closest('.signature-placeholder') && editorRef.current?.contains(target)) {
-                clearSelections();
-                setActiveSignaturePlaceholder(target.closest('.signature-placeholder') as HTMLElement);
-                setIsSignatureModalOpen(true);
+            } else if ((target.closest('.signature-placeholder') || target.innerText?.includes('FIRMADO DIGITALMENTE')) && editorRef.current?.contains(target)) {
+                const placeholder = (target.closest('.signature-placeholder') || target.closest('div')) as HTMLElement;
+                if (placeholder) {
+                    clearSelections();
+                    setActiveSignaturePlaceholder(placeholder);
+                    setIsSignatureModalOpen(true);
+                }
             } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.signature-modal')) {
                 clearSelections();
             }
@@ -636,6 +639,14 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
                 }
                 .signature-modal {
                     backdrop-filter: blur(4px);
+                }
+                .signature-placeholder {
+                    transition: all 0.3s ease;
+                }
+                .signature-placeholder:hover {
+                    background: rgba(0,77,153,0.1) !important;
+                    border-color: #004d99 !important;
+                    transform: scale(1.02);
                 }
             `}</style>
         </div>
