@@ -180,214 +180,216 @@ export default function CourseEditor() {
     if (loading) return <div className="p-8 text-center text-gray-500">Cargando editor...</div>;
 
     return (
-        <div className="flex justify-center w-full min-h-full bg-gray-50 dark:bg-gray-900 py-8 px-4">
-            <div className="w-full max-w-4xl space-y-6">
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                <div className="w-full max-w-4xl mx-auto space-y-6">
 
-                {/* Header Navbar */}
-                <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
+                    {/* Header Navbar */}
+                    <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/training/admin')}
+                                className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
+                                aria-label="Back"
+                            >
+                                <ArrowLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
+                            </button>
+                            <h1 className="text-xl font-bold">
+                                {isNew ? 'Crear Nuevo Curso' : 'Editar Curso'}
+                            </h1>
+                        </div>
+
                         <button
-                            onClick={() => navigate('/training/admin')}
-                            className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
-                            aria-label="Back"
+                            onClick={handleSaveCourse}
+                            disabled={saving}
+                            className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                         >
-                            <ArrowLeft className="h-6 w-6 text-text-primary dark:text-gray-300" />
+                            <Save className="w-5 h-5 flex-shrink-0" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                {saving ? 'Guardando...' : 'Guardar Curso'}
+                            </span>
                         </button>
-                        <h1 className="text-xl font-bold">
-                            {isNew ? 'Crear Nuevo Curso' : 'Editar Curso'}
-                        </h1>
                     </div>
 
-                    <button
-                        onClick={handleSaveCourse}
-                        disabled={saving}
-                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
-                    >
-                        <Save className="w-5 h-5 flex-shrink-0" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                            {saving ? 'Guardando...' : 'Guardar Curso'}
-                        </span>
-                    </button>
-                </div>
+                    {/* Main Settings Card */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="p-6 space-y-5">
+                            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
+                                <h2 className="text-lg font-semibold">Configuración General</h2>
 
-                {/* Main Settings Card */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="p-6 space-y-5">
-                        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4">
-                            <h2 className="text-lg font-semibold">Configuración General</h2>
-
-                            {/* Publish Toggle */}
-                            <label className="flex items-center cursor-pointer">
-                                <span className="mr-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                                    {isPublished ? 'Publicado' : 'Borrador'}
-                                </span>
-                                <div className="relative">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only"
-                                        checked={isPublished}
-                                        onChange={(e) => setIsPublished(e.target.checked)}
-                                    />
-                                    <div className={`block w-10 h-6 rounded-full transition-colors ${isPublished ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isPublished ? 'transform translate-x-4' : ''}`}></div>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del Curso *</label>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                placeholder="Ej: Inducción de Seguridad..."
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                rows={3}
-                                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none resize-y"
-                                placeholder="Breve descripción de lo que aprenderán los usuarios..."
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Miniatura del Curso (Imagen)
-                                </label>
-                                <div className="flex gap-2 items-start mt-1">
-                                    <div className="flex-1">
-                                        <div
-                                            className="w-full flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                                            onClick={() => fileInputRef.current?.click()}
-                                        >
-                                            {uploadingImage ? (
-                                                <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-                                            ) : (
-                                                <ImageIcon className="w-5 h-5 text-gray-400" />
-                                            )}
-                                            <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
-                                                {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
-                                            </span>
-                                            {thumbnail && !uploadingImage && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setThumbnail('');
-                                                    }}
-                                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500"
-                                                    title="Eliminar imagen"
-                                                >
-                                                    <XCircle className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                        </div>
+                                {/* Publish Toggle */}
+                                <label className="flex items-center cursor-pointer">
+                                    <span className="mr-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                                        {isPublished ? 'Publicado' : 'Borrador'}
+                                    </span>
+                                    <div className="relative">
                                         <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            onChange={handleFileSelect}
-                                            className="hidden"
-                                            accept="image/*"
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={isPublished}
+                                            onChange={(e) => setIsPublished(e.target.checked)}
                                         />
+                                        <div className={`block w-10 h-6 rounded-full transition-colors ${isPublished ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                                        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${isPublished ? 'transform translate-x-4' : ''}`}></div>
                                     </div>
-                                    {thumbnail && (
-                                        <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
-                                            <img src={thumbnail.startsWith('http') ? thumbnail : `/api/files/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
-                                        </div>
-                                    )}
-                                </div>
+                                </label>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiquetas (separadas por coma)</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título del Curso *</label>
                                 <input
                                     type="text"
-                                    value={tagsText}
-                                    onChange={(e) => setTagsText(e.target.value)}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
                                     className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Seguridad, RRHH, General"
+                                    placeholder="Ej: Inducción de Seguridad..."
                                 />
                             </div>
-                        </div>
 
-                    </div>
-                </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={3}
+                                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none resize-y"
+                                    placeholder="Breve descripción de lo que aprenderán los usuarios..."
+                                />
+                            </div>
 
-                {/* Lessons Section - Only shown if course exists */}
-                {!isNew && (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold flex items-center gap-2">
-                                Gestor de Lecciones <span className="bg-gray-100 dark:bg-gray-700 text-xs px-2 py-1 rounded-full">{lessons.length}</span>
-                            </h2>
-                            <button
-                                onClick={() => openLessonEditor(null)}
-                                className="group flex items-center px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                            >
-                                <Plus className="w-5 h-5 flex-shrink-0" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    Agregar Lección
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Lesson List */}
-                        <div className="p-2 space-y-1 bg-gray-50/50 dark:bg-gray-800/50">
-                            {lessons.length === 0 ? (
-                                <p className="text-center py-6 text-gray-500 text-sm">Aún no hay lecciones. Haz clic en "Agregar Lección" para empezar el contenido.</p>
-                            ) : (
-                                lessons.map((lesson, index) => (
-                                    <div key={lesson._id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="cursor-grab text-gray-400 hover:text-gray-600">
-                                                <GripVertical className="w-5 h-5" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Miniatura del Curso (Imagen)
+                                    </label>
+                                    <div className="flex gap-2 items-start mt-1">
+                                        <div className="flex-1">
+                                            <div
+                                                className="w-full flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                                onClick={() => fileInputRef.current?.click()}
+                                            >
+                                                {uploadingImage ? (
+                                                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                                                ) : (
+                                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                                )}
+                                                <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
+                                                    {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
+                                                </span>
+                                                {thumbnail && !uploadingImage && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setThumbnail('');
+                                                        }}
+                                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500"
+                                                        title="Eliminar imagen"
+                                                    >
+                                                        <XCircle className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
-                                            <span className="font-medium text-sm text-gray-500 dark:text-gray-400 w-6">{index + 1}.</span>
-                                            <span className="font-semibold text-gray-900 dark:text-gray-100">{lesson.title}</span>
-                                            {(lesson.videoUrl || lesson.content) && (
-                                                <span className="text-xs text-gray-400 flex gap-2 ml-2">
-                                                    {lesson.videoUrl && <span title="Tiene Video">🎬</span>}
-                                                    {lesson.content && <span title="Tiene Texto">📄</span>}
-                                                </span>
-                                            )}
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleFileSelect}
+                                                className="hidden"
+                                                accept="image/*"
+                                            />
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => openLessonEditor(lesson)}
-                                                className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
-                                            >
-                                                <Edit className="w-4 h-4 flex-shrink-0" />
-                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
-                                                    Editar
-                                                </span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteLesson(lesson._id)}
-                                                className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
-                                            >
-                                                <Trash2 className="w-4 h-4 flex-shrink-0" />
-                                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
-                                                    Eliminar
-                                                </span>
-                                            </button>
-                                        </div>
+                                        {thumbnail && (
+                                            <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                                                <img src={thumbnail.startsWith('http') ? thumbnail : `/api/files/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
                                     </div>
-                                ))
-                            )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiquetas (separadas por coma)</label>
+                                    <input
+                                        type="text"
+                                        value={tagsText}
+                                        onChange={(e) => setTagsText(e.target.value)}
+                                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="Seguridad, RRHH, General"
+                                    />
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-                )}
+
+                    {/* Lessons Section - Only shown if course exists */}
+                    {!isNew && (
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <h2 className="text-lg font-semibold flex items-center gap-2">
+                                    Gestor de Lecciones <span className="bg-gray-100 dark:bg-gray-700 text-xs px-2 py-1 rounded-full">{lessons.length}</span>
+                                </h2>
+                                <button
+                                    onClick={() => openLessonEditor(null)}
+                                    className="group flex items-center px-3 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                >
+                                    <Plus className="w-5 h-5 flex-shrink-0" />
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        Agregar Lección
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Lesson List */}
+                            <div className="p-2 space-y-1 bg-gray-50/50 dark:bg-gray-800/50">
+                                {lessons.length === 0 ? (
+                                    <p className="text-center py-6 text-gray-500 text-sm">Aún no hay lecciones. Haz clic en "Agregar Lección" para empezar el contenido.</p>
+                                ) : (
+                                    lessons.map((lesson, index) => (
+                                        <div key={lesson._id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="cursor-grab text-gray-400 hover:text-gray-600">
+                                                    <GripVertical className="w-5 h-5" />
+                                                </div>
+                                                <span className="font-medium text-sm text-gray-500 dark:text-gray-400 w-6">{index + 1}.</span>
+                                                <span className="font-semibold text-gray-900 dark:text-gray-100">{lesson.title}</span>
+                                                {(lesson.videoUrl || lesson.content) && (
+                                                    <span className="text-xs text-gray-400 flex gap-2 ml-2">
+                                                        {lesson.videoUrl && <span title="Tiene Video">🎬</span>}
+                                                        {lesson.content && <span title="Tiene Texto">📄</span>}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => openLessonEditor(lesson)}
+                                                    className="group flex items-center p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"
+                                                >
+                                                    <Edit className="w-4 h-4 flex-shrink-0" />
+                                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                        Editar
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteLesson(lesson._id)}
+                                                    className="group flex items-center p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-300"
+                                                >
+                                                    <Trash2 className="w-4 h-4 flex-shrink-0" />
+                                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                        Eliminar
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Lesson Editor Modal Overlay */}
             {editingLessonId && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden m-4">
                         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <h3 className="font-bold text-lg">
                                 {editingLessonId === 'new' ? 'Nueva Lección' : 'Editar Lección'}
