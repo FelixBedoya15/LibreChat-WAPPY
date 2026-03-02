@@ -238,81 +238,11 @@ const PerfilSociodemografico = () => {
         });
     };
 
-    // ─── QR: genera un data URI con HTML completo del perfil ──────────────
+    // ─── QR: URL corta al perfil público del backend ─────────────────────
+    // (data:URI era demasiado grande — QR tiene límite ~4KB)
     const getQrValue = (w: WorkerEntry) => {
-        const mapsLink = w.direccion
-            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(w.direccion)}`
-            : '#';
-
-        const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Perfil: ${w.nombre}</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; margin: 0; padding: 16px; }
-  .card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 24px rgba(0,0,0,0.10); max-width: 420px; margin: 0 auto; }
-  .header { text-align: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e2e8f0; }
-  h1 { font-size: 22px; margin: 0 0 4px 0; color: #1e40af; font-weight: 800; }
-  .badge { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
-  .section-title { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin: 16px 0 8px 0; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .field { background: #f8fafc; border-radius: 10px; padding: 10px 12px; }
-  .field .label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 2px; }
-  .field .value { font-size: 14px; font-weight: 600; color: #0f172a; }
-  .dates-section { background: #fef9ec; border: 1px solid #fde68a; border-radius: 12px; padding: 14px; margin-top: 16px; }
-  .date-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #fde68a; }
-  .date-row:last-child { border-bottom: none; }
-  .date-label { font-size: 12px; color: #92400e; font-weight: 600; }
-  .date-value { font-size: 13px; color: #78350f; font-weight: 700; }
-  .btn { display: block; width: 100%; padding: 12px; background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; text-align: center; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 14px; margin-top: 20px; }
-  .btn-disabled { background: #e2e8f0; color: #94a3b8; }
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="header">
-    <h1>${w.nombre || 'Sin Nombre'}</h1>
-    <span class="badge">${w.cargo || 'Sin Cargo'}</span>
-  </div>
-
-  <div class="section-title">Información Personal</div>
-  <div class="grid">
-    <div class="field"><span class="label">Cédula</span><span class="value">${w.identificacion || '-'}</span></div>
-    <div class="field"><span class="label">Edad</span><span class="value">${w.edad || '-'} años</span></div>
-    <div class="field"><span class="label">Género</span><span class="value">${w.genero || '-'}</span></div>
-    <div class="field"><span class="label">Est. Civil</span><span class="value">${w.estadoCivil || '-'}</span></div>
-    <div class="field"><span class="label">Escolaridad</span><span class="value">${w.nivelEscolaridad || '-'}</span></div>
-    <div class="field"><span class="label">Teléfono</span><span class="value">${w.telefono || '-'}</span></div>
-  </div>
-
-  <div class="section-title">Fechas Importantes</div>
-  <div class="dates-section">
-    <div class="date-row">
-      <span class="date-label">Examen Médico Ocupacional</span>
-      <span class="date-value">${w.fechaExamenMedico || 'No reportado'}</span>
-    </div>
-    <div class="date-row">
-      <span class="date-label">Cert. Alturas (Trabajador Autorizado)</span>
-      <span class="date-value">${w.fechaCursoAlturasAutorizado || 'No reportado'}</span>
-    </div>
-    <div class="date-row">
-      <span class="date-label">Cert. Alturas (Coordinador)</span>
-      <span class="date-value">${w.fechaCursoAlturasCoordinador || 'No reportado'}</span>
-    </div>
-  </div>
-
-  ${w.direccion
-                ? `<a href="${mapsLink}" class="btn" target="_blank" rel="noopener">📍 Ver Dirección en Google Maps</a>`
-                : `<div class="btn btn-disabled">Sin dirección registrada</div>`
-            }
-</div>
-</body>
-</html>`;
-
-        return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+        const base = window.location.origin;
+        return `${base}/api/sgsst/perfil-sociodemografico/profile/${w.id}`;
     };
 
     // ─── Render ──────────────────────────────────────────────────

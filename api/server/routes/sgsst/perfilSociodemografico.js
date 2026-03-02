@@ -59,6 +59,116 @@ async function getApiKey(userId) {
     return resolvedApiKey;
 }
 
+// ─── GET /profile/:workerId — Public profile page (for QR scanning) ──────────
+// No JWT required — designed to be publicly accessible via QR code scan
+router.get('/profile/:workerId', async (req, res) => {
+    try {
+        const { workerId } = req.params;
+
+        // Search across all users' data for this worker ID
+        const allData = await PerfilSociodemograficoData.find({}).lean();
+        let worker = null;
+        for (const doc of allData) {
+            const found = (doc.trabajadores || []).find(t => t.id === workerId);
+            if (found) { worker = found; break; }
+        }
+
+        if (!worker) {
+            return res.status(404).send(`<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID <strong>${workerId}</strong> no existe o fue eliminado.</p></body></html>`);
+        }
+
+        const mapsLink = worker.direccion
+            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(worker.direccion)}`
+            : null;
+
+        const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfil: ${worker.nombre || 'Trabajador'}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #0f172a; padding: 16px; min-height: 100vh; }
+  .card { background: white; border-radius: 20px; padding: 28px 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.10); max-width: 440px; margin: 0 auto; }
+  .header { text-align: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+  .avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg,#0ea5e9,#6366f1); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: white; margin: 0 auto 12px; }
+  h1 { font-size: 22px; font-weight: 800; color: #1e40af; line-height: 1.2; margin-bottom: 6px; }
+  .badge { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+  .section { margin-bottom: 18px; }
+  .section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field { background: #f8fafc; border-radius: 10px; padding: 10px 12px; }
+  .field .label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 3px; }
+  .field .value { font-size: 14px; font-weight: 700; color: #1e293b; }
+  .dates-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 14px; }
+  .date-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px dashed #fde68a; }
+  .date-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .date-label { font-size: 12px; color: #92400e; font-weight: 600; flex: 1; }
+  .date-value { font-size: 13px; color: #78350f; font-weight: 800; white-space: nowrap; }
+  .maps-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; text-align: center; border-radius: 12px; text-decoration: none; font-weight: 700; font-size: 15px; margin-top: 20px; transition: opacity 0.2s; }
+  .maps-btn:hover { opacity: 0.9; }
+  .footer { text-align: center; margin-top: 20px; font-size: 11px; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="avatar">${(worker.nombre || 'T').charAt(0).toUpperCase()}</div>
+    <h1>${worker.nombre || 'Sin Nombre'}</h1>
+    <span class="badge">${worker.cargo || 'Sin Cargo'}</span>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Información Personal</div>
+    <div class="grid">
+      <div class="field"><span class="label">Cédula</span><span class="value">${worker.identificacion || '—'}</span></div>
+      <div class="field"><span class="label">Edad</span><span class="value">${worker.edad ? worker.edad + ' años' : '—'}</span></div>
+      <div class="field"><span class="label">Género</span><span class="value">${worker.genero || '—'}</span></div>
+      <div class="field"><span class="label">Estado Civil</span><span class="value">${worker.estadoCivil || '—'}</span></div>
+      <div class="field"><span class="label">Escolaridad</span><span class="value">${worker.nivelEscolaridad || '—'}</span></div>
+      <div class="field"><span class="label">Teléfono</span><span class="value">${worker.telefono || '—'}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Certificaciones y Fechas Clave</div>
+    <div class="dates-box">
+      <div class="date-row">
+        <span class="date-label">Examen Médico Ocupacional</span>
+        <span class="date-value">${worker.fechaExamenMedico || 'No registrado'}</span>
+      </div>
+      <div class="date-row">
+        <span class="date-label">Alturas — Trabajador Autorizado</span>
+        <span class="date-value">${worker.fechaCursoAlturasAutorizado || 'No registrado'}</span>
+      </div>
+      <div class="date-row">
+        <span class="date-label">Alturas — Coordinador</span>
+        <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'No registrado'}</span>
+      </div>
+    </div>
+  </div>
+
+  ${mapsLink
+                ? `<a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
+        📍 Ver Dirección en Google Maps
+      </a>`
+                : `<div style="text-align:center;padding:14px;background:#f1f5f9;border-radius:12px;margin-top:20px;color:#94a3b8;font-size:13px;font-weight:600;">Sin dirección registrada</div>`
+            }
+
+  <div class="footer">Perfil generado por SGSST · WAPPY IA</div>
+</div>
+</body>
+</html>`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+    } catch (error) {
+        logger.error('[SGSST PerfilSociodemografico] Profile page error:', error);
+        res.status(500).send('Error al cargar perfil');
+    }
+});
+
 // ─── GET /data — Load saved worker data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
