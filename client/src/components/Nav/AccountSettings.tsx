@@ -2,7 +2,7 @@ import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut } from 'lucide-react';
+import { FileText, LogOut, BookOpen } from 'lucide-react';
 import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
@@ -75,7 +75,7 @@ function AccountSettings() {
           onClick={() => navigate('/training')}
           className="select-item text-sm"
         >
-          <LinkIcon aria-hidden="true" />
+          <BookOpen className="icon-md" aria-hidden="true" />
           {localize('com_nav_help_faq')}
         </Select.SelectItem>
         <Select.SelectItem
