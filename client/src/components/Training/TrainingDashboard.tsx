@@ -94,11 +94,12 @@ export default function TrainingDashboard() {
                                         {/* Thumbnail Area */}
                                         <div className="h-48 w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                                             {course.thumbnail ? (
-                                                <img src={course.thumbnail.startsWith('http') ? course.thumbnail : `/api/files/images/${course.thumbnail.split('/').pop()}`} alt={course.title} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-500/20">
-                                                    <BookOpen className="w-16 h-16 text-blue-500/50 dark:text-blue-400/50" />
+                                                <div className="w-full h-full bg-gray-200 dark:bg-gray-700">
+                                                    <img src={course.thumbnail.startsWith('http') || course.thumbnail.startsWith('/') ? course.thumbnail : `/images/${course.thumbnail.split('/').pop()}`} alt="Miniatura del Curso" className="w-full h-full object-cover" />
                                                 </div>
+                                            ) : (<div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                                                <BookOpen className="w-16 h-16 text-blue-500/50 dark:text-blue-400/50" />
+                                            </div>
                                             )}
 
                                             {/* Status Badge */}

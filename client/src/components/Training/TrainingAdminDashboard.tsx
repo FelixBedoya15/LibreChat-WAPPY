@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { BookOpen, Plus, Edit, Trash2, CheckCircle, XCircle, ArrowLeft } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, Eye } from 'lucide-react';
 
 export default function TrainingAdminDashboard() {
     const [courses, setCourses] = useState([]);
@@ -121,7 +121,7 @@ export default function TrainingAdminDashboard() {
                                                 <th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                                                     <div className="flex items-center gap-3">
                                                         {course.thumbnail ? (
-                                                            <img src={course.thumbnail.startsWith('http') ? course.thumbnail : `/api/files/images/${course.thumbnail.split('/').pop()}`} alt="thumb" className="w-10 h-10 rounded object-cover bg-gray-100" />
+                                                            <img src={course.thumbnail.startsWith('http') || course.thumbnail.startsWith('/') ? course.thumbnail : `/images/${course.thumbnail.split('/').pop()}`} alt="thumb" className="w-10 h-10 rounded object-cover bg-gray-100" />
                                                         ) : (
                                                             <div className="w-10 h-10 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-500">
                                                                 <BookOpen className="w-5 h-5" />
@@ -151,6 +151,15 @@ export default function TrainingAdminDashboard() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => navigate(`/training/${course._id}`)}
+                                                            className="group flex items-center p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-full transition-all duration-300"
+                                                        >
+                                                            <Eye className="w-4 h-4 flex-shrink-0" />
+                                                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-1 transition-all duration-300 whitespace-nowrap text-xs font-medium">
+                                                                Vista Previa
+                                                            </span>
+                                                        </button>
                                                         <button
                                                             onClick={() => navigate(`/training/admin/courses/${course._id}`)}
                                                             className="group flex items-center p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-300"

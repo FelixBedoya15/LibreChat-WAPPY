@@ -54,6 +54,8 @@ export default function CourseEditor() {
             formData.append('endpoint', 'default');
             formData.append('file_id', crypto.randomUUID());
             formData.append('version', '1');
+            formData.append('width', '512');
+            formData.append('height', '512');
 
             uploadMutation.mutate(formData);
 
@@ -263,7 +265,7 @@ export default function CourseEditor() {
                                         Miniatura del Curso (Imagen)
                                     </label>
                                     <div className="flex gap-2 items-start mt-1">
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <div
                                                 className="w-full flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                                                 onClick={() => fileInputRef.current?.click()}
@@ -299,7 +301,7 @@ export default function CourseEditor() {
                                         </div>
                                         {thumbnail && (
                                             <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
-                                                <img src={thumbnail.startsWith('http') ? thumbnail : `/api/files/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
+                                                <img src={thumbnail.startsWith('http') || thumbnail.startsWith('/') ? thumbnail : `/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
                                             </div>
                                         )}
                                     </div>
