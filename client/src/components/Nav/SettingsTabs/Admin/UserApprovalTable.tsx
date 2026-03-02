@@ -76,8 +76,8 @@ export default function UserManagementTable() {
         const csvContent =
             'data:text/csv;charset=utf-8,' +
             [
-                ['Name', 'Email', 'Username', 'Role', 'Status'],
-                ...users.map((u) => [u.name || u.username, u.email, u.username, u.role, u.accountStatus]),
+                ['Name', 'Email', 'Username', 'Role', 'Status', 'Last Activity'],
+                ...users.map((u) => [u.name || u.username, u.email, u.username, u.role, u.accountStatus, u.lastActivity ? new Date(u.lastActivity).toISOString() : '']),
             ]
                 .map((e) => e.join(','))
                 .join('\n');
@@ -209,6 +209,7 @@ export default function UserManagementTable() {
                                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
                             </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_last_activity')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_name')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_email')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">{localize('com_ui_username')}</th>
@@ -227,6 +228,22 @@ export default function UserManagementTable() {
                                         onChange={() => toggleUserSelection(user._id)}
                                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                     />
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary" title={user.lastActivity ? new Date(user.lastActivity).toLocaleString() : ''}>
+                                    {user.lastActivity ? (() => {
+                                        const now = new Date();
+                                        const last = new Date(user.lastActivity);
+                                        const diffMs = now.getTime() - last.getTime();
+                                        const diffMins = Math.floor(diffMs / 60000);
+                                        const diffHours = Math.floor(diffMs / 3600000);
+                                        const diffDays = Math.floor(diffMs / 86400000);
+                                        if (diffMins < 1) return <span className="text-green-600 dark:text-green-400 font-medium">Ahora</span>;
+                                        if (diffMins < 60) return <span className="text-green-600 dark:text-green-400">Hace {diffMins} min</span>;
+                                        if (diffHours < 24) return <span className="text-blue-600 dark:text-blue-400">Hace {diffHours}h</span>;
+                                        if (diffDays < 7) return <span className="text-yellow-600 dark:text-yellow-400">Hace {diffDays}d</span>;
+                                        if (diffDays < 30) return <span className="text-orange-600 dark:text-orange-400">Hace {Math.floor(diffDays / 7)} sem</span>;
+                                        return <span className="text-red-600 dark:text-red-400">Hace {Math.floor(diffDays / 30)} mes(es)</span>;
+                                    })() : <span className="text-gray-400 italic">Sin actividad</span>}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{user.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>

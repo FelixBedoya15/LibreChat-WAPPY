@@ -3,16 +3,30 @@ const User = mongoose.model('User');
 const { logger } = require('@librechat/data-schemas');
 const { SystemRoles } = require('librechat-data-provider');
 const bcrypt = require('bcryptjs');
+const { Conversation } = require('~/db/models');
+const { getMessages } = require('~/models');
 
 const getAllUsers = async (req, res) => {
     try {
         const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved inactiveAt activeAt');
+
+        // Get last activity (most recent conversation updatedAt) for all users in one aggregation
+        const lastActivities = await Conversation.aggregate([
+            { $sort: { updatedAt: -1 } },
+            { $group: { _id: '$user', lastActivity: { $first: '$updatedAt' } } },
+        ]);
+        const activityMap = {};
+        for (const item of lastActivities) {
+            activityMap[item._id.toString()] = item.lastActivity;
+        }
+
         // Map legacy isApproved to accountStatus if needed
         const mappedUsers = users.map(user => {
             const userObj = user.toObject();
             if (!userObj.accountStatus) {
                 userObj.accountStatus = userObj.isApproved === false ? 'pending' : 'active';
             }
+            userObj.lastActivity = activityMap[userObj._id.toString()] || null;
             return userObj;
         });
         res.status(200).json(mappedUsers);
@@ -131,8 +145,7 @@ const bulkUpdateUsers = async (req, res) => {
     }
 };
 
-const { Conversation } = require('~/db/models');
-const { getMessages } = require('~/models');
+
 
 const getUserConversations = async (req, res) => {
     try {

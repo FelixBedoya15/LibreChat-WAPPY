@@ -653,6 +653,7 @@
   "com_ui_import_error": "Error importing users",
   "com_ui_processing": "Processing...",
   "com_ui_name": "Name",
+  "com_ui_last_activity": "Last Activity",
   "com_ui_email": "Email",
   "com_ui_role": "Role",
   "com_ui_status": "Status",
