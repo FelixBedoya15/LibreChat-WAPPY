@@ -158,6 +158,7 @@ const startServer = async () => {
     ['voice', routes.voice],
     ['ads', routes.ads],
     ['sgsst', routes.sgsst],
+    ['training', routes.training],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -212,6 +213,7 @@ const startServer = async () => {
   app.use('/api/sgsst/rhs', routes.sgsst.rhs);
   app.use('/api/sgsst/rit', routes.sgsst.rit);
   app.use('/api/sgsst/perfil-sociodemografico', routes.sgsst.perfilSociodemografico);
+  app.use('/api/training', routes.training);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {

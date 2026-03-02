@@ -31,6 +31,7 @@ const admin = require('./admin');
 const voice = require('./voice');
 const ads = require('./ads');
 const sgsst = require('./sgsst');
+const training = require('./training');
 
 module.exports = {
   auth,
@@ -66,4 +67,5 @@ module.exports = {
   voice,
   ads,
   sgsst,
+  training,
 };

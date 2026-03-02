@@ -23,6 +23,8 @@ import dashboardRoutes from './Dashboard';
 import ShareRoute from './ShareRoute';
 import ChatRoute from './ChatRoute';
 import LivePage from '~/components/Liva/LivePage';
+import TrainingDashboard from '~/components/Training/TrainingDashboard';
+import CourseViewer from '~/components/Training/CourseViewer';
 import Search from './Search';
 import Root from './Root';
 
@@ -138,6 +140,14 @@ export const router = createBrowserRouter(
             {
               path: 'sgsst',
               element: <SGSSTDashboard />,
+            },
+            {
+              path: 'training',
+              element: <TrainingDashboard />,
+            },
+            {
+              path: 'training/:courseId',
+              element: <CourseViewer />,
             },
             {
               path: 'agents',
