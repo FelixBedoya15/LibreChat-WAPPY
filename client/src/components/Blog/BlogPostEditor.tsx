@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { ArrowLeft, Save, Sparkles, Loader2, Link as LinkIcon, FileText, Plus, Trash2 } from 'lucide-react';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ModelSelector from '~/components/SGSST/ModelSelector';
 
 export default function BlogPostEditor() {
@@ -28,6 +28,9 @@ export default function BlogPostEditor() {
     const [generatePrompt, setGeneratePrompt] = useState('');
     const [sources, setSources] = useState<string[]>([]);
     const [newSource, setNewSource] = useState('');
+
+    // Ref to imperatively set HTML in LiveEditor without React re-render cycle
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     useEffect(() => {
         if (!isNew) {
@@ -124,8 +127,10 @@ export default function BlogPostEditor() {
             });
             if (response.data && response.data.data) {
                 const generated = response.data.data;
-                setGeneratedContent(generated); // <-- Only this triggers LiveEditor update
-                setContent(generated);          // Also sync the save-state
+                // Imperatively set HTML — bypasses the useEffect feedback loop completely
+                liveEditorRef.current?.setHTML(generated);
+                setGeneratedContent(generated); // keep for edit post case (loaded content)
+                setContent(generated);          // sync save-state
                 showToast({ message: 'Contenido generado exitosamente', status: 'success' });
             }
         } catch (error: any) {
@@ -320,6 +325,7 @@ export default function BlogPostEditor() {
                         </div>
                         <div className="flex-1">
                             <LiveEditor
+                                ref={liveEditorRef}
                                 initialContent={generatedContent}
                                 onUpdate={(val) => setContent(val)}
                             />

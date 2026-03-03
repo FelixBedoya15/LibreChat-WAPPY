@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import {
     Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered,
     AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon,
@@ -13,7 +13,11 @@ interface LiveEditorProps {
     onSave?: () => void;
 }
 
-const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSave }) => {
+export interface LiveEditorHandle {
+    setHTML: (html: string) => void;
+}
+
+const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave }, ref) => {
     const localize = useLocalize();
     const editorRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,9 +49,19 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
         localStorage.setItem('sgsst_signatures', JSON.stringify(signatures));
     }, [signatures]);
 
+    // Expose setHTML() to parent via ref (imperative handle)
+    useImperativeHandle(ref, () => ({
+        setHTML: (html: string) => {
+            if (editorRef.current) {
+                editorRef.current.innerHTML = html;
+                setContent(html);
+            }
+        }
+    }));
+
     useEffect(() => {
-        setContent(initialContent);
-        if (editorRef.current && editorRef.current.innerHTML !== initialContent) {
+        // Only sync if initialContent is non-empty and editor doesn't already have it
+        if (editorRef.current && initialContent && editorRef.current.innerHTML !== initialContent) {
             editorRef.current.innerHTML = initialContent;
         }
     }, [initialContent]);
@@ -663,7 +677,9 @@ const LiveEditor: React.FC<LiveEditorProps> = ({ initialContent, onUpdate, onSav
         </div>
 
     );
-};
+});
+
+LiveEditor.displayName = 'LiveEditor';
 
 export default LiveEditor;
 
