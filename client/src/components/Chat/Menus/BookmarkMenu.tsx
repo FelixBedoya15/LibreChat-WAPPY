@@ -60,9 +60,9 @@ const BookmarkMenu: FC = () => {
 
   const isActiveConvo = Boolean(
     conversation &&
-      conversationId &&
-      conversationId !== Constants.NEW_CONVO &&
-      conversationId !== 'search',
+    conversationId &&
+    conversationId !== Constants.NEW_CONVO &&
+    conversationId !== 'search',
   );
 
   const handleSubmit = useCallback(
@@ -114,6 +114,11 @@ const BookmarkMenu: FC = () => {
 
     if (data) {
       for (const tag of data) {
+        // Filter out system/SGSST bookmarks
+        if (tag.tag.startsWith('sgsst-') || tag.tag === 'report' || tag.tag === 'Proyectos') {
+          continue;
+        }
+
         const isSelected = tags?.includes(tag.tag);
         items.push({
           id: tag.tag,

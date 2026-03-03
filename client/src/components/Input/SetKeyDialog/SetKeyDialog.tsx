@@ -50,13 +50,13 @@ const formSet: Set<string> = new Set([
 ]);
 
 const EXPIRY = {
-  THIRTY_MINUTES: { label: 'in 30 minutes', value: 30 * 60 * 1000 },
-  TWO_HOURS: { label: 'in 2 hours', value: 2 * 60 * 60 * 1000 },
-  TWELVE_HOURS: { label: 'in 12 hours', value: 12 * 60 * 60 * 1000 },
-  ONE_DAY: { label: 'in 1 day', value: 24 * 60 * 60 * 1000 },
-  ONE_WEEK: { label: 'in 7 days', value: 7 * 24 * 60 * 60 * 1000 },
-  ONE_MONTH: { label: 'in 30 days', value: 30 * 24 * 60 * 60 * 1000 },
-  NEVER: { label: 'never', value: 0 },
+  THIRTY_MINUTES: { label: 'en 30 minutos', value: 30 * 60 * 1000 },
+  TWO_HOURS: { label: 'en 2 horas', value: 2 * 60 * 60 * 1000 },
+  TWELVE_HOURS: { label: 'en 12 horas', value: 12 * 60 * 60 * 1000 },
+  ONE_DAY: { label: 'en 1 día', value: 24 * 60 * 60 * 1000 },
+  ONE_WEEK: { label: 'en 7 días', value: 7 * 24 * 60 * 60 * 1000 },
+  ONE_MONTH: { label: 'en 30 días', value: 30 * 24 * 60 * 60 * 1000 },
+  NEVER: { label: 'nunca', value: 0 },
 };
 
 const RevokeKeysButton = ({

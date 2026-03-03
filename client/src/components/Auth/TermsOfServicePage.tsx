@@ -126,7 +126,11 @@ export default function TermsOfServicePage() {
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-surface-secondary">
+        <div className="min-h-screen bg-surface-secondary relative">
+            <div className="fixed bottom-0 left-0 p-4 md:m-4 z-50">
+                <ThemeSelector />
+            </div>
+
             {/* Header Bar */}
             <div className="sticky top-0 z-10 border-b border-border-medium/50 bg-surface-secondary/80 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-4xl items-center gap-4 px-6 py-4">
@@ -138,7 +142,6 @@ export default function TermsOfServicePage() {
                         Volver
                     </button>
                     <div className="flex-1" />
-                    <ThemeSelector />
                     <span className="ml-3 text-xs text-text-tertiary">Vigente desde: 27 de Enero de 2026</span>
                 </div>
             </div>
