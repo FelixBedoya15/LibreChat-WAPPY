@@ -325,7 +325,7 @@ const SetKeyDialog = ({
               ).toLocaleString()}`}
           </small>
           <Dropdown
-            label="Expires "
+            label="Expira "
             value={expiresAtLabel}
             onChange={handleExpirationChange}
             options={expirationOptions.map((option) => option.label)}

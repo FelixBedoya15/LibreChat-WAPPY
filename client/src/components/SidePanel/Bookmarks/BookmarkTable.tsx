@@ -57,9 +57,16 @@ const BookmarkTable = () => {
     [moveRow],
   );
 
-  const filteredRows = rows.filter(
-    (row) => row.tag && row.tag.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredRows = rows.filter((row) => {
+    if (!row.tag) return false;
+
+    // Filter out system/SGSST bookmarks
+    if (row.tag.startsWith('sgsst-') || row.tag === 'report' || row.tag === 'Proyectos') {
+      return false;
+    }
+
+    return row.tag.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const currentRows = filteredRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
