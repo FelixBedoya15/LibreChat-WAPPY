@@ -116,11 +116,11 @@ export default function BlogPostViewer() {
 
                 {/* Thumbnail — only if provided */}
                 {post.thumbnail && (
-                    <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm max-h-72">
+                    <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm w-full">
                         <img
                             src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`}
                             alt={post.title}
-                            className="w-full h-full object-cover"
+                            className="w-full h-auto object-contain"
                         />
                     </div>
                 )}
