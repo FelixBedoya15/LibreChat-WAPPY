@@ -118,7 +118,17 @@ const generateBlogPost = async (req, res) => {
 
         let systemPrompt = "";
         if (type === 'blog') {
-            systemPrompt = "Actúa como un experto creador de contenido y blogger. Crea un artículo de blog altamente atractivo, bien estructurado y en formato HTML válido (usando tags como <h1>, <h2>, <p>, <ul>, <li>, <strong>, etc.), basado en el tema indicado y en cualquier fuente adicional proporcionada por el usuario. Asegúrate de incluir encabezados claros, listas si aplica, y un párrafo introductorio y de conclusión. DEBES DEVOLVER ÚNICAMENTE EL CÓDIGO HTML, SIN ENVOLTURAS MARKDOWN (como ```html).";
+            systemPrompt = `Actúa como un experto creador de contenido y blogger en temas de seguridad y salud en el trabajo.
+Tu tarea es escribir un artículo de blog altamente atractivo y estructurado basado en la solicitud del usuario.
+REGLA CRÍTICA Y ABSOLUTA: 
+Tu respuesta DEBE SER ÚNICA Y EXCLUSIVAMENTE código HTML válido y puro. 
+- NO uses formato Markdown (nada de asteriscos ni numerales). 
+- Los títulos deben ser con etiquetas <h1>, <h2>. 
+- Los párrafos con <p>. 
+- Las listas con <ul> y <li>. 
+- Las negritas con <strong>.
+- NO envuelvas la respuesta en bloques de código (\`\`\`html).
+Empieza directamente con <div> o <h1> y termina con el cierre correspondiente.`;
         }
 
         let fullPrompt = `${systemPrompt}\n\nTema / Solicitud del usuario: ${prompt}`;
@@ -130,7 +140,37 @@ const generateBlogPost = async (req, res) => {
         let responseText = result.response.text();
 
         // Remove markdown wrappers if the model still adds them
-        responseText = responseText.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+        responseText = responseText.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
+
+        // Convert common markdown elements to basic HTML manually if the model disobeyed
+        if (responseText.includes('#') || responseText.includes('**') || /^[-*]\s/m.test(responseText)) {
+            console.log("Markdown detectado en BlogController, forzando a HTML.");
+            let htmlText = responseText;
+
+            // Reemplazar headers
+            htmlText = htmlText.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            htmlText = htmlText.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            htmlText = htmlText.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+            // Reemplazar negritas y cursivas
+            htmlText = htmlText.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+            htmlText = htmlText.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+            // Reemplazar saltos de línea dobles
+            htmlText = htmlText.replace(/\n\n/g, '</p><p>');
+
+            // Envolver todo en <p> de forma sencilla si no empezó con tag (muy rudimentario, pero evita que sea un bloque único)
+            if (!htmlText.startsWith('<')) {
+                htmlText = `<p>${htmlText}</p>`;
+            }
+
+            responseText = htmlText;
+        }
+
+        // Final sanity check, ensure newlines translate to <br> if it's still missing tags
+        if (!responseText.includes('<p>') && !responseText.includes('<br>')) {
+            responseText = responseText.replace(/\n/g, '<br>');
+        }
 
         res.json({ data: responseText });
 
