@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
@@ -32,6 +32,15 @@ export default function BlogPostEditor() {
 
     // Ref to imperatively set HTML in LiveEditor without React re-render cycle
     const liveEditorRef = useRef<LiveEditorHandle>(null);
+
+    // Ref holds live content WITHOUT causing re-renders when user types
+    const contentRef = useRef('');
+
+    // Stable callback: does NOT recreate on every render, so LiveEditor never
+    // re-renders just because the parent did (caused the editing freeze bug)
+    const handleEditorUpdate = useCallback((val: string) => {
+        contentRef.current = val;
+    }, []);
 
     // Thumbnail file upload
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +82,7 @@ export default function BlogPostEditor() {
                     const loaded = post.content || '';
                     setContent(loaded);
                     setGeneratedContent(loaded);
+                    contentRef.current = loaded;  // sync ref too
                     setThumbnail(post.thumbnail || '');
                     setTagsText(post.tags ? post.tags.join(', ') : '');
                     setIsPublished(post.isPublished || false);
@@ -99,7 +109,7 @@ export default function BlogPostEditor() {
             const tags = tagsText.split(',').map(t => t.trim()).filter(t => t);
             const payload = {
                 title,
-                content,
+                content: contentRef.current || content,  // use ref first (live value), fallback to state
                 thumbnail,
                 tags,
                 isPublished: publish
@@ -160,8 +170,8 @@ export default function BlogPostEditor() {
                 const generated = response.data.data;
                 // Imperatively set HTML — bypasses the useEffect feedback loop completely
                 liveEditorRef.current?.setHTML(generated);
-                setGeneratedContent(generated); // keep for edit post case (loaded content)
-                setContent(generated);          // sync save-state
+                setGeneratedContent(generated);
+                contentRef.current = generated;  // sync ref
                 showToast({ message: 'Contenido generado exitosamente', status: 'success' });
             }
         } catch (error: any) {
@@ -381,7 +391,7 @@ export default function BlogPostEditor() {
                             <LiveEditor
                                 ref={liveEditorRef}
                                 initialContent={generatedContent}
-                                onUpdate={(val) => setContent(val)}
+                                onUpdate={handleEditorUpdate}
                             />
                         </div>
                     </div>
