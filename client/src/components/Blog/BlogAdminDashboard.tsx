@@ -96,9 +96,9 @@ export default function BlogAdminDashboard() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-8">
-                <div className="max-w-6xl mx-auto">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-6 md:p-8">
+                <div className="max-w-6xl mx-auto min-w-[600px]">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700/50">
                                 <tr>

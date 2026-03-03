@@ -56,9 +56,8 @@ export default function BlogPostEditor() {
             formData.append('file', file);
             formData.append('endpoint', 'default');
             formData.append('file_id', crypto.randomUUID());
-            formData.append('version', '1');
-            formData.append('width', '512');
-            formData.append('height', '512');
+            // NOTE: Do NOT append 'width'/'height' — those trigger uploadImage() instead of uploadFile()
+            // uploadImage() returns a different response where filepath might be empty/base64
             uploadMutation.mutate(formData);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
