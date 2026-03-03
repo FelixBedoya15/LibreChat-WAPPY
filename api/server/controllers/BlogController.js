@@ -139,8 +139,23 @@ Empieza directamente con <div> o <h1> y termina con el cierre correspondiente.`;
         const result = await model.generateContent(fullPrompt);
         let responseText = result.response.text();
 
-        // Remove markdown wrappers if the model still adds them
+        // 1. Remove markdown wrappers
         responseText = responseText.replace(/```html\n?/gi, '').replace(/```\n?/g, '').trim();
+
+        // 2. Strip full HTML document structure if AI still generates it
+        const bodyMatch = responseText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        if (bodyMatch) {
+            responseText = bodyMatch[1].trim();
+        }
+
+        // 3. Remove DOCTYPE, html, head, style tags because LiveEditor cannot parse them and glitches out
+        responseText = responseText
+            .replace(/<!DOCTYPE[^>]*>/gi, '')
+            .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+            .replace(/<head>[\s\S]*?<\/head>/gi, '')
+            .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .trim();
 
         // Convert common markdown elements to basic HTML manually if the model disobeyed
         if (responseText.includes('#') || responseText.includes('**') || /^[-*]\s/m.test(responseText)) {
