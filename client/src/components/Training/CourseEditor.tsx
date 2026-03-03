@@ -604,13 +604,35 @@ export default function CourseEditor() {
             {editingLessonId && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden m-4">
-                        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <h3 className="font-bold text-lg">
                                 {editingLessonId === 'new' ? 'Nueva Lección' : 'Editar Lección'}
                             </h3>
-                            <button onClick={() => setEditingLessonId(null)} className="text-gray-500 hover:text-gray-700 p-1">
-                                <XCircle className="w-6 h-6" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleGenerateLesson}
+                                    disabled={isGeneratingLesson || !lessonForm.title.trim()}
+                                    className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isGeneratingLesson ? (
+                                        <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-5 h-5 flex-shrink-0" />
+                                    )}
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                        Generar Lección
+                                    </span>
+                                </button>
+                                <ModelSelector
+                                    selectedModel={lessonAIModel}
+                                    onSelectModel={setLessonAIModel}
+                                    disabled={isGeneratingLesson}
+                                    hideTooltip={true}
+                                />
+                                <button onClick={() => setEditingLessonId(null)} className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ml-2">
+                                    <XCircle className="w-6 h-6" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="p-6 overflow-y-auto flex-1 space-y-4">
@@ -698,6 +720,7 @@ export default function CourseEditor() {
                 }}
                 initialExam={courseExam}
                 title="Examen General del Curso"
+                contextTopic={title ? `${title}. ${description || ''}`.trim() : ''}
             />
 
             {/* Exam Editor Modal for Lesson */}
@@ -710,6 +733,7 @@ export default function CourseEditor() {
                 }}
                 initialExam={lessonForm.exam}
                 title={`Examen de Lección: ${lessonForm.title || 'Nueva Lección'}`}
+                contextTopic={lessonForm.title ? `${lessonForm.title}. ${lessonForm.content ? lessonForm.content.slice(0, 300) : ''}`.trim() : ''}
             />
         </div>
     );

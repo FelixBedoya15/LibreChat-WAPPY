@@ -25,9 +25,10 @@ interface ExamEditorModalProps {
     onSave: (exam: Exam) => void;
     initialExam?: Exam | null;
     title?: string;
+    contextTopic?: string;
 }
 
-export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, title = 'Editar Examen' }: ExamEditorModalProps) {
+export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, title = 'Editar Examen', contextTopic }: ExamEditorModalProps) {
     const [exam, setExam] = useState<Exam>(() => {
         if (initialExam) {
             return {
@@ -54,15 +55,16 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
     if (!isOpen) return null;
 
     const handleGenerateExam = async () => {
-        if (!exam.title.trim() && !exam.description.trim()) {
-            showToast({ message: 'Ingresa un título o descripción tentativa para generar el examen.', status: 'warning' });
+        if (!contextTopic?.trim() && !exam.title.trim() && !exam.description.trim()) {
+            showToast({ message: 'Ingresa un título o descripción del tema para poder generar el examen base.', status: 'warning' });
             return;
         }
         setIsGeneratingExam(true);
         try {
+            const promptContext = contextTopic?.trim() ? `Genera un examen sobre este tema y contexto proporcionado:\n${contextTopic}` : (exam.title || exam.description);
             const response = await axios.post('/api/training/admin/generate', {
                 type: 'exam',
-                prompt: exam.title || exam.description,
+                prompt: promptContext,
                 modelName: examAIModel
             });
             if (response.data?.data) {
@@ -160,9 +162,8 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleGenerateExam}
-                            disabled={isGeneratingExam || (!exam.title.trim() && !exam.description.trim())}
+                            disabled={isGeneratingExam || (!contextTopic?.trim() && !exam.title.trim() && !exam.description.trim())}
                             className="group flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Generar Examen con IA (Basado en el Título/Descripción)"
                         >
                             {isGeneratingExam ? (
                                 <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin" />
@@ -177,6 +178,7 @@ export default function ExamEditorModal({ isOpen, onClose, onSave, initialExam, 
                             selectedModel={examAIModel}
                             onSelectModel={setExamAIModel}
                             disabled={isGeneratingExam}
+                            hideTooltip={true}
                         />
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ml-2">
                             <XCircle className="w-6 h-6" />

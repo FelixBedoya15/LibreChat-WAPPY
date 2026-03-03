@@ -14,9 +14,10 @@ interface ModelSelectorProps {
     selectedModel: string;
     onSelectModel: (modelId: string) => void;
     disabled?: boolean;
+    hideTooltip?: boolean;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectModel, disabled }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectModel, disabled, hideTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +45,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
                     "group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed",
                     isOpen && "bg-surface-hover ring-2 ring-blue-500/20 border-blue-500/50"
                 )}
-                title="Seleccionar Modelo de IA"
+                title={hideTooltip ? undefined : "Seleccionar Modelo de IA"}
             >
                 <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                 <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
