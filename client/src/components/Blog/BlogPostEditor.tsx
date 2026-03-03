@@ -148,10 +148,13 @@ export default function BlogPostEditor() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate('/blog/admin')}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                        className="group flex items-center p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-all duration-300"
                         aria-label="Volver"
                     >
-                        <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                        <ArrowLeft className="w-5 h-5 flex-shrink-0 text-gray-600 dark:text-gray-300" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">
+                            Volver
+                        </span>
                     </button>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate max-w-sm md:max-w-md">
                         {isNew ? 'Nueva Publicación' : 'Editar Publicación'}
@@ -162,18 +165,22 @@ export default function BlogPostEditor() {
                     <button
                         onClick={() => handleSave(false)}
                         disabled={saving}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                        className="group flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-full transition-all duration-300 text-sm font-medium disabled:opacity-50"
                     >
-                        {saving && !isPublished ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        Guardar Borrador
+                        {saving && !isPublished ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> : <Save className="w-4 h-4 flex-shrink-0" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Guardar Borrador
+                        </span>
                     </button>
                     <button
                         onClick={() => handleSave(true)}
                         disabled={saving}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                        className="group flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-sm text-sm font-medium disabled:opacity-50"
                     >
-                        {saving && isPublished ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                        Publicar
+                        {saving && isPublished ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> : <Sparkles className="w-4 h-4 flex-shrink-0" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Publicar
+                        </span>
                     </button>
                 </div>
             </div>
@@ -288,10 +295,12 @@ export default function BlogPostEditor() {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50"
+                                className="group flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                             >
-                                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                Generar Artículo
+                                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> : <Sparkles className="w-4 h-4 flex-shrink-0" />}
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                    Generar Artículo
+                                </span>
                             </button>
                         </div>
                     </div>

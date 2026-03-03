@@ -65,10 +65,13 @@ export default function BlogAdminDashboard() {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate('/blog')}
-                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                            className="group flex items-center p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all duration-300"
                             aria-label="Volver al Blog"
                         >
-                            <ArrowLeft className="w-6 h-6" />
+                            <ArrowLeft className="w-6 h-6 flex-shrink-0" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">
+                                Volver
+                            </span>
                         </button>
                         <div className="flex flex-col">
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -83,10 +86,12 @@ export default function BlogAdminDashboard() {
 
                     <button
                         onClick={() => navigate('/blog/admin/posts/new')}
-                        className="group flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-sm self-start md:self-auto"
+                        className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-all duration-300 shadow-md font-medium text-sm self-start md:self-auto"
                     >
-                        <Plus className="w-5 h-5 mr-1" />
-                        Crear Publicación
+                        <Plus className="w-5 h-5 flex-shrink-0" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Crear Publicación
+                        </span>
                     </button>
                 </div>
             </div>

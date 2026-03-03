@@ -76,9 +76,10 @@ export default function BlogPostViewer() {
                 <div className="absolute top-4 left-4 z-10">
                     <button
                         onClick={() => navigate('/blog')}
-                        className="p-2 md:p-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white rounded-full transition-all duration-300 flex items-center gap-2 group border border-white/10"
+                        className="group flex items-center p-2 md:p-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white rounded-full transition-all duration-300 gap-2 border border-white/10"
                     >
-                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <ArrowLeft className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:mx-1 transition-all duration-300 whitespace-nowrap text-sm font-medium">Volver al Blog</span>
                     </button>
                 </div>
 

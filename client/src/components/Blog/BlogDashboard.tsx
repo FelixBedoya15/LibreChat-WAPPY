@@ -49,7 +49,7 @@ export default function BlogDashboard() {
                             <Newspaper className="w-8 h-8 md:w-10 md:h-10 text-indigo-600 dark:text-indigo-300" />
                         </div>
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white leading-tight">Blog (Nuevo)</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white leading-tight">Blog</h1>
                             <p className="mt-1 text-sm md:text-base text-gray-500 dark:text-gray-400">
                                 Explora las últimas publicaciones, artículos y novedades de nuestro equipo.
                             </p>
