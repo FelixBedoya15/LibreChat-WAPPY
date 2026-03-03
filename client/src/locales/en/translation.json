@@ -847,7 +847,7 @@
   "com_ui_user_created_success": "User created successfully",
   "com_ui_user_updated_success": "User updated successfully",
   "com_ui_user_update_error": "Error updating user",
-  "com_ui_date": "Date",
+  "com_ui_date": "Date:",
   "com_ui_date_april": "April",
   "com_ui_date_august": "August",
   "com_ui_date_december": "December",
@@ -1487,7 +1487,6 @@
   "com_ui_new_report_name": "New report name:",
   "com_ui_untitled_report": "Untitled Report",
   "com_ui_risk_report_title": "Labor Risk Report",
-  "com_ui_date": "Date:",
   "com_ui_activate": "Activate",
   "com_ui_inactivate": "Inactivate",
   "com_ui_confirm_bulk_activate": "Are you sure you want to activate the selected users?",
@@ -1496,5 +1495,7 @@
   "com_ui_bulk_inactivate_success": "Users inactivated successfully",
   "com_ui_bulk_activate_error": "Error activating users",
   "com_ui_bulk_inactivate_error": "Error inactivating users",
-  "com_ui_live_analysis_title": "Live Analysis"
+  "com_ui_live_analysis_title": "Live Analysis",
+  "com_nav_blog": "Blog (new)",
+  "com_nav_sgsst": "Gestor SG-SST"
 }

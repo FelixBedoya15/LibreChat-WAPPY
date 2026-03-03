@@ -549,7 +549,7 @@
   "com_nav_mcp_vars_update_error": "Error updating MCP custom user variables",
   "com_nav_mcp_vars_updated": "MCP custom user variables updated exitosamente.",
   "com_nav_modular_chat": "Habilitar el cambio de puntos finales en medio de una conversación",
-  "com_nav_my_files": "Mis archivos",
+  "com_nav_my_files": "Archivos",
   "com_nav_not_supported": "No soportado",
   "com_nav_open_sidebar": "Abrir barra lateral",
   "com_nav_playback_rate": "Velocidad de reproducción de audio",
@@ -845,7 +845,7 @@
   "com_ui_custom_header_name": "Personalizado Header Name",
   "com_ui_custom_prompt_mode": "Modo de Prompt Personalizado",
   "com_ui_dashboard": "Panel de control",
-  "com_ui_date": "Fecha",
+  "com_ui_date": "Fecha:",
   "com_ui_date_april": "Abril",
   "com_ui_date_august": "Agosto",
   "com_ui_date_december": "Diciembre",
@@ -1518,7 +1518,6 @@
   "com_ui_new_report_name": "Nuevo nombre del informe:",
   "com_ui_untitled_report": "Informe sin título",
   "com_ui_risk_report_title": "Informe de Riesgos Laborales",
-  "com_ui_date": "Fecha:",
   "com_ui_activate": "Activar",
   "com_ui_inactivate": "Inactivar",
   "com_ui_confirm_bulk_activate": "¿Estás seguro de que quieres activar los usuarios seleccionados?",
@@ -1527,5 +1526,7 @@
   "com_ui_bulk_inactivate_success": "Usuarios inactivados exitosamente",
   "com_ui_bulk_activate_error": "Error al activar usuarios",
   "com_ui_bulk_inactivate_error": "Error al inactivar usuarios",
-  "com_ui_live_analysis_title": "Análisis en Vivo"
+  "com_ui_live_analysis_title": "Análisis en Vivo",
+  "com_nav_blog": "Blog (nuevo)",
+  "com_nav_sgsst": "Gestor SG-SST"
 }

@@ -27,6 +27,10 @@ import TrainingDashboard from '~/components/Training/TrainingDashboard';
 import CourseViewer from '~/components/Training/CourseViewer';
 import TrainingAdminDashboard from '~/components/Training/TrainingAdminDashboard';
 import CourseEditor from '~/components/Training/CourseEditor';
+import BlogDashboard from '~/components/Blog/BlogDashboard';
+import BlogAdminDashboard from '~/components/Blog/BlogAdminDashboard';
+import BlogPostEditor from '~/components/Blog/BlogPostEditor';
+import BlogPostViewer from '~/components/Blog/BlogPostViewer';
 import Search from './Search';
 import Root from './Root';
 
@@ -158,6 +162,22 @@ export const router = createBrowserRouter(
             {
               path: 'training/:courseId',
               element: <CourseViewer />,
+            },
+            {
+              path: 'blog',
+              element: <BlogDashboard />,
+            },
+            {
+              path: 'blog/admin',
+              element: <BlogAdminDashboard />,
+            },
+            {
+              path: 'blog/admin/posts/:id',
+              element: <BlogPostEditor />,
+            },
+            {
+              path: 'blog/:postId',
+              element: <BlogPostViewer />,
             },
             {
               path: 'agents',
