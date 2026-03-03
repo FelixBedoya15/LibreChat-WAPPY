@@ -13,7 +13,8 @@ export default function BlogPostEditor() {
     const { showToast } = useToastContext();
 
     const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
+    const [content, setContent] = useState('');          // final content used for saving
+    const [generatedContent, setGeneratedContent] = useState('');  // content from AI, used as LiveEditor initialContent
     const [thumbnail, setThumbnail] = useState('');
     const [tagsText, setTagsText] = useState('');
     const [isPublished, setIsPublished] = useState(false);
@@ -35,7 +36,9 @@ export default function BlogPostEditor() {
                     const response = await axios.get(`/api/blog/${id}`);
                     const post = response.data;
                     setTitle(post.title || '');
-                    setContent(post.content || '');
+                    const loaded = post.content || '';
+                    setContent(loaded);
+                    setGeneratedContent(loaded);  // initialize editor with existing content
                     setThumbnail(post.thumbnail || '');
                     setTagsText(post.tags ? post.tags.join(', ') : '');
                     setIsPublished(post.isPublished || false);
@@ -120,7 +123,9 @@ export default function BlogPostEditor() {
                 sources: sources
             });
             if (response.data && response.data.data) {
-                setContent(response.data.data);
+                const generated = response.data.data;
+                setGeneratedContent(generated); // <-- Only this triggers LiveEditor update
+                setContent(generated);          // Also sync the save-state
                 showToast({ message: 'Contenido generado exitosamente', status: 'success' });
             }
         } catch (error: any) {
@@ -315,7 +320,7 @@ export default function BlogPostEditor() {
                         </div>
                         <div className="flex-1">
                             <LiveEditor
-                                initialContent={content}
+                                initialContent={generatedContent}
                                 onUpdate={(val) => setContent(val)}
                             />
                         </div>
