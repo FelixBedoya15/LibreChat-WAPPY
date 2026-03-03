@@ -50,21 +50,31 @@ const TermsAndConditionsModal = ({
   };
 
   const content = useMemo(() => {
+    let str = '';
     if (typeof modalContent === 'string') {
-      return modalContent;
+      str = modalContent;
+    } else if (Array.isArray(modalContent)) {
+      str = modalContent.join('\n');
     }
 
-    if (Array.isArray(modalContent)) {
-      return modalContent.join('\n');
+    if (str === 'com_ui_terms_content') {
+      return localize('com_ui_terms_content');
     }
 
-    return '';
-  }, [modalContent]);
+    return str;
+  }, [modalContent, localize]);
+
+  const displayTitle = useMemo(() => {
+    if (title === 'com_ui_terms_title') {
+      return localize('com_ui_terms_title');
+    }
+    return title ?? localize('com_ui_terms_and_conditions');
+  }, [title, localize]);
 
   return (
     <OGDialog open={open} onOpenChange={handleOpenChange}>
       <DialogTemplate
-        title={title ?? localize('com_ui_terms_and_conditions')}
+        title={displayTitle}
         className="w-11/12 max-w-3xl sm:w-3/4 md:w-1/2 lg:w-2/5"
         showCloseButton={false}
         showCancelButton={false}
