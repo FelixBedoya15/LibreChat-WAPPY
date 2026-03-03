@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { ArrowLeft, Save, Sparkles, Loader2, Link as LinkIcon, FileText, Plus, Trash2 } from 'lucide-react';
+import { useUploadFileMutation } from '~/data-provider';
+import { ArrowLeft, Save, Sparkles, Loader2, Link as LinkIcon, FileText, Plus, Trash2, Image as ImageIcon, XCircle } from 'lucide-react';
 import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ModelSelector from '~/components/SGSST/ModelSelector';
 
@@ -31,6 +32,37 @@ export default function BlogPostEditor() {
 
     // Ref to imperatively set HTML in LiveEditor without React re-render cycle
     const liveEditorRef = useRef<LiveEditorHandle>(null);
+
+    // Thumbnail file upload
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const uploadMutation = useUploadFileMutation({
+        onSuccess: (data) => {
+            setUploadingImage(false);
+            showToast({ message: 'Imagen subida correctamente', status: 'success' });
+            setThumbnail(data.filepath);
+        },
+        onError: () => {
+            setUploadingImage(false);
+            showToast({ message: 'Error al subir la imagen', status: 'error' });
+        }
+    });
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setUploadingImage(true);
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('endpoint', 'default');
+            formData.append('file_id', crypto.randomUUID());
+            formData.append('version', '1');
+            formData.append('width', '512');
+            formData.append('height', '512');
+            uploadMutation.mutate(formData);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     useEffect(() => {
         if (!isNew) {
@@ -197,8 +229,8 @@ export default function BlogPostEditor() {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex-1 overflow-y-auto overflow-x-auto p-4 md:p-6">
+                <div className="min-w-[320px] max-w-4xl mx-auto space-y-6">
 
                     {/* Basic Info */}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
@@ -215,14 +247,37 @@ export default function BlogPostEditor() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Miniatura (URL de imagen)</label>
-                                <input
-                                    type="text"
-                                    value={thumbnail}
-                                    onChange={(e) => setThumbnail(e.target.value)}
-                                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    placeholder="https://ejemplo.com/imagen.jpg"
-                                />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Miniatura (Imagen)</label>
+                                <div className="flex gap-2 items-center">
+                                    <div
+                                        className="flex-1 flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        {uploadingImage ? (
+                                            <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                                        ) : (
+                                            <ImageIcon className="w-5 h-5 text-gray-400" />
+                                        )}
+                                        <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
+                                            {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
+                                        </span>
+                                        {thumbnail && !uploadingImage && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setThumbnail(''); }}
+                                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500"
+                                                title="Eliminar imagen"
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    {thumbnail && (
+                                        <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
+                                            <img src={thumbnail.startsWith('http') || thumbnail.startsWith('/') ? thumbnail : `/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                </div>
+                                <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiquetas (separadas por coma)</label>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { ArrowLeft, Clock, User, Share2, Tag } from 'lucide-react';
+import { ArrowLeft, Clock, User, Share2 } from 'lucide-react';
 
 export default function BlogPostViewer() {
     const { postId } = useParams();
@@ -24,7 +24,6 @@ export default function BlogPostViewer() {
                 setLoading(false);
             }
         };
-
         fetchPost();
     }, [postId, navigate, showToast]);
 
@@ -56,101 +55,95 @@ export default function BlogPostViewer() {
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 overflow-y-auto w-full">
-            {/* Header image / Banner */}
-            <div className="relative w-full h-64 md:h-80 lg:h-96 bg-gray-200 dark:bg-gray-800 flex-shrink-0">
-                {post.thumbnail ? (
-                    <img
-                        src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`}
-                        alt={post.title}
-                        className="w-full h-full object-cover"
-                    />
-                ) : (
-                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/90 to-purple-800/90 flex flex-col items-center justify-center text-center p-6">
-                        <Tag className="w-16 h-16 text-white/20 mb-4" />
-                    </div>
-                )}
 
-                {/* Gradient overlay for readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-
-                <div className="absolute top-4 left-4 z-10">
-                    <button
-                        onClick={() => navigate('/blog')}
-                        className="group flex items-center p-2 md:p-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white rounded-full transition-all duration-300 gap-2 border border-white/10"
-                    >
-                        <ArrowLeft className="w-5 h-5 flex-shrink-0 group-hover:-translate-x-1 transition-transform" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:mx-1 transition-all duration-300 whitespace-nowrap text-sm font-medium">Volver al Blog</span>
-                    </button>
-                </div>
-
-                {/* Title area overlaid on image */}
-                <div className="absolute bottom-0 left-0 w-full p-6 md:p-10 lg:p-16 text-white max-w-5xl mx-auto">
-                    {post.tags && post.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            {post.tags.map((tag: string, i: number) => (
-                                <span key={i} className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold tracking-wider uppercase border border-white/30 text-white">
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                    <h1 className="text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-4 drop-shadow-md">
-                        {post.title}
-                    </h1>
-
-                    <div className="flex items-center gap-6 text-sm md:text-base text-gray-200 flex-wrap">
-                        {post.author?.name && (
-                            <div className="flex items-center gap-2 font-medium">
-                                <User className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
-                                {post.author.name}
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 opacity-90">
-                            <Clock className="w-4 h-4 md:w-5 md:h-5 text-indigo-400" />
-                            {new Date(post.createdAt).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            })}
-                        </div>
-                    </div>
-                </div>
+            {/* Clean top bar with back button */}
+            <div className="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 px-4 md:px-8 py-3 flex items-center justify-between flex-shrink-0">
+                <button
+                    onClick={() => navigate('/blog')}
+                    className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
+                >
+                    <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
+                </button>
+                <button
+                    onClick={() => {
+                        navigator.clipboard.writeText(window.location.href);
+                        showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                >
+                    <Share2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Compartir</span>
+                </button>
             </div>
 
             {/* Content Container */}
-            <div className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 lg:p-16">
+            <div className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 lg:p-12">
 
-                {/* Actions Bar */}
-                <div className="flex justify-end mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">
-                    <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                    >
-                        <Share2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Compartir Artículo</span>
-                    </button>
+                {/* Tags */}
+                {post.tags && post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {post.tags.map((tag: string, i: number) => (
+                            <span key={i} className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold tracking-wider uppercase">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* Title */}
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight text-gray-900 dark:text-gray-50 mb-4">
+                    {post.title}
+                </h1>
+
+                {/* Meta */}
+                <div className="flex items-center gap-5 text-sm text-gray-500 dark:text-gray-400 flex-wrap mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                    {post.author?.name && (
+                        <div className="flex items-center gap-1.5">
+                            <User className="w-4 h-4" />
+                            {post.author.name}
+                        </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                        <Clock className="w-4 h-4" />
+                        {new Date(post.createdAt).toLocaleDateString('es-CO', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        })}
+                    </div>
                 </div>
 
-                {/* Main Markdown Content - We use Prose for styling */}
+                {/* Thumbnail — only if provided */}
+                {post.thumbnail && (
+                    <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm max-h-72">
+                        <img
+                            src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`}
+                            alt={post.title}
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+                )}
+
+                {/* Main HTML Content */}
                 <div
                     className="prose prose-lg dark:prose-invert prose-indigo max-w-none text-gray-800 dark:text-gray-200 leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: post.content }}
                 />
 
-                {/* Footer of the post */}
-                <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
-                    <h3 className="text-xl font-bold mb-6">Etiquetas Relacionadas</h3>
-                    <div className="flex flex-wrap gap-3">
-                        {post.tags?.map((tag: string, i: number) => (
-                            <span key={i} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-colors cursor-pointer">
-                                #{tag}
-                            </span>
-                        ))}
+                {/* Footer Tags */}
+                {post.tags && post.tags.length > 0 && (
+                    <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
+                        <h3 className="text-xl font-bold mb-6">Etiquetas Relacionadas</h3>
+                        <div className="flex flex-wrap gap-3">
+                            {post.tags.map((tag: string, i: number) => (
+                                <span key={i} className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-400 transition-colors cursor-pointer">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
