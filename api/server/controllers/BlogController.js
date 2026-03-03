@@ -133,7 +133,7 @@ const generateBlogPost = async (req, res) => {
 
     } catch (error) {
         console.error('Error generating blog content:', error);
-        res.status(500).json({ error: 'Error al generar contenido (asegúrese de detallar mejor su solicitud)' });
+        res.status(500).json({ error: `Error al generar contenido: ${error.message || 'Asegúrese de detallar mejor su solicitud'}` });
     }
 };
 

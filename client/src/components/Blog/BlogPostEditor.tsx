@@ -123,9 +123,10 @@ export default function BlogPostEditor() {
                 setContent(response.data.data);
                 showToast({ message: 'Contenido generado exitosamente', status: 'success' });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error generating content:', error);
-            showToast({ message: 'Error generando contenido con IA', status: 'error' });
+            const errorMsg = error.response?.data?.error || 'Error generando contenido con IA';
+            showToast({ message: errorMsg, status: 'error' });
         } finally {
             setIsGenerating(false);
         }
@@ -227,7 +228,7 @@ export default function BlogPostEditor() {
                     </div>
 
                     {/* AI Generation Tools */}
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800 space-y-4">
+                    <div className="relative z-50 bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800 space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                             <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                             <h3 className="text-md font-semibold text-indigo-900 dark:text-indigo-200">Generación con Inteligencia Artificial</h3>

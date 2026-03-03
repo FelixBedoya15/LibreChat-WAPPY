@@ -4,10 +4,8 @@ import { cn } from '~/utils';
 
 export const AI_MODELS = [
     { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
-
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' }
 ];
 
 interface ModelSelectorProps {
