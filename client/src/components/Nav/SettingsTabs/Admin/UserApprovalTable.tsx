@@ -190,6 +190,18 @@ export default function UserManagementTable() {
         }
     };
 
+    const handleBulkRoleChange = async (newRole: string) => {
+        if (!window.confirm(`¿Estás seguro de que quieres cambiar el rol de ${selectedUsers.size} usuario(s) a ${newRole}?`)) return;
+        try {
+            await axios.post('/api/admin/users/bulk-update', { userIds: Array.from(selectedUsers), role: newRole });
+            showToast({ message: 'Roles actualizados exitosamente', status: 'success' });
+            fetchUsers();
+            setSelectedUsers(new Set());
+        } catch {
+            showToast({ message: 'Error actualizando roles', status: 'error' });
+        }
+    };
+
     if (loading) return <div className="p-4">{localize('com_ui_loading')}</div>;
 
     const filteredIds = filteredUsers.map((u: any) => u._id);
@@ -287,7 +299,23 @@ export default function UserManagementTable() {
                     <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
                         {selectedUsers.size} {localize('com_ui_users_selected')}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                        <select
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    handleBulkRoleChange(e.target.value);
+                                    e.target.value = '';
+                                }
+                            }}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            defaultValue=""
+                        >
+                            <option value="" disabled>Cambiar Rol...</option>
+                            <option value="USER" className="text-black bg-white dark:bg-gray-800 dark:text-white">Usuario</option>
+                            <option value="USER_PLUS" className="text-black bg-white dark:bg-gray-800 dark:text-white">Usuario Plus</option>
+                            <option value="USER_PRO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Usuario Pro</option>
+                            <option value="ADMIN" className="text-black bg-white dark:bg-gray-800 dark:text-white">Admin</option>
+                        </select>
                         <button onClick={() => bulkAction('active', 'com_ui_confirm_bulk_activate', 'com_ui_bulk_activate_success', 'com_ui_bulk_activate_error')}
                             className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-xs font-medium">
                             {localize('com_ui_activate')}
