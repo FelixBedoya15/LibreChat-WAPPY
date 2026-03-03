@@ -72,7 +72,16 @@ export default function Footer({ className }: { className?: string }) {
     </React.Fragment>
   ));
 
-  const footerElements = [...mainContentRender, privacyPolicyRender, termsOfServiceRender].filter(
+  const planesRender = (
+    <a
+      className="text-text-secondary underline"
+      href="/planes"
+    >
+      Planes
+    </a>
+  );
+
+  const footerElements = [...mainContentRender, planesRender, privacyPolicyRender, termsOfServiceRender].filter(
     Boolean,
   );
 

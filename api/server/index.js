@@ -90,6 +90,12 @@ const startServer = async () => {
 
   /* Middleware */
   app.use(noIndex);
+
+  // ⚠️ Stripe webhook MUST receive raw (unparsed) body for signature verification
+  // Register BEFORE express.json() so it bypasses JSON parsing
+  const { handleWebhook: stripeWebhook } = require('./controllers/StripeController');
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(mongoSanitize());
@@ -159,6 +165,7 @@ const startServer = async () => {
     ['ads', routes.ads],
     ['sgsst', routes.sgsst],
     ['training', routes.training],
+    ['stripe', routes.stripe],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -215,6 +222,7 @@ const startServer = async () => {
   app.use('/api/sgsst/perfil-sociodemografico', routes.sgsst.perfilSociodemografico);
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
+  app.use('/api/stripe', routes.stripe);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {

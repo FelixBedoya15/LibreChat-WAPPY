@@ -2,7 +2,7 @@ import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut, BookOpen, Shield, Newspaper } from 'lucide-react';
+import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard } from 'lucide-react';
 import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
@@ -93,6 +93,14 @@ function AccountSettings() {
         >
           <FileText className="icon-md" aria-hidden="true" />
           {localize('com_nav_my_files')}
+        </Select.SelectItem>
+        <Select.SelectItem
+          value=""
+          onClick={() => navigate('/planes')}
+          className="select-item text-sm"
+        >
+          <CreditCard className="icon-md" aria-hidden="true" />
+          Planes
         </Select.SelectItem>
         <Select.SelectItem
           value=""

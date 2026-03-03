@@ -154,5 +154,8 @@
       "admin/",
       "packages/"
     ]
+  },
+  "dependencies": {
+    "stripe": "^20.4.0"
   }
 }

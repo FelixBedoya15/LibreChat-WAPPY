@@ -33,6 +33,7 @@ const ads = require('./ads');
 const sgsst = require('./sgsst');
 const training = require('./training');
 const blog = require('./blog');
+const stripe = require('./stripe');
 
 module.exports = {
   auth,
@@ -70,4 +71,5 @@ module.exports = {
   sgsst,
   training,
   blog,
+  stripe,
 };
