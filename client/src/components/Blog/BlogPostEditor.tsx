@@ -65,8 +65,9 @@ export default function BlogPostEditor() {
             formData.append('file', file);
             formData.append('endpoint', 'default');
             formData.append('file_id', crypto.randomUUID());
-            // NOTE: Do NOT append 'width'/'height' — those trigger uploadImage() instead of uploadFile()
-            // uploadImage() returns a different response where filepath might be empty/base64
+            formData.append('version', '1');
+            formData.append('width', '512');   // triggers uploadImage() endpoint → returns accessible URL
+            formData.append('height', '512');  // same as CourseEditor which works correctly
             uploadMutation.mutate(formData);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
