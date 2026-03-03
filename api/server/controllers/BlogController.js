@@ -118,7 +118,7 @@ const generateBlogPost = async (req, res) => {
 
         let systemPrompt = "";
         if (type === 'blog') {
-            systemPrompt = "Actúa como un experto creador de contenido y blogger. Crea un artículo de blog altamente atractivo, bien estructurado y en formato Markdown, basado en el tema indicado y en cualquier fuente adicional proporcionada por el usuario. Asegúrate de incluir encabezados claros, listas si aplica, y un párrafo introductorio y de conclusión.";
+            systemPrompt = "Actúa como un experto creador de contenido y blogger. Crea un artículo de blog altamente atractivo, bien estructurado y en formato HTML válido (usando tags como <h1>, <h2>, <p>, <ul>, <li>, <strong>, etc.), basado en el tema indicado y en cualquier fuente adicional proporcionada por el usuario. Asegúrate de incluir encabezados claros, listas si aplica, y un párrafo introductorio y de conclusión. DEBES DEVOLVER ÚNICAMENTE EL CÓDIGO HTML, SIN ENVOLTURAS MARKDOWN (como ```html).";
         }
 
         let fullPrompt = `${systemPrompt}\n\nTema / Solicitud del usuario: ${prompt}`;
@@ -127,7 +127,10 @@ const generateBlogPost = async (req, res) => {
         }
 
         const result = await model.generateContent(fullPrompt);
-        const responseText = result.response.text();
+        let responseText = result.response.text();
+
+        // Remove markdown wrappers if the model still adds them
+        responseText = responseText.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
 
         res.json({ data: responseText });
 
