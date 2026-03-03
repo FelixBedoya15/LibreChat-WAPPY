@@ -1,9 +1,19 @@
 const Stripe = require('stripe');
 const UserPlan = require('~/db/models/UserPlan');
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2024-12-18.acacia',
-});
+/** Lazy Stripe instance — only created on first API call, not at module load time.
+ *  This prevents the server from crashing on startup when STRIPE_SECRET_KEY is not yet set. */
+let _stripe = null;
+const getStripe = () => {
+    if (!_stripe) {
+        const key = process.env.STRIPE_SECRET_KEY;
+        if (!key) {
+            throw new Error('STRIPE_SECRET_KEY no está configurada en las variables de entorno');
+        }
+        _stripe = new Stripe(key, { apiVersion: '2024-12-18.acacia' });
+    }
+    return _stripe;
+};
 
 /** Map plan name → Stripe Price ID from environment variables */
 const PLAN_PRICE_MAP = {
@@ -59,7 +69,7 @@ const createCheckoutSession = async (req, res) => {
         let customerId = userPlan?.stripeCustomerId;
 
         if (!customerId) {
-            const customer = await stripe.customers.create({
+            const customer = await getStripe().customers.create({
                 email,
                 metadata: { userId: userId.toString() },
             });
@@ -68,7 +78,7 @@ const createCheckoutSession = async (req, res) => {
 
         const origin = process.env.DOMAIN_CLIENT || `https://ia.wappy-ia.com`;
 
-        const session = await stripe.checkout.sessions.create({
+        const session = await getStripe().checkout.sessions.create({
             mode: 'subscription',
             customer: customerId,
             line_items: [{ price: priceId, quantity: 1 }],
@@ -104,7 +114,7 @@ const createPortalSession = async (req, res) => {
 
         const origin = process.env.DOMAIN_CLIENT || `https://ia.wappy-ia.com`;
 
-        const session = await stripe.billingPortal.sessions.create({
+        const session = await getStripe().billingPortal.sessions.create({
             customer: userPlan.stripeCustomerId,
             return_url: `${origin}/planes`,
         });
@@ -126,7 +136,7 @@ const handleWebhook = async (req, res) => {
 
     let event;
     try {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        event = getStripe().webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err) {
         console.error('[Stripe] Webhook signature error:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -166,7 +176,7 @@ const handleWebhook = async (req, res) => {
                 const subscriptionId = invoice.subscription;
                 if (!subscriptionId) break;
 
-                const sub = await stripe.subscriptions.retrieve(subscriptionId);
+                const sub = await getStripe().subscriptions.retrieve(subscriptionId);
                 const userId = sub.metadata?.userId;
                 const plan = sub.metadata?.plan;
 
