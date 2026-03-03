@@ -72,7 +72,7 @@ export default function BlogPostEditor() {
                     setTitle(post.title || '');
                     const loaded = post.content || '';
                     setContent(loaded);
-                    setGeneratedContent(loaded);  // initialize editor with existing content
+                    setGeneratedContent(loaded);
                     setThumbnail(post.thumbnail || '');
                     setTagsText(post.tags ? post.tags.join(', ') : '');
                     setIsPublished(post.isPublished || false);
@@ -257,7 +257,7 @@ export default function BlogPostEditor() {
                                         ) : (
                                             <ImageIcon className="w-5 h-5 text-gray-400" />
                                         )}
-                                        <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
+                                        <span className="text-gray-500 dark:text-gray-400 flex-1 text-sm select-none truncate max-w-[200px] block overflow-hidden text-ellipsis">
                                             {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
                                         </span>
                                         {thumbnail && !uploadingImage && (

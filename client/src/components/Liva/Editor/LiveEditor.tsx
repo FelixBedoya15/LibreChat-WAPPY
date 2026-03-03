@@ -59,12 +59,21 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         }
     }));
 
+    // Track if we already did the initial load so we never overwrite user edits
+    const initializedRef = useRef(false);
+
     useEffect(() => {
-        // Only sync if initialContent is non-empty and editor doesn't already have it
-        if (editorRef.current && initialContent && editorRef.current.innerHTML !== initialContent) {
+        // Set content ONLY once when the component first mounts and has content
+        // After that, all updates go through the imperative setHTML() handle
+        if (!initializedRef.current && editorRef.current && initialContent) {
             editorRef.current.innerHTML = initialContent;
+            initializedRef.current = true;
+        } else if (!initializedRef.current && editorRef.current) {
+            // Mark as initialized even if content is empty, so future setHTML calls work
+            initializedRef.current = true;
         }
-    }, [initialContent]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // ← Empty deps: run ONCE on mount only. Updates come via setHTML() imperatively.
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         const newContent = e.currentTarget.innerHTML;
