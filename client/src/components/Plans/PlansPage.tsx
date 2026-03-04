@@ -21,7 +21,7 @@ const PLANS = [
             'Chat con IA',
             'Aula de estudio',
             'Máximo 10 conversaciones abiertas',
-            '1 clave API de Gemini',
+            'Podrá ingresar 1 clave API de Gemini',
         ],
         notIncluded: ['Blog', 'Gestor SGSST', 'Agentes personalizados'],
         popular: false,
@@ -40,7 +40,7 @@ const PLANS = [
             'Todo lo del plan Gratis',
             'Blog WAPPY',
             'Hasta 30 conversaciones abiertas',
-            '4 claves API de Gemini',
+            'Podrá ingresar 4 claves API de Gemini',
         ],
         notIncluded: ['Gestor SGSST', 'Agentes personalizados'],
         popular: false,
@@ -58,7 +58,7 @@ const PLANS = [
         features: [
             'Todo lo del plan Go',
             'Conversaciones ilimitadas',
-            '10 claves API de Gemini',
+            'Podrá ingresar 10 claves API de Gemini',
             'Gestor SGSST completo',
         ],
         notIncluded: ['Agentes personalizados'],
@@ -253,8 +253,8 @@ export default function PlansPage() {
             <div className="mx-auto max-w-5xl px-6 py-12">
                 {/* Hero */}
                 <div className="mb-12 text-center">
-                    <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border-medium/60 bg-surface-primary px-4 py-1.5 text-sm text-text-secondary">
-                        <PricingSVG className="mr-2 h-4 w-4 text-green-500" />
+                    <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2 text-lg font-medium text-text-secondary">
+                        <PricingSVG className="h-6 w-6 text-green-500" />
                         Planes y Precios
                     </div>
                     <h1 className="mt-2 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
@@ -339,7 +339,7 @@ export default function PlansPage() {
 
                                 {/* Name & tagline */}
                                 <h2 className="text-lg font-bold text-text-primary">{plan.name}</h2>
-                                <p className="mb-4 text-xs text-text-secondary">{plan.tagline}</p>
+                                <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
 
                                 {/* Price */}
                                 <div className="mb-4 flex items-end gap-1">
@@ -350,38 +350,41 @@ export default function PlansPage() {
                                 </div>
 
                                 {/* CTA */}
-                                <button
-                                    onClick={() => !isActive && !isFree && handleSubscribe(plan.key)}
-                                    disabled={isActive || isFree || isLoadingThis || loading}
-                                    className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
-                                        ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
-                                        : isFree
-                                            ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
-                                            : `bg-gradient-to-r ${plan.key === 'go'
-                                                ? 'from-blue-500 to-blue-600'
-                                                : plan.key === 'plus'
-                                                    ? 'from-green-500 to-emerald-600'
-                                                    : 'from-amber-500 to-orange-600'
-                                            } text-white hover:opacity-90 hover:shadow-md`
-                                        }`}
-                                >
-                                    {isLoadingThis ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
-                                        </>
-                                    ) : isActive ? (
-                                        <>
-                                            <Check className="h-4 w-4" /> Plan actual
-                                        </>
-                                    ) : isFree ? (
-                                        'Plan gratuito'
-                                    ) : (
-                                        `Comenzar con ${plan.name}`
-                                    )}
-                                </button>
+                                <div className="mt-auto pt-2">
+                                    <button
+                                        onClick={() => !isActive && !isFree && handleSubscribe(plan.key)}
+                                        disabled={isActive || isFree || isLoadingThis || loading}
+
+                                        className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
+                                            ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
+                                            : isFree
+                                                ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
+                                                : `bg-gradient-to-r ${plan.key === 'go'
+                                                    ? 'from-blue-500 to-blue-600'
+                                                    : plan.key === 'plus'
+                                                        ? 'from-green-500 to-emerald-600'
+                                                        : 'from-amber-500 to-orange-600'
+                                                } text-white hover:opacity-90 hover:shadow-md`
+                                            }`}
+                                    >
+                                        {isLoadingThis ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
+                                            </>
+                                        ) : isActive ? (
+                                            <>
+                                                <Check className="h-4 w-4" /> Plan actual
+                                            </>
+                                        ) : isFree ? (
+                                            'Plan gratuito'
+                                        ) : (
+                                            `Comenzar con ${plan.name}`
+                                        )}
+                                    </button>
+                                </div>
 
                                 {/* Features */}
-                                <ul className="flex-1 space-y-2">
+                                <ul className="mt-5 flex-1 space-y-2">
                                     {plan.features.map((f) => (
                                         <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
                                             <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
