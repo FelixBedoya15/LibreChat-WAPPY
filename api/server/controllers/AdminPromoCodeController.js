@@ -1,12 +1,6 @@
 const PromoCode = require('../../models/PromoCode');
-let stripe;
-
-const initStripe = () => {
-    if (!stripe && process.env.STRIPE_SECRET_KEY) {
-        stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    }
-    return stripe;
-};
+// Wompi does not require coupon pre-creation in their database,
+// we just validate it against our own MongoDB record.
 
 const getPromoCodes = async (req, res) => {
     try {
@@ -20,10 +14,8 @@ const getPromoCodes = async (req, res) => {
 const createPromoCode = async (req, res) => {
     try {
         const { code, discountPercentage } = req.body;
-        const s = initStripe();
-
-        if (!s) {
-            return res.status(500).json({ error: 'Stripe no está configurado (STRIPE_SECRET_KEY)' });
+        if (!code || !discountPercentage) {
+            return res.status(400).json({ error: 'Faltan parámetros' });
         }
 
         // Check if exists locally first
@@ -32,23 +24,9 @@ const createPromoCode = async (req, res) => {
             return res.status(400).json({ error: 'El código promocional ya existe en la base de datos' });
         }
 
-        // Create coupon in Stripe
-        let stripeCoupon;
-        try {
-            stripeCoupon = await s.coupons.create({
-                percent_off: discountPercentage,
-                duration: 'forever',
-                name: code.toUpperCase()
-            });
-        } catch (stripeErr) {
-            console.error('Stripe Coupon Creation Error:', stripeErr);
-            return res.status(400).json({ error: 'Error registrando cupón en Stripe: ' + stripeErr.message });
-        }
-
         const newPromoCode = new PromoCode({
             code: code.toUpperCase(),
             discountPercentage,
-            stripeCouponId: stripeCoupon.id,
             active: true
         });
 
@@ -65,15 +43,7 @@ const deletePromoCode = async (req, res) => {
         const promo = await PromoCode.findById(req.params.id);
         if (!promo) return res.status(404).json({ error: 'Not found' });
 
-        const s = initStripe();
-        if (s && promo.stripeCouponId) {
-            try {
-                // Delete from stripe
-                await s.coupons.del(promo.stripeCouponId);
-            } catch (stripeErr) {
-                console.warn('Could not delete from Stripe (might be deleted already)', stripeErr.message);
-            }
-        }
+
 
         await PromoCode.findByIdAndDelete(req.params.id);
         res.json({ success: true });
