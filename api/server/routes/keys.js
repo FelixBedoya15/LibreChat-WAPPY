@@ -4,6 +4,28 @@ const { updateUserKey, deleteUserKey, getUserKeyExpiry } = require('../services/
 const { requireJwtAuth } = require('../middleware/');
 
 router.put('/', requireJwtAuth, async (req, res) => {
+  const { name, value } = req.body;
+  const role = req.user.role;
+
+  // RBAC: Block non-google keys for Free (USER) plan
+  if (role === 'USER' && name !== 'google') {
+    return res.status(403).json({ error: 'Tu plan (Gratis) solo permite configurar claves API de Google/Gemini. Adquiere un plan superior para configurar otros proveedores.' });
+  }
+
+  // RBAC: Calculate max keys based on role
+  if (name === 'google' && typeof value === 'string') {
+    // Only count non-empty keys
+    const keysCount = value.split(',').filter(k => k.trim().length > 0).length;
+    let maxKeys = 1;
+
+    if (role === 'USER_GO') maxKeys = 4;
+    else if (role === 'USER_PLUS' || role === 'USER_PRO' || role === 'ADMIN') maxKeys = 10;
+
+    if (keysCount > maxKeys) {
+      return res.status(403).json({ error: `Tu plan actual solo permite registrar hasta ${maxKeys} claves API.` });
+    }
+  }
+
   await updateUserKey({ userId: req.user.id, ...req.body });
   res.status(201).send();
 });

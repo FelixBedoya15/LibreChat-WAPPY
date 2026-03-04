@@ -76,10 +76,9 @@ const Nav = memo(
 
     const hasAccessToAgents = hasPermission(PermissionTypes.AGENTS);
     const hasAccessToLiveAnalysis = hasPermission(PermissionTypes.LIVE_ANALYSIS);
-    const hasAccessToSGSST = useHasAccess({
-      permissionType: PermissionTypes.SGSST,
-      permission: Permissions.USE,
-    }) && hasPermission(PermissionTypes.SGSST);
+    // SG-SST button is always visible for all users so they can input company config.
+    // Upgrade limits are handled inside the SGSST module itself.
+    const hasAccessToSGSST = true;
 
     const search = useRecoilValue(store.search);
 

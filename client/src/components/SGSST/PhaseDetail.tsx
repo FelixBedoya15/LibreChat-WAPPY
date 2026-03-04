@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useHasAccess } from '~/hooks';
+import useRolePermissions from '~/hooks/Roles/useRolePermissions';
+import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
@@ -20,6 +22,7 @@ import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
 import PerfilSociodemografico from './PerfilSociodemografico';
+import { UpgradeWall } from './UpgradeWall';
 
 // Manual Icon Map to avoid dynamic import issues
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -55,6 +58,12 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
 
     // Get categories for this phase
     const categories = PHASE_CATEGORIES[phase.id as keyof typeof PHASE_CATEGORIES] || [];
+
+    const { hasPermission } = useRolePermissions();
+    const hasAccessToSGSST = useHasAccess({
+        permissionType: PermissionTypes.SGSST,
+        permission: Permissions.USE,
+    }) && hasPermission(PermissionTypes.SGSST);
 
     useEffect(() => {
         const saved = localStorage.getItem(storageKey);
@@ -241,109 +250,115 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                 {/* Category Content */}
                                 {isExpanded && (
                                     <div className="p-4 bg-surface-primary/30">
-                                        {/* Show DiagnosticoChecklist for diagnostico category */}
-                                        {category.id === 'diagnostico' && (
-                                            <div className="mb-6">
-                                                <DiagnosticoChecklist />
-                                            </div>
-                                        )}
-
-                                        {/* Show PoliticaSST for politica category */}
-                                        {category.id === 'politica' && (
-                                            <div className="mb-6">
-                                                <PoliticaSST />
-                                            </div>
-                                        )}
-
-                                        {/* Show ObjetivosSST for objetivos category */}
-                                        {category.id === 'objetivos' && (
-                                            <div className="mb-6">
-                                                <ObjetivosSST />
-                                            </div>
-                                        )}
-
-                                        {/* Show AuditoriaChecklist for auditoria category */}
-                                        {category.id === 'auditoria' && (
-                                            <div className="mb-6">
-                                                <AuditoriaChecklist />
-                                            </div>
-                                        )}
-
-                                        {/* Show MatrizLegal for legal category */}
-                                        {category.id === 'legal' && (
-                                            <div className="mb-6">
-                                                <MatrizLegal />
-                                            </div>
-                                        )}
-
-                                        {/* Show EstadisticasATEL for estadisticas category */}
-                                        {category.id === 'estadisticas' && (
-                                            <div className="mb-6">
-                                                <EstadisticasATEL />
-                                            </div>
-                                        )}
-
-                                        {/* Show MatrizPeligrosGTC45 for peligros category */}
-                                        {category.id === 'peligros' && (
-                                            <div className="mb-6">
-                                                <MatrizPeligrosGTC45 />
-                                            </div>
-                                        )}
-
-                                        {/* Show ReglamentoHigiene for rhs category */}
-                                        {category.id === 'rhs' && (
-                                            <div className="mb-6">
-                                                <ReglamentoHigiene />
-                                            </div>
-                                        )}
-
-                                        {/* Show ReglamentoInterno for rit category */}
-                                        {category.id === 'rit' && (
-                                            <div className="mb-6">
-                                                <ReglamentoInterno />
-                                            </div>
-                                        )}
-
-                                        {/* Show PerfilSociodemografico for perfil_socio category */}
-                                        {category.id === 'perfil_socio' && (
-                                            <div className="mb-6">
-                                                <PerfilSociodemografico />
-                                            </div>
-                                        )}
-
-                                        {categoryFiles.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-lg">
-                                                <FolderOpen className="h-8 w-8 mb-2 opacity-40" />
-                                                <span className="text-sm">Sin documentos</span>
-                                            </div>
+                                        {!hasAccessToSGSST ? (
+                                            <UpgradeWall />
                                         ) : (
-                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                                {categoryFiles.map((file) => (
-                                                    <div
-                                                        key={file.file_id}
-                                                        className="group relative flex items-center gap-3 p-3 rounded-lg border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
-                                                    >
-                                                        <div className="flex-shrink-0 p-2 rounded bg-surface-tertiary text-text-secondary">
-                                                            <File className="h-5 w-5" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="truncate text-sm font-medium text-text-primary" title={file.name}>
-                                                                {file.name}
-                                                            </p>
-                                                            <p className="text-xs text-text-secondary">
-                                                                {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Size unknown'}
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
-                                                            className="p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 hover:bg-surface-tertiary transition-all"
-                                                            title="Eliminar archivo"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </button>
+                                            <>
+                                                {/* Show DiagnosticoChecklist for diagnostico category */}
+                                                {category.id === 'diagnostico' && (
+                                                    <div className="mb-6">
+                                                        <DiagnosticoChecklist />
                                                     </div>
-                                                ))}
-                                            </div>
+                                                )}
+
+                                                {/* Show PoliticaSST for politica category */}
+                                                {category.id === 'politica' && (
+                                                    <div className="mb-6">
+                                                        <PoliticaSST />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ObjetivosSST for objetivos category */}
+                                                {category.id === 'objetivos' && (
+                                                    <div className="mb-6">
+                                                        <ObjetivosSST />
+                                                    </div>
+                                                )}
+
+                                                {/* Show AuditoriaChecklist for auditoria category */}
+                                                {category.id === 'auditoria' && (
+                                                    <div className="mb-6">
+                                                        <AuditoriaChecklist />
+                                                    </div>
+                                                )}
+
+                                                {/* Show MatrizLegal for legal category */}
+                                                {category.id === 'legal' && (
+                                                    <div className="mb-6">
+                                                        <MatrizLegal />
+                                                    </div>
+                                                )}
+
+                                                {/* Show EstadisticasATEL for estadisticas category */}
+                                                {category.id === 'estadisticas' && (
+                                                    <div className="mb-6">
+                                                        <EstadisticasATEL />
+                                                    </div>
+                                                )}
+
+                                                {/* Show MatrizPeligrosGTC45 for peligros category */}
+                                                {category.id === 'peligros' && (
+                                                    <div className="mb-6">
+                                                        <MatrizPeligrosGTC45 />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ReglamentoHigiene for rhs category */}
+                                                {category.id === 'rhs' && (
+                                                    <div className="mb-6">
+                                                        <ReglamentoHigiene />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ReglamentoInterno for rit category */}
+                                                {category.id === 'rit' && (
+                                                    <div className="mb-6">
+                                                        <ReglamentoInterno />
+                                                    </div>
+                                                )}
+
+                                                {/* Show PerfilSociodemografico for perfil_socio category */}
+                                                {category.id === 'perfil_socio' && (
+                                                    <div className="mb-6">
+                                                        <PerfilSociodemografico />
+                                                    </div>
+                                                )}
+
+                                                {categoryFiles.length === 0 ? (
+                                                    <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-lg">
+                                                        <FolderOpen className="h-8 w-8 mb-2 opacity-40" />
+                                                        <span className="text-sm">Sin documentos</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                        {categoryFiles.map((file) => (
+                                                            <div
+                                                                key={file.file_id}
+                                                                className="group relative flex items-center gap-3 p-3 rounded-lg border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
+                                                            >
+                                                                <div className="flex-shrink-0 p-2 rounded bg-surface-tertiary text-text-secondary">
+                                                                    <File className="h-5 w-5" />
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="truncate text-sm font-medium text-text-primary" title={file.name}>
+                                                                        {file.name}
+                                                                    </p>
+                                                                    <p className="text-xs text-text-secondary">
+                                                                        {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Size unknown'}
+                                                                    </p>
+                                                                </div>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
+                                                                    className="p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 hover:bg-surface-tertiary transition-all"
+                                                                    title="Eliminar archivo"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 )}

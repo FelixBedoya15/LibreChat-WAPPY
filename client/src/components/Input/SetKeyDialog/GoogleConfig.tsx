@@ -4,7 +4,7 @@ import { Label } from '@librechat/client';
 import { AuthKeys } from 'librechat-data-provider';
 import type { TConfigProps } from '~/common';
 import FileUpload from '~/components/Chat/Input/Files/FileUpload';
-import { useLocalize, useMultipleKeys } from '~/hooks';
+import { useLocalize, useMultipleKeys, useAuthContext } from '~/hooks';
 import InputWithLabel from './InputWithLabel';
 
 const CredentialsSchema = object({
@@ -21,6 +21,19 @@ const validateCredentials = (credentials: Record<string, unknown>) => {
 const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 'setUserKey'>) => {
   const localize = useLocalize();
   const { getMultiKey, setMultiKey } = useMultipleKeys(setUserKey);
+  const { user } = useAuthContext();
+
+  const keyLimit = React.useMemo(() => {
+    if (!user) return 1;
+    switch (user.role) {
+      case 'USER': return 1;
+      case 'USER_GO': return 4;
+      case 'USER_PLUS': return 10;
+      case 'USER_PRO': return 10;
+      case 'ADMIN': return 10;
+      default: return 1;
+    }
+  }, [user]);
 
   return (
     <>
@@ -45,10 +58,10 @@ const GoogleConfig = ({ userKey, setUserKey }: Pick<TConfigProps, 'userKey' | 's
           setMultiKey(AuthKeys.GOOGLE_SERVICE_KEY, JSON.stringify(data), userKey);
         }}
       />
-      {Array.from({ length: 10 }).map((_, index) => {
+      {Array.from({ length: keyLimit }).map((_, index) => {
         const currentKeys = (getMultiKey(AuthKeys.GOOGLE_API_KEY, userKey) ?? '').split(',');
-        // Ensure we always have at least 10 elements to map securely, filling with empty strings if needed
-        while (currentKeys.length < 10) currentKeys.push('');
+        // Ensure we always have elements up to the keyLimit securely, filling with empty strings if needed
+        while (currentKeys.length < keyLimit) currentKeys.push('');
 
         return (
           <InputWithLabel
