@@ -101,6 +101,11 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'planes',
+      element: <PlansPage />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'verify',
       element: <VerifyEmail />,
       errorElement: <RouteErrorBoundary />,
@@ -179,10 +184,6 @@ export const router = createBrowserRouter(
             {
               path: 'blog/:postId',
               element: <BlogPostViewer />,
-            },
-            {
-              path: 'planes',
-              element: <PlansPage />,
             },
             {
               path: 'agents',
