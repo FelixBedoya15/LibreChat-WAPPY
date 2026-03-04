@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { BookOpen, CheckCircle, Clock, Shield } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
+import { OpenSidebar } from '~/components/Chat/Menus';
+import type { ContextType } from '~/common';
 
 export default function TrainingDashboard() {
     const [courses, setCourses] = useState([]);
@@ -12,6 +14,7 @@ export default function TrainingDashboard() {
     const navigate = useNavigate();
     const { user } = useAuthContext();
     const isAdmin = user?.role === 'ADMIN';
+    const { navVisible, setNavVisible } = useOutletContext<ContextType>();
 
     useEffect(() => {
         const fetchCourses = async () => {
@@ -45,6 +48,11 @@ export default function TrainingDashboard() {
             <div className="flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-start md:items-center gap-4">
+                        {!navVisible && (
+                            <div className="hidden md:block shrink-0 -ml-2 mr-2">
+                                <OpenSidebar setNavVisible={setNavVisible} />
+                            </div>
+                        )}
                         <div className="p-3 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg shrink-0 mt-1 md:mt-0">
                             <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-blue-600 dark:text-blue-300" />
                         </div>
