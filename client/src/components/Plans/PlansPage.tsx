@@ -485,7 +485,7 @@ export default function PlansPage() {
                             </p>
 
                             {/* Billing Interval Toggle */}
-                            <div className="mx-auto mt-8 mb-6 inline-flex items-center gap-2 rounded-full border border-border-medium/60 bg-surface-primary p-1.5 shadow-sm">
+                            <div className="mx-auto mt-8 mb-10 grid w-full max-w-3xl grid-cols-2 gap-3 px-4 md:grid-cols-4">
                                 {[
                                     { id: 'monthly', label: 'Mensual' },
                                     { id: 'quarterly', label: 'Trimestral' },
@@ -503,17 +503,32 @@ export default function PlansPage() {
                                         <button
                                             key={interval.id}
                                             onClick={() => setBillingInterval(interval.id)}
-                                            className={`relative flex flex-col items-center justify-center rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
-                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md'
-                                                : 'text-text-secondary hover:text-text-primary'
+                                            className={`relative flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-4 transition-all duration-300 ${billingInterval === interval.id
+                                                    ? 'border-green-500 bg-green-50/50 shadow-md shadow-green-500/10 dark:border-green-400 dark:bg-green-950/20'
+                                                    : 'border-border-light bg-surface-primary hover:border-green-500/40 hover:bg-surface-hover'
                                                 }`}
                                         >
-                                            {interval.label}
-                                            {maxDiscount > 0 && (
-                                                <div className="absolute -bottom-3 flex justify-center w-full z-10 pointer-events-none">
-                                                    <span className={`whitespace-nowrap rounded-t-none rounded-b-md px-2 py-0.5 text-[10px] uppercase tracking-wide font-black transition-colors ${billingInterval === interval.id ? 'bg-[#ccff00] text-black shadow-sm' : 'bg-surface-secondary text-green-600 border border-green-500/20'}`}>
-                                                        Ahorra {maxDiscount}%
-                                                    </span>
+                                            <span className={`text-base font-bold ${billingInterval === interval.id ? 'text-green-700 dark:text-green-400' : 'text-text-primary'
+                                                }`}>
+                                                {interval.label}
+                                            </span>
+
+                                            {maxDiscount > 0 ? (
+                                                <span className={`mt-2 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${billingInterval === interval.id
+                                                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm'
+                                                        : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                    }`}>
+                                                    Ahorra {maxDiscount}%
+                                                </span>
+                                            ) : (
+                                                <span className="mt-2 text-[11px] font-medium text-text-tertiary">
+                                                    Precio base
+                                                </span>
+                                            )}
+
+                                            {billingInterval === interval.id && (
+                                                <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white shadow-md">
+                                                    <Check strokeWidth={3} className="h-3.5 w-3.5" />
                                                 </div>
                                             )}
                                         </button>
