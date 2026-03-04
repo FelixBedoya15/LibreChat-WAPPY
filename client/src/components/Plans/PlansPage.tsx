@@ -554,6 +554,11 @@ export default function PlansPage() {
                                     discountedPrice = rawPrice - (rawPrice * (promotion.discountPercentage / 100));
                                 }
 
+                                const isNotMonthly = billingInterval !== 'monthly';
+                                const monthsDivisor = billingInterval === 'quarterly' ? 3 : billingInterval === 'semiannual' ? 6 : billingInterval === 'annual' ? 12 : 1;
+                                const totalToBill = isFree ? 0 : ((promotion && promotion.discountPercentage > 0) ? discountedPrice : rawPrice);
+                                const pricePerMonth = isFree ? 0 : (totalToBill / monthsDivisor);
+
                                 return (
                                     <div
                                         key={plan.key}
@@ -604,14 +609,25 @@ export default function PlansPage() {
                                                     {displayPrice}
                                                 </span>
                                             )}
+
                                             <div className="flex items-end gap-1">
                                                 <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
-                                                    {promotion && promotion.discountPercentage > 0 ? '$' + discountedPrice.toLocaleString('es-CO') : displayPrice}
+                                                    {isFree ? '$0' : '$' + Math.round(pricePerMonth).toLocaleString('es-CO')}
                                                 </span>
                                                 <span className="mb-1 text-xs font-semibold text-text-secondary">
-                                                    /{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
+                                                    /mes
                                                 </span>
                                             </div>
+
+                                            {isNotMonthly && !isFree && (
+                                                <div className={`mt-0.5 text-base font-bold text-text-primary`}>
+                                                    ${Math.round(totalToBill).toLocaleString('es-CO')}{' '}
+                                                    <span className="text-xs font-semibold text-text-secondary">
+                                                        /{billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
+                                                    </span>
+                                                </div>
+                                            )}
+
                                             {promotion && (
                                                 <div className="mt-2 text-center w-full rounded-md bg-indigo-500/10 py-1.5 px-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                                                     {promotion.text || 'Oferta por tiempo limitado'}
@@ -623,7 +639,7 @@ export default function PlansPage() {
                                         <div className="mt-auto pt-2">
                                             <button
                                                 onClick={() => !isActive && !isFree && handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
-                                                disabled={isActive || isFree || isLoadingThis || loading || isUserAdmin}
+                                                disabled={isActive || isFree || isLoadingThis || loading}
 
                                                 className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
                                                     ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
