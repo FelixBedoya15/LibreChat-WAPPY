@@ -180,9 +180,7 @@ const startServer = async () => {
   app.use('/api/user', routes.user);
   app.use('/api/search', routes.search);
   app.use('/api/edit', routes.edit);
-  app.use('/api/agents/chat', checkConvoLimits);
-  app.use('/api/assistants', checkConvoLimits);
-  app.use('/api/messages', checkConvoLimits, routes.messages);
+  app.use('/api/messages', routes.messages);
   app.use('/api/convos', routes.convos);
   app.use('/api/presets', routes.presets);
   app.use('/api/prompts', routes.prompts);

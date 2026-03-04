@@ -8,6 +8,7 @@ const {
   configMiddleware,
   concurrentLimiter,
   messageUserLimiter,
+  checkConvoLimits,
 } = require('~/server/middleware');
 const { v1 } = require('./v1');
 const chat = require('./chat');
@@ -24,6 +25,7 @@ router.use('/', v1);
 
 const chatRouter = express.Router();
 chatRouter.use(configMiddleware);
+chatRouter.use(checkConvoLimits);
 
 if (isEnabled(LIMIT_CONCURRENT_MESSAGES)) {
   chatRouter.use(concurrentLimiter);
