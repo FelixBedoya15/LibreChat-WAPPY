@@ -4,7 +4,7 @@ const UserPlan = require('~/db/models/UserPlan');
 const Plan = require('~/models/Plan');
 const PromoCode = require('~/models/PromoCode');
 const WompiTransaction = require('~/models/WompiTransaction');
-const { User } = require('~/models');
+// Removed User import since role is available in req.user
 
 // We use crypto to safely create checksums for integrity if required,
 // but for standard Wompi widget, reference generation is sufficient until verification.
@@ -47,18 +47,23 @@ const PLAN_NAMES = { go: 'Go', plus: 'Plus', pro: 'Pro' };
 const getUserPlan = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
-        const user = await User.findById(userId).lean();
-        if (user?.role === 'ADMIN') {
-            return res.json({ plan: 'admin', role: 'ADMIN' });
+        const userPlan = await UserPlan.findOne({ userId }).lean();
+
+        let plan = userPlan?.planId;
+
+        if (!plan || plan === 'free') {
+            const role = req.user.role;
+            if (role === 'ADMIN') plan = 'admin';
+            else if (role === 'USER_PRO') plan = 'pro';
+            else if (role === 'USER_PLUS') plan = 'plus';
+            else if (role === 'USER_GO') plan = 'go';
+            else plan = 'free';
         }
 
-        const plan = await UserPlan.findOne({ userId }).lean();
-        if (!plan) return res.json({ plan: 'free' });
-
         return res.json({
-            plan: plan.planId,
-            status: plan.status,
-            currentPeriodEnd: plan.currentPeriodEnd,
+            plan: plan,
+            status: userPlan?.status || 'active',
+            currentPeriodEnd: userPlan?.currentPeriodEnd || null,
         });
     } catch (error) {
         console.error('[Wompi] getUserPlan error:', error);
