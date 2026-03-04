@@ -85,11 +85,82 @@ const PLANS = [
     },
 ];
 
+/* ─── Animated SVGs ─────────────────────────────────────────────────── */
+const FreeSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4">
+            <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
+        </path>
+        <path d="M12 16L12 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite" />
+        </path>
+        <path d="M9 12L12 8L15 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" begin="1s" repeatCount="indefinite" />
+        </path>
+    </svg>
+);
+
+const GoSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" repeatCount="indefinite" />
+        </path>
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1" opacity="0.2">
+            <animate attributeName="r" values="8;11;8" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
+        </circle>
+    </svg>
+);
+
+const PlusSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="2s" fill="freeze" />
+        </polygon>
+        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.2">
+            <animate attributeName="opacity" values="0.1;0.6;0.1" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="r" values="2;4;2" dur="2s" repeatCount="indefinite" />
+        </circle>
+    </svg>
+);
+
+const ProSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <path d="M2.5 19H21.5L19.5 7L15 12.5L12 4L9 12.5L4.5 7L2.5 19Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
+            <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
+        </path>
+        <circle cx="12" cy="3" r="1.5" fill="currentColor">
+            <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="4.5" cy="6" r="1.5" fill="currentColor">
+            <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.6s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="19.5" cy="6" r="1.5" fill="currentColor">
+            <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="1.2s" repeatCount="indefinite" />
+        </circle>
+    </svg>
+);
+
+const PricingSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.8">
+            <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
+        </rect>
+        <path d="M3 10H21" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
+        <path d="M7 14H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <animate attributeName="stroke-dasharray" values="0 10;10 0" dur="2s" fill="freeze" />
+        </path>
+        <circle cx="19" cy="14" r="1" fill="currentColor">
+            <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" />
+        </circle>
+    </svg>
+);
+
 const PLAN_ICON_MAP: Record<string, React.ElementType> = {
-    free: Zap,
-    go: Zap,
-    plus: Star,
-    pro: Crown,
+    free: FreeSVG,
+    go: GoSVG,
+    plus: PlusSVG,
+    pro: ProSVG,
 };
 
 /* ─── Main Page ─────────────────────────────────────────────────────── */
@@ -183,7 +254,7 @@ export default function PlansPage() {
                 {/* Hero */}
                 <div className="mb-12 text-center">
                     <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border-medium/60 bg-surface-primary px-4 py-1.5 text-sm text-text-secondary">
-                        <CreditCard className="h-4 w-4 text-green-500" />
+                        <PricingSVG className="mr-2 h-4 w-4 text-green-500" />
                         Planes y Precios
                     </div>
                     <h1 className="mt-2 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
@@ -219,7 +290,7 @@ export default function PlansPage() {
                             {portalLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                                <CreditCard className="h-4 w-4" />
+                                <PricingSVG className="mr-2 h-4 w-4" />
                             )}
                             Gestionar suscripción / Cancelar
                         </button>
@@ -238,8 +309,8 @@ export default function PlansPage() {
                             <div
                                 key={plan.key}
                                 className={`group relative flex flex-col rounded-2xl border bg-gradient-to-b p-5 transition-all duration-300 ${plan.gradientBg} ${isActive
-                                        ? `${plan.borderColor} shadow-md`
-                                        : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-sm`
+                                    ? `${plan.borderColor} shadow-md`
+                                    : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-sm`
                                     } bg-surface-primary/60 backdrop-blur-sm`}
                             >
                                 {/* Badges */}
@@ -251,8 +322,8 @@ export default function PlansPage() {
                                 {isActive && (
                                     <div
                                         className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold text-white shadow ${plan.key === 'free'
-                                                ? 'bg-text-secondary'
-                                                : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                                            ? 'bg-text-secondary'
+                                            : 'bg-gradient-to-r from-green-500 to-emerald-600'
                                             }`}
                                     >
                                         ✓ Plan actual
@@ -283,15 +354,15 @@ export default function PlansPage() {
                                     onClick={() => !isActive && !isFree && handleSubscribe(plan.key)}
                                     disabled={isActive || isFree || isLoadingThis || loading}
                                     className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
-                                            ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
-                                            : isFree
-                                                ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
-                                                : `bg-gradient-to-r ${plan.key === 'go'
-                                                    ? 'from-blue-500 to-blue-600'
-                                                    : plan.key === 'plus'
-                                                        ? 'from-green-500 to-emerald-600'
-                                                        : 'from-amber-500 to-orange-600'
-                                                } text-white hover:opacity-90 hover:shadow-md`
+                                        ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
+                                        : isFree
+                                            ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
+                                            : `bg-gradient-to-r ${plan.key === 'go'
+                                                ? 'from-blue-500 to-blue-600'
+                                                : plan.key === 'plus'
+                                                    ? 'from-green-500 to-emerald-600'
+                                                    : 'from-amber-500 to-orange-600'
+                                            } text-white hover:opacity-90 hover:shadow-md`
                                         }`}
                                 >
                                     {isLoadingThis ? (
