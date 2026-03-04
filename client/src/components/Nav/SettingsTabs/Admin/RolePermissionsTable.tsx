@@ -3,7 +3,17 @@ import { useToastContext } from '@librechat/client';
 import { SystemRoles, PermissionTypes, Permissions } from 'librechat-data-provider';
 import axios from 'axios';
 
-const ROLES = [SystemRoles.USER, SystemRoles.USER_PLUS, SystemRoles.USER_PRO, SystemRoles.ADMIN];
+const ROLES = [SystemRoles.USER, SystemRoles.USER_GO, SystemRoles.USER_PLUS, SystemRoles.USER_PRO, SystemRoles.ADMIN];
+
+const renderRoleName = (role: string) => {
+    return {
+        [SystemRoles.USER]: 'Gratis',
+        [SystemRoles.USER_GO]: 'Go',
+        [SystemRoles.USER_PLUS]: 'Plus',
+        [SystemRoles.USER_PRO]: 'Pro',
+        [SystemRoles.ADMIN]: 'Admin',
+    }[role] || role;
+};
 
 const PERMISSION_LABELS = {
     [PermissionTypes.AGENTS]: 'Constructor de Agentes',
@@ -109,7 +119,7 @@ export default function RolePermissionsTable() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Feature / Permission</th>
                         {ROLES.map(role => (
                             <th key={role} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                                {role}
+                                {renderRoleName(role)}
                             </th>
                         ))}
                     </tr>

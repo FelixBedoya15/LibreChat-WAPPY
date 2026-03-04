@@ -116,10 +116,11 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
                                             onChange={handleChange}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         >
-                                            <option value="USER">{localize('com_ui_role_user')}</option>
-                                            <option value="USER_PLUS">{localize('com_ui_role_user_plus')}</option>
-                                            <option value="USER_PRO">{localize('com_ui_role_user_pro')}</option>
-                                            <option value="ADMIN">{localize('com_ui_role_admin')}</option>
+                                            <option value="USER">Gratis</option>
+                                            <option value="USER_GO">Go</option>
+                                            <option value="USER_PLUS">Plus</option>
+                                            <option value="USER_PRO">Pro</option>
+                                            <option value="ADMIN">Admin</option>
                                         </select>
                                     </div>
                                     <div>

@@ -133,30 +133,46 @@ const AdminSettings = () => {
 
   const roleDropdownItems = [
     {
-      label: SystemRoles.USER,
+      label: 'Gratis',
       onClick: () => {
         setSelectedRole(SystemRoles.USER);
       },
     },
     {
-      label: SystemRoles.USER_PLUS,
+      label: 'Go',
+      onClick: () => {
+        setSelectedRole(SystemRoles.USER_GO);
+      },
+    },
+    {
+      label: 'Plus',
       onClick: () => {
         setSelectedRole(SystemRoles.USER_PLUS);
       },
     },
     {
-      label: SystemRoles.USER_PRO,
+      label: 'Pro',
       onClick: () => {
         setSelectedRole(SystemRoles.USER_PRO);
       },
     },
     {
-      label: SystemRoles.ADMIN,
+      label: 'Admin',
       onClick: () => {
         setSelectedRole(SystemRoles.ADMIN);
       },
     },
   ];
+
+  const renderRoleName = (role: string) => {
+    return {
+      [SystemRoles.USER]: 'Gratis',
+      [SystemRoles.USER_GO]: 'Go',
+      [SystemRoles.USER_PLUS]: 'Plus',
+      [SystemRoles.USER_PRO]: 'Pro',
+      [SystemRoles.ADMIN]: 'Admin',
+    }[role] || role;
+  };
 
   return (
     <OGDialog>
@@ -186,7 +202,7 @@ const AdminSettings = () => {
               setIsOpen={setIsRoleMenuOpen}
               trigger={
                 <Ariakit.MenuButton className="inline-flex w-1/4 items-center justify-center rounded-lg border border-border-light bg-transparent px-2 py-1 text-text-primary transition-all ease-in-out hover:bg-surface-tertiary">
-                  {selectedRole}
+                  {renderRoleName(selectedRole)}
                 </Ariakit.MenuButton>
               }
               items={roleDropdownItems}

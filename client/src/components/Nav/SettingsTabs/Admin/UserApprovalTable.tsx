@@ -256,9 +256,10 @@ export default function UserManagementTable() {
                     {/* Role filter */}
                     <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className={selectStyle}>
                         <option value="">{localize('com_ui_role')} — Todos</option>
-                        <option value="USER">Usuario</option>
-                        <option value="USER_PLUS">Usuario Plus</option>
-                        <option value="USER_PRO">Usuario Pro</option>
+                        <option value="USER">Gratis</option>
+                        <option value="USER_GO">Go</option>
+                        <option value="USER_PLUS">Plus</option>
+                        <option value="USER_PRO">Pro</option>
                         <option value="ADMIN">Admin</option>
                     </select>
 
@@ -311,9 +312,10 @@ export default function UserManagementTable() {
                             defaultValue=""
                         >
                             <option value="" disabled>Cambiar Rol...</option>
-                            <option value="USER" className="text-black bg-white dark:bg-gray-800 dark:text-white">Usuario</option>
-                            <option value="USER_PLUS" className="text-black bg-white dark:bg-gray-800 dark:text-white">Usuario Plus</option>
-                            <option value="USER_PRO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Usuario Pro</option>
+                            <option value="USER" className="text-black bg-white dark:bg-gray-800 dark:text-white">Gratis</option>
+                            <option value="USER_GO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Go</option>
+                            <option value="USER_PLUS" className="text-black bg-white dark:bg-gray-800 dark:text-white">Plus</option>
+                            <option value="USER_PRO" className="text-black bg-white dark:bg-gray-800 dark:text-white">Pro</option>
                             <option value="ADMIN" className="text-black bg-white dark:bg-gray-800 dark:text-white">Admin</option>
                         </select>
                         <button onClick={() => bulkAction('active', 'com_ui_confirm_bulk_activate', 'com_ui_bulk_activate_success', 'com_ui_bulk_activate_error')}
@@ -388,7 +390,9 @@ export default function UserManagementTable() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{user.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.email}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.username}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{user.role}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary">{
+                                        { USER: 'Gratis', USER_GO: 'Go', USER_PLUS: 'Plus', USER_PRO: 'Pro', ADMIN: 'Admin' }[user.role] || user.role
+                                    }</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyle}`}>
                                             {effectiveStatus}

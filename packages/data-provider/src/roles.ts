@@ -31,6 +31,10 @@ export enum SystemRoles {
    */
   USER = 'USER',
   /**
+   * The User Go role
+   */
+  USER_GO = 'USER_GO',
+  /**
    * The User Plus role
    */
   USER_PLUS = 'USER_PLUS',
@@ -129,6 +133,10 @@ const defaultRolesSchema = z.object({
     name: z.literal(SystemRoles.USER),
     permissions: permissionsSchema,
   }),
+  [SystemRoles.USER_GO]: roleSchema.extend({
+    name: z.literal(SystemRoles.USER_GO),
+    permissions: permissionsSchema,
+  }),
   [SystemRoles.USER_PLUS]: roleSchema.extend({
     name: z.literal(SystemRoles.USER_PLUS),
     permissions: permissionsSchema,
@@ -219,6 +227,43 @@ export const roleDefaults = defaultRolesSchema.parse({
   },
   [SystemRoles.USER]: {
     name: SystemRoles.USER,
+    permissions: {
+      [PermissionTypes.PROMPTS]: {},
+      [PermissionTypes.BOOKMARKS]: {},
+      [PermissionTypes.MEMORIES]: {},
+      [PermissionTypes.AGENTS]: {},
+      [PermissionTypes.MULTI_CONVO]: {},
+      [PermissionTypes.TEMPORARY_CHAT]: {},
+      [PermissionTypes.RUN_CODE]: {},
+      [PermissionTypes.WEB_SEARCH]: {},
+      [PermissionTypes.PEOPLE_PICKER]: {
+        [Permissions.VIEW_USERS]: false,
+        [Permissions.VIEW_GROUPS]: false,
+        [Permissions.VIEW_ROLES]: false,
+      },
+      [PermissionTypes.MARKETPLACE]: {
+        [Permissions.USE]: false,
+      },
+      [PermissionTypes.FILE_SEARCH]: {},
+      [PermissionTypes.FILE_CITATIONS]: {},
+      [PermissionTypes.LIVE_CHAT]: { [Permissions.USE]: true },
+      [PermissionTypes.LIVE_ANALYSIS]: { [Permissions.USE]: true },
+      [PermissionTypes.ARTIFACTS]: { [Permissions.USE]: true },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: true,
+        'openAI': true,
+        'google': true,
+        'anthropic': true,
+        'wappy': true,
+        'agents': true,
+      },
+      [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
+      [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
+      [PermissionTypes.SGSST]: { [Permissions.USE]: false },
+    },
+  },
+  [SystemRoles.USER_GO]: {
+    name: SystemRoles.USER_GO,
     permissions: {
       [PermissionTypes.PROMPTS]: {},
       [PermissionTypes.BOOKMARKS]: {},
