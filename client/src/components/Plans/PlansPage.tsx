@@ -427,8 +427,8 @@ export default function PlansPage() {
                                         <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
                                             {promotion && promotion.discountPercentage > 0 ? '$' + discountedPrice.toLocaleString('es-CO') : displayPrice}
                                         </span>
-                                        <span className="mb-1 text-sm font-medium text-text-secondary">
-                                            /{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trimestre' : billingInterval === 'semiannual' ? 'semestre' : 'año'}
+                                        <span className="mb-1 text-xs font-semibold text-text-secondary">
+                                            /{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
                                         </span>
                                     </div>
                                     {promotion && (
