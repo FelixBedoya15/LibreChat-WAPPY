@@ -470,18 +470,32 @@ export default function PlansPage() {
                                     { id: 'quarterly', label: 'Trimestral' },
                                     { id: 'semiannual', label: 'Semestral' },
                                     { id: 'annual', label: 'Anual' }
-                                ].map((interval) => (
-                                    <button
-                                        key={interval.id}
-                                        onClick={() => setBillingInterval(interval.id)}
-                                        className={`rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
-                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
-                                            : 'text-text-secondary hover:text-text-primary'
-                                            }`}
-                                    >
-                                        {interval.label}
-                                    </button>
-                                ))}
+                                ].map((interval) => {
+                                    let maxDiscount = 0;
+                                    fetchedPlans.forEach((config: any) => {
+                                        if (config.promotions?.[interval.id]?.active) {
+                                            maxDiscount = Math.max(maxDiscount, config.promotions[interval.id].discountPercentage || 0);
+                                        }
+                                    });
+
+                                    return (
+                                        <button
+                                            key={interval.id}
+                                            onClick={() => setBillingInterval(interval.id)}
+                                            className={`relative flex items-center justify-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
+                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
+                                                : 'text-text-secondary hover:text-text-primary'
+                                                }`}
+                                        >
+                                            {interval.label}
+                                            {maxDiscount > 0 && (
+                                                <span className={`ml-1 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide font-black transition-colors ${billingInterval === interval.id ? 'bg-white text-green-700 shadow-sm' : 'bg-[#ccff00] text-black shadow-sm'}`}>
+                                                    Ahorra {maxDiscount}%
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -586,7 +600,7 @@ export default function PlansPage() {
                                             </div>
                                         )}
                                         {promotion && promotion.discountPercentage > 0 && (
-                                            <div className="absolute -top-3 right-4 whitespace-nowrap rounded-full bg-[#ccff00] px-3 py-1 text-xs font-extrabold text-black shadow-lg border border-[#aadd00]">
+                                            <div className="absolute top-5 right-5 whitespace-nowrap rounded-full bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm border border-[#aadd00]/30 z-10">
                                                 -{promotion.discountPercentage}%
                                             </div>
                                         )}
