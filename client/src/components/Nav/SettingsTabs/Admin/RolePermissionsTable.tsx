@@ -109,14 +109,14 @@ export default function RolePermissionsTable() {
         }
     };
 
-    if (loading) return <div>Loading permissions...</div>;
+    if (loading) return <div>Cargando permisos...</div>;
 
     return (
         <div className="overflow-x-auto rounded-lg border border-light">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-surface-secondary">
                     <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Feature / Permission</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">Característica / Permiso</th>
                         {ROLES.map(role => (
                             <th key={role} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
                                 {renderRoleName(role)}
@@ -135,7 +135,7 @@ export default function RolePermissionsTable() {
                             {/* Standard USE permission */}
                             <tr>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-secondary pl-10">
-                                    Enable Feature
+                                    Habilitar Característica
                                 </td>
                                 {ROLES.map(role => {
                                     const isEnabled = rolePermissions[role]?.[type]?.[Permissions.USE] ?? false;

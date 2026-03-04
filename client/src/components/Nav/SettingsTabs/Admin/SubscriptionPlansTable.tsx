@@ -5,7 +5,7 @@ import { Button } from '@librechat/client';
 
 export default function SubscriptionPlansTable() {
     const { showToast } = useToastContext();
-    const [plans, setPlans] = useState([]);
+    const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchPlans = async () => {
@@ -69,90 +69,74 @@ export default function SubscriptionPlansTable() {
                         </Button>
                     </div>
 
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Precios Section */}
-                        <div>
-                            <h4 className="font-semibold text-lg mb-4 text-secondary">Valores del Plan (COP)</h4>
-                            <div className="space-y-3">
-                                {['monthly', 'quarterly', 'semiannual', 'annual'].map(interval => (
-                                    <div key={`price-${interval}`} className="flex items-center gap-3">
-                                        <label className="w-24 text-sm font-medium capitalize text-text-secondary">
-                                            {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual'}
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={plan.prices?.[interval] || 0}
-                                            onChange={(e) => handleChange(plan.planId, 'prices', interval, Number(e.target.value))}
-                                            className="flex-1 rounded-md border border-border-light bg-surface-primary px-3 py-1.5 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                    <div className="p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 bg-surface-primary">
+                        {['monthly', 'quarterly', 'semiannual', 'annual'].map(interval => (
+                            <div key={interval} className="border border-border-medium/60 bg-surface-secondary rounded-xl p-4 shadow-sm flex flex-col gap-5">
+                                <h4 className="font-bold text-lg capitalize text-primary text-center pb-3 border-b border-border-light">
+                                    {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual'}
+                                </h4>
 
-                        {/* Stripe IDs Section */}
-                        <div>
-                            <h4 className="font-semibold text-lg mb-4 text-secondary">IDs de Precio Stripe</h4>
-                            <div className="space-y-3">
-                                {['monthly', 'quarterly', 'semiannual', 'annual'].map(interval => (
-                                    <div key={`stripe-${interval}`} className="flex items-center gap-3">
-                                        <label className="w-24 text-sm font-medium capitalize text-text-secondary">
-                                            {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual'}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="price_1N..."
-                                            value={plan.stripePriceIds?.[interval] || ''}
-                                            onChange={(e) => handleChange(plan.planId, 'stripePriceIds', interval, e.target.value)}
-                                            className="flex-1 rounded-md border border-border-light bg-surface-primary px-3 py-1.5 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 text-sm font-mono"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Promociones Section */}
-                        <div className="md:col-span-2">
-                            <h4 className="font-semibold text-lg mb-4 text-secondary">Promociones Adicionales</h4>
-                            <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 flex flex-col gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase mb-1.5 block">Precio (COP)</label>
                                     <input
-                                        type="checkbox"
-                                        checked={plan.promotions?.active || false}
-                                        onChange={(e) => handleChange(plan.planId, 'promotions', 'active', e.target.checked)}
-                                        className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        type="number"
+                                        value={plan.prices?.[interval] || 0}
+                                        onChange={(e) => handleChange(plan.planId, 'prices', interval, Number(e.target.value))}
+                                        className="w-full rounded-lg border border-border-light bg-surface-primary px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 transition-colors"
                                     />
-                                    <span className="font-semibold">Activar Promoción para este plan</span>
-                                </label>
+                                </div>
 
-                                {plan.promotions?.active && (
-                                    <div className="flex gap-4 items-center">
-                                        <div className="flex-1 text-sm">
-                                            <div className="mb-1 text-text-secondary font-medium">Texto de Oferta</div>
-                                            <input
-                                                type="text"
-                                                placeholder="Ej. Ahorra 20% anual"
-                                                value={plan.promotions?.text || ''}
-                                                onChange={(e) => handleChange(plan.planId, 'promotions', 'text', e.target.value)}
-                                                className="w-full rounded-md border border-border-light bg-surface-primary px-3 py-1.5 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-                                            />
+                                <div>
+                                    <label className="text-xs font-bold text-text-secondary uppercase mb-1.5 block" title="Identificador de Precio de Stripe">
+                                        Stripe Price ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. price_1N..."
+                                        value={plan.stripePriceIds?.[interval] || ''}
+                                        onChange={(e) => handleChange(plan.planId, 'stripePriceIds', interval, e.target.value)}
+                                        className="w-full rounded-lg border border-border-light bg-surface-primary px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono transition-colors"
+                                    />
+                                </div>
+
+                                <div className="mt-auto bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
+                                    <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={plan.promotions?.[interval]?.active || false}
+                                            onChange={(e) => handleChange(plan.planId, 'promotions', interval, { ...plan.promotions?.[interval], active: e.target.checked })}
+                                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                        />
+                                        <span className="text-sm font-bold text-primary">Promoción</span>
+                                    </label>
+
+                                    {plan.promotions?.[interval]?.active && (
+                                        <div className="flex flex-col gap-3 mt-3">
+                                            <div>
+                                                <label className="text-[11px] font-bold text-text-secondary uppercase mb-1 block">Texto</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ej. Ahorra 20%"
+                                                    value={plan.promotions?.[interval]?.text || ''}
+                                                    onChange={(e) => handleChange(plan.planId, 'promotions', interval, { ...plan.promotions?.[interval], text: e.target.value })}
+                                                    className="w-full rounded-md border border-border-light bg-surface-primary px-2.5 py-1.5 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs transition-colors"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[11px] font-bold text-text-secondary uppercase mb-1 block">% Descuento</label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="20"
+                                                    value={plan.promotions?.[interval]?.discountPercentage || 0}
+                                                    onChange={(e) => handleChange(plan.planId, 'promotions', interval, { ...plan.promotions?.[interval], discountPercentage: Number(e.target.value) })}
+                                                    className="w-full rounded-md border border-border-light bg-surface-primary px-2.5 py-1.5 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs transition-colors"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="w-32 text-sm">
-                                            <div className="mb-1 text-text-secondary font-medium">Descuento (%)</div>
-                                            <input
-                                                type="number"
-                                                placeholder="20"
-                                                min="0"
-                                                max="100"
-                                                value={plan.promotions?.discountPercentage || 0}
-                                                onChange={(e) => handleChange(plan.planId, 'promotions', 'discountPercentage', Number(e.target.value))}
-                                                className="w-full rounded-md border border-border-light bg-surface-primary px-3 py-1.5 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             ))}

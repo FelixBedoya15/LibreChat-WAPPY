@@ -23,9 +23,10 @@ const planSchema = new mongoose.Schema({
         annual: { type: String, default: '' },
     },
     promotions: {
-        active: { type: Boolean, default: false },
-        text: { type: String, default: '' },
-        discountPercentage: { type: Number, default: 0 },
+        monthly: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
+        quarterly: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
+        semiannual: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
+        annual: { active: { type: Boolean, default: false }, text: { type: String, default: '' }, discountPercentage: { type: Number, default: 0 } },
     },
     featuresText: {
         type: [String],
