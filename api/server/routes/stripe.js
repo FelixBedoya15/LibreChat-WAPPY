@@ -6,6 +6,7 @@ const {
     createPortalSession,
     handleWebhook,
     getPublicPlansConfig,
+    validatePromoCode,
 } = require('../controllers/StripeController');
 
 const router = express.Router();
@@ -22,8 +23,9 @@ router.get('/configured-plans', getPublicPlansConfig);
 router.get('/plan', requireJwtAuth, getUserPlan);
 router.post('/create-checkout-session', requireJwtAuth, createCheckoutSession);
 router.post('/portal', requireJwtAuth, createPortalSession);
+router.get('/promocode/:code', requireJwtAuth, validatePromoCode);
 
 // Webhook — raw body (registered with raw middleware, see index.js)
-router.post('/webhook', handleWebhook);
+router.post('/webhook', express.raw({ type: 'application/json' }), handleWebhook);
 
 module.exports = router;

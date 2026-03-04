@@ -1,6 +1,7 @@
 const Stripe = require('stripe');
 const UserPlan = require('~/db/models/UserPlan');
 const Plan = require('~/models/Plan');
+const PromoCode = require('~/models/PromoCode');
 
 /** Lazy Stripe instance — only created on first API call, not at module load time.
  *  This prevents the server from crashing on startup when STRIPE_SECRET_KEY is not yet set. */
@@ -34,6 +35,20 @@ const getPublicPlansConfig = async (req, res) => {
     } catch (error) {
         console.error('[Stripe] getPublicPlansConfig error:', error);
         return res.status(500).json({ error: 'Error obteniendo planes configurados' });
+    }
+};
+
+const validatePromoCode = async (req, res) => {
+    try {
+        const { code } = req.params;
+        const codeDoc = await PromoCode.findOne({ code: code.toUpperCase() });
+        if (!codeDoc || !codeDoc.active) {
+            return res.status(404).json({ error: 'Código promocional inválido o expirado' });
+        }
+        return res.json({ discountPercentage: codeDoc.discountPercentage, code: codeDoc.code });
+    } catch (error) {
+        console.error('[Stripe] validatePromoCode error:', error);
+        return res.status(500).json({ error: 'Error validando código' });
     }
 };
 
@@ -80,6 +95,7 @@ const getUserPlan = async (req, res) => {
 const createCheckoutSession = async (req, res) => {
     try {
         const reqPlan = req.body.plan;
+        const promoCode = req.body.promoCode;
         const [planId, interval = 'monthly'] = reqPlan.split('|');
         const userId = req.user._id || req.user.id;
         const email = req.user.email;
@@ -113,11 +129,10 @@ const createCheckoutSession = async (req, res) => {
 
         const origin = process.env.DOMAIN_CLIENT || `https://ia.wappy-ia.com`;
 
-        const session = await getStripe().checkout.sessions.create({
+        const sessionConfig = {
             mode: 'subscription',
             customer: customerId,
             line_items: [{ price: priceId, quantity: 1 }],
-            allow_promotion_codes: true,
             billing_address_collection: 'auto',
             success_url: `${origin}/planes?success=1&plan=${planId}`,
             cancel_url: `${origin}/planes?cancelled=1`,
@@ -125,7 +140,20 @@ const createCheckoutSession = async (req, res) => {
             subscription_data: {
                 metadata: { userId: userId.toString(), plan: planId, interval },
             },
-        });
+        };
+
+        if (promoCode) {
+            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+            if (codeDoc && codeDoc.stripeCouponId && codeDoc.active) {
+                sessionConfig.discounts = [{ coupon: codeDoc.stripeCouponId }];
+            } else {
+                sessionConfig.allow_promotion_codes = true;
+            }
+        } else {
+            sessionConfig.allow_promotion_codes = true;
+        }
+
+        const session = await getStripe().checkout.sessions.create(sessionConfig);
 
         return res.json({ url: session.url });
     } catch (error) {
@@ -274,4 +302,5 @@ module.exports = {
     createPortalSession,
     handleWebhook,
     getPublicPlansConfig,
+    validatePromoCode,
 };

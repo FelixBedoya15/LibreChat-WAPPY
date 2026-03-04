@@ -3,6 +3,7 @@ import { useLocalize } from '~/hooks';
 import UserManagementTable from './UserApprovalTable';
 import RolePermissionsTable from './RolePermissionsTable';
 import SubscriptionPlansTable from './SubscriptionPlansTable';
+import PromoCodesTable from './PromoCodesTable';
 import { cn } from '~/utils';
 
 export default function Admin() {
@@ -51,6 +52,17 @@ export default function Admin() {
                     >
                         Planes y Suscripciones
                     </button>
+                    <button
+                        onClick={() => setActiveTab('promos')}
+                        className={cn(
+                            "pb-2 px-1 text-sm font-medium transition-colors duration-200",
+                            activeTab === 'promos'
+                                ? "border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                                : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        Códigos Promo
+                    </button>
                 </div>
             </div>
 
@@ -58,8 +70,10 @@ export default function Admin() {
                 <UserManagementTable />
             ) : activeTab === 'roles' ? (
                 <RolePermissionsTable />
-            ) : (
+            ) : activeTab === 'plans' ? (
                 <SubscriptionPlansTable />
+            ) : (
+                <PromoCodesTable />
             )}
         </div>
     );

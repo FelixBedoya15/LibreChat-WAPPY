@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Zap, Star, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle } from 'lucide-react';
+import { Check, Zap, Star, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ChevronRight, ShieldCheck } from 'lucide-react';
 import { ThemeSelector } from '@librechat/client';
 import { useToastContext } from '@librechat/client';
 
@@ -173,6 +173,12 @@ export default function PlansPage() {
     const [portalLoading, setPortalLoading] = useState(false);
     const [billingInterval, setBillingInterval] = useState<string>('monthly');
     const [fetchedPlans, setFetchedPlans] = useState<any[]>([]);
+    // Checkout flow
+    const [checkoutPlan, setCheckoutPlan] = useState<{ planKey: string; planObj: any; displayPrice: string; discountedPrice: number; rawPrice: number; promotion: any } | null>(null);
+    const [promoCodeInput, setPromoCodeInput] = useState('');
+    const [promoValidated, setPromoValidated] = useState<{ code: string; discountPercentage: number } | null>(null);
+    const [promoLoading, setPromoLoading] = useState(false);
+    const [promoError, setPromoError] = useState('');
 
     const params = new URLSearchParams(window.location.search);
     const successPlan = params.get('success') ? params.get('plan') : null;
@@ -216,19 +222,45 @@ export default function PlansPage() {
     }, []);
 
     const handleSubscribe = useCallback(
-        async (planKey: string) => {
+        (planKey: string, planObj: any, displayPrice: string, discountedPrice: number, rawPrice: number, promotion: any) => {
             if (planKey === 'free') return;
-            setCheckoutLoading(planKey);
-            try {
-                const { data } = await axios.post('/api/stripe/create-checkout-session', { plan: planKey });
-                if (data.url) window.location.href = data.url;
-            } catch (err: any) {
-                showToast({ message: err?.response?.data?.error || 'Error iniciando el pago', status: 'error' });
-                setCheckoutLoading(null);
-            }
+            setPromoCodeInput('');
+            setPromoValidated(null);
+            setPromoError('');
+            setCheckoutPlan({ planKey, planObj, displayPrice, discountedPrice, rawPrice, promotion });
         },
-        [showToast],
+        [],
     );
+
+    const handleValidatePromo = useCallback(async () => {
+        if (!promoCodeInput.trim()) return;
+        setPromoLoading(true);
+        setPromoError('');
+        try {
+            const { data } = await axios.get(`/api/stripe/promocode/${promoCodeInput.trim()}`);
+            setPromoValidated(data);
+        } catch {
+            setPromoError('Código inválido o expirado');
+            setPromoValidated(null);
+        } finally {
+            setPromoLoading(false);
+        }
+    }, [promoCodeInput]);
+
+    const handleConfirmPayment = useCallback(async () => {
+        if (!checkoutPlan) return;
+        setCheckoutLoading(checkoutPlan.planKey);
+        try {
+            const { data } = await axios.post('/api/stripe/create-checkout-session', {
+                plan: checkoutPlan.planKey + '|' + billingInterval,
+                promoCode: promoValidated?.code || undefined,
+            });
+            if (data.url) window.location.href = data.url;
+        } catch (err: any) {
+            showToast({ message: err?.response?.data?.error || 'Error iniciando el pago', status: 'error' });
+            setCheckoutLoading(null);
+        }
+    }, [checkoutPlan, billingInterval, promoValidated, showToast]);
 
     const handleManageSubscription = useCallback(async () => {
         setPortalLoading(true);
@@ -269,250 +301,401 @@ export default function PlansPage() {
             </div>
 
             <div className="mx-auto max-w-5xl px-6 py-12">
-                {/* Hero */}
-                <div className="mb-12 text-center">
-                    <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2 text-lg font-medium text-text-secondary">
-                        <PricingSVG className="h-6 w-6 text-green-500" />
-                        Planes y Precios
-                    </div>
-                    <h1 className="mt-2 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
-                        Elige tu plan de WAPPY IA
-                    </h1>
-                    <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">
-                        Cancela cuando quieras desde tu portal de suscripción. Selecciona la facturación que más te convenga.
-                    </p>
-
-                    {/* Billing Interval Toggle */}
-                    <div className="mx-auto mt-8 inline-flex items-center gap-1 rounded-full border border-border-medium/60 bg-surface-primary p-1 shadow-sm">
-                        {[
-                            { id: 'monthly', label: 'Mensual' },
-                            { id: 'quarterly', label: 'Trimestral' },
-                            { id: 'semiannual', label: 'Semestral' },
-                            { id: 'annual', label: 'Anual' }
-                        ].map((interval) => (
-                            <button
-                                key={interval.id}
-                                onClick={() => setBillingInterval(interval.id)}
-                                className={`rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
-                                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
-                                    : 'text-text-secondary hover:text-text-primary'
-                                    }`}
-                            >
-                                {interval.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Alerts */}
-                {successPlan && (
-                    <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-green-500/30 bg-green-500/10 px-5 py-3 text-sm text-green-600 dark:text-green-400">
-                        <Check className="h-4 w-4 flex-shrink-0" />
-                        ¡Suscripción activada! Tu plan está activo.
-                    </div>
-                )}
-                {wasCancelled && (
-                    <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm text-amber-600 dark:text-amber-400">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        El pago fue cancelado. Tu plan no cambió.
-                    </div>
-                )}
-                {activePlan === 'admin' && (
-                    <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-3 text-sm text-indigo-600 dark:text-indigo-400">
-                        <Crown className="h-4 w-4 flex-shrink-0" />
-                        Acceso de Administrador: Tienes permisos completos en el sistema.
-                    </div>
-                )}
-
-                {/* Manage subscription */}
-                {activePlan !== 'free' && activePlan !== 'admin' && (
-                    <div className="mb-8 flex justify-center">
+                {checkoutPlan ? (
+                    /* ── CHECKOUT VIEW ── */
+                    <div className="mx-auto max-w-3xl">
                         <button
-                            onClick={handleManageSubscription}
-                            disabled={portalLoading}
-                            className="flex items-center gap-2 rounded-xl border border-border-medium/50 bg-surface-primary px-5 py-2.5 text-sm text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
+                            onClick={() => setCheckoutPlan(null)}
+                            className="mb-8 flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
                         >
-                            {portalLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <PricingSVG className="mr-2 h-4 w-4" />
-                            )}
-                            Gestionar suscripción / Cancelar
+                            <ArrowLeft className="h-4 w-4" />
+                            Volver a los planes
                         </button>
-                    </div>
-                )}
+                        <h2 className="text-3xl font-black text-text-primary mb-2">Tu carrito</h2>
+                        <p className="text-text-secondary mb-8 text-sm">Revisa tu selección y aplica un código de descuento antes de continuar al pago.</p>
 
-                {/* Plans grid */}
-                <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    {PLANS.map((plan) => {
-                        const Icon = PLAN_ICON_MAP[plan.key];
-
-                        // Si es administrador, lo equiparamos visualmente al plan más alto
-                        const isUserAdmin = !loading && activePlan === 'admin';
-                        const isActive = !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
-
-                        const isLoadingThis = checkoutLoading === plan.key;
-                        const isFree = plan.key === 'free';
-                        const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
-
-                        // Dynamic price
-                        let rawPrice = 0;
-                        let displayPrice = plan.price;
-                        let promotion: any = null;
-
-                        if (!isFree && fetchedConfig) {
-                            rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
-                            displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
-                            if (fetchedConfig.promotions?.[billingInterval]?.active) {
-                                promotion = fetchedConfig.promotions[billingInterval];
-                            }
-                        }
-
-                        let discountedPrice = 0;
-                        if (promotion && rawPrice > 0) {
-                            discountedPrice = rawPrice - (rawPrice * (promotion.discountPercentage / 100));
-                        }
-
-                        return (
-                            <div
-                                key={plan.key}
-                                className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${isActive
-                                    ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
-                                    : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-md`
-                                    } bg-surface-primary/60 backdrop-blur-sm`}
-                            >
-                                {/* Badges */}
-                                {plan.popular && !isActive && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-0.5 text-xs font-bold text-white shadow">
-                                        ⭐ Más popular
+                        <div className="grid md:grid-cols-5 gap-6">
+                            {/* LEFT: plan detail */}
+                            <div className="md:col-span-3 flex flex-col gap-5">
+                                <div className={`rounded-2xl border p-6 bg-gradient-to-b ${checkoutPlan.planObj.gradientBg} ${checkoutPlan.planObj.borderColor} bg-surface-primary/70 shadow-sm`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-2xl font-extrabold text-text-primary">{checkoutPlan.planObj.name}</h3>
+                                            <p className="text-sm text-text-secondary mt-0.5">{checkoutPlan.planObj.tagline}</p>
+                                        </div>
+                                        <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${checkoutPlan.planObj.iconBg}`}>
+                                            {React.createElement(PLAN_ICON_MAP[checkoutPlan.planKey], { className: `h-6 w-6 ${checkoutPlan.planObj.iconColor}` })}
+                                        </div>
                                     </div>
-                                )}
-                                {isActive && (
-                                    <div
-                                        className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-bold text-white shadow ${plan.key === 'free'
-                                            ? 'bg-text-secondary'
-                                            : isUserAdmin
-                                                ? 'bg-gradient-to-r from-indigo-500 to-purple-600'
-                                                : 'bg-gradient-to-r from-green-500 to-emerald-600'
-                                            }`}
-                                    >
-                                        ✓ {isUserAdmin ? 'Plan de Admin' : 'Plan actual'}
+                                    <div className="flex items-end gap-1 mb-4">
+                                        {checkoutPlan.discountedPrice > 0 ? (
+                                            <>
+                                                <span className={`text-4xl font-black ${checkoutPlan.planObj.accentColor}`}>${checkoutPlan.discountedPrice.toLocaleString('es-CO')}</span>
+                                                <span className="text-sm text-text-secondary mb-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
+                                                <span className="ml-2 text-sm text-text-tertiary line-through decoration-red-400">{checkoutPlan.displayPrice}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className={`text-4xl font-black ${checkoutPlan.planObj.accentColor}`}>{checkoutPlan.displayPrice}</span>
+                                                <span className="text-sm text-text-secondary mb-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
+                                            </>
+                                        )}
                                     </div>
-                                )}
-                                {promotion && promotion.discountPercentage > 0 && (
-                                    <div className="absolute -top-3 right-4 whitespace-nowrap rounded-full bg-[#ccff00] px-3 py-1 text-xs font-extrabold text-black shadow-lg border border-[#aadd00]">
-                                        -{promotion.discountPercentage}%
+                                    <div className="border-t border-border-light pt-4 grid grid-cols-1 gap-1.5">
+                                        {checkoutPlan.planObj.features?.map((f: string) => (
+                                            <div key={f} className="flex items-center gap-2 text-sm text-text-secondary">
+                                                <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
+                                                {f}
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
-
-                                {/* Icon */}
-                                <div
-                                    className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
-                                >
-                                    <Icon className={`h-5 w-5 ${plan.iconColor}`} />
                                 </div>
 
-                                {/* Name & tagline */}
-                                <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
-                                <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
-
-                                {/* Price */}
-                                <div className="mb-5 flex flex-col items-start gap-1">
-                                    {promotion && promotion.discountPercentage > 0 && (
-                                        <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
-                                            {displayPrice}
-                                        </span>
-                                    )}
-                                    <div className="flex items-end gap-1">
-                                        <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
-                                            {promotion && promotion.discountPercentage > 0 ? '$' + discountedPrice.toLocaleString('es-CO') : displayPrice}
-                                        </span>
-                                        <span className="mb-1 text-xs font-semibold text-text-secondary">
-                                            /{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
-                                        </span>
+                                {/* Promo code box */}
+                                <div className="rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                                    <h4 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                                        <Tag className="h-4 w-4" />
+                                        ¿Tienes un código de descuento?
+                                    </h4>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={promoCodeInput}
+                                            onChange={(e) => {
+                                                setPromoCodeInput(e.target.value.toUpperCase());
+                                                setPromoValidated(null);
+                                                setPromoError('');
+                                            }}
+                                            placeholder="Ej. WAPPY50"
+                                            className="flex-1 rounded-xl border border-border-light bg-surface-secondary px-4 py-2.5 text-sm font-mono uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                                        />
+                                        <button
+                                            onClick={handleValidatePromo}
+                                            disabled={promoLoading || !promoCodeInput.trim() || !!promoValidated}
+                                            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                        >
+                                            {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+                                        </button>
                                     </div>
-                                    {promotion && (
-                                        <div className="mt-2 text-center w-full rounded-md bg-indigo-500/10 py-1.5 px-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                                            {promotion.text || 'Oferta por tiempo limitado'}
+                                    {promoValidated && (
+                                        <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-500/10 px-3.5 py-2.5 text-sm font-semibold text-green-600">
+                                            <Check className="h-4 w-4" />
+                                            Código <strong>{promoValidated.code}</strong> aplicado — {promoValidated.discountPercentage}% de descuento adicional
+                                        </div>
+                                    )}
+                                    {promoError && (
+                                        <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3.5 py-2.5 text-sm font-semibold text-red-500">
+                                            <AlertCircle className="h-4 w-4" />
+                                            {promoError}
                                         </div>
                                     )}
                                 </div>
+                            </div>
 
-                                {/* CTA */}
-                                <div className="mt-auto pt-2">
+                            {/* RIGHT: Resumen del pedido */}
+                            <div className="md:col-span-2">
+                                <div className="rounded-2xl border border-border-light bg-surface-primary p-6 shadow-sm sticky top-24">
+                                    <h3 className="text-base font-bold text-text-primary mb-5">Resumen del pedido</h3>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-text-secondary">Plan</span>
+                                            <span className="font-bold text-text-primary">{checkoutPlan.planObj.name}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-text-secondary">Periodo</span>
+                                            <span className="font-medium text-text-primary capitalize">
+                                                {billingInterval === 'monthly' ? 'Mensual' : billingInterval === 'quarterly' ? 'Trimestral' : billingInterval === 'semiannual' ? 'Semestral' : 'Anual'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-text-secondary">Precio base</span>
+                                            <span className="font-medium text-text-primary">{checkoutPlan.displayPrice}</span>
+                                        </div>
+                                        {checkoutPlan.promotion && (
+                                            <div className="flex justify-between text-indigo-500">
+                                                <span>Promoción ({checkoutPlan.promotion.discountPercentage}%)</span>
+                                                <span className="font-semibold">-${Math.round(checkoutPlan.rawPrice * (checkoutPlan.promotion.discountPercentage / 100)).toLocaleString('es-CO')}</span>
+                                            </div>
+                                        )}
+                                        {promoValidated && (
+                                            <div className="flex justify-between text-green-600">
+                                                <span>Código {promoValidated.code} ({promoValidated.discountPercentage}%)</span>
+                                                <span className="font-semibold">Aplicado en Stripe</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="my-4 border-t border-border-light" />
+                                    <div className="flex justify-between text-base font-black text-text-primary mb-6">
+                                        <span>Total</span>
+                                        <span className={checkoutPlan.planObj.accentColor}>
+                                            {checkoutPlan.discountedPrice > 0 ? '$' + checkoutPlan.discountedPrice.toLocaleString('es-CO') : checkoutPlan.displayPrice}
+                                            <span className="text-xs font-medium text-text-tertiary ml-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
+                                        </span>
+                                    </div>
                                     <button
-                                        onClick={() => !isActive && !isFree && handleSubscribe(plan.key + '|' + billingInterval)}
-                                        disabled={isActive || isFree || isLoadingThis || loading || isUserAdmin}
+                                        onClick={handleConfirmPayment}
+                                        disabled={!!checkoutLoading}
+                                        className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
+                                    >
+                                        {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
+                                        Continuar al pago
+                                    </button>
+                                    <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
+                                        <ShieldCheck className="h-3.5 w-3.5" />
+                                        Pago seguro con Stripe
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Hero */}
+                        <div className="mb-12 text-center">
+                            <div className="mb-4 inline-flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2 text-lg font-medium text-text-secondary">
+                                <PricingSVG className="h-6 w-6 text-green-500" />
+                                Planes y Precios
+                            </div>
+                            <h1 className="mt-2 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+                                Elige tu plan de WAPPY IA
+                            </h1>
+                            <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">
+                                Cancela cuando quieras desde tu portal de suscripción. Selecciona la facturación que más te convenga.
+                            </p>
 
-                                        className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
-                                            ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
-                                            : isFree
-                                                ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
-                                                : `bg-gradient-to-r ${plan.key === 'go'
-                                                    ? 'from-blue-500 to-blue-600'
-                                                    : plan.key === 'plus'
-                                                        ? 'from-green-500 to-emerald-600'
-                                                        : 'from-amber-500 to-orange-600'
-                                                } text-white hover:opacity-90 hover:shadow-md`
+                            {/* Billing Interval Toggle */}
+                            <div className="mx-auto mt-8 inline-flex items-center gap-1 rounded-full border border-border-medium/60 bg-surface-primary p-1 shadow-sm">
+                                {[
+                                    { id: 'monthly', label: 'Mensual' },
+                                    { id: 'quarterly', label: 'Trimestral' },
+                                    { id: 'semiannual', label: 'Semestral' },
+                                    { id: 'annual', label: 'Anual' }
+                                ].map((interval) => (
+                                    <button
+                                        key={interval.id}
+                                        onClick={() => setBillingInterval(interval.id)}
+                                        className={`rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
+                                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
+                                            : 'text-text-secondary hover:text-text-primary'
                                             }`}
                                     >
-                                        {isLoadingThis ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
-                                            </>
-                                        ) : isActive ? (
-                                            <>
-                                                <Check className="h-4 w-4" /> Plan actual
-                                            </>
-                                        ) : isFree ? (
-                                            'Plan gratuito'
-                                        ) : (
-                                            `Comenzar con ${plan.name}`
-                                        )}
+                                        {interval.label}
                                     </button>
-                                </div>
-
-                                {/* Features */}
-                                <ul className="mt-5 flex-1 space-y-2">
-                                    {plan.features.map((f) => (
-                                        <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
-                                            <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
-                                            {f}
-                                        </li>
-                                    ))}
-                                    {plan.notIncluded.map((f) => (
-                                        <li key={f} className="flex items-start gap-2 text-xs text-text-tertiary opacity-40 line-through">
-                                            <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">✕</span>
-                                            {f}
-                                        </li>
-                                    ))}
-                                </ul>
+                                ))}
                             </div>
-                        );
-                    })}
-                </div>
+                        </div>
 
-                {/* Footer note */}
-                <div className="mt-12 rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 p-6 text-center">
-                    <p className="text-sm text-text-secondary">
-                        Los precios están en pesos colombianos (COP). El cobro se realiza automáticamente de forma mensual, trimestral, semestral o anual según tu elección.
-                    </p>
-                    <p className="mt-1 text-sm text-text-secondary">
-                        Cancela o cambia tu plan en cualquier momento desde el portal de suscripción.
-                    </p>
-                    <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-text-tertiary">
-                        <a href="/privacy" className="underline hover:text-green-500">
-                            Política de Privacidad
-                        </a>
-                        <span>·</span>
-                        <a href="/terms" className="underline hover:text-green-500">
-                            Términos de Servicio
-                        </a>
-                    </div>
-                    <p className="mt-3 text-xs text-text-tertiary">
-                        WAPPY LTDA · NIT 901437310-3 · Todos los derechos reservados © {new Date().getFullYear()}
-                    </p>
-                </div>
+                        {/* Alerts */}
+                        {successPlan && (
+                            <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-green-500/30 bg-green-500/10 px-5 py-3 text-sm text-green-600 dark:text-green-400">
+                                <Check className="h-4 w-4 flex-shrink-0" />
+                                ¡Suscripción activada! Tu plan está activo.
+                            </div>
+                        )}
+                        {wasCancelled && (
+                            <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3 text-sm text-amber-600 dark:text-amber-400">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                El pago fue cancelado. Tu plan no cambió.
+                            </div>
+                        )}
+                        {activePlan === 'admin' && (
+                            <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-3 text-sm text-indigo-600 dark:text-indigo-400">
+                                <Crown className="h-4 w-4 flex-shrink-0" />
+                                Acceso de Administrador: Tienes permisos completos en el sistema.
+                            </div>
+                        )}
+
+                        {/* Manage subscription */}
+                        {activePlan !== 'free' && activePlan !== 'admin' && (
+                            <div className="mb-8 flex justify-center">
+                                <button
+                                    onClick={handleManageSubscription}
+                                    disabled={portalLoading}
+                                    className="flex items-center gap-2 rounded-xl border border-border-medium/50 bg-surface-primary px-5 py-2.5 text-sm text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
+                                >
+                                    {portalLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <PricingSVG className="mr-2 h-4 w-4" />
+                                    )}
+                                    Gestionar suscripción / Cancelar
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Plans grid */}
+                        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                            {PLANS.map((plan) => {
+                                const Icon = PLAN_ICON_MAP[plan.key];
+
+                                // Si es administrador, lo equiparamos visualmente al plan más alto
+                                const isUserAdmin = !loading && activePlan === 'admin';
+                                const isActive = !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
+
+                                const isLoadingThis = checkoutLoading === plan.key;
+                                const isFree = plan.key === 'free';
+                                const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
+
+                                // Dynamic price
+                                let rawPrice = 0;
+                                let displayPrice = plan.price;
+                                let promotion: any = null;
+
+                                if (!isFree && fetchedConfig) {
+                                    rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
+                                    displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+                                    if (fetchedConfig.promotions?.[billingInterval]?.active) {
+                                        promotion = fetchedConfig.promotions[billingInterval];
+                                    }
+                                }
+
+                                let discountedPrice = 0;
+                                if (promotion && rawPrice > 0) {
+                                    discountedPrice = rawPrice - (rawPrice * (promotion.discountPercentage / 100));
+                                }
+
+                                return (
+                                    <div
+                                        key={plan.key}
+                                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${isActive
+                                            ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
+                                            : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-md`
+                                            } bg-surface-primary/60 backdrop-blur-sm`}
+                                    >
+                                        {/* Badges */}
+                                        {plan.popular && !isActive && (
+                                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-green-500 to-emerald-600 px-3 py-0.5 text-xs font-bold text-white shadow">
+                                                ⭐ Más popular
+                                            </div>
+                                        )}
+                                        {isActive && (
+                                            <div
+                                                className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-bold text-white shadow ${plan.key === 'free'
+                                                    ? 'bg-text-secondary'
+                                                    : isUserAdmin
+                                                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600'
+                                                        : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                                                    }`}
+                                            >
+                                                ✓ {isUserAdmin ? 'Plan de Admin' : 'Plan actual'}
+                                            </div>
+                                        )}
+                                        {promotion && promotion.discountPercentage > 0 && (
+                                            <div className="absolute -top-3 right-4 whitespace-nowrap rounded-full bg-[#ccff00] px-3 py-1 text-xs font-extrabold text-black shadow-lg border border-[#aadd00]">
+                                                -{promotion.discountPercentage}%
+                                            </div>
+                                        )}
+
+                                        {/* Icon */}
+                                        <div
+                                            className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
+                                        >
+                                            <Icon className={`h-5 w-5 ${plan.iconColor}`} />
+                                        </div>
+
+                                        {/* Name & tagline */}
+                                        <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
+                                        <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
+
+                                        {/* Price */}
+                                        <div className="mb-5 flex flex-col items-start gap-1">
+                                            {promotion && promotion.discountPercentage > 0 && (
+                                                <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                                                    {displayPrice}
+                                                </span>
+                                            )}
+                                            <div className="flex items-end gap-1">
+                                                <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
+                                                    {promotion && promotion.discountPercentage > 0 ? '$' + discountedPrice.toLocaleString('es-CO') : displayPrice}
+                                                </span>
+                                                <span className="mb-1 text-xs font-semibold text-text-secondary">
+                                                    /{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
+                                                </span>
+                                            </div>
+                                            {promotion && (
+                                                <div className="mt-2 text-center w-full rounded-md bg-indigo-500/10 py-1.5 px-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                                                    {promotion.text || 'Oferta por tiempo limitado'}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* CTA */}
+                                        <div className="mt-auto pt-2">
+                                            <button
+                                                onClick={() => !isActive && !isFree && handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
+                                                disabled={isActive || isFree || isLoadingThis || loading || isUserAdmin}
+
+                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
+                                                    ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
+                                                    : isFree
+                                                        ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
+                                                        : `bg-gradient-to-r ${plan.key === 'go'
+                                                            ? 'from-blue-500 to-blue-600'
+                                                            : plan.key === 'plus'
+                                                                ? 'from-green-500 to-emerald-600'
+                                                                : 'from-amber-500 to-orange-600'
+                                                        } text-white hover:opacity-90 hover:shadow-md`
+                                                    }`}
+                                            >
+                                                {isLoadingThis ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
+                                                    </>
+                                                ) : isActive ? (
+                                                    <>
+                                                        <Check className="h-4 w-4" /> Plan actual
+                                                    </>
+                                                ) : isFree ? (
+                                                    'Plan gratuito'
+                                                ) : (
+                                                    `Comenzar con ${plan.name}`
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Features */}
+                                        <ul className="mt-5 flex-1 space-y-2">
+                                            {plan.features.map((f) => (
+                                                <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
+                                                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
+                                                    {f}
+                                                </li>
+                                            ))}
+                                            {plan.notIncluded.map((f) => (
+                                                <li key={f} className="flex items-start gap-2 text-xs text-text-tertiary opacity-40 line-through">
+                                                    <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">✕</span>
+                                                    {f}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Footer note */}
+                        <div className="mt-12 rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 p-6 text-center">
+                            <p className="text-sm text-text-secondary">
+                                Los precios están en pesos colombianos (COP). El cobro se realiza automáticamente de forma mensual, trimestral, semestral o anual según tu elección.
+                            </p>
+                            <p className="mt-1 text-sm text-text-secondary">
+                                Cancela o cambia tu plan en cualquier momento desde el portal de suscripción.
+                            </p>
+                            <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-text-tertiary">
+                                <a href="/privacy" className="underline hover:text-green-500">
+                                    Política de Privacidad
+                                </a>
+                                <span>·</span>
+                                <a href="/terms" className="underline hover:text-green-500">
+                                    Términos de Servicio
+                                </a>
+                            </div>
+                            <p className="mt-3 text-xs text-text-tertiary">
+                                WAPPY LTDA · NIT 901437310-3 · Todos los derechos reservados © {new Date().getFullYear()}
+                            </p>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

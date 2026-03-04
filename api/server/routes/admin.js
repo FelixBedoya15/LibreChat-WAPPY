@@ -4,6 +4,7 @@ const { requireJwtAuth } = require('~/server/middleware');
 const { requireAdmin } = require('~/server/middleware/roles/admin');
 const { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails } = require('~/server/controllers/AdminController');
 const { getPlans, updatePlan } = require('~/server/controllers/AdminPlansController');
+const { getPromoCodes, createPromoCode, deletePromoCode, togglePromoCode } = require('~/server/controllers/AdminPromoCodeController');
 
 router.get('/users', requireJwtAuth, requireAdmin, getAllUsers);
 router.post('/users/create', requireJwtAuth, requireAdmin, createUser);
@@ -15,5 +16,10 @@ router.get('/users/:userId/conversations/:conversationId', requireJwtAuth, requi
 
 router.get('/plans', requireJwtAuth, requireAdmin, getPlans);
 router.put('/plans/:planId', requireJwtAuth, requireAdmin, updatePlan);
+
+router.get('/promocodes', requireJwtAuth, requireAdmin, getPromoCodes);
+router.post('/promocodes', requireJwtAuth, requireAdmin, createPromoCode);
+router.delete('/promocodes/:id', requireJwtAuth, requireAdmin, deletePromoCode);
+router.patch('/promocodes/:id/toggle', requireJwtAuth, requireAdmin, togglePromoCode);
 
 module.exports = router;
