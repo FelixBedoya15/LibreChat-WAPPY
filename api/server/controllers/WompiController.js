@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const crypto = require('crypto');
-const UserPlan = require('~/models/UserPlan');
+const UserPlan = require('~/db/models/UserPlan');
 const Plan = require('~/models/Plan');
 const PromoCode = require('~/models/PromoCode');
 const WompiTransaction = require('~/models/WompiTransaction');
