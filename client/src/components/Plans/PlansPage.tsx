@@ -317,6 +317,12 @@ export default function PlansPage() {
                         El pago fue cancelado. Tu plan no cambió.
                     </div>
                 )}
+                {activePlan === 'admin' && (
+                    <div className="mx-auto mb-8 flex max-w-lg items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-3 text-sm text-indigo-600 dark:text-indigo-400">
+                        <Crown className="h-4 w-4 flex-shrink-0" />
+                        Acceso de Administrador: Tienes permisos completos en el sistema.
+                    </div>
+                )}
 
                 {/* Manage subscription */}
                 {activePlan !== 'free' && activePlan !== 'admin' && (
@@ -340,7 +346,11 @@ export default function PlansPage() {
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {PLANS.map((plan) => {
                         const Icon = PLAN_ICON_MAP[plan.key];
-                        const isActive = !loading && activePlan === plan.key;
+
+                        // Si es administrador, lo equiparamos visualmente al plan más alto
+                        const isUserAdmin = !loading && activePlan === 'admin';
+                        const isActive = !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
+
                         const isLoadingThis = checkoutLoading === plan.key;
                         const isFree = plan.key === 'free';
                         const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
@@ -375,10 +385,12 @@ export default function PlansPage() {
                                     <div
                                         className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold text-white shadow ${plan.key === 'free'
                                             ? 'bg-text-secondary'
-                                            : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                                            : isUserAdmin
+                                                ? 'bg-gradient-to-r from-indigo-500 to-purple-600'
+                                                : 'bg-gradient-to-r from-green-500 to-emerald-600'
                                             }`}
                                     >
-                                        ✓ Plan actual
+                                        ✓ {isUserAdmin ? 'Plan de Admin' : 'Plan actual'}
                                     </div>
                                 )}
                                 {promotion && !isActive && (
@@ -412,7 +424,7 @@ export default function PlansPage() {
                                 <div className="mt-auto pt-2">
                                     <button
                                         onClick={() => !isActive && !isFree && handleSubscribe(plan.key + '|' + billingInterval)}
-                                        disabled={isActive || isFree || isLoadingThis || loading}
+                                        disabled={isActive || isFree || isLoadingThis || loading || isUserAdmin}
 
                                         className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
                                             ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`

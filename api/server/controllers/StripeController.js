@@ -48,8 +48,21 @@ const getUserPlan = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
         const userPlan = await UserPlan.findOne({ userId });
+
+        let plan = userPlan?.plan;
+
+        // If no active Stripe plan, derive from the user's role
+        if (!plan || plan === 'free') {
+            const role = req.user.role;
+            if (role === 'ADMIN') plan = 'admin';
+            else if (role === 'USER_PRO') plan = 'pro';
+            else if (role === 'USER_PLUS') plan = 'plus';
+            else if (role === 'USER_GO') plan = 'go';
+            else plan = 'free';
+        }
+
         return res.json({
-            plan: userPlan?.plan ?? 'free',
+            plan: plan,
             cancelAtPeriodEnd: userPlan?.cancelAtPeriodEnd ?? false,
             planExpiresAt: userPlan?.planExpiresAt ?? null,
         });
