@@ -188,7 +188,7 @@ export default function PlansPage() {
         const fetchInitialData = async () => {
             try {
                 // Fetch user's active plan
-                const { data } = await axios.get('/api/stripe/plan');
+                const { data } = await axios.get('/api/wompi/plan');
                 setActivePlan(data.plan ?? 'free');
             } catch {
                 setActivePlan('free');
@@ -196,7 +196,7 @@ export default function PlansPage() {
 
             try {
                 // Fetch dynamic plans configuration
-                const { data: plansData } = await axios.get('/api/stripe/configured-plans');
+                const { data: plansData } = await axios.get('/api/wompi/configured-plans');
                 setFetchedPlans(plansData);
             } catch (err) {
                 console.error('Error fetching dynamic plans config', err);
@@ -237,7 +237,7 @@ export default function PlansPage() {
         setPromoLoading(true);
         setPromoError('');
         try {
-            const { data } = await axios.get(`/api/stripe/promocode/${promoCodeInput.trim()}`);
+            const { data } = await axios.get(`/api/wompi/promocode/${promoCodeInput.trim()}`);
             setPromoValidated(data);
         } catch {
             setPromoError('Código inválido o expirado');
@@ -251,26 +251,47 @@ export default function PlansPage() {
         if (!checkoutPlan) return;
         setCheckoutLoading(checkoutPlan.planKey);
         try {
-            const { data } = await axios.post('/api/stripe/create-checkout-session', {
+            const { data } = await axios.post('/api/wompi/create-transaction', {
                 plan: checkoutPlan.planKey + '|' + billingInterval,
                 promoCode: promoValidated?.code || undefined,
             });
-            if (data.url) window.location.href = data.url;
+
+            // Load Wompi Widget Script
+            const script = document.createElement('script');
+            script.src = 'https://checkout.wompi.co/widget.js';
+            script.onload = () => {
+                const checkout = new (window as any).WidgetCheckout({
+                    currency: data.currency,
+                    amountInCents: data.amountInCents,
+                    reference: data.reference,
+                    publicKey: data.publicKey,
+                    signature: data.signature ? { integrity: data.signature } : undefined,
+                    // If the user finishes in a popup window but closes it, Wompi handles it via webhook
+                });
+
+                checkout.open((result: any) => {
+                    const transaction = result.transaction;
+                    if (transaction.status === 'APPROVED') {
+                        window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
+                    } else if (transaction.status === 'PENDING') {
+                        showToast({ message: 'El pago está en validación por tu banco', status: 'info' });
+                        setTimeout(() => window.location.reload(), 3000);
+                    } else {
+                        showToast({ message: 'El pago no fue exitoso o fue cancelado', status: 'warning' });
+                        setCheckoutLoading(null);
+                    }
+                });
+            };
+            document.body.appendChild(script);
+
         } catch (err: any) {
-            showToast({ message: err?.response?.data?.error || 'Error iniciando el pago', status: 'error' });
+            showToast({ message: err?.response?.data?.error || 'Error iniciando el pago con Wompi', status: 'error' });
             setCheckoutLoading(null);
         }
     }, [checkoutPlan, billingInterval, promoValidated, showToast]);
 
     const handleManageSubscription = useCallback(async () => {
-        setPortalLoading(true);
-        try {
-            const { data } = await axios.post('/api/stripe/portal');
-            if (data.url) window.location.href = data.url;
-        } catch (err: any) {
-            showToast({ message: err?.response?.data?.error || 'Error abriendo el portal', status: 'error' });
-            setPortalLoading(false);
-        }
+        showToast({ message: 'Para modificar o cancelar tu plan, comunícate con soporte@wappy.co', status: 'info' });
     }, [showToast]);
 
     return (
@@ -420,7 +441,7 @@ export default function PlansPage() {
                                         {promoValidated && (
                                             <div className="flex justify-between text-green-600">
                                                 <span>Código {promoValidated.code} ({promoValidated.discountPercentage}%)</span>
-                                                <span className="font-semibold">Aplicado en Stripe</span>
+                                                <span className="font-semibold">Aplicado en Wompi</span>
                                             </div>
                                         )}
                                     </div>
@@ -442,7 +463,7 @@ export default function PlansPage() {
                                     </button>
                                     <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
                                         <ShieldCheck className="h-3.5 w-3.5" />
-                                        Pago seguro con Stripe
+                                        Pago seguro con Wompi y tu banco
                                     </div>
                                 </div>
                             </div>
@@ -464,7 +485,7 @@ export default function PlansPage() {
                             </p>
 
                             {/* Billing Interval Toggle */}
-                            <div className="mx-auto mt-8 inline-flex items-center gap-1 rounded-full border border-border-medium/60 bg-surface-primary p-1 shadow-sm">
+                            <div className="mx-auto mt-8 mb-6 inline-flex items-center gap-2 rounded-full border border-border-medium/60 bg-surface-primary p-1.5 shadow-sm">
                                 {[
                                     { id: 'monthly', label: 'Mensual' },
                                     { id: 'quarterly', label: 'Trimestral' },
@@ -482,16 +503,18 @@ export default function PlansPage() {
                                         <button
                                             key={interval.id}
                                             onClick={() => setBillingInterval(interval.id)}
-                                            className={`relative flex items-center justify-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
-                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
+                                            className={`relative flex flex-col items-center justify-center rounded-full px-6 py-2.5 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
+                                                ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md'
                                                 : 'text-text-secondary hover:text-text-primary'
                                                 }`}
                                         >
                                             {interval.label}
                                             {maxDiscount > 0 && (
-                                                <span className={`ml-1 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide font-black transition-colors ${billingInterval === interval.id ? 'bg-white text-green-700 shadow-sm' : 'bg-[#ccff00] text-black shadow-sm'}`}>
-                                                    Ahorra {maxDiscount}%
-                                                </span>
+                                                <div className="absolute -bottom-3 flex justify-center w-full z-10 pointer-events-none">
+                                                    <span className={`whitespace-nowrap rounded-t-none rounded-b-md px-2 py-0.5 text-[10px] uppercase tracking-wide font-black transition-colors ${billingInterval === interval.id ? 'bg-[#ccff00] text-black shadow-sm' : 'bg-surface-secondary text-green-600 border border-green-500/20'}`}>
+                                                        Ahorra {maxDiscount}%
+                                                    </span>
+                                                </div>
                                             )}
                                         </button>
                                     );

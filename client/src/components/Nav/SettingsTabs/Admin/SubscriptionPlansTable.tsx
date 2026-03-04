@@ -87,12 +87,12 @@ export default function SubscriptionPlansTable() {
                                 </div>
 
                                 <div>
-                                    <label className="text-xs font-bold text-text-secondary uppercase mb-1.5 block" title="Identificador de Precio de Stripe">
-                                        Stripe Price ID
+                                    <label className="text-xs font-bold text-text-secondary uppercase mb-1.5 block" title="Identificador o meta para Wompi/Sistema">
+                                        ID Wompi / Enlace
                                     </label>
                                     <input
                                         type="text"
-                                        placeholder="Ej. price_1N..."
+                                        placeholder="Ej. prod_1N... (Opcional)"
                                         value={plan.stripePriceIds?.[interval] || ''}
                                         onChange={(e) => handleChange(plan.planId, 'stripePriceIds', interval, e.target.value)}
                                         className="w-full rounded-lg border border-border-light bg-surface-primary px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 font-mono transition-colors"
