@@ -343,7 +343,7 @@ export default function PlansPage() {
                 )}
 
                 {/* Plans grid */}
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {PLANS.map((plan) => {
                         const Icon = PLAN_ICON_MAP[plan.key];
 
@@ -379,7 +379,7 @@ export default function PlansPage() {
                                 className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${isActive
                                     ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
                                     : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-md`
-                                    } bg-surface-primary/60 backdrop-blur-sm ${promotion ? 'mt-6' : ''}`}
+                                    } bg-surface-primary/60 backdrop-blur-sm`}
                             >
                                 {/* Badges */}
                                 {plan.popular && !isActive && (
@@ -432,7 +432,7 @@ export default function PlansPage() {
                                         </span>
                                     </div>
                                     {promotion && (
-                                        <div className="mt-2 text-center w-full rounded-md bg-indigo-500/10 py-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400">
+                                        <div className="mt-2 text-center w-full rounded-md bg-indigo-500/10 py-1.5 px-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                                             {promotion.text || 'Oferta por tiempo limitado'}
                                         </div>
                                     )}
