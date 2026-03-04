@@ -69,9 +69,9 @@ export default function SubscriptionPlansTable() {
                         </Button>
                     </div>
 
-                    <div className="p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 bg-surface-primary">
+                    <div className="p-6 flex flex-row overflow-x-auto gap-6 bg-surface-primary pb-8">
                         {['monthly', 'quarterly', 'semiannual', 'annual'].map(interval => (
-                            <div key={interval} className="border border-border-medium/60 bg-surface-secondary rounded-xl p-4 shadow-sm flex flex-col gap-5">
+                            <div key={interval} className="min-w-[260px] flex-1 border border-border-medium/60 bg-surface-secondary rounded-xl p-4 shadow-sm flex flex-col gap-5">
                                 <h4 className="font-bold text-lg capitalize text-primary text-center pb-3 border-b border-border-light">
                                     {interval === 'monthly' ? 'Mensual' : interval === 'quarterly' ? 'Trimestral' : interval === 'semiannual' ? 'Semestral' : 'Anual'}
                                 </h4>
