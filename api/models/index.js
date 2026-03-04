@@ -28,6 +28,16 @@ const seedDatabase = async () => {
   await methods.initializeRoles();
   await methods.seedDefaultRoles();
   await methods.ensureDefaultCategories();
+
+  // Force update SGSST permissions for existing users (Migration)
+  try {
+    const { Role } = require('~/db/models');
+    await Role.updateOne({ name: 'USER' }, { $set: { 'permissions.SGSST.USE': false } });
+    await Role.updateOne({ name: 'USER_GO' }, { $set: { 'permissions.SGSST.USE': false } });
+    await Role.updateOne({ name: 'ADMIN' }, { $set: { 'permissions.SGSST.USE': true } });
+  } catch (err) {
+    console.warn('Could not force update SGSST roles on boot:', err.message);
+  }
 };
 
 module.exports = {
