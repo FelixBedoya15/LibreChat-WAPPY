@@ -171,17 +171,35 @@ export default function PlansPage() {
     const [loading, setLoading] = useState(true);
     const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
     const [portalLoading, setPortalLoading] = useState(false);
+    const [billingInterval, setBillingInterval] = useState<string>('monthly');
+    const [fetchedPlans, setFetchedPlans] = useState<any[]>([]);
 
     const params = new URLSearchParams(window.location.search);
     const successPlan = params.get('success') ? params.get('plan') : null;
     const wasCancelled = params.get('cancelled') === '1';
 
     useEffect(() => {
-        axios
-            .get('/api/stripe/plan')
-            .then(({ data }) => setActivePlan(data.plan ?? 'free'))
-            .catch(() => setActivePlan('free'))
-            .finally(() => setLoading(false));
+        const fetchInitialData = async () => {
+            try {
+                // Fetch user's active plan
+                const { data } = await axios.get('/api/stripe/plan');
+                setActivePlan(data.plan ?? 'free');
+            } catch {
+                setActivePlan('free');
+            }
+
+            try {
+                // Fetch dynamic plans configuration
+                const { data: plansData } = await axios.get('/api/stripe/configured-plans');
+                setFetchedPlans(plansData);
+            } catch (err) {
+                console.error('Error fetching dynamic plans config', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInitialData();
     }, []);
 
     useEffect(() => {
@@ -261,8 +279,29 @@ export default function PlansPage() {
                         Elige tu plan de WAPPY IA
                     </h1>
                     <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">
-                        Pago mensual automático. Cancela cuando quieras desde tu portal de suscripción.
+                        Cancela cuando quieras desde tu portal de suscripción. Selecciona la facturación que más te convenga.
                     </p>
+
+                    {/* Billing Interval Toggle */}
+                    <div className="mx-auto mt-8 inline-flex items-center gap-1 rounded-full border border-border-medium/60 bg-surface-primary p-1 shadow-sm">
+                        {[
+                            { id: 'monthly', label: 'Mensual' },
+                            { id: 'quarterly', label: 'Trimestral' },
+                            { id: 'semiannual', label: 'Semestral' },
+                            { id: 'annual', label: 'Anual' }
+                        ].map((interval) => (
+                            <button
+                                key={interval.id}
+                                onClick={() => setBillingInterval(interval.id)}
+                                className={`rounded-full px-5 py-2 text-sm font-semibold transition-all duration-300 ${billingInterval === interval.id
+                                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow'
+                                    : 'text-text-secondary hover:text-text-primary'
+                                    }`}
+                            >
+                                {interval.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Alerts */}
@@ -304,6 +343,19 @@ export default function PlansPage() {
                         const isActive = !loading && activePlan === plan.key;
                         const isLoadingThis = checkoutLoading === plan.key;
                         const isFree = plan.key === 'free';
+                        const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
+
+                        // Dynamic price
+                        let displayPrice = plan.price;
+                        let promotion: any = null;
+
+                        if (!isFree && fetchedConfig) {
+                            const rawPrice = fetchedConfig.prices?.[billingInterval] || 0;
+                            displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+                            if (fetchedConfig.promotions?.active) {
+                                promotion = fetchedConfig.promotions;
+                            }
+                        }
 
                         return (
                             <div
@@ -311,7 +363,7 @@ export default function PlansPage() {
                                 className={`group relative flex flex-col rounded-2xl border bg-gradient-to-b p-5 transition-all duration-300 ${plan.gradientBg} ${isActive
                                     ? `${plan.borderColor} shadow-md`
                                     : `border-border-medium/40 hover:${plan.borderColor} hover:shadow-sm`
-                                    } bg-surface-primary/60 backdrop-blur-sm`}
+                                    } bg-surface-primary/60 backdrop-blur-sm ${promotion ? 'mt-6' : ''}`}
                             >
                                 {/* Badges */}
                                 {plan.popular && !isActive && (
@@ -329,6 +381,11 @@ export default function PlansPage() {
                                         ✓ Plan actual
                                     </div>
                                 )}
+                                {promotion && !isActive && (
+                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-pink-500 to-rose-500 px-3 py-0.5 text-xs font-semibold text-white shadow animate-pulse">
+                                        ⭐ {promotion.text}
+                                    </div>
+                                )}
 
                                 {/* Icon */}
                                 <div
@@ -344,15 +401,17 @@ export default function PlansPage() {
                                 {/* Price */}
                                 <div className="mb-4 flex items-end gap-1">
                                     <span className={`text-3xl font-extrabold tracking-tight ${plan.accentColor}`}>
-                                        {plan.price}
+                                        {displayPrice}
                                     </span>
-                                    <span className="mb-1 text-xs text-text-tertiary">/mes</span>
+                                    <span className="mb-1 text-xs text-text-tertiary">
+                                        /{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trimestre' : billingInterval === 'semiannual' ? 'semestre' : 'año'}
+                                    </span>
                                 </div>
 
                                 {/* CTA */}
                                 <div className="mt-auto pt-2">
                                     <button
-                                        onClick={() => !isActive && !isFree && handleSubscribe(plan.key)}
+                                        onClick={() => !isActive && !isFree && handleSubscribe(plan.key + '|' + billingInterval)}
                                         disabled={isActive || isFree || isLoadingThis || loading}
 
                                         className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
@@ -406,7 +465,7 @@ export default function PlansPage() {
                 {/* Footer note */}
                 <div className="mt-12 rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 p-6 text-center">
                     <p className="text-sm text-text-secondary">
-                        Los precios están en pesos colombianos (COP). El cobro se realiza automáticamente cada mes.
+                        Los precios están en pesos colombianos (COP). El cobro se realiza automáticamente de forma mensual, trimestral, semestral o anual según tu elección.
                     </p>
                     <p className="mt-1 text-sm text-text-secondary">
                         Cancela o cambia tu plan en cualquier momento desde el portal de suscripción.

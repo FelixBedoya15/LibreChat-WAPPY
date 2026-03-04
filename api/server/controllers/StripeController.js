@@ -1,5 +1,6 @@
 const Stripe = require('stripe');
 const UserPlan = require('~/db/models/UserPlan');
+const Plan = require('~/models/Plan');
 
 /** Lazy Stripe instance — only created on first API call, not at module load time.
  *  This prevents the server from crashing on startup when STRIPE_SECRET_KEY is not yet set. */
@@ -15,11 +16,25 @@ const getStripe = () => {
     return _stripe;
 };
 
-/** Map plan name → Stripe Price ID from environment variables */
+/** Map plan name → Stripe Price ID from environment variables (fallback) */
 const PLAN_PRICE_MAP = {
     go: process.env.STRIPE_PRICE_GO,
     plus: process.env.STRIPE_PRICE_PLUS,
     pro: process.env.STRIPE_PRICE_PRO,
+};
+
+/**
+ * GET /api/stripe/configured-plans
+ * Returns the configured plans from the database (for frontend UI)
+ */
+const getPublicPlansConfig = async (req, res) => {
+    try {
+        const plans = await Plan.find().lean();
+        return res.json(plans);
+    } catch (error) {
+        console.error('[Stripe] getPublicPlansConfig error:', error);
+        return res.status(500).json({ error: 'Error obteniendo planes configurados' });
+    }
 };
 
 /** Plan display names */
@@ -46,22 +61,29 @@ const getUserPlan = async (req, res) => {
 
 /**
  * POST /api/stripe/create-checkout-session
- * Body: { plan: 'go' | 'plus' | 'pro' }
+ * Body: { plan: 'go|monthly' | 'plus|annual' | 'pro' }
  * Returns: { url } — Stripe Checkout hosted URL
  */
 const createCheckoutSession = async (req, res) => {
     try {
-        const { plan } = req.body;
+        const reqPlan = req.body.plan;
+        const [planId, interval = 'monthly'] = reqPlan.split('|');
         const userId = req.user._id || req.user.id;
         const email = req.user.email;
 
-        if (!PLAN_PRICE_MAP[plan]) {
-            return res.status(400).json({ error: 'Plan inválido' });
+        // Fetch dynamic plan config
+        const planDoc = await Plan.findOne({ planId }).lean();
+
+        // Fallback to old behavior if no DB config
+        let priceId = null;
+        if (planDoc && planDoc.stripePriceIds?.[interval]) {
+            priceId = planDoc.stripePriceIds[interval];
+        } else if (interval === 'monthly' && PLAN_PRICE_MAP[planId]) {
+            priceId = PLAN_PRICE_MAP[planId];
         }
 
-        const priceId = PLAN_PRICE_MAP[plan];
         if (!priceId) {
-            return res.status(500).json({ error: `Variable STRIPE_PRICE_${plan.toUpperCase()} no configurada` });
+            return res.status(500).json({ error: `ID de Precio no configurado para el plan ${planId} (${interval})` });
         }
 
         // Get or create Stripe Customer
@@ -84,11 +106,11 @@ const createCheckoutSession = async (req, res) => {
             line_items: [{ price: priceId, quantity: 1 }],
             allow_promotion_codes: true,
             billing_address_collection: 'auto',
-            success_url: `${origin}/planes?success=1&plan=${plan}`,
+            success_url: `${origin}/planes?success=1&plan=${planId}`,
             cancel_url: `${origin}/planes?cancelled=1`,
-            metadata: { userId: userId.toString(), plan },
+            metadata: { userId: userId.toString(), plan: planId, interval },
             subscription_data: {
-                metadata: { userId: userId.toString(), plan },
+                metadata: { userId: userId.toString(), plan: planId, interval },
             },
         });
 
@@ -238,4 +260,5 @@ module.exports = {
     createCheckoutSession,
     createPortalSession,
     handleWebhook,
+    getPublicPlansConfig,
 };

@@ -5,6 +5,7 @@ const {
     createCheckoutSession,
     createPortalSession,
     handleWebhook,
+    getPublicPlansConfig,
 } = require('../controllers/StripeController');
 
 const router = express.Router();
@@ -13,6 +14,9 @@ const router = express.Router();
  * IMPORTANT: The webhook route must use raw body (before express.json() parses it)
  * This is handled at the top-level index.js by registering stripe webhook BEFORE json middleware.
  */
+
+// Public configurations
+router.get('/configured-plans', getPublicPlansConfig);
 
 // Authenticated routes
 router.get('/plan', requireJwtAuth, getUserPlan);

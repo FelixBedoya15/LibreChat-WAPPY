@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocalize } from '~/hooks';
 import UserManagementTable from './UserApprovalTable';
 import RolePermissionsTable from './RolePermissionsTable';
+import SubscriptionPlansTable from './SubscriptionPlansTable';
 import { cn } from '~/utils';
 
 export default function Admin() {
@@ -39,13 +40,26 @@ export default function Admin() {
                     >
                         {localize('com_ui_role_permissions')}
                     </button>
+                    <button
+                        onClick={() => setActiveTab('plans')}
+                        className={cn(
+                            "pb-2 px-1 text-sm font-medium transition-colors duration-200",
+                            activeTab === 'plans'
+                                ? "border-b-2 border-green-500 text-green-600 dark:text-green-400"
+                                : "text-text-secondary hover:text-text-primary"
+                        )}
+                    >
+                        Planes y Suscripciones
+                    </button>
                 </div>
             </div>
 
             {activeTab === 'users' ? (
                 <UserManagementTable />
-            ) : (
+            ) : activeTab === 'roles' ? (
                 <RolePermissionsTable />
+            ) : (
+                <SubscriptionPlansTable />
             )}
         </div>
     );
