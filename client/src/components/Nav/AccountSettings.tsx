@@ -60,7 +60,7 @@ function AccountSettings() {
         >
           <UserCircle className="icon-md text-text-tertiary group-hover:text-text-primary transition-colors shrink-0" />
           <span className="flex flex-col min-w-0">
-            <span className="truncate font-medium">{user?.email ?? localize('com_nav_user')}</span>
+            <span className="truncate font-medium">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
             <span className="text-xs text-text-tertiary group-hover:text-indigo-500 transition-colors">Editar cuenta →</span>
           </span>
         </Select.SelectItem>
