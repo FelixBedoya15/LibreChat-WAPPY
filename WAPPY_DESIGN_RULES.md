@@ -101,6 +101,59 @@ Reemplaza los botones toscos (bloques sólidos pesados) por integraciones híbri
 
 ---
 
+## 7. 📋 Renderizado de Informes y Tablas (LiveEditor)
+
+Al construir o modificar un **Aplicativo** tipo *SGSST* (como la Matriz de Peligros, Objetivos, etc.) que requiera exportar un informe en Word/PDF mediante el componente `<LiveEditor />` y `<ExportDropdown />`, es **OBLIGATORIO** utilizar etiquetas y estilos CSS **en línea** puristas (`style={{...}}`) para que las integraciones como `html-docx-js` lean los estilos a la perfección.
+
+*   No encierres tablas complejas en `className="flex"` vacío porque romperá el parseo a Word.
+*   **Contenedores Base de Tablas Exitosas (Ejemplo GTC45):**
+    ```html
+    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; page-break-inside: avoid;">
+      <!-- Encabezado del bloque -->
+      <div style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+         <!-- Titulo -->
+      </div>
+      <!-- Cuerpo con Tablas -->
+      <div style="padding: 20px;">
+        <div style="overflow-x: auto; width: 100%; margin-bottom: 16px;">
+          <table style="width: 100%; min-width: 600px; word-wrap: break-word; border-collapse: collapse; text-align: left; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <thead style="background-color: #f1f5f9; color: #475569; font-size: 12px; font-weight: 700;">
+              <tr>
+                <th style="padding: 10px; border-right: 1px solid #e2e8f0;">Columna</th>
+              </tr>
+            </thead>
+            <tbody style="color: #334155; font-size: 13px;">
+              <tr>
+                <td style="padding: 10px; border-right: 1px solid #e2e8f0;">Dato</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    ```
+
+*   **Reglas Críticas de Exportación (`html-docx`):**
+    1.  Toda etiqueta `<table/>` debe llevar `border-collapse: collapse;` y `width: 100%;`.
+    2.  No uses variables CSS personalizadas dentro del `style="..."` inyectado en la respuesta (ej. `var(--border)`). Usa los Hexadecimales planos (`#e2e8f0`, `#f1f5f9`).
+    3.  Asegúrate de agregar etiquetas inyectables (`<style>`) al div delimitador inferior del `LiveEditor` en el `.tsx` que sobreescriban los anchos base si la tabla necesita ser "Scrollable" horizontalmente:
+        ```html
+        <style>
+            [contenteditable] table {
+                width: 100%;
+                min-width: 650px;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+            [contenteditable] table td, [contenteditable] table th {
+                padding: 8px 12px;
+                /* ... borders */
+            }
+        </style>
+        ```
+
+---
+
 ## 📌 Checklist al Diseñar o Alterar un Componente en WAPPY IA:
 - [ ] ¿Los colores respetan la temática principal `green-500` / `emerald-600`?
 - [ ] ¿Eliminé rastros previos de botones `blue-500`, `indigo-500`, o violetas en modales Premium?
