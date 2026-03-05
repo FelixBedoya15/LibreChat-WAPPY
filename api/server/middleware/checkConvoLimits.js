@@ -18,10 +18,14 @@ const checkConvoLimits = async (req, res, next) => {
             const isNew = !conversationId || conversationId === 'new';
 
             // Bloqueamos cualquier interacción si tiene 10 o más (crear o continuar)
-            return res.status(403).json({
+            const payload = {
                 error: true,
                 type: 'convo_limit',
                 message: 'Has alcanzado el límite de 10 conversaciones simultáneas del plan Gratis. Para seguir chateando, elimina historiales antiguos o evoluciona a un plan Premium.'
+            };
+            return res.status(403).json({
+                ...payload,
+                text: JSON.stringify(payload)
             });
         }
 
