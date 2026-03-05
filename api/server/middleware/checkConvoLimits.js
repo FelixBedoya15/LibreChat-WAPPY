@@ -3,11 +3,19 @@ const { logger } = require('@librechat/data-schemas');
 
 const checkConvoLimits = async (req, res, next) => {
     try {
-        if (!req.user || !['USER', 'GO'].includes(req.user.role)) {
+        if (!req.user || !['USER', 'USER_GO'].includes(req.user.role)) {
             return next();
         }
 
         if (req.method !== 'POST') {
+            return next();
+        }
+
+        const { conversationId } = req.body;
+        const isNew = !conversationId || conversationId === 'new';
+
+        // Solo bloqueamos si el usuario intenta crear una nueva conversación
+        if (!isNew) {
             return next();
         }
 
@@ -18,11 +26,7 @@ const checkConvoLimits = async (req, res, next) => {
         const planName = isFreeUser ? 'Gratis' : 'Go';
 
         if (count >= limit) {
-            // Si conversationId == 'new', se está creando. En LibreChat a veces es 'new'
-            const { conversationId } = req.body;
-            const isNew = !conversationId || conversationId === 'new';
-
-            // Bloqueamos cualquier interacción si tiene el límite o más (crear o continuar)
+            // Bloqueamos la creación si ya tiene el límite o más (el límite es el máximo que PUEDE tener)
             const payload = {
                 error: true,
                 type: 'convo_limit',

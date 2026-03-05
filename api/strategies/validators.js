@@ -4,17 +4,17 @@ const MIN_PASSWORD_LENGTH = parseInt(process.env.MIN_PASSWORD_LENGTH, 10) || 8;
 
 const allowedCharactersRegex = new RegExp(
   '^[' +
-    'a-zA-Z0-9_.@#$%&*()' + // Basic Latin characters and symbols
-    '\\p{Script=Latin}' + // Latin script characters
-    '\\p{Script=Common}' + // Characters common across scripts
-    '\\p{Script=Cyrillic}' + // Cyrillic script for Russian, etc.
-    '\\p{Script=Devanagari}' + // Devanagari script for Hindi, etc.
-    '\\p{Script=Han}' + // Han script for Chinese characters, etc.
-    '\\p{Script=Arabic}' + // Arabic script
-    '\\p{Script=Hiragana}' + // Hiragana script for Japanese
-    '\\p{Script=Katakana}' + // Katakana script for Japanese
-    '\\p{Script=Hangul}' + // Hangul script for Korean
-    ']+$', // End of string
+  'a-zA-Z0-9_.@#$%&*()' + // Basic Latin characters and symbols
+  '\\p{Script=Latin}' + // Latin script characters
+  '\\p{Script=Common}' + // Characters common across scripts
+  '\\p{Script=Cyrillic}' + // Cyrillic script for Russian, etc.
+  '\\p{Script=Devanagari}' + // Devanagari script for Hindi, etc.
+  '\\p{Script=Han}' + // Han script for Chinese characters, etc.
+  '\\p{Script=Arabic}' + // Arabic script
+  '\\p{Script=Hiragana}' + // Hiragana script for Japanese
+  '\\p{Script=Katakana}' + // Katakana script for Japanese
+  '\\p{Script=Hangul}' + // Hangul script for Korean
+  ']+$', // End of string
   'u', // Use Unicode mode
 );
 const injectionPatternsRegex = /('|--|\$ne|\$gt|\$lt|\$or|\{|\}|\*|;|<|>|\/|=)/i;
@@ -31,7 +31,7 @@ const usernameSchema = z
   });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.union([z.string().email(), usernameSchema]),
   password: z
     .string()
     .min(MIN_PASSWORD_LENGTH)

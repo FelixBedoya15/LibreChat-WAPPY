@@ -51,7 +51,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
         ],
         excluded: ['Blog WAPPY', 'Gestor SGSST', 'Agentes personalizados'],
     },
-    GO: {
+    USER_GO: {
         badge: 'Actualiza al Plan Plus o Pro',
         included: [
             'Todo lo del plan Gratis',
