@@ -249,7 +249,10 @@ export default function CourseViewer() {
 
                                             if (embedUrl) {
                                                 return (
-                                                    <div className="w-full h-full absolute inset-0 group">
+                                                    <div
+                                                        className="w-full h-full absolute inset-0 group select-none"
+                                                        onContextMenu={(e) => e.preventDefault()}
+                                                    >
                                                         <iframe
                                                             src={embedUrl}
                                                             title={activeLesson.title}
@@ -257,13 +260,20 @@ export default function CourseViewer() {
                                                             allowFullScreen
                                                             className="w-full h-full absolute inset-0"
                                                         ></iframe>
+
                                                         {/* Protect from navigation - Transparent Overlays */}
-                                                        {/* 1. Header Protect (Title/Share) */}
-                                                        <div className="absolute top-0 left-0 w-full h-16 z-10 bg-transparent" />
-                                                        {/* 2. YouTube Logo Protect (Bottom Right) - Leaves space for fullscreen button */}
-                                                        <div className="absolute bottom-0 right-14 w-32 h-14 z-10 bg-transparent" />
-                                                        {/* 3. Center/Play Button (Optional, but helps prevent double-click to YouTube) */}
-                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 z-10 bg-transparent pointer-events-none" />
+                                                        {/* 1. Main Shield (Top 82%) - Blocks right-click on the video image area */}
+                                                        <div className="absolute top-0 left-0 w-full h-[82%] z-10 bg-transparent pointer-events-auto" />
+
+                                                        {/* 2. Header Protect (Title/Share) - Extra layer for the top bar */}
+                                                        <div className="absolute top-0 left-0 w-full h-16 z-20 bg-transparent" />
+
+                                                        {/* 3. YouTube Logo Protect (Bottom Right) - Covers the logo but leaves space for right-side controls */}
+                                                        <div className="absolute bottom-0 right-12 w-32 h-14 z-20 bg-transparent" />
+
+                                                        {/* 4. Left/Right Edge Protection */}
+                                                        <div className="absolute top-0 left-0 w-8 h-full z-20 bg-transparent" />
+                                                        <div className="absolute top-0 right-0 w-8 h-full z-20 bg-transparent" />
                                                     </div>
                                                 );
                                             }
