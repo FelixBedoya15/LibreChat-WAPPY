@@ -2,7 +2,7 @@ import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard } from 'lucide-react';
+import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle } from 'lucide-react';
 import { LinkIcon, GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
@@ -56,9 +56,13 @@ function AccountSettings() {
             setActiveSettingsTab('account');
             setShowSettings(true);
           }}
-          className="text-token-text-secondary ml-3 mr-2 py-2 text-sm cursor-pointer transition-colors hover:text-text-primary border-none outline-none"
+          className="select-item text-sm flex items-center gap-2 group"
         >
-          {user?.email ?? localize('com_nav_user')}
+          <UserCircle className="icon-md text-text-tertiary group-hover:text-text-primary transition-colors shrink-0" />
+          <span className="flex flex-col min-w-0">
+            <span className="truncate font-medium">{user?.email ?? localize('com_nav_user')}</span>
+            <span className="text-xs text-text-tertiary group-hover:text-indigo-500 transition-colors">Editar cuenta →</span>
+          </span>
         </Select.SelectItem>
         <DropdownMenuSeparator />
         {startupConfig?.balance?.enabled === true && balanceQuery.data != null && (
