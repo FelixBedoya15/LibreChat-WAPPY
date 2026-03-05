@@ -138,7 +138,7 @@ const errorMessages = {
         <a href="/planes" className="relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-300 ease-in-out z-10 overflow-hidden rounded-full hover:scale-105 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] group w-full">
           <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-red-600 to-orange-500" />
           <span className="relative flex items-center gap-2 text-md tracking-wide">
-            Ver Planes Ilimitados
+            Actualizar Plan
             <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>

@@ -59,6 +59,20 @@ export const UpgradeWall = ({
                 </div>
             </div>
 
+            {/* Upgrade Button */}
+            <a
+                href="/planes"
+                className="relative inline-flex items-center justify-center px-10 py-4 font-bold text-white transition-all duration-300 ease-in-out z-10 overflow-hidden rounded-full hover:scale-105 hover:shadow-[0_0_20px_rgba(79,70,229,0.4)] group mt-2"
+            >
+                {/* Button Background */}
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-600 to-indigo-600" />
+
+                {/* Button Content */}
+                <span className="relative flex items-center gap-2 text-lg tracking-wide">
+                    Actualizar Plan
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
+                </span>
+            </a>
         </div>
     );
 };
