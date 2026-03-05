@@ -65,6 +65,10 @@ function Avatar() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0];
     handleFile(file);
+    // Clear the input value so the same file can be selected again
+    if (event.target) {
+      event.target.value = '';
+    }
   };
 
   const handleFile = useCallback(
@@ -72,16 +76,17 @@ function Avatar() {
       if (!file) {
         return;
       }
-      const limit = fileConfig.avatarSizeLimit || 2 * 1024 * 1024; // Default to 2MB
-      if (file.size <= limit) {
+
+      // We allow up to 15MB for the initial browser load since the canvas will downscale it to 280x280 anyway
+      const browserLimit = 15 * 1024 * 1024;
+      if (file.size <= browserLimit) {
         setImage(file);
         setScale(1);
         setRotation(0);
         setPosition({ x: 0.5, y: 0.5 });
       } else {
-        const megabytes = formatBytes(limit);
         showToast({
-          message: localize('com_ui_upload_invalid_var', { 0: megabytes + '' }),
+          message: localize('com_ui_upload_invalid_var', { 0: '15MB' }),
           status: 'error',
         });
       }
