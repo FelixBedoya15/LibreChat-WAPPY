@@ -22,6 +22,8 @@ const UserPlanSchema = new mongoose.Schema(
         stripeCustomerId: { type: String, default: null },
         stripeSubscriptionId: { type: String, default: null },
         stripePriceId: { type: String, default: null },
+        nequiPhoneNumber: { type: String, default: null },
+        nequiToken: { type: String, default: null },
         planExpiresAt: { type: Date, default: null },
         cancelAtPeriodEnd: { type: Boolean, default: false },
     },

@@ -179,6 +179,10 @@ export default function PlansPage() {
     const [promoValidated, setPromoValidated] = useState<{ code: string; discountPercentage: number } | null>(null);
     const [promoLoading, setPromoLoading] = useState(false);
     const [promoError, setPromoError] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'nequi'>('wompi');
+    const [nequiPhone, setNequiPhone] = useState('');
+    const [nequiStatus, setNequiStatus] = useState<'idle' | 'linking' | 'waiting' | 'charging'>('idle');
+    const [nequiSubscriptionToken, setNequiSubscriptionToken] = useState('');
 
     const params = new URLSearchParams(window.location.search);
     const successPlan = params.get('success') ? params.get('plan') : null;
@@ -250,6 +254,35 @@ export default function PlansPage() {
     const handleConfirmPayment = useCallback(async () => {
         if (!checkoutPlan) return;
         setCheckoutLoading(checkoutPlan.planKey);
+
+        if (paymentMethod === 'nequi') {
+            if (!nequiPhone || nequiPhone.length < 10) {
+                showToast({ message: 'Escribe un número de celular Nequi válido', status: 'warning' });
+                setCheckoutLoading(null);
+                return;
+            }
+
+            try {
+                setNequiStatus('linking');
+                const { data } = await axios.post('/api/nequi/link', {
+                    phoneNumber: nequiPhone,
+                    plan: checkoutPlan.planKey + '|' + billingInterval,
+                    promoCode: promoValidated?.code || undefined,
+                });
+
+                if (data.subscriptionToken) {
+                    setNequiSubscriptionToken(data.subscriptionToken);
+                    setNequiStatus('waiting');
+                }
+            } catch (err: any) {
+                showToast({ message: err?.response?.data?.error || 'Error vinculando cuenta Nequi', status: 'error' });
+                setNequiStatus('idle');
+            } finally {
+                setCheckoutLoading(null);
+            }
+            return;
+        }
+
         try {
             const { data } = await axios.post('/api/wompi/create-transaction', {
                 plan: checkoutPlan.planKey + '|' + billingInterval,
@@ -288,7 +321,30 @@ export default function PlansPage() {
             showToast({ message: err?.response?.data?.error || 'Error iniciando el pago con Wompi', status: 'error' });
             setCheckoutLoading(null);
         }
-    }, [checkoutPlan, billingInterval, promoValidated, showToast]);
+    }, [checkoutPlan, billingInterval, promoValidated, showToast, paymentMethod, nequiPhone]);
+
+    const handleNequiCharge = useCallback(async () => {
+        if (!checkoutPlan || !nequiSubscriptionToken) return;
+        setCheckoutLoading('nequi-charge');
+        setNequiStatus('charging');
+        try {
+            const { data } = await axios.post('/api/nequi/verify-and-charge', {
+                subscriptionToken: nequiSubscriptionToken,
+                phoneNumber: nequiPhone,
+                plan: checkoutPlan.planKey + '|' + billingInterval,
+                promoCode: promoValidated?.code || undefined,
+            });
+
+            if (data.success) {
+                window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
+            }
+        } catch (err: any) {
+            showToast({ message: err?.response?.data?.error || 'No pudimos verificar el pago. Asegúrate de haber aceptado en la app.', status: 'error' });
+            setNequiStatus('waiting');
+        } finally {
+            setCheckoutLoading(null);
+        }
+    }, [checkoutPlan, nequiSubscriptionToken, nequiPhone, billingInterval, promoValidated, showToast]);
 
     const handleManageSubscription = useCallback(async () => {
         showToast({ message: 'Para modificar o cancelar tu plan, comunícate con soporte@wappy.co', status: 'info' });
@@ -453,17 +509,79 @@ export default function PlansPage() {
                                             <span className="text-xs font-medium text-text-tertiary ml-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
                                         </span>
                                     </div>
-                                    <button
-                                        onClick={handleConfirmPayment}
-                                        disabled={!!checkoutLoading}
-                                        className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
-                                    >
-                                        {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
-                                        Continuar al pago
-                                    </button>
+                                    <h3 className="text-base font-bold text-text-primary mb-4 mt-6">Método de pago</h3>
+                                    <div className="flex flex-col gap-3 mb-6">
+                                        <button
+                                            onClick={() => setPaymentMethod('wompi')}
+                                            className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${paymentMethod === 'wompi' ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' : 'border-border-light hover:bg-surface-hover'}`}
+                                        >
+                                            <div className="h-5 w-5 rounded-full border-2 border-green-500 flex items-center justify-center">
+                                                {paymentMethod === 'wompi' && <div className="h-2.5 w-2.5 rounded-full bg-green-500" />}
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <div className="text-sm font-bold text-text-primary">Wompi (Tarjetas / PSE / Bancolombia)</div>
+                                                <div className="text-xs text-text-secondary">Pago seguro inmediato</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => setPaymentMethod('nequi')}
+                                            className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${paymentMethod === 'nequi' ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' : 'border-border-light hover:bg-surface-hover'}`}
+                                        >
+                                            <div className="h-5 w-5 rounded-full border-2 border-green-500 flex items-center justify-center">
+                                                {paymentMethod === 'nequi' && <div className="h-2.5 w-2.5 rounded-full bg-green-500" />}
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <div className="text-sm font-bold text-text-primary">Nequi Conecta (Directo)</div>
+                                                <div className="text-xs text-text-secondary">Suscríbete desde tu app Nequi</div>
+                                            </div>
+                                            <img src="https://www.nequi.com.co/wp-content/uploads/2023/04/Logo-Nequi.png" alt="Nequi" className="h-5 object-contain" />
+                                        </button>
+                                    </div>
+
+                                    {paymentMethod === 'nequi' && (
+                                        <div className="mb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
+                                            <label className="text-xs font-bold text-text-secondary uppercase">Tu número de Nequi</label>
+                                            <input
+                                                type="text"
+                                                maxLength={10}
+                                                value={nequiPhone}
+                                                onChange={(e) => setNequiPhone(e.target.value.replace(/\D/g, ''))}
+                                                placeholder="3xx xxxxxxx"
+                                                disabled={nequiStatus !== 'idle'}
+                                                className="w-full rounded-xl border border-border-light bg-surface-secondary px-4 py-3 text-sm font-bold focus:border-green-500 outline-none transition-colors"
+                                            />
+                                            <p className="text-[11px] text-text-tertiary">Recibirás una notificación en tu app Nequi para autorizar los cobros mensuales.</p>
+                                        </div>
+                                    )}
+
+                                    {nequiStatus === 'waiting' && (
+                                        <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center animate-pulse">
+                                            <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Paso 1: Entra a tu app Nequi</p>
+                                            <p className="text-xs text-text-secondary mt-1">Busca la notificación o ve a "Ajustes" {">"} "Suscripciones" y acepta la vinculación de WAPPY.</p>
+                                            <button
+                                                onClick={handleNequiCharge}
+                                                disabled={!!checkoutLoading}
+                                                className="mt-4 w-full rounded-lg bg-amber-500 py-2 text-sm font-black text-white hover:bg-amber-600"
+                                            >
+                                                {checkoutLoading === 'nequi-charge' ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : '¡Ya acepté! Terminar pago'}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {nequiStatus !== 'waiting' && nequiStatus !== 'charging' && (
+                                        <button
+                                            onClick={handleConfirmPayment}
+                                            disabled={!!checkoutLoading}
+                                            className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
+                                        >
+                                            {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
+                                            {paymentMethod === 'wompi' ? 'Continuar al pago segudo' : 'Vincular y pagar con Nequi'}
+                                        </button>
+                                    )}
+
                                     <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
                                         <ShieldCheck className="h-3.5 w-3.5" />
-                                        Pago seguro con Wompi y tu banco
+                                        Pago seguro con {paymentMethod === 'wompi' ? 'Wompi' : 'Nequi'} y tu banco
                                     </div>
                                 </div>
                             </div>
@@ -504,8 +622,8 @@ export default function PlansPage() {
                                             key={interval.id}
                                             onClick={() => setBillingInterval(interval.id)}
                                             className={`relative flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-4 transition-all duration-300 ${billingInterval === interval.id
-                                                    ? 'border-green-500 bg-green-50/50 shadow-md shadow-green-500/10 dark:border-green-400 dark:bg-green-950/20'
-                                                    : 'border-border-light bg-surface-primary hover:border-green-500/40 hover:bg-surface-hover'
+                                                ? 'border-green-500 bg-green-50/50 shadow-md shadow-green-500/10 dark:border-green-400 dark:bg-green-950/20'
+                                                : 'border-border-light bg-surface-primary hover:border-green-500/40 hover:bg-surface-hover'
                                                 }`}
                                         >
                                             <span className={`text-base font-bold ${billingInterval === interval.id ? 'text-green-700 dark:text-green-400' : 'text-text-primary'
@@ -515,8 +633,8 @@ export default function PlansPage() {
 
                                             {maxDiscount > 0 ? (
                                                 <span className={`mt-2 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide ${billingInterval === interval.id
-                                                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm'
-                                                        : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm'
+                                                    : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                                                     }`}>
                                                     Ahorra {maxDiscount}%
                                                 </span>

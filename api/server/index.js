@@ -220,6 +220,7 @@ const startServer = async () => {
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
   app.use('/api/wompi', routes.wompi);
+  app.use('/api/nequi', routes.nequi);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {
