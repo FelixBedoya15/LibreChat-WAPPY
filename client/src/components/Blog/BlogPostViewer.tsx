@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { ArrowLeft, Clock, User, Share2 } from 'lucide-react';
+import { useAuthContext } from '~/hooks/AuthContext';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 export default function BlogPostViewer() {
     const { postId } = useParams();
@@ -10,6 +12,8 @@ export default function BlogPostViewer() {
     const [loading, setLoading] = useState(true);
     const { showToast } = useToastContext();
     const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const isFreePlan = user?.role === 'USER';
 
     useEffect(() => {
         const fetchPost = async () => {
@@ -34,6 +38,30 @@ export default function BlogPostViewer() {
                     <div className="h-16 w-16 bg-indigo-200 dark:bg-indigo-800 rounded-full mb-4"></div>
                     <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
                     <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isFreePlan) {
+        return (
+            <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-y-auto w-full p-4 relative">
+                {/* Back Button Wrapper */}
+                <div className="mb-4">
+                    <button
+                        onClick={() => navigate('/blog')}
+                        className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-sm font-medium">Volver al Blog</span>
+                    </button>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-center">
+                    <UpgradeWall
+                        title="Blog Exclusivo"
+                        description="Para acceder a nuestros valiosos artículos, actualizaciones operativas y reportes mensuales debes contar con un plan Go, Plus o Admin. ¡Sube de nivel y mantente informado!"
+                    />
                 </div>
             </div>
         );
