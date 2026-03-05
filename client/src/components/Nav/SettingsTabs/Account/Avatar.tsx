@@ -379,10 +379,10 @@ function Avatar() {
             >
               <FileImage className="mb-4 size-16 text-gray-400" />
               <p className="mb-2 text-center text-sm font-medium text-text-primary">
-                {localize('com_ui_drag_drop')}
+                Arrastra una imagen aquí o haz clic para subirla
               </p>
               <p className="mb-4 text-center text-xs text-text-secondary">
-                Tamaño máximo: {fileConfig?.avatarSizeLimit ? formatBytes(fileConfig.avatarSizeLimit) : '2MB'}
+                PNG, JPG o JPEG (Tamaño máximo: 15 MB)
               </p>
               <Button type="button" variant="secondary" onClick={openFileDialog}>
                 {localize('com_ui_select_file')}
