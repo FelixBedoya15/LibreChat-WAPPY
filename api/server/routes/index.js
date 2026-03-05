@@ -34,7 +34,6 @@ const sgsst = require('./sgsst');
 const training = require('./training');
 const blog = require('./blog');
 const wompi = require('./wompi');
-const nequi = require('./nequi');
 
 module.exports = {
   auth,
@@ -73,5 +72,4 @@ module.exports = {
   training,
   blog,
   wompi,
-  nequi,
 };
