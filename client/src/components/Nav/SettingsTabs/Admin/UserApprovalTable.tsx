@@ -115,13 +115,13 @@ export default function UserManagementTable() {
     };
 
     const handleDelete = async (userId) => {
-        if (!window.confirm('Are you sure you want to delete this user?')) return;
+        if (!window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) return;
         try {
             await axios.post('/api/admin/users/delete', { userId });
-            showToast({ message: 'User deleted successfully', status: 'success' });
+            showToast({ message: 'Usuario eliminado exitosamente', status: 'success' });
             fetchUsers();
         } catch (error) {
-            showToast({ message: error.response?.data?.message || 'Error deleting user', status: 'error' });
+            showToast({ message: error.response?.data?.message || 'Error eliminando usuario', status: 'error' });
         }
     };
 
@@ -395,7 +395,11 @@ export default function UserManagementTable() {
                                     }</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusStyle}`}>
-                                            {effectiveStatus}
+                                            {{
+                                                active: 'Activo',
+                                                inactive: 'Inactivo',
+                                                pending: 'Pendiente'
+                                            }[effectiveStatus] || effectiveStatus}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-2">

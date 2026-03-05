@@ -212,7 +212,7 @@ const registerUser = async (user, additionalData = {}) => {
       name,
       avatar: null,
       role: isFirstRegisteredUser ? SystemRoles.ADMIN : (process.env.DEFAULT_USER_ROLE || SystemRoles.USER),
-      accountStatus: isFirstRegisteredUser ? 'active' : (process.env.DEFAULT_ACCOUNT_STATUS || 'pending'),
+      accountStatus: isFirstRegisteredUser ? 'active' : (process.env.DEFAULT_ACCOUNT_STATUS || 'active'),
       password: bcrypt.hashSync(password, salt),
       ...additionalData,
     };

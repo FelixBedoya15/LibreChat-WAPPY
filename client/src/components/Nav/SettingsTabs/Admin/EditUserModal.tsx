@@ -156,9 +156,9 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             onChange={handleChange}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         >
-                                            <option value="active">Active</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="inactive">Inactive</option>
+                                            <option value="active">Activo</option>
+                                            <option value="pending">Pendiente</option>
+                                            <option value="inactive">Inactivo</option>
                                         </select>
                                         {(() => {
                                             const now = new Date();

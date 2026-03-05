@@ -84,14 +84,14 @@ export default function BulkUpdateDatesModal({ isOpen, onClose, userIds, onSucce
                         >
                             <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
                                 <DialogTitle as="h3" className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                                    Bulk Update Dates
+                                    Actualización Masiva de Fechas
                                 </DialogTitle>
                                 <p className="text-sm text-gray-500 mt-2">
-                                    Updating {userIds.length} users. Leave fields blank to keep existing values.
+                                    Actualizando {userIds.length} usuario(s). Deje los campos en blanco para mantener los valores existentes.
                                 </p>
                                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Active Date</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Fecha de Activación</label>
                                         <input
                                             type="date"
                                             name="activeAt"
