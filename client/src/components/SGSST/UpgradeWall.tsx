@@ -61,6 +61,16 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
         ],
         excluded: ['Gestor SGSST', 'Agentes personalizados'],
     },
+    USER_PLUS: {
+        badge: 'Actualiza al Plan Pro',
+        included: [
+            'Todo lo del plan Go',
+            'Gestor SGSST Completo',
+            'Conversaciones Ilimitadas',
+            'Podrá ingresar 10 claves API de Gemini',
+        ],
+        excluded: ['Agentes personalizados'],
+    },
 };
 
 export const UpgradeWall = ({

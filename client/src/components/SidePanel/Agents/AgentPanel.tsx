@@ -29,6 +29,7 @@ import AgentConfig from './AgentConfig';
 import AgentSelect from './AgentSelect';
 import AgentFooter from './AgentFooter';
 import ModelPanel from './ModelPanel';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 export default function AgentPanel() {
   const localize = useLocalize();
@@ -240,7 +241,18 @@ export default function AgentPanel() {
     }
   }, [agent_id, onSelectAgent]);
 
+  const isCreationBlocked = useMemo(() => {
+    if (user?.role === SystemRoles.ADMIN || user?.role === 'USER_PRO') {
+      return false;
+    }
+    return !current_agent_id || isEphemeralAgent(current_agent_id);
+  }, [user?.role, current_agent_id]);
+
   const canEditAgent = useMemo(() => {
+    if (isCreationBlocked) {
+      return false;
+    }
+
     if (!agentQuery.data?.id) {
       return true;
     }
@@ -250,7 +262,7 @@ export default function AgentPanel() {
     }
 
     return canEdit;
-  }, [agentQuery.data?.id, user?.role, canEdit]);
+  }, [agentQuery.data?.id, user?.role, canEdit, isCreationBlocked]);
 
   return (
     <FormProvider {...methods}>
@@ -313,7 +325,16 @@ export default function AgentPanel() {
           )}
         </div>
         {agentQuery.isInitialLoading && <AgentPanelSkeleton />}
-        {!canEditAgent && !agentQuery.isInitialLoading && (
+        {isCreationBlocked && !agentQuery.isInitialLoading && (
+          <div className="mt-4">
+            <UpgradeWall
+              plan={user?.role}
+              title="Constructor de Agentes"
+              description="La creación de agentes personalizados es una función exclusiva. Actualiza tu plan para empezar a construir tus propios agentes."
+            />
+          </div>
+        )}
+        {!canEditAgent && !isCreationBlocked && !agentQuery.isInitialLoading && (
           <div className="flex h-[30vh] w-full items-center justify-center">
             <div className="text-center">
               <h2 className="text-token-text-primary m-2 text-xl font-semibold">
