@@ -328,6 +328,7 @@ export default function AgentPanel() {
         {isCreationBlocked && !agentQuery.isInitialLoading && (
           <div className="mt-4">
             <UpgradeWall
+              isCompact
               plan={user?.role}
               title="Constructor de Agentes"
               description="La creación de agentes personalizados es una función exclusiva. Actualiza tu plan para empezar a construir tus propios agentes."
