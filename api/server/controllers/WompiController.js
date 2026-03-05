@@ -49,7 +49,7 @@ const getUserPlan = async (req, res) => {
         const userId = req.user._id || req.user.id;
         const userPlan = await UserPlan.findOne({ userId }).lean();
 
-        let plan = userPlan?.planId;
+        let plan = userPlan?.plan;
 
         if (!plan || plan === 'free') {
             const role = req.user.role;
@@ -62,8 +62,8 @@ const getUserPlan = async (req, res) => {
 
         return res.json({
             plan: plan,
-            status: userPlan?.status || 'active',
-            currentPeriodEnd: userPlan?.currentPeriodEnd || null,
+            status: 'active', // Derived for UI
+            currentPeriodEnd: userPlan?.planExpiresAt || null,
         });
     } catch (error) {
         console.error('[Wompi] getUserPlan error:', error);
@@ -182,11 +182,35 @@ const handleWebhook = async (req, res) => {
         const { reference, status, id: transactionId } = transactionData;
         console.log(`[Wompi Webhook] Transaction ${transactionId} status is ${status} (ref: ${reference})`);
 
-        // Validate integrity of payload
-        const integritySignature = event.signature?.checksum;
+        // Validate integrity of payload (Security)
+        const receivedChecksum = event.signature?.checksum;
         const properties = event.signature?.properties || [];
-        // Optional: you can reconstruct signature = sha256(transaction.id + transaction.status + transaction.amount_in_cents + ... + Wompi-Events-Secret)
-        // If it matches, great. If not, maybe log a warning.
+        const timestamp = event.timestamp;
+        const eventsSecret = process.env.WOMPI_EVENTS_SECRET;
+
+        if (receivedChecksum && eventsSecret && timestamp) {
+            let concatenatedString = '';
+            for (const propPath of properties) {
+                const keys = propPath.split('.');
+                let value = event.data;
+                for (const key of keys) {
+                    value = value?.[key];
+                }
+                concatenatedString += value;
+            }
+            concatenatedString += timestamp;
+            concatenatedString += eventsSecret;
+
+            const computedChecksum = crypto.createHash('sha256').update(concatenatedString, 'utf-8').digest('hex');
+
+            if (computedChecksum !== receivedChecksum) {
+                console.error('[Wompi Webhook] ⚠️ INVALID CHECKSUM. Potential tampering or misconfiguration.');
+                return res.status(401).send('Invalid signature');
+            }
+            console.log('[Wompi Webhook] ✅ Signature verified successfully.');
+        } else {
+            console.warn('[Wompi Webhook] ⚠️ No signature, secret or timestamp found for verification. Skipping security check.');
+        }
 
         // Update transaction in our DB
         const wompiTx = await WompiTransaction.findOne({ reference });
@@ -219,12 +243,20 @@ const handleWebhook = async (req, res) => {
                 userPlan = new UserPlan({ userId: wompiTx.userId });
             }
 
-            userPlan.planId = wompiTx.planId;
-            userPlan.planName = PLAN_NAMES[wompiTx.planId] || wompiTx.planId;
-            userPlan.status = 'active'; // In Wompi we might just handle active/expired manually since it's a one-off widget charge
-            userPlan.currentPeriodEnd = expiryDate;
+            userPlan.plan = wompiTx.planId;
+            userPlan.planExpiresAt = expiryDate;
             await userPlan.save();
-            console.log(`[Wompi Webhook] Successfully provisioned plan ${wompiTx.planId} for user ${wompiTx.userId} via tx ${transactionId}`);
+
+            // Also update User role for full platform compatibility
+            const User = mongoose.model('User');
+            let newRole = 'USER';
+            if (wompiTx.planId === 'go') newRole = 'USER_GO';
+            else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
+            else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
+
+            await User.updateOne({ _id: wompiTx.userId }, { $set: { role: newRole } });
+
+            console.log(`[Wompi Webhook] Successfully provisioned plan ${wompiTx.planId} and role ${newRole} for user ${wompiTx.userId} via tx ${transactionId}`);
         }
 
         return res.status(200).send('OK');
