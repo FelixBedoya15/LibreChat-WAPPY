@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocalize, useHasAccess } from '~/hooks';
+import { useLocalize, useHasAccess, useAuthContext } from '~/hooks';
 import useRolePermissions from '~/hooks/Roles/useRolePermissions';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
@@ -48,6 +48,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
     const localize = useLocalize();
     const navigate = useNavigate();
     const { showToast } = useToastContext();
+    const { user } = useAuthContext();
     const [files, setFiles] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState<string | null>(null); // Stores category ID being uploaded to
     const [expandedCategories, setExpandedCategories] = useState<string[]>([]); // Track expanded categories
@@ -251,7 +252,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                 {isExpanded && (
                                     <div className="p-4 bg-surface-primary/30">
                                         {!hasAccessToSGSST ? (
-                                            <UpgradeWall />
+                                            <UpgradeWall plan={user?.role} />
                                         ) : (
                                             <>
                                                 {/* Show DiagnosticoChecklist for diagnostico category */}

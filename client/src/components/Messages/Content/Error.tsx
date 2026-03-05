@@ -124,7 +124,7 @@ const errorMessages = {
       <div className="mt-4 w-full flex justify-center">
         <UpgradeWall
           title="Límite de Chats Alcanzado"
-          description={json.message || "Tu plan Gratis solo te permite almacenar hasta 10 conversaciones. Elimina chats antiguos o actualiza a un plan Sin Límites."}
+          description={json.message || 'Has alcanzado el límite de conversaciones de tu plan. Elimina chats antiguos o actualiza a un plan superior.'}
         />
       </div>
     );

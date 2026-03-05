@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Sparkles, Check, X } from 'lucide-react';
+import { Sparkles, Check, X } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 
 const ShieldSVGButton = () => (
@@ -39,15 +39,44 @@ const ShieldSVGButton = () => (
     </svg>
 );
 
+// ─── Feature lists per plan ───────────────────────────────────────
+const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; badge: string }> = {
+    USER: {
+        badge: 'Actualiza al Plan Go o Plus',
+        included: [
+            'Chat con IA',
+            'Aula de estudio',
+            'Máximo 10 conversaciones abiertas',
+            'Podrá ingresar 1 clave API de Gemini',
+        ],
+        excluded: ['Blog WAPPY', 'Gestor SGSST', 'Agentes personalizados'],
+    },
+    GO: {
+        badge: 'Actualiza al Plan Plus o Pro',
+        included: [
+            'Todo lo del plan Gratis',
+            'Blog WAPPY',
+            'Hasta 30 conversaciones abiertas',
+            'Podrá ingresar 4 claves API de Gemini',
+        ],
+        excluded: ['Gestor SGSST', 'Agentes personalizados'],
+    },
+};
+
 export const UpgradeWall = ({
-    title = "Plan Premium Exclusivo",
-    description = "Sube de nivel para acceder a todas las funcionalidades y eliminar los límites de tu cuenta.",
+    title = 'Plan Premium Exclusivo',
+    description = 'Sube de nivel para acceder a todas las funcionalidades y eliminar los límites de tu cuenta.',
+    plan: planOverride,
 }: {
     title?: string;
     description?: string;
+    /** Explicit plan override — pass user.role from parent to avoid timing issues */
+    plan?: string;
 }) => {
     const { user } = useAuthContext();
-    const isGoPlan = user?.role === 'GO';
+    // Prefer the explicit override; fall back to the session role
+    const effectivePlan = planOverride || user?.role || 'USER';
+    const features = PLAN_FEATURES[effectivePlan] ?? PLAN_FEATURES['USER'];
 
     return (
         <div className="relative flex flex-col items-center justify-center p-12 text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full max-w-4xl mx-auto my-10 group">
@@ -70,9 +99,9 @@ export const UpgradeWall = ({
                     </div>
                 </div>
 
-                {/* Badge */}
+                {/* Dynamic Badge */}
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg border border-white/20 whitespace-nowrap">
-                    Plan Premium
+                    {features.badge}
                 </div>
             </div>
 
@@ -84,62 +113,22 @@ export const UpgradeWall = ({
                 {description}
             </p>
 
-            {/* Features List */}
+            {/* Features List — rendered dynamically from plan features */}
             <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-12 mb-10 z-10 text-sm font-medium text-left">
-                {isGoPlan ? (
-                    <>
-                        <ul className="space-y-3">
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Todo lo del plan Gratis
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Blog WAPPY
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Hasta 30 conversaciones abiertas
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Podrá ingresar 4 claves API de Gemini
-                            </li>
-                        </ul>
-                        <ul className="space-y-3">
-                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                                <X className="w-5 h-5 text-red-400 shrink-0" /> Gestor SGSST
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                                <X className="w-5 h-5 text-red-400 shrink-0" /> Agentes personalizados
-                            </li>
-                        </ul>
-                    </>
-                ) : (
-                    <>
-                        <ul className="space-y-3">
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Chat con IA
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Aula de estudio
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Máximo 10 conversaciones abiertas
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Podrá ingresar 1 clave API de Gemini
-                            </li>
-                        </ul>
-                        <ul className="space-y-3">
-                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                                <X className="w-5 h-5 text-red-400 shrink-0" /> Blog
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                                <X className="w-5 h-5 text-red-400 shrink-0" /> Gestor SGSST
-                            </li>
-                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                                <X className="w-5 h-5 text-red-400 shrink-0" /> Agentes personalizados
-                            </li>
-                        </ul>
-                    </>
-                )}
+                <ul className="space-y-3">
+                    {features.included.map((item) => (
+                        <li key={item} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                            <Check className="w-5 h-5 text-green-500 shrink-0" /> {item}
+                        </li>
+                    ))}
+                </ul>
+                <ul className="space-y-3">
+                    {features.excluded.map((item) => (
+                        <li key={item} className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                            <X className="w-5 h-5 text-red-400 shrink-0" /> {item}
+                        </li>
+                    ))}
+                </ul>
             </div>
 
             {/* Upgrade Button */}
