@@ -19,7 +19,7 @@ import {
 import type { TUser } from 'librechat-data-provider';
 import { useUploadAvatarMutation, useGetFileConfig } from '~/data-provider';
 import { cn, formatBytes } from '~/utils';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useAuthContext } from '~/hooks';
 import store from '~/store';
 
 interface AvatarEditorRef {
@@ -49,7 +49,10 @@ function Avatar() {
     select: (data) => mergeFileConfig(data),
   });
 
+
+
   const localize = useLocalize();
+  const { user } = useAuthContext();
   const { showToast } = useToastContext();
 
   const { mutate: uploadAvatar, isLoading: isUploading } = useUploadAvatarMutation({
@@ -161,14 +164,53 @@ function Avatar() {
         }
       }}
     >
-      <div className="flex items-center justify-between">
-        <span>{localize('com_nav_profile_picture')}</span>
-        <OGDialogTrigger asChild>
-          <Button variant="outline">
-            <FileImage className="mr-2 flex w-[22px] items-center" />
-            <span>{localize('com_nav_change_picture')}</span>
-          </Button>
-        </OGDialogTrigger>
+      <div className="relative w-full flex flex-col items-center">
+        {/* Banner */}
+        <div className="w-full h-24 bg-gradient-to-r from-indigo-400 via-purple-400 to-amber-200 rounded-t-xl opacity-80"></div>
+
+        {/* Avatar overlay */}
+        <div className="relative -mt-12 group">
+          <OGDialogTrigger asChild>
+            <button className="relative block rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-transform hover:scale-105 active:scale-95 bg-surface-primary">
+              <div
+                className="w-24 h-24 rounded-full border-4 border-surface-primary object-cover bg-surface-tertiary bg-cover bg-center"
+                style={{ backgroundImage: `url(${user?.avatar || ''})` }}
+              >
+                {!user?.avatar && (
+                  <div className="w-full h-full flex items-center justify-center text-text-tertiary font-bold text-2xl uppercase">
+                    {(user?.name || user?.username || 'U')[0]}
+                  </div>
+                )}
+              </div>
+
+              {/* Green online dot */}
+              <div className="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-surface-primary shadow-sm"></div>
+
+              {/* Hover overlay hint */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full bg-black/40">
+                <FileImage className="text-white w-6 h-6" />
+              </div>
+            </button>
+          </OGDialogTrigger>
+
+          {/* Role badge */}
+          <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-indigo-600 text-white text-xs font-bold rounded shadow-sm border-2 border-surface-primary whitespace-nowrap z-10">
+            {user?.role === 'ADMIN' ? 'Admin' :
+              user?.role === 'USER_PRO' ? 'Pro' :
+                user?.role === 'USER_PLUS' ? 'Plus' :
+                  user?.role === 'USER_GO' ? 'Go' : 'Gratis'}
+          </div>
+        </div>
+
+        {/* User info */}
+        <div className="mt-5 text-center px-4 w-full">
+          <h2 className="text-2xl font-black text-text-primary truncate">
+            {user?.name || user?.username || localize('com_nav_user')}
+          </h2>
+          <p className="text-sm font-medium text-text-tertiary mt-0.5 opacity-80">
+            @{user?.username || 'usuario'} • Unid@ {new Date(user?.createdAt || Date.now()).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }).replace('.', '')}
+          </p>
+        </div>
       </div>
 
       <OGDialogContent showCloseButton={false} className="w-11/12 max-w-md">

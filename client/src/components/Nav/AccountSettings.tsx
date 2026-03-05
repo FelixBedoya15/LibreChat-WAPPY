@@ -20,6 +20,7 @@ function AccountSettings() {
     enabled: !!isAuthenticated && startupConfig?.balance?.enabled,
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<string | undefined>(undefined);
   const [showFiles, setShowFiles] = useRecoilState(store.showFiles);
 
   return (
@@ -49,9 +50,16 @@ function AccountSettings() {
           translate: '0px',
         }}
       >
-        <div className="text-token-text-secondary ml-3 mr-2 py-2 text-sm" role="note">
+        <Select.SelectItem
+          value=""
+          onClick={() => {
+            setActiveSettingsTab('account');
+            setShowSettings(true);
+          }}
+          className="text-token-text-secondary ml-3 mr-2 py-2 text-sm cursor-pointer transition-colors hover:text-text-primary border-none outline-none"
+        >
           {user?.email ?? localize('com_nav_user')}
-        </div>
+        </Select.SelectItem>
         <DropdownMenuSeparator />
         {startupConfig?.balance?.enabled === true && balanceQuery.data != null && (
           <>
@@ -104,7 +112,10 @@ function AccountSettings() {
         </Select.SelectItem>
         <Select.SelectItem
           value=""
-          onClick={() => setShowSettings(true)}
+          onClick={() => {
+            setActiveSettingsTab(undefined);
+            setShowSettings(true);
+          }}
           className="select-item text-sm"
         >
           <GearIcon className="icon-md" aria-hidden="true" />
@@ -122,7 +133,7 @@ function AccountSettings() {
         </Select.SelectItem>
       </Select.SelectPopover>
       {showFiles && <FilesView open={showFiles} onOpenChange={setShowFiles} />}
-      {showSettings && <Settings open={showSettings} onOpenChange={setShowSettings} />}
+      {showSettings && <Settings open={showSettings} onOpenChange={setShowSettings} activeTab={activeSettingsTab} />}
     </Select.SelectProvider>
   );
 }

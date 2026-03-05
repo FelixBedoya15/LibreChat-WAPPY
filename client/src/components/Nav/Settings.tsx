@@ -30,12 +30,19 @@ import { useLocalize, TranslationKeys } from '~/hooks';
 import { useGetStartupConfig } from '~/data-provider';
 import { cn } from '~/utils';
 
-export default function Settings({ open, onOpenChange }: TDialogProps) {
+export default function Settings({ open, onOpenChange, activeTab: initialTab }: TDialogProps & { activeTab?: SettingsTabValues | string }) {
   const isSmallScreen = useMediaQuery('(max-width: 767px)');
   const { data: startupConfig } = useGetStartupConfig();
   const { user } = useAuthContext();
   const localize = useLocalize();
-  const [activeTab, setActiveTab] = useState(SettingsTabValues.GENERAL);
+  const [activeTab, setActiveTab] = useState<SettingsTabValues | string>(initialTab || SettingsTabValues.GENERAL);
+
+  React.useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab || SettingsTabValues.GENERAL);
+    }
+  }, [open, initialTab]);
+
   const tabRefs = useRef({});
   const { hasAnyPersonalizationFeature, hasMemoryOptOut } = usePersonalizationAccess();
 

@@ -104,7 +104,7 @@ function Account() {
               className="mt-1"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="createdAt" className="text-xs font-bold text-text-secondary uppercase">{localize('com_ui_registration_date')}</Label>
               <Input
