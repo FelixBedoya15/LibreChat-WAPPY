@@ -20,7 +20,8 @@ const checkConvoLimits = async (req, res, next) => {
             // Bloqueamos cualquier interacción si tiene 10 o más (crear o continuar)
             return res.status(403).json({
                 error: true,
-                message: 'Límite alcanzado: Tu plan Gratis solo te permite almacenar hasta 10 conversaciones en el historial. Por favor actualiza a un Plan Superior en la sección Planes o elimina chats antiguos para poder chatear.'
+                type: 'convo_limit',
+                message: 'Has alcanzado el límite de 10 conversaciones simultáneas del plan Gratis. Para seguir chateando, elimina historiales antiguos o evoluciona a un plan Premium.'
             });
         }
 

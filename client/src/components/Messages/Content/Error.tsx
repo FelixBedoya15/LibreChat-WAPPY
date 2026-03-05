@@ -93,9 +93,8 @@ const errorMessages = {
   message_limit: (json: TMessageLimit) => {
     const { max, windowInMinutes } = json;
     const plural = max > 1 ? 's' : '';
-    return `You hit the message limit. You have a cap of ${max} message${plural} per ${
-      windowInMinutes > 1 ? `${windowInMinutes} minutes` : 'minute'
-    }.`;
+    return `You hit the message limit. You have a cap of ${max} message${plural} per ${windowInMinutes > 1 ? `${windowInMinutes} minutes` : 'minute'
+      }.`;
   },
   token_balance: (json: TTokenBalance) => {
     const { balance, tokenCost, promptTokens, generations } = json;
@@ -117,6 +116,35 @@ const errorMessages = {
           />
         )}
       </>
+    );
+  },
+  convo_limit: (json: any) => {
+    return (
+      <div className="relative flex flex-col items-center justify-center p-8 mt-4 overflow-hidden text-center bg-surface-primary dark:bg-gray-900 border border-red-200 dark:border-red-900/40 rounded-3xl shadow-lg w-full max-w-lg mx-auto group">
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-red-400/10 rounded-full blur-3xl pointer-events-none transition-all duration-700 group-hover:bg-red-500/20" />
+        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-orange-400/10 rounded-full blur-3xl pointer-events-none transition-all duration-700 group-hover:bg-orange-500/20" />
+
+        <div className="relative mb-6 z-10 flex items-center justify-center w-20 h-20 rounded-full bg-red-50 dark:bg-red-900/30 shadow-inner">
+          <svg className="w-10 h-10 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+
+        <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 mb-2 z-10">Límite de Chats Alcanzado</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 leading-relaxed z-10 max-w-sm">
+          {json.message || "Tu plan Gratis solo te permite almacenar hasta 10 conversaciones. Elimina chats antiguos o actualiza a un plan Sin Límites."}
+        </p>
+
+        <a href="/planes" className="relative inline-flex items-center justify-center px-8 py-3 font-bold text-white transition-all duration-300 ease-in-out z-10 overflow-hidden rounded-full hover:scale-105 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] group w-full">
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-red-600 to-orange-500" />
+          <span className="relative flex items-center gap-2 text-md tracking-wide">
+            Ver Planes Ilimitados
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </span>
+        </a>
+      </div>
     );
   },
 };
