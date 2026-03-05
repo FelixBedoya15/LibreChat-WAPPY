@@ -1,16 +1,13 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ShieldCheck, Star, Activity, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Check, X } from 'lucide-react';
 
 export const UpgradeWall = ({
-    title = "Funciones Plus Desbloqueables",
-    description = "Potencia tu SG-SST con el ciclo completo PHVA. Identifica peligros, crea matrices legales y gestiona auditorías IA sin restricciones.",
+    title = "Plan Premium Exclusivo",
+    description = "Sube de nivel para acceder a todas las funcionalidades y eliminar los límites de tu cuenta.",
 }: {
     title?: string;
     description?: string;
 }) => {
-    const navigate = useNavigate();
-
     return (
         <div className="relative flex flex-col items-center justify-center p-12 text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full max-w-4xl mx-auto my-10 group">
             {/* Ambient Background Glows */}
@@ -46,17 +43,33 @@ export const UpgradeWall = ({
                 {description}
             </p>
 
-            {/* Feature Pills */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-10 z-10 text-sm font-medium">
-                <div className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-full border border-green-200 dark:border-green-800/30 shadow-sm transition-transform hover:scale-105">
-                    <ShieldCheck className="w-4 h-4" /> Matriz Legal Automática
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full border border-blue-200 dark:border-blue-800/30 shadow-sm transition-transform hover:scale-105">
-                    <Activity className="w-4 h-4" /> Peligros GTC-45
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-full border border-violet-200 dark:border-violet-800/30 shadow-sm transition-transform hover:scale-105">
-                    <Star className="w-4 h-4" /> Auditorías IA
-                </div>
+            {/* Features List */}
+            <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-12 mb-10 z-10 text-sm font-medium text-left">
+                <ul className="space-y-3">
+                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Chat con IA
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Aula de estudio
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Máximo 10 conversaciones abiertas
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Podrá ingresar 1 clave API de Gemini
+                    </li>
+                </ul>
+                <ul className="space-y-3">
+                    <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                        <X className="w-5 h-5 text-red-400 shrink-0" /> Blog
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                        <X className="w-5 h-5 text-red-400 shrink-0" /> Gestor SGSST
+                    </li>
+                    <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                        <X className="w-5 h-5 text-red-400 shrink-0" /> Agentes personalizados
+                    </li>
+                </ul>
             </div>
 
             {/* Upgrade Button */}
@@ -69,7 +82,7 @@ export const UpgradeWall = ({
 
                 {/* Button Content */}
                 <span className="relative flex items-center gap-2 text-lg tracking-wide">
-                    Actualizar Plan
+                    Planes
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
                 </span>
             </a>
