@@ -254,9 +254,18 @@ const handleWebhook = async (req, res) => {
             else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
             else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
-            await User.updateOne({ _id: wompiTx.userId }, { $set: { role: newRole } });
+            await User.updateOne(
+                { _id: wompiTx.userId },
+                {
+                    $set: {
+                        role: newRole,
+                        activeAt: new Date(),
+                        inactiveAt: expiryDate
+                    }
+                }
+            );
 
-            console.log(`[Wompi Webhook] Successfully provisioned plan ${wompiTx.planId} and role ${newRole} for user ${wompiTx.userId} via tx ${transactionId}`);
+            console.log(`[Wompi Webhook] Successfully provisioned plan ${wompiTx.planId}, role ${newRole} and dates for user ${wompiTx.userId} via tx ${transactionId}`);
         }
 
         return res.status(200).send('OK');
