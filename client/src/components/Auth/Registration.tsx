@@ -7,6 +7,7 @@ import { useRegisterUserMutation } from 'librechat-data-provider/react-query';
 import type { TRegisterUser, TError } from 'librechat-data-provider';
 import type { TLoginLayoutContext } from '~/common';
 import { useLocalize, TranslationKeys } from '~/hooks';
+import { Eye, EyeOff } from 'lucide-react';
 import { ErrorMessage } from './ErrorMessage';
 
 const Registration: React.FC = () => {
@@ -27,6 +28,8 @@ const Registration: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdown, setCountdown] = useState<number>(3);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -63,37 +66,74 @@ const Registration: React.FC = () => {
     },
   });
 
-  const renderInput = (id: string, label: TranslationKeys, type: string, validation: object) => (
-    <div className="mb-4">
-      <div className="relative">
-        <input
-          id={id}
-          type={type}
-          autoComplete={id}
-          aria-label={localize(label)}
-          {...register(
-            id as 'name' | 'email' | 'username' | 'password' | 'confirm_password',
-            validation,
+  const renderInput = (id: string, label: TranslationKeys, type: string, validation: object) => {
+    const isPassword = type === 'password';
+    const isConfirmPassword = id === 'confirm_password';
+    let currentType = type;
+    if (isPassword) {
+      if (isConfirmPassword) {
+        currentType = showConfirmPassword ? 'text' : 'password';
+      } else {
+        currentType = showPassword ? 'text' : 'password';
+      }
+    }
+
+    return (
+      <div className="mb-4">
+        <div className="relative">
+          <input
+            id={id}
+            type={currentType}
+            autoComplete={id}
+            aria-label={localize(label)}
+            {...register(
+              id as 'name' | 'email' | 'username' | 'password' | 'confirm_password',
+              validation,
+            )}
+            aria-invalid={!!errors[id]}
+            className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-border-light bg-surface-primary px-3.5 pb-2.5 pt-3 text-text-primary duration-200 focus:border-green-500 focus:outline-none"
+            placeholder=" "
+            data-testid={id}
+          />
+          <label
+            htmlFor={id}
+            className="absolute start-3 top-1.5 z-10 origin-[0] -translate-y-4 scale-75 transform bg-surface-primary px-2 text-sm text-text-secondary-alt duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:scale-100 peer-focus:top-1.5 peer-focus:-translate-y-4 peer-focus:scale-75 peer-focus:px-2 peer-focus:text-green-500 rtl:peer-focus:left-auto rtl:peer-focus:translate-x-1/4"
+          >
+            {localize(label)}
+          </label>
+          {isPassword && (
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary-alt hover:text-text-primary focus:outline-none"
+              onClick={() => {
+                if (isConfirmPassword) {
+                  setShowConfirmPassword(!showConfirmPassword);
+                } else {
+                  setShowPassword(!showPassword);
+                }
+              }}
+              aria-label={
+                (isConfirmPassword ? showConfirmPassword : showPassword)
+                  ? 'Hide password'
+                  : 'Show password'
+              }
+            >
+              {(isConfirmPassword ? showConfirmPassword : showPassword) ? (
+                <EyeOff size={18} />
+              ) : (
+                <Eye size={18} />
+              )}
+            </button>
           )}
-          aria-invalid={!!errors[id]}
-          className="webkit-dark-styles transition-color peer w-full rounded-2xl border border-border-light bg-surface-primary px-3.5 pb-2.5 pt-3 text-text-primary duration-200 focus:border-green-500 focus:outline-none"
-          placeholder=" "
-          data-testid={id}
-        />
-        <label
-          htmlFor={id}
-          className="absolute start-3 top-1.5 z-10 origin-[0] -translate-y-4 scale-75 transform bg-surface-primary px-2 text-sm text-text-secondary-alt duration-200 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:scale-100 peer-focus:top-1.5 peer-focus:-translate-y-4 peer-focus:scale-75 peer-focus:px-2 peer-focus:text-green-500 rtl:peer-focus:left-auto rtl:peer-focus:translate-x-1/4"
-        >
-          {localize(label)}
-        </label>
+        </div>
+        {errors[id] && (
+          <span role="alert" className="mt-1 text-sm text-red-500">
+            {String(errors[id]?.message) ?? ''}
+          </span>
+        )}
       </div>
-      {errors[id] && (
-        <span role="alert" className="mt-1 text-sm text-red-500">
-          {String(errors[id]?.message) ?? ''}
-        </span>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <>

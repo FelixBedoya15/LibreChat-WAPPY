@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useResetPasswordMutation } from 'librechat-data-provider/react-query';
 import type { TResetPassword } from 'librechat-data-provider';
 import type { TLoginLayoutContext } from '~/common';
+import { Eye, EyeOff } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 
 function ResetPassword() {
@@ -15,6 +16,8 @@ function ResetPassword() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TResetPassword>();
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const password = watch('password');
@@ -76,7 +79,7 @@ function ResetPassword() {
             {...register('userId', { required: 'Unable to process: No valid user id' })}
           />
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             id="password"
             autoComplete="current-password"
             aria-label={localize('com_auth_password')}
@@ -101,6 +104,14 @@ function ResetPassword() {
           >
             {localize('com_auth_password')}
           </label>
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary-alt hover:text-text-primary focus:outline-none"
+            onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
         </div>
 
         {errors.password && (
@@ -112,7 +123,7 @@ function ResetPassword() {
       <div className="mb-2">
         <div className="relative">
           <input
-            type="password"
+            type={showConfirmPassword ? 'text' : 'password'}
             id="confirm_password"
             aria-label={localize('com_auth_password_confirm')}
             {...register('confirm_password', {
@@ -128,6 +139,14 @@ function ResetPassword() {
           >
             {localize('com_auth_password_confirm')}
           </label>
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary-alt hover:text-text-primary focus:outline-none"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+          >
+            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
         </div>
         {errors.confirm_password && (
           <span role="alert" className="mt-1 text-sm text-red-500 dark:text-red-900">
