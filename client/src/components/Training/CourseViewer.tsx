@@ -241,21 +241,30 @@ export default function CourseViewer() {
                                             const url = activeLesson.videoUrl;
                                             if (url.includes('youtube.com/watch?v=')) {
                                                 const videoId = url.split('v=')[1]?.split('&')[0];
-                                                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                                                embedUrl = `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&origin=${window.location.origin}`;
                                             } else if (url.includes('youtu.be/')) {
                                                 const videoId = url.split('youtu.be/')[1]?.split('?')[0];
-                                                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                                                embedUrl = `https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&origin=${window.location.origin}`;
                                             }
 
                                             if (embedUrl) {
                                                 return (
-                                                    <iframe
-                                                        src={embedUrl}
-                                                        title={activeLesson.title}
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                        allowFullScreen
-                                                        className="w-full h-full absolute inset-0"
-                                                    ></iframe>
+                                                    <div className="w-full h-full absolute inset-0 group">
+                                                        <iframe
+                                                            src={embedUrl}
+                                                            title={activeLesson.title}
+                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                            allowFullScreen
+                                                            className="w-full h-full absolute inset-0"
+                                                        ></iframe>
+                                                        {/* Protect from navigation - Transparent Overlays */}
+                                                        {/* 1. Header Protect (Title/Share) */}
+                                                        <div className="absolute top-0 left-0 w-full h-16 z-10 bg-transparent" />
+                                                        {/* 2. YouTube Logo Protect (Bottom Right) - Leaves space for fullscreen button */}
+                                                        <div className="absolute bottom-0 right-14 w-32 h-14 z-10 bg-transparent" />
+                                                        {/* 3. Center/Play Button (Optional, but helps prevent double-click to YouTube) */}
+                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 z-10 bg-transparent pointer-events-none" />
+                                                    </div>
                                                 );
                                             }
                                             return (
