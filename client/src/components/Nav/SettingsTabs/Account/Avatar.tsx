@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { useSetRecoilState } from 'recoil';
 // @ts-ignore - no type definitions available
 import AvatarEditor from 'react-avatar-editor';
 import { FileImage, RotateCw, Upload, ZoomIn, ZoomOut, Move, X } from 'lucide-react';
@@ -33,8 +32,6 @@ interface Position {
 }
 
 function Avatar() {
-  const setUser = useSetRecoilState(store.user);
-
   const [scale, setScale] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [position, setPosition] = useState<Position>({ x: 0.5, y: 0.5 });
@@ -50,16 +47,17 @@ function Avatar() {
   });
 
   const localize = useLocalize();
-  const { user } = useAuthContext();
+  const { user, setUser } = useAuthContext();
   const { showToast } = useToastContext();
 
   const { mutate: uploadAvatar, isLoading: isUploading } = useUploadAvatarMutation({
     onSuccess: (data) => {
       showToast({ message: localize('com_ui_upload_success') });
-      setUser((prev) => ({ ...prev, avatar: data.url }) as TUser);
+      const newUser = { ...user, avatar: data.url } as TUser;
+      setUser(newUser);
     },
     onError: (error) => {
-      console.error('Error:', error);
+      console.error('Error uploading avatar:', error);
       showToast({ message: localize('com_ui_upload_error'), status: 'error' });
     },
   });
@@ -71,14 +69,17 @@ function Avatar() {
 
   const handleFile = useCallback(
     (file: File | undefined) => {
-      if (fileConfig.avatarSizeLimit != null && file && file.size <= fileConfig.avatarSizeLimit) {
+      if (!file) {
+        return;
+      }
+      const limit = fileConfig.avatarSizeLimit || 2 * 1024 * 1024; // Default to 2MB
+      if (file.size <= limit) {
         setImage(file);
         setScale(1);
         setRotation(0);
         setPosition({ x: 0.5, y: 0.5 });
       } else {
-        const megabytes =
-          fileConfig.avatarSizeLimit != null ? formatBytes(fileConfig.avatarSizeLimit) : 2;
+        const megabytes = formatBytes(limit);
         showToast({
           message: localize('com_ui_upload_invalid_var', { 0: megabytes + '' }),
           status: 'error',
@@ -376,26 +377,21 @@ function Avatar() {
                 {localize('com_ui_drag_drop')}
               </p>
               <p className="mb-4 text-center text-xs text-text-secondary">
-                {localize('com_ui_max_file_size', {
-                  0:
-                    fileConfig.avatarSizeLimit != null
-                      ? formatBytes(fileConfig.avatarSizeLimit)
-                      : '2MB',
-                })}
+                Tamaño máximo: {fileConfig?.avatarSizeLimit ? formatBytes(fileConfig.avatarSizeLimit) : '2MB'}
               </p>
               <Button type="button" variant="secondary" onClick={openFileDialog}>
                 {localize('com_ui_select_file')}
               </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept=".png, .jpg, .jpeg"
-                onChange={handleFileChange}
-                aria-label={localize('com_ui_file_input_avatar_label')}
-              />
             </div>
           )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".png, .jpg, .jpeg"
+            onChange={handleFileChange}
+            aria-label={localize('com_ui_file_input_avatar_label')}
+          />
         </div>
       </OGDialogContent>
     </OGDialog>
