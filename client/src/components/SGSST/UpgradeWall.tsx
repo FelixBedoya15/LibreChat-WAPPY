@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight, Sparkles, Check, X } from 'lucide-react';
+import { useAuthContext } from '~/hooks';
 
 const ShieldSVGButton = () => (
     <svg viewBox="0 0 80 80" className="h-10 w-10" fill="none">
@@ -45,6 +46,9 @@ export const UpgradeWall = ({
     title?: string;
     description?: string;
 }) => {
+    const { user } = useAuthContext();
+    const isGoPlan = user?.role === 'GO';
+
     return (
         <div className="relative flex flex-col items-center justify-center p-12 text-center overflow-hidden bg-surface-primary dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl shadow-xl w-full max-w-4xl mx-auto my-10 group">
             {/* Ambient Background Glows */}
@@ -82,31 +86,60 @@ export const UpgradeWall = ({
 
             {/* Features List */}
             <div className="flex flex-col md:flex-row justify-center gap-6 md:gap-12 mb-10 z-10 text-sm font-medium text-left">
-                <ul className="space-y-3">
-                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Chat con IA
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Aula de estudio
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Máximo 10 conversaciones abiertas
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Check className="w-5 h-5 text-green-500 shrink-0" /> Podrá ingresar 1 clave API de Gemini
-                    </li>
-                </ul>
-                <ul className="space-y-3">
-                    <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                        <X className="w-5 h-5 text-red-400 shrink-0" /> Blog
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                        <X className="w-5 h-5 text-red-400 shrink-0" /> Gestor SGSST
-                    </li>
-                    <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                        <X className="w-5 h-5 text-red-400 shrink-0" /> Agentes personalizados
-                    </li>
-                </ul>
+                {isGoPlan ? (
+                    <>
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Todo lo del plan Gratis
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Blog WAPPY
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Hasta 30 conversaciones abiertas
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Podrá ingresar 4 claves API de Gemini
+                            </li>
+                        </ul>
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                                <X className="w-5 h-5 text-red-400 shrink-0" /> Gestor SGSST
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                                <X className="w-5 h-5 text-red-400 shrink-0" /> Agentes personalizados
+                            </li>
+                        </ul>
+                    </>
+                ) : (
+                    <>
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Chat con IA
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Aula de estudio
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Máximo 10 conversaciones abiertas
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                <Check className="w-5 h-5 text-green-500 shrink-0" /> Podrá ingresar 1 clave API de Gemini
+                            </li>
+                        </ul>
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                                <X className="w-5 h-5 text-red-400 shrink-0" /> Blog
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                                <X className="w-5 h-5 text-red-400 shrink-0" /> Gestor SGSST
+                            </li>
+                            <li className="flex items-center gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                                <X className="w-5 h-5 text-red-400 shrink-0" /> Agentes personalizados
+                            </li>
+                        </ul>
+                    </>
+                )}
             </div>
 
             {/* Upgrade Button */}
