@@ -33,8 +33,11 @@ export default function Admin() {
                     <p className="text-text-secondary">{localize('com_ui_admin_panel_description')}</p>
                 </div>
 
-                <div className="flex space-x-4 items-center justify-between">
-                    <div className="flex space-x-4">
+                <div className="flex items-center justify-between overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <style>{`
+                        div::-webkit-scrollbar { display: none; }
+                    `}</style>
+                    <div className="flex space-x-4 whitespace-nowrap">
                         <button
                             onClick={() => setActiveTab('users')}
                             className={cn(

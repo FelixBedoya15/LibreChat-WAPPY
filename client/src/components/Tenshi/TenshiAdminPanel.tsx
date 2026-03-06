@@ -8,9 +8,13 @@ import { useGetEndpointsQuery } from '~/data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { createProviderOption } from '~/utils';
 import { isAssistantsEndpoint } from 'librechat-data-provider';
+import { useOutletContext } from 'react-router-dom';
+import { OpenSidebar } from '~/components/Chat/Menus';
+import type { ContextType } from '~/common';
 
 export default function TenshiAdminPanel() {
     const { user, token } = useAuthContext();
+    const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const { showToast } = useToastContext();
     const queryClient = useQueryClient();
 
@@ -51,18 +55,9 @@ export default function TenshiAdminPanel() {
         const providerKey = formData.provider;
         const lowerProviderKey = providerKey.toLowerCase();
 
-        // 1. Try to get models from the standard models data query (what Agents use)
         const modelsFromQuery = modelsData[providerKey] || modelsData[lowerProviderKey] || [];
-
-        // 2. Try to get models from the endpoints config (what .env/yaml defines)
-        const endpointConfig = (endpointsConfig?.[providerKey] || endpointsConfig?.[lowerProviderKey]) as any;
-        const modelsFromConfig = endpointConfig?.models?.default || [];
-
-        // Combine both sources and remove duplicates
-        const combinedModels = Array.from(new Set([...modelsFromQuery, ...modelsFromConfig]));
-
-        return combinedModels;
-    }, [modelsData, endpointsConfig, formData.provider]);
+        return modelsFromQuery;
+    }, [modelsData, formData.provider]);
 
     const { data: config, isLoading } = useQuery(['tenshiConfigAdmin', token], async () => {
         const res = await axios.get('/api/tenshi/config', {
@@ -127,6 +122,11 @@ export default function TenshiAdminPanel() {
     return (
         <div className="max-w-4xl mx-auto p-6 md:p-8 overflow-y-auto h-full">
             <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                {!navVisible && (
+                    <div className="hidden md:block shrink-0">
+                        <OpenSidebar setNavVisible={setNavVisible} />
+                    </div>
+                )}
                 <div className="bg-gradient-to-tr from-green-500 to-emerald-400 p-3 rounded-2xl shadow-lg">
                     <Sparkles className="w-8 h-8 text-white" />
                 </div>

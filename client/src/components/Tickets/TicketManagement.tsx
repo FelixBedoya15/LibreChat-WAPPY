@@ -245,60 +245,62 @@ export default function TicketManagement() {
             </div>
 
             <div className="bg-surface-primary dark:bg-gray-900 border border-border-light rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-surface-secondary dark:bg-gray-800 text-xs font-bold uppercase text-text-tertiary tracking-wider border-b border-border-light">
-                        <tr>
-                            <th className="px-6 py-4">Usuario</th>
-                            <th className="px-6 py-4">Tipo</th>
-                            <th className="px-6 py-4">Asunto Preview</th>
-                            <th className="px-6 py-4">Fecha</th>
-                            <th className="px-6 py-4">Estado</th>
-                            <th className="px-6 py-4 text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-light">
-                        {filteredTickets.map((ticket) => (
-                            <tr key={ticket._id} className="hover:bg-surface-secondary/50 transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                                            <User className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-text-primary">{ticket.name}</p>
-                                            <p className="text-[10px] text-text-tertiary tracking-tight font-medium uppercase">{ticket.email}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className="font-medium text-text-secondary">{ticket.type}</span>
-                                </td>
-                                <td className="px-6 py-4 truncate max-w-xs">
-                                    <span className="text-text-primary">{ticket.description}</span>
-                                </td>
-                                <td className="px-6 py-4 text-text-tertiary">
-                                    {new Date(ticket.createdAt).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className={cn("px-2 py-1 rounded-full text-[10px] font-bold uppercase w-fit tracking-wide", getStatusStyles(ticket.status))}>
-                                        {ticket.status === 'pending' ? 'Pendiente' : 'Resuelto'}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedTicket(ticket);
-                                            setResponse(ticket.response || '');
-                                        }}
-                                        className="text-blue-600 hover:text-blue-700 font-bold hover:underline"
-                                    >
-                                        Responder
-                                    </button>
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead className="bg-surface-secondary dark:bg-gray-800 text-xs font-bold uppercase text-text-tertiary tracking-wider border-b border-border-light">
+                            <tr>
+                                <th className="px-6 py-4">Usuario</th>
+                                <th className="px-6 py-4">Tipo</th>
+                                <th className="px-6 py-4">Asunto Preview</th>
+                                <th className="px-6 py-4">Fecha</th>
+                                <th className="px-6 py-4">Estado</th>
+                                <th className="px-6 py-4 text-center">Acciones</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-border-light">
+                            {filteredTickets.map((ticket) => (
+                                <tr key={ticket._id} className="hover:bg-surface-secondary/50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                                <User className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-text-primary">{ticket.name}</p>
+                                                <p className="text-[10px] text-text-tertiary tracking-tight font-medium uppercase">{ticket.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="font-medium text-text-secondary">{ticket.type}</span>
+                                    </td>
+                                    <td className="px-6 py-4 truncate max-w-xs">
+                                        <span className="text-text-primary">{ticket.description}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-text-tertiary">
+                                        {new Date(ticket.createdAt).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className={cn("px-2 py-1 rounded-full text-[10px] font-bold uppercase w-fit tracking-wide", getStatusStyles(ticket.status))}>
+                                            {ticket.status === 'pending' ? 'Pendiente' : 'Resuelto'}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedTicket(ticket);
+                                                setResponse(ticket.response || '');
+                                            }}
+                                            className="text-blue-600 hover:text-blue-700 font-bold hover:underline"
+                                        >
+                                            Responder
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
                 {filteredTickets.length === 0 && (
                     <div className="p-12 text-center">
                         <MessageSquare className="w-12 h-12 text-text-tertiary mx-auto mb-4 opacity-20" />
