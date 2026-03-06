@@ -31,6 +31,7 @@ import BlogDashboard from '~/components/Blog/BlogDashboard';
 import BlogAdminDashboard from '~/components/Blog/BlogAdminDashboard';
 import BlogPostEditor from '~/components/Blog/BlogPostEditor';
 import BlogPostViewer from '~/components/Blog/BlogPostViewer';
+import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
 import PlansPage from '~/components/Plans/PlansPage';
 import Search from './Search';
 import Root from './Root';
@@ -176,6 +177,10 @@ export const router = createBrowserRouter(
             {
               path: 'blog/admin',
               element: <BlogAdminDashboard />,
+            },
+            {
+              path: 'tenshi/admin',
+              element: <TenshiAdminPanel />,
             },
             {
               path: 'blog/admin/posts/:id',

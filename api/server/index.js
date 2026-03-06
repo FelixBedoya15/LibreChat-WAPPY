@@ -163,6 +163,7 @@ const startServer = async () => {
     ['sgsst', routes.sgsst],
     ['training', routes.training],
     ['wompi', routes.wompi],
+    ['tenshi', routes.tenshi],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -220,6 +221,7 @@ const startServer = async () => {
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
   app.use('/api/wompi', routes.wompi);
+  app.use('/api/tenshi', routes.tenshi);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {
