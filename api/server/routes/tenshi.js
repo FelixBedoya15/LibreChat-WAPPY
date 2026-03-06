@@ -133,11 +133,20 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         try {
             const fs = require('fs');
             const path = require('path');
-            const manualPath = path.resolve(__dirname, '../manual_wappy.md');
+            // Path relative to api/server/routes/tenshi.js: ../../../client/public/manual_usuario.md
+            const manualPath = path.resolve(__dirname, '../../../client/public/manual_usuario.md');
             if (fs.existsSync(manualPath)) {
                 manualContent = fs.readFileSync(manualPath, 'utf8');
+            } else {
+                // Try fallback to manual_wappy.md if it exists
+                const fallbackPath = path.resolve(__dirname, '../manual_wappy.md');
+                if (fs.existsSync(fallbackPath)) {
+                    manualContent = fs.readFileSync(fallbackPath, 'utf8');
+                }
             }
-        } catch (e) { }
+        } catch (e) {
+            logger.warn('[Tenshi] Error reading manual file:', e.message);
+        }
 
         const systemMessage = `${config.systemPrompt}
 

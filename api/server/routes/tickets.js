@@ -247,10 +247,24 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
         const tenshiConfig = await TenshiConfig.findOne();
         const systemPrompt = tenshiConfig ? tenshiConfig.systemPrompt : 'Actúa como Tenshi, el asistente IA experto de WAPPY IA.';
 
+        // Fetch the platform manual
+        let manualContent = '';
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const manualPath = path.resolve(__dirname, '../../../client/public/manual_usuario.md');
+            if (fs.existsSync(manualPath)) {
+                manualContent = fs.readFileSync(manualPath, 'utf8');
+            }
+        } catch (e) { }
+
         const prompt = `${systemPrompt}
 
 Eres un experto en soporte al cliente para la plataforma WAPPY IA (gestión de SG-SST).
 Se ha recibido un ticket de tipo "${ticket.type}" de el usuario "${ticket.name}".
+
+MANUAL DE LA PLATAFORMA:
+${manualContent || 'No hay manual disponible.'}
 
 DESCRIPCIÓN DE LA SOLICITUD:
 "${ticket.description}"
