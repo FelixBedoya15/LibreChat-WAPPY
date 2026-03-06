@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastContext } from '@librechat/client';
-import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useGetEndpointsQuery } from '~/data-provider';
+import { useGetModelsQuery } from 'librechat-data-provider/react-query';
+import { createProviderOption } from '~/utils';
+import { isAssistantsEndpoint } from 'librechat-data-provider';
 
 export default function TenshiAdminPanel() {
     const { user, token } = useAuthContext();
@@ -13,13 +16,36 @@ export default function TenshiAdminPanel() {
     const [formData, setFormData] = useState({
         name: 'Tenshi',
         description: '',
-        model: 'gemini-2.5-flash',
-        provider: 'google',
+        model: '',
+        provider: '',
         location: 'bottom-right',
         isActive: true,
         extraKnowledge: '',
         systemPrompt: ''
     });
+
+    const { data: endpointsConfig } = useGetEndpointsQuery();
+    const modelsQuery = useGetModelsQuery();
+    const modelsData = useMemo(() => modelsQuery.data ?? {}, [modelsQuery.data]);
+
+    const providers = useMemo(
+        () =>
+            Object.keys(endpointsConfig ?? {})
+                .filter(
+                    (key) =>
+                        !isAssistantsEndpoint(key) &&
+                        key !== 'agents' &&
+                        key !== 'chatGPTBrowser' &&
+                        key !== 'gptPlugins',
+                )
+                .map((p) => createProviderOption(p)),
+        [endpointsConfig],
+    );
+
+    const availableModels = useMemo(
+        () => (formData.provider ? (modelsData[formData.provider] ?? []) : []),
+        [modelsData, formData.provider],
+    );
 
     const { data: config, isLoading } = useQuery(['tenshiConfigAdmin', token], async () => {
         const res = await axios.get('/api/tenshi/config', {
@@ -27,19 +53,23 @@ export default function TenshiAdminPanel() {
         });
         return res.data;
     }, {
-        onSuccess: (data) => {
+        refetchOnWindowFocus: false,
+    });
+
+    useEffect(() => {
+        if (config) {
             setFormData({
-                name: data.name || 'Tenshi',
-                description: data.description || '',
-                model: data.model || 'gemini-2.5-flash',
-                provider: data.provider || 'google',
-                location: data.location || 'bottom-right',
-                isActive: data.isActive !== false,
-                extraKnowledge: data.extraKnowledge || '',
-                systemPrompt: data.systemPrompt || '',
+                name: config.name || 'Tenshi',
+                description: config.description || '',
+                model: config.model || '',
+                provider: config.provider || '',
+                location: config.location || 'bottom-right',
+                isActive: config.isActive !== false,
+                extraKnowledge: config.extraKnowledge || '',
+                systemPrompt: config.systemPrompt || '',
             });
         }
-    });
+    }, [config]);
 
     const updateConfig = useMutation(
         async (newConfig: typeof formData) => {
@@ -117,19 +147,42 @@ export default function TenshiAdminPanel() {
                             <Settings className="w-5 h-5 text-indigo-500" /> Motor de IA
                         </h2>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Configuración del Proveedor</label>
-                                <select name="provider" value={formData.provider} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900">
-                                    <option value="google">Google Gemini</option>
-                                    <option value="groq">Groq (Rápido)</option>
-                                    <option value="openai">OpenAI / NVIDIA</option>
-                                    <option value="ollama">Local (Ollama / Wappy)</option>
+                                <select
+                                    name="provider"
+                                    value={formData.provider}
+                                    onChange={(e) => {
+                                        const newProvider = e.target.value;
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            provider: newProvider,
+                                            model: modelsData[newProvider]?.[0] || ''
+                                        }));
+                                    }}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900"
+                                >
+                                    <option value="">Seleccionar proveedor</option>
+                                    {providers.map(p => (
+                                        <option key={p.value} value={p.value}>{p.label}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Modelo de IA (ID Exacto)</label>
-                                <input type="text" name="model" value={formData.model} onChange={handleChange} placeholder="Ej: gemini-2.5-flash" className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900" />
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Modelo de IA</label>
+                                <select
+                                    name="model"
+                                    value={formData.model}
+                                    onChange={handleChange}
+                                    disabled={!formData.provider}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 disabled:opacity-50"
+                                >
+                                    <option value="">{formData.provider ? 'Seleccionar modelo' : 'Primero elige proveedor'}</option>
+                                    {availableModels.map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     </div>
