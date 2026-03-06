@@ -479,6 +479,7 @@ const PerfilSociodemografico = () => {
                                                         <option value="Respiratorio - Asma/Rinitis">Respiratorio: Rinitis / Asma / Bronquitis</option>
                                                         <option value="Piel - Dermatitis/Micosis">Piel: Dermatitis de contacto / Micosis</option>
                                                     </optgroup>
+                                                    <option value="Otros">Otros (No categorizado)</option>
                                                 </select>
                                             </div>
 
