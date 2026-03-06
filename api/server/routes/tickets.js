@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Ticket = require('../../models/Ticket');
+const Notification = require('../../models/Notification');
 const { AuthKeys } = require('librechat-data-provider');
 const { requireJwtAuth } = require('../middleware');
 const { logger } = require('~/config');
@@ -10,6 +11,27 @@ const { syncToRag } = require('../services/RagService');
 const { getUserKey } = require('~/server/services/UserService');
 const TenshiConfig = require('../../models/TenshiConfig');
 const { generateShortLivedToken } = require('@librechat/api');
+
+// Helper: Create notifications for all admins
+async function notifyAllAdmins({ title, body, ticketId }) {
+    try {
+        const mongoose = require('mongoose');
+        const User = mongoose.model('User');
+        const admins = await User.find({ role: 'ADMIN' }).select('_id').lean();
+        const notificationDocs = admins.map(a => ({
+            user: a._id,
+            type: 'ticket_created',
+            title,
+            body,
+            ticketId,
+        }));
+        if (notificationDocs.length > 0) {
+            await Notification.insertMany(notificationDocs);
+        }
+    } catch (e) {
+        logger.warn('[Tickets] Error sending admin notifications:', e.message);
+    }
+}
 
 // User: Create a ticket
 router.post('/', requireJwtAuth, async (req, res) => {
@@ -24,6 +46,14 @@ router.post('/', requireJwtAuth, async (req, res) => {
             description,
         });
         await ticket.save();
+
+        // Notify all admins about the new ticket
+        notifyAllAdmins({
+            title: `Nuevo ticket PQRS: ${type}`,
+            body: `${name} ha enviado un ticket de tipo "${type}": ${description.substring(0, 120)}...`,
+            ticketId: ticket._id,
+        });
+
         res.status(201).json(ticket);
     } catch (error) {
         logger.error('[Tickets] Error creating ticket:', error);
@@ -71,6 +101,19 @@ router.post('/:id/respond', requireJwtAuth, async (req, res) => {
         ticket.status = status || 'resolved';
         ticket.adminResponseBy = req.user.id;
         await ticket.save();
+
+        // Notify the ticket owner that their ticket was responded to
+        try {
+            await Notification.create({
+                user: ticket.user,
+                type: 'ticket_responded',
+                title: '¡Tu ticket PQRS fue respondido!',
+                body: `Tu solicitud de tipo "${ticket.type}" recibió una respuesta del equipo de soporte.`,
+                ticketId: ticket._id,
+            });
+        } catch (notifError) {
+            logger.warn('[Tickets] Error creating user notification:', notifError.message);
+        }
 
         // Dynamic Knowledge: Sync with RAG system if resolved
         if (ticket.status === 'resolved') {
