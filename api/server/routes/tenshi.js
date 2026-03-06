@@ -1,5 +1,5 @@
 const express = require('express');
-const router = express.express();
+const router = express.Router();
 const mongoose = require('mongoose');
 const { requireJwtAuth } = require('../middleware');
 const TenshiConfig = require('../../models/TenshiConfig');
