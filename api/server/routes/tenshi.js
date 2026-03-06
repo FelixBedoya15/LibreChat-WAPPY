@@ -3,8 +3,8 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { requireJwtAuth } = require('../middleware');
 const TenshiConfig = require('../../models/TenshiConfig');
-const BlogPost = require('../../models/BlogPost');
-const Course = require('../../models/Course'); // Assuming this exists or will handle it safely
+const { BlogPost } = require('../../models/BlogPost');
+const { Course } = require('../../models/Course');
 const axios = require('axios');
 
 router.get('/config', async (req, res) => {
@@ -60,9 +60,10 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         // Fetch dynamic knowledge (latest courses)
         let latestCourses = [];
         try {
-            const { Course } = require('../../models/Course');
             latestCourses = await Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3);
-        } catch (e) { }
+        } catch (e) {
+            console.error('Error fetching courses for Tenshi:', e);
+        }
 
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
 
@@ -139,8 +140,14 @@ Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo reali
             // though usually history is [user, model, user, model] and current message is user.
 
             const chat = geminiModel.startChat({ history });
-            const result = await chat.sendMessage(messages[messages.length - 1].content);
-            responseText = result.response.text();
+
+            try {
+                const result = await chat.sendMessage(messages[messages.length - 1].content);
+                responseText = result.response.text();
+            } catch (geminiError) {
+                console.error('Gemini SDK Error:', geminiError);
+                throw new Error(`Google AI Error: ${geminiError.message || 'Unknown Gemini Error'}`);
+            }
 
         } else if (config.provider === 'groq') {
             const groqRes = await axios.post('https://api.groq.com/openai/v1/chat/completions', {

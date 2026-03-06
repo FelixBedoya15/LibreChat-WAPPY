@@ -58,9 +58,13 @@ export default function TenshiChat() {
             );
             const assistantMsg = { role: 'assistant', content: response.data.response };
             setMessages(prev => [...prev, assistantMsg]);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error with Tenshi:', error);
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, he tenido un problema conectando con el servidor. Por favor, intenta de nuevo.' }]);
+            const backendError = error.response?.data?.details || error.message;
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Lo siento, he tenido un problema conectando con el servidor. Error: ${backendError}. Por favor, verifica la configuración en el panel de admin.`
+            }]);
         } finally {
             setIsTyping(false);
         }
@@ -115,20 +119,20 @@ export default function TenshiChat() {
 
                     {/* Input Area */}
                     <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 shrink-0">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-transparent border-none ring-0 outline-none">
+                        <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-inner group focus-within:ring-2 focus-within:ring-green-500/30 transition-all">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                 placeholder="Escribe tu consulta..."
-                                className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm dark:text-gray-100"
+                                className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm dark:text-gray-100 placeholder-gray-400"
                                 disabled={isTyping}
                             />
                             <button
                                 onClick={handleSend}
                                 disabled={isTyping || !input.trim()}
-                                className="p-1.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-full transition-colors shrink-0"
+                                className="p-1.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-full transition-all shrink-0 shadow-sm active:scale-95"
                             >
                                 <Send className="w-4 h-4 ml-0.5" />
                             </button>
