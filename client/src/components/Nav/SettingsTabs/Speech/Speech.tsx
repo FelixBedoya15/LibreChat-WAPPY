@@ -194,66 +194,96 @@ function Speech() {
       </div>
 
       <Tabs.Content value={'simple'} tabIndex={-1}>
-        <div className="flex flex-col gap-3 text-sm text-text-primary">
-          <SpeechToTextSwitch />
-          <EngineSTTDropdown external={sttExternal} />
-          <LanguageSTTDropdown />
-          <div className="h-px bg-border-medium" role="none" />
-          <TextToSpeechSwitch />
-          <EngineTTSDropdown external={ttsExternal} />
-          <VoiceDropdown />
+        <div className="flex flex-col gap-4 text-sm text-text-primary">
+          <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">Voz a Texto (Micrófono)</h3>
+            <div className="flex flex-col gap-4">
+              <SpeechToTextSwitch />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <EngineSTTDropdown external={sttExternal} />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <LanguageSTTDropdown />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">Texto a Voz (Altavoz)</h3>
+            <div className="flex flex-col gap-4">
+              <TextToSpeechSwitch />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <EngineTTSDropdown external={ttsExternal} />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <VoiceDropdown />
+            </div>
+          </div>
         </div>
       </Tabs.Content>
 
       <Tabs.Content value={'advanced'} tabIndex={-1}>
-        <div className="flex flex-col gap-3 text-sm text-text-primary">
-          <ConversationModeSwitch />
-          <div className="mt-2 h-px bg-border-medium" role="none" />
-          <SpeechToTextSwitch />
-
-          <EngineSTTDropdown external={sttExternal} />
-
-          <LanguageSTTDropdown />
-          <div className="pb-2">
-            <AutoTranscribeAudioSwitch />
-          </div>
-          {autoTranscribeAudio && (
-            <div className="pb-2">
-              <DecibelSelector />
+        <div className="flex flex-col gap-4 text-sm text-text-primary">
+          <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">Modo Conversación & STT</h3>
+            <div className="flex flex-col gap-4">
+              <ConversationModeSwitch />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <SpeechToTextSwitch />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <EngineSTTDropdown external={sttExternal} />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <LanguageSTTDropdown />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <AutoTranscribeAudioSwitch />
+              {autoTranscribeAudio && (
+                <>
+                  <div className="h-px bg-gray-200 dark:bg-gray-700" />
+                  <DecibelSelector />
+                </>
+              )}
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <AutoSendTextSelector />
             </div>
-          )}
-          <div className="pb-2">
-            <AutoSendTextSelector />
           </div>
-          <div className="h-px bg-border-medium" role="none" />
-          <div className="pb-3">
-            <TextToSpeechSwitch />
-          </div>
-          <AutomaticPlaybackSwitch />
-          <EngineTTSDropdown external={ttsExternal} />
-          <VoiceDropdown />
-          {engineTTS === 'browser' && (
-            <div className="pb-2">
-              <CloudBrowserVoicesSwitch />
+
+          <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">Texto a Voz (Avanzado)</h3>
+            <div className="flex flex-col gap-4">
+              <TextToSpeechSwitch />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <AutomaticPlaybackSwitch />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <EngineTTSDropdown external={ttsExternal} />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <VoiceDropdown />
+
+              {engineTTS === 'browser' && (
+                <>
+                  <div className="h-px bg-gray-200 dark:bg-gray-700" />
+                  <CloudBrowserVoicesSwitch />
+                </>
+              )}
+
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <PlaybackRate />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <CacheTTSSwitch />
             </div>
-          )}
-          <div className="pb-2">
-            <PlaybackRate />
           </div>
-          <CacheTTSSwitch />
-          <div className="h-px bg-border-medium" role="none" />
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-text-primary">Configuración de Gemini Live</h3>
-            <GeminiVoiceSelector
-              label="Voz Chat General"
-              selectedVoice={voiceChatGeneral}
-              onVoiceChange={(v) => updateSetting('voiceChatGeneral', v)}
-            />
-            <GeminiVoiceSelector
-              label="Voz Análisis en Vivo"
-              selectedVoice={voiceLiveAnalysis}
-              onVoiceChange={(v) => updateSetting('voiceLiveAnalysis', v)}
-            />
+
+          <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+            <h3 className="mb-4 text-lg font-medium text-text-primary">Configuración de Gemini Live</h3>
+            <div className="flex flex-col gap-4">
+              <GeminiVoiceSelector
+                label="Voz Chat General"
+                selectedVoice={voiceChatGeneral}
+                onVoiceChange={(v) => updateSetting('voiceChatGeneral', v)}
+              />
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <GeminiVoiceSelector
+                label="Voz Análisis en Vivo"
+                selectedVoice={voiceLiveAnalysis}
+                onVoiceChange={(v) => updateSetting('voiceLiveAnalysis', v)}
+              />
+            </div>
           </div>
         </div>
       </Tabs.Content>

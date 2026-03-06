@@ -172,205 +172,209 @@ const Ads = () => {
 
     if (isEditing) {
         return (
-            <div className="flex flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">{currentAd ? 'Editar Anuncio' : 'Crear Anuncio'}</h3>
-                    <Button variant="ghost" size="icon" onClick={cancelEdit}>
-                        <X className="h-4 w-4" />
-                    </Button>
-                </div>
-                <form onSubmit={handleSubmit(onSubmit, (e) => console.error('Submit Error:', e))} className="flex flex-col gap-4">
-                    <div>
-                        <label className="text-sm font-medium">Título</label>
-                        <Controller
-                            name="title"
-                            control={control}
-                            rules={{ required: true }}
-                            render={({ field }) => (
-                                <Input {...field} placeholder="Título del anuncio" value={field.value || ''} />
-                            )}
-                        />
-                        {errors.title && <span className="text-red-500 text-xs">Requerido</span>}
+            <div className="flex flex-col gap-4 text-sm text-text-primary">
+                <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium">{currentAd ? 'Editar Anuncio' : 'Crear Anuncio'}</h3>
+                        <Button variant="ghost" size="icon" onClick={cancelEdit}>
+                            <X className="h-4 w-4" />
+                        </Button>
                     </div>
-                    <div>
-                        <label className="text-sm font-medium">Contenido</label>
-                        <Controller
-                            name="content"
-                            control={control}
-                            render={({ field }) => (
-                                <Input {...field} placeholder="Descripción corta" value={field.value || ''} />
-                            )}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium">Imágenes</label>
-                        <div className="flex flex-col gap-2">
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-
-                                    if (!token) {
-                                        alert('No hay sesión activa para subir archivos.');
-                                        return;
-                                    }
-
-                                    setUploading(true);
-                                    try {
-                                        const formData = new FormData();
-                                        formData.append('file', file);
-                                        formData.append('file_id', crypto.randomUUID());
-                                        formData.append('endpoint', 'librechat'); // 'librechat' or 'default' usually maps to local/default config
-
-                                        // Get dimensions
-                                        await new Promise<void>((resolve, reject) => {
-                                            const img = new Image();
-                                            img.onload = () => {
-                                                formData.append('width', img.width.toString());
-                                                formData.append('height', img.height.toString());
-                                                resolve();
-                                            };
-                                            img.onerror = () => reject(new Error('Failed to load image for dimensions'));
-                                            img.src = URL.createObjectURL(file);
-                                        });
-
-                                        const response = await fetch('/api/files/images', {
-                                            method: 'POST',
-                                            headers: {
-                                                'Authorization': `Bearer ${token}`
-                                            },
-                                            body: formData
-                                        });
-
-                                        if (!response.ok) {
-                                            const errText = await response.text();
-                                            let errMsg = errText;
-                                            try {
-                                                const jsonErr = JSON.parse(errText);
-                                                if (jsonErr.message) errMsg = jsonErr.message;
-                                            } catch (e) { /* ignore json parse error */ }
-                                            throw new Error(errMsg || response.statusText);
-                                        }
-
-                                        const data = await response.json();
-                                        let imageUrl = data.filepath;
-                                        if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-                                            imageUrl = '/' + imageUrl;
-                                        }
-
-                                        const currentImages = control._formValues.images || '';
-                                        const newImages = currentImages ? `${currentImages}, ${imageUrl}` : imageUrl;
-                                        setValue('images', newImages as any);
-
-                                    } catch (error) {
-                                        console.error('Upload Error:', error);
-                                        alert('Error al subir imagen: ' + error);
-                                    } finally {
-                                        setUploading(false);
-                                        if (fileInputRef.current) {
-                                            fileInputRef.current.value = '';
-                                        }
-                                    }
-                                }}
-                            />
-                            <div className="flex gap-2">
-                                <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                                    {uploading ? 'Subiendo...' : 'Subir Imagen'}
-                                </Button>
-                            </div>
-
+                    <form onSubmit={handleSubmit(onSubmit, (e) => console.error('Submit Error:', e))} className="flex flex-col gap-4">
+                        <div>
+                            <label className="text-sm font-medium">Título</label>
                             <Controller
-                                name="images"
+                                name="title"
                                 control={control}
                                 rules={{ required: true }}
                                 render={({ field }) => (
-                                    <Input {...field} placeholder="URLs de imágenes (o sube una)" value={field.value || ''} />
+                                    <Input {...field} placeholder="Título del anuncio" value={field.value || ''} />
                                 )}
                             />
-                            {errors.images && <span className="text-red-500 text-xs">Requerido (al menos una URL)</span>}
+                            {errors.title && <span className="text-red-500 text-xs">Requerido</span>}
                         </div>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium">Enlace (Opcional)</label>
-                        <Controller
-                            name="link"
-                            control={control}
-                            render={({ field }) => (
-                                <Input {...field} placeholder="https://..." value={field.value || ''} />
-                            )}
-                        />
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium">Texto del Botón</label>
-                        <Controller
-                            name="ctaText"
-                            control={control}
-                            render={({ field }) => (
-                                <Input {...field} placeholder="Ver más" value={field.value || ''} />
-                            )}
-                        />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Controller
-                            name="active"
-                            control={control}
-                            render={({ field: { onChange, value, ref } }) => (
+                        <div>
+                            <label className="text-sm font-medium">Contenido</label>
+                            <Controller
+                                name="content"
+                                control={control}
+                                render={({ field }) => (
+                                    <Input {...field} placeholder="Descripción corta" value={field.value || ''} />
+                                )}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Imágenes</label>
+                            <div className="flex flex-col gap-2">
                                 <input
-                                    type="checkbox"
-                                    id="active"
-                                    onChange={onChange}
-                                    checked={value}
-                                    ref={ref}
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        if (!token) {
+                                            alert('No hay sesión activa para subir archivos.');
+                                            return;
+                                        }
+
+                                        setUploading(true);
+                                        try {
+                                            const formData = new FormData();
+                                            formData.append('file', file);
+                                            formData.append('file_id', crypto.randomUUID());
+                                            formData.append('endpoint', 'librechat'); // 'librechat' or 'default' usually maps to local/default config
+
+                                            // Get dimensions
+                                            await new Promise<void>((resolve, reject) => {
+                                                const img = new Image();
+                                                img.onload = () => {
+                                                    formData.append('width', img.width.toString());
+                                                    formData.append('height', img.height.toString());
+                                                    resolve();
+                                                };
+                                                img.onerror = () => reject(new Error('Failed to load image for dimensions'));
+                                                img.src = URL.createObjectURL(file);
+                                            });
+
+                                            const response = await fetch('/api/files/images', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Authorization': `Bearer ${token}`
+                                                },
+                                                body: formData
+                                            });
+
+                                            if (!response.ok) {
+                                                const errText = await response.text();
+                                                let errMsg = errText;
+                                                try {
+                                                    const jsonErr = JSON.parse(errText);
+                                                    if (jsonErr.message) errMsg = jsonErr.message;
+                                                } catch (e) { /* ignore json parse error */ }
+                                                throw new Error(errMsg || response.statusText);
+                                            }
+
+                                            const data = await response.json();
+                                            let imageUrl = data.filepath;
+                                            if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                                                imageUrl = '/' + imageUrl;
+                                            }
+
+                                            const currentImages = control._formValues.images || '';
+                                            const newImages = currentImages ? `${currentImages}, ${imageUrl}` : imageUrl;
+                                            setValue('images', newImages as any);
+
+                                        } catch (error) {
+                                            console.error('Upload Error:', error);
+                                            alert('Error al subir imagen: ' + error);
+                                        } finally {
+                                            setUploading(false);
+                                            if (fileInputRef.current) {
+                                                fileInputRef.current.value = '';
+                                            }
+                                        }
+                                    }}
                                 />
-                            )}
-                        />
-                        <label htmlFor="active" className="text-sm">Activo</label>
-                    </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button type="button" variant="outline" onClick={cancelEdit}>Cancelar</Button>
-                        <Button type="submit">Guardar</Button>
-                    </div>
-                </form>
+                                <div className="flex gap-2">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                                        {uploading ? 'Subiendo...' : 'Subir Imagen'}
+                                    </Button>
+                                </div>
+
+                                <Controller
+                                    name="images"
+                                    control={control}
+                                    rules={{ required: true }}
+                                    render={({ field }) => (
+                                        <Input {...field} placeholder="URLs de imágenes (o sube una)" value={field.value || ''} />
+                                    )}
+                                />
+                                {errors.images && <span className="text-red-500 text-xs">Requerido (al menos una URL)</span>}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Enlace (Opcional)</label>
+                            <Controller
+                                name="link"
+                                control={control}
+                                render={({ field }) => (
+                                    <Input {...field} placeholder="https://..." value={field.value || ''} />
+                                )}
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium">Texto del Botón</label>
+                            <Controller
+                                name="ctaText"
+                                control={control}
+                                render={({ field }) => (
+                                    <Input {...field} placeholder="Ver más" value={field.value || ''} />
+                                )}
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Controller
+                                name="active"
+                                control={control}
+                                render={({ field: { onChange, value, ref } }) => (
+                                    <input
+                                        type="checkbox"
+                                        id="active"
+                                        onChange={onChange}
+                                        checked={value}
+                                        ref={ref}
+                                    />
+                                )}
+                            />
+                            <label htmlFor="active" className="text-sm">Activo</label>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-4">
+                            <Button type="button" variant="outline" onClick={cancelEdit}>Cancelar</Button>
+                            <Button type="submit">Guardar</Button>
+                        </div>
+                    </form>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-4 p-4">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium">Gestión de Publicidad</h3>
-                <Button onClick={startCreate} size="sm">
-                    <Plus className="mr-2 h-4 w-4" /> Nuevo Anuncio
-                </Button>
-            </div>
-
-            {loading ? (
-                <div>Cargando...</div>
-            ) : (
-                <div className="flex flex-col gap-2">
-                    {ads.map((ad) => (
-                        <div key={ad._id} className="flex items-center justify-between rounded-md border p-3 bg-surface-primary">
-                            <div className="flex flex-col">
-                                <span className="font-medium">{ad.title}</span>
-                                <span className="text-xs text-text-secondary">{ad.active ? 'Activo' : 'Inactivo'}</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => startEdit(ad)}>
-                                    <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(ad._id)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    ))}
-                    {ads.length === 0 && <div className="text-center text-text-secondary pt-4">No hay anuncios creados.</div>}
+        <div className="flex flex-col gap-4 text-sm text-text-primary">
+            <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium">Gestión de Publicidad</h3>
+                    <Button onClick={startCreate} size="sm">
+                        <Plus className="mr-2 h-4 w-4" /> Nuevo Anuncio
+                    </Button>
                 </div>
-            )}
+
+                {loading ? (
+                    <div>Cargando...</div>
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        {ads.map((ad) => (
+                            <div key={ad._id} className="flex items-center justify-between rounded-md border p-3 bg-surface-primary">
+                                <div className="flex flex-col">
+                                    <span className="font-medium">{ad.title}</span>
+                                    <span className="text-xs text-text-secondary">{ad.active ? 'Activo' : 'Inactivo'}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button variant="ghost" size="icon" onClick={() => startEdit(ad)}>
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(ad._id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                        {ads.length === 0 && <div className="text-center text-text-secondary pt-4">No hay anuncios creados.</div>}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

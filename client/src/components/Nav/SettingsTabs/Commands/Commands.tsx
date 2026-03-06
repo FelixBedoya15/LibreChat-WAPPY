@@ -56,24 +56,29 @@ function Commands() {
   };
 
   return (
-    <div className="space-y-4 p-1">
-      <div className="flex items-center gap-2">
-        <h3 className="text-lg font-medium text-text-primary">
-          {localize('com_nav_chat_commands')}
-        </h3>
-        <InfoHoverCard side={ESide.Bottom} text={localize('com_nav_chat_commands_info')} />
-      </div>
-      <div className="flex flex-col gap-3 text-sm text-text-primary">
-        {commandSwitchConfigs.map((config) => (
-          <div key={config.key} className="pb-3">
-            <ToggleSwitch
-              stateAtom={config.stateAtom}
-              localizationKey={config.localizationKey}
-              switchId={config.switchId}
-              showSwitch={getShowSwitch(config.permissionType)}
-            />
-          </div>
-        ))}
+    <div className="flex flex-col gap-4 text-sm text-text-primary">
+      <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+        <div className="mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-medium text-text-primary">
+            {localize('com_nav_chat_commands')}
+          </h3>
+          <InfoHoverCard side={ESide.Bottom} text={localize('com_nav_chat_commands_info')} />
+        </div>
+        <div className="flex flex-col gap-4">
+          {commandSwitchConfigs.map((config, index) => (
+            <div key={config.key}>
+              <ToggleSwitch
+                stateAtom={config.stateAtom}
+                localizationKey={config.localizationKey}
+                switchId={config.switchId}
+                showSwitch={getShowSwitch(config.permissionType)}
+              />
+              {index < commandSwitchConfigs.length - 1 && (
+                <div className="mt-4 h-px bg-gray-200 dark:bg-gray-700" />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

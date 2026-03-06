@@ -48,31 +48,31 @@ export default function Personalization({
 
   if (!hasAnyPersonalizationFeature) {
     return (
-      <div className="flex flex-col gap-3 text-sm text-text-primary">
-        <div className="text-text-secondary">{localize('com_ui_no_personalization_available')}</div>
+      <div className="flex flex-col gap-4 text-sm text-text-primary">
+        <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+          <div className="text-text-secondary">No hay funciones de personalización disponibles por el momento.</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 text-sm text-text-primary">
-      {/* Memory Settings Section */}
+    <div className="flex flex-col gap-4 text-sm text-text-primary">
+      {/* Tarjeta de Configuración de Memoria */}
       {hasMemoryOptOut && (
-        <>
-          <div className="border-b border-border-medium pb-3">
-            <div className="text-base font-semibold">{localize('com_ui_memory')}</div>
-          </div>
+        <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+          <h3 className="mb-4 text-lg font-medium text-text-primary">Memoria Personal</h3>
 
           <div className="flex items-center justify-between">
             <div>
-              <div id="reference-saved-memories-label" className="flex items-center gap-2">
-                {localize('com_ui_reference_saved_memories')}
+              <div id="reference-saved-memories-label" className="flex items-center gap-2 font-medium">
+                Hacer referencia a detalles anteriores
               </div>
               <div
                 id="reference-saved-memories-description"
                 className="mt-1 text-xs text-text-secondary"
               >
-                {localize('com_ui_reference_saved_memories_description')}
+                La IA recordará detalles y preferencias de tus conversaciones anteriores para darte respuestas más personalizadas.
               </div>
             </div>
             <Switch
@@ -81,9 +81,10 @@ export default function Personalization({
               disabled={updateMemoryPreferencesMutation.isLoading}
               aria-labelledby="reference-saved-memories-label"
               aria-describedby="reference-saved-memories-description"
+              className="ml-4"
             />
           </div>
-        </>
+        </div>
       )}
     </div>
   );
