@@ -81,24 +81,41 @@ const toggleSwitchConfigs = [
 
 function Chat() {
   return (
-    <div className="flex flex-col gap-3 p-1 text-sm text-text-primary">
-      <div className="pb-3">
-        <FontSizeSelector />
-      </div>
-      <div className="pb-3">
-        <ChatDirection />
-      </div>
-      {toggleSwitchConfigs.map((config) => (
-        <div key={config.key} className="pb-3">
-          <ToggleSwitch
-            stateAtom={config.stateAtom}
-            localizationKey={config.localizationKey}
-            hoverCardText={config.hoverCardText}
-            switchId={config.switchId}
-          />
+    <div className="flex flex-col gap-4 text-sm text-text-primary">
+      {/* Tarjeta de Visualización */}
+      <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+        <h3 className="mb-4 text-lg font-medium text-text-primary">Visualización</h3>
+        <div className="flex flex-col gap-4">
+          <FontSizeSelector />
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+          <ChatDirection />
         </div>
-      ))}
-      <ForkSettings />
+      </div>
+
+      {/* Tarjeta de Funcionalidad */}
+      <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+        <h3 className="mb-4 text-lg font-medium text-text-primary">Funcionalidad del Chat</h3>
+        <div className="flex flex-col gap-4">
+          {toggleSwitchConfigs.map((config, index) => (
+            <div key={config.key}>
+              <ToggleSwitch
+                stateAtom={config.stateAtom}
+                localizationKey={config.localizationKey as any}
+                hoverCardText={config.hoverCardText as any}
+                switchId={config.switchId}
+              />
+              {index < toggleSwitchConfigs.length - 1 && (
+                <div className="mt-4 h-px bg-gray-200 dark:bg-gray-700" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tarjeta de Configuración de Bifurcación */}
+      <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+        <ForkSettings />
+      </div>
     </div>
   );
 }
