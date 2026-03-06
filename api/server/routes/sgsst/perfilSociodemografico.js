@@ -10,29 +10,29 @@ const CompanyInfo = require('~/models/CompanyInfo');
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const WorkerEntrySchema = new mongoose.Schema({
-    id: String,
-    nombre: String,
-    identificacion: String,
-    edad: Number,
-    genero: String,
-    estadoCivil: String,
-    nivelEscolaridad: String,
-    direccion: String,
-    telefono: String,
-    cargo: String,
-    fechaExamenMedico: String,
-    fechaCursoAlturasAutorizado: String,
-    fechaCursoAlturasCoordinador: String,
-    diagnosticoMedico: String,
-    recomendacionesMedicas: String,
-    fechaSeguimiento: String,
-    completedByAI: { type: Boolean, default: false },
+  id: String,
+  nombre: String,
+  identificacion: String,
+  edad: Number,
+  genero: String,
+  estadoCivil: String,
+  nivelEscolaridad: String,
+  direccion: String,
+  telefono: String,
+  cargo: String,
+  fechaExamenMedico: String,
+  fechaCursoAlturasAutorizado: String,
+  fechaCursoAlturasCoordinador: String,
+  diagnosticoMedico: String,
+  recomendacionesMedicas: String,
+  fechaSeguimiento: String,
+  completedByAI: { type: Boolean, default: false },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    trabajadores: [WorkerEntrySchema],
-    updatedAt: { type: Date, default: Date.now },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  trabajadores: [WorkerEntrySchema],
+  updatedAt: { type: Date, default: Date.now },
 });
 
 PerfilSociodemograficoDataSchema.index({ user: 1 }, { unique: true });
@@ -41,50 +41,50 @@ const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData ||
 
 // ─── Helper: Get API Key ─────────────────────────────────────────────
 async function getApiKey(userId) {
-    let resolvedApiKey;
+  let resolvedApiKey;
+  try {
+    const storedKey = await getUserKey({ userId, name: 'google' });
     try {
-        const storedKey = await getUserKey({ userId, name: 'google' });
-        try {
-            const parsed = JSON.parse(storedKey);
-            resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-        } catch {
-            resolvedApiKey = storedKey;
-        }
+      const parsed = JSON.parse(storedKey);
+      resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
     } catch {
-        logger.debug('[SGSST PerfilSociodemografico] No user Google key, trying env');
+      resolvedApiKey = storedKey;
     }
-    if (!resolvedApiKey) {
-        resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-    }
-    if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-        resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-    }
-    return resolvedApiKey;
+  } catch {
+    logger.debug('[SGSST PerfilSociodemografico] No user Google key, trying env');
+  }
+  if (!resolvedApiKey) {
+    resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+  }
+  if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+    resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+  }
+  return resolvedApiKey;
 }
 
 // ─── GET /profile/:workerId — Public profile page (for QR scanning) ──────────
 // No JWT required — designed to be publicly accessible via QR code scan
 router.get('/profile/:workerId', async (req, res) => {
-    try {
-        const { workerId } = req.params;
+  try {
+    const { workerId } = req.params;
 
-        // Search across all users' data for this worker ID
-        const allData = await PerfilSociodemograficoData.find({}).lean();
-        let worker = null;
-        for (const doc of allData) {
-            const found = (doc.trabajadores || []).find(t => t.id === workerId);
-            if (found) { worker = found; break; }
-        }
+    // Search across all users' data for this worker ID
+    const allData = await PerfilSociodemograficoData.find({}).lean();
+    let worker = null;
+    for (const doc of allData) {
+      const found = (doc.trabajadores || []).find(t => t.id === workerId);
+      if (found) { worker = found; break; }
+    }
 
-        if (!worker) {
-            return res.status(404).send(`<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID <strong>${workerId}</strong> no existe o fue eliminado.</p></body></html>`);
-        }
+    if (!worker) {
+      return res.status(404).send(`<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:40px;"><h2>Perfil no encontrado</h2><p>El trabajador con ID <strong>${workerId}</strong> no existe o fue eliminado.</p></body></html>`);
+    }
 
-        const mapsLink = worker.direccion
-            ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(worker.direccion)}`
-            : null;
+    const mapsLink = worker.direccion
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(worker.direccion)}`
+      : null;
 
-        const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
@@ -142,14 +142,14 @@ router.get('/profile/:workerId', async (req, res) => {
         <span class="date-value">${worker.fechaExamenMedico || 'No registrado'}</span>
       </div>
       ${worker.diagnosticoMedico ? `
-      <div class="date-row" style="background: #fff1f2; border-radius: 8px; margin: 4px 0; padding: 6px 10px;">
+      <div class="date-row">
         <span class="date-label" style="color: #be123c;">Diagnóstico Médico</span>
-        <span class="date-value" style="color: #9f1239;">${worker.diagnosticoMedico}</span>
+        <span class="date-value" style="color: #9f1239; white-space: normal; text-align: right;">${worker.diagnosticoMedico}</span>
       </div>` : ''}
       ${worker.recomendacionesMedicas ? `
       <div class="date-row">
-        <span class="date-label">Recomendaciones</span>
-        <span class="date-value" style="font-size: 11px; white-space: normal;">${worker.recomendacionesMedicas}</span>
+        <span class="date-label" style="color: #be123c;">Recomendaciones</span>
+        <span class="date-value" style="font-size: 11px; white-space: normal; text-align: right; color: #9f1239;">${worker.recomendacionesMedicas}</span>
       </div>` : ''}
       ${worker.fechaSeguimiento ? `
       <div class="date-row" style="border-top: 1px solid #fde68a;">
@@ -168,77 +168,77 @@ router.get('/profile/:workerId', async (req, res) => {
   </div>
 
   ${mapsLink
-                ? `<a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
+        ? `<a href="${mapsLink}" class="maps-btn" target="_blank" rel="noopener noreferrer">
         📍 Ver Dirección en Google Maps
       </a>`
-                : `<div style="text-align:center;padding:14px;background:#f1f5f9;border-radius:12px;margin-top:20px;color:#94a3b8;font-size:13px;font-weight:600;">Sin dirección registrada</div>`
-            }
+        : `<div style="text-align:center;padding:14px;background:#f1f5f9;border-radius:12px;margin-top:20px;color:#94a3b8;font-size:13px;font-weight:600;">Sin dirección registrada</div>`
+      }
 
   <div class="footer">Perfil generado por SGSST · WAPPY IA</div>
 </div>
 </body>
 </html>`;
 
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(html);
-    } catch (error) {
-        logger.error('[SGSST PerfilSociodemografico] Profile page error:', error);
-        res.status(500).send('Error al cargar perfil');
-    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (error) {
+    logger.error('[SGSST PerfilSociodemografico] Profile page error:', error);
+    res.status(500).send('Error al cargar perfil');
+  }
 });
 
 // ─── GET /data — Load saved worker data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
-    try {
-        const data = await PerfilSociodemograficoData.findOne({ user: req.user.id });
-        if (data && data.trabajadores?.length) {
-            return res.json({ trabajadores: data.trabajadores });
-        }
-        res.json({ trabajadores: [] });
-    } catch (error) {
-        logger.error('[SGSST PerfilSociodemografico] Load error:', error);
-        res.status(500).json({ error: 'Error al cargar datos' });
+  try {
+    const data = await PerfilSociodemograficoData.findOne({ user: req.user.id });
+    if (data && data.trabajadores?.length) {
+      return res.json({ trabajadores: data.trabajadores });
     }
+    res.json({ trabajadores: [] });
+  } catch (error) {
+    logger.error('[SGSST PerfilSociodemografico] Load error:', error);
+    res.status(500).json({ error: 'Error al cargar datos' });
+  }
 });
 
 // ─── POST /save — Save worker data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
-    try {
-        const { trabajadores } = req.body;
-        if (!trabajadores) {
-            return res.status(400).json({ error: 'Datos requeridos' });
-        }
-
-        await PerfilSociodemograficoData.findOneAndUpdate(
-            { user: req.user.id },
-            { $set: { trabajadores, updatedAt: new Date() } },
-            { upsert: true, new: true }
-        );
-
-        res.json({ success: true });
-    } catch (error) {
-        logger.error('[SGSST PerfilSociodemografico] Save error:', error);
-        res.status(500).json({ error: 'Error al guardar datos' });
+  try {
+    const { trabajadores } = req.body;
+    if (!trabajadores) {
+      return res.status(400).json({ error: 'Datos requeridos' });
     }
+
+    await PerfilSociodemograficoData.findOneAndUpdate(
+      { user: req.user.id },
+      { $set: { trabajadores, updatedAt: new Date() } },
+      { upsert: true, new: true }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('[SGSST PerfilSociodemografico] Save error:', error);
+    res.status(500).json({ error: 'Error al guardar datos' });
+  }
 });
 
 // ─── POST /generate-full — Generate 5 workers with dummy data ────────
 router.post('/generate-full', requireJwtAuth, async (req, res) => {
-    try {
-        const { modelName } = req.body;
-        const apiKey = await getApiKey(req.user.id);
-        if (!apiKey) return res.status(400).json({ error: 'No API Key' });
+  try {
+    const { modelName } = req.body;
+    const apiKey = await getApiKey(req.user.id);
+    if (!apiKey) return res.status(400).json({ error: 'No API Key' });
 
-        let companyContext = '';
-        const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
-        if (ci) {
-            companyContext = `Empresa: ${ci.companyName || 'Empresa'}\\nActividad: ${ci.economicActivity || 'General'}`;
-        }
+    let companyContext = '';
+    const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    if (ci) {
+      companyContext = `Empresa: ${ci.companyName || 'Empresa'}\\nActividad: ${ci.economicActivity || 'General'}`;
+    }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
 
-        const systemPrompt = `Eres un experto en Recursos Humanos y SST en Colombia.
+    const systemPrompt = `Eres un experto en Recursos Humanos y SST en Colombia.
 Tu tarea es generar la estructura inicial de un Perfil Sociodemográfico para la siguiente empresa:
 ${companyContext}
 
@@ -264,54 +264,54 @@ Esquema JSON Requerido (DEBES responder solo json, sin markdown):
   ]
 }`;
 
-        const result = await model.generateContent(systemPrompt);
-        let text = result.response.text().trim();
-        text = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
+    const result = await model.generateContent(systemPrompt);
+    let text = result.response.text().trim();
+    text = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
 
-        const parsed = JSON.parse(text);
+    const parsed = JSON.parse(text);
 
-        const finalWorkers = (parsed.trabajadores || []).map(w => ({
-            ...w,
-            id: w.id || require('crypto').randomUUID(),
-            completedByAI: true
-        }));
+    const finalWorkers = (parsed.trabajadores || []).map(w => ({
+      ...w,
+      id: w.id || require('crypto').randomUUID(),
+      completedByAI: true
+    }));
 
-        res.json({ trabajadores: finalWorkers });
-    } catch (error) {
-        logger.error('[SGSST PerfilSociodemografico] Generate-full error:', error);
-        res.status(500).json({ error: error.message });
-    }
+    res.json({ trabajadores: finalWorkers });
+  } catch (error) {
+    logger.error('[SGSST PerfilSociodemografico] Generate-full error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ─── POST /analyze — Generate AI Exec Report for Sociodemographic ─────────────────────────────
 router.post('/analyze', requireJwtAuth, async (req, res) => {
+  try {
+    const { trabajadores, currentDate, userName, modelName = 'gemini-3-flash-preview' } = req.body;
+
+    if (!trabajadores || !Array.isArray(trabajadores) || trabajadores.length === 0) {
+      return res.status(400).json({ error: 'No hay trabajadores para analizar.' });
+    }
+
+    const resolvedApiKey = await getApiKey(req.user.id);
+    if (!resolvedApiKey) {
+      return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
+    }
+
+    let loadedCompanyInfo = null;
     try {
-        const { trabajadores, currentDate, userName, modelName = 'gemini-3-flash-preview' } = req.body;
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
+    } catch (ciErr) {
+      logger.warn('[SGSST PerfilSociodemografico] Error loading company info:', ciErr.message);
+    }
 
-        if (!trabajadores || !Array.isArray(trabajadores) || trabajadores.length === 0) {
-            return res.status(400).json({ error: 'No hay trabajadores para analizar.' });
-        }
+    const genAI = new GoogleGenerativeAI(resolvedApiKey);
 
-        const resolvedApiKey = await getApiKey(req.user.id);
-        if (!resolvedApiKey) {
-            return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
-        }
+    const empresa = loadedCompanyInfo?.companyName || 'EMPRESA';
+    const nit = loadedCompanyInfo?.nit || 'NIT';
+    const representante = loadedCompanyInfo?.legalRepresentative || userName || 'No registrado';
+    const fechaEmision = currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
-        let loadedCompanyInfo = null;
-        try {
-            loadedCompanyInfo = await CompanyInfo.findOne({ user: req.user.id }).lean();
-        } catch (ciErr) {
-            logger.warn('[SGSST PerfilSociodemografico] Error loading company info:', ciErr.message);
-        }
-
-        const genAI = new GoogleGenerativeAI(resolvedApiKey);
-
-        const empresa = loadedCompanyInfo?.companyName || 'EMPRESA';
-        const nit = loadedCompanyInfo?.nit || 'NIT';
-        const representante = loadedCompanyInfo?.legalRepresentative || userName || 'No registrado';
-        const fechaEmision = currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
-
-        const headerHTML = `
+    const headerHTML = `
 <div style="text-align: center; margin-bottom: 24px;">
     <h1 style="color: #004d99; font-size: 26px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; border-bottom: none; padding-bottom: 0;">
         INFORME EJECUTIVO DEL PERFIL SOCIODEMOGRÁFICO
@@ -353,53 +353,53 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 </table>
 </div>`;
 
-        // Pre-process summary for prompt
-        let numMen = 0;
-        let numWomen = 0;
-        let edadPromedio = 0;
-        let totalEdades = 0;
-        let escolaridades = {};
+    // Pre-process summary for prompt
+    let numMen = 0;
+    let numWomen = 0;
+    let edadPromedio = 0;
+    let totalEdades = 0;
+    let escolaridades = {};
 
-        let currentDateTrunc = new Date();
+    let currentDateTrunc = new Date();
 
-        // Calculate some basic warning/expirations
-        let vencimientosMedico = [];
-        let resumenPatologias = {};
+    // Calculate some basic warning/expirations
+    let vencimientosMedico = [];
+    let resumenPatologias = {};
 
-        trabajadores.forEach(w => {
-            if (w.genero === 'Masculino') numMen++;
-            else if (w.genero === 'Femenino') numWomen++;
+    trabajadores.forEach(w => {
+      if (w.genero === 'Masculino') numMen++;
+      else if (w.genero === 'Femenino') numWomen++;
 
-            if (w.edad) totalEdades += Number(w.edad);
-            if (w.nivelEscolaridad) {
-                if (!escolaridades[w.nivelEscolaridad]) escolaridades[w.nivelEscolaridad] = 0;
-                escolaridades[w.nivelEscolaridad]++;
-            }
+      if (w.edad) totalEdades += Number(w.edad);
+      if (w.nivelEscolaridad) {
+        if (!escolaridades[w.nivelEscolaridad]) escolaridades[w.nivelEscolaridad] = 0;
+        escolaridades[w.nivelEscolaridad]++;
+      }
 
-            if (w.diagnosticoMedico && w.diagnosticoMedico !== 'Apto / Sin Hallazgos') {
-                const cat = w.diagnosticoMedico.split(' - ')[0] || 'Otros';
-                resumenPatologias[cat] = (resumenPatologias[cat] || 0) + 1;
-            }
+      if (w.diagnosticoMedico && w.diagnosticoMedico !== 'Apto / Sin Hallazgos') {
+        const cat = w.diagnosticoMedico.split(' - ')[0] || 'Otros';
+        resumenPatologias[cat] = (resumenPatologias[cat] || 0) + 1;
+      }
 
-            // Exámenes Médicos - Alert if > 1 year
-            if (w.fechaExamenMedico) {
-                try {
-                    const diffTime = Math.abs(currentDateTrunc - new Date(w.fechaExamenMedico));
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if (diffDays >= 300) { // close to 1 year
-                        vencimientosMedico.push(`${w.nombre} (${w.cargo}) - Último: ${w.fechaExamenMedico}`);
-                    }
-                } catch (e) { }
-            } else {
-                vencimientosMedico.push(`${w.nombre} (${w.cargo}) - Sin examen reportado`);
-            }
-        });
+      // Exámenes Médicos - Alert if > 1 year
+      if (w.fechaExamenMedico) {
+        try {
+          const diffTime = Math.abs(currentDateTrunc - new Date(w.fechaExamenMedico));
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays >= 300) { // close to 1 year
+            vencimientosMedico.push(`${w.nombre} (${w.cargo}) - Último: ${w.fechaExamenMedico}`);
+          }
+        } catch (e) { }
+      } else {
+        vencimientosMedico.push(`${w.nombre} (${w.cargo}) - Sin examen reportado`);
+      }
+    });
 
-        if (trabajadores.length > 0) {
-            edadPromedio = Math.round(totalEdades / trabajadores.length);
-        }
+    if (trabajadores.length > 0) {
+      edadPromedio = Math.round(totalEdades / trabajadores.length);
+    }
 
-        const promptText = `Eres un Experto en SST Especializado en perfiles sociodemográficos.
+    const promptText = `Eres un Experto en SST Especializado en perfiles sociodemográficos.
 Se ha evaluado la base de datos de los trabajadores de la empresa.
 
 ** Resumen de Hallazgos Sociodemográficos:**
@@ -432,21 +432,21 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
 - Tablas generadas por la IA DEBEN estar envueltas dentro de un < div style = "overflow-x: auto; width: 100%; margin-bottom: 20px;" >.La tabla debe tener los estilos: width: 100 %; min - width: 700px; border - collapse: separate; border - spacing: 0; border - radius: 12px; border: 1px solid #ddd;, th con background - color="#004d99" y color = "white".
 - Celdas(td): padding = "10px", border - bottom="1px solid #ddd"(sin background - color predeterminado para que hereden el modo oscuro).`;
 
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(promptText);
-        let aiHtml = result.response.text().trim();
-        aiHtml = aiHtml.replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
+    const model = genAI.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent(promptText);
+    let aiHtml = result.response.text().trim();
+    aiHtml = aiHtml.replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 
-        const fullReport = `${headerHTML}
+    const fullReport = `${headerHTML}
                         <div class="mt-8 space-y-6">
                             ${aiHtml}
                         </div>`;
 
-        res.json({ report: fullReport });
-    } catch (error) {
-        logger.error('[SGSST PerfilSociodemografico] Analyze error:', error);
-        res.status(500).json({ error: error.message });
-    }
+    res.json({ report: fullReport });
+  } catch (error) {
+    logger.error('[SGSST PerfilSociodemografico] Analyze error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;
