@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastContext } from '@librechat/client';
+import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useGetEndpointsQuery } from '~/data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';

@@ -105,10 +105,11 @@ Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo reali
 
         if (config.provider === 'google') {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+            const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
             if (!apiKey) {
-                throw new Error('No Google API Key found in environment variables (GOOGLE_KEY, GEMINI_API_KEY, or GOOGLE_API_KEY)');
+                console.error('SERVER: Missing Google API Key. Checked: GOOGLE_AI_API_KEY, GOOGLE_KEY, GEMINI_API_KEY, GOOGLE_API_KEY');
+                throw new Error('No Google API Key found. Please check your .env file or platform configuration or use the official LibreChat Google Endpoint.');
             }
 
             const genAI = new GoogleGenerativeAI(apiKey);
