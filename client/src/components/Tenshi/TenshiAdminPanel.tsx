@@ -6,7 +6,7 @@ import { Settings, Save, Sparkles, MessageSquare, Bot, AlertCircle } from 'lucid
 import { useAuthContext } from '~/hooks';
 
 export default function TenshiAdminPanel() {
-    const { user } = useAuthContext();
+    const { user, token } = useAuthContext();
     const { showToast } = useToastContext();
     const queryClient = useQueryClient();
 
@@ -21,8 +21,10 @@ export default function TenshiAdminPanel() {
         systemPrompt: ''
     });
 
-    const { data: config, isLoading } = useQuery(['tenshiConfigAdmin'], async () => {
-        const res = await axios.get('/api/tenshi/config');
+    const { data: config, isLoading } = useQuery(['tenshiConfigAdmin', token], async () => {
+        const res = await axios.get('/api/tenshi/config', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
         return res.data;
     }, {
         onSuccess: (data) => {
@@ -41,7 +43,9 @@ export default function TenshiAdminPanel() {
 
     const updateConfig = useMutation(
         async (newConfig: typeof formData) => {
-            const res = await axios.post('/api/tenshi/config', newConfig);
+            const res = await axios.post('/api/tenshi/config', newConfig, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
             return res.data;
         },
         {

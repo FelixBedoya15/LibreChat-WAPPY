@@ -104,21 +104,41 @@ Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo reali
 
         if (config.provider === 'google') {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_KEY);
-            // using genAI.getGenerativeModel
-            const model = genAI.getGenerativeModel({ model: config.model || 'gemini-2.5-flash' });
+            const apiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+            if (!apiKey) {
+                throw new Error('No Google API Key found in environment variables (GOOGLE_KEY, GEMINI_API_KEY, or GOOGLE_API_KEY)');
+            }
+
+            const genAI = new GoogleGenerativeAI(apiKey);
 
             // Format for gemini (systemInstruction)
+            // Use config.model, but fallback to 1.5-flash which is most stable
+            const modelName = config.model || 'gemini-1.5-flash';
             const geminiModel = genAI.getGenerativeModel({
-                model: config.model || 'gemini-2.5-flash',
+                model: modelName,
                 systemInstruction: systemMessage
             });
-            const chat = geminiModel.startChat({
-                history: messages.slice(0, -1).map(m => ({
+
+            // Gemini history MUST start with 'user' role. 
+            // We filter messages to ensure it starts with user and alternates correctly.
+            const rawHistory = messages.slice(0, -1);
+            const history = [];
+
+            let firstUserFound = false;
+            for (const m of rawHistory) {
+                if (!firstUserFound && m.role !== 'user') continue;
+                firstUserFound = true;
+                history.push({
                     role: m.role === 'assistant' ? 'model' : 'user',
                     parts: [{ text: m.content }]
-                }))
-            });
+                });
+            }
+
+            // Ensure we don't end with a 'model' role if it's the last in history (Gemini is picky)
+            // though usually history is [user, model, user, model] and current message is user.
+
+            const chat = geminiModel.startChat({ history });
             const result = await chat.sendMessage(messages[messages.length - 1].content);
             responseText = result.response.text();
 
@@ -149,8 +169,11 @@ Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo reali
 
         res.json({ response: responseText });
     } catch (error) {
-        console.error('Error in Tenshi chat:', error);
-        res.status(500).json({ error: 'Error generating Tenshi response' });
+        console.error('CRITICAL Error in Tenshi chat route:', error);
+        if (error.response) {
+            console.error('Error response data:', error.response.data);
+        }
+        res.status(500).json({ error: 'Error generating Tenshi response', details: error.message });
     }
 });
 

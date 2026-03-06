@@ -5,7 +5,7 @@ import { X, MessageSquare, Send, Sparkles } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 
 export default function TenshiChat() {
-    const { isAuthenticated } = useAuthContext();
+    const { isAuthenticated, token } = useAuthContext();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: string, content: string }[]>([
         { role: 'assistant', content: '¡Hola! Soy Tenshi, tu asistente en WAPPY IA. ¿En qué te puedo ayudar hoy con el sistema?' }
@@ -14,8 +14,10 @@ export default function TenshiChat() {
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const { data: config } = useQuery(['tenshiConfig'], async () => {
-        const res = await axios.get('/api/tenshi/config');
+    const { data: config } = useQuery(['tenshiConfig', token], async () => {
+        const res = await axios.get('/api/tenshi/config', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
         return res.data;
     }, {
         enabled: isAuthenticated,
@@ -50,9 +52,10 @@ export default function TenshiChat() {
         setIsTyping(true);
 
         try {
-            const response = await axios.post('/api/tenshi/chat', {
-                messages: [...messages, userMsg].filter(m => m.role !== 'system')
-            });
+            const response = await axios.post('/api/tenshi/chat',
+                { messages: [...messages, userMsg].filter(m => m.role !== 'system') },
+                { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+            );
             const assistantMsg = { role: 'assistant', content: response.data.response };
             setMessages(prev => [...prev, assistantMsg]);
         } catch (error) {
