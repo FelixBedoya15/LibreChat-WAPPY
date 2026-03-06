@@ -1,11 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const Ticket = require('../../models/Ticket');
+const { AuthKeys } = require('librechat-data-provider');
 const { requireJwtAuth } = require('../middleware');
 const { logger } = require('~/config');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { syncToRag } = require('../services/RagService');
+const { getUserKey } = require('~/server/services/UserService');
+const TenshiConfig = require('../../models/TenshiConfig');
+const { generateShortLivedToken } = require('@librechat/api');
 
 // User: Create a ticket
 router.post('/', requireJwtAuth, async (req, res) => {
@@ -110,7 +114,9 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
             return res.status(404).json({ error: 'Ticket not found' });
         }
 
-        // AI Logic (similar to Tenshi/SGSST)
+        const { modelName } = req.body;
+
+        // AI Logic (Retrieving API Key)
         let resolvedApiKey;
         try {
             const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
@@ -123,19 +129,37 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
         } catch (e) { }
 
         if (!resolvedApiKey) {
-            resolvedApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+            resolvedApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+        }
+
+        // Cleanup key if it has commas
+        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
         }
 
         if (!resolvedApiKey) {
-            return res.status(400).json({ error: 'No Google API Key configured' });
+            return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
         }
 
-        // Web Search Integration using SearXNG
+        // 1. DYNAMIC KNOWLEDGE - Last 5 resolved tickets
+        let recentTicketsContext = '';
+        try {
+            const lastResolved = await Ticket.find({ status: 'resolved' })
+                .sort({ updatedAt: -1 })
+                .limit(5);
+
+            if (lastResolved.length > 0) {
+                recentTicketsContext = lastResolved.map(t => `- PQRS RESUELTO [${t.type}]: ${t.description.substring(0, 100)}... -> RESPUESTA: ${t.response.substring(0, 150)}...`).join('\n');
+            }
+        } catch (e) {
+            logger.warn('[Tickets AI] Error fetching recent tickets:', e.message);
+        }
+
+        // 2. WEB SEARCH - SearXNG Integration
         let webContext = '';
         try {
             const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy-ia.com/search';
-            // We search using the ticket description to find relevant regulations or solutions
-            const searchQuery = `"${ticket.type}" ${ticket.description.substring(0, 100)} normatividad SST Colombia`;
+            const searchQuery = `"${ticket.type}" ${ticket.description.substring(0, 80)} normatividad SST Colombia`;
 
             const searchResponse = await axios.get(searxngUrl, {
                 params: {
@@ -149,22 +173,63 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
             if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
                 const topResults = searchResponse.data.results.slice(0, 3);
                 webContext = topResults.map(r => `- ${r.title}: ${r.content}`).join('\n');
-                logger.debug(`[Tickets AI] Added ${topResults.length} web search results via SearXNG`);
+                logger.debug(`[Tickets AI] Added web search results`);
             }
         } catch (searchError) {
             logger.warn(`[Tickets AI] SearXNG Web Search failed: ${searchError.message}`);
-            // We don't throw an error here to allow the AI to still suggest a response without the internet context
         }
 
-        const prompt = `Actúa como un experto en soporte al cliente y especialista en Seguridad y Salud en el Trabajo para la plataforma WAPPY IA.
-Se ha recibido un ticket de tipo "${ticket.type}" con la siguiente descripción:
+        // 3. RAG KNOWLEDGE - App Knowledge Base
+        let ragContext = '';
+        if (process.env.RAG_API_URL) {
+            try {
+                const jwtToken = generateShortLivedToken(req.user.id);
+                const ragRes = await axios.post(`${process.env.RAG_API_URL}/query`, {
+                    query: ticket.description,
+                    entity_id: 'tenshi_knowledge_base',
+                    k: 3
+                }, {
+                    headers: { Authorization: `Bearer ${jwtToken}`, 'Content-Type': 'application/json' },
+                    timeout: 5000
+                });
+
+                if (ragRes.data && ragRes.data.length > 0) {
+                    ragContext = ragRes.data.map(m => `[CONOCIMIENTO RAG] ${(m[0]?.page_content || m.text || '').substring(0, 300)}`).join('\n');
+                }
+            } catch (e) {
+                logger.debug('[Tickets AI] RAG query failed or empty');
+            }
+        }
+
+        const tenshiConfig = await TenshiConfig.findOne();
+        const systemPrompt = tenshiConfig ? tenshiConfig.systemPrompt : 'Actúa como Tenshi, el asistente IA experto de WAPPY IA.';
+
+        const prompt = `${systemPrompt}
+
+Eres un experto en soporte al cliente para la plataforma WAPPY IA (gestión de SG-SST).
+Se ha recibido un ticket de tipo "${ticket.type}" de el usuario "${ticket.name}".
+
+DESCRIPCIÓN DE LA SOLICITUD:
 "${ticket.description}"
+
+CONOCIMIENTO DINÁMICO (ÚLTIMOS TICKETS RESUELTOS):
+${recentTicketsContext || 'No hay tickets resueltos similares recientemente.'}
+
+CONOCIMIENTO BASE (RAG):
+${ragContext || 'No se encontró información específica en los documentos.'}
 
 CONTEXTO ENCONTRADO EN INTERNET (SearXNG):
 ${webContext || 'No se encontró contexto adicional en internet.'}
 
-Utilizando el contexto de internet (si aplica) y tu conocimiento de la plataforma, sugiere una respuesta profesional, amable y resolutiva para el usuario.
-La respuesta debe estar en formato texto plano, sin el exceso de markdown.`;
+INSTRUCCIONES:
+1. Basándote en el contexto anterior (tickets previos, RAG e internet), sugiere una respuesta profesional, amable y resolutiva.
+2. Si el caso es normativo (SST), cita la normativa correspondiente si aparece en el contexto.
+3. Responde directamente con el cuerpo del mensaje.
+4. Mantén un tono empático.
+5. NO uses exceso de markdown, mantén el texto limpio.`;
+
+        const genAI = new GoogleGenerativeAI(resolvedApiKey);
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
 
         const result = await model.generateContent(prompt);
         const suggestion = result.response.text();
