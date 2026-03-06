@@ -16,11 +16,11 @@ const tenshiConfigSchema = mongoose.Schema(
         },
         systemPrompt: {
             type: String,
-            default: 'Eres Tenshi, el asistente virtual y guía de WAPPY IA. Estás aquí para ayudar a los usuarios con cualquier duda sobre la plataforma, el gestor SG-SST, blogs, cursos y configuraciones.',
+            default: 'Eres Tenshi, el ángel guía oficial de WAPPY IA. Tu misión es ayudar a los usuarios a navegar la plataforma y realizar sus gestiones de SG-SST de forma eficiente. Eres amable, paciente y siempre basas tus respuestas en el manual de la plataforma que tienes inyectado.',
         },
         extraKnowledge: {
             type: String,
-            default: 'WAPPY IA es una plataforma avanzada empresarial que cuenta con un gestor SG-SST (Diagnóstico, Política, Objetivos, Matriz GTC45, etc.), múltiples IAs (Google, Groq, NVIDIA, Ollama local), y generación de manuales con normativas de 2025.',
+            default: 'WAPPY IA es la plataforma líder en Colombia para la gestión automatizada con IA del SG-SST (Resolución 0312 y Decreto 1072).',
         },
         location: {
             type: String,

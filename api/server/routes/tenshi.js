@@ -55,9 +55,43 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             latestBlogs = await BlogPost.find({ isPublished: true }).sort({ createdAt: -1 }).limit(5);
         } catch (e) { }
 
-        const blogStr = latestBlogs.map(b => `- ${b.title}: ${b.content.substring(0, 100)}...`).join('\n');
+        const blogStr = latestBlogs.map(b => `- BLOG: ${b.title}`).join('\n');
 
-        const systemMessage = `${config.systemPrompt}\n\nConocimiento Extra (Admin):\n${config.extraKnowledge}\n\nÚltimas novedades del blog:\n${blogStr}\n\nUsa esta información para responder a las preguntas del usuario si es relevante. Trata de ser amable y útil.`;
+        // Fetch dynamic knowledge (latest courses)
+        let latestCourses = [];
+        try {
+            const { Course } = require('../../models/Course');
+            latestCourses = await Course.find({ isPublished: true }).sort({ createdAt: -1 }).limit(3);
+        } catch (e) { }
+
+        const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
+
+        // Fetch the platform manual
+        let manualContent = '';
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const manualPath = path.resolve(__dirname, '../manual_wappy.md');
+            if (fs.existsSync(manualPath)) {
+                manualContent = fs.readFileSync(manualPath, 'utf8');
+            }
+        } catch (e) { }
+
+        const systemMessage = `${config.systemPrompt}
+
+MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
+${manualContent || 'WAPPY IA gestiona SG-SST (Diagnóstico, Matriz Peligros GTC45, ATEL, Política, Objetivos, Auditoría, Perfil Sociodemográfico con QR).'}
+
+ÚLTIMAS PUBLICACIONES DEL BLOG:
+${blogStr || 'No hay blogs recientes.'}
+
+CURSOS DE FORMACIÓN DISPONIBLES:
+${courseStr || 'No hay cursos recientes.'}
+
+CONOCIMIENTO EXTRA DEL ADMINISTRADOR:
+${config.extraKnowledge}
+
+Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo realizar algo, responde basándote en el MANUAL DE FUNCIONAMIENTO. Sé amable, conciso y muy profesional.`;
 
         // format messages for the LLM
         const formattedMessages = [
