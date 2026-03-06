@@ -2,7 +2,7 @@ import { useState, memo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot } from 'lucide-react';
+import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot, Bell } from 'lucide-react';
 import { GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
