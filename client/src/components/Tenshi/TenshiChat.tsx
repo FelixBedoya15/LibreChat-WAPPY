@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { X, MessageSquare, Send, Sparkles } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import Markdown from '~/components/Chat/Messages/Content/Markdown';
 
 export default function TenshiChat() {
     const { isAuthenticated, token } = useAuthContext();
@@ -99,7 +100,9 @@ export default function TenshiChat() {
                                     ? 'bg-blue-600 text-white rounded-tr-none shadow-md'
                                     : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none shadow-sm'
                                     }`}>
-                                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                                    <div className="markdown-content">
+                                        <Markdown content={msg.content} isLatestMessage={i === messages.length - 1} />
+                                    </div>
                                 </div>
                             </div>
                         ))}

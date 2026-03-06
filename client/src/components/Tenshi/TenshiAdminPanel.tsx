@@ -44,12 +44,25 @@ export default function TenshiAdminPanel() {
     );
 
     const availableModels = useMemo(() => {
-        if (!formData.provider || !endpointsConfig || !endpointsConfig[formData.provider]) {
+        if (!formData.provider) {
             return [];
         }
-        const endpoint = endpointsConfig[formData.provider] as any;
-        return endpoint?.models?.default || [];
-    }, [endpointsConfig, formData.provider]);
+
+        const providerKey = formData.provider;
+        const lowerProviderKey = providerKey.toLowerCase();
+
+        // 1. Try to get models from the standard models data query (what Agents use)
+        const modelsFromQuery = modelsData[providerKey] || modelsData[lowerProviderKey] || [];
+
+        // 2. Try to get models from the endpoints config (what .env/yaml defines)
+        const endpointConfig = (endpointsConfig?.[providerKey] || endpointsConfig?.[lowerProviderKey]) as any;
+        const modelsFromConfig = endpointConfig?.models?.default || [];
+
+        // Combine both sources and remove duplicates
+        const combinedModels = Array.from(new Set([...modelsFromQuery, ...modelsFromConfig]));
+
+        return combinedModels;
+    }, [modelsData, endpointsConfig, formData.provider]);
 
     const { data: config, isLoading } = useQuery(['tenshiConfigAdmin', token], async () => {
         const res = await axios.get('/api/tenshi/config', {
