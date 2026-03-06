@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthContext, useLocalize } from '~/hooks';
 import { Input, Label, Button, useToastContext } from '@librechat/client';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 import { formatDateForInput } from '~/utils/dateHelpers';
 
