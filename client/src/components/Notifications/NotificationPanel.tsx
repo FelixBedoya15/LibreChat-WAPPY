@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuthContext } from '~/hooks';
-import { Bell, CheckCheck, Ticket, MessageSquare, X } from 'lucide-react';
+import { Bell, CheckCheck, Ticket, MessageSquare, X, ChevronRight } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface Notification {
@@ -21,7 +21,7 @@ interface NotificationPanelProps {
 }
 
 export default function NotificationPanel({ isOpen, onClose, onCountChange }: NotificationPanelProps) {
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -87,6 +87,26 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         }
     };
 
+    const handleNotificationClick = async (notification: Notification) => {
+        if (!notification.read) {
+            await markOneRead(notification._id);
+        }
+
+        // Navigation logic
+        if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
+            const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'admin', subTab: 'pqrs' } });
+            window.dispatchEvent(event);
+            const openEvent = new CustomEvent('open-settings');
+            window.dispatchEvent(openEvent);
+        } else if (notification.type === 'ticket_responded') {
+            const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'account' } });
+            window.dispatchEvent(event);
+            const openEvent = new CustomEvent('open-settings');
+            window.dispatchEvent(openEvent);
+        }
+        onClose();
+    };
+
     if (!isOpen) return null;
 
     const unreadCount = notifications.filter(n => !n.read).length;
@@ -95,7 +115,7 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         <div
             ref={panelRef}
             className={cn(
-                'absolute bottom-16 left-2 z-50 w-80 bg-surface-primary border border-border-light rounded-2xl shadow-2xl overflow-hidden',
+                'absolute bottom-16 left-2 z-[100] w-80 bg-surface-primary border border-border-light rounded-2xl shadow-2xl overflow-hidden',
                 'animate-in slide-in-from-bottom-4 fade-in duration-200'
             )}
         >
@@ -105,7 +125,7 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                     <Bell className="w-4 h-4 text-blue-500" />
                     <span className="font-bold text-sm text-text-primary">Notificaciones</span>
                     {unreadCount > 0 && (
-                        <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                        <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none shadow-sm">
                             {unreadCount}
                         </span>
                     )}
@@ -128,30 +148,30 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
             </div>
 
             {/* Notification List */}
-            <div className="max-h-80 overflow-y-auto divide-y divide-border-light">
+            <div className="max-h-80 overflow-y-auto divide-y divide-border-light scrollbar-thin">
                 {loading ? (
                     <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500" />
                     </div>
                 ) : notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-text-tertiary gap-2">
-                        <Bell className="w-8 h-8 opacity-30" />
+                        <Bell className="w-8 h-8 opacity-20" />
                         <span className="text-sm">No hay notificaciones</span>
                     </div>
                 ) : (
                     notifications.map(n => (
                         <div
                             key={n._id}
-                            onClick={() => !n.read && markOneRead(n._id)}
+                            onClick={() => handleNotificationClick(n)}
                             className={cn(
-                                'flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer',
+                                'flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer group',
                                 n.read
                                     ? 'bg-surface-primary hover:bg-surface-secondary'
                                     : 'bg-blue-50/40 dark:bg-blue-900/10 hover:bg-blue-50/60 dark:hover:bg-blue-900/20'
                             )}
                         >
                             <div className={cn(
-                                'mt-0.5 p-1.5 rounded-full flex-shrink-0',
+                                'mt-0.5 p-1.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-110',
                                 n.type === 'ticket_responded'
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
@@ -162,22 +182,52 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                 }
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className={cn('text-sm font-semibold truncate', n.read ? 'text-text-secondary' : 'text-text-primary')}>
-                                    {n.title}
-                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className={cn('text-sm font-semibold truncate', n.read ? 'text-text-secondary' : 'text-text-primary')}>
+                                        {n.title}
+                                    </p>
+                                    {!n.read && (
+                                        <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                                    )}
+                                </div>
                                 <p className="text-xs text-text-tertiary leading-relaxed mt-0.5 line-clamp-2">
                                     {n.body}
                                 </p>
-                                <p className="text-[10px] text-text-tertiary mt-1">
+                                <p className="text-[10px] text-text-tertiary mt-1 flex items-center justify-between">
                                     {new Date(n.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
+                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 font-medium text-blue-500">
+                                        Ver <ChevronRight className="w-2.5 h-2.5" />
+                                    </span>
                                 </p>
                             </div>
-                            {!n.read && (
-                                <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
-                            )}
                         </div>
                     ))
                 )}
+            </div>
+            {/* Footer footer to reach full page */}
+            <button
+                onClick={() => {
+                    const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'notifications' } });
+                    window.dispatchEvent(event);
+                }}
+                className="hidden" // Will handle properly in parent
+            ></button>
+            <div className="p-2 bg-surface-secondary border-t border-border-light text-center">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        // This event logic is handled better by just having a button in AccountSettings
+                        // But let's trigger the event and let parent handle
+                        const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'notifications' } });
+                        window.dispatchEvent(event);
+                        const openEvent = new CustomEvent('open-settings');
+                        window.dispatchEvent(openEvent);
+                        onClose();
+                    }}
+                    className="text-[11px] font-bold text-blue-500 hover:text-blue-700 transition-colors py-1 px-4 rounded-lg hover:bg-blue-500/5"
+                >
+                    Ver todas las notificaciones
+                </button>
             </div>
         </div>
     );

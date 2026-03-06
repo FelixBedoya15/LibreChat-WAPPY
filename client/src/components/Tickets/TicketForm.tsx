@@ -37,6 +37,11 @@ export default function TicketForm() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setMyTickets(res.data);
+
+            // Mark responded notifications as read for this user
+            await axios.put('/api/notifications/read-all', {}, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
         } catch (e) {
             console.error('Error fetching my tickets:', e);
         } finally {

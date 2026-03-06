@@ -36,7 +36,26 @@ export default function TicketManagement() {
 
     useEffect(() => {
         fetchTickets();
+        // Mark all ticket notifications as read when admin enters this panel
+        markAllTicketsAsRead();
     }, []);
+
+    const markAllTicketsAsRead = async () => {
+        try {
+            // Not strictly 'all' by id, but all ticket_created for this user
+            await axios.put('/api/notifications/read-all', {}, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+        } catch (e) { /* silent */ }
+    }
+
+    const markTicketRead = async (ticketId: string) => {
+        try {
+            await axios.put(`/api/notifications/mark-read/ticket/${ticketId}`, {}, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
+        } catch (e) { /* silent */ }
+    }
 
     const fetchTickets = async () => {
         setLoading(true);
@@ -298,6 +317,7 @@ export default function TicketManagement() {
                                             onClick={() => {
                                                 setSelectedTicket(ticket);
                                                 setResponse(ticket.response || '');
+                                                markTicketRead(ticket._id);
                                             }}
                                             className="text-blue-600 hover:text-blue-700 font-bold hover:underline"
                                         >

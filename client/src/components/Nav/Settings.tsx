@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { SettingsTabValues, SystemRoles } from 'librechat-data-provider';
-import { MessageSquare, Command, DollarSign } from 'lucide-react';
+import { MessageSquare, Command, DollarSign, Bell } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import {
   GearIcon,
@@ -24,6 +24,7 @@ import {
   Admin,
   Ads,
 } from './SettingsTabs';
+import NotificationsPage from '~/components/Notifications/NotificationsPage';
 import { useAuthContext } from '~/hooks/AuthContext';
 import usePersonalizationAccess from '~/hooks/usePersonalizationAccess';
 import { useLocalize, TranslationKeys } from '~/hooks';
@@ -53,9 +54,15 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
         setActiveTab(e.detail.mainTab);
       }
     };
+    // Listen for programmatic open to jump to notifications
+    const handleOpenSettings = () => {
+      // no-op: settings is already open when this fires from notification click
+    };
     window.addEventListener('switch-settings-tab', handleSettingsNavigation as EventListener);
+    window.addEventListener('open-settings', handleOpenSettings as EventListener);
     return () => {
       window.removeEventListener('switch-settings-tab', handleSettingsNavigation as EventListener);
+      window.removeEventListener('open-settings', handleOpenSettings as EventListener);
     };
   }, []);
 
@@ -145,6 +152,11 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
         value: SettingsTabValues.ACCOUNT,
         icon: <UserIcon />,
         label: 'com_nav_setting_account',
+      },
+      {
+        value: 'notifications' as SettingsTabValues,
+        icon: <Bell className="icon-sm" />,
+        label: 'Notificaciones' as TranslationKeys,
       },
       ...(user?.role === SystemRoles.ADMIN
         ? [
@@ -300,6 +312,9 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                         <Ads />
                       </Tabs.Content>
                     )}
+                    <Tabs.Content value={'notifications'} tabIndex={-1}>
+                      <NotificationsPage />
+                    </Tabs.Content>
                   </div>
                 </Tabs.Root>
               </div>

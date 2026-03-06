@@ -44,7 +44,20 @@ function AccountSettings() {
   useEffect(() => {
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
+
+    const handleOpenSettings = () => setShowSettings(true);
+    const handleSwitchTab = (e: any) => {
+      if (e.detail?.mainTab) setActiveSettingsTab(e.detail.mainTab);
+    };
+
+    window.addEventListener('open-settings', handleOpenSettings);
+    window.addEventListener('switch-settings-tab', handleSwitchTab);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('open-settings', handleOpenSettings);
+      window.removeEventListener('switch-settings-tab', handleSwitchTab);
+    };
   }, [fetchUnreadCount]);
 
   return (
@@ -57,7 +70,16 @@ function AccountSettings() {
         >
           <div className="-ml-0.9 -mt-0.8 h-8 w-8 flex-shrink-0">
             <div className="relative flex">
-              <Avatar user={user} size={32} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowNotifications(prev => !prev);
+                }}
+                className="z-50"
+              >
+                <Avatar user={user} size={32} />
+              </button>
               {/* Notification Badge */}
               {unreadCount > 0 && (
                 <button
@@ -113,6 +135,22 @@ function AccountSettings() {
               <DropdownMenuSeparator />
             </>
           )}
+          <Select.SelectItem
+            value=""
+            onClick={() => {
+              setActiveSettingsTab('notifications');
+              setShowSettings(true);
+            }}
+            className="select-item text-sm"
+          >
+            <Bell className="icon-md" aria-hidden="true" />
+            Notificaciones
+            {unreadCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">
+                {unreadCount}
+              </span>
+            )}
+          </Select.SelectItem>
           <Select.SelectItem
             value=""
             onClick={() => navigate('/sgsst')}
