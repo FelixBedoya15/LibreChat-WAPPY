@@ -16,9 +16,11 @@ import {
     Brain,
     Send,
     FileText,
-    ChevronRight
+    ChevronRight,
+    Loader2
 } from 'lucide-react';
 import { cn } from '~/utils';
+import ModelSelector from '~/components/SGSST/ModelSelector';
 
 export default function TicketManagement() {
     const { token } = useAuthContext();
@@ -30,6 +32,7 @@ export default function TicketManagement() {
     const [response, setResponse] = useState('');
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
 
     useEffect(() => {
         fetchTickets();
@@ -53,7 +56,9 @@ export default function TicketManagement() {
     const handleSuggestAi = async (ticketId: string) => {
         setIsAiLoading(true);
         try {
-            const res = await axios.post(`/api/tickets/${ticketId}/ai-suggest`, {}, {
+            const res = await axios.post(`/api/tickets/${ticketId}/ai-suggest`, {
+                modelName: selectedModel
+            }, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
             });
             setResponse(res.data.suggestion);
@@ -168,27 +173,28 @@ export default function TicketManagement() {
                                     Redactar Respuesta
                                 </h3>
 
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <button
-                                        className="flex items-center gap-2 px-5 py-2 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-surface-secondary text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
-                                    >
-                                        <History className="w-4 h-4 text-orange-500" />
-                                        <span>Historial</span>
-                                    </button>
-
-                                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-secondary border border-border-light shadow-sm">
-                                        <Brain className="w-4 h-4 text-blue-500" />
-                                        <span className="text-xs font-bold">3 Flash Preview</span>
-                                    </div>
-
+                                <div className="flex flex-wrap items-center gap-2">
                                     <button
                                         onClick={() => handleSuggestAi(selectedTicket._id)}
                                         disabled={isAiLoading}
-                                        className="flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-95 disabled:opacity-50"
+                                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <Sparkles className="w-4 h-4" />
-                                        <span>{isAiLoading ? 'Pensando...' : 'Autocompletar IA'}</span>
+                                        {isAiLoading ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                        )}
+                                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                                            {isAiLoading ? 'Pensando...' : 'Generar Respuesta IA'}
+                                        </span>
                                     </button>
+
+                                    <ModelSelector
+                                        selectedModel={selectedModel}
+                                        onSelectModel={setSelectedModel}
+                                        disabled={isAiLoading}
+                                        hideTooltip={true}
+                                    />
                                 </div>
                             </div>
 
