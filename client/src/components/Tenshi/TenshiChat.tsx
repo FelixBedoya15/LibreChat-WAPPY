@@ -119,7 +119,7 @@ export default function TenshiChat() {
 
                     {/* Input Area */}
                     <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 shrink-0">
-                        <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-inner group focus-within:ring-2 focus-within:ring-green-500/30 transition-all">
+                        <div className="flex items-center gap-2 px-4 py-3 bg-transparent border border-gray-200 dark:border-gray-700 rounded-2xl shadow-inner group focus-within:ring-2 focus-within:ring-green-500/30 transition-all">
                             <input
                                 type="text"
                                 value={input}
@@ -151,7 +151,7 @@ export default function TenshiChat() {
                 >
                     {/* Ripple effect */}
                     <span className="absolute w-full h-full rounded-full bg-green-500 animate-ping opacity-20"></span>
-                    <img src="/assets/logo.svg" alt="Tenshi" className="w-8 h-8 filter brightness-0 invert" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    <img src="/assets/logo.svg" alt="" className="w-8 h-8 filter brightness-0 invert" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                 </button>
             )}
         </div>

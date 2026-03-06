@@ -6,6 +6,9 @@ const TenshiConfig = require('../../models/TenshiConfig');
 const { BlogPost } = require('../../models/BlogPost');
 const { Course } = require('../../models/Course');
 const axios = require('axios');
+const { AuthKeys } = require('librechat-data-provider');
+const { getUserKey } = require('~/server/services/UserService');
+const { logger } = require('~/config');
 
 router.get('/config', async (req, res) => {
     try {
@@ -105,18 +108,40 @@ Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo reali
 
         if (config.provider === 'google') {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-            if (!apiKey) {
-                console.error('SERVER: Missing Google API Key. Checked: GOOGLE_AI_API_KEY, GOOGLE_KEY, GEMINI_API_KEY, GOOGLE_API_KEY');
-                throw new Error('No Google API Key found. Please check your .env file or platform configuration or use the official LibreChat Google Endpoint.');
+            // 1. Retrieve the user's Google API key using the official LibreChat service
+            let resolvedApiKey;
+            try {
+                const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
+                try {
+                    const parsed = JSON.parse(storedKey);
+                    resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                } catch (parseErr) {
+                    resolvedApiKey = storedKey;
+                }
+            } catch (err) {
+                logger.debug('[Tenshi] No user Google key found, trying env vars:', err.message);
             }
 
-            const genAI = new GoogleGenerativeAI(apiKey);
+            if (!resolvedApiKey) {
+                resolvedApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+            }
+
+            // Cleanup key if it has commas
+            if (resolvedApiKey && typeof resolvedApiKey === 'string') {
+                resolvedApiKey = resolvedApiKey.split(',')[0].trim();
+            }
+
+            if (!resolvedApiKey) {
+                console.error('SERVER: Missing Google API Key. Checked: UserKey, GOOGLE_AI_API_KEY, GOOGLE_KEY, GEMINI_API_KEY, GOOGLE_API_KEY');
+                throw new Error('No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.');
+            }
+
+            const genAI = new GoogleGenerativeAI(resolvedApiKey);
 
             // Format for gemini (systemInstruction)
-            // Use config.model, but fallback to 1.5-flash which is most stable
-            const modelName = config.model || 'gemini-1.5-flash';
+            // Use config.model, but fallback to gemini-3-flash-preview which is standard in this app's .env
+            const modelName = config.model || 'gemini-3-flash-preview';
             const geminiModel = genAI.getGenerativeModel({
                 model: modelName,
                 systemInstruction: systemMessage

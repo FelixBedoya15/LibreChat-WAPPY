@@ -43,10 +43,13 @@ export default function TenshiAdminPanel() {
         [endpointsConfig],
     );
 
-    const availableModels = useMemo(
-        () => (formData.provider ? (modelsData[formData.provider] ?? []) : []),
-        [modelsData, formData.provider],
-    );
+    const availableModels = useMemo(() => {
+        if (!formData.provider || !endpointsConfig || !endpointsConfig[formData.provider]) {
+            return [];
+        }
+        const endpoint = endpointsConfig[formData.provider] as any;
+        return endpoint?.models?.default || [];
+    }, [endpointsConfig, formData.provider]);
 
     const { data: config, isLoading } = useQuery(['tenshiConfigAdmin', token], async () => {
         const res = await axios.get('/api/tenshi/config', {
