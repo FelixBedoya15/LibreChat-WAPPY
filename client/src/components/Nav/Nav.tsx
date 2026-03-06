@@ -25,7 +25,6 @@ const AccountSettings = lazy(() => import('./AccountSettings'));
 const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
 const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
-const ManualButton = lazy(() => import('./ManualButton'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -195,10 +194,6 @@ const Nav = memo(
           )}
           {hasAccessToSGSST && (
             <>
-              <div className="mt-1.5" />
-              <Suspense fallback={null}>
-                <ManualButton />
-              </Suspense>
               <div className="mt-1.5" />
               <Suspense fallback={null}>
                 <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
