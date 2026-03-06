@@ -89,8 +89,8 @@ export default function TenshiChat() {
                         {messages.map((msg, i) => (
                             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[85%] rounded-2xl p-3 text-sm ${msg.role === 'user'
-                                        ? 'bg-blue-600 text-white rounded-tr-none shadow-md'
-                                        : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none shadow-sm'
+                                    ? 'bg-blue-600 text-white rounded-tr-none shadow-md'
+                                    : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none shadow-sm'
                                     }`}>
                                     <div className="whitespace-pre-wrap">{msg.content}</div>
                                 </div>
@@ -112,14 +112,14 @@ export default function TenshiChat() {
 
                     {/* Input Area */}
                     <div className="p-3 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 shrink-0">
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-900 rounded-full px-4 py-2 border border-gray-200 dark:border-gray-700 focus-within:ring-2 focus-within:ring-green-500/50">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-transparent border-none ring-0 outline-none">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                 placeholder="Escribe tu consulta..."
-                                className="flex-1 bg-transparent border-none outline-none text-sm dark:text-gray-100"
+                                className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm dark:text-gray-100"
                                 disabled={isTyping}
                             />
                             <button
@@ -131,7 +131,7 @@ export default function TenshiChat() {
                             </button>
                         </div>
                         <div className="text-center mt-2">
-                            <span className="text-[10px] text-gray-400">Tenshi por WAPPY IA</span>
+                            <span className="text-[10px] text-gray-400 font-medium tracking-tight">Tenshi por WAPPY IA</span>
                         </div>
                     </div>
                 </div>
@@ -140,12 +140,11 @@ export default function TenshiChat() {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="bg-green-600 hover:bg-green-500 text-white rounded-full p-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center animate-bounce-short relative group"
+                    className="bg-green-600 hover:bg-green-500 text-white rounded-full p-4 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center animate-bounce-short relative"
                 >
                     {/* Ripple effect */}
                     <span className="absolute w-full h-full rounded-full bg-green-500 animate-ping opacity-20"></span>
                     <img src="/assets/logo.svg" alt="Tenshi" className="w-8 h-8 filter brightness-0 invert" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-                    <MessageSquare className="w-8 h-8 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
             )}
         </div>
