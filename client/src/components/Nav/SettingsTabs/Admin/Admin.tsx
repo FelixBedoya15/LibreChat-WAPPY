@@ -11,6 +11,19 @@ export default function Admin() {
     const localize = useLocalize();
     const [activeTab, setActiveTab] = useState('users');
 
+    // Listen for custom navigation events
+    React.useEffect(() => {
+        const handleSettingsNavigation = (e: CustomEvent) => {
+            if (e.detail?.subTab) {
+                setActiveTab(e.detail.subTab);
+            }
+        };
+        window.addEventListener('switch-settings-tab', handleSettingsNavigation as EventListener);
+        return () => {
+            window.removeEventListener('switch-settings-tab', handleSettingsNavigation as EventListener);
+        };
+    }, []);
+
     return (
         <div className="flex flex-col gap-4 text-sm text-text-primary">
             {/* Tarjeta de Encabezado y Navegación */}

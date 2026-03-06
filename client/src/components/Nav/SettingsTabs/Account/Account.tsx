@@ -218,12 +218,22 @@ function Account() {
         <div className="py-2"><DeleteAccount /></div>
         <div className="h-px bg-red-500/10 w-full my-4"></div>
         {user?.role === 'ADMIN' ? (
-          <div className="flex w-full items-center justify-between py-3 px-4 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all text-orange-600 dark:text-orange-400 group cursor-default">
+          <button
+            type="button"
+            onClick={() => {
+              const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'admin', subTab: 'pqrs' } });
+              window.dispatchEvent(event);
+            }}
+            className="flex w-full items-center justify-between py-3 px-4 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all text-orange-600 dark:text-orange-400 group cursor-pointer"
+          >
             <div className="flex items-center gap-3">
-              <MessageSquare className="w-5 h-5 text-orange-500" />
+              <MessageSquare className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
               <span className="font-bold font-sans">Panel Administrativo: Responder Tickets PQRS activo</span>
             </div>
-          </div>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+            </div>
+          </button>
         ) : (
           <div className="py-2"><TicketForm /></div>
         )}

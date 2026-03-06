@@ -46,6 +46,19 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
   const tabRefs = useRef({});
   const { hasAnyPersonalizationFeature, hasMemoryOptOut } = usePersonalizationAccess();
 
+  // Listen for custom navigation events from child components
+  React.useEffect(() => {
+    const handleSettingsNavigation = (e: CustomEvent) => {
+      if (e.detail?.mainTab) {
+        setActiveTab(e.detail.mainTab);
+      }
+    };
+    window.addEventListener('switch-settings-tab', handleSettingsNavigation as EventListener);
+    return () => {
+      window.removeEventListener('switch-settings-tab', handleSettingsNavigation as EventListener);
+    };
+  }, []);
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     const tabs: SettingsTabValues[] = [
       SettingsTabValues.GENERAL,

@@ -3,6 +3,7 @@ const router = express.Router();
 const Ticket = require('../../models/Ticket');
 const { requireJwtAuth } = require('../middleware');
 const { logger } = require('~/config');
+const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { syncToRag } = require('../services/RagService');
 
@@ -129,14 +130,40 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
             return res.status(400).json({ error: 'No Google API Key configured' });
         }
 
-        const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Web Search Integration using SearXNG
+        let webContext = '';
+        try {
+            const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy-ia.com/search';
+            // We search using the ticket description to find relevant regulations or solutions
+            const searchQuery = `"${ticket.type}" ${ticket.description.substring(0, 100)} normatividad SST Colombia`;
 
-        const prompt = `Actúa como un experto en soporte al cliente para la plataforma WAPPY IA.
+            const searchResponse = await axios.get(searxngUrl, {
+                params: {
+                    q: searchQuery,
+                    format: 'json',
+                    language: 'es'
+                },
+                timeout: 5000
+            });
+
+            if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
+                const topResults = searchResponse.data.results.slice(0, 3);
+                webContext = topResults.map(r => `- ${r.title}: ${r.content}`).join('\n');
+                logger.debug(`[Tickets AI] Added ${topResults.length} web search results via SearXNG`);
+            }
+        } catch (searchError) {
+            logger.warn(`[Tickets AI] SearXNG Web Search failed: ${searchError.message}`);
+            // We don't throw an error here to allow the AI to still suggest a response without the internet context
+        }
+
+        const prompt = `Actúa como un experto en soporte al cliente y especialista en Seguridad y Salud en el Trabajo para la plataforma WAPPY IA.
 Se ha recibido un ticket de tipo "${ticket.type}" con la siguiente descripción:
 "${ticket.description}"
 
-Sugiere una respuesta profesional, amable y resolutiva para el usuario.
+CONTEXTO ENCONTRADO EN INTERNET (SearXNG):
+${webContext || 'No se encontró contexto adicional en internet.'}
+
+Utilizando el contexto de internet (si aplica) y tu conocimiento de la plataforma, sugiere una respuesta profesional, amable y resolutiva para el usuario.
 La respuesta debe estar en formato texto plano, sin el exceso de markdown.`;
 
         const result = await model.generateContent(prompt);
