@@ -10,6 +10,59 @@ const axios = require('axios');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
+const { generateShortLivedToken } = require('@librechat/api');
+
+// Knowledge Retrieval System (RAG)
+async function getRelevantTickets(req, userQuery) {
+    let context = '';
+
+    // 1. Try Vector DB (App RAG System)
+    if (process.env.RAG_API_URL) {
+        try {
+            const jwtToken = generateShortLivedToken(req.user.id);
+            const response = await axios.post(`${process.env.RAG_API_URL}/query`, {
+                query: userQuery,
+                entity_id: 'tenshi_knowledge_base',
+                k: 5
+            }, {
+                headers: {
+                    Authorization: `Bearer ${jwtToken}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 5000
+            });
+
+            if (response.data && response.data.length > 0) {
+                context = response.data.map(m => {
+                    const content = m[0]?.page_content || m.text || '';
+                    return `[RAG MATCH] ${content.trim()}`;
+                }).join('\n');
+            }
+        } catch (e) {
+            logger.debug('[Tenshi RAG] Vector DB query failed or empty:', e.message);
+        }
+    }
+
+    // 2. Fallback to MongoDB Smart Search (Text Index)
+    if (!context) {
+        try {
+            const matches = await Ticket.find(
+                { status: 'resolved', $text: { $search: userQuery } },
+                { score: { $meta: 'textScore' } }
+            )
+                .sort({ score: { $meta: 'textScore' } })
+                .limit(3);
+
+            if (matches.length > 0) {
+                context = matches.map(t => `- PQRS RELEVANTE [${t.type}]: ${t.description} -> SOLUCIÓN: ${t.response}`).join('\n');
+            }
+        } catch (e) {
+            logger.debug('[Tenshi RAG] MongoDB Text search failed:', e.message);
+        }
+    }
+
+    return context;
+}
 
 router.get('/config', async (req, res) => {
     try {
@@ -71,13 +124,9 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
 
-        // Fetch resolved tickets to provide context on previous user issues
-        let resolvedTickets = [];
-        try {
-            resolvedTickets = await Ticket.find({ status: 'resolved' }).sort({ createdAt: -1 }).limit(5);
-        } catch (e) { }
-
-        const ticketStr = resolvedTickets.map(t => `- PQRS [${t.type}]: ${t.description} -> SOLUCIÓN: ${t.response}`).join('\n');
+        // Intelligent Retrieval (RAG) instead of static limit
+        const userQuery = messages[messages.length - 1]?.content || '';
+        const ticketContext = await getRelevantTickets(req, userQuery);
 
         // Fetch the platform manual
         let manualContent = '';
@@ -101,8 +150,8 @@ ${blogStr || 'No hay blogs recientes.'}
 CURSOS DE FORMACIÓN DISPONIBLES:
 ${courseStr || 'No hay cursos recientes.'}
 
-HISTORIAL DE SOLUCIONES PQRS (Contexto de ayuda):
-${ticketStr || 'No hay tickets resueltos aún.'}
+CONOCIMIENTO DINÁMICO (Contexto extraído por RAG - Artículos, Cursos, Tickets, Feedback):
+${ticketContext || 'No se encontró información específica en la base de conocimientos dinámica.'}
 
 CONOCIMIENTO EXTRA DEL ADMINISTRADOR:
 ${config.extraKnowledge}

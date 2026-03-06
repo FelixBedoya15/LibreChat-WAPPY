@@ -217,7 +217,16 @@ function Account() {
         <h3 className="text-base font-bold text-red-500 border-b border-red-500/20 pb-3 mb-4">Zona de Peligro</h3>
         <div className="py-2"><DeleteAccount /></div>
         <div className="h-px bg-red-500/10 w-full my-4"></div>
-        <div className="py-2"><TicketForm /></div>
+        {user?.role === 'ADMIN' ? (
+          <div className="flex w-full items-center justify-between py-3 px-4 rounded-xl border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all text-orange-600 dark:text-orange-400 group cursor-default">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="w-5 h-5 text-orange-500" />
+              <span className="font-bold font-sans">Panel Administrativo: Responder Tickets PQRS activo</span>
+            </div>
+          </div>
+        ) : (
+          <div className="py-2"><TicketForm /></div>
+        )}
       </div>
     </div>
   );

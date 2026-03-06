@@ -2,6 +2,7 @@ const { Course } = require('../../models/Course');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
+const { syncToRag } = require('../services/RagService');
 
 // --- Courses ---
 
@@ -37,6 +38,18 @@ const createCourse = async (req, res) => {
         });
 
         const savedCourse = await newCourse.save();
+
+        // No content yet, but we can sync the metadata or wait for lessons
+        if (savedCourse.isPublished) {
+            syncToRag({
+                req,
+                type: 'course',
+                id: savedCourse._id,
+                content: savedCourse.description || savedCourse.title,
+                title: savedCourse.title
+            });
+        }
+
         res.status(201).json(savedCourse);
     } catch (error) {
         console.error('Error in createCourse:', error);
@@ -59,6 +72,17 @@ const updateCourse = async (req, res) => {
 
         if (!updatedCourse) {
             return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Dynamic Knowledge: Sync course info
+        if (updatedCourse.isPublished) {
+            syncToRag({
+                req,
+                type: 'course',
+                id: updatedCourse._id,
+                content: updatedCourse.description || updatedCourse.title,
+                title: updatedCourse.title
+            });
         }
 
         res.status(200).json(updatedCourse);
@@ -147,6 +171,17 @@ const updateLesson = async (req, res) => {
         });
 
         await course.save();
+
+        if (course.isPublished && lesson.content) {
+            syncToRag({
+                req,
+                type: 'lesson',
+                id: lesson._id,
+                content: lesson.content,
+                title: `${course.title}: ${lesson.title}`
+            });
+        }
+
         res.status(200).json(lesson);
     } catch (error) {
         console.error('Error in updateLesson:', error);

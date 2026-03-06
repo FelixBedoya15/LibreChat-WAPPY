@@ -2,6 +2,7 @@ const { BlogPost } = require('../../models/BlogPost');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
+const { syncToRag } = require('../services/RagService');
 
 const getBlogPosts = async (req, res) => {
     try {
@@ -42,6 +43,18 @@ const createBlogPost = async (req, res) => {
         });
 
         await newPost.save();
+
+        // Dynamic Knowledge: Sync with RAG if published
+        if (newPost.isPublished && newPost.content) {
+            syncToRag({
+                req,
+                type: 'blog',
+                id: newPost._id,
+                content: newPost.content,
+                title: newPost.title
+            });
+        }
+
         res.status(201).json(newPost);
     } catch (error) {
         console.error('Error creating blog post:', error);
@@ -62,6 +75,17 @@ const updateBlogPost = async (req, res) => {
 
         if (!post) {
             return res.status(404).json({ message: 'Blog post not found' });
+        }
+
+        // Dynamic Knowledge: Sync with RAG if published
+        if (post.isPublished && post.content) {
+            syncToRag({
+                req,
+                type: 'blog',
+                id: post._id,
+                content: post.content,
+                title: post.title
+            });
         }
 
         res.status(200).json(post);

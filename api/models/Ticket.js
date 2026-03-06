@@ -44,4 +44,6 @@ const ticketSchema = new mongoose.Schema({
     }],
 }, { timestamps: true });
 
+ticketSchema.index({ name: 'text', description: 'text', response: 'text', type: 'text' });
+
 module.exports = mongoose.model('Ticket', ticketSchema);

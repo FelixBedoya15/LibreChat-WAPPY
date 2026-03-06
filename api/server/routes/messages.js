@@ -9,6 +9,7 @@ const {
   updateMessage,
   deleteMessages,
 } = require('~/models');
+const { syncToRag } = require('../services/RagService');
 const { findAllArtifacts, replaceArtifactContent } = require('~/server/services/Artifacts/update');
 const { requireJwtAuth, validateMessageReq, checkConvoLimits } = require('~/server/middleware');
 const { cleanUpPrimaryKeyValue } = require('~/lib/utils/misc');
@@ -288,6 +289,17 @@ router.put('/:conversationId/:messageId/feedback', validateMessageReq, async (re
       },
       { context: 'updateFeedback' },
     );
+
+    // Dynamic Knowledge: Sync to RAG if feedback is positive
+    if (feedback && (feedback === '1' || feedback.rating === 1 || feedback.value === 1)) {
+      syncToRag({
+        req,
+        type: 'feedback',
+        id: messageId,
+        content: updatedMessage.text,
+        title: `Respuesta Calificada Positiva [ID: ${messageId}]`
+      });
+    }
 
     res.json({
       messageId,

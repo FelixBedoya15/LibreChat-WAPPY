@@ -4,8 +4,7 @@ const Ticket = require('../../models/Ticket');
 const { requireJwtAuth } = require('../middleware');
 const { logger } = require('~/config');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { AuthKeys } = require('librechat-data-provider');
-const { getUserKey } = require('~/server/services/UserService');
+const { syncToRag } = require('../services/RagService');
 
 // User: Create a ticket
 router.post('/', requireJwtAuth, async (req, res) => {
@@ -67,6 +66,18 @@ router.post('/:id/respond', requireJwtAuth, async (req, res) => {
         ticket.status = status || 'resolved';
         ticket.adminResponseBy = req.user.id;
         await ticket.save();
+
+        // Dynamic Knowledge: Sync with RAG system if resolved
+        if (ticket.status === 'resolved') {
+            syncToRag({
+                req,
+                type: 'ticket',
+                id: ticket._id,
+                content: `PQRS [${ticket.type}]\nUSUARIO: ${ticket.name}\nDESCRIPCIÓN: ${ticket.description}\nSOLUCIÓN: ${ticket.response}`,
+                title: `PQRS Resuelto: ${ticket.author?.name || ticket.name}`
+            });
+        }
+
         res.json(ticket);
     } catch (error) {
         logger.error('[Tickets] Error responding to ticket:', error);
