@@ -26,6 +26,9 @@ interface WorkerEntry {
     fechaExamenMedico: string;
     fechaCursoAlturasAutorizado: string;
     fechaCursoAlturasCoordinador: string;
+    diagnosticoMedico: string;
+    recomendacionesMedicas: string;
+    fechaSeguimiento: string;
     completedByAI: boolean;
 }
 
@@ -33,6 +36,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nombre: '', identificacion: '', edad: '', genero: '', estadoCivil: '',
     nivelEscolaridad: '', direccion: '', telefono: '', cargo: '',
     fechaExamenMedico: '', fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
+    diagnosticoMedico: '', recomendacionesMedicas: '', fechaSeguimiento: '',
     completedByAI: false,
 };
 
@@ -427,18 +431,78 @@ const PerfilSociodemografico = () => {
                                                     className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
                                             </div>
 
-                                            {/* Dates */}
-                                            <div className="space-y-1">
+                                            {/* Dates and Medical */}
+                                            <div className="space-y-1 lg:col-span-2">
                                                 <label className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase">Último Examen Médico</label>
                                                 <input type="date" value={w.fechaExamenMedico} onChange={e => updateWorkerField(w.id, 'fechaExamenMedico', e.target.value)}
                                                     className="w-full text-sm p-2 rounded-lg border border-orange-200 bg-orange-50/10 dark:bg-orange-900/10 text-text-primary" />
                                             </div>
+
+                                            {/* Diagnóstico Médico */}
+                                            <div className="space-y-1 lg:col-span-3">
+                                                <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Diagnóstico / Hallazgos Médicos</label>
+                                                <select value={w.diagnosticoMedico || ''} onChange={e => updateWorkerField(w.id, 'diagnosticoMedico', e.target.value)}
+                                                    className="w-full text-sm p-2 rounded-lg border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary">
+                                                    <option value="">Seleccione diagnóstico...</option>
+                                                    <option value="Apto / Sin Hallazgos">Apto / Sin Hallazgos / Ninguno</option>
+
+                                                    <optgroup label="1. Sistema Metabólico y Cardiovascular">
+                                                        <option value="Cardiovascular - Triglicéridos/Colesterol">Triglicéridos y Colesterol (Dislipidemias)</option>
+                                                        <option value="Cardiovascular - Obesidad/Sobrepeso">Peso: Obesidad / Sobrepeso</option>
+                                                        <option value="Cardiovascular - Hipertensión arterial">Presión: Hipertensión arterial</option>
+                                                        <option value="Cardiovascular - Diabetes">Azúcar: Diabetes / Prediabetes</option>
+                                                        <option value="Cardiovascular - Arritmias/Infarto">Corazón: Arritmias / Infarto</option>
+                                                    </optgroup>
+                                                    <optgroup label="2. Sistema Visual">
+                                                        <option value="Visual - Vicios de refracción">Vicios de refracción (Astigmatismo, Miopía, etc.)</option>
+                                                        <option value="Visual - Fatiga Visual">Astenopía (Fatiga visual por pantallas)</option>
+                                                        <option value="Visual - Otros">Otros: Ojo seco / Conjuntivitis</option>
+                                                    </optgroup>
+                                                    <optgroup label="3. Sistema Osteomuscular (DME)">
+                                                        <option value="Osteomuscular - Espalda">Espalda: Lumbalgia / Cervicalgia / Hernias</option>
+                                                        <option value="Osteomuscular - M. Superiores">M. Superiores: Túnel carpiano / Epicondilitis / Manguito</option>
+                                                        <option value="Osteomuscular - M. Inferiores">M. Inferiores: Varices / Fascitis / Rodilla</option>
+                                                    </optgroup>
+                                                    <optgroup label="4. Sistema Renal y Genitourinario">
+                                                        <option value="Renal - Cálculos/Insuficiencia">Riñón: Cálculos / Insuficiencia renal</option>
+                                                        <option value="Renal - Infecciones recurrentes">Infecciones urinarias recurrentes</option>
+                                                    </optgroup>
+                                                    <optgroup label="5. Salud Mental y Psicosocial">
+                                                        <option value="Salud Mental - Trastornos">Trastornos: Ansiedad / Depresión / Insomnio</option>
+                                                        <option value="Salud Mental - Estrés/Burnout">Estrés: Síndrome de Burnout / Estrés laboral</option>
+                                                    </optgroup>
+                                                    <optgroup label="6. Sistema Auditivo y Fonación">
+                                                        <option value="Auditivo - Hipoacusia/Tinitus">Audición: Hipoacusia / Tinitus</option>
+                                                        <option value="Fonación - Disfonía/Nódulos">Voz: Disfonía / Nódulos</option>
+                                                    </optgroup>
+                                                    <optgroup label="7. Sistema Respiratorio y Piel">
+                                                        <option value="Respiratorio - Asma/Rinitis">Respiratorio: Rinitis / Asma / Bronquitis</option>
+                                                        <option value="Piel - Dermatitis/Micosis">Piel: Dermatitis de contacto / Micosis</option>
+                                                    </optgroup>
+                                                </select>
+                                            </div>
+
+                                            {/* Fecha de Seguimiento */}
                                             <div className="space-y-1">
+                                                <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Fecha de Seguimiento</label>
+                                                <input type="date" value={w.fechaSeguimiento || ''} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
+                                                    className="w-full text-sm p-2 rounded-lg border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
+                                            </div>
+
+                                            {/* Recomendaciones y Seguimiento */}
+                                            <div className="space-y-1 lg:col-span-4">
+                                                <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Recomendaciones Médicas</label>
+                                                <input type="text" value={w.recomendacionesMedicas || ''} onChange={e => updateWorkerField(w.id, 'recomendacionesMedicas', e.target.value)}
+                                                    placeholder="Ej: Pausas activas visuales cada hora, restricción de cargas..."
+                                                    className="w-full text-sm p-2 rounded-lg border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
+                                            </div>
+
+                                            <div className="space-y-1 lg:col-span-2">
                                                 <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase leading-tight">Alturas — Trab. Autorizado</label>
                                                 <input type="date" value={w.fechaCursoAlturasAutorizado} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasAutorizado', e.target.value)}
                                                     className="w-full text-sm p-2 rounded-lg border border-blue-200 bg-blue-50/10 dark:bg-blue-900/10 text-text-primary" />
                                             </div>
-                                            <div className="space-y-1">
+                                            <div className="space-y-1 lg:col-span-2">
                                                 <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase leading-tight">Alturas — Coordinador</label>
                                                 <input type="date" value={w.fechaCursoAlturasCoordinador} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasCoordinador', e.target.value)}
                                                     className="w-full text-sm p-2 rounded-lg border border-blue-200 bg-blue-50/10 dark:bg-blue-900/10 text-text-primary" />

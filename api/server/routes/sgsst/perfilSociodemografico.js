@@ -23,6 +23,9 @@ const WorkerEntrySchema = new mongoose.Schema({
     fechaExamenMedico: String,
     fechaCursoAlturasAutorizado: String,
     fechaCursoAlturasCoordinador: String,
+    diagnosticoMedico: String,
+    recomendacionesMedicas: String,
+    fechaSeguimiento: String,
     completedByAI: { type: Boolean, default: false },
 }, { _id: false });
 
@@ -132,19 +135,34 @@ router.get('/profile/:workerId', async (req, res) => {
   </div>
 
   <div class="section">
-    <div class="section-title">Certificaciones y Fechas Clave</div>
+    <div class="section-title">Certificaciones y Salud</div>
     <div class="dates-box">
       <div class="date-row">
         <span class="date-label">Examen Médico Ocupacional</span>
         <span class="date-value">${worker.fechaExamenMedico || 'No registrado'}</span>
       </div>
+      ${worker.diagnosticoMedico ? `
+      <div class="date-row" style="background: #fff1f2; border-radius: 8px; margin: 4px 0; padding: 6px 10px;">
+        <span class="date-label" style="color: #be123c;">Diagnóstico Médico</span>
+        <span class="date-value" style="color: #9f1239;">${worker.diagnosticoMedico}</span>
+      </div>` : ''}
+      ${worker.recomendacionesMedicas ? `
       <div class="date-row">
-        <span class="date-label">Alturas — Trabajador Autorizado</span>
-        <span class="date-value">${worker.fechaCursoAlturasAutorizado || 'No registrado'}</span>
+        <span class="date-label">Recomendaciones</span>
+        <span class="date-value" style="font-size: 11px; white-space: normal;">${worker.recomendacionesMedicas}</span>
+      </div>` : ''}
+      ${worker.fechaSeguimiento ? `
+      <div class="date-row" style="border-top: 1px solid #fde68a;">
+        <span class="date-label">Próximo Seguimiento</span>
+        <span class="date-value">${worker.fechaSeguimiento}</span>
+      </div>` : ''}
+      <div class="date-row">
+        <span class="date-label">Alturas — Trab. Autorizado</span>
+        <span class="date-value">${worker.fechaCursoAlturasAutorizado || 'N/A'}</span>
       </div>
       <div class="date-row">
         <span class="date-label">Alturas — Coordinador</span>
-        <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'No registrado'}</span>
+        <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'N/A'}</span>
       </div>
     </div>
   </div>
@@ -346,7 +364,7 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         // Calculate some basic warning/expirations
         let vencimientosMedico = [];
-        let vencimientosAlturas = [];
+        let resumenPatologias = {};
 
         trabajadores.forEach(w => {
             if (w.genero === 'Masculino') numMen++;
@@ -356,6 +374,11 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             if (w.nivelEscolaridad) {
                 if (!escolaridades[w.nivelEscolaridad]) escolaridades[w.nivelEscolaridad] = 0;
                 escolaridades[w.nivelEscolaridad]++;
+            }
+
+            if (w.diagnosticoMedico && w.diagnosticoMedico !== 'Apto / Sin Hallazgos') {
+                const cat = w.diagnosticoMedico.split(' - ')[0] || 'Otros';
+                resumenPatologias[cat] = (resumenPatologias[cat] || 0) + 1;
             }
 
             // Exámenes Médicos - Alert if > 1 year
@@ -384,6 +407,7 @@ Se ha evaluado la base de datos de los trabajadores de la empresa.
                         - Hombres: ${numMen}, Mujeres: ${numWomen}
                         - Edad Promedio: ${edadPromedio} años
                         - Escolaridad principal: ${JSON.stringify(escolaridades)}
+                        - Resumen de Hallazgos Médicos por categoría: ${JSON.stringify(resumenPatologias)}
                         - Trabajadores con alerta sobre examen médico periódico: ${vencimientosMedico.length}
 
                         ** Atención Especial Requerida(Examenes médicos prontos a vencer / Vencidos o no reportados):**
@@ -391,11 +415,12 @@ Se ha evaluado la base de datos de los trabajadores de la empresa.
 
                         ** Tu tarea:**
                         Escribe un INFORME EJECUTIVO profesional(en formato HTML) que analice este perfil sociodemográfico de la empresa y dé recomendaciones al área de Talento Humano y SST.
-ESTRUCTURA EXACTA REQUERIDA(en div y HTML limpio sin markdown):
-                            1. Un resumen analítico del capital humano, enfocándose en la distribución de género, edad y escolaridad. (Ej.Qué implica tener una población madura vs joven, o riesgos relativos al estado de la escolaridad).
-2. Plan de Acción con respecto a los requerimientos de formación y exámenes paraclínicos(Exámenes Médicos).
-3. Asegúrese de referenciar obligaciones en SST sobre Cursos de Alturas si se requiere.
-4. Recomendaciones finales orientadas al bienestar social y físico.
+ESTRUSTRA EXACTA REQUERIDA(en div y HTML limpio sin markdown):
+                             1. Un resumen analítico del capital humano, enfocándose en la distribución de género, edad y escolaridad. (Ej.Qué implica tener una población madura vs joven, o riesgos relativos al estado de la escolaridad).
+                             2. Análisis de las Condiciones de Salud: Interpreta el "Resumen de Hallazgos Médicos por categoría" y explica los riesgos para la productividad y el bienestar. No menciones nombres propios aquí, habla de tendencias.
+                             3. Plan de Acción SST: Basado en los hallazgos médicos y exámenes vencidos, propón actividades de P&P (Promoción y Prevención).
+                             4. Asegúrese de referenciar obligaciones en SST sobre Cursos de Alturas si se requiere.
+                             5. Recomendaciones finales orientadas al bienestar social y físico.
 
 Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas markdown de bloque HTML.No incluyas un título principal(<code>h1</code>) porque ya está en el encabezado.
 
