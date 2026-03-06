@@ -12,10 +12,11 @@ import {
     User,
     Calendar,
     ChevronLeft,
-    ChevronRight,
     Search,
     Brain,
-    Send
+    Send,
+    FileText,
+    ChevronRight
 } from 'lucide-react';
 import { cn } from '~/utils';
 
@@ -116,16 +117,15 @@ export default function TicketManagement() {
                     Regresar a la lista
                 </button>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full overflow-hidden">
+                <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 pb-6">
                     {/* Detalles del Ticket */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-surface-secondary dark:bg-gray-800/50 p-6 rounded-2xl border border-border-light">
-                            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <div className="flex flex-col gap-6">
+                        <div className="bg-surface-secondary dark:bg-gray-800/50 p-6 rounded-2xl border border-border-light flex flex-col gap-6 justify-between">
+                            <h3 className="text-xl font-bold flex items-center gap-2">
                                 <AlertCircle className="w-5 h-5 text-blue-500" />
                                 Detalle de la Solicitud
                             </h3>
-
-                            <div className="space-y-4 text-sm">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                     <label className="text-xs uppercase font-bold text-text-tertiary">Tipo</label>
                                     <p className="mt-1 font-medium">{selectedTicket.type}</p>
@@ -133,8 +133,7 @@ export default function TicketManagement() {
                                 <div>
                                     <label className="text-xs uppercase font-bold text-text-tertiary">Usuario</label>
                                     <p className="mt-1 font-medium">{selectedTicket.name}</p>
-                                    <p className="text-xs text-text-secondary">{selectedTicket.email}</p>
-                                    <p className="text-xs text-text-secondary">{selectedTicket.phone}</p>
+                                    <p className="text-xs text-text-secondary truncate">{selectedTicket.email}</p>
                                 </div>
                                 <div>
                                     <label className="text-xs uppercase font-bold text-text-tertiary">Fecha</label>
@@ -150,7 +149,10 @@ export default function TicketManagement() {
                         </div>
 
                         <div className="bg-surface-secondary dark:bg-gray-800/50 p-6 rounded-2xl border border-border-light">
-                            <h4 className="text-sm font-bold mb-3">Descripción</h4>
+                            <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-text-tertiary" />
+                                Descripción de la Solicitud
+                            </h4>
                             <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
                                 {selectedTicket.description}
                             </p>
@@ -158,15 +160,15 @@ export default function TicketManagement() {
                     </div>
 
                     {/* Editor de Respuesta con IA */}
-                    <div className="lg:col-span-2 flex flex-col gap-6">
-                        <div className="bg-surface-primary dark:bg-gray-900 border border-border-light rounded-2xl p-6 shadow-sm flex flex-col flex-1">
-                            <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col gap-6">
+                        <div className="bg-surface-primary dark:bg-gray-900 border border-border-light rounded-2xl p-6 shadow-sm flex flex-col flex-1 min-h-[400px]">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                                 <h3 className="text-xl font-bold flex items-center gap-2 text-text-primary">
                                     <MessageSquare className="w-5 h-5 text-green-500" />
                                     Redactar Respuesta
                                 </h3>
 
-                                <div className="flex gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
                                     <button
                                         className="flex items-center gap-2 px-5 py-2 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-surface-secondary text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
                                     >
