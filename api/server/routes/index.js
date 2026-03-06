@@ -35,6 +35,7 @@ const training = require('./training');
 const blog = require('./blog');
 const wompi = require('./wompi');
 const tenshi = require('./tenshi');
+const tickets = require('./tickets');
 
 module.exports = {
   auth,
@@ -74,4 +75,5 @@ module.exports = {
   blog,
   wompi,
   tenshi,
+  tickets,
 };

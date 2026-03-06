@@ -4,6 +4,7 @@ import UserManagementTable from './UserApprovalTable';
 import RolePermissionsTable from './RolePermissionsTable';
 import SubscriptionPlansTable from './SubscriptionPlansTable';
 import PromoCodesTable from './PromoCodesTable';
+import TicketManagement from '~/components/Tickets/TicketManagement';
 import { cn } from '~/utils';
 
 export default function Admin() {
@@ -65,6 +66,17 @@ export default function Admin() {
                         >
                             Códigos Promo
                         </button>
+                        <button
+                            onClick={() => setActiveTab('pqrs')}
+                            className={cn(
+                                "pb-2 px-1 text-sm font-medium transition-colors duration-200",
+                                activeTab === 'pqrs'
+                                    ? "border-b-2 border-orange-500 text-orange-600 dark:text-orange-400"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            Tickets PQRS
+                        </button>
                     </div>
                 </div>
             </div>
@@ -77,6 +89,8 @@ export default function Admin() {
                     <RolePermissionsTable />
                 ) : activeTab === 'plans' ? (
                     <SubscriptionPlansTable />
+                ) : activeTab === 'pqrs' ? (
+                    <TicketManagement />
                 ) : (
                     <PromoCodesTable />
                 )}

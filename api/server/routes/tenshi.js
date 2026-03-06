@@ -5,6 +5,7 @@ const { requireJwtAuth } = require('../middleware');
 const TenshiConfig = require('../../models/TenshiConfig');
 const { BlogPost } = require('../../models/BlogPost');
 const { Course } = require('../../models/Course');
+const Ticket = require('../../models/Ticket');
 const axios = require('axios');
 const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
@@ -70,6 +71,14 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
 
         const courseStr = latestCourses.map(c => `- CURSO: ${c.title}`).join('\n');
 
+        // Fetch resolved tickets to provide context on previous user issues
+        let resolvedTickets = [];
+        try {
+            resolvedTickets = await Ticket.find({ status: 'resolved' }).sort({ createdAt: -1 }).limit(5);
+        } catch (e) { }
+
+        const ticketStr = resolvedTickets.map(t => `- PQRS [${t.type}]: ${t.description} -> SOLUCIÓN: ${t.response}`).join('\n');
+
         // Fetch the platform manual
         let manualContent = '';
         try {
@@ -91,6 +100,9 @@ ${blogStr || 'No hay blogs recientes.'}
 
 CURSOS DE FORMACIÓN DISPONIBLES:
 ${courseStr || 'No hay cursos recientes.'}
+
+HISTORIAL DE SOLUCIONES PQRS (Contexto de ayuda):
+${ticketStr || 'No hay tickets resueltos aún.'}
 
 CONOCIMIENTO EXTRA DEL ADMINISTRADOR:
 ${config.extraKnowledge}

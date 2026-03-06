@@ -10,6 +10,7 @@ import DeleteAccount from './DeleteAccount';
 import Avatar from './Avatar';
 import EnableTwoFactorItem from './TwoFactorAuthentication';
 import BackupCodesItem from './BackupCodesItem';
+import TicketForm from '~/components/Tickets/TicketForm';
 
 function Account() {
   const localize = useLocalize();
@@ -213,8 +214,10 @@ function Account() {
 
       {/* BOTTOM: Zona de Peligro */}
       <div className="flex flex-col gap-2 p-5 rounded-2xl border border-red-500/20 bg-red-500/5 shadow-sm h-fit">
-        <h3 className="text-base font-bold text-red-500 border-b border-red-500/20 pb-3 mb-1">Zona de Peligro</h3>
+        <h3 className="text-base font-bold text-red-500 border-b border-red-500/20 pb-3 mb-4">Zona de Peligro</h3>
         <div className="py-2"><DeleteAccount /></div>
+        <div className="h-px bg-red-500/10 w-full my-4"></div>
+        <div className="py-2"><TicketForm /></div>
       </div>
     </div>
   );
