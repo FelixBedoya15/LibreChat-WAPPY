@@ -251,16 +251,7 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).
 - NC Mayor: fondo rosa claro (\`background-color: #ffe0e0; color: #000;\`). NC Menor: fondo amarillo claro (\`background-color: #fff8e0; color: #000;\`). Observación: fondo azul claro (\`background-color: #e0f0ff; color: #000;\`).
 - Plan de Acción por Plazo: Inmediato (\`background-color: #ffe0e0; color: #000;\`), Corto (\`background-color: #fff0e0; color: #000;\`), Mediano (\`background-color: #fff8e0; color: #000;\`), Largo (\`background-color: #e0ffe0; color: #000;\`).
-
-**FIRMA OBLIGATORIA:**
-Al final del informe, incluye un espacio de firma:
-<div style="margin-top: 50px; text-align: center;">
-    <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
-    <strong>${userName || req.user?.name || 'Auditor Líder'}</strong><br>
-    Auditor Líder SG-SST (Dec. 1072/2015)<br>
-    Licencia en Seguridad y Salud en el Trabajo Vigente
-</div>
-IMPORTANTE: El auditor puede usar el editor para insertar su imagen de firma digital guardada encima o debajo de esta línea si así lo desea.
+MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombres de representantes o responsables al final del documento, ya que el sistema los añadirá automáticamente de forma estandarizada.
 
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
 

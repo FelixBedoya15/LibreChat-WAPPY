@@ -9,6 +9,7 @@ const objetivos = require('./objetivos');
 const rhs = require('./rhs');
 const rit = require('./rit');
 const responsable = require('./responsable');
+const permisoAlturas = require('./permisoAlturas');
 
 
 module.exports = {
@@ -24,5 +25,6 @@ module.exports = {
     rhs,
     rit,
     responsable,
+    permisoAlturas,
 };
 

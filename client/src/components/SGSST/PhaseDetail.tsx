@@ -21,6 +21,7 @@ import ObjetivosSST from './ObjetivosSST';
 import AuditoriaChecklist from './AuditoriaChecklist';
 import MatrizLegal from './MatrizLegal';
 import EstadisticasATEL from './EstadisticasATEL';
+import PermisoAlturas from './PermisoAlturas';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -313,6 +314,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'peligros' && (
                                                     <div className="mb-6">
                                                         <MatrizPeligrosGTC45 />
+                                                    </div>
+                                                )}
+
+                                                {/* Show PermisoAlturas for permiso_alturas category */}
+                                                {category.id === 'permiso_alturas' && (
+                                                    <div className="mb-6">
+                                                        <PermisoAlturas />
                                                     </div>
                                                 )}
 

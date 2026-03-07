@@ -15,6 +15,7 @@ export const PHASE_CATEGORIES = {
         { id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart' },
         { id: 'condiciones_salud', title: 'Informe Condiciones de Salud', icon: 'Activity' },
         { id: 'peligros', title: 'Matriz de Peligros', icon: 'AlertTriangle' },
+        { id: 'permiso_alturas', title: 'Permiso de Trabajo en Alturas', icon: 'Construction' },
         { id: 'vulnerabilidad', title: 'Análisis de Vulnerabilidad', icon: 'ShieldAlert' },
     ],
     check: [

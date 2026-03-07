@@ -215,6 +215,7 @@ const startServer = async () => {
   app.use('/api/sgsst/politica', routes.sgsst.politica);
 
   app.use('/api/sgsst/objetivos', routes.sgsst.objetivos);
+  app.use('/api/sgsst/permiso-alturas', routes.sgsst.permisoAlturas);
   app.use('/api/sgsst/matriz', routes.sgsst.matriz);
   app.use('/api/sgsst/estadisticas', routes.sgsst.estadisticas);
   app.use('/api/sgsst/atel-data', routes.sgsst.atelData);
