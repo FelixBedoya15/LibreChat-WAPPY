@@ -265,14 +265,16 @@ const ResponsableSGSST = () => {
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGenerating ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
                     ) : (
-                        <Sparkles className="h-5 w-5" />
+                        <Sparkles className="h-5 w-5 mr-2" />
                     )}
-                    <span>Generar con IA</span>
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">
+                        Generar con IA
+                    </span>
                 </button>
                 <ModelSelector
                     selectedModel={selectedModel}

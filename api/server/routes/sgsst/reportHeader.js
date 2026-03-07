@@ -119,7 +119,7 @@ function buildSignatureSection(companyInfo) {
     <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
         <tr>
             <td style="width: 50%; padding: 20px; text-align: center; vertical-align: bottom;">
-                <div class="signature-placeholder" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
+                <div class="signature-placeholder" data-signature-id="responsible" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
                     <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
                 </div>
                 <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${responsible}</div>
@@ -127,7 +127,9 @@ function buildSignatureSection(companyInfo) {
                 <div style="font-size: 11px; color: #94a3b8;">Licencia No. ${license}${licenseExpiry}</div>
             </td>
             <td style="width: 50%; padding: 20px; text-align: center; vertical-align: bottom;">
-                <div style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px;"></div>
+                <div class="signature-placeholder" data-signature-id="legal" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
+                    <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
+                </div>
                 <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${companyInfo.legalRepresentative || 'Representante Legal'}</div>
                 <div style="font-size: 12px; color: #64748b; font-weight: 600;">Representante Legal</div>
                 <div style="font-size: 11px; color: #94a3b8;">${companyInfo.companyName || 'Empresa'}</div>
@@ -135,7 +137,7 @@ function buildSignatureSection(companyInfo) {
         </tr>
     </table>
     <div style="text-align: center; font-size: 10px; color: #cbd5e1; margin-top: 15px; font-style: italic;">
-        Documento generado electrónicamente por el Gestor Inteligente SGSST - LibreChat WAPPY © 2025
+        Documento generado electrónicamente por el Gestor Inteligente SGSST - WAPPY IA By WAPPY LTDA © 2025
     </div>
 </div>`;
 }

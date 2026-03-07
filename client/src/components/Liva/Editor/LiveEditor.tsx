@@ -46,7 +46,14 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('sgsst_signatures', JSON.stringify(signatures));
+        try {
+            localStorage.setItem('sgsst_signatures', JSON.stringify(signatures));
+        } catch (e) {
+            console.warn('Storage quota exceeded for signatures.');
+            if (signatures.length > 2) {
+                setSignatures(prev => prev.slice(prev.length - 2));
+            }
+        }
     }, [signatures]);
 
     // Expose setHTML() to parent via ref (imperative handle)
@@ -106,7 +113,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             const reader = new FileReader();
             reader.onload = (readerEvent) => {
                 const signatureUrl = readerEvent.target?.result as string;
-                setSignatures(prev => [...prev, signatureUrl]);
+                setSignatures(prev => {
+                    const next = [...prev, signatureUrl];
+                    return next.length > 5 ? next.slice(next.length - 5) : next;
+                });
+                // Auto insert after upload to improve UX
+                insertSignature(signatureUrl);
             };
             reader.readAsDataURL(file);
         }
