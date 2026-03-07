@@ -5,7 +5,7 @@ const { getUserKey } = require('../../services/PluginService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
-const logger = require('../../utils/logger').default;
+const { logger } = require('~/config');
 
 const router = express.Router();
 
