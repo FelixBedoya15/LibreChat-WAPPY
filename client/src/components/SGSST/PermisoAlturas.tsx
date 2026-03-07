@@ -57,7 +57,7 @@ const PermisoAlturas = () => {
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
 
-    const [selectedModel, setSelectedModel] = useState('gemini-1.5-pro-latest');
+    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
