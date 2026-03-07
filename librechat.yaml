@@ -250,6 +250,26 @@ endpoints:
   #   # (optional) Agent Capabilities available to all users. Omit the ones you wish to exclude. Defaults to list below.
       capabilities: ["execute_code", "file_search", "actions", "tools", "artifacts", "context", "ocr", "chain", "web_search"]
   custom:
+    - name: "Ollama"
+      apiKey: "ollama"
+      baseURL: "http://ollama:11434/v1"
+      models:
+        default: [
+          "deepseek-r1:1.5b",
+          "gemma3:4b",
+          "qwen3-vl:4b",
+          "codellama",
+          "dolphin-mixtral",
+          "mistral-openorca"
+          ]
+        fetch: true
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: false
+      summaryModel: "current_model"
+      forcePrompt: false
+      modelDisplayLabel: "Ollama"
+
     - name: "Wappy"
       apiKey: "ollama"
       # use 'host.docker.internal' instead of localhost if running LibreChat in a docker container
@@ -419,7 +439,6 @@ endpoints:
 #       description: "Most capable GPT-4 model with multimodal support"
 #       group: "openAI"  # String value matching the endpoint name
 #       preset:
-#         endpoint: "openAI"
 #         model: "gpt-4o"
 #
 #     # Example 2: Nested under a custom endpoint (grouped with groq endpoint)

@@ -35,6 +35,36 @@ const App = () => {
   // Load theme from environment variables if available
   const envTheme = getThemeFromEnv();
 
+  useEffect(() => {
+    let deferredPrompt;
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      const lastDismissed = localStorage.getItem('pwa_prompt_dismissed');
+      const now = Date.now();
+      const delay = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+      if (!lastDismissed || (now - parseInt(lastDismissed) > delay)) {
+        setTimeout(() => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+              if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the PWA prompt');
+              } else {
+                localStorage.setItem('pwa_prompt_dismissed', now.toString());
+              }
+              deferredPrompt = null;
+            });
+          }
+        }, 5000);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <RecoilRoot>

@@ -188,6 +188,59 @@ const LocationStatus = () => {
   );
 };
 
+const PWAInstaller = () => {
+  const localize = useLocalize();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
+  if (isInstalled || !deferredPrompt) return null;
+
+  return (
+    <div className="flex items-center justify-between">
+      <div>{localize('com_ui_install_pwa') || 'Instalar Aplicación'}</div>
+      <button
+        onClick={handleInstallClick}
+        className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors"
+      >
+        Descargar App
+      </button>
+    </div>
+  );
+};
+
 function General() {
   const { theme, setTheme } = useContext(ThemeContext);
 
@@ -253,9 +306,14 @@ function General() {
       {/* Debugging/Verification: Show current location if enabled */}
       <LocationStatus />
 
-      {/* Tarjeta de Chats Archivados */}
-      <div className="rounded-xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
-        <ArchivedChats />
+      {/* Tarjeta de Aplicación y PWA */}
+      <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+        <h3 className="mb-4 text-lg font-medium text-text-primary">Aplicación</h3>
+        <div className="flex flex-col gap-4">
+          <PWAInstaller />
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+          <ArchivedChats />
+        </div>
       </div>
     </div>
   );
