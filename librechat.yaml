@@ -256,8 +256,8 @@ endpoints:
       models:
         default: [
           "deepseek-r1:1.5b",
-          "gemma3:4b",
-          "qwen3-vl:4b",
+          "gemma2:2b",
+          "qwen2:0.5b",
           "codellama",
           "dolphin-mixtral",
           "mistral-openorca"
@@ -277,8 +277,8 @@ endpoints:
       models:
         default: [
           "deepseek-r1:1.5b",
-          "gemma3:4b",
-          "qwen3-vl:4b",
+          "gemma2:2b",
+          "qwen2:0.5b",
           "codellama",
           "dolphin-mixtral",
           "mistral-openorca"
