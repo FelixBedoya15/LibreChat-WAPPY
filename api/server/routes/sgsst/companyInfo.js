@@ -29,6 +29,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
             arl, economicActivity, riskLevel, ciiu,
             address, city, phone, email,
             generalActivities, sector, responsibleSST,
+            formationLevel, licenseNumber, courseStatus, licenseExpiry,
         } = req.body;
 
         const info = await CompanyInfo.findOneAndUpdate(
@@ -39,9 +40,11 @@ router.put('/', requireJwtAuth, async (req, res) => {
                 arl, economicActivity, riskLevel, ciiu,
                 address, city, phone, email,
                 generalActivities, sector, responsibleSST,
+                formationLevel, licenseNumber, courseStatus, licenseExpiry,
             },
             { upsert: true, new: true },
         );
+
 
         res.json(info);
     } catch (error) {

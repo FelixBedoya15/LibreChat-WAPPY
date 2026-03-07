@@ -250,12 +250,13 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </div>
                                     <div>
                                         <label className={labelClass}><Calendar className="h-3 w-3" />Vigencia de Licencia</label>
-                                        <input className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} placeholder="Fecha de vencimiento" />
+                                        <input type="date" className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><FileText className="h-3 w-3" />Curso 50H / Actualización 20H</label>
-                                        <input className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} placeholder="Certificado vigente (Año)" />
+                                        <input type="date" className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} />
                                     </div>
+
                                 </div>
                             </div>
 

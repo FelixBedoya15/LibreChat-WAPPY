@@ -227,18 +227,18 @@ const ResponsableSGSST = () => {
             icon: Calendar,
             value: licenseExpiry,
             setter: setLicenseExpiry,
-            placeholder: 'Fecha de vencimiento de la licencia',
-            rows: 1,
+            type: 'date',
         },
+
         {
             id: 'courseStatus',
             label: 'Curso 50 Horas / Actualización 20 Horas',
             icon: FileText,
             value: courseStatus,
             setter: setCourseStatus,
-            placeholder: 'Certificado vigente (Año de expedición)',
-            rows: 1,
+            type: 'date',
         },
+
         {
             id: 'additionalNorms',
             label: 'Observaciones / Normativa Adicional',
@@ -339,13 +339,14 @@ const ResponsableSGSST = () => {
                                             {field.label}
                                         </label>
                                         <input
-                                            type="text"
+                                            type={field.type || 'text'}
                                             id={field.id}
                                             value={field.value}
                                             onChange={(e) => field.setter(e.target.value)}
                                             placeholder={field.placeholder}
                                             className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         />
+
                                     </div>
                                 );
                             })}
