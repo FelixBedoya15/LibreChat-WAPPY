@@ -44,7 +44,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-1.5-pro-latest' });
 
         const currentDate = new Date().toLocaleDateString('es-CO', {
             year: 'numeric', month: 'long', day: 'numeric',

@@ -57,7 +57,7 @@ const PermisoAlturas = () => {
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
 
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-1.5-pro-latest');
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -76,7 +76,31 @@ const PermisoAlturas = () => {
         if (file) {
             const reader = new FileReader();
             reader.onload = (readerEvent) => {
-                setImages(prev => ({ ...prev, [field]: readerEvent.target?.result as string }));
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_DIM = 1200;
+                    if (width > height) {
+                        if (width > MAX_DIM) {
+                            height *= MAX_DIM / width;
+                            width = MAX_DIM;
+                        }
+                    } else {
+                        if (height > MAX_DIM) {
+                            width *= MAX_DIM / height;
+                            height = MAX_DIM;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    setImages(prev => ({ ...prev, [field]: resizedDataUrl }));
+                };
+                img.src = readerEvent.target?.result as string;
             };
             reader.readAsDataURL(file);
         }
