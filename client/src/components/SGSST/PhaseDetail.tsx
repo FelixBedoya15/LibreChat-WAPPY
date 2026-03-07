@@ -5,8 +5,9 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
-    ClipboardCheck, Briefcase, GitMerge
+    ClipboardCheck, Briefcase, GitMerge, UserCheck
 } from 'lucide-react';
+
 import { OpenSidebar } from '~/components/Chat/Menus';
 import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
@@ -14,7 +15,9 @@ import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
 import DiagnosticoChecklist from './DiagnosticoChecklist';
 import PoliticaSST from './PoliticaSST';
+import ResponsableSGSST from './ResponsableSGSST';
 import ObjetivosSST from './ObjetivosSST';
+
 import AuditoriaChecklist from './AuditoriaChecklist';
 import MatrizLegal from './MatrizLegal';
 import EstadisticasATEL from './EstadisticasATEL';
@@ -29,8 +32,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
     FileText, Target, Stethoscope, Scale,
     Users, UserCircle, BarChart, Activity,
     AlertTriangle, ShieldAlert, ClipboardCheck,
-    Briefcase, GitMerge, FolderOpen
+    Briefcase, GitMerge, FolderOpen, UserCheck
 };
+
 
 interface PhaseDetailProps {
     phase: {
@@ -262,7 +266,15 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                     </div>
                                                 )}
 
+                                                {/* Show ResponsableSGSST for responsable category */}
+                                                {category.id === 'responsable' && (
+                                                    <div className="mb-6">
+                                                        <ResponsableSGSST />
+                                                    </div>
+                                                )}
+
                                                 {/* Show PoliticaSST for politica category */}
+
                                                 {category.id === 'politica' && (
                                                     <div className="mb-6">
                                                         <PoliticaSST />

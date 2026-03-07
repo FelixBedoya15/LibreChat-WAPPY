@@ -1,6 +1,7 @@
 
 export const PHASE_CATEGORIES = {
     plan: [
+        { id: 'responsable', title: 'Responsable SG-SST', icon: 'UserCheck' },
         { id: 'politica', title: 'Política SST', icon: 'FileText' },
         { id: 'objetivos', title: 'Objetivos SST', icon: 'Target' },
         { id: 'diagnostico', title: 'Diagnóstico Inicial', icon: 'Stethoscope' },

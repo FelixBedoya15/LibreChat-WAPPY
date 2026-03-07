@@ -8,6 +8,8 @@ const perfilSociodemografico = require('./perfilSociodemografico');
 const objetivos = require('./objetivos');
 const rhs = require('./rhs');
 const rit = require('./rit');
+const responsable = require('./responsable');
+
 
 module.exports = {
     diagnostico,
@@ -21,4 +23,6 @@ module.exports = {
     objetivos,
     rhs,
     rit,
+    responsable,
 };
+
