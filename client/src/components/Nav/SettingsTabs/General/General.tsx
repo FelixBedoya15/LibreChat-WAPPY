@@ -226,16 +226,23 @@ const PWAInstaller = () => {
     }
   };
 
-  if (isInstalled || !deferredPrompt) return null;
+  // Temporarily force show for debugging/user visibility
+  // if (isInstalled || !deferredPrompt) return null;
 
   return (
     <div className="flex items-center justify-between">
       <div>{localize('com_ui_install_pwa') || 'Instalar Aplicación'}</div>
       <button
-        onClick={handleInstallClick}
+        onClick={() => {
+          if (deferredPrompt) {
+            handleInstallClick();
+          } else {
+            alert("El navegador no ha detectado la posibilidad de instalar aún. Asegúrate de estar en una conexión segura (HTTPS) y que no tengas ya la app instalada.");
+          }
+        }}
         className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors"
       >
-        Descargar App
+        {isInstalled ? 'App Instalada' : 'Descargar App'}
       </button>
     </div>
   );
