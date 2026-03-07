@@ -6,6 +6,7 @@ const { requireJwtAuth } = require('../../middleware/');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
@@ -30,26 +31,30 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             additionalContextContext += `\\n### Directrices Internas / Disposiciones Adicionales:\\n${additionalRules}\\n`;
         }
 
+        const headerHTML = buildStandardHeader({
+            title: 'REGLAMENTO DE HIGIENE Y SEGURIDAD INDUSTRIAL',
+            companyInfo: companyInfo,
+            date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+            norm: 'Código Sustantivo del Trabajo / Ley 9 de 1979',
+            responsibleName: companyInfo.legalRepresentative || req.user?.name
+        });
+
         const prompt = `Actúa como un experto legal en Seguridad y Salud en el Trabajo (SGSST) en Colombia.
 Tu tarea es redactar el REGLAMENTO DE HIGIENE Y SEGURIDAD INDUSTRIAL para la empresa descrita a continuación.
 El reglamento debe cumplir estrictamente con el Código Sustantivo del Trabajo, la Ley 9 de 1979, el Decreto 1072 de 2015 y demás normas vigentes aplicables en Colombia.
 
 ### Datos de la Empresa
-*   **Razón Social:** ${companyInfo.companyName || 'No especificado'}
-*   **NIT:** ${companyInfo.nit || 'No especificado'}
-*   **Representante Legal:** ${companyInfo.legalRepresentative || 'No especificado'}
-*   **Actividad Económica:** ${companyInfo.economicActivity || 'No especificado'}
-*   **Clase de Riesgo:** ${companyInfo.riskLevel || 'No especificado'}
-*   **Dirección:** ${companyInfo.address || 'No especificado'}
-*   **Ciudad:** ${companyInfo.city || 'No especificado'}
+${buildCompanyContextString(companyInfo)}
 ${additionalContextContext}
 
 ### Instrucciones de Formato y Estructura:
-1.  **Encabezado:** Inicia con un título claro (REGLAMENTO DE HIGIENE Y SEGURIDAD INDUSTRIAL), el nombre de la empresa y el NIT.
-2.  **Articulado:** Organiza el reglamento en artículos numerados (Artículo 1, Artículo 2, etc.), divididos en capítulos si es necesario (ej. Disposiciones Generales, Obligaciones de la Empresa, Obligaciones de los Trabajadores, Riesgos Identificados, Sanciones, Vigencia).
-3.  **Riesgos Específicos:** Asegúrate de mencionar los riesgos propios de la actividad económica de la empresa y los proporcionados en "Riesgos Críticos Identificados" si los hay.
-4.  **HTML:** Retorna **solamente** el documento formulado en código HTML, sin incluir ticks de markdown (\`\`\`). Utiliza etiquetas estructuradas como <h1>, <h2>, <p>, <ul>, <li>, <strong>. No uses CSS inline complejo, emplea etiquetas semánticas. No incluyas las etiquetas <html>, <head> o <body>, solo el contenido del documento.
-5.  **Tablas de Firmas:** Al final del documento, incluye una sección clara para la firma del Representante Legal, indicando fecha de publicación e implementación.`;
+1.  **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+${headerHTML}
+
+2.  **Articulado**: Organiza el reglamento en artículos numerados (Artículo 1, Artículo 2, etc.), divididos en capítulos si es necesario (ej. Disposiciones Generales, Obligaciones de la Empresa, Obligaciones de los Trabajadores, Riesgos Identificados, Sanciones, Vigencia).
+3.  **Riesgos Específicos**: Asegúrate de mencionar los riesgos propios de la actividad económica de la empresa y los proporcionados en "Riesgos Críticos Identificados" si los hay.
+4.  **HTML**: Retorna **solamente** el documento formulado en código HTML, sin incluir ticks de markdown (\`\`\`). Utiliza etiquetas estructuradas como <h1>, <h2>, <p>, <ul>, <li>, <strong>. No uses CSS inline complejo, emplea etiquetas semánticas. No incluyas las etiquetas <html>, <head> o <body>, solo el contenido del documento.
+5.  **FIRMA**: El sistema añadirá la sección de firmas automáticamente. NO la generes tú.`;
 
         // Retrieve the user's Google API key
         let resolvedApiKey;
@@ -101,6 +106,10 @@ ${additionalContextContext}
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        if (companyInfo) {
+            cleanedHtml += buildSignatureSection(companyInfo);
+        }
 
         res.json({ document: cleanedHtml });
     } catch (error) {

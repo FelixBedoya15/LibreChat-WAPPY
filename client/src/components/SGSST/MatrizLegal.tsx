@@ -408,7 +408,7 @@ const MatrizLegal = () => {
                 {/* Checklist Section */}
                 <div className="space-y-4">
                     {/* Progress Overview Card */}
-                    <div className="p-5 rounded-xl border border-border-medium bg-surface-secondary shadow-sm flex items-center gap-6">
+                    <div className="p-5 rounded-xl border border-border-medium bg-surface-secondary shadow-sm flex flex-col md:flex-row items-center gap-6">
                         <div className="relative w-20 h-20 flex-shrink-0">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-200 dark:text-gray-700" />
@@ -429,14 +429,23 @@ const MatrizLegal = () => {
                             <p className="text-sm text-text-secondary">
                                 Progreso de evaluación: {completedCount} de {totalItems} ítems evaluados.
                             </p>
+                            <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
+                                <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                                    Generación Inteligente
+                                </h4>
+                                <p className="text-sm text-text-secondary leading-relaxed">
+                                    Si no ingresa la normatividad específica, se tomará por defecto la <strong>Resolución 908 de 2025 y Resolución 0312 de 2019</strong>. La IA redactará el análisis cruzando sus respuestas actuales.
+                                </p>
+                            </div>
                         </div>
                         <button
                             onClick={handleGenerate}
                             disabled={isAnalyzing || completedCount === 0}
-                            className="shrink-0 flex items-center gap-2 px-6 py-2.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50 rounded-lg transition-colors font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                            {generatedMatrix ? 'Regenerar Documento IA' : 'Generar Documento IA'}
+                            <span>{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
                         </button>
                     </div>
 

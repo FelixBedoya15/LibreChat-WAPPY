@@ -10,7 +10,7 @@ const { saveConvo } = require('~/models/Conversation');
 const { saveMessage, updateMessageText, getMessages } = require('~/models/Message');
 const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -467,6 +467,10 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        if (loadedCompanyInfo) {
+            cleanedReport += buildSignatureSection(loadedCompanyInfo);
+        }
 
         res.json({
             report: cleanedReport,

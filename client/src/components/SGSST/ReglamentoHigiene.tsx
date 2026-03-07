@@ -208,16 +208,14 @@ const ReglamentoHigiene = () => {
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGenerating ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                         <Sparkles className="h-5 w-5" />
                     )}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                        Generar Reglamento IA
-                    </span>
+                    <span>Generar Reglamento con IA</span>
                 </button>
                 <ModelSelector
                     selectedModel={selectedModel}
@@ -269,11 +267,12 @@ const ReglamentoHigiene = () => {
 
                 {isFormExpanded && (
                     <div className="p-4 space-y-4">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
-                            <p className="text-sm text-blue-800 dark:text-blue-300 mb-1 font-medium flex items-center gap-2">
-                                <Sparkles className="h-4 w-4" /> Integración Automática
-                            </p>
-                            <p className="text-sm text-text-secondary">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
+                            <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                                Generación Inteligente
+                            </h4>
+                            <p className="text-sm text-text-secondary leading-relaxed">
                                 La IA elaborará el Reglamento cumpliendo con el Marco Legal vigente (Ley 9 de 1979 y normas complementarias) incluyendo la integración directa de los peligros presentes en los procesos de la empresa. Todos los campos a continuación son opcionales para complementar la IA.
                             </p>
                         </div>
@@ -305,16 +304,14 @@ const ReglamentoHigiene = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 ) : (
                                     <Sparkles className="h-5 w-5" />
                                 )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    Generar Reglamento IA
-                                </span>
+                                <span>Generar Reglamento con IA</span>
                             </button>
                         </div>
                     </div>

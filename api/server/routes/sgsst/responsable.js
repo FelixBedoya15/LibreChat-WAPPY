@@ -7,7 +7,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/responsable/generate
@@ -167,6 +167,10 @@ Asegúrate de que el documento se vea como una carta formal de asignación corpo
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        if (loadedCompanyInfo) {
+            cleanedDoc += buildSignatureSection(loadedCompanyInfo);
+        }
 
         res.json({ document: cleanedDoc });
 

@@ -7,7 +7,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/politica/generate
@@ -204,6 +204,10 @@ El diseño debe ser elegante con colores institucionales (azul #004d99 para enca
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        if (loadedCompanyInfo) {
+            cleanedPolicy += buildSignatureSection(loadedCompanyInfo);
+        }
 
         res.json({ policy: cleanedPolicy });
 

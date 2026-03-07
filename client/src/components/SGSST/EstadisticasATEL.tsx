@@ -473,11 +473,22 @@ const EstadisticasATEL = () => {
                             />
 
                             {/* 3. Auto-calculated Summary Badge */}
-                            <div className="flex flex-wrap gap-2 text-xs text-text-secondary p-3 bg-surface-tertiary rounded-lg border border-border-medium">
-                                <span className="font-semibold text-text-primary">Resumen Mes:</span>
-                                <span>AT: <strong className="text-blue-600">{stats.numAT}</strong></span> •
-                                <span>EL: <strong className="text-green-600">{stats.casosNuevosEL}</strong></span> •
-                                <span>Incap: <strong className="text-amber-600">{stats.diasIncapacidadAT + stats.diasAusencia}</strong> días</span>
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex-1 flex flex-wrap gap-2 text-xs text-text-secondary p-3 bg-surface-tertiary rounded-lg border border-border-medium">
+                                    <span className="font-semibold text-text-primary">Resumen Mes:</span>
+                                    <span>AT: <strong className="text-blue-600">{stats.numAT}</strong></span> •
+                                    <span>EL: <strong className="text-green-600">{stats.casosNuevosEL}</strong></span> •
+                                    <span>Incap: <strong className="text-amber-600">{stats.diasIncapacidadAT + stats.diasAusencia}</strong> días</span>
+                                </div>
+                                <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
+                                    <h4 className="text-xs text-blue-800 dark:text-blue-300 mb-1 font-bold flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 animate-pulse text-blue-500" />
+                                        Generación Inteligente
+                                    </h4>
+                                    <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
+                                        La IA redactará el informe cruzando su accidentabilidad y hallazgos. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                                    </p>
+                                </div>
                             </div>
 
                             {/* 4. Action Buttons */}

@@ -6,7 +6,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 /**
  * POST /api/sgsst/estadisticas/generate
@@ -274,7 +274,11 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
         const result = await model.generateContent(promptText);
         const text = result.response.text();
 
-        const cleanedReport = cleanHtmlOutput(text);
+        let cleanedReport = cleanHtmlOutput(text);
+
+        if (ci) {
+            cleanedReport += buildSignatureSection(ci);
+        }
 
         res.json({ report: cleanedReport });
 

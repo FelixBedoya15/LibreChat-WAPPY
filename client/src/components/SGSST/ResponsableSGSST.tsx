@@ -265,16 +265,14 @@ const ResponsableSGSST = () => {
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGenerating ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
                         <Sparkles className="h-5 w-5" />
                     )}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                        Generar Asignación IA
-                    </span>
+                    <span>Generar con IA</span>
                 </button>
                 <ModelSelector
                     selectedModel={selectedModel}
@@ -326,18 +324,15 @@ const ResponsableSGSST = () => {
 
                 {isFormExpanded && (
                     <div className="p-4 space-y-4">
-                        {/* AI Advisory Notice */}
-                        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
-                            <div className="flex gap-3">
-                                <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
-                                <div className="space-y-1">
-                                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200">Generación Inteligente</h4>
-                                    <p className="text-xs text-blue-800/80 dark:text-blue-300/80 leading-relaxed">
-                                        Puede dejar los campos en blanco. La IA utilizará automáticamente la información que haya guardado en el perfil de <strong>Información de la Empresa</strong>.
-                                        Si no ingresa una normativa específica, se aplicará por defecto la <strong>Resolución 908 de 2025</strong> y <strong>Resolución 0312 de 2019</strong>.
-                                    </p>
-                                </div>
-                            </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
+                            <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                                Generación Inteligente
+                            </h4>
+                            <p className="text-sm text-text-secondary leading-relaxed">
+                                Puede dejar los campos en blanco. La IA utilizará automáticamente la información que haya guardado en el perfil de <strong>Información de la Empresa</strong>.
+                                Si no ingresa una normativa específica, se aplicará por defecto la <strong>Resolución 908 de 2025</strong> y <strong>Resolución 0312 de 2019</strong>.
+                            </p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -374,16 +369,14 @@ const ResponsableSGSST = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 ) : (
                                     <Sparkles className="h-5 w-5" />
                                 )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    Generar con IA
-                                </span>
+                                <span>Generar con IA</span>
                             </button>
                         </div>
                     </div>

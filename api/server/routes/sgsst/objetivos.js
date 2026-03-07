@@ -8,7 +8,7 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { Conversation, Message } = require('~/db/models');
-const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 const auditoriaMap = require('./auditoriaMap');
 
 /**
@@ -229,6 +229,10 @@ Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; wi
             .replace(/<head>[\s\S]*?<\/head>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        if (loadedCompanyInfo) {
+            cleanedHtml += buildSignatureSection(loadedCompanyInfo);
+        }
 
         res.json({ objectives: cleanedHtml });
 

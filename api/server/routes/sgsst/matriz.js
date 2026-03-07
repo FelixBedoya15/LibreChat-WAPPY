@@ -7,7 +7,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { buildStandardHeader, buildCompanyContextString } = require('./reportHeader');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
 const MatrizLegalDataSchema = new mongoose.Schema({
@@ -228,7 +228,12 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
     </div>
   </div>`;
         }).join('\\n');
-        const finalContent = `${cleanedMatrix}\n<div class="mt-12">\n<h3 style="color: #0f172a; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">Anexo: Detalle de Criterios Ley / Matriz Evaluada</h3>\n${tableRowsHTML}</div>`;
+        let finalContent = `${cleanedMatrix}\n<div class="mt-12">\n<h3 style="color: #004d99; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #004d99; padding-bottom: 8px;">Anexo: Detalle de Criterios Ley / Matriz Evaluada</h3>\n${tableRowsHTML}</div>`;
+
+        if (loadedCompanyInfo) {
+            finalContent += buildSignatureSection(loadedCompanyInfo);
+        }
+
         res.json({ matrix: finalContent });
 
     } catch (error) {

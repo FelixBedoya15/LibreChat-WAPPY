@@ -490,12 +490,10 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                            Generar Informe
-                        </span>
+                        <span>Generar Informe con IA</span>
                     </button>
 
                     {/* Show Save/Export if content exists OR we have analysis results */}
@@ -629,17 +627,24 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
 
 
-            {/* Bottom Action Button */}
-            <div className="flex justify-center mt-6 mb-4">
+            <div className="flex flex-col items-center gap-4 mt-8 mb-6">
+                <div className="max-w-2xl bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300 text-center">
+                    <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center justify-center gap-2">
+                        <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                        Generación Inteligente
+                    </h4>
+                    <p className="text-sm text-text-secondary leading-relaxed">
+                        La IA redactará el Informe de Auditoría analizando sus hallazgos, cumplimiento de estándares y requisitos del Decreto 1072. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                    </p>
+                </div>
+
                 <button
                     onClick={handleAnalyze}
                     disabled={isAnalyzing || completedCount === 0}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                 >
-                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                        Generar Informe
-                    </span>
+                    {isAnalyzing ? <Loader2 className="h-6 w-6 animate-spin" /> : <Sparkles className="h-6 w-6" />}
+                    <span>Generar Informe de Auditoría con IA</span>
                 </button>
             </div>
 

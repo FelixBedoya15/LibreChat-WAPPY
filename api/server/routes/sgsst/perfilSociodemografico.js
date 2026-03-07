@@ -7,6 +7,7 @@ const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const WorkerEntrySchema = new mongoose.Schema({
@@ -311,47 +312,13 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
     const representante = loadedCompanyInfo?.legalRepresentative || userName || 'No registrado';
     const fechaEmision = currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    const headerHTML = `
-<div style="text-align: center; margin-bottom: 24px;">
-    <h1 style="color: #004d99; font-size: 26px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; border-bottom: none; padding-bottom: 0;">
-        INFORME EJECUTIVO DEL PERFIL SOCIODEMOGRÁFICO
-    </h1>
-    <h2 style="color: #475569; font-size: 18px; font-weight: 600; border-bottom: 3px solid #004d99; padding-bottom: 12px; margin-top: 0; display: inline-block;">
-        Gestión de Sistema de Seguridad y Salud en el Trabajo
-    </h2>
-</div>
-
-<div style="overflow-x: auto; width: 100%; margin-bottom: 24px; padding-bottom: 8px;">
-<table style="width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: inherit;">
-  <thead>
-    <tr>
-      <th colspan="4" style="background-color: #004d99; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-        INFORMACIÓN RESUMIDA DE LA ENTIDAD
-      </th>
-    </tr>
-  </thead>
-  <tbody style="font-size: 14px; color: #1e293b;">
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Empresa:</td>
-      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${empresa}</td>
-      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">NIT:</td>
-      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd;">${nit}</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Representante:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${representante}</td>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">Registros:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${trabajadores.length} Trabajadores</td>
-    </tr>
-    <tr>
-      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;">Fecha de Emisión:</td>
-      <td style="padding: 10px 14px; border-right: 1px solid #eee;">${fechaEmision}</td>
-      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee;"></td>
-      <td style="padding: 10px 14px;"></td>
-    </tr>
-  </tbody>
-</table>
-</div>`;
+    const headerHTML = buildStandardHeader({
+      title: 'INFORME EJECUTIVO DEL PERFIL SOCIODEMOGRÁFICO',
+      companyInfo: loadedCompanyInfo,
+      date: fechaEmision,
+      norm: 'Gestión de Sistema de Seguridad y Salud en el Trabajo',
+      responsibleName: representante
+    });
 
     // Pre-process summary for prompt
     let numMen = 0;
@@ -437,10 +404,14 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
     let aiHtml = result.response.text().trim();
     aiHtml = aiHtml.replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 
-    const fullReport = `${headerHTML}
+    let fullReport = `${headerHTML}
                         <div class="mt-8 space-y-6">
                             ${aiHtml}
                         </div>`;
+
+    if (loadedCompanyInfo) {
+      fullReport += buildSignatureSection(loadedCompanyInfo);
+    }
 
     res.json({ report: fullReport });
   } catch (error) {

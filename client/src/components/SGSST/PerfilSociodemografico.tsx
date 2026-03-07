@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Loader2,
+    Sparkles,
 } from 'lucide-react';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -267,6 +268,18 @@ const PerfilSociodemografico = () => {
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Perfil Sociodemográfico</h2>
                         <span className="text-sm text-text-secondary">{trabajadores.length} Trabajadores Registrados</span>
+                    </div>
+
+                    <div className="flex-1 px-4 hidden lg:block">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
+                            <h4 className="text-xs text-blue-800 dark:text-blue-300 mb-1 font-bold flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 animate-pulse text-blue-500" />
+                                Generación Inteligente
+                            </h4>
+                            <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
+                                La IA redactará el informe cruzando la información sociodemográfica y hallazgos médicos. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">

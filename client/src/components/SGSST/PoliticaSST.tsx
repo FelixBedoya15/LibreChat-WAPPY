@@ -304,12 +304,13 @@ const PoliticaSST = () => {
 
                 {isFormExpanded && (
                     <div className="p-4 space-y-4">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
-                            <p className="text-sm text-blue-800 dark:text-blue-300 mb-1 font-medium flex items-center gap-2">
-                                <Sparkles className="h-4 w-4" /> Generación Inteligente
-                            </p>
-                            <p className="text-sm text-text-secondary">
-                                Puede dejar <strong>todos los campos vacíos</strong>. Si no ingresa "Peligros y Riesgos", la IA buscará y utilizará automáticamente los que haya guardado en el módulo <strong>Matriz de Peligros GTC 45</strong>.
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
+                            <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                                Generación Inteligente
+                            </h4>
+                            <p className="text-sm text-text-secondary leading-relaxed">
+                                Puede dejar <strong>todos los campos vacíos</strong>. Si no ingresa información, la IA buscará y utilizará automáticamente los peligros de su <strong>Matriz de Peligros GTC 45</strong>. Si no ingresa la normatividad, se tomará por defecto la <strong>Resolución 908 de 2025 y Resolución 0312 de 2019</strong>.
                             </p>
                         </div>
 
@@ -341,16 +342,14 @@ const PoliticaSST = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 ) : (
                                     <Sparkles className="h-5 w-5" />
                                 )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                                    Generar Política con IA
-                                </span>
+                                <span>Generar Política con IA</span>
                             </button>
                         </div>
                     </div>

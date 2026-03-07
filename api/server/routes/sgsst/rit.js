@@ -6,6 +6,7 @@ const { requireJwtAuth } = require('../../middleware/');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
@@ -30,25 +31,30 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             additionalContextContext += `\\n### Beneficios Adicionales o Disposiciones Extra:\\n${additionalBenefits}\\n`;
         }
 
+        const headerHTML = buildStandardHeader({
+            title: 'REGLAMENTO INTERNO DE TRABAJO',
+            companyInfo: companyInfo,
+            date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+            norm: 'Código Sustantivo del Trabajo',
+            responsibleName: companyInfo.legalRepresentative || req.user?.name
+        });
+
         const prompt = `Actúa como un abogado experto en derecho laboral corporativo en Colombia.
 Tu tarea es redactar el REGLAMENTO INTERNO DE TRABAJO (RIT) para la empresa descrita a continuación.
 El reglamento debe cumplir estrictamente con el Código Sustantivo del Trabajo de Colombia y las actualizaciones de la Reforma Laboral (ej. Ley 2466 de 2025).
 
 ### Datos de la Empresa
-*   **Razón Social:** ${companyInfo.companyName || 'No especificado'}
-*   **NIT:** ${companyInfo.nit || 'No especificado'}
-*   **Representante Legal:** ${companyInfo.legalRepresentative || 'No especificado'}
-*   **Actividad Económica:** ${companyInfo.economicActivity || 'No especificado'}
-*   **Ciudad:** ${companyInfo.city || 'No especificado'}
-*   **Dirección:** ${companyInfo.address || 'No especificado'}
+${buildCompanyContextString(companyInfo)}
 ${additionalContextContext}
 
 ### Instrucciones de Formato y Estructura:
-1.  **Encabezado:** Inicia con un título claro (REGLAMENTO INTERNO DE TRABAJO), el nombre de la empresa y NIT.
-2.  **Organización legal mínima:** Debes abordar (pero no limitarte) a: Condiciones de admisión, Período de Prueba, Horario de Trabajo y Jornada Laboral, Días de Descanso Legal, Vacaciones Remuneradas, Permisos y Licencias (incluyendo licencia de paternidad modernizada, calamidad doméstica y luto), Salario y Lugar/Días de Pago, Prescripciones de Orden y Seguridad, Obligaciones Especiales para la Empresa y para los Trabajadores, Prohibiciones, Faltas Graves y Leves, Escala de Sanciones Disciplinarias, Procedimiento de Comprobación de Faltas y Mecanismos de Prevención de Acoso Laboral (Ley 1010).
-3.  **Personalización:** Aplica directamente las condiciones especiales, horarios y beneficios si la empresa proveyó esos datos. Si no, genera estándares legales (Ej 47 o 42 horas según la reducción progresiva de la jornada laboral en Colombia).
-4.  **HTML:** Retorna **solamente** el documento formulado en código HTML, sin incluir ticks de markdown (\`\`\`). Utiliza etiquetas estructuradas como <h1>, <h2>, <p>, <ul>, <ol>, <li>, <strong>. No uses CSS inline complejo. No incluyas las etiquetas <html>, <head> o <body>, solo el contenido del documento.
-5.  **Tablas de Firmas:** Al final del documento, incluye una sección para la firma del Empleador/Representante Legal.`;
+1.  **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+${headerHTML}
+
+2.  **Organización legal mínima**: Debes abordar (pero no limitarte) a: Condiciones de admisión, Período de Prueba, Horario de Trabajo y Jornada Laboral, Días de Descanso Legal, Vacaciones Remuneradas, Permisos y Licencias (incluyendo licencia de paternidad modernizada, calamidad doméstica y luto), Salario y Lugar/Días de Pago, Prescripciones de Orden y Seguridad, Obligaciones Especiales para la Empresa y para los Trabajadores, Prohibiciones, Faltas Graves y Leves, Escala de Sanciones Disciplinarias, Procedimiento de Comprobación de Faltas y Mecanismos de Prevención de Acoso Laboral (Ley 1010).
+3.  **Personalización**: Aplica directamente las condiciones especiales, horarios y beneficios si la empresa proveyó esos datos. Si no, genera estándares legales (Ej 47 o 42 horas según la reducción progresiva de la jornada laboral en Colombia).
+4.  **HTML**: Retorna **solamente** el documento formulado en código HTML, sin incluir ticks de markdown (\`\`\`). Utiliza etiquetas estructuradas como <h1>, <h2>, <p>, <ul>, <ol>, <li>, <strong>. No uses CSS inline complejo. No incluyas las etiquetas <html>, <head> o <body>, solo el contenido del documento.
+5.  **FIRMA**: El sistema añadirá la sección de firmas automáticamente. NO la generes tú.`;
 
         // Retrieve the user's Google API key
         let resolvedApiKey;
@@ -100,6 +106,10 @@ ${additionalContextContext}
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
+
+        if (companyInfo) {
+            cleanedHtml += buildSignatureSection(companyInfo);
+        }
 
         res.json({ document: cleanedHtml });
     } catch (error) {
