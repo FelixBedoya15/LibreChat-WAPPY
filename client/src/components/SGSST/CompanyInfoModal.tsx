@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
+    Award, Calendar, UserCheck
 } from 'lucide-react';
+
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -24,7 +26,12 @@ interface CompanyInfoData {
     generalActivities: string;
     sector: string;
     responsibleSST: string;
+    formationLevel: string;
+    licenseNumber: string;
+    courseStatus: string;
+    licenseExpiry: string;
 }
+
 
 const INITIAL_DATA: CompanyInfoData = {
     companyName: '',
@@ -42,7 +49,12 @@ const INITIAL_DATA: CompanyInfoData = {
     generalActivities: '',
     sector: '',
     responsibleSST: '',
+    formationLevel: '',
+    licenseNumber: '',
+    courseStatus: '',
+    licenseExpiry: '',
 };
+
 
 const ARL_OPTIONS = [
     'Sura', 'Positiva', 'Colmena', 'Bolívar', 'Alfa',
@@ -120,6 +132,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         'arl', 'economicActivity', 'riskLevel', 'ciiu',
         'address', 'city', 'phone', 'email',
         'sector', 'responsibleSST', 'generalActivities',
+        'formationLevel', 'licenseNumber', 'courseStatus', 'licenseExpiry',
     ] as const;
 
     const isFormValid = REQUIRED_FIELDS.every(field => {
@@ -130,6 +143,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         }
         return val !== undefined && val !== null && val !== 0 && !isNaN(val as number);
     });
+
 
     const inputClass = 'w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
@@ -223,11 +237,28 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <input className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder="Ej: 4711" />
                                     </div>
                                     <div className="md:col-span-2">
-                                        <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
+                                        <label className={labelClass}><UserCheck className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
                                         <input className={inputClass} value={data.responsibleSST} onChange={e => handleChange('responsibleSST', e.target.value)} placeholder={t('com_ui_sst_responsible_placeholder', 'Nombre del responsable')} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Briefcase className="h-3 w-3" />Nivel de Formación</label>
+                                        <input className={inputClass} value={data.formationLevel} onChange={e => handleChange('formationLevel', e.target.value)} placeholder="Técnico, Tecnólogo, Profesional, Especialista" />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Award className="h-3 w-3" />Número de Licencia SST</label>
+                                        <input className={inputClass} value={data.licenseNumber} onChange={e => handleChange('licenseNumber', e.target.value)} placeholder="Ej: 1234 de 2024" />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Calendar className="h-3 w-3" />Vigencia de Licencia</label>
+                                        <input className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} placeholder="Fecha de vencimiento" />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><FileText className="h-3 w-3" />Curso 50H / Actualización 20H</label>
+                                        <input className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} placeholder="Certificado vigente (Año)" />
                                     </div>
                                 </div>
                             </div>
+
 
                             {/* Contact Info */}
                             <div>

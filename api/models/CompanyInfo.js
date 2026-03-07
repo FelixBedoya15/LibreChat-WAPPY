@@ -81,6 +81,27 @@ const companyInfoSchema = new mongoose.Schema({
         trim: true,
         default: '',
     },
+    formationLevel: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    licenseNumber: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    courseStatus: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    licenseExpiry: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('CompanyInfo', companyInfoSchema);

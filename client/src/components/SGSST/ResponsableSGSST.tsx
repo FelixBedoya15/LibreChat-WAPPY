@@ -51,7 +51,27 @@ const ResponsableSGSST = () => {
     // Expand/collapse form
     const [isFormExpanded, setIsFormExpanded] = useState(true);
 
+    // Auto-fill from company info
+    React.useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/company-info', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    if (data.responsibleSST) setResponsableName(prev => prev || data.responsibleSST);
+                    if (data.formationLevel) setFormationLevel(prev => prev || data.formationLevel);
+                    if (data.licenseNumber) setLicenseNumber(prev => prev || data.licenseNumber);
+                    if (data.licenseExpiry) setLicenseExpiry(prev => prev || data.licenseExpiry);
+                    if (data.courseStatus) setCourseStatus(prev => prev || data.courseStatus);
+                }
+            })
+            .catch(err => console.error('Error fetching company info for auto-fill:', err));
+    }, [token]);
+
     const handleGenerate = useCallback(async () => {
+
         setIsGenerating(true);
         try {
             const response = await fetch('/api/sgsst/responsable/generate', {

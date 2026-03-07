@@ -66,6 +66,14 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             logger.warn('[SGSST Responsable] Error loading company info:', ciErr.message);
         }
 
+        // Fallbacks from CompanyInfo if not provided in req.body
+        const finalResponsableName = responsableName || loadedCompanyInfo?.responsibleSST || req.user?.name;
+        const finalFormationLevel = formationLevel || loadedCompanyInfo?.formationLevel || 'A definir';
+        const finalLicenseNumber = licenseNumber || loadedCompanyInfo?.licenseNumber || 'A definir';
+        const finalLicenseExpiry = licenseExpiry || loadedCompanyInfo?.licenseExpiry || 'A definir';
+        const finalCourseStatus = courseStatus || loadedCompanyInfo?.courseStatus || 'A definir';
+        const finalNorms = additionalNorms || 'Resolución 908 de 2025, Resolución 0312 de 2019';
+
         // 3. Initialize the Gemini SDK
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
@@ -80,8 +88,8 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             title: 'ASIGNACIÓN DEL RESPONSABLE DEL SG-SST',
             companyInfo: loadedCompanyInfo,
             date: currentDate,
-            norm: 'Resolución 0312 de 2019 / Decreto 1072 de 2015',
-            responsibleName: responsableName || req.user?.name,
+            norm: finalNorms,
+            responsibleName: finalResponsableName,
         });
 
         const promptText = `Eres un experto consultor en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SG-SST) en Colombia.
@@ -90,14 +98,17 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 **Empresa:** ${loadedCompanyInfo?.companyName || 'La Organización'}
 
 ## DATOS DEL RESPONSABLE
-- **Nombre:** ${responsableName || 'A definir'}
-- **Nivel de Formación:** ${formationLevel || 'A definir'}
-- **Número de Licencia SST:** ${licenseNumber || 'A definir'}
-- **Vigencia de Licencia:** ${licenseExpiry || 'A definir'}
-- **Curso 50/20 Horas:** ${courseStatus || 'A definir'}
+- **Nombre:** ${finalResponsableName}
+- **Nivel de Formación:** ${finalFormationLevel}
+- **Número de Licencia SST:** ${finalLicenseNumber}
+- **Vigencia de Licencia:** ${finalLicenseExpiry}
+- **Curso 50/20 Horas:** ${finalCourseStatus}
 
 ## DATOS DE LA EMPRESA
 ${companyInfoBlock}
+
+## REGULACIÓN APLICABLE
+${finalNorms}
 
 ## INSTRUCCIONES
 Genera un documento oficial de ASIGNACIÓN DEL RESPONSABLE DEL SG-SST completo y profesional en formato HTML con las siguientes secciones:
@@ -107,7 +118,7 @@ ${reportHeaderHTML}
 
 2. **OBJETO DE LA ASIGNACIÓN**: Designación formal de la persona responsable para el diseño e implementación del SG-SST.
 
-3. **PERFIL Y REQUISITOS NORMATIVOS**: Validar si el perfil (Técnico, Tecnólogo, Profesional) es adecuado según el número de trabajadores y nivel de riesgo de la empresa, citando la Resolución 0312 de 2019.
+3. **PERFIL Y REQUISITOS NORMATIVOS**: Validar si el perfil (${finalFormationLevel}) es adecuado según el número de trabajadores (${loadedCompanyInfo?.workerCount || 'No especificado'}) y nivel de riesgo (${loadedCompanyInfo?.riskLevel || 'No especificado'}) de la empresa, citando la Resolución 0312 de 2019 y Resolución 908 de 2025.
 
 4. **RESPONSABILIDADES ESPECÍFICAS**: Lista detallada de responsabilidades basadas en el Decreto 1072 de 2015, incluyendo:
    - Diseño del SG-SST
@@ -132,6 +143,7 @@ ${reportHeaderHTML}
 IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>.
 Usa etiquetas HTML semánticas y estilos inline elegantes con colores institucionales (azul #004d99 para encabezados).
 Asegúrate de que el documento se vea como una carta formal de asignación corporativa.`;
+
 
         // 4. Generate the document
         const result = await model.generateContent(promptText);
