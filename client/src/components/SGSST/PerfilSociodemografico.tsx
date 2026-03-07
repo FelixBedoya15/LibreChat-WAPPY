@@ -277,7 +277,7 @@ const PerfilSociodemografico = () => {
                                 Generación Inteligente
                             </h4>
                             <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
-                                La IA redactará el informe cruzando la información sociodemográfica y hallazgos médicos. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                                La IA redactará el informe cruzando la información sociodemográfica y hallazgos médicos. Se tomará por defecto el <strong>Decreto 1072 de 2015</strong>, <strong>Resolución 0312 de 2019</strong>, <strong>Res. 1843 de 2025 (Exámenes)</strong> y <strong>Res. 4272 de 2021 (Alturas)</strong> si no especifica otra.
                             </p>
                         </div>
                     </div>

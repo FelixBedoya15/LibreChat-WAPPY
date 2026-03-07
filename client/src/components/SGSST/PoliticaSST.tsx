@@ -310,7 +310,7 @@ const PoliticaSST = () => {
                                 Generación Inteligente
                             </h4>
                             <p className="text-sm text-text-secondary leading-relaxed">
-                                Puede dejar <strong>todos los campos vacíos</strong>. Si no ingresa información, la IA buscará y utilizará automáticamente los peligros de su <strong>Matriz de Peligros GTC 45</strong>. Si no ingresa la normatividad, se tomará por defecto la <strong>Resolución 908 de 2025 y Resolución 0312 de 2019</strong>.
+                                Puede dejar <strong>todos los campos vacíos</strong>. Si no ingresa información, la IA buscará y utilizará automáticamente los peligros de su <strong>Matriz de Peligros GTC 45</strong>. Si no ingresa la normatividad, se tomará por defecto el <strong>Decreto 1072 de 2015</strong> y <strong>Resolución 0312 de 2019</strong>.
                             </p>
                         </div>
 

@@ -435,7 +435,7 @@ const MatrizLegal = () => {
                                     Generación Inteligente
                                 </h4>
                                 <p className="text-sm text-text-secondary leading-relaxed">
-                                    Si no ingresa la normatividad específica, se tomará por defecto la <strong>Resolución 908 de 2025 y Resolución 0312 de 2019</strong>. La IA redactará el análisis cruzando sus respuestas actuales.
+                                    Si no ingresa la normatividad específica, se tomará por defecto el <strong>Decreto 1072 de 2015</strong> y <strong>Resolución 0312 de 2019</strong>. La IA redactará el análisis cruzando sus respuestas actuales.
                                 </p>
                             </div>
                         </div>

@@ -502,8 +502,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                 <Sparkles className="h-4 w-4 animate-pulse text-blue-500" />
                                 Generación Inteligente
                             </h4>
-                            <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
-                                La IA redactará el informe cruzando su accidentabilidad y hallazgos. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                            <p className="text-sm text-text-secondary leading-relaxed">
+                                La IA redactará el diagnóstico basándose en el cumplimiento de los estándares mínimos evaluados (Ciclo PHVA). Se tomará por defecto el <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong> si no especifica otra.
                             </p>
                         </div>
                     </div>

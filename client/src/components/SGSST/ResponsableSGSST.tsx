@@ -331,7 +331,7 @@ const ResponsableSGSST = () => {
                             </h4>
                             <p className="text-sm text-text-secondary leading-relaxed">
                                 Puede dejar los campos en blanco. La IA utilizará automáticamente la información que haya guardado en el perfil de <strong>Información de la Empresa</strong>.
-                                Si no ingresa una normativa específica, se aplicará por defecto la <strong>Resolución 908 de 2025</strong> y <strong>Resolución 0312 de 2019</strong>.
+                                Si no ingresa una normativa específica, se aplicará por defecto la <strong>Resolución 908 de 2025</strong>, el <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong>.
                             </p>
                         </div>
 

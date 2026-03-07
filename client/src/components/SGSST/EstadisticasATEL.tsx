@@ -486,7 +486,7 @@ const EstadisticasATEL = () => {
                                         Generación Inteligente
                                     </h4>
                                     <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
-                                        La IA redactará el informe cruzando su accidentabilidad y hallazgos. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                                        La IA redactará el informe cruzando su accidentabilidad y hallazgos. Se tomará por defecto la <strong>Resolución 1401 de 2007</strong>, el <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong> si no especifica otra.
                                     </p>
                                 </div>
                             </div>

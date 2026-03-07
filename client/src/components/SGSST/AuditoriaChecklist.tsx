@@ -634,7 +634,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         Generación Inteligente
                     </h4>
                     <p className="text-sm text-text-secondary leading-relaxed">
-                        La IA redactará el Informe de Auditoría analizando sus hallazgos, cumplimiento de estándares y requisitos del Decreto 1072. Se tomará por defecto la <strong>Resolución 908 de 2025</strong> si no específica otra.
+                        La IA redactará el Informe de Auditoría analizando sus hallazgos, cumplimiento de estándares y requisitos del Decreto 1072. Se tomará por defecto el <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong> si no especifica otra.
                     </p>
                 </div>
 

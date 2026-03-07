@@ -14,6 +14,12 @@ const useLocationSystem = () => {
             return;
         }
 
+        const cached = sessionStorage.getItem('cached_user_location');
+        if (cached) {
+            setUserLocation(cached);
+            return;
+        }
+
         if (!navigator.geolocation) {
             console.warn('Geolocation is not supported by this browser.');
             showToast({ message: 'Geolocation is not supported by this browser', status: 'error' });
@@ -36,15 +42,18 @@ const useLocationSystem = () => {
                     const locationName = city || town || village || state || 'Unknown Location';
                     const locationString = `User Location: ${country}, ${locationName} (Lat: ${latitude}, Long: ${longitude})`;
                     setUserLocation(locationString);
+                    sessionStorage.setItem('cached_user_location', locationString);
                     console.log('Location acquired:', locationString);
                 } else {
                     const locationString = `User Location: Latitude ${latitude}, Longitude ${longitude}`;
                     setUserLocation(locationString);
+                    sessionStorage.setItem('cached_user_location', locationString);
                 }
             } catch (error) {
                 console.error('Error fetching address:', error);
                 const locationString = `User Location: Latitude ${latitude}, Longitude ${longitude}`;
                 setUserLocation(locationString);
+                sessionStorage.setItem('cached_user_location', locationString);
             }
         };
 
