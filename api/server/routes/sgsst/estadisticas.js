@@ -262,7 +262,7 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
     - Prioriza según los hallazgos.
 
 7.  **FIRMA:**
-    - Bloque de firma al final con línea superior y datos del responsable.
+    - El sistema añadirá la sección de firmas automáticamente. NO la generes tú.
 
 **IMPORTANTE:** El resultado debe ser un HTML limpio, listo para renderizar, visualmente impactante y profesional.
 `;

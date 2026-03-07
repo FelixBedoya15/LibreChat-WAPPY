@@ -201,9 +201,10 @@ ${headerHTML}
    Un párrafo indicando la obligación de comunicar los objetivos a todos los trabajadores y revisarlos mínimo una vez al año, tal como exige la norma.
 
 6. **FIRMA**:
-   Espacio para firma del Representante Legal.
+   El sistema añadirá la sección de firmas automáticamente. NO la generes tú.
 
 IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
+MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombres de representantes o responsables al final del documento, ya que el sistema los añadirá automáticamente de forma estandarizada.
 Usa etiquetas HTML semánticas (<h1>, <h2>, <p>, <table>, etc).
 Para estilos, usa atributos style inline. PRECAUCIÓN MODO OSCURO: Cuando uses \`background-color\`, OBLIGATORIAMENTE declara \`color: #000;\` (fondo claro) o \`color: #fff;\` (fondo oscuro). NO uses clases de Tailwind.
 El diseño debe ser elegante con acentos en azul oscuro (#004d99). Tablas deben tener \`width="100%"\`, \`overflow: hidden\`, y colores de cabecera sólidos.

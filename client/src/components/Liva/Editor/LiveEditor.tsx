@@ -166,6 +166,16 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     top: rect.top - editorRect.top - 50 + editorRef.current.scrollTop,
                     left: rect.left - editorRect.left
                 });
+            } else if ((target.closest('.signature-placeholder') || target.innerText?.includes('FIRMADO DIGITALMENTE')) && editorRef.current?.contains(target)) {
+                const placeholder = (target.closest('.signature-placeholder') || target.closest('div') || target.parentElement) as HTMLElement;
+                if (placeholder) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[LiveEditor] Signature placeholder clicked');
+                    clearSelections();
+                    setActiveSignaturePlaceholder(placeholder);
+                    setIsSignatureModalOpen(true);
+                }
             } else if (target.closest('td, th') && editorRef.current?.contains(target)) {
                 const cell = target.closest('td, th') as HTMLTableCellElement;
                 clearSelections();
@@ -189,16 +199,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                         top: rect.top - editorRect.top - 60 + editorRef.current!.scrollTop,
                         left: rect.left - editorRect.left
                     });
-                }
-            } else if ((target.closest('.signature-placeholder') || target.innerText?.includes('FIRMADO DIGITALMENTE')) && editorRef.current?.contains(target)) {
-                const placeholder = (target.closest('.signature-placeholder') || target.closest('div') || target.parentElement) as HTMLElement;
-                if (placeholder) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('[LiveEditor] Signature placeholder clicked');
-                    clearSelections();
-                    setActiveSignaturePlaceholder(placeholder);
-                    setIsSignatureModalOpen(true);
                 }
             } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.signature-modal')) {
                 clearSelections();

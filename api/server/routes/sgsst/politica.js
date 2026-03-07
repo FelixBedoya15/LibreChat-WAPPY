@@ -173,9 +173,10 @@ ${policyHeaderHTML}
 
 9. **REVISIÓN**: Periodicidad de revisión (mínimo anual según normativa).
 
-10. **FIRMA**: Espacio para firma del Representante Legal con nombre y cargo.
+10. **FIRMA**: El sistema añadirá la sección de firmas automáticamente. NO la generes tú.
 
 IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>, ni etiquetas de documento completo.
+MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombres de representantes o responsables al final del documento, ya que el sistema los añadirá automáticamente de forma estandarizada.
 Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
 Para estilos, usa atributos style inline en los elementos (PRECAUCIÓN MODO OSCURO: Cuando uses \`background-color\`, OBLIGATORIAMENTE declara \`color: #000;\` si el fondo es claro, o \`color: #fff;\` si es oscuro. NO uses filas de tablas intercaladas claras/oscuras).
 La política debe ser formal, profesional y cumplir con los requisitos del Decreto 1072 de 2015, Art. 2.2.4.6.5 y 2.2.4.6.6.

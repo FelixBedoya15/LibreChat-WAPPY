@@ -383,20 +383,7 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 - NC Mayor: fondo rosa (#ffe0e0) con \`color: #000;\`. NC Menor: fondo amarillo (#fff8e0) con \`color: #000;\`. Observación: fondo azul claro (#e0f0ff) con \`color: #000;\`.
 - Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo, \`color: #000;\`), Corto (#fff0e0 naranja, \`color: #000;\`), Mediano (#fff8e0 amarillo, \`color: #000;\`), Largo (#e0ffe0 verde, \`color: #000;\`).
 
-**FIRMA OBLIGATORIA:**
-Al final del informe, incluye un espacio de firma:
-<div style="margin-top: 50px; text-align: center;" class="signature-section">
-    <div class="signature-placeholder" contenteditable="false" style="margin-bottom: 5px; color: #004d99; font-size: 10px; font-weight: bold; border: 2px dashed #004d99; padding: 15px; display: inline-block; border-radius: 12px; cursor: pointer; background: rgba(0,77,153,0.05);">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 5px;"><path d="m12 19 7-7 3 3-7 7-3-3z"></path><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="m2 2 5 5"></path><path d="m9.5 9.5 5 5"></path></svg><br>
-        FIRMADO DIGITALMENTE<br>
-        <span style="font-size: 9px; color: #666; font-weight: normal; display: block; margin-top: 5px;">Haga clic aquí para estampar su firma digital</span>
-    </div>
-    <hr style="width: 200px; margin: 0 auto 10px auto; border: none; border-top: 1px solid #333;" />
-    <strong>${userName || req.user?.name || 'Usuario del Sistema'}</strong><br>
-    Consultor Experto en SG-SST (Dec. 1072/2015)<br>
-    Licencia en Seguridad y Salud en el Trabajo Vigente
-</div>
-IMPORTANTE: El usuario puede usar el editor para insertar su imagen de firma digital guardada encima o debajo de esta línea si así lo desea.
+MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombres de representantes o responsables al final del documento, ya que el sistema los añadirá automáticamente de forma estandarizada.
 
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
         }
