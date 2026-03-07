@@ -326,11 +326,25 @@ const ResponsableSGSST = () => {
 
                 {isFormExpanded && (
                     <div className="p-4 space-y-4">
+                        {/* AI Advisory Notice */}
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
+                            <div className="flex gap-3">
+                                <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200">Generación Inteligente</h4>
+                                    <p className="text-xs text-blue-800/80 dark:text-blue-300/80 leading-relaxed">
+                                        Puede dejar los campos en blanco. La IA utilizará automáticamente la información que haya guardado en el perfil de <strong>Información de la Empresa</strong>.
+                                        Si no ingresa una normativa específica, se aplicará por defecto la <strong>Resolución 908 de 2025</strong> y <strong>Resolución 0312 de 2019</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {formFields.map((field) => {
                                 const Icon = field.icon;
                                 return (
-                                    <div key={field.id} className="space-y-1.5">
+                                    <div key={field.id} className="space-y-1.5 single-field-container">
                                         <label
                                             htmlFor={field.id}
                                             className="flex items-center gap-2 text-sm font-medium text-text-primary"
@@ -343,14 +357,19 @@ const ResponsableSGSST = () => {
                                             id={field.id}
                                             value={field.value}
                                             onChange={(e) => field.setter(e.target.value)}
-                                            placeholder={field.placeholder}
+                                            placeholder={field.id === 'additionalNorms' ? 'Resolución 908 de 2025, Resolucion 0312 de 2019 (Predeterminado)' : field.placeholder}
                                             className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                         />
-
+                                        {field.id === 'additionalNorms' && (
+                                            <p className="mt-1 text-[10px] italic text-text-secondary opacity-70">
+                                                * Si se deja vacío, la IA redactará basándose en la normativa vigente de 2025.
+                                            </p>
+                                        )}
                                     </div>
                                 );
                             })}
                         </div>
+
                         <div className="flex justify-center pt-2">
                             <button
                                 onClick={handleGenerate}
