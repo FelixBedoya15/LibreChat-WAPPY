@@ -28,6 +28,8 @@ const WorkerEntrySchema = new mongoose.Schema({
   recomendacionesMedicas: String,
   fechaSeguimiento: String,
   completedByAI: { type: Boolean, default: false },
+  consentimientoFirmaDigital: { type: String, default: 'No' },
+  firmaDigital: { type: String, default: null },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
@@ -165,6 +167,15 @@ router.get('/profile/:workerId', async (req, res) => {
         <span class="date-label">Alturas — Coordinador</span>
         <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'N/A'}</span>
       </div>
+      <div class="date-row" style="border-top: 1px solid #fde68a;">
+        <span class="date-label">Consentimiento Firma Digital</span>
+        <span class="date-value">${worker.consentimientoFirmaDigital === 'Sí' ? 'Autorizado' : 'No Autorizado'}</span>
+      </div>
+      ${worker.consentimientoFirmaDigital === 'Sí' && worker.firmaDigital ? `
+      <div style="margin-top: 15px; text-align: center;">
+        <span style="display: block; font-size: 11px; color: #64748b; margin-bottom: 5px; text-transform: uppercase;">Firma Registrada</span>
+        <img src="${worker.firmaDigital}" alt="Firma del trabajador" style="max-height: 80px; max-width: 100%; border-bottom: 1px solid #cbd5e1; padding-bottom: 5px;" />
+      </div>` : ''}
     </div>
   </div>
 

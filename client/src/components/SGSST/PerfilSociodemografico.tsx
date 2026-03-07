@@ -31,6 +31,8 @@ interface WorkerEntry {
     recomendacionesMedicas: string;
     fechaSeguimiento: string;
     completedByAI: boolean;
+    consentimientoFirmaDigital: string;
+    firmaDigital: string | null;
 }
 
 const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
@@ -38,7 +40,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     nivelEscolaridad: '', direccion: '', telefono: '', cargo: '',
     fechaExamenMedico: '', fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
     diagnosticoMedico: '', recomendacionesMedicas: '', fechaSeguimiento: '',
-    completedByAI: false,
+    completedByAI: false, consentimientoFirmaDigital: 'No', firmaDigital: null,
 };
 
 const PerfilSociodemografico = () => {
@@ -110,6 +112,17 @@ const PerfilSociodemografico = () => {
 
     const updateWorkerField = (workerId: string, field: keyof WorkerEntry, value: any) => {
         setTrabajadores(prev => prev.map(w => w.id === workerId ? { ...w, [field]: value } : w));
+    };
+
+    const handleFirmaUpload = (workerId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                updateWorkerField(workerId, 'firmaDigital', readerEvent.target?.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     // ─── Save & Generate ────────────────────────────────────────
@@ -520,6 +533,40 @@ const PerfilSociodemografico = () => {
                                                 <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase leading-tight">Alturas — Coordinador</label>
                                                 <input type="date" value={w.fechaCursoAlturasCoordinador} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasCoordinador', e.target.value)}
                                                     className="w-full text-sm p-2 rounded-lg border border-blue-200 bg-blue-50/10 dark:bg-blue-900/10 text-text-primary" />
+                                            </div>
+                                            <div className="space-y-1 lg:col-span-4 mt-2 p-4 border rounded-xl bg-surface-tertiary/30">
+                                                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                                                    <div className="space-y-1 w-full md:w-1/2">
+                                                        <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
+                                                        <select value={w.consentimientoFirmaDigital || 'No'} onChange={e => updateWorkerField(w.id, 'consentimientoFirmaDigital', e.target.value)}
+                                                            className="w-full text-sm p-2 rounded-lg border border-indigo-200 bg-indigo-50/10 dark:bg-indigo-900/10 text-text-primary">
+                                                            <option>Sí</option>
+                                                            <option>No</option>
+                                                        </select>
+                                                        <p className="text-[10px] text-text-secondary mt-1 max-w-[280px]">Muestra la firma en el Código QR y la habilita para otros reportes.</p>
+                                                    </div>
+
+                                                    <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
+                                                        {w.firmaDigital ? (
+                                                            <div className="relative group w-full flex items-center justify-center">
+                                                                <img src={w.firmaDigital} alt="Firma" className="max-h-16 object-contain" />
+                                                                <button
+                                                                    onClick={() => updateWorkerField(w.id, 'firmaDigital', null)}
+                                                                    className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
+                                                                >
+                                                                    <AnimatedIcon name="trash" size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <label className="cursor-pointer text-center flex flex-col items-center text-text-secondary w-full">
+                                                                <AnimatedIcon name="image" size={24} className="mb-2 text-indigo-400" />
+                                                                <span className="text-xs font-semibold uppercase">Cargar Firma</span>
+                                                                <span className="text-[10px] opacity-70 mt-1">Sube imagen de la firma del trabajador</span>
+                                                                <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload(w.id, e)} className="hidden" />
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

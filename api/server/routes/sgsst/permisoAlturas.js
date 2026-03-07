@@ -11,7 +11,10 @@ const router = express.Router();
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, images, modelName } = req.body;
+        const { formData, trabajadoresList, responsablesList, images, modelName } = req.body;
+
+        const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
+        const responsablesStr = responsablesList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
 
         let resolvedApiKey = null;
         try {
@@ -68,7 +71,7 @@ Eres un Asistente especializado en la gestión de permisos de trabajo en alturas
 Tu función es generar el documento de permiso de trabajo en alturas de forma completa, técnica y formal, basándote en la información y fotografías aportadas por el usuario.
 
 **DATOS APORTADOS POR EL USUARIO:**
-- Trabajadores implicados: ${formData.trabajadores || '[PENDIENTE]'}
+- Trabajadores implicados: ${trabajadoresStr}
 - Descripción detallada: ${formData.actividad || '[PENDIENTE]'}
 - Altura aproximada: ${formData.altura || '[PENDIENTE]'} metros
 - Fecha: ${formData.fecha || '[PENDIENTE]'} (De ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'})
@@ -85,7 +88,7 @@ Tu función es generar el documento de permiso de trabajo en alturas de forma co
 - Condiciones ambientales/eléctricas: ${formData.condicionesAmbientales || '[PENDIENTE]'}
 - Procedimiento: ${formData.procedimiento || '[PENDIENTE]'}
 
-**Responsables referidos:** ${formData.responsables || '[PENDIENTE]'}
+**Responsables referidos:** ${responsablesStr}
 
 **Descripciones fotográficas del usuario:**
 1. Lugar de trabajo: ${formData.foto1Desc || 'Ninguna descripción provista'}
@@ -155,7 +158,41 @@ Usa tablas (<table>) con \`width="100%"\`, \`border-collapse: collapse;\`, \`bor
             imagesHtml += `</div></div>`;
         }
 
-        let fullReport = headerHTML + '<div style="margin-top: 20px;">' + htmlBody + '</div>' + imagesHtml;
+        let extraSignatures = '';
+        if (trabajadoresList?.length || responsablesList?.length) {
+            extraSignatures += '<div style="margin-top: 50px; page-break-inside: avoid;">';
+            extraSignatures += '<h4 style="text-align: center; color: #1e293b; margin-bottom: 20px;">FIRMAS DE TRABAJADORES Y RESPONSABLES ADICIONALES</h4>';
+            extraSignatures += '<table style="width: 100%; border-collapse: collapse;"><tr>';
+
+            let count = 0;
+            const addSig = (name, role, idType, cedula) => {
+                if (count > 0 && count % 2 === 0) extraSignatures += '</tr><tr>';
+                extraSignatures += `
+                    <td style="width: 50%; padding: 20px; text-align: center; vertical-align: bottom;">
+                        <div class="signature-placeholder" data-signature-id="dyn_${idType}_${count}" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
+                            <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
+                        </div>
+                        <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${name}</div>
+                        <div style="font-size: 12px; color: #64748b; font-weight: 600;">${role}</div>
+                        <div style="font-size: 11px; color: #94a3b8;">CC: ${cedula}</div>
+                    </td>`;
+                count++;
+            };
+
+            trabajadoresList?.forEach(t => {
+                if (t.nombre) addSig(t.nombre, 'Trabajador Autorizado', 'trabajador', t.cedula || 'N/A');
+            });
+            responsablesList?.forEach(r => {
+                if (r.nombre) addSig(r.nombre, r.rol || 'Responsable', 'responsable', r.cedula || 'N/A');
+            });
+
+            if (count % 2 !== 0) {
+                extraSignatures += '<td style="width: 50%;"></td>';
+            }
+            extraSignatures += '</tr></table></div>';
+        }
+
+        let fullReport = headerHTML + '<div style="margin-top: 20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
 
         if (loadedCompanyInfo) {
             fullReport += buildSignatureSection(loadedCompanyInfo);

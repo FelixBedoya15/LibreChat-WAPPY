@@ -11,7 +11,9 @@ import {
     Camera,
     Image as ImageIcon,
     X,
-    FileText
+    FileText,
+    Plus,
+    Trash2
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -26,7 +28,6 @@ const PermisoAlturas = () => {
     const { user, token } = useAuthContext();
 
     const [formData, setFormData] = useState({
-        trabajadores: '',
         actividad: '',
         altura: '',
         fecha: '',
@@ -42,7 +43,6 @@ const PermisoAlturas = () => {
         herramientas: '',
         condicionesAmbientales: '',
         procedimiento: '',
-        responsables: '',
         foto1Desc: '',
         foto2Desc: '',
         foto3Desc: '',
@@ -53,6 +53,9 @@ const PermisoAlturas = () => {
         foto2: null,
         foto3: null
     });
+
+    const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
+    const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
 
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
@@ -94,6 +97,8 @@ const PermisoAlturas = () => {
                 },
                 body: JSON.stringify({
                     formData,
+                    trabajadoresList,
+                    responsablesList,
                     images,
                     modelName: selectedModel,
                 }),
@@ -232,11 +237,52 @@ const PermisoAlturas = () => {
 
                 {isFormExpanded && (
                     <div className="p-6 space-y-6">
+                        <div className="space-y-4 border rounded-xl p-4 bg-surface-tertiary/20">
+                            <h4 className="font-semibold text-text-primary text-sm">Trabajadores</h4>
+                            {trabajadoresList.map((trabajador, idx) => (
+                                <div key={idx} className="flex flex-col md:flex-row gap-3">
+                                    <input
+                                        type="text"
+                                        value={trabajador.nombre}
+                                        onChange={e => {
+                                            const newT = [...trabajadoresList];
+                                            newT[idx].nombre = e.target.value;
+                                            setTrabajadoresList(newT);
+                                        }}
+                                        className="w-full md:w-1/2 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        placeholder="Nombre completo"
+                                    />
+                                    <div className="flex w-full md:w-1/2 gap-2">
+                                        <input
+                                            type="text"
+                                            value={trabajador.cedula}
+                                            onChange={e => {
+                                                const newT = [...trabajadoresList];
+                                                newT[idx].cedula = e.target.value;
+                                                setTrabajadoresList(newT);
+                                            }}
+                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            placeholder="Cédula"
+                                        />
+                                        <button
+                                            onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))}
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            disabled={trabajadoresList.length === 1}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => setTrabajadoresList([...trabajadoresList, { nombre: '', cedula: '' }])}
+                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                <Plus className="h-4 w-4" /> Añadir Trabajador
+                            </button>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-sm font-medium">Trabajadores</label>
-                                <input type="text" value={formData.trabajadores} onChange={e => handleInputChange('trabajadores', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Nombres completos" />
-                            </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Actividad</label>
                                 <input type="text" value={formData.actividad} onChange={e => handleInputChange('actividad', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Descripción detallada" />
@@ -316,9 +362,60 @@ const PermisoAlturas = () => {
                                 <label className="text-sm font-medium">Procedimiento Paso a Paso</label>
                                 <textarea value={formData.procedimiento} onChange={e => handleInputChange('procedimiento', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary min-h-[80px]" />
                             </div>
-                            <div className="space-y-1">
+
+                            <div className="space-y-3 pt-3 border-t">
                                 <label className="text-sm font-medium">Responsables Adicionales</label>
-                                <input type="text" value={formData.responsables} onChange={e => handleInputChange('responsables', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Autoriza, Coordinador, Rescatista..." />
+                                {responsablesList.map((resp, idx) => (
+                                    <div key={idx} className="flex flex-col md:flex-row gap-3">
+                                        <input
+                                            type="text"
+                                            value={resp.nombre}
+                                            onChange={e => {
+                                                const newR = [...responsablesList];
+                                                newR[idx].nombre = e.target.value;
+                                                setResponsablesList(newR);
+                                            }}
+                                            className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            placeholder="Nombre"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={resp.rol}
+                                            onChange={e => {
+                                                const newR = [...responsablesList];
+                                                newR[idx].rol = e.target.value;
+                                                setResponsablesList(newR);
+                                            }}
+                                            className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            placeholder="Rol (Ej: Rescatista)"
+                                        />
+                                        <div className="flex w-full md:w-1/3 gap-2">
+                                            <input
+                                                type="text"
+                                                value={resp.cedula}
+                                                onChange={e => {
+                                                    const newR = [...responsablesList];
+                                                    newR[idx].cedula = e.target.value;
+                                                    setResponsablesList(newR);
+                                                }}
+                                                className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                                placeholder="Cédula"
+                                            />
+                                            <button
+                                                onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
+                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => setResponsablesList([...responsablesList, { nombre: '', cedula: '', rol: '' }])}
+                                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                >
+                                    <Plus className="h-4 w-4" /> Añadir Responsable
+                                </button>
                             </div>
                         </div>
 
@@ -327,7 +424,7 @@ const PermisoAlturas = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {['foto1', 'foto2', 'foto3'].map((foto, idx) => {
                                     const labels = ['Lugar de Trabajo', 'Sistema de Acceso', 'Trabajador con EPP'];
-                                    const fieldName = foto as 'foto1'|'foto2'|'foto3';
+                                    const fieldName = foto as 'foto1' | 'foto2' | 'foto3';
                                     const descName = `${foto}Desc`;
                                     return (
                                         <div key={foto} className="flex flex-col items-center gap-3">
@@ -348,10 +445,10 @@ const PermisoAlturas = () => {
                                                     </label>
                                                 )}
                                             </div>
-                                            <input 
-                                                type="text" 
-                                                placeholder="Descripción breve..." 
-                                                value={(formData as any)[descName]} 
+                                            <input
+                                                type="text"
+                                                placeholder="Descripción breve..."
+                                                value={(formData as any)[descName]}
                                                 onChange={e => handleInputChange(descName, e.target.value)}
                                                 className="w-full rounded border px-2 py-1 text-xs bg-surface-primary text-text-primary"
                                             />
