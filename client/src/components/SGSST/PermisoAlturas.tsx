@@ -53,6 +53,7 @@ const PermisoAlturas = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
     const [isListening, setIsListening] = useState(false);
+    const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<any>(null);
 
     const handleVoiceInput = () => {
@@ -63,6 +64,7 @@ const PermisoAlturas = () => {
                 } catch (e) { }
             }
             setIsListening(false);
+            setInterimText('');
             return;
         }
 
@@ -78,26 +80,44 @@ const PermisoAlturas = () => {
             recognitionRef.current = recognition;
             recognition.lang = 'es-CO';
             recognition.continuous = true;
-            recognition.interimResults = false;
+            recognition.interimResults = true;
 
-            recognition.onstart = () => setIsListening(true);
+            recognition.onstart = () => {
+                setIsListening(true);
+                setInterimText('');
+            };
 
             recognition.onresult = (event: any) => {
-                const current = event.resultIndex;
-                const transcript = event.results[current][0].transcript;
+                let currentInterim = '';
+                let newFinal = '';
 
-                setFormData(prev => ({
-                    ...prev,
-                    actividadGlobal: prev.actividadGlobal + (prev.actividadGlobal && !prev.actividadGlobal.endsWith(' ') ? ' ' : '') + transcript
-                }));
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        newFinal += event.results[i][0].transcript;
+                    } else {
+                        currentInterim += event.results[i][0].transcript;
+                    }
+                }
+
+                if (newFinal) {
+                    setFormData(prev => ({
+                        ...prev,
+                        actividadGlobal: prev.actividadGlobal + (prev.actividadGlobal && !prev.actividadGlobal.endsWith(' ') ? ' ' : '') + newFinal
+                    }));
+                }
+                setInterimText(currentInterim);
             };
 
             recognition.onerror = (event: any) => {
                 console.error("Speech error:", event.error);
                 setIsListening(false);
+                setInterimText('');
             };
 
-            recognition.onend = () => setIsListening(false);
+            recognition.onend = () => {
+                setIsListening(false);
+                setInterimText('');
+            };
 
             recognition.start();
         } catch (e) {
@@ -458,9 +478,14 @@ const PermisoAlturas = () => {
                                 <u>Actividad a realizar, Altura aproximada, Sistema de acceso, Punto de anclaje, Protección de caídas, EPP específico, Herramienta a utilizar, Condiciones eléctricas/ambientales, y Procedimiento paso a paso.</u>
                             </p>
                             <textarea
-                                value={formData.actividadGlobal}
-                                onChange={e => handleInputChange('actividadGlobal', e.target.value)}
-                                className="w-full rounded-xl border-2 border-dashed border-blue-200 p-4 text-sm bg-blue-50/10 focus:bg-blue-50/30 text-text-primary min-h-[160px] resize-y transition-colors focus:outline-none focus:border-blue-400"
+                                value={formData.actividadGlobal + (interimText ? (formData.actividadGlobal && !formData.actividadGlobal.endsWith(' ') ? ' ' : '') + interimText : '')}
+                                onChange={e => {
+                                    if (!isListening) {
+                                        handleInputChange('actividadGlobal', e.target.value);
+                                    }
+                                }}
+                                readOnly={isListening}
+                                className={`w-full rounded-xl border-2 ${isListening ? 'border-solid border-red-300 bg-red-50/10 focus:border-red-400 focus:bg-red-50/20' : 'border-dashed border-blue-200 bg-blue-50/10 focus:bg-blue-50/30 focus:border-blue-400'} p-4 text-sm text-text-primary min-h-[160px] resize-y transition-colors focus:outline-none`}
                                 placeholder="Ej: La actividad consistirá en la instalación de luminarias a una altura aproximada de 4 metros usando un andamio certificado..."
                             />
                         </div>
