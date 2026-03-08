@@ -22,6 +22,81 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 
+const WorkerAutocomplete = ({
+    value,
+    onChange,
+    onSelect,
+    data,
+    searchKey,
+    placeholder,
+    className,
+    wrapperClassName
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    onSelect?: (worker: any) => void;
+    data: any[];
+    searchKey: 'nombreCompleto' | 'identificacion';
+    placeholder: string;
+    className?: string;
+    wrapperClassName?: string;
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const handleClickOutside = (event: any) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = data.filter(w => {
+        const searchVal = w[searchKey];
+        return searchVal && String(searchVal).toLowerCase().includes(String(value).toLowerCase());
+    });
+
+    const exactMatch = filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
+
+    return (
+        <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => {
+                    onChange(e.target.value);
+                    setIsOpen(true);
+                }}
+                onFocus={() => setIsOpen(true)}
+                className={className}
+                placeholder={placeholder}
+                autoComplete="off"
+            />
+            {isOpen && String(value).trim() !== '' && filteredOptions.length > 0 && !exactMatch && (
+                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-lg shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
+                    {filteredOptions.map((w, idx) => (
+                        <li
+                            key={idx}
+                            className="px-4 py-2 text-sm text-text-primary hover:bg-surface-hover cursor-pointer transition-colors"
+                            onClick={() => {
+                                if (onSelect) onSelect(w);
+                                else onChange(w[searchKey]);
+                                setIsOpen(false);
+                            }}
+                        >
+                            <div className="font-semibold text-text-primary">{w.nombreCompleto}</div>
+                            <div className="text-xs text-text-secondary mt-0.5">CC: {w.identificacion} {w.cargo ? `• ${w.cargo}` : ''}</div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 const PermisoAlturas = () => {
     const { t } = useTranslation();
     const { showToast } = useToastContext();
@@ -333,23 +408,13 @@ const PermisoAlturas = () => {
 
                 {isFormExpanded && (
                     <div className="p-6 space-y-6">
-                        <datalist id="workers-names">
-                            {availableWorkers.map((w, i) => <option key={`w-name-${i}`} value={w.nombreCompleto} />)}
-                        </datalist>
-                        <datalist id="workers-cedulas">
-                            {availableWorkers.map((w, i) => <option key={`w-cc-${i}`} value={w.identificacion} />)}
-                        </datalist>
-
                         <div className="space-y-4 border rounded-xl p-4 bg-surface-tertiary/20">
                             <h4 className="font-semibold text-text-primary text-sm">Trabajadores</h4>
                             {trabajadoresList.map((trabajador, idx) => (
                                 <div key={idx} className="flex flex-col md:flex-row gap-3">
-                                    <input
-                                        type="text"
-                                        list="workers-names"
+                                    <WorkerAutocomplete
                                         value={trabajador.nombre}
-                                        onChange={e => {
-                                            const val = e.target.value;
+                                        onChange={(val) => {
                                             const newT = [...trabajadoresList];
                                             newT[idx].nombre = val;
 
@@ -359,16 +424,22 @@ const PermisoAlturas = () => {
                                             }
                                             setTrabajadoresList(newT);
                                         }}
-                                        className="w-full md:w-1/2 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        onSelect={(w) => {
+                                            const newT = [...trabajadoresList];
+                                            newT[idx].nombre = w.nombreCompleto;
+                                            newT[idx].cedula = w.identificacion;
+                                            setTrabajadoresList(newT);
+                                        }}
+                                        data={availableWorkers}
+                                        searchKey="nombreCompleto"
                                         placeholder="Nombre completo"
+                                        wrapperClassName="w-full md:w-1/2"
+                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                                     />
                                     <div className="flex w-full md:w-1/2 gap-2">
-                                        <input
-                                            type="text"
-                                            list="workers-cedulas"
+                                        <WorkerAutocomplete
                                             value={trabajador.cedula}
-                                            onChange={e => {
-                                                const val = e.target.value;
+                                            onChange={(val) => {
                                                 const newT = [...trabajadoresList];
                                                 newT[idx].cedula = val;
 
@@ -378,8 +449,19 @@ const PermisoAlturas = () => {
                                                 }
                                                 setTrabajadoresList(newT);
                                             }}
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            onSelect={(w) => {
+                                                const newT = [...trabajadoresList];
+                                                newT[idx].cedula = w.identificacion;
+                                                if (!newT[idx].nombre) {
+                                                    newT[idx].nombre = w.nombreCompleto;
+                                                }
+                                                setTrabajadoresList(newT);
+                                            }}
+                                            data={availableWorkers}
+                                            searchKey="identificacion"
                                             placeholder="Cédula"
+                                            wrapperClassName="w-full"
+                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                                         />
                                         <button
                                             onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))}
@@ -440,12 +522,9 @@ const PermisoAlturas = () => {
                             <label className="text-sm font-medium">Responsables Adicionales</label>
                             {responsablesList.map((resp, idx) => (
                                 <div key={idx} className="flex flex-col md:flex-row gap-3">
-                                    <input
-                                        type="text"
-                                        list="workers-names"
+                                    <WorkerAutocomplete
                                         value={resp.nombre}
-                                        onChange={e => {
-                                            const val = e.target.value;
+                                        onChange={(val) => {
                                             const newR = [...responsablesList];
                                             newR[idx].nombre = val;
 
@@ -458,8 +537,20 @@ const PermisoAlturas = () => {
                                             }
                                             setResponsablesList(newR);
                                         }}
-                                        className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        onSelect={(w) => {
+                                            const newR = [...responsablesList];
+                                            newR[idx].nombre = w.nombreCompleto;
+                                            newR[idx].cedula = w.identificacion;
+                                            if (!newR[idx].rol && w.cargo) {
+                                                newR[idx].rol = w.cargo;
+                                            }
+                                            setResponsablesList(newR);
+                                        }}
+                                        data={availableWorkers}
+                                        searchKey="nombreCompleto"
                                         placeholder="Nombre"
+                                        wrapperClassName="w-full md:w-1/3"
+                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                                     />
                                     <input
                                         type="text"
@@ -473,12 +564,9 @@ const PermisoAlturas = () => {
                                         placeholder="Rol (Ej: Rescatista)"
                                     />
                                     <div className="flex w-full md:w-1/3 gap-2">
-                                        <input
-                                            type="text"
-                                            list="workers-cedulas"
+                                        <WorkerAutocomplete
                                             value={resp.cedula}
-                                            onChange={e => {
-                                                const val = e.target.value;
+                                            onChange={(val) => {
                                                 const newR = [...responsablesList];
                                                 newR[idx].cedula = val;
 
@@ -491,8 +579,22 @@ const PermisoAlturas = () => {
                                                 }
                                                 setResponsablesList(newR);
                                             }}
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            onSelect={(w) => {
+                                                const newR = [...responsablesList];
+                                                newR[idx].cedula = w.identificacion;
+                                                if (!newR[idx].nombre) {
+                                                    newR[idx].nombre = w.nombreCompleto;
+                                                    if (!newR[idx].rol && w.cargo) {
+                                                        newR[idx].rol = w.cargo;
+                                                    }
+                                                }
+                                                setResponsablesList(newR);
+                                            }}
+                                            data={availableWorkers}
+                                            searchKey="identificacion"
                                             placeholder="Cédula"
+                                            wrapperClassName="w-full"
+                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                                         />
                                         <button
                                             onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
