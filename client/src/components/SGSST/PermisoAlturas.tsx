@@ -28,21 +28,7 @@ const PermisoAlturas = () => {
     const { user, token } = useAuthContext();
 
     const [formData, setFormData] = useState({
-        actividad: '',
-        altura: '',
-        fecha: '',
-        horaInicio: '',
-        horaFin: '',
-        seguridadSocial: 'Sí',
-        aptitudMedica: 'Sí',
-        certificacionAlturas: 'Sí',
-        sistemaAcceso: '',
-        puntosAnclaje: 'Verificados',
-        proteccionCaidas: '',
-        epp: '',
-        herramientas: '',
-        condicionesAmbientales: '',
-        procedimiento: '',
+        actividadGlobal: '',
         foto1Desc: '',
         foto2Desc: '',
         foto3Desc: '',
@@ -66,6 +52,32 @@ const PermisoAlturas = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
+    const [isListening, setIsListening] = useState(false);
+
+    const handleVoiceInput = () => {
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
+            return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'es-CO';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => setIsListening(true);
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setFormData(prev => ({
+                ...prev,
+                actividadGlobal: prev.actividadGlobal + (prev.actividadGlobal ? ' ' : '') + transcript
+            }));
+        };
+        recognition.onerror = (event: any) => setIsListening(false);
+        recognition.onend = () => setIsListening(false);
+        recognition.start();
+    };
 
     const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -306,28 +318,19 @@ const PermisoAlturas = () => {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-sm font-medium">Actividad</label>
-                                <input type="text" value={formData.actividad} onChange={e => handleInputChange('actividad', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Descripción detallada" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-sm font-medium">Altura Aprox (metros)</label>
-                                <input type="number" value={formData.altura} onChange={e => handleInputChange('altura', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Ej: 3.5" />
-                            </div>
+                        <h4 className="font-semibold text-text-primary text-sm mt-6">Información General</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Fecha</label>
                                 <input type="date" value={formData.fecha} onChange={e => handleInputChange('fecha', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
-                            <div className="flex gap-4">
-                                <div className="space-y-1 w-1/2">
-                                    <label className="text-sm font-medium">Hora Inicio</label>
-                                    <input type="time" value={formData.horaInicio} onChange={e => handleInputChange('horaInicio', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
-                                </div>
-                                <div className="space-y-1 w-1/2">
-                                    <label className="text-sm font-medium">Hora Fin</label>
-                                    <input type="time" value={formData.horaFin} onChange={e => handleInputChange('horaFin', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
-                                </div>
+                            <div className="space-y-1">
+                                <label className="text-sm font-medium">Hora Inicio</label>
+                                <input type="time" value={formData.horaInicio} onChange={e => handleInputChange('horaInicio', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-sm font-medium">Hora Fin</label>
+                                <input type="time" value={formData.horaFin} onChange={e => handleInputChange('horaFin', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                         </div>
 
@@ -352,99 +355,91 @@ const PermisoAlturas = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <h4 className="font-semibold border-b pb-2">Equipos y Procedimiento</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium">Sistema de Acceso</label>
-                                    <input type="text" value={formData.sistemaAcceso} onChange={e => handleInputChange('sistemaAcceso', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Ej: Andamio certificado" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium">Puntos de Anclaje</label>
-                                    <select value={formData.puntosAnclaje} onChange={e => handleInputChange('puntosAnclaje', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                        <option>Verificados</option><option>No verificados</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium">Protección Caídas</label>
-                                    <input type="text" value={formData.proteccionCaidas} onChange={e => handleInputChange('proteccionCaidas', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Ej: Línea de vida, arnés" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-sm font-medium">EPP Especifico</label>
-                                    <input type="text" value={formData.epp} onChange={e => handleInputChange('epp', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Casco con barboquejo, etc" />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-sm font-medium">Herramientas a Utilizar</label>
-                                <input type="text" value={formData.herramientas} onChange={e => handleInputChange('herramientas', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-sm font-medium">Condiciones Eléctricas/Ambientales</label>
-                                <input type="text" value={formData.condicionesAmbientales} onChange={e => handleInputChange('condicionesAmbientales', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-sm font-medium">Procedimiento Paso a Paso</label>
-                                <textarea value={formData.procedimiento} onChange={e => handleInputChange('procedimiento', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary min-h-[80px]" />
-                            </div>
-
-                            <div className="space-y-3 pt-3 border-t">
-                                <label className="text-sm font-medium">Responsables Adicionales</label>
-                                {responsablesList.map((resp, idx) => (
-                                    <div key={idx} className="flex flex-col md:flex-row gap-3">
+                        <div className="space-y-3 pt-3 border-t">
+                            <label className="text-sm font-medium">Responsables Adicionales</label>
+                            {responsablesList.map((resp, idx) => (
+                                <div key={idx} className="flex flex-col md:flex-row gap-3">
+                                    <input
+                                        type="text"
+                                        value={resp.nombre}
+                                        onChange={e => {
+                                            const newR = [...responsablesList];
+                                            newR[idx].nombre = e.target.value;
+                                            setResponsablesList(newR);
+                                        }}
+                                        className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        placeholder="Nombre"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={resp.rol}
+                                        onChange={e => {
+                                            const newR = [...responsablesList];
+                                            newR[idx].rol = e.target.value;
+                                            setResponsablesList(newR);
+                                        }}
+                                        className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        placeholder="Rol (Ej: Rescatista)"
+                                    />
+                                    <div className="flex w-full md:w-1/3 gap-2">
                                         <input
                                             type="text"
-                                            value={resp.nombre}
+                                            value={resp.cedula}
                                             onChange={e => {
                                                 const newR = [...responsablesList];
-                                                newR[idx].nombre = e.target.value;
+                                                newR[idx].cedula = e.target.value;
                                                 setResponsablesList(newR);
                                             }}
-                                            className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
-                                            placeholder="Nombre"
+                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            placeholder="Cédula"
                                         />
-                                        <input
-                                            type="text"
-                                            value={resp.rol}
-                                            onChange={e => {
-                                                const newR = [...responsablesList];
-                                                newR[idx].rol = e.target.value;
-                                                setResponsablesList(newR);
-                                            }}
-                                            className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
-                                            placeholder="Rol (Ej: Rescatista)"
-                                        />
-                                        <div className="flex w-full md:w-1/3 gap-2">
-                                            <input
-                                                type="text"
-                                                value={resp.cedula}
-                                                onChange={e => {
-                                                    const newR = [...responsablesList];
-                                                    newR[idx].cedula = e.target.value;
-                                                    setResponsablesList(newR);
-                                                }}
-                                                className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
-                                                placeholder="Cédula"
-                                            />
-                                            <button
-                                                onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
-                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
+                                        <button
+                                            onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
                                     </div>
-                                ))}
-                                <button
-                                    onClick={() => setResponsablesList([...responsablesList, { nombre: '', cedula: '', rol: '' }])}
-                                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                                >
-                                    <Plus className="h-4 w-4" /> Añadir Responsable
-                                </button>
-                            </div>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => setResponsablesList([...responsablesList, { nombre: '', cedula: '', rol: '' }])}
+                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                <Plus className="h-4 w-4" /> Añadir Responsable
+                            </button>
                         </div>
 
-                        <div className="space-y-4">
-                            <h4 className="font-semibold border-b pb-2">Documentación Fotográfica</h4>
+                        <div className="space-y-4 pt-4 border-t border-border-medium">
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-blue-600" /> Detalle de la Actividad (Dictado o Texto)
+                                </h4>
+                                <button
+                                    onClick={handleVoiceInput}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow border flex items-center gap-2 ${isListening ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'}`}
+                                >
+                                    <span className="relative flex h-3 w-3">
+                                        {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                                        <span className={`relative inline-flex rounded-full h-3 w-3 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                                    </span>
+                                    {isListening ? 'Escuchando...' : 'Activar Micrófono'}
+                                </button>
+                            </div>
+                            <p className="text-xs text-text-secondary leading-relaxed">
+                                <strong>IMPORTANTE:</strong> Por favor indique en un solo párrafo o texto continuo la siguiente información:{' '}
+                                <u>Actividad a realizar, Altura aproximada, Sistema de acceso, Punto de anclaje, Protección de caídas, EPP específico, Herramienta a utilizar, Condiciones eléctricas/ambientales, y Procedimiento paso a paso.</u>
+                            </p>
+                            <textarea
+                                value={formData.actividadGlobal}
+                                onChange={e => handleInputChange('actividadGlobal', e.target.value)}
+                                className="w-full rounded-xl border-2 border-dashed border-blue-200 p-4 text-sm bg-blue-50/10 focus:bg-blue-50/30 text-text-primary min-h-[160px] resize-y transition-colors focus:outline-none focus:border-blue-400"
+                                placeholder="Ej: La actividad consistirá en la instalación de luminarias a una altura aproximada de 4 metros usando un andamio certificado..."
+                            />
+                        </div>
+
+                        <div className="space-y-4 pt-4 border-t border-border-medium">
+                            <h4 className="font-semibold text-text-primary text-sm">Registro Fotográfico</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {['foto1', 'foto2', 'foto3'].map((foto, idx) => {
                                     const labels = ['Lugar de Trabajo', 'Sistema de Acceso', 'Trabajador con EPP'];
@@ -492,21 +487,23 @@ const PermisoAlturas = () => {
                 )}
             </div>
 
-            {generatedObjectives && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-blue-600" /> Permiso de Alturas Generado</h3>
-                    </div>
-                    <div className="p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor initialContent={generatedObjectives} onUpdate={setEditorContent} onSave={handleSave} />
+            {
+                generatedObjectives && (
+                    <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
+                        <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
+                            <h3 className="font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-blue-600" /> Permiso de Alturas Generado</h3>
+                        </div>
+                        <div className="p-1 overflow-hidden">
+                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                                <div style={{ minWidth: '900px', padding: '16px' }}>
+                                    <LiveEditor initialContent={generatedObjectives} onUpdate={setEditorContent} onSave={handleSave} />
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

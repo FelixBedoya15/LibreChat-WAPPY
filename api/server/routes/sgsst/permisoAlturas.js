@@ -72,21 +72,13 @@ Tu función es generar el documento de permiso de trabajo en alturas de forma co
 
 **DATOS APORTADOS POR EL USUARIO:**
 - Trabajadores implicados: ${trabajadoresStr}
-- Descripción detallada: ${formData.actividad || '[PENDIENTE]'}
-- Altura aproximada: ${formData.altura || '[PENDIENTE]'} metros
 - Fecha: ${formData.fecha || '[PENDIENTE]'} (De ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'})
 - Seguridad social vigente: ${formData.seguridadSocial || 'No definido'}
 - Aptitud médica ocupacional: ${formData.aptitudMedica || 'No definido'}
 - Certificación trabajo en alturas: ${formData.certificacionAlturas || 'No definido'}
 
-**Sistemas y Equipos:**
-- Sistema de Acceso: ${formData.sistemaAcceso || '[PENDIENTE]'}
-- Puntos de Anclaje: ${formData.puntosAnclaje || '[PENDIENTE]'}
-- Protección contra caídas: ${formData.proteccionCaidas || '[PENDIENTE]'}
-- Elementos (EPP): ${formData.epp || '[PENDIENTE]'}
-- Herramientas: ${formData.herramientas || '[PENDIENTE]'}
-- Condiciones ambientales/eléctricas: ${formData.condicionesAmbientales || '[PENDIENTE]'}
-- Procedimiento: ${formData.procedimiento || '[PENDIENTE]'}
+**Información Global dictada/escrita por el usuario:**
+${formData.actividadGlobal || '[No se proporcionó información. Debes solicitar o inferir la actividad, altura, sistemas de acceso, puntos de anclaje, EPP, herramientas, condiciones y procedimiento paso a paso.]'}
 
 **Responsables referidos:** ${responsablesStr}
 
