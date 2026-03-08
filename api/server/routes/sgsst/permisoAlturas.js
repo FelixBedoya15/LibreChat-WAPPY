@@ -7,6 +7,54 @@ const { buildStandardHeader, buildSignatureSection } = require('./reportHeader')
 const { logger } = require('~/config');
 
 const router = express.Router();
+const mongoose = require('mongoose');
+
+// ─── Mongoose Schema for Raw Data ──────────────────────────────────────
+const PermisoAlturasDataSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    formData: { type: Object, default: {} },
+    trabajadoresList: { type: Array, default: [] },
+    responsablesList: { type: Array, default: [] },
+    updatedAt: { type: Date, default: Date.now },
+});
+
+PermisoAlturasDataSchema.index({ user: 1 }, { unique: true });
+
+const PermisoAlturasData = mongoose.models.PermisoAlturasData || mongoose.model('PermisoAlturasData', PermisoAlturasDataSchema);
+
+// ─── GET /data — Load saved permiso alturas data ─────────────────────────────
+router.get('/data', requireJwtAuth, async (req, res) => {
+    try {
+        const data = await PermisoAlturasData.findOne({ user: req.user.id });
+        if (data) {
+            return res.json({
+                formData: data.formData || {},
+                trabajadoresList: data.trabajadoresList || [],
+                responsablesList: data.responsablesList || [],
+            });
+        }
+        res.json({ formData: {}, trabajadoresList: [], responsablesList: [] });
+    } catch (error) {
+        logger.error('[SGSST PermisoAlturas] Load error:', error);
+        res.status(500).json({ error: 'Error al cargar datos' });
+    }
+});
+
+// ─── POST /save — Save permiso alturas data ─────────────────────────────
+router.post('/save', requireJwtAuth, async (req, res) => {
+    try {
+        const { formData, trabajadoresList, responsablesList } = req.body;
+        await PermisoAlturasData.findOneAndUpdate(
+            { user: req.user.id },
+            { $set: { formData, trabajadoresList, responsablesList, updatedAt: Date.now() } },
+            { upsert: true, new: true }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('[SGSST PermisoAlturas] Save error:', error);
+        res.status(500).json({ error: 'Error al guardar datos' });
+    }
+});
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
@@ -70,6 +118,7 @@ Eres un Asistente especializado en la gestión de permisos de trabajo en alturas
 Tu función es generar el documento de permiso de trabajo en alturas de forma completa, técnica y formal, basándote en la información y fotografías aportadas por el usuario.
 
 **DATOS APORTADOS POR EL USUARIO:**
+- Empresa Contratante/Propietaria/Ejecutora: ${loadedCompanyInfo?.companyName || 'N/A'}
 - Trabajadores implicados: ${trabajadoresStr}
 - Fecha: ${formData.fecha || '[PENDIENTE]'} (De ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'})
 - Seguridad social vigente: ${formData.seguridadSocial || 'No definido'}
@@ -89,12 +138,13 @@ ${formData.actividadGlobal || '[No se proporcionó información. Debes solicitar
 (Nota: además, el usuario ha adjuntado imágenes reales de la actividad).
 
 MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombres de representantes o responsables al final del documento, ya que el sistema los añadirá automáticamente de forma estandarizada. 
+NO incluyas códigos (como <img> o [?]) de marcadores de imágenes dentro del cuerpo de la matriz de evidencia fotográfica. Como las fotos se mostrarán más abajo en un anexo, en tu redacción limítate EXCLUSIVAMENTE a plasmar las descripciones de las mismas en formato de texto dentro de tablas organizadas.
 
 INSTRUCCIONES DE FORMATO: 
 Tu respuesta DEBE ser EXCLUSIVAMENTE código HTML del cuerpo (body) sin usar etiquetas <!DOCTYPE>, <html>, <head> o <body>.
 Integra y elabora extensivamente un "Análisis de Trabajo Seguro (ATS)" según el texto proporcionado antes, argumentado e indicando recomendaciones preventivas específicas, evaluación de riesgos y demás información exigida en permisos de esta naturaleza.
 
-Usa tablas (<table>) con \`width="100%"\`, \`border-collapse: collapse;\`, \`border: 1px solid #ddd;\` donde corresponda. No uses Tailwind. Colores de la cabecera #004d99 y texto blanco.
+Usa tablas (<table>) con \`width="100%"\`, \`table-layout: auto;\`, \`border-collapse: collapse;\`, \`border: 1px solid #ddd;\` donde corresponda para que el texto amplio no se vea muy angosto. No uses Tailwind. Colores de la cabecera #004d99 y texto blanco.
 `;
 
         const parts = [

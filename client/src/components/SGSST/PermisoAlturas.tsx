@@ -120,7 +120,7 @@ const PermisoAlturas = () => {
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
     const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash-latest');
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -144,6 +144,42 @@ const PermisoAlturas = () => {
             })
             .catch(err => console.error('Error fetching workers', err));
     }, [token]);
+
+    React.useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/permiso-alturas/data', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (Object.keys(data.formData || {}).length > 0) {
+                    setFormData(prev => ({ ...prev, ...data.formData }));
+                }
+                if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
+                if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
+            })
+            .catch(err => console.error('Error fetching permiso alturas data', err));
+    }, [token]);
+
+    const handleSaveData = async (silent = false) => {
+        if (!token) return;
+        try {
+            const res = await fetch('/api/sgsst/permiso-alturas/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    formData,
+                    trabajadoresList,
+                    responsablesList
+                })
+            });
+            if (res.ok && !silent) {
+                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success' });
+            }
+        } catch (err) {
+            if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
+        }
+    };
 
     const handleVoiceInput = () => {
         if (isListening) {
@@ -260,6 +296,7 @@ const PermisoAlturas = () => {
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
+        handleSaveData(true); // Autosave form data on generate
         try {
             const response = await fetch('/api/sgsst/permiso-alturas/generate', {
                 method: 'POST',
@@ -371,6 +408,13 @@ const PermisoAlturas = () => {
                 >
                     <History className="h-5 w-5" />
                     <span>Historial</span>
+                </button>
+                <button
+                    onClick={() => handleSaveData(false)}
+                    className="group flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
+                    <Save className="h-5 w-5" />
+                    <span>Guardar Datos</span>
                 </button>
                 <button
                     onClick={handleGenerate}
