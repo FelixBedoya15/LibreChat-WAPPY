@@ -124,7 +124,7 @@ Tu objetivo es redactar un **Permiso de Trabajo en Alturas EXHAUSTIVO, TÉCNICO 
 SOLO puedes incluir a las personas listadas a continuación. ESTÁ ESTRICTAMENTE PROHIBIDO inventar cargos como "Auxiliar de Patio" o "Vigía" si no están en estos datos:
 - Trabajadores Autorizados: ${trabajadoresStr}
 - Personal Responsable: ${responsablesStr}
-- Responsable SG-SST: ${companyInfo?.responsibleSST || 'No registrado'}
+- Responsable SG-SST: ${loadedCompanyInfo?.responsibleSST || 'No registrado'}
 *(El Representante Legal registrado en la empresa NO debe incluirse en los listados ni matrices del permiso operativo).*
 
 **DATOS APORTADOS PARA LA ELABORACIÓN DEL PERMISO:**
