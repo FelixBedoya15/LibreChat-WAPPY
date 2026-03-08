@@ -651,9 +651,24 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
             {analysisReport && (
                 <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                    <div className="flex items-center gap-2 p-4 border-b border-border-light">
-                        <FileText className="h-5 w-5 text-text-secondary" />
-                        <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
+                    <div className="flex items-center justify-between p-4 border-b border-border-light">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-text-secondary" />
+                            <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleSave}
+                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                            >
+                                <AnimatedIcon name="save" size={20} className="text-gray-500" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                            </button>
+                            <ExportDropdown
+                                content={editorContent || analysisReport || ''}
+                                fileName="Informe_Auditoria"
+                            />
+                        </div>
                     </div>
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <div style={{ minWidth: '900px' }}>

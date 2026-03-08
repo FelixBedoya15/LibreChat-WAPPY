@@ -109,6 +109,12 @@ const PermisoAlturas = () => {
         foto1Desc: '',
         foto2Desc: '',
         foto3Desc: '',
+        fecha: new Date().toISOString().split('T')[0],
+        horaInicio: '08:00',
+        horaFin: '17:00',
+        seguridadSocial: 'Sí',
+        aptitudMedica: 'Sí',
+        certificacionAlturas: 'Sí',
     });
 
     const [images, setImages] = useState<{ [key: string]: string | null }>({
@@ -158,6 +164,7 @@ const PermisoAlturas = () => {
                 }
                 if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
                 if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
+                if (data.images) setImages(data.images);
             })
             .catch(err => console.error('Error fetching permiso alturas data', err));
     }, [token]);
@@ -171,7 +178,8 @@ const PermisoAlturas = () => {
                 body: JSON.stringify({
                     formData,
                     trabajadoresList,
-                    responsablesList
+                    responsablesList,
+                    images
                 })
             });
             if (res.ok && !silent) {

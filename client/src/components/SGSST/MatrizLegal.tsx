@@ -557,6 +557,21 @@ const MatrizLegal = () => {
                 <div className="border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col mt-6">
                     <div className="p-3 bg-surface-tertiary/50 border-b border-border-medium flex justify-between items-center shrink-0">
                         <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
+                        {generatedMatrix && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSaveReport}
+                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                >
+                                    <AnimatedIcon name="save" size={20} className="text-gray-500" />
+                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                                </button>
+                                <ExportDropdown
+                                    content={editorContent || generatedMatrix || ''}
+                                    fileName="Matriz_Legal"
+                                />
+                            </div>
+                        )}
                     </div>
                     {generatedMatrix ? (
                         <div className="rounded-xl p-1 overflow-visible">

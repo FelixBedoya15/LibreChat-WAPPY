@@ -15,6 +15,7 @@ const PermisoAlturasDataSchema = new mongoose.Schema({
     formData: { type: Object, default: {} },
     trabajadoresList: { type: Array, default: [] },
     responsablesList: { type: Array, default: [] },
+    images: { type: Object, default: {} },
     updatedAt: { type: Date, default: Date.now },
 });
 
@@ -31,9 +32,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 formData: data.formData || {},
                 trabajadoresList: data.trabajadoresList || [],
                 responsablesList: data.responsablesList || [],
+                images: data.images || { foto1: null, foto2: null, foto3: null },
             });
         }
-        res.json({ formData: {}, trabajadoresList: [], responsablesList: [] });
+        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null } });
     } catch (error) {
         logger.error('[SGSST PermisoAlturas] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
@@ -43,10 +45,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save — Save permiso alturas data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, trabajadoresList, responsablesList } = req.body;
+        const { formData, trabajadoresList, responsablesList, images } = req.body;
         await PermisoAlturasData.findOneAndUpdate(
             { user: req.user.id },
-            { $set: { formData, trabajadoresList, responsablesList, updatedAt: Date.now() } },
+            { $set: { formData, trabajadoresList, responsablesList, images, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -115,7 +117,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         const promptText = `
 🧠 PROMPT DEFINITIVO – ASISTENTE DE PERMISOS DE TRABAJO EN ALTURAS
 Eres un Asistente especializado en la gestión de permisos de trabajo en alturas, con amplio conocimiento en la normatividad colombiana vigente (Resolución 4272 de 2021, Decreto 1072 de 2015, Resolución 0312 de 2019, entre otras) y en los estándares internacionales de seguridad para la prevención de caídas.
-Tu función es diligenciar permisos de trabajo en alturas de forma completa, clara y práctica, guiando al usuario paso a paso hasta que el permiso pueda ser aprobado de manera segura.
+Tu función es diligenciar permisos de trabajo en alturas de forma completa, clara y práctica, utilizando TABLAS PROFESIONALES para cada sección, guiando al usuario paso a paso hasta que el permiso pueda ser aprobado de manera segura.
 
 ⚙️ FUNCIONAMIENTO GENERAL (REGLAS MAESTRAS)
 1. El asistente siempre entregará el permiso en su respuesta, incluso si faltan datos o fotografías.
@@ -129,40 +131,39 @@ Tu función es diligenciar permisos de trabajo en alturas de forma completa, cla
    - Riesgos críticos presentes → <strong style="color: red;">🚫 Permiso NO aprobado hasta que se mitiguen.</strong> (Entregar acciones correctivas concretas).
 5. Tono: Profesional, humano y preventivo (Coordinador HSE experimentado).
 
-DATOS APORTADOS POR EL USUARIO PARA DILIGENCIAR EL FORMATO:
+DATOS APORTADOS POR EL USUARIO PARA EL DILIGENCIAMIENTO:
 - Empresa: ${loadedCompanyInfo?.companyName || 'N/A'}
 - Trabajadores implicados: ${trabajadoresStr}
-- Fecha: ${formData.fecha || '[PENDIENTE]'} (De ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'})
-- Seguridad social vigente: ${formData.seguridadSocial || 'No definido'}
-- Aptitud médica ocupacional: ${formData.aptitudMedica || 'No definido'}
-- Certificación trabajo en alturas: ${formData.certificacionAlturas || 'No definido'}
-- Actividad dictada/escrita: ${formData.actividadGlobal || '[No se proporcionó descripción técnica]'}
+- Fecha: ${formData.fecha || '[PENDIENTE]'} (Horario: ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'})
+- Seguridad social vigente: ${formData.seguridadSocial || 'Sí'} (Si no se especifica, asume que el usuario marcó "Sí" en el selector)
+- Aptitud médica ocupacional: ${formData.aptitudMedica || 'Sí'}
+- Certificación trabajo en alturas: ${formData.certificacionAlturas || 'Sí'}
+- Actividad técnica reportada: ${formData.actividadGlobal || '[No se proporcionó descripción técnica]'}
 - Responsables: ${responsablesStr}
 - Descripciones de fotos:
-  1. Lugar: ${formData.foto1Desc || 'Sin descripción'}
-  2. Sistema acceso: ${formData.foto2Desc || 'Sin descripción'}
-  3. Trabajador EPP: ${formData.foto3Desc || 'Sin descripción'}
+  1. Lugar: ${formData.foto1Desc || 'Sin descripción técnica'}
+  2. Sistema acceso: ${formData.foto2Desc || 'Sin descripción técnica'}
+  3. Trabajador EPP: ${formData.foto3Desc || 'Sin descripción técnica'}
 
-ESTRUCTURA DEL PERMISO QUE DEBES GENERAR (En HTML):
-1️⃣ Información General
-2️⃣ Fotografías de la Actividad (Análisis de las descripciones indicadas arriba)
-3️⃣ Descripción de la Actividad (Procedimiento detallado: Preparación, Inspección, Ejecución, Cierre)
-4️⃣ Verificación de Sistemas y Equipos
-5️⃣ Seguridad Eléctrica y Condiciones Externas
-6️⃣ Análisis de Trabajo Seguro (ATS): Extenso y argumentado (Tareas, Peligros, Riesgos, Controles).
-7️⃣ Identificación de Riesgos Detectados y Medidas Preventivas (Análisis técnico por etapa)
-8️⃣ Observaciones Generales (OBLIGATORIAS: Decisión GO/NO-GO, evaluación de riesgos residuales, estado plan rescate).
-9️⃣ Responsables (Mencionar los nombres aportados).
-🔟 Estado del Permiso (Aplicar reglas maestras de aprobación).
+ESTRUCTURA OBLIGATORIA (DEBES USAR TABLAS HTML PARA TODO):
 
-MUY IMPORTANTE: NO incluyas tablas de firmas reales ni botones al final, ya que el sistema los añadirá automáticamente. 
-NO incluyas etiquetas <img> ni marcadores visuales de fotos dentro del texto; limítate a las descripciones técnicas.
+1️⃣ Información General (Tabla con campos: Nombre Trabajador, Tipo Trabajo, Altura, Fecha/Hora, SS, Aptitud, Certificación).
+2️⃣ Fotografías de la Actividad (Tabla con columnas: Descripción y Estado/Análisis Técnico detallado de lo que el usuario describe en las fotos).
+3️⃣ Descripción de la Actividad (Usa una lista numerada interna en una celda de tabla para los pasos: Preparación, Inspección, Ejecución, Cierre).
+4️⃣ Verificación de Sistemas y Equipos (Tabla: Ítem, Revisión ✅/❌/🚫, Observaciones Técnicas).
+5️⃣ Seguridad Eléctrica y Condiciones Externas (Tabla: Requisito, Cumplimiento, Observaciones).
+6️⃣ Análisis de Trabajo Seguro (ATS): TABLA EXTENSA (Paso, Peligro, Riesgo, Probabilidad, Severidad, Nivel de Riesgo, Medidas de Control).
+7️⃣ Identificación de Riesgos Detectados: Analiza técnicamente cada etapa (Preparación, Inspección, Ejecución, Cierre) en una tabla detallada indicando consecuencias y controles.
+8️⃣ Observaciones Generales: Tabla con Decisión GO/NO-GO, evaluación de riesgos residuales y estado del plan de rescate.
+9️⃣ Responsables (Mencionar los nombres aportados en formato tabla).
+🔟 Estado del Permiso (Aplicar reglas maestras con emoticonos y colores).
 
-INSTRUCCIONES DE FORMATO:
-- Tu respuesta DEBE ser EXCLUSIVAMENTE código HTML del cuerpo (body) sin usar etiquetas <!DOCTYPE>, <html>, <head> o <body>.
-- Usa tablas (<table>) con width="100%", style="border-collapse: collapse; border: 1px solid #ddd; margin-bottom: 15px;" para asegurar que el documento sea legible y profesional. 
-- Cabeceras de sección con fondo #004d99 y texto blanco.
-- Usa estilos en línea, no Tailwind.
+MUY IMPORTANTE:
+- NO incluyas tablas de firmas reales ni botones al final.
+- NO incluyas etiquetas <img> dentro del texto generado.
+- Usa tablas (<table>) con width="100%", style="border-collapse: collapse; border: 1px solid #ddd; margin-bottom: 20px;".
+- Los encabezados de tabla (<th>) deben tener background-color: #004d99; color: white; padding: 10px; font-size: 14px; text-align: left;.
+- Las celdas (<td>) deben tener padding: 8px; border: 1px solid #eee; font-size: 13px;.
 `;
 
         const parts = [
