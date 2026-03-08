@@ -1,7 +1,6 @@
 const express = require('express');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
-const { AuthKeys } = require('librechat-data-provider');
-const { getUserKey } = require('../../services/PluginService');
+const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
@@ -18,10 +17,10 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         let resolvedApiKey = null;
         try {
-            const storedKey = await getUserKey({ userId: req.user.id, name: AuthKeys.GOOGLE_API_KEY });
+            const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
             try {
                 const parsed = JSON.parse(storedKey);
-                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                resolvedApiKey = parsed['google'] || parsed.apiKey || parsed.GOOGLE_API_KEY;
             } catch (pErr) {
                 resolvedApiKey = storedKey;
             }
@@ -37,9 +36,9 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             resolvedApiKey = resolvedApiKey.split(',')[0].trim();
         }
 
-        if (!resolvedApiKey) {
+        if (!resolvedApiKey || resolvedApiKey === 'user_provided') {
             return res.status(400).json({
-                error: 'No se ha configurado la clave API de Google.',
+                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del menú principal e intenta nuevamente.',
             });
         }
 

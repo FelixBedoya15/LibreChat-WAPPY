@@ -42,6 +42,7 @@ const PermisoAlturas = () => {
 
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
+    const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
@@ -55,6 +56,18 @@ const PermisoAlturas = () => {
     const [isListening, setIsListening] = useState(false);
     const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<any>(null);
+
+    React.useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/perfil-sociodemografico/data', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.trabajadores?.length) setAvailableWorkers(data.trabajadores);
+            })
+            .catch(err => console.error('Error fetching workers', err));
+    }, [token]);
 
     const handleVoiceInput = () => {
         if (isListening) {
@@ -320,16 +333,30 @@ const PermisoAlturas = () => {
 
                 {isFormExpanded && (
                     <div className="p-6 space-y-6">
+                        <datalist id="workers-names">
+                            {availableWorkers.map((w, i) => <option key={`w-name-${i}`} value={w.nombreCompleto} />)}
+                        </datalist>
+                        <datalist id="workers-cedulas">
+                            {availableWorkers.map((w, i) => <option key={`w-cc-${i}`} value={w.identificacion} />)}
+                        </datalist>
+
                         <div className="space-y-4 border rounded-xl p-4 bg-surface-tertiary/20">
                             <h4 className="font-semibold text-text-primary text-sm">Trabajadores</h4>
                             {trabajadoresList.map((trabajador, idx) => (
                                 <div key={idx} className="flex flex-col md:flex-row gap-3">
                                     <input
                                         type="text"
+                                        list="workers-names"
                                         value={trabajador.nombre}
                                         onChange={e => {
+                                            const val = e.target.value;
                                             const newT = [...trabajadoresList];
-                                            newT[idx].nombre = e.target.value;
+                                            newT[idx].nombre = val;
+
+                                            const matchedWorker = availableWorkers.find(w => w.nombreCompleto === val);
+                                            if (matchedWorker) {
+                                                newT[idx].cedula = matchedWorker.identificacion;
+                                            }
                                             setTrabajadoresList(newT);
                                         }}
                                         className="w-full md:w-1/2 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
@@ -338,10 +365,17 @@ const PermisoAlturas = () => {
                                     <div className="flex w-full md:w-1/2 gap-2">
                                         <input
                                             type="text"
+                                            list="workers-cedulas"
                                             value={trabajador.cedula}
                                             onChange={e => {
+                                                const val = e.target.value;
                                                 const newT = [...trabajadoresList];
-                                                newT[idx].cedula = e.target.value;
+                                                newT[idx].cedula = val;
+
+                                                const matchedWorker = availableWorkers.find(w => w.identificacion === val);
+                                                if (matchedWorker && !newT[idx].nombre) {
+                                                    newT[idx].nombre = matchedWorker.nombreCompleto;
+                                                }
                                                 setTrabajadoresList(newT);
                                             }}
                                             className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
@@ -408,10 +442,20 @@ const PermisoAlturas = () => {
                                 <div key={idx} className="flex flex-col md:flex-row gap-3">
                                     <input
                                         type="text"
+                                        list="workers-names"
                                         value={resp.nombre}
                                         onChange={e => {
+                                            const val = e.target.value;
                                             const newR = [...responsablesList];
-                                            newR[idx].nombre = e.target.value;
+                                            newR[idx].nombre = val;
+
+                                            const matchedWorker = availableWorkers.find(w => w.nombreCompleto === val);
+                                            if (matchedWorker) {
+                                                newR[idx].cedula = matchedWorker.identificacion;
+                                                if (!newR[idx].rol && matchedWorker.cargo) {
+                                                    newR[idx].rol = matchedWorker.cargo;
+                                                }
+                                            }
                                             setResponsablesList(newR);
                                         }}
                                         className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
@@ -431,10 +475,20 @@ const PermisoAlturas = () => {
                                     <div className="flex w-full md:w-1/3 gap-2">
                                         <input
                                             type="text"
+                                            list="workers-cedulas"
                                             value={resp.cedula}
                                             onChange={e => {
+                                                const val = e.target.value;
                                                 const newR = [...responsablesList];
-                                                newR[idx].cedula = e.target.value;
+                                                newR[idx].cedula = val;
+
+                                                const matchedWorker = availableWorkers.find(w => w.identificacion === val);
+                                                if (matchedWorker && !newR[idx].nombre) {
+                                                    newR[idx].nombre = matchedWorker.nombreCompleto;
+                                                    if (!newR[idx].rol && matchedWorker.cargo) {
+                                                        newR[idx].rol = matchedWorker.cargo;
+                                                    }
+                                                }
                                                 setResponsablesList(newR);
                                             }}
                                             className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
