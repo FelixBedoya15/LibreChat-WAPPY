@@ -117,55 +117,59 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         const companyContext = buildCompanyContextString(loadedCompanyInfo);
 
         const promptText = `
-Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SST), especializado en la gestión, evaluación y aprobación de permisos para trabajos en alturas en estricto cumplimiento de la normativa colombiana (Resolución 4272 de 2021) y estándares internacionales (OSHA/ANSI).
-Tu objetivo es redactar un **Permiso de Trabajo en Alturas EXHAUSTIVO, TÉCNICO Y RIGUROSO**. Está prohibido hacer resúmenes. Cada sección debe ser ampliamente desarrollada y argumentada técnicamente.
+Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SST), especializado en la gestión de permisos para trabajos en alturas según la Resolución 4272 de 2021 (Colombia) y OSHA/ANSI.
+Tu objetivo es redactar un **Permiso de Trabajo en Alturas EXHAUSTIVO, TÉCNICO Y RIGUROSO**.
 
-${companyContext}
+**REGLA CRÍTICA SOBRE PERSONAL:** 
+SOLO puedes incluir a las personas listadas a continuación. ESTÁ ESTRICTAMENTE PROHIBIDO inventar cargos como "Auxiliar de Patio" o "Vigía" si no están en estos datos:
+- Trabajadores Autorizados: ${trabajadoresStr}
+- Personal Responsable: ${responsablesStr}
+- Responsable SG-SST: ${companyInfo?.responsibleSST || 'No registrado'}
+*(El Representante Legal registrado en la empresa NO debe incluirse en los listados ni matrices del permiso operativo).*
 
 **DATOS APORTADOS PARA LA ELABORACIÓN DEL PERMISO:**
-- Fecha de ejecución: ${formData.fecha || '[PENDIENTE]'}
-- Horario de la actividad: ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'}
-- Trabajadores Autorizados: ${trabajadoresStr}
-- Personal Responsable (Emisores/Coordinadores/Vigías): ${responsablesStr}
+- Fecha de ejecución: ${formData.fecha || '[PENDIENTE]'} | Horario: ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'}
 - Verificación de Requisitos Legales Obligatorios:
-    * Seguridad Social (ARL/EPS/Pensión): ${formData.seguridadSocial === 'Sí' ? '✅ CUMPLE (VIGENCIA VERIFICADA)' : '❌ [PENDIENTE REDACTAR ACCIÓN CORRECTIVA]'}
-    * Aptitud Médica Ocupacional (Con énfasis en alturas): ${formData.aptitudMedica === 'Sí' ? '✅ CUMPLE (APTO DOCUMENTADO)' : '❌ [PENDIENTE EVALUACIÓN MÉDICA]'}
-    * Certificación de Trabajo en Alturas (Vigente): ${formData.certificacionAlturas === 'Sí' ? '✅ CUMPLE (CERTIFICACIÓN VÁLIDA)' : '❌ [PENDIENTE REENTRENAMIENTO]'}
-- Actividad técnica reportada por el usuario: ${formData.actividadGlobal || '[INFORMACIÓN PENDIENTE: El usuario no ha descrito la tarea]'}
-- Evidencias del área de trabajo (Para análisis de la IA):
-    1. Entorno del Punto de Trabajo: ${formData.foto1Desc || 'Sin descripción'}
-    2. Sistema de Acceso / Plataforma: ${formData.foto2Desc || 'Sin descripción'}
-    3. Elementos de Protección Individual / EPP: ${formData.foto3Desc || 'Sin descripción'}
+    * Seguridad Social: ${formData.seguridadSocial === 'Sí' ? '✅ CUMPLE (VIGENTE)' : '❌ [PENDIENTE REDACTAR ACCIÓN]'}
+    * Aptitud Médica en alturas: ${formData.aptitudMedica === 'Sí' ? '✅ CUMPLE (APTO)' : '❌ [PENDIENTE]'}
+    * Certificación de Alturas: ${formData.certificacionAlturas === 'Sí' ? '✅ CUMPLE (VIGENTE)' : '❌ [PENDIENTE]'}
+- Actividad técnica: ${formData.actividadGlobal || '[INFORMACIÓN PENDIENTE]'}
+- Entorno: ${formData.foto1Desc || 'Sin descripción'} | Acceso: ${formData.foto2Desc || 'Sin descripción'} | EPP: ${formData.foto3Desc || 'Sin descripción'}
 
 **INSTRUCCIONES DE ESTRUCTURA Y CONTENIDO OBLIGATORIO (Desarrolla con mucha profundidad técnica y usa tablas para TODO):**
 
-1️⃣ **Información General y Vigencia**
-Crea una tabla profesional con los datos de las fechas, horas, empresa, y ubicación. Luego, un párrafo denso describiendo la naturaleza e importancia de la tarea (${formData.actividadGlobal || 'descrita'}).
+1️⃣ **Información Operativa del Trabajo**
+NO generes títulos principales como "PERMISO DE TRABAJO", pues ya existe en el encabezado. TAMPOCO repitas Razón Social, NIT o Nivel de Riesgo, el encabezado ya lo tiene.
+Crea una tabla con SOLO: Fecha, Horario, Ubicación/Área específica, **Sistema de Acceso**, **Altura de Trabajo estimada** y Descripción amplia de la tarea.
 
 2️⃣ **Personal Involucrado y Competencia**
-Tabla detallada con cada trabajador y responsable, listando no solo su nombre sino también el nivel de capacitación requerido y su rol activo dentro del esquema de prevención de caídas. Incluye el estado de sus requisitos (Aptitud, Seguridad Social, Certificados).
+Tabla detallada EXCLUSIVAMENTE con los trabajadores y responsables listados (NO INVENTES OTROS, y NO incluyas al representante legal). Incluye rol en la labor, y validación legal (SS, Aptitud, Certificado).
 
-3️⃣ **Evaluación de Riesgos y Controles (Extremadamente Detallado)**
-- **Análisis de Trabajo Seguro (ATS)**: Crea una tabla ATS exhaustiva. Analiza el trabajo paso a paso (mínimo 4 pasos). Por cada paso, identifica peligros detallados, riesgos consecuentes, y establece estrictos controles de ingeniería, controles administrativos y EPP.
-- **Sistemas de Protección y Accesos**: Tabla analizando las plataformas de acceso descritas, los puntos de anclaje necesarios, líneas de vida y cálculos de requerimientos de claridad que apliquen. Realiza recomendaciones sobre el equipo de protección detectado en la Foto 2 y 3.
-- **EPP**: Detalla los componentes del arnés, conectores y equipos de rescate.
+3️⃣ **Matriz de Identificación de Peligros (Basada en GTC 45)**
+Crea una tabla extensa para la identificación de peligros estructurada según la GTC 45 Colombiana. 
+Columnas obligatorias: Proceso/Zona, Peligro (Descripción y Clasificación - Físico, Químico, Biomecánico, Condiciones de Seguridad, etc.), Efectos Posibles.
+*Asegúrate de incluir los peligros detectados en el entorno descrito.*
 
-4️⃣ **Plan de Respuesta y Emergencias**
-Tabla y texto denso describiendo el Plan de Rescate aplicable a este trabajo en particular. Incluye procedimientos de auto-rescate, rescate asistido, sistemas de comunicación (radios, visual) y disponibilidad de botiquín de trauma (inmovilizadores, control de hemorragias).
+4️⃣ **Análisis de Trabajo Seguro (ATS) Detallado**
+Crea una tabla ATS sumamente exhaustiva. **REGLA ABSOLUTA:** Cero resúmenes. Estás obligado a desarrollar **TODOS los pasos necesarios (pueden ser 6, 10, 12 o más) dependiendo de la complejidad de la tarea descrita**. NUNCA te limites a menos.
+Columnas del ATS: Paso a Paso detallado de la tarea, Riesgo asociado a ESE paso, Consecuencias, y Controles (Ingeniería, Administrativos, EPP requeridos para ese paso).
 
-5️⃣ **Condiciones Ambientales y Decisiones Operativas (GO / NO-GO)**
-Analiza posibles variables climáticas, distancias de seguridad eléctricas y condiciones del viento.
-**Dictamen Final:** Genera un dictamen altamente técnico determinando si el permiso se Cierra y Aprueba (si todo cumple) o si queda Suspendido (si existen requerimientos legales pendientes).
+5️⃣ **Sistemas de Protección, Acceso y EPP**
+Tabla analizando detalladamente: 1. Plataformas/Sistemas de acceso (Analizando Foto 2), 2. Puntos de anclaje/Líneas de vida requeridas, 3. Elementos de Protección Personal obligatorios (Casco con barbuquejo, arnés cuerpo entero, eslingas, gafas, guantes - Analizando Foto 3). 
 
-**INSTRUCCIONES DE FORMATO HTML Y DISEÑO:**
-- Tu respuesta DEBE ser EXCLUSIVAMENTE en código HTML limpio (del <div> o cuerpo del texto, sin etiquetas <html> ni <body>).
-- DEBES usar tablas estilizadas para todas las secciones.
-- Estructura base de las tablas: \`<table style="width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
-- Encabezados de tabla: \`<th style="background-color: #1e293b; color: #f8fafc; padding: 14px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 2px solid #3b82f6;">\`
-- Celdas: \`<td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; color: #334155; vertical-align: top; background-color: #ffffff;">\`
-- NO uses CSS externo de Tailwind. Todo el CSS debe ser inline e impecable.
+6️⃣ **Plan de Respuesta y Emergencias**
+Tabla describiendo el Plan de Rescate aplicable. Especifica el procedimiento, el equipamiento de rescate requerido, sistemas de comunicación y elementos de trauma disponibles en sitio.
+
+7️⃣ **Condiciones Ambientales y Decisiones Operativas (GO / NO-GO)**
+Analiza variables climáticas y dicta un dictamen final técnico de aprobación o suspensión de la labor.
+
+**INSTRUCCIONES DE DISEÑO HTML Y TABLAS:**
+- Tu respuesta DEBE ser EXCLUSIVAMENTE en código HTML limpio (del <div> o cuerpo del texto).
+- Estructura base de TODAS las tablas: \`<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
+- Encabezados de tabla (<th>): \`<th style="background-color: #004d99; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #003366; word-wrap: break-word;">\`
+- Celdas (<td>): \`<td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; font-size: 13px; color: #334155; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; background-color: #ffffff;">\`
+- Asegúrate de usar porcentajes de ancho adecuados si usas la propiedad width en <th> o <td> (ej: width="20%").
 - NO agregues tablas de firmas ni botones; la plataforma los incluye por defecto.
-- Esfuérzate al máximo en la longitud y la calidad de la redacción técnica.
 `;
 
         const parts = [
