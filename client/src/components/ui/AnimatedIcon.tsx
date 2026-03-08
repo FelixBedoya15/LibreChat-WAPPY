@@ -60,16 +60,13 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.9, y: 0 }}
+                    whileHover={{ scale: 1.1, y: -2 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 10 }}
                 >
-                    <motion.path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <motion.polyline
-                        points="17 21 17 13 7 13 7 21"
-                        whileHover={{ y: -1 }}
-                        transition={{ ease: "easeOut" }}
-                    />
-                    <motion.polyline points="7 3 7 8 15 8" />
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
                 </motion.svg>
             );
 
@@ -92,18 +89,20 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     <motion.path
                         d="M3 6h18"
                         variants={{
-                            hover: { y: -2, rotate: -5, originX: 0.5, originY: 1 }
+                            hover: { y: -3, rotate: -10, originX: "50%", originY: "100%" }
                         }}
+                        transition={{ type: 'spring', stiffness: 300 }}
                     />
-                    <motion.path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
                     <motion.path
                         d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
                         variants={{
-                            hover: { y: -2, rotate: -5, originX: 0.5, originY: 1 }
+                            hover: { y: -4, rotate: 10, originX: "50%", originY: "100%" }
                         }}
+                        transition={{ type: 'spring', stiffness: 300 }}
                     />
-                    <path d="M10 11v6" />
-                    <path d="M14 11v6" />
+                    <motion.path d="M10 11v6" variants={{ hover: { height: 8 } }} />
+                    <motion.path d="M14 11v6" variants={{ hover: { height: 8 } }} />
                 </motion.svg>
             );
 
@@ -123,10 +122,10 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     whileHover="hover"
                     whileTap="tap"
                 >
-                    <motion.rect width="5" height="5" x="3" y="3" rx="1" variants={{ hover: { scale: 1.1 } }} />
-                    <motion.rect width="5" height="5" x="16" y="3" rx="1" variants={{ hover: { scale: 1.1, transition: { delay: 0.1 } } }} />
-                    <motion.rect width="5" height="5" x="3" y="16" rx="1" variants={{ hover: { scale: 1.1, transition: { delay: 0.2 } } }} />
-                    <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+                    <motion.rect width="5" height="5" x="3" y="3" rx="1" variants={{ hover: { scale: 1.2, x: -1, y: -1 } }} />
+                    <motion.rect width="5" height="5" x="16" y="3" rx="1" variants={{ hover: { scale: 1.2, x: 1, y: -1 } }} />
+                    <motion.rect width="5" height="5" x="3" y="16" rx="1" variants={{ hover: { scale: 1.2, x: -1, y: 1 } }} />
+                    <motion.path d="M21 16h-3a2 2 0 0 0-2 2v3" variants={{ hover: { scale: 1.1 } }} />
                     <path d="M21 21v.01" />
                     <path d="M12 7v3a2 2 0 0 1-2 2H7" />
                     <path d="M3 12h.01" />
@@ -151,9 +150,9 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover={{ scale: 1.2, rotate: 90 }}
+                    whileHover={{ scale: 1.25, rotate: 180 }}
                     whileTap={{ scale: 0.8 }}
-                    transition={{ type: 'spring', stiffness: 300 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 12 }}
                 >
                     <path d="M5 12h14" />
                     <path d="M12 5v14" />
@@ -178,12 +177,15 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                 >
                     <motion.path
                         d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
-                        variants={{ hover: { rotate: -15 } }}
+                        variants={{ hover: { rotate: -45, scale: 1.05 } }}
+                        transition={{ duration: 0.3 }}
                     />
                     <path d="M3 3v5h5" />
                     <motion.path
                         d="M12 7v5l4 2"
-                        variants={{ hover: { rotate: 45, originX: 0.1, originY: 0.1 } }}
+                        variants={{ hover: { rotate: 360 } }}
+                        transition={{ duration: 0.8, ease: "linear", repeat: Infinity }}
+                        style={{ originX: "12px", originY: "12px" }}
                     />
                 </motion.svg>
             );
@@ -204,12 +206,12 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     whileHover="hover"
                     whileTap="tap"
                 >
-                    <rect width="7" height="7" x="3" y="3" rx="1" />
-                    <rect width="7" height="7" x="3" y="14" rx="1" />
-                    <motion.path d="M14 4h7" variants={{ hover: { x: 2 } }} />
-                    <motion.path d="M14 9h7" variants={{ hover: { x: 2, transition: { delay: 0.1 } } }} />
-                    <motion.path d="M14 15h7" variants={{ hover: { x: 2, transition: { delay: 0.2 } } }} />
-                    <motion.path d="M14 20h7" variants={{ hover: { x: 2, transition: { delay: 0.3 } } }} />
+                    <motion.rect width="7" height="7" x="3" y="3" rx="1" variants={{ hover: { scale: 1.1 } }} />
+                    <motion.rect width="7" height="7" x="3" y="14" rx="1" variants={{ hover: { scale: 1.1 } }} />
+                    <motion.path d="M14 4h7" variants={{ hover: { x: 4 } }} />
+                    <motion.path d="M14 9h7" variants={{ hover: { x: 4, transition: { delay: 0.05 } } }} />
+                    <motion.path d="M14 15h7" variants={{ hover: { x: 4, transition: { delay: 0.1 } } }} />
+                    <motion.path d="M14 20h7" variants={{ hover: { x: 4, transition: { delay: 0.15 } } }} />
                 </motion.svg>
             );
 
@@ -229,9 +231,9 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     whileHover="hover"
                     whileTap="tap"
                 >
-                    <motion.ellipse cx="12" cy="5" rx="9" ry="3" variants={{ hover: { y: -1 } }} />
-                    <motion.path d="M3 5V19A9 3 0 0 0 21 19V5" variants={{ hover: { y: 1 } }} />
-                    <path d="M3 12A9 3 0 0 0 21 12" />
+                    <motion.ellipse cx="12" cy="5" rx="9" ry="3" variants={{ hover: { y: -2, scale: 1.05 } }} transition={{ type: 'spring', stiffness: 300 }} />
+                    <motion.path d="M3 5V19A9 3 0 0 0 21 19V5" variants={{ hover: { scaleY: 1.1, originY: "bottom" } }} />
+                    <motion.path d="M3 12A9 3 0 0 0 21 12" variants={{ hover: { y: 2 } }} />
                 </motion.svg>
             );
 
@@ -248,8 +250,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover={{ x: 2 }}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={{ x: 5 }}
+                    whileTap={{ scale: 0.8 }}
                 >
                     <path d="m9 18 6-6-6-6" />
                 </motion.svg>
@@ -268,8 +270,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover={{ y: 2 }}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={{ y: 5 }}
+                    whileTap={{ scale: 0.8 }}
                 >
                     <path d="m6 9 6 6 6-6" />
                 </motion.svg>
@@ -291,11 +293,11 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     whileHover="hover"
                     whileTap="tap"
                 >
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                    <motion.path d="M14 2v4a2 2 0 0 0 2 2h4" variants={{ hover: { scale: 1.1, originX: 0, originY: 0 } }} />
-                    <motion.path d="M10 9H8" variants={{ hover: { x: 2 } }} />
-                    <motion.path d="M16 13H8" variants={{ hover: { x: 2, transition: { delay: 0.1 } } }} />
-                    <motion.path d="M16 17H8" variants={{ hover: { x: 2, transition: { delay: 0.2 } } }} />
+                    <motion.path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" variants={{ hover: { scale: 1.02 } }} />
+                    <motion.path d="M14 2v4a2 2 0 0 0 2 2h4" variants={{ hover: { scale: 1.2, originX: 0, originY: 0 } }} />
+                    <motion.path d="M10 9H8" variants={{ hover: { x: 3 } }} />
+                    <motion.path d="M16 13H8" variants={{ hover: { x: 3, transition: { delay: 0.05 } } }} />
+                    <motion.path d="M16 17H8" variants={{ hover: { x: 3, transition: { delay: 0.1 } } }} />
                 </motion.svg>
             );
 
