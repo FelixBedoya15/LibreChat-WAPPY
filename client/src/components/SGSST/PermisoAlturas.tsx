@@ -21,6 +21,7 @@ import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 
 const WorkerAutocomplete = ({
     value,
@@ -404,32 +405,39 @@ const PermisoAlturas = () => {
             <div className="flex flex-wrap items-center gap-2">
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className="group flex items-center gap-2 px-4 py-2 bg-surface-primary hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                 >
-                    <History className="h-5 w-5" />
-                    <span>Historial</span>
+                    <AnimatedIcon name="history" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
                 </button>
                 <button
                     onClick={() => handleSaveData(false)}
-                    className="group flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                 >
-                    <Save className="h-5 w-5" />
-                    <span>Guardar Datos</span>
+                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
                 </button>
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
+                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    <span>Generar TSA</span>
+                    {isGenerating ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                        <AnimatedIcon name="sparkles" size={20} />
+                    )}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar TSA con IA</span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
                 {generatedObjectives && (
                     <>
-                        <button onClick={handleSave} className="group flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-full transition-all shadow-sm font-medium text-sm">
-                            <Save className="h-5 w-5" />
-                            <span>Guardar</span>
+                        <button
+                            onClick={handleSave}
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                        >
+                            <AnimatedIcon name="save" size={20} className="text-gray-500" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar TSA</span>
                         </button>
                         <ExportDropdown content={editorContent || ''} fileName="Permiso_Alturas" />
                     </>
@@ -731,9 +739,17 @@ const PermisoAlturas = () => {
                         </div>
 
                         <div className="flex justify-center pt-4">
-                            <button onClick={handleGenerate} disabled={isGenerating} className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold shadow-md">
-                                {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                                <span>Generar Permiso Mágico</span>
+                            <button
+                                onClick={handleGenerate}
+                                disabled={isGenerating}
+                                className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                            >
+                                {isGenerating ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <AnimatedIcon name="sparkles" size={20} />
+                                )}
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Permiso con IA</span>
                             </button>
                         </div>
                     </div>

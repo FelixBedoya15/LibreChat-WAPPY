@@ -682,25 +682,25 @@ const MatrizPeligrosGTC45 = () => {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <button onClick={handleGenerateFull} disabled={isGeneratingFull}
-                        className="group flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                        <span>Generar Matriz con IA</span>
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar con IA</span>
                     </button>
                     <button onClick={handleSaveData} disabled={isSaving}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="database" size={20} className="text-gray-500 mr-2" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
                     </button>
                     <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary'}`}>
-                        <AnimatedIcon name="history" size={20} className="mr-2" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Historial</span>
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                        <AnimatedIcon name="history" size={20} />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
                     </button>
                     {procesos.length > 0 && (
                         <button onClick={handleAnalyze} disabled={isAnalyzing}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin text-indigo-500 mr-2" /> : <AnimatedIcon name="sparkles" size={20} className="text-indigo-500 mr-2" />}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Generar Informe</span>
+                            className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe IA</span>
                         </button>
                     )}
                     <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
@@ -1092,8 +1092,9 @@ const MatrizPeligrosGTC45 = () => {
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleSaveReport} className="group flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg transition-all duration-300 text-sm font-bold">
-                                <AnimatedIcon name="save" size={16} className="mr-2" />
+                            <button onClick={handleSaveReport}
+                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                <AnimatedIcon name="save" size={20} />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
                             </button>
                             <ExportDropdown

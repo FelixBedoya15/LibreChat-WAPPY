@@ -24,6 +24,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 
 interface ComplianceStatus {
     itemId: string;
@@ -351,9 +352,9 @@ const MatrizLegal = () => {
                     <button
                         onClick={handleGenerate}
                         disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50"
+                        className="group flex items-center px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 border border-blue-600 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50"
                     >
-                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5" />}
+                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="sparkles" size={20} />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
                             Generar Documento IA
                         </span>
@@ -363,14 +364,14 @@ const MatrizLegal = () => {
                         disabled={isSavingData}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50"
                     >
-                        {isSavingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 text-gray-500" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar</span>
+                        {isSavingData ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">Guardar Datos</span>
                     </button>
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
-                        <History className="h-5 w-5" />
+                        <AnimatedIcon name="history" size={20} />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
                             Historial
                         </span>
@@ -442,10 +443,10 @@ const MatrizLegal = () => {
                         <button
                             onClick={handleGenerate}
                             disabled={isAnalyzing || completedCount === 0}
-                            className="shrink-0 flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="shrink-0 group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                            <span>{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
                         </button>
                     </div>
 
