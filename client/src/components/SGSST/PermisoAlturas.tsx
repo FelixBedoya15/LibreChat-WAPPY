@@ -36,7 +36,7 @@ const WorkerAutocomplete = ({
     onChange: (val: string) => void;
     onSelect?: (worker: any) => void;
     data: any[];
-    searchKey: 'nombreCompleto' | 'identificacion';
+    searchKey: 'nombre' | 'identificacion';
     placeholder: string;
     className?: string;
     wrapperClassName?: string;
@@ -56,10 +56,11 @@ const WorkerAutocomplete = ({
 
     const filteredOptions = data.filter(w => {
         const searchVal = w[searchKey];
+        if (!value) return true;
         return searchVal && String(searchVal).toLowerCase().includes(String(value).toLowerCase());
     });
 
-    const exactMatch = filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
+    const exactMatch = value && filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
     return (
         <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
@@ -75,7 +76,7 @@ const WorkerAutocomplete = ({
                 placeholder={placeholder}
                 autoComplete="off"
             />
-            {isOpen && String(value).trim() !== '' && filteredOptions.length > 0 && !exactMatch && (
+            {isOpen && filteredOptions.length > 0 && !exactMatch && (
                 <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-lg shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
                     {filteredOptions.map((w, idx) => (
                         <li
@@ -87,7 +88,7 @@ const WorkerAutocomplete = ({
                                 setIsOpen(false);
                             }}
                         >
-                            <div className="font-semibold text-text-primary">{w.nombreCompleto}</div>
+                            <div className="font-semibold text-text-primary">{w.nombre}</div>
                             <div className="text-xs text-text-secondary mt-0.5">CC: {w.identificacion} {w.cargo ? `• ${w.cargo}` : ''}</div>
                         </li>
                     ))}
@@ -418,7 +419,7 @@ const PermisoAlturas = () => {
                                             const newT = [...trabajadoresList];
                                             newT[idx].nombre = val;
 
-                                            const matchedWorker = availableWorkers.find(w => w.nombreCompleto === val);
+                                            const matchedWorker = availableWorkers.find(w => w.nombre === val);
                                             if (matchedWorker) {
                                                 newT[idx].cedula = matchedWorker.identificacion;
                                             }
@@ -426,12 +427,12 @@ const PermisoAlturas = () => {
                                         }}
                                         onSelect={(w) => {
                                             const newT = [...trabajadoresList];
-                                            newT[idx].nombre = w.nombreCompleto;
+                                            newT[idx].nombre = w.nombre;
                                             newT[idx].cedula = w.identificacion;
                                             setTrabajadoresList(newT);
                                         }}
                                         data={availableWorkers}
-                                        searchKey="nombreCompleto"
+                                        searchKey="nombre"
                                         placeholder="Nombre completo"
                                         wrapperClassName="w-full md:w-1/2"
                                         className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
@@ -445,7 +446,7 @@ const PermisoAlturas = () => {
 
                                                 const matchedWorker = availableWorkers.find(w => w.identificacion === val);
                                                 if (matchedWorker && !newT[idx].nombre) {
-                                                    newT[idx].nombre = matchedWorker.nombreCompleto;
+                                                    newT[idx].nombre = matchedWorker.nombre;
                                                 }
                                                 setTrabajadoresList(newT);
                                             }}
@@ -453,7 +454,7 @@ const PermisoAlturas = () => {
                                                 const newT = [...trabajadoresList];
                                                 newT[idx].cedula = w.identificacion;
                                                 if (!newT[idx].nombre) {
-                                                    newT[idx].nombre = w.nombreCompleto;
+                                                    newT[idx].nombre = w.nombre;
                                                 }
                                                 setTrabajadoresList(newT);
                                             }}
@@ -528,7 +529,7 @@ const PermisoAlturas = () => {
                                             const newR = [...responsablesList];
                                             newR[idx].nombre = val;
 
-                                            const matchedWorker = availableWorkers.find(w => w.nombreCompleto === val);
+                                            const matchedWorker = availableWorkers.find(w => w.nombre === val);
                                             if (matchedWorker) {
                                                 newR[idx].cedula = matchedWorker.identificacion;
                                                 if (!newR[idx].rol && matchedWorker.cargo) {
@@ -539,7 +540,7 @@ const PermisoAlturas = () => {
                                         }}
                                         onSelect={(w) => {
                                             const newR = [...responsablesList];
-                                            newR[idx].nombre = w.nombreCompleto;
+                                            newR[idx].nombre = w.nombre;
                                             newR[idx].cedula = w.identificacion;
                                             if (!newR[idx].rol && w.cargo) {
                                                 newR[idx].rol = w.cargo;
@@ -547,7 +548,7 @@ const PermisoAlturas = () => {
                                             setResponsablesList(newR);
                                         }}
                                         data={availableWorkers}
-                                        searchKey="nombreCompleto"
+                                        searchKey="nombre"
                                         placeholder="Nombre"
                                         wrapperClassName="w-full md:w-1/3"
                                         className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
@@ -572,7 +573,7 @@ const PermisoAlturas = () => {
 
                                                 const matchedWorker = availableWorkers.find(w => w.identificacion === val);
                                                 if (matchedWorker && !newR[idx].nombre) {
-                                                    newR[idx].nombre = matchedWorker.nombreCompleto;
+                                                    newR[idx].nombre = matchedWorker.nombre;
                                                     if (!newR[idx].rol && matchedWorker.cargo) {
                                                         newR[idx].rol = matchedWorker.cargo;
                                                     }
@@ -583,7 +584,7 @@ const PermisoAlturas = () => {
                                                 const newR = [...responsablesList];
                                                 newR[idx].cedula = w.identificacion;
                                                 if (!newR[idx].nombre) {
-                                                    newR[idx].nombre = w.nombreCompleto;
+                                                    newR[idx].nombre = w.nombre;
                                                     if (!newR[idx].rol && w.cargo) {
                                                         newR[idx].rol = w.cargo;
                                                     }
