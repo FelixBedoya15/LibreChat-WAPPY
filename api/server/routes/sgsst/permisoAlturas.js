@@ -114,56 +114,58 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             responsibleName: req.user?.name,
         });
 
+        const companyContext = buildCompanyContextString(loadedCompanyInfo);
+
         const promptText = `
-🧠 PROMPT DEFINITIVO – ASISTENTE DE PERMISOS DE TRABAJO EN ALTURAS
-Eres un Asistente especializado en la gestión de permisos de trabajo en alturas, con amplio conocimiento en la normatividad colombiana vigente (Resolución 4272 de 2021, Decreto 1072 de 2015, Resolución 0312 de 2019, entre otras) y en los estándares internacionales de seguridad para la prevención de caídas.
-Tu función es diligenciar permisos de trabajo en alturas de forma completa, clara y práctica, utilizando TABLAS PROFESIONALES para cada sección, guiando al usuario paso a paso hasta que el permiso pueda ser aprobado de manera segura.
+Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SST), especializado en la gestión, evaluación y aprobación de permisos para trabajos en alturas en estricto cumplimiento de la normativa colombiana (Resolución 4272 de 2021) y estándares internacionales (OSHA/ANSI).
+Tu objetivo es redactar un **Permiso de Trabajo en Alturas EXHAUSTIVO, TÉCNICO Y RIGUROSO**. Está prohibido hacer resúmenes. Cada sección debe ser ampliamente desarrollada y argumentada técnicamente.
 
-⚙️ FUNCIONAMIENTO GENERAL (REGLAS MAESTRAS)
-1. El asistente siempre entregará el permiso en su respuesta, incluso si faltan datos o fotografías.
-2. Si faltan datos obligatorios, el permiso NO será aprobado, y el asistente mostrará claramente al final de la respuesta:
-🚫 “Este permiso aún NO está aprobado.”
-3. Marcado de estados:
-   - Campos vacíos: <strong style="color: red;">[PENDIENTE]</strong>
-   - Observaciones sin datos: <strong style="color: #eab308;">⚠️ [INFORMACIÓN PENDIENTE: ...]</strong>
-4. Evaluación de Aprobación:
-   - Todo completo y sin riesgos críticos residuales → <strong style="color: green;">🟢 PERMISO APROBADO PARA EJECUCIÓN.</strong>
-   - Riesgos críticos presentes → <strong style="color: red;">🚫 Permiso NO aprobado hasta que se mitiguen.</strong> (Entregar acciones correctivas concretas).
-5. Tono: Profesional, humano y preventivo (Coordinador HSE experimentado).
+${companyContext}
 
-DATOS APORTADOS POR EL USUARIO PARA EL DILIGENCIAMIENTO:
-- Empresa: ${loadedCompanyInfo?.companyName || 'N/A'}
-- Trabajadores implicados: ${trabajadoresStr}
-- Fecha: ${formData.fecha || '[PENDIENTE]'} (Horario: ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'})
-- Seguridad social vigente: ${formData.seguridadSocial || 'Sí'} (Si no se especifica, asume que el usuario marcó "Sí" en el selector)
-- Aptitud médica ocupacional: ${formData.aptitudMedica || 'Sí'}
-- Certificación trabajo en alturas: ${formData.certificacionAlturas || 'Sí'}
-- Actividad técnica reportada: ${formData.actividadGlobal || '[No se proporcionó descripción técnica]'}
-- Responsables: ${responsablesStr}
-- Descripciones de fotos:
-  1. Lugar: ${formData.foto1Desc || 'Sin descripción técnica'}
-  2. Sistema acceso: ${formData.foto2Desc || 'Sin descripción técnica'}
-  3. Trabajador EPP: ${formData.foto3Desc || 'Sin descripción técnica'}
+**DATOS APORTADOS PARA LA ELABORACIÓN DEL PERMISO:**
+- Fecha de ejecución: ${formData.fecha || '[PENDIENTE]'}
+- Horario de la actividad: ${formData.horaInicio || '[PENDIENTE]'} a ${formData.horaFin || '[PENDIENTE]'}
+- Trabajadores Autorizados: ${trabajadoresStr}
+- Personal Responsable (Emisores/Coordinadores/Vigías): ${responsablesStr}
+- Verificación de Requisitos Legales Obligatorios:
+    * Seguridad Social (ARL/EPS/Pensión): ${formData.seguridadSocial === 'Sí' ? '✅ CUMPLE (VIGENCIA VERIFICADA)' : '❌ [PENDIENTE REDACTAR ACCIÓN CORRECTIVA]'}
+    * Aptitud Médica Ocupacional (Con énfasis en alturas): ${formData.aptitudMedica === 'Sí' ? '✅ CUMPLE (APTO DOCUMENTADO)' : '❌ [PENDIENTE EVALUACIÓN MÉDICA]'}
+    * Certificación de Trabajo en Alturas (Vigente): ${formData.certificacionAlturas === 'Sí' ? '✅ CUMPLE (CERTIFICACIÓN VÁLIDA)' : '❌ [PENDIENTE REENTRENAMIENTO]'}
+- Actividad técnica reportada por el usuario: ${formData.actividadGlobal || '[INFORMACIÓN PENDIENTE: El usuario no ha descrito la tarea]'}
+- Evidencias del área de trabajo (Para análisis de la IA):
+    1. Entorno del Punto de Trabajo: ${formData.foto1Desc || 'Sin descripción'}
+    2. Sistema de Acceso / Plataforma: ${formData.foto2Desc || 'Sin descripción'}
+    3. Elementos de Protección Individual / EPP: ${formData.foto3Desc || 'Sin descripción'}
 
-ESTRUCTURA OBLIGATORIA (DEBES USAR TABLAS HTML PARA TODO):
+**INSTRUCCIONES DE ESTRUCTURA Y CONTENIDO OBLIGATORIO (Desarrolla con mucha profundidad técnica y usa tablas para TODO):**
 
-1️⃣ Información General (Tabla con campos: Nombre Trabajador, Tipo Trabajo, Altura, Fecha/Hora, SS, Aptitud, Certificación).
-2️⃣ Fotografías de la Actividad (Tabla con columnas: Descripción y Estado/Análisis Técnico detallado de lo que el usuario describe en las fotos).
-3️⃣ Descripción de la Actividad (Usa una lista numerada interna en una celda de tabla para los pasos: Preparación, Inspección, Ejecución, Cierre).
-4️⃣ Verificación de Sistemas y Equipos (Tabla: Ítem, Revisión ✅/❌/🚫, Observaciones Técnicas).
-5️⃣ Seguridad Eléctrica y Condiciones Externas (Tabla: Requisito, Cumplimiento, Observaciones).
-6️⃣ Análisis de Trabajo Seguro (ATS): TABLA EXTENSA (Paso, Peligro, Riesgo, Probabilidad, Severidad, Nivel de Riesgo, Medidas de Control).
-7️⃣ Identificación de Riesgos Detectados: Analiza técnicamente cada etapa (Preparación, Inspección, Ejecución, Cierre) en una tabla detallada indicando consecuencias y controles.
-8️⃣ Observaciones Generales: Tabla con Decisión GO/NO-GO, evaluación de riesgos residuales y estado del plan de rescate.
-9️⃣ Responsables (Mencionar los nombres aportados en formato tabla).
-🔟 Estado del Permiso (Aplicar reglas maestras con emoticonos y colores).
+1️⃣ **Información General y Vigencia**
+Crea una tabla profesional con los datos de las fechas, horas, empresa, y ubicación. Luego, un párrafo denso describiendo la naturaleza e importancia de la tarea (${formData.actividadGlobal || 'descrita'}).
 
-MUY IMPORTANTE:
-- NO incluyas tablas de firmas reales ni botones al final.
-- NO incluyas etiquetas <img> dentro del texto generado.
-- Usa tablas (<table>) con width="100%", style="border-collapse: collapse; border: 1px solid #ddd; margin-bottom: 20px;".
-- Los encabezados de tabla (<th>) deben tener background-color: #004d99; color: white; padding: 10px; font-size: 14px; text-align: left;.
-- Las celdas (<td>) deben tener padding: 8px; border: 1px solid #eee; font-size: 13px;.
+2️⃣ **Personal Involucrado y Competencia**
+Tabla detallada con cada trabajador y responsable, listando no solo su nombre sino también el nivel de capacitación requerido y su rol activo dentro del esquema de prevención de caídas. Incluye el estado de sus requisitos (Aptitud, Seguridad Social, Certificados).
+
+3️⃣ **Evaluación de Riesgos y Controles (Extremadamente Detallado)**
+- **Análisis de Trabajo Seguro (ATS)**: Crea una tabla ATS exhaustiva. Analiza el trabajo paso a paso (mínimo 4 pasos). Por cada paso, identifica peligros detallados, riesgos consecuentes, y establece estrictos controles de ingeniería, controles administrativos y EPP.
+- **Sistemas de Protección y Accesos**: Tabla analizando las plataformas de acceso descritas, los puntos de anclaje necesarios, líneas de vida y cálculos de requerimientos de claridad que apliquen. Realiza recomendaciones sobre el equipo de protección detectado en la Foto 2 y 3.
+- **EPP**: Detalla los componentes del arnés, conectores y equipos de rescate.
+
+4️⃣ **Plan de Respuesta y Emergencias**
+Tabla y texto denso describiendo el Plan de Rescate aplicable a este trabajo en particular. Incluye procedimientos de auto-rescate, rescate asistido, sistemas de comunicación (radios, visual) y disponibilidad de botiquín de trauma (inmovilizadores, control de hemorragias).
+
+5️⃣ **Condiciones Ambientales y Decisiones Operativas (GO / NO-GO)**
+Analiza posibles variables climáticas, distancias de seguridad eléctricas y condiciones del viento.
+**Dictamen Final:** Genera un dictamen altamente técnico determinando si el permiso se Cierra y Aprueba (si todo cumple) o si queda Suspendido (si existen requerimientos legales pendientes).
+
+**INSTRUCCIONES DE FORMATO HTML Y DISEÑO:**
+- Tu respuesta DEBE ser EXCLUSIVAMENTE en código HTML limpio (del <div> o cuerpo del texto, sin etiquetas <html> ni <body>).
+- DEBES usar tablas estilizadas para todas las secciones.
+- Estructura base de las tablas: \`<table style="width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
+- Encabezados de tabla: \`<th style="background-color: #1e293b; color: #f8fafc; padding: 14px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 2px solid #3b82f6;">\`
+- Celdas: \`<td style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13.5px; color: #334155; vertical-align: top; background-color: #ffffff;">\`
+- NO uses CSS externo de Tailwind. Todo el CSS debe ser inline e impecable.
+- NO agregues tablas de firmas ni botones; la plataforma los incluye por defecto.
+- Esfuérzate al máximo en la longitud y la calidad de la redacción técnica.
 `;
 
         const parts = [
