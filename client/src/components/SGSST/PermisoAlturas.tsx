@@ -53,30 +53,57 @@ const PermisoAlturas = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
     const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
 
     const handleVoiceInput = () => {
+        if (isListening) {
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.stop();
+                } catch (e) { }
+            }
+            setIsListening(false);
+            return;
+        }
+
         // @ts-ignore
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
             return;
         }
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'es-CO';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
 
-        recognition.onstart = () => setIsListening(true);
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            setFormData(prev => ({
-                ...prev,
-                actividadGlobal: prev.actividadGlobal + (prev.actividadGlobal ? ' ' : '') + transcript
-            }));
-        };
-        recognition.onerror = (event: any) => setIsListening(false);
-        recognition.onend = () => setIsListening(false);
-        recognition.start();
+        try {
+            const recognition = new SpeechRecognition();
+            recognitionRef.current = recognition;
+            recognition.lang = 'es-CO';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => setIsListening(true);
+
+            recognition.onresult = (event: any) => {
+                const current = event.resultIndex;
+                const transcript = event.results[current][0].transcript;
+
+                setFormData(prev => ({
+                    ...prev,
+                    actividadGlobal: prev.actividadGlobal + (prev.actividadGlobal && !prev.actividadGlobal.endsWith(' ') ? ' ' : '') + transcript
+                }));
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech error:", event.error);
+                setIsListening(false);
+            };
+
+            recognition.onend = () => setIsListening(false);
+
+            recognition.start();
+        } catch (e) {
+            setIsListening(false);
+            showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
+        }
     };
 
     const handleInputChange = (field: string, value: string) => {
