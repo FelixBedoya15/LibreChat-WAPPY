@@ -157,9 +157,9 @@ Crea una tabla ATS sumamente exhaustiva. **REGLA ABSOLUTA:** Cero resúmenes. Es
 Columnas del ATS: Paso a Paso detallado de la tarea, Riesgo asociado a ESE paso, Consecuencias, y Controles (Ingeniería, Administrativos, EPP requeridos para ese paso).
 
 4️⃣ **Matriz de Identificación de Peligros (Basada en GTC 45)**
-Crea una tabla extensa para la identificación de peligros estructurada según la GTC 45 Colombiana. 
+Crea una tabla extensa para la identificación de peligros estructurada según la Guía Técnica Colombiana GTC 45. 
 **CRÍTICO:** Esta tabla DEBE ir obligatoriamente DESPUÉS del ATS. La columna "ZONA/PROCESO" debe dividirse usando los MISMOS pasos de la tarea que acabas de definir en el ATS (Paso a paso de la tarea).
-Columnas obligatorias: ZONA/PROCESO (Paso de la Tarea), Peligro (Descripción y Clasificación - Físico, Químico, Biomecánico, Condiciones de Seguridad, etc.), Efectos Posibles.
+Columnas obligatorias: ZONA/PROCESO (Paso de la Tarea), Peligro (Descripción y Clasificación estricta según GTC 45: Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad o Fenómenos Naturales), Efectos Posibles.
 
 5️⃣ **Sistemas de Protección, Acceso y EPP**
 Tabla analizando detalladamente: 1. Plataformas/Sistemas de acceso (Analizando Foto 2), 2. Puntos de anclaje/Líneas de vida requeridas, 3. Elementos de Protección Personal obligatorios (Casco con barbuquejo, arnés cuerpo entero, eslingas, gafas, guantes - Analizando Foto 3). 
@@ -170,8 +170,11 @@ Tabla describiendo el Plan de Rescate aplicable. Especifica el procedimiento, el
 7️⃣ **Condiciones Ambientales**
 Analiza las variables climáticas. **INSTRUCCIÓN ESTRICTA:** No inventes ANÁLISIS CLIMÁTICO ni CRITERIOS DE SUSPENSIÓN (como "cielo despejado" o velocidades de viento). Si esta información no está explícitamente en el texto del usuario o es imposible deducirla de la foto con 100% de seguridad, escribe LITERALMENTE en la tabla: *"No reportado en la solicitud operativa - Debe validarse en sitio antes de iniciar"*.
 
-8️⃣ **Dictamen Final (Bloque Gráfico Independiente)**
-Debes colocar el Dictamen Final por aparte, totalmente separado de la tabla de Condiciones Ambientales.
+8️⃣ **Informe Técnico de la Actividad (Riesgos, Controles, Recomendaciones y Conclusiones)**
+Genera un informe descriptivo y profesional (en párrafos y viñetas) que resuma la actividad general, evalúe el panorama de riesgos críticos identificado, resalte los controles clave a implementar y plantee recomendaciones preventivas y conclusiones antes de proceder con el trabajo. Este texto explicativo debe ir después de las tablas y antes del dictamen final.
+
+9️⃣ **Dictamen Final (Bloque Gráfico Independiente)**
+Debes colocar el Dictamen Final por aparte, totalmente separado del Informe Técnico.
 Crea un cajón visual elegante usando un \`<div style="border: 2px solid #004d99; border-radius: 8px; padding: 25px; text-align: center; margin-top: 35px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background-color: #f8fafc;">\`
 - Dentro del div, pon un título \`<h4 style="color: #004d99; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 0; margin-bottom: 15px;">DICTAMEN FINAL DEL EXPERTO SST</h4>\`
 - Luego, un texto explicativo indicando que, basándose en la información suministrada, el responsable SST aprueba (o suspende si hay faltas graves) la labor.
