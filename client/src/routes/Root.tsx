@@ -108,8 +108,41 @@ export default function Root() {
   };
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="flex h-dvh w-full overflow-hidden bg-surface-primary animate-pulse">
+        {/* Sidebar skeleton */}
+        <div className="flex h-full w-[260px] flex-shrink-0 flex-col bg-surface-secondary px-3 py-3 gap-2">
+          {/* Header */}
+          <div className="h-8 w-3/4 rounded-lg bg-surface-tertiary mb-2" />
+          {/* Nav items */}
+          {[1, 0.85, 0.9, 0.7, 0.95].map((w, i) => (
+            <div key={i} className="h-7 rounded-md bg-surface-tertiary" style={{ width: `${w * 100}%`, opacity: 0.6 + i * 0.05 }} />
+          ))}
+          <div className="mt-2 h-px w-full bg-surface-tertiary opacity-40" />
+          <div className="text-xs h-4 w-1/3 rounded bg-surface-tertiary opacity-40 mt-1" />
+          {[0.8, 0.95, 0.65, 0.75].map((w, i) => (
+            <div key={i} className="h-7 rounded-md bg-surface-tertiary" style={{ width: `${w * 100}%`, opacity: 0.5 }} />
+          ))}
+          {/* Bottom user area */}
+          <div className="mt-auto flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-surface-tertiary flex-shrink-0" />
+            <div className="h-4 w-24 rounded bg-surface-tertiary" />
+          </div>
+        </div>
+        {/* Main content skeleton */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+          <div className="h-10 w-48 rounded-xl bg-surface-secondary" />
+          <div className="h-4 w-80 rounded-lg bg-surface-secondary" />
+          <div className="h-4 w-64 rounded-lg bg-surface-secondary opacity-70" />
+          {/* Input bar skeleton */}
+          <div className="absolute bottom-6 w-full max-w-2xl px-4">
+            <div className="h-12 w-full rounded-2xl bg-surface-secondary" />
+          </div>
+        </div>
+      </div>
+    );
   }
+
 
   if (user?.accountStatus === 'inactive') {
     return <InactiveAccount />;
