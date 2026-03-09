@@ -749,6 +749,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <div style={{ minWidth: '900px' }}>
                             <LiveEditor
                                 key={conversationId || 'new'}
+                                reportType="checklist"
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
                                 onSave={handleSave}

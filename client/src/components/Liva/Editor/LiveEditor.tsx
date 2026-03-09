@@ -11,13 +11,14 @@ interface LiveEditorProps {
     initialContent: string;
     onUpdate: (content: string) => void;
     onSave?: () => void;
+    reportType?: 'checklist' | 'general';
 }
 
 export interface LiveEditorHandle {
     setHTML: (html: string) => void;
 }
 
-const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave }, ref) => {
+const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general' }, ref) => {
     const localize = useLocalize();
     const editorRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -567,7 +568,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 )}
                 <div
                     ref={editorRef}
-                    className="flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content"
+                    className={`flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
                     contentEditable
                     onInput={handleInput}
                     suppressContentEditableWarning={true}
@@ -615,11 +616,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     border-right: 1px solid rgba(255,255,255,0.15);
                 }
                 /* Specific column widths for SGSST Reports */
-                .live-editor-content table th:nth-child(1) { width: 38px; } /* # - Narrowest possible */
-                .live-editor-content table th:nth-child(2) { width: 14%; } /* Requisito / Estándar */
-                .live-editor-content table th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
-                .live-editor-content table th:nth-child(4) { width: 10%; } /* Tipo */
-                .live-editor-content table th:nth-child(5) { width: 15%; } /* Responsable - Wider */
+                .checklist-mode table th:nth-child(1) { width: 38px; } /* # - Narrowest possible */
+                .checklist-mode table th:nth-child(2) { width: 14%; } /* Requisito / Estándar */
+                .checklist-mode table th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
+                .checklist-mode table th:nth-child(4) { width: 10%; } /* Tipo */
+                .checklist-mode table th:nth-child(5) { width: 15%; } /* Responsable - Wider */
 
                 .live-editor-content table th:last-child {
                     border-right: none;

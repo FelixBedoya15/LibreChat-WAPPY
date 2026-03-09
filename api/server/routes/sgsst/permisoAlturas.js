@@ -171,7 +171,13 @@ Tabla describiendo el Plan de Rescate aplicable. Especifica el procedimiento, el
 Analiza las variables climáticas. **INSTRUCCIÓN ESTRICTA:** No inventes ANÁLISIS CLIMÁTICO ni CRITERIOS DE SUSPENSIÓN (como "cielo despejado" o velocidades de viento). Si esta información no está explícitamente en el texto del usuario o es imposible deducirla de la foto con 100% de seguridad, escribe LITERALMENTE en la tabla: *"No reportado en la solicitud operativa - Debe validarse en sitio antes de iniciar"*.
 
 8️⃣ **Informe Técnico de la Actividad (Riesgos, Controles, Recomendaciones y Conclusiones)**
-Genera un informe descriptivo y profesional (en párrafos y viñetas) que resuma la actividad general, evalúe el panorama de riesgos críticos identificado, resalte los controles clave a implementar y plantee recomendaciones preventivas y conclusiones antes de proceder con el trabajo. Este texto explicativo debe ir después de las tablas y antes del dictamen final.
+**REGLA OBLIGATORIA:** Este informe DEBE SER EXTREMADAMENTE EXTENSO, MUY PROFUNDO Y DETALLADO. No te limites a un párrafo corto.
+Genera un documento analítico de múltiples párrafos extensos y viñetas desglosando meticulosamente:
+- Resumen detallado de la ingeniería y mecánica de la actividad.
+- Evaluación exhaustiva del panorama de riesgos críticos y peores escenarios posibles (worst-case scenarios).
+- Explicación minuciosa de los controles técnicos, de ingeniería y administrativos a implementar.
+- Recomendaciones preventivas avanzadas y conclusiones operativas que justifiquen el nivel de riesgo antes de proceder.
+Este texto explicativo de alto nivel técnico debe ir después de las tablas y antes del dictamen final.
 
 9️⃣ **Dictamen Final (Bloque Gráfico Independiente)**
 Debes colocar el Dictamen Final por aparte, totalmente separado del Informe Técnico.
