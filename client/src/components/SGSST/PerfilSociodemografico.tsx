@@ -67,6 +67,28 @@ const PerfilSociodemografico = () => {
 
     // QR Code Modal State
     const [selectedQrWorker, setSelectedQrWorker] = useState<WorkerEntry | null>(null);
+    // ─── Sync Signatures ────────────────────────────────────────
+    const syncWorkersSignaturesToStorage = (workers: WorkerEntry[]) => {
+        try {
+            const namedSigsStr = localStorage.getItem('wappy_signatures');
+            const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
+            let updated = false;
+
+            for (const w of workers) {
+                if (w.consentimientoFirmaDigital === 'Sí' && w.firmaDigital && w.nombre) {
+                    namedSignatures[w.nombre.trim().toUpperCase()] = w.firmaDigital;
+                    updated = true;
+                }
+            }
+
+            if (updated) {
+                localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+                window.dispatchEvent(new Event('storage'));
+            }
+        } catch (e) {
+            console.error('Error syncing worker signatures', e);
+        }
+    };
 
     // ─── Load Data ──────────────────────────────────────────────
     useEffect(() => {
@@ -79,7 +101,10 @@ const PerfilSociodemografico = () => {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.trabajadores?.length) setTrabajadores(data.trabajadores);
+                    if (data.trabajadores?.length) {
+                        setTrabajadores(data.trabajadores);
+                        syncWorkersSignaturesToStorage(data.trabajadores);
+                    }
                 }
             } catch (err) {
                 console.error('Error loading perfil sociodemografico:', err);
@@ -153,6 +178,8 @@ const PerfilSociodemografico = () => {
         if (!token) return;
         setIsSaving(true);
         try {
+            syncWorkersSignaturesToStorage(trabajadores);
+
             const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

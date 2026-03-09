@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
-    Award, Calendar, UserCheck
+    Award, Calendar, UserCheck, Image as ImageIcon
 } from 'lucide-react';
 
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
+import AnimatedIcon from '~/components/ui/AnimatedIcon';
 
 interface CompanyInfoData {
     companyName: string;
@@ -30,6 +31,10 @@ interface CompanyInfoData {
     licenseNumber: string;
     courseStatus: string;
     licenseExpiry: string;
+    legalRepSignature: string | null;
+    legalRepConsent: string;
+    sstRespSignature: string | null;
+    sstRespConsent: string;
 }
 
 
@@ -53,6 +58,10 @@ const INITIAL_DATA: CompanyInfoData = {
     licenseNumber: '',
     courseStatus: '',
     licenseExpiry: '',
+    legalRepSignature: null,
+    legalRepConsent: 'No',
+    sstRespSignature: null,
+    sstRespConsent: 'No',
 };
 
 
@@ -93,20 +102,77 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
             .then(info => {
                 if (info && info.companyName !== undefined) {
                     setData(prev => ({ ...prev, ...info }));
+
+                    // Sync loaded signatures to localStorage for LiveEditor auto-injector
+                    try {
+                        const namedSigsStr = localStorage.getItem('wappy_signatures');
+                        const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
+                        let updated = false;
+
+                        if (info.legalRepConsent === 'Sí' && info.legalRepSignature && info.legalRepresentative) {
+                            namedSignatures[info.legalRepresentative.trim().toUpperCase()] = info.legalRepSignature;
+                            updated = true;
+                        }
+                        if (info.sstRespConsent === 'Sí' && info.sstRespSignature && info.responsibleSST) {
+                            namedSignatures[info.responsibleSST.trim().toUpperCase()] = info.sstRespSignature;
+                            updated = true;
+                        }
+
+                        if (updated) {
+                            localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+                            // Dispatch event if we want LiveEditor to know immediately
+                            window.dispatchEvent(new Event('storage'));
+                        }
+                    } catch (err) {
+                        console.error('Error syncing signatures to local storage:', err);
+                    }
                 }
             })
             .catch(err => console.error('Error loading company info:', err))
             .finally(() => setLoading(false));
     }, [isOpen, token]);
 
-    const handleChange = useCallback((field: keyof CompanyInfoData, value: string | number) => {
+    const handleChange = useCallback((field: keyof CompanyInfoData, value: string | number | null) => {
         setData(prev => ({ ...prev, [field]: value }));
     }, []);
+
+    const handleFirmaUpload = useCallback((field: 'legalRepSignature' | 'sstRespSignature', e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                handleChange(field, readerEvent.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    }, [handleChange]);
 
     const handleSave = useCallback(async () => {
         if (!token) return;
         setSaving(true);
         try {
+            // First sync to localStorage for the AI editor
+            try {
+                const namedSigsStr = localStorage.getItem('wappy_signatures');
+                const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
+                let updated = false;
+
+                if (data.legalRepConsent === 'Sí' && data.legalRepSignature && data.legalRepresentative) {
+                    namedSignatures[data.legalRepresentative.trim().toUpperCase()] = data.legalRepSignature;
+                    updated = true;
+                }
+                if (data.sstRespConsent === 'Sí' && data.sstRespSignature && data.responsibleSST) {
+                    namedSignatures[data.responsibleSST.trim().toUpperCase()] = data.sstRespSignature;
+                    updated = true;
+                }
+
+                if (updated) {
+                    localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+                    window.dispatchEvent(new Event('storage'));
+                }
+            } catch (e) { }
+
             const res = await fetch('/api/sgsst/company-info', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -260,6 +326,82 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 </div>
                             </div>
 
+                            {/* Firmas y Consentimiento */}
+                            <div>
+                                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
+                                    <UserCheck className="h-4 w-4" /> Firmas Digitales y Consentimiento
+                                </h3>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    {/* Legal Representative */}
+                                    <div className="rounded-xl border border-border-medium bg-surface-primary p-4">
+                                        <h4 className="font-semibold text-sm mb-3">Firma Representante Legal</h4>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
+                                                <select className={selectClass} value={data.legalRepConsent || 'No'} onChange={e => handleChange('legalRepConsent', e.target.value)}>
+                                                    <option>Sí</option>
+                                                    <option>No</option>
+                                                </select>
+                                                <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
+                                            </div>
+                                            <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
+                                                {data.legalRepSignature ? (
+                                                    <div className="relative group w-full flex items-center justify-center">
+                                                        <img src={data.legalRepSignature} alt="Firma Representante Legal" className="max-h-16 object-contain" />
+                                                        <button
+                                                            onClick={() => handleChange('legalRepSignature', null)}
+                                                            className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
+                                                        >
+                                                            <AnimatedIcon name="trash" size={14} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <label className="cursor-pointer text-center flex flex-col items-center text-text-secondary w-full">
+                                                        <ImageIcon size={24} className="mb-2 text-indigo-400" />
+                                                        <span className="text-xs font-semibold uppercase">Cargar Firma</span>
+                                                        <span className="text-[10px] opacity-70 mt-1">Representante Legal</span>
+                                                        <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('legalRepSignature', e)} className="hidden" />
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* SST Responsible */}
+                                    <div className="rounded-xl border border-border-medium bg-surface-primary p-4">
+                                        <h4 className="font-semibold text-sm mb-3">Firma Responsable SG-SST</h4>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
+                                                <select className={selectClass} value={data.sstRespConsent || 'No'} onChange={e => handleChange('sstRespConsent', e.target.value)}>
+                                                    <option>Sí</option>
+                                                    <option>No</option>
+                                                </select>
+                                                <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
+                                            </div>
+                                            <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
+                                                {data.sstRespSignature ? (
+                                                    <div className="relative group w-full flex items-center justify-center">
+                                                        <img src={data.sstRespSignature} alt="Firma Responsable SG-SST" className="max-h-16 object-contain" />
+                                                        <button
+                                                            onClick={() => handleChange('sstRespSignature', null)}
+                                                            className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
+                                                        >
+                                                            <AnimatedIcon name="trash" size={14} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <label className="cursor-pointer text-center flex flex-col items-center text-text-secondary w-full">
+                                                        <ImageIcon size={24} className="mb-2 text-indigo-400" />
+                                                        <span className="text-xs font-semibold uppercase">Cargar Firma</span>
+                                                        <span className="text-[10px] opacity-70 mt-1">Responsable SG-SST</span>
+                                                        <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('sstRespSignature', e)} className="hidden" />
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             {/* Contact Info */}
                             <div>

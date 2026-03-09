@@ -101,7 +101,22 @@ const companyInfoSchema = new mongoose.Schema({
         trim: true,
         default: '',
     },
-
+    legalRepSignature: {
+        type: String,
+        default: null,
+    },
+    legalRepConsent: {
+        type: String,
+        default: 'No',
+    },
+    sstRespSignature: {
+        type: String,
+        default: null,
+    },
+    sstRespConsent: {
+        type: String,
+        default: 'No',
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('CompanyInfo', companyInfoSchema);

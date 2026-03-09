@@ -30,6 +30,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
             address, city, phone, email,
             generalActivities, sector, responsibleSST,
             formationLevel, licenseNumber, courseStatus, licenseExpiry,
+            legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
         } = req.body;
 
         const info = await CompanyInfo.findOneAndUpdate(
@@ -41,6 +42,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
                 address, city, phone, email,
                 generalActivities, sector, responsibleSST,
                 formationLevel, licenseNumber, courseStatus, licenseExpiry,
+                legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
             },
             { upsert: true, new: true },
         );
