@@ -24,7 +24,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signatureInputRef = useRef<HTMLInputElement>(null);
     const [content, setContent] = useState(initialContent);
-    const [signatures, setSignatures] = useState<string[]>([]);
+    const [namedSignatures, setNamedSignatures] = useState<Record<string, string>>({});
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
     const [imageToolbarPos, setImageToolbarPos] = useState({ top: 0, left: 0 });
@@ -33,29 +33,76 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [selectedGraphic, setSelectedGraphic] = useState<HTMLDivElement | null>(null);
     const [graphicToolbarPos, setGraphicToolbarPos] = useState({ top: 0, left: 0 });
     const [activeSignaturePlaceholder, setActiveSignaturePlaceholder] = useState<HTMLElement | null>(null);
+    const [activeSignatureName, setActiveSignatureName] = useState<string>('');
 
     useEffect(() => {
-        // Load signatures from localStorage on mount
-        const savedSignatures = localStorage.getItem('sgsst_signatures');
-        if (savedSignatures) {
-            try {
-                setSignatures(JSON.parse(savedSignatures));
-            } catch (e) {
-                console.error('Error loading signatures:', e);
+        const namedSigsStr = localStorage.getItem('wappy_signatures');
+        let initialNamed: Record<string, string> = {};
+        if (namedSigsStr) {
+            try { initialNamed = JSON.parse(namedSigsStr); } catch (e) { }
+        } else {
+            const oldSigsStr = localStorage.getItem('sgsst_signatures');
+            if (oldSigsStr) {
+                try {
+                    const arr = JSON.parse(oldSigsStr);
+                    if (Array.isArray(arr)) {
+                        arr.forEach((url, i) => { initialNamed[`Firma Antigua ${i + 1}`] = url; });
+                    }
+                } catch (e) { }
             }
         }
+        setNamedSignatures(initialNamed);
     }, []);
 
     useEffect(() => {
         try {
-            localStorage.setItem('sgsst_signatures', JSON.stringify(signatures));
+            if (Object.keys(namedSignatures).length > 0) {
+                localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+            }
         } catch (e) {
             console.warn('Storage quota exceeded for signatures.');
-            if (signatures.length > 2) {
-                setSignatures(prev => prev.slice(prev.length - 2));
+            // Only keep the newest 10 if quota is hit
+            const entries = Object.entries(namedSignatures);
+            if (entries.length > 5) {
+                const sliced = Object.fromEntries(entries.slice(entries.length - 5));
+                setNamedSignatures(sliced);
             }
         }
-    }, [signatures]);
+    }, [namedSignatures]);
+
+    // Auto-inject signatures automatically if they exist in state
+    useEffect(() => {
+        if (!editorRef.current || Object.keys(namedSignatures).length === 0) return;
+
+        let changed = false;
+        const placeholders = Array.from(editorRef.current.querySelectorAll('.signature-placeholder')) as HTMLElement[];
+
+        if (placeholders.length > 0) {
+            placeholders.forEach(placeholder => {
+                const nextEl = placeholder.nextElementSibling;
+                if (nextEl) {
+                    const name = nextEl.textContent?.trim().toUpperCase() || '';
+                    if (name && namedSignatures[name]) {
+                        const img = document.createElement('img');
+                        img.src = namedSignatures[name];
+                        img.className = 'wappy-auto-signature';
+                        img.style.maxHeight = '100px';
+                        img.style.display = 'block';
+                        img.style.margin = '10px auto';
+                        img.alt = `Firma de ${name}`;
+                        placeholder.replaceWith(img);
+                        changed = true;
+                    }
+                }
+            });
+
+            if (changed) {
+                const newContent = editorRef.current.innerHTML;
+                setContent(newContent);
+                onUpdate(newContent);
+            }
+        }
+    }, [namedSignatures, content]);
 
     // Expose setHTML() to parent via ref (imperative handle)
     useImperativeHandle(ref, () => ({
@@ -114,41 +161,59 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             const reader = new FileReader();
             reader.onload = (readerEvent) => {
                 const signatureUrl = readerEvent.target?.result as string;
-                setSignatures(prev => {
-                    const next = [...prev, signatureUrl];
-                    return next.length > 5 ? next.slice(next.length - 5) : next;
-                });
-                // Auto insert after upload to improve UX
-                insertSignature(signatureUrl);
+                let nameToUse = activeSignatureName;
+                if (!nameToUse || nameToUse === 'DESCONOCIDO') {
+                    nameToUse = prompt("¿A qué nombre o rol pertenece esta firma?")?.trim().toUpperCase() || `Firma ${Object.keys(namedSignatures).length + 1}`;
+                }
+
+                setNamedSignatures(prev => ({
+                    ...prev,
+                    [nameToUse]: signatureUrl
+                }));
+
+                // Auto insert directly if it was called independent of a placeholder
+                if (!activeSignaturePlaceholder) {
+                    const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma ${nameToUse}" />`;
+                    document.execCommand('insertHTML', false, img);
+                }
+                setIsSignatureModalOpen(false);
             };
             reader.readAsDataURL(file);
         }
-        // Reset input
         e.target.value = '';
     };
 
-    const insertSignature = (signatureUrl: string) => {
+    const insertSignature = (signatureUrl: string, existingName: string) => {
         if (activeSignaturePlaceholder) {
-            // If we clicked a placeholder, replace it
-            const img = document.createElement('img');
-            img.src = signatureUrl;
-            img.style.maxHeight = '100px';
-            img.style.display = 'block';
-            img.style.margin = '10px auto';
-            img.alt = "Firma Digital";
-            activeSignaturePlaceholder.replaceWith(img);
+            if (activeSignatureName && activeSignatureName !== 'DESCONOCIDO' && activeSignatureName !== existingName) {
+                setNamedSignatures(prev => ({
+                    ...prev,
+                    [activeSignatureName]: signatureUrl
+                }));
+            } else {
+                const img = document.createElement('img');
+                img.src = signatureUrl;
+                img.style.maxHeight = '100px';
+                img.style.display = 'block';
+                img.style.margin = '10px auto';
+                activeSignaturePlaceholder.replaceWith(img);
+                onUpdate(editorRef.current?.innerHTML || '');
+            }
             setActiveSignaturePlaceholder(null);
-            onUpdate(editorRef.current?.innerHTML || '');
         } else {
-            // Normal insertion at cursor
-            const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma Digital" />`;
+            const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma" />`;
             document.execCommand('insertHTML', false, img);
+            onUpdate(editorRef.current?.innerHTML || '');
         }
         setIsSignatureModalOpen(false);
     };
 
-    const deleteSignature = (index: number) => {
-        setSignatures(prev => prev.filter((_, i) => i !== index));
+    const deleteSignature = (name: string) => {
+        setNamedSignatures(prev => {
+            const next = { ...prev };
+            delete next[name];
+            return next;
+        });
     };
 
     // Image manipulation functions
@@ -171,11 +236,18 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 const placeholder = (target.closest('.signature-placeholder') || target.closest('div') || target.parentElement) as HTMLElement;
                 if (placeholder) {
                     e.preventDefault();
-                    e.stopPropagation();
-                    console.log('[LiveEditor] Signature placeholder clicked');
-                    clearSelections();
-                    setActiveSignaturePlaceholder(placeholder);
-                    setIsSignatureModalOpen(true);
+                    // Check for signature placeholders
+                    const sigPlaceholder = target.closest('.signature-placeholder') as HTMLElement;
+                    if (sigPlaceholder && editorRef.current?.contains(sigPlaceholder)) {
+                        let extractedName = 'DESCONOCIDO';
+                        const nextEl = sigPlaceholder.nextElementSibling;
+                        if (nextEl) {
+                            extractedName = nextEl.textContent?.trim().toUpperCase() || 'DESCONOCIDO';
+                        }
+                        setActiveSignatureName(extractedName);
+                        setActiveSignaturePlaceholder(sigPlaceholder);
+                        setIsSignatureModalOpen(true);
+                    }
                 }
             } else if (target.closest('td, th') && editorRef.current?.contains(target)) {
                 const cell = target.closest('td, th') as HTMLTableCellElement;
@@ -419,30 +491,39 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
                     <div className="bg-surface-primary rounded-2xl border border-border-medium shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-4 border-b border-border-light flex justify-between items-center bg-surface-secondary">
-                            <h3 className="font-bold text-text-primary">Firmas Digitales</h3>
+                            <h3 className="font-bold text-text-primary text-sm uppercase">
+                                {activeSignatureName && activeSignatureName !== 'DESCONOCIDO'
+                                    ? `Insertar Firma: ${activeSignatureName}`
+                                    : 'Firmas Digitales'
+                                }
+                            </h3>
                             <button onClick={() => setIsSignatureModalOpen(false)} className="text-text-tertiary hover:text-text-primary">
-                                <List className="w-5 h-5" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="p-4 max-h-[60vh] overflow-y-auto">
-                            {signatures.length === 0 ? (
+                            {Object.keys(namedSignatures).length === 0 ? (
                                 <div className="text-center py-8 text-text-tertiary">
                                     <PenTool className="w-12 h-12 mx-auto mb-2 opacity-20" />
                                     <p>No hay firmas guardadas</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3">
-                                    {signatures.map((sig, idx) => (
-                                        <div key={idx} className="group relative border border-border-light rounded-lg p-2 hover:border-blue-500 transition-all cursor-pointer bg-white">
+                                    {Object.entries(namedSignatures).map(([name, url]) => (
+                                        <div key={name} className="group flex flex-col items-center justify-between border border-border-light rounded-lg p-3 hover:border-blue-500 transition-all cursor-pointer bg-white relative">
                                             <img
-                                                src={sig}
-                                                alt={`Firma ${idx + 1}`}
-                                                className="max-h-20 mx-auto object-contain"
-                                                onClick={() => insertSignature(sig)}
+                                                src={url}
+                                                alt={name}
+                                                className="max-h-16 w-auto object-contain mb-2 flex-grow"
+                                                onClick={() => insertSignature(url, name)}
                                             />
+                                            <div
+                                                className="text-[10px] font-bold text-slate-700 text-center uppercase tracking-tight leading-none break-words w-full px-1"
+                                                onClick={() => insertSignature(url, name)}
+                                            >{name}</div>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); deleteSignature(idx); }}
-                                                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={(e) => { e.stopPropagation(); deleteSignature(name); }}
+                                                className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
                                             >
                                                 <Trash2 className="w-3 h-3" />
                                             </button>
