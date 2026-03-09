@@ -146,6 +146,8 @@ Bajo ninguna circunstancia puedes inventar, asumir o alucinar información, dato
 1️⃣ **Información Operativa del Trabajo**
 NO generes títulos principales como "PERMISO DE TRABAJO", pues ya existe en el encabezado. TAMPOCO repitas Razón Social, NIT o Nivel de Riesgo, el encabezado ya lo tiene.
 Crea una tabla con SOLO: Fecha, Horario, Ubicación/Área específica, **Sistema de Acceso**, **Altura de Trabajo estimada** y Descripción amplia de la tarea.
+Luego de la tabla, genera OBLIGATORIAMENTE un párrafo resaltado empleando el siguiente contenedor (literal):
+\`<div style="border-left: 4px solid #3b82f6; background-color: #f8fafc; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; margin-top: -10px; font-size: 13.5px; color: #334155; line-height: 1.6;"><strong>Naturaleza Crítica de la Tarea:</strong> [TU ANÁLISIS EXHAUSTIVO SOBRE POR QUÉ ESTA LABOR SUPERA EL UMBRAL DE LA RESOLUCIÓN, LOS PELIGROS ADICIONALES INTRODUCIDOS Y EL ENFOQUE DE GESTIÓN DE RIESGO APLICABLE]</div>\`
 
 2️⃣ **Personal Involucrado y Competencia**
 Tabla detallada EXCLUSIVAMENTE con los trabajadores y responsables listados (NO INVENTES OTROS, y NO incluyas al representante legal). Incluye rol en la labor, y validación legal (SS, Aptitud, Certificado).

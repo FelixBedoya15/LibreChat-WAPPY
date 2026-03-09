@@ -1106,7 +1106,7 @@ const MatrizPeligrosGTC45 = () => {
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1 overflow-hidden">
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor initialContent={generatedReport} onUpdate={setEditorContent} />
+                                <LiveEditor key={conversationId || 'new'} initialContent={generatedReport} onUpdate={setEditorContent} />
                             </div>
                         </div>
                         <style>{`

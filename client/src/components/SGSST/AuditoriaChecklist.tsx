@@ -673,6 +673,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <div style={{ minWidth: '900px' }}>
                             <LiveEditor
+                                key={conversationId || 'new'}
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
                                 onSave={handleSave}

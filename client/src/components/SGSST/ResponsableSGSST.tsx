@@ -399,6 +399,7 @@ const ResponsableSGSST = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
+                                    key={conversationId || 'new'}
                                     initialContent={generatedDoc}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}

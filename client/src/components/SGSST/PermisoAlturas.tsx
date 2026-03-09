@@ -773,7 +773,7 @@ const PermisoAlturas = () => {
                         <div className="p-1 overflow-hidden">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
-                                    <LiveEditor initialContent={generatedObjectives} onUpdate={setEditorContent} onSave={handleSave} />
+                                    <LiveEditor key={conversationId || 'new-editor'} initialContent={generatedObjectives} onUpdate={setEditorContent} onSave={handleSave} />
                                 </div>
                             </div>
                         </div>
