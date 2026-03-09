@@ -513,6 +513,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         <ExportDropdown
                             content={editorContent || analysisReport || ''}
                             fileName="Informe_Auditoria_SST"
+                            reportType="checklist"
                         />
                     )}
                 </div>
@@ -667,6 +668,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                             <ExportDropdown
                                 content={editorContent || analysisReport || ''}
                                 fileName="Informe_Auditoria"
+                                reportType="checklist"
                             />
                         </div>
                     </div>

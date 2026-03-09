@@ -742,6 +742,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             <ExportDropdown
                                 content={editorContent || analysisReport || ''}
                                 fileName="Informe_Diagnostico"
+                                reportType="checklist"
                             />
                         </div>
                     </div>

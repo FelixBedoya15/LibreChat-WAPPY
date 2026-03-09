@@ -4,6 +4,7 @@ import { Download, Globe, FileText, FileDown, ChevronDown } from 'lucide-react';
 interface ExportDropdownProps {
     content: string;
     fileName: string;
+    reportType?: 'checklist' | 'general';
 }
 
 /**
@@ -11,7 +12,7 @@ interface ExportDropdownProps {
  * Provides HTML, Word, and PDF export options in a single dropdown button.
  * Preserves full HTML styling (tables, colors, formatting) in all formats.
  */
-const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) => {
+const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -74,11 +75,11 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
             border-right: 1px solid rgba(255,255,255,0.15);
         }
         /* Specific column widths for SGSST Reports */
-        th:nth-child(1) { width: 38px; } /* # - Narrowest */
-        th:nth-child(2) { width: 14%; } /* Requisito / Norma */
-        th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
-        th:nth-child(4) { width: 10%; } /* Tipo */
-        th:nth-child(5) { width: 15%; } /* Responsable */
+        .checklist-mode th:nth-child(1) { width: 38px; } /* # - Narrowest */
+        .checklist-mode th:nth-child(2) { width: 14%; } /* Requisito / Norma */
+        .checklist-mode th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
+        .checklist-mode th:nth-child(4) { width: 10%; } /* Tipo */
+        .checklist-mode th:nth-child(5) { width: 15%; } /* Responsable */
 
         th:last-child { border-right: none; }
         td {
@@ -95,7 +96,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName }) =>
         tr:hover { background-color: #e8f0fe; }
     </style>
 </head>
-<body>${content}</body>
+<body class="${reportType === 'checklist' ? 'checklist-mode' : ''}">${content}</body>
 </html>`;
     };
 
