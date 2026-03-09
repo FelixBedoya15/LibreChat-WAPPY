@@ -93,7 +93,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         const body = {
           file_id: file.file_id,
           query,
-          k: 5,
+          k: 10,
         };
         if (!entity_id) {
           return body;
@@ -137,7 +137,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         // TODO: results should be sorted by relevance, not distance
         .sort((a, b) => a.distance - b.distance)
         // TODO: make this configurable
-        .slice(0, 10);
+        .slice(0, 15);
 
       const formattedString = formattedResults
         .map(
@@ -163,7 +163,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
       name: Tools.file_search,
       responseFormat: 'content_and_artifact',
       description: `Performs semantic search across attached "${Tools.file_search}" documents using natural language queries. This tool analyzes the content of uploaded files to find relevant information, quotes, and passages that best match your query. Use this to extract specific information or find relevant sections within the available documents.${fileCitations
-          ? `
+        ? `
 
 **CITE FILE SEARCH RESULTS:**
 Use anchor markers immediately after statements derived from file content. Reference the filename in your text:
@@ -172,7 +172,7 @@ Use anchor markers immediately after statements derived from file content. Refer
 - Multi-file: "Multiple sources confirm... \\ue200\\ue202turn0file0\\ue202turn0file1\\ue201"
 
 **ALWAYS mention the filename in your text before the citation marker. NEVER use markdown links or footnotes.**`
-          : ''
+        : ''
         }`,
       schema: z.object({
         query: z
