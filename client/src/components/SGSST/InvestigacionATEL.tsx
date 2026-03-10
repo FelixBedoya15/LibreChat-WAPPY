@@ -525,21 +525,25 @@ const InvestigacionATEL = () => {
                                         <button
                                             type="button"
                                             onClick={handleVoiceInput}
-                                            className={`p-2 rounded-full transition-colors flex items-center gap-2 ${isListening ? 'bg-red-100 text-red-600 hover:bg-red-200 animate-pulse' : 'bg-surface-tertiary hover:bg-surface-hover text-text-secondary'}`}
-                                            title={isListening ? "Detener dictado" : "Iniciar dictado por voz"}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow border flex items-center gap-2 ${isListening ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light'}`}
                                         >
-                                            {isListening ? (
-                                                <><div className="w-2 h-2 rounded-full bg-red-600 animate-ping"></div> Escuchando...</>
-                                            ) : (
-                                                <><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg> Dictar</>
-                                            )}
+                                            <span className="relative flex h-3 w-3">
+                                                {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                                                <span className={`relative inline-flex rounded-full h-3 w-3 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                                            </span>
+                                            {isListening ? 'Escuchando...' : 'Activar Micrófono'}
                                         </button>
                                     </label>
                                     <textarea
                                         value={formData.descripcionHechos + (interimText ? ' ' + interimText : '')}
-                                        onChange={(e) => setFormData({ ...formData, descripcionHechos: e.target.value })}
-                                        className="w-full h-32 p-3 bg-surface-secondary border border-border-medium rounded-lg resize-none focus:ring-2 focus:ring-blue-500 transition-shadow text-text-primary"
-                                        placeholder="Describa detalladamente cómo ocurrieron los hechos..."
+                                        onChange={(e) => {
+                                            if (!isListening) {
+                                                setFormData({ ...formData, descripcionHechos: e.target.value })
+                                            }
+                                        }}
+                                        readOnly={isListening}
+                                        className={`w-full rounded-xl border-2 ${isListening ? 'border-solid border-red-300 bg-red-50/10 focus:border-red-400 focus:bg-red-50/20' : 'border-dashed border-border-medium bg-surface-primary focus:bg-surface-hover focus:border-blue-400'} p-4 text-sm text-text-primary min-h-[160px] resize-y transition-colors focus:outline-none`}
+                                        placeholder="Ej: Describa detalladamente cómo ocurrieron los hechos..."
                                     />
                                 </div>
                             </div>
