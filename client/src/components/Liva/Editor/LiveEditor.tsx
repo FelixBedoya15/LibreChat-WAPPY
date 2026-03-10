@@ -77,14 +77,31 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         let changed = false;
         const placeholders = Array.from(editorRef.current.querySelectorAll('.signature-placeholder')) as HTMLElement[];
 
+        // Helper to find a signature key that matches
+        const findSignatureMatch = (name: string) => {
+            if (!name) return null;
+            name = name.toUpperCase().trim();
+            // Direct match
+            if (namedSignatures[name]) return namedSignatures[name];
+            // Substring match
+            for (const key of Object.keys(namedSignatures)) {
+                if (name.includes(key) || key.includes(name)) {
+                    return namedSignatures[key];
+                }
+            }
+            return null;
+        };
+
         if (placeholders.length > 0) {
             placeholders.forEach(placeholder => {
                 const nextEl = placeholder.nextElementSibling;
                 if (nextEl) {
                     const name = nextEl.textContent?.trim().toUpperCase() || '';
-                    if (name && namedSignatures[name]) {
+                    const matchedSignatureUrl = findSignatureMatch(name);
+
+                    if (name && matchedSignatureUrl) {
                         const img = document.createElement('img');
-                        img.src = namedSignatures[name];
+                        img.src = matchedSignatureUrl;
                         img.className = 'wappy-auto-signature';
                         img.style.maxHeight = '100px';
                         img.style.display = 'block';
