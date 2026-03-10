@@ -21,6 +21,7 @@ import ObjetivosSST from './ObjetivosSST';
 import AuditoriaChecklist from './AuditoriaChecklist';
 import MatrizLegal from './MatrizLegal';
 import EstadisticasATEL from './EstadisticasATEL';
+import InvestigacionATEL from './InvestigacionATEL';
 import PermisoAlturas from './PermisoAlturas';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
@@ -307,6 +308,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'estadisticas' && (
                                                     <div className="mb-6">
                                                         <EstadisticasATEL />
+                                                    </div>
+                                                )}
+
+                                                {/* Show InvestigacionATEL for investigacion_atel category */}
+                                                {category.id === 'investigacion_atel' && (
+                                                    <div className="mb-6">
+                                                        <InvestigacionATEL />
                                                     </div>
                                                 )}
 

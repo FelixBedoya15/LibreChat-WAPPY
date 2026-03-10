@@ -13,6 +13,7 @@ export const PHASE_CATEGORIES = {
         { id: 'perfil_socio', title: 'Perfil Sociodemográfico', icon: 'Users' },
         { id: 'perfil_cargo', title: 'Perfiles de Cargo', icon: 'UserCircle' },
         { id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart' },
+        { id: 'investigacion_atel', title: 'Investigación ATEL', icon: 'Activity' },
         { id: 'condiciones_salud', title: 'Informe Condiciones de Salud', icon: 'Activity' },
         { id: 'peligros', title: 'Matriz de Peligros', icon: 'AlertTriangle' },
         { id: 'permiso_alturas', title: 'Permiso de Trabajo en Alturas', icon: 'Construction' },
