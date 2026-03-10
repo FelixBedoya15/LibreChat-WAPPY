@@ -9,7 +9,7 @@ import {
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
-import AnimatedIcon from '~/components/ui/AnimatedIcon';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 
 interface CompanyInfoData {
     companyName: string;
