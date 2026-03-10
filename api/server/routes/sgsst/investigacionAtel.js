@@ -12,130 +12,132 @@ const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
-// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
+// ─── In-memory form data store (per user) ────────────────────────────────────
+const investigacionDataStore = new Map();
+
+// ─── HELPER: Gemini with model fallback ──────────────────────────────────────
+async function generateWithRetry(model, promptParts) {
     const genAI = new GoogleGenerativeAI(model.apiKey);
     const currentModelName = model.model.replace('models/', '');
-
     const fallbackOrder = [
         'gemini-3-flash-preview',
         'gemini-3.1-flash-lite-preview',
         'gemini-2.5-flash',
-        'gemini-2.5-flash-lite'
+        'gemini-2.5-flash-lite',
     ];
-
     let modelsToTry = [currentModelName];
     for (const m of fallbackOrder) {
         if (m !== currentModelName) modelsToTry.push(m);
     }
-
     let lastError;
     for (const modelName of modelsToTry) {
-        if (!modelName) continue;
         try {
             if (modelName !== currentModelName) {
-                console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
+                console.warn(`[InvestigacionATEL] Usando modelo de respaldo: ${modelName}`);
             }
             const fallbackModel = genAI.getGenerativeModel({
                 model: modelName,
-                generationConfig: model.generationConfig || {}
+                generationConfig: model.generationConfig || {},
             });
-            return await fallbackModel.generateContent(promptText);
+            return await fallbackModel.generateContent(promptParts);
         } catch (err) {
-            console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
+            console.warn(`[InvestigacionATEL] Falló ${modelName}: ${err.message}`);
             lastError = err;
         }
     }
-
-    throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
+    throw new Error(`Todos los modelos fallaron. Último error: ${lastError?.message}`);
 }
 
-/**
- * POST /api/sgsst/investigacion-atel/generate
- * Generates an Investigation ATEL report based on form data and images.
- */
+// ─── GET /api/sgsst/investigacion-atel/data ───────────────────────────────────
+router.get('/data', requireJwtAuth, async (req, res) => {
+    const stored = investigacionDataStore.get(req.user.id) || {};
+    res.json({
+        formData: stored.formData || {},
+        equipoList: stored.equipoList || [],
+        testigosList: stored.testigosList || [],
+        images: stored.images || {},
+    });
+});
+
+// ─── POST /api/sgsst/investigacion-atel/save ─────────────────────────────────
+router.post('/save', requireJwtAuth, async (req, res) => {
+    const { formData, equipoList, testigosList, images } = req.body;
+    investigacionDataStore.set(req.user.id, { formData, equipoList, testigosList, images });
+    res.json({ success: true });
+});
+
+// ─── POST /api/sgsst/investigacion-atel/generate ─────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const {
-            tipoEvento, // Incidente, Accidente Leve, Accidente Grave, Accidente Mortal, Enfermedad Laboral
-            fechaEvento,
-            horaEvento,
-            lugarEvento,
-            descripcionHechos,
-            afectadoNombre,
-            afectadoCedula,
-            afectadoCargo,
-            testigos, // array of { nombre, cedula, cargo, testimonio }
-            userName,
+            formData = {},
+            equipoList = [],
+            testigosList = [],
             images,
-            modelName
+            modelName,
+            userName,
         } = req.body;
 
+        const {
+            tipoEvento, fechaEvento, horaEvento, lugarEvento, departamento, municipio,
+            actividadMomento, descripcionHechos,
+            afectadoNombre, afectadoCedula, afectadoCargo, afectadoEps, afectadoArl,
+            tipoContrato, jornadaLaboral, experienciaLaboral, tiempoEnCargo,
+            naturalezaLesion, parteCuerpo, diasIncapacidad, agenteCausal, consecuencias,
+        } = formData;
+
         if (!descripcionHechos) {
-            return res.status(400).json({ error: 'La descripción de los hechos es requerida' });
+            return res.status(400).json({ error: 'La descripción de los hechos es requerida para generar el informe.' });
         }
 
-        // 1. Retrieve the user's Google API key
+        // ── Resolve API Key ──
         let resolvedApiKey;
         try {
             const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
             try {
                 const parsed = JSON.parse(storedKey);
                 resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
-            } catch (parseErr) {
+            } catch {
                 resolvedApiKey = storedKey;
             }
         } catch (err) {
-            logger.debug('[SGSST InvestigacionATEL] No user Google key found, trying env vars:', err.message);
+            logger.debug('[InvestigacionATEL] No user Google key:', err.message);
         }
-
         if (!resolvedApiKey) {
             resolvedApiKey = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
         }
-
         if (resolvedApiKey && typeof resolvedApiKey === 'string') {
             resolvedApiKey = resolvedApiKey.split(',')[0].trim();
         }
-
         if (!resolvedApiKey) {
-            return res.status(400).json({
-                error: 'No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.',
-            });
+            return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
         }
 
-        // 2. Load company info context
+        // ── Company Info ──
         let companyInfoBlock = '';
         let loadedCompanyInfo = null;
         try {
             const ci = await CompanyInfo.findOne({ user: req.user.id }).lean();
             loadedCompanyInfo = ci;
-            if (ci && ci.companyName) {
-                companyInfoBlock = buildCompanyContextString(ci);
-            }
+            if (ci?.companyName) companyInfoBlock = buildCompanyContextString(ci);
         } catch (ciErr) {
-            logger.warn('Error loading company info:', ciErr.message);
+            logger.warn('[InvestigacionATEL] Error loading company info:', ciErr.message);
         }
 
-        // 3. Prepare Image Parts (if provided)
+        // ── Image Parts ──
         const imageParts = [];
         if (images) {
             for (let i = 1; i <= 4; i++) {
                 const imgKey = `foto${i}`;
-                if (images[imgKey] && images[imgKey].startsWith('data:image/')) {
+                if (images[imgKey]?.startsWith('data:image/')) {
                     try {
-                        const regex = /^data:(image\/[a-zA-Z]*);base64,([^\"]*)$/;
+                        const regex = /^data:(image\/[a-zA-Z]*);base64,([^"]*)$/;
                         const matches = images[imgKey].match(regex);
                         if (matches && matches.length === 3) {
-                            imageParts.push({
-                                inlineData: {
-                                    mimeType: matches[1],
-                                    data: matches[2]
-                                }
-                            });
+                            imageParts.push({ inlineData: { mimeType: matches[1], data: matches[2] } });
                         }
                     } catch (err) {
-                        logger.warn(`Error processing image ${i}:`, err.message);
+                        logger.warn(`[InvestigacionATEL] Error processing image ${i}:`, err.message);
                     }
                 }
             }
@@ -143,95 +145,158 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         const dateStr = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
+        // ── Build Header ──
         const headerHtml = buildStandardHeader({
-            title: `INFORME DE INVESTIGACIÓN: ${tipoEvento?.toUpperCase() || 'EVENTO ATEL'}`,
+            title: `INFORME DE INVESTIGACIÓN DE ${tipoEvento?.toUpperCase() || 'EVENTO'} LABORAL`,
             companyInfo: loadedCompanyInfo,
             date: dateStr,
-            norm: 'Resolución 1401 de 2007',
+            norm: 'Resolución 1401 de 2007 — Ministerio de Protección Social',
             responsibleName: userName || req.user?.name,
         });
 
-        // Testigos formatter
-        let testigosBlock = '';
-        if (testigos && testigos.length > 0) {
-            testigosBlock = testigos.map((t, i) => `
-Testigo ${i + 1}: ${t.nombre || 'N/A'} (CC: ${t.cedula || 'N/A'}) - Cargo: ${t.cargo || 'N/A'}
-Versión: "${t.testimonio || 'No aportada'}"
-`).join('\n');
-        } else {
-            testigosBlock = "No hubo testigos documentados.";
-        }
+        // ── Format Blocks ──
+        const testigosBlock = testigosList.length > 0 && testigosList[0].nombre
+            ? testigosList.map((t, i) => `Testigo ${i + 1}: ${t.nombre || 'N/A'} | CC: ${t.cedula || 'N/A'} | Cargo: ${t.cargo || 'N/A'}\nVersión: "${t.testimonio || 'Sin testimonio documentado'}"`).join('\n\n')
+            : 'No se documentaron testigos.';
 
-        // Construir un super-prompt con diseño visual inyectado
-        const systemPromptText = `Eres un experto Investigador de Accidentes y Enfermedades Laborales registrado bajo la normatividad colombiana (Resolución 1401 de 2007).
-        
-Recibes la siguiente información sobre un evento de tipo: **${tipoEvento || 'Indeterminado'}**:
+        const equipoBlock = equipoList.length > 0 && equipoList[0].nombre
+            ? equipoList.map((e) => `• ${e.nombre || 'N/A'} (CC: ${e.cedula || 'N/A'}) — ${e.rol || 'Investigador'}`).join('\n')
+            : '• Equipo investigador pendiente de asignar';
 
-**DATOS DEL EVENTO:**
-- Fecha y Hora: ${fechaEvento || 'N/A'} a las ${horaEvento || 'N/A'}
+        // ── Master Prompt (Resolución 1401 compliant) ──
+        const systemPromptText = `Eres un experto en Investigación de Accidentes e Incidentes Laborales certificado bajo la normatividad colombiana (Resolución 1401 de 2007, Decreto 1072 de 2015).
+
+Tienes la siguiente información para investigar:
+
+════════════════════════════════════════
+📋 DATOS DEL EVENTO
+════════════════════════════════════════
+- Tipo de Evento: ${tipoEvento || 'No especificado'}
+- Fecha: ${fechaEvento || 'N/A'} | Hora: ${horaEvento || 'N/A'}
 - Lugar/Área: ${lugarEvento || 'N/A'}
-- Afectado: ${afectadoNombre || 'N/A'} (CC: ${afectadoCedula || 'N/A'}) - Cargo: ${afectadoCargo || 'N/A'}
+- Departamento: ${departamento || 'N/A'} | Municipio: ${municipio || 'N/A'}
+- Actividad al momento del evento: ${actividadMomento || 'N/A'}
 
-**TESTIGOS Y VERSIONES:**
-${testigosBlock}
+════════════════════════════════════════
+👷 TRABAJADOR AFECTADO
+════════════════════════════════════════
+- Nombre: ${afectadoNombre || 'N/A'}
+- Cédula: ${afectadoCedula || 'N/A'}
+- Cargo: ${afectadoCargo || 'N/A'}
+- EPS: ${afectadoEps || 'N/A'} | ARL: ${afectadoArl || 'N/A'}
+- Tipo de contrato: ${tipoContrato || 'N/A'}
+- Jornada laboral: ${jornadaLaboral || 'N/A'}
+- Experiencia laboral total: ${experienciaLaboral || 'N/A'} años
+- Tiempo en el cargo actual: ${tiempoEnCargo || 'N/A'}
 
-**DESCRIPCIÓN DE LOS HECHOS (Relato inicial):**
+════════════════════════════════════════
+📖 DESCRIPCIÓN DE LOS HECHOS
+════════════════════════════════════════
 "${descripcionHechos}"
 
-**DATOS DE EMPRESA:**
-${companyInfoBlock}
+Naturaleza de la lesión: ${naturalezaLesion || 'N/A'}
+Parte del cuerpo afectada: ${parteCuerpo || 'N/A'}
+Agente causal: ${agenteCausal || 'N/A'}
+Consecuencias: ${consecuencias || 'N/A'}
+Días de incapacidad: ${diasIncapacidad || '0'}
 
-${imageParts.length > 0 ? "*(Tienes acceso visual a las fotos del evento adjuntas)*" : ""}
+════════════════════════════════════════
+👥 TESTIGOS
+════════════════════════════════════════
+${testigosBlock}
 
-## INSTRUCCIONES ESTRICTAS:
-Genera un informe técnico DE DIAGRAMACIÓN GRÁFICA AVANZADA EN HTML para la investigación de este evento.
-El informe debe ser profesional, analítico y verse MUY VISUAL AL ESTILO "DASHBOARD".
+════════════════════════════════════════
+🔍 EQUIPO INVESTIGADOR (Art. 7 Res. 1401/2007)
+════════════════════════════════════════
+${equipoBlock}
 
-1. **ENCABEZADO:**
-   Incluye EXACTAMENTE el siguiente código HTML como encabezado:
-   ${headerHtml}
+════════════════════════════════════════
+🏢 DATOS DE LA EMPRESA
+════════════════════════════════════════
+${companyInfoBlock || 'No disponible'}
 
-2. **ANÁLISIS DESCRIPTIVO:**
-   Redacta una narración pericial técnica estructurando qué ocurrió antes, durante y después del evento, fusionando la descripción inicial de los hechos con los testimonios y lo que deduces de las imágenes (si hay).
+${imageParts.length > 0 ? `*(Tienes ${imageParts.length} foto(s) de evidencia adjuntas — analízalas y refiérete a ellas en el informe)*` : ''}
 
-3. **METODOLOGÍA 1: LOS 5 PORQUÉS (Visualmente como una escalera o tarjetas anidadas):**
-   Utiliza etiquetas DIV, estilos CSS en línea (flexbox y bordes de colores) para mostrar cómo se llega a la causa raíz. 
-   - Diseño recomendado: Un listado descendente donde cada tarjeta esté visualmente conectada por una línea o flecha. Fondo de las tarjetas: gris claro o azul pastel.
+════════════════════════════════════════════════════════════════════════════
+📐 INSTRUCCIONES ESTRICTAS PARA GENERAR EL INFORME
+════════════════════════════════════════════════════════════════════════════
 
-4. **METODOLOGÍA 2: DIAGRAMA ESPINA DE PESCADO - ISHIKAWA (Estético y Diagramado con CSS Grid):**
-   Usa Flexbox o Grid para crear la espina.
-   - Categorías: Hombre, Máquina, Entorno, Material, Método.
-   - Diseña un bloque que simule la "cabeza" del pescado (El Problema/Accidente) y filas/flechas que simulen las espinas. **DEBE PARECER UN DIAGRAMA**. NO hagas solo una lista simple; utiliza \`display: flex\`, \`border\`, y \`background-color\`.
+Genera un INFORME DE INVESTIGACIÓN PROFESIONAL y VISUAL en HTML cumpliendo la Resolución 1401 de 2007.
+El informe debe verse como un DASHBOARD TÉCNICO de alta calidad.
 
-5. **METODOLOGÍA 3: ÁRBOL DE CAUSAS:**
-   Construye un pequeño esquema jerárquico tipo organigrama hacia abajo (de las lesiones a los hechos, utilizando \`display: flex\` centrado y bordes).
+1. **ENCABEZADO (Obligatorio — incluye exactamente este HTML):**
+${headerHtml}
 
-6. **PLAN DE ACCIÓN Y MEDIDAS DE INTERVENCIÓN:**
-   Tabla estructurada y colorida (NO "striped" o rayas por fila para proteger el modo oscuro), aplicando jerarquía de controles (Eliminación, Sustitución, Controles de Ingeniería, Administrativos, EPP).
-   - Columnas: Control Propuesto / Tipo en Jerarquía / Responsable / Fecha de Cierre.
+2. **DESCRIPCIÓN ANALÍTICA DEL EVENTO:**
+   Narra perícialmente cómo ocurrió el evento en tres momentos: ANTES, DURANTE y DESPUÉS.
+   Incluye análisis de las condiciones del entorno, estado del trabajador y factores organizacionales.
+   Si hay fotos, refiérete a ellas con frases como "Como se evidencia en la fotografía 1...".
 
-**REGLAS DE DISEÑO:**
-- **PRECAUCIÓN MODO OSCURO:** NUNCA apliques un color de fondo (por ejemplo, gris claro) a una caja, tabla o div **sin aplicarle explícitamente y al mismo tiempo un \`color: #000;\` o su equivalente oscuro invertido**.
-- Si no encuentras culpabilidad, atribúyelo a factores del entorno o falta de controles organizacionales. Siempre debe existir una causa raíz en base a la historia narrada.
-- Las gráficas creadas solo con HTML/CSS deben quedar visualmente impactantes. 
-- NO insertes firmas al final, nosotros nos encargaremos de eso automáticamente. No generes etiquetas <html> o <body>. Simplemente devuelve el contenido interno.
+3. **METODOLOGÍA 1 — 5 PORQUÉS (Diagrama Visual Tipo Cascada):**
+   Crea 5 tarjetas conectadas con flechas descendentes (CSS únicamente).
+   - Diseño: divs con background azul pastel oscureciendo progresivamente hacia la causa raíz.
+   - La tarjeta final (Causa Raíz) en rojo/naranja destacado.
+   - Usa inline styles. Cada tarjeta tiene: Pregunta → Respuesta.
+   - PRECAUCIÓN: Aplica siempre color: #111 en las tarjetas con fondos claros.
+
+4. **METODOLOGÍA 2 — DIAGRAMA DE ISHIKAWA (Espina de Pescado Visual):**
+   Construye un diagrama real usando CSS Grid/Flexbox:
+   - Cabeza del pescado (el accidente) a la derecha, en una caja destacada.
+   - 6 espinas principales: Mano de Obra, Máquina/Equipo, Entorno/Ambiente, Material, Método, Gestión/Administración.
+   - Cada espina con 2-3 causas secundarias.
+   - DEBE parecer un verdadero diagrama de espina de pescado, no una lista.
+   - Usa líneas horizontales/diagonales con border CSS para simular las espinas.
+   - Paleta recomendada: fondo #f8fafc, espinas en tonos de azul, rojo para la cabeza.
+   - PRECAUCIÓN: Aplica color: #111 o color: #FFF según el fondo de cada sección.
+
+5. **METODOLOGÍA 3 — ÁRBOL DE CAUSAS:**
+   Organigrama descendente mostrando la cadena causal:
+   CONSECUENCIA → HECHOS DIRECTOS → CAUSAS INMEDIATAS → CAUSAS BÁSICAS → CAUSA RAÍZ
+   Usa display:flex y border para simular un árbol. Conecta los nodos con líneas verticales CSS.
+   Paleta: naranja para consecuencias, amarillo para causas inmediatas, rojo para causa raíz.
+   PRECAUCIÓN: Aplica color: #111 en cajas con fondo claro.
+
+6. **TABLA DE CLASIFICACIÓN DE CAUSAS (Res. 1401/2007 Art. 4):**
+   Tabla HTML bien formateada con:
+   - Causas Básicas: (Factores del trabajador + Factores de trabajo)
+   - Causas Inmediatas: (Actos inseguros + Condiciones inseguras)
+   Aplica thead con fondo azul oscuro y color blanco.
+
+7. **PLAN DE ACCIÓN Y MEDIDAS DE INTERVENCIÓN:**
+   Tabla colorida (4 columnas: Control Propuesto | Tipo Jerarquía | Responsable | Fecha límite).
+   Sigue la jerarquía de controles: Eliminación → Sustitución → Ingeniería → Administrativo → EPP.
+   Usa filas con fondo claro SIEMPRE con color: #111.
+
+8. **CONCLUSIONES Y COMPROMISOS:**
+   Párrafo técnico con las principales conclusiones y compromisos empresariales para evitar recurrencia.
+   Incluye el número de días para investigar (máx. 15 días hábiles Res. 1401/2007 Art. 4).
+
+═══════════════════════════════
+REGLAS DE DISEÑO OBLIGATORIAS:
+═══════════════════════════════
+- NUNCA apliques background claro SIN agregar color:#111 o color:#000 al mismo elemento.
+- NO insertes firmas (el sistema las agrega automáticamente).
+- NO incluyas etiquetas <html>, <body>, <head>, ni bloques de código \`\`\`.  
+- Devuelve SOLO el contenido HTML interno listo para renderizar.
+- Todos los diagramas deben verse REALMENTE como diagramas, no como listas de texto.
+- La presentación debe ser de nivel PROFESIONAL y causar impacto visual al director de SST.
 `;
 
+        // ── Generate ──
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const selectedModel = modelName || 'gemini-3-flash-preview';
+        const selectedModelName = modelName || 'gemini-3-flash-preview';
         const model = genAI.getGenerativeModel({
-            model: selectedModel,
-            generationConfig: { maxOutputTokens: 65000, temperature: 0.6 }
+            model: selectedModelName,
+            generationConfig: { maxOutputTokens: 65000, temperature: 0.65 },
         });
 
         const parts = [systemPromptText, ...imageParts];
 
-        console.log(`[SGSST InvestigacionATEL] Generating report via fallback logic. Initial model: ${selectedModel}`);
+        console.log(`[InvestigacionATEL] Generando informe. Modelo: ${selectedModelName}`);
 
-        // Timeout wrapper
         const generateWithTimeout = async (mod, prmpt, timeoutMs = 180000) => {
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT: La generación excedió el tiempo límite.')), timeoutMs)
+                setTimeout(() => reject(new Error('TIMEOUT: La generación superó el tiempo límite.')), timeoutMs)
             );
             const genPromise = (async () => {
                 const genResult = await generateWithRetry(mod, prmpt);
@@ -262,14 +327,12 @@ El informe debe ser profesional, analítico y verse MUY VISUAL AL ESTILO "DASHBO
         });
 
     } catch (error) {
-        logger.error('[SGSST InvestigacionATEL] Generation error:', error);
+        logger.error('[InvestigacionATEL] Generation error:', error);
         res.status(500).json({ error: `Error generando el informe: ${error.message}` });
     }
 });
 
-/**
- * POST /api/sgsst/investigacion-atel/save-report
- */
+// ─── POST /api/sgsst/investigacion-atel/save-report ──────────────────────────
 router.post('/save-report', requireJwtAuth, async (req, res) => {
     try {
         const { content, title, tags } = req.body;
@@ -303,14 +366,12 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
 
         res.status(201).json({ conversationId, messageId, title: reportTitle });
     } catch (error) {
-        logger.error('[SGSST InvestigacionATEL save-report] Error:', error);
+        logger.error('[InvestigacionATEL save-report] Error:', error);
         res.status(500).json({ error: 'Error saving report' });
     }
 });
 
-/**
- * PUT /api/sgsst/investigacion-atel/save-report
- */
+// ─── PUT /api/sgsst/investigacion-atel/save-report ───────────────────────────
 router.put('/save-report', requireJwtAuth, async (req, res) => {
     try {
         const { conversationId, messageId, content } = req.body;
