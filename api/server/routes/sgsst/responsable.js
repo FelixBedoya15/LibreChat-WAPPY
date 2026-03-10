@@ -9,6 +9,23 @@ const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+
 /**
  * POST /api/sgsst/responsable/generate
  * Generates an SST Responsible Assignment using AI.
@@ -145,7 +162,7 @@ Asegúrate de que el documento se vea como una carta formal de asignación corpo
 
 
         // 4. Generate the document
-        const result = await model.generateContent(promptText);
+        const result = await generateWithRetry(model, promptText);
         const response = await result.response;
         const document = response.text();
 

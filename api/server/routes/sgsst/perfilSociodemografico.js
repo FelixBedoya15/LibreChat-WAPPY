@@ -9,6 +9,23 @@ const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
+
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const WorkerEntrySchema = new mongoose.Schema({
   id: String,
@@ -276,7 +293,7 @@ Esquema JSON Requerido (DEBES responder solo json, sin markdown):
   ]
 }`;
 
-    const result = await model.generateContent(systemPrompt);
+    const result = await generateWithRetry(model, systemPrompt);
     let text = result.response.text().trim();
     text = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
 
@@ -411,7 +428,7 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
 - Celdas(td): padding = "10px", border - bottom="1px solid #ddd"(sin background - color predeterminado para que hereden el modo oscuro).`;
 
     const model = genAI.getGenerativeModel({ model: modelName });
-    const result = await model.generateContent(promptText);
+    const result = await generateWithRetry(model, promptText);
     let aiHtml = result.response.text().trim();
     aiHtml = aiHtml.replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 

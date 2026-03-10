@@ -26,5 +26,6 @@ module.exports = {
     rit,
     responsable,
     permisoAlturas,
+    signatures: require('./signatures'),
 };
 

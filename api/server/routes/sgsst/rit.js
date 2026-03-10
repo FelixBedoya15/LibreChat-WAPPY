@@ -8,6 +8,23 @@ const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const { scheduleRules, specialConditions, additionalBenefits, modelName } = req.body;
@@ -87,7 +104,7 @@ ${headerHTML}
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
 
-        const result = await model.generateContent(prompt);
+        const result = await generateWithRetry(model, prompt);
         const response = await result.response;
         const generatedHtml = response.text();
 

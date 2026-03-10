@@ -8,6 +8,23 @@ const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+
 /**
  * POST /api/sgsst/estadisticas/generate
  * Calculates ATEL indicators (Res. 0312/2019 Art. 30) for Monthly or Annual scope.
@@ -271,7 +288,7 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
         const genAI = new GoogleGenerativeAI(await getApiKey(req.user.id));
         const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
 
-        const result = await model.generateContent(promptText);
+        const result = await generateWithRetry(model, promptText);
         const text = result.response.text();
 
         let cleanedReport = cleanHtmlOutput(text);

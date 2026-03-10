@@ -11,6 +11,23 @@ const { Conversation, Message } = require('~/db/models');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 const auditoriaMap = require('./auditoriaMap');
 
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+
 /**
  * Helper to fetch the latest saved report for a given user and tag.
  */
@@ -211,7 +228,7 @@ El diseño debe ser elegante con acentos en azul oscuro (#004d99). Tablas deben 
 Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\` y la etiqueta de la tabla debe tener \`min-width: 650px;\` para que desplace lateralmente en celulares.`;
 
         // 6. Generate the content
-        const result = await model.generateContent(promptText);
+        const result = await generateWithRetry(model, promptText);
         const response = await result.response;
         const objectivesHtml = response.text();
 

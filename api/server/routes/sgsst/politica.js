@@ -9,6 +9,23 @@ const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+
 /**
  * POST /api/sgsst/politica/generate
  * Generates an SST Policy using AI based on company info and user-provided hazards/data.
@@ -183,7 +200,7 @@ La política debe ser formal, profesional y cumplir con los requisitos del Decre
 El diseño debe ser elegante con colores institucionales (azul #004d99 para encabezados con \`color: #004d99;\` explícito, bordes sutiles, tipografía profesional).`;
 
         // 4. Generate the policy
-        const result = await model.generateContent(promptText);
+        const result = await generateWithRetry(model, promptText);
         const response = await result.response;
         const policy = response.text();
 

@@ -9,6 +9,23 @@ const { logger } = require('~/config');
 const router = express.Router();
 const mongoose = require('mongoose');
 
+
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
 const PermisoAlturasDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -219,7 +236,7 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #004d99
             });
         }
 
-        const result = await model.generateContent(parts);
+        const result = await generateWithRetry(model, parts);
         const response = await result.response;
         const htmlBody = response.text().replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 

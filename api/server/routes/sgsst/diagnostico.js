@@ -12,6 +12,23 @@ const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
+// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await generateWithRetry(model, promptText);
+    } catch (err) {
+      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
+        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+
 /**
  * POST /api/sgsst/diagnostico/analyze
  * Analyzes the SGSST checklist and generates a management report.
@@ -399,7 +416,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
                 setTimeout(() => reject(new Error('TIMEOUT: La generación del informe excedió el tiempo límite. Intente de nuevo.')), timeoutMs)
             );
             const genPromise = (async () => {
-                const genResult = await model.generateContent(prompt);
+                const genResult = await generateWithRetry(model, prompt);
                 const genResponse = await genResult.response;
                 return genResponse.text();
             })();

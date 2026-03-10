@@ -6,6 +6,7 @@ import {
     Plus, Minus, Table as TableIcon, Layout, ChevronRight, ChevronDown, Palette
 } from 'lucide-react';
 import { useLocalize } from '~/hooks';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 interface LiveEditorProps {
     initialContent: string;
@@ -20,6 +21,7 @@ export interface LiveEditorHandle {
 
 const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general' }, ref) => {
     const localize = useLocalize();
+    const { token } = useAuthContext();
     const editorRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signatureInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +54,25 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             }
         }
         setNamedSignatures(initialNamed);
-    }, []);
+        // Also fetch from backend for mobile/cross-device syncing
+        if (token) {
+            fetch('/api/sgsst/signatures', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.signatures && Object.keys(data.signatures).length > 0) {
+                        setNamedSignatures(prev => {
+                            const merged = { ...prev, ...data.signatures };
+                            localStorage.setItem('wappy_signatures', JSON.stringify(merged));
+                            return merged;
+                        });
+                    }
+                })
+                .catch(err => console.error("Error fetching signatures for sync:", err));
+        }
+
+    }, [token]);
 
     useEffect(() => {
         try {
