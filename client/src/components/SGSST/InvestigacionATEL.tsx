@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { AlertTriangle, UserCircle, Users,  useTranslation } from 'react-i18next';
+import { AlertTriangle, UserCircle, Users, useTranslation } from 'react-i18next';
 import {
     Sparkles,
     Save,
@@ -160,7 +160,7 @@ const InvestigacionATEL = () => {
                 if (Object.keys(data.formData || {}).length > 0) {
                     setFormData(prev => ({ ...prev, ...data.formData }));
                 }
-                                if (data.images) setImages(data.images);
+                if (data.images) setImages(data.images);
             })
             .catch(err => console.error('Error fetching permiso alturas data', err));
     }, [token]);
@@ -427,7 +427,7 @@ const InvestigacionATEL = () => {
                     ) : (
                         <AnimatedIcon name="sparkles" size={20} />
                     )}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar TSA con IA</span>
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar ATEL con IA</span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
                 {generatedObjectives && (
@@ -437,9 +437,9 @@ const InvestigacionATEL = () => {
                             className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                         >
                             <AnimatedIcon name="save" size={20} className="text-gray-500" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar TSA</span>
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar ATEL</span>
                         </button>
-                        <ExportDropdown content={editorContent || ''} fileName="Permiso_Alturas" />
+                        <ExportDropdown content={editorContent || ''} fileName="Investigacion_ATEL" />
                     </>
                 )}
             </div>
@@ -461,8 +461,7 @@ const InvestigacionATEL = () => {
 
                 {isFormExpanded && (
                     <div className="p-6 space-y-6">
-                        <div className="space-y-4 border rounded-xl p-4 bg-surface-tertiary/20">
-                            <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -473,7 +472,7 @@ const InvestigacionATEL = () => {
                                 ) : (
                                     <AnimatedIcon name="sparkles" size={20} />
                                 )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Permiso con IA</span>
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar ATEL con IA</span>
                             </button>
                         </div>
                     </div>
