@@ -318,7 +318,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             .trim();
 
         if (loadedCompanyInfo) {
-            // ── Investigadores (from equipoList) ──────────────────────
+            // ── Equipo investigador (from equipoList) ───────────────────────
             const jefeInmediato = equipoList.find(e =>
                 (e.rol || '').toLowerCase().includes('jefe') || (e.rol || '').toLowerCase().includes('supervisor')
             );
@@ -326,68 +326,62 @@ REGLAS DE DISEÑO OBLIGATORIAS:
                 (e.rol || '').toLowerCase().includes('copasst') || (e.rol || '').toLowerCase().includes('vig')
             );
             const sig1Name = (jefeInmediato?.nombre || 'Jefe Inmediato / Supervisor').toUpperCase();
-            const sig1CC = jefeInmediato?.cedula ? `CC. ${jefeInmediato.cedula}` : '';
+            const sig1CC   = jefeInmediato?.cedula ? 'CC. ' + jefeInmediato.cedula : '';
             const sig2Name = (copasst?.nombre || 'Representante COPASST').toUpperCase();
-            const sig2CC = copasst?.cedula ? `CC. ${copasst.cedula}` : '';
+            const sig2CC   = copasst?.cedula ? 'CC. ' + copasst.cedula : '';
 
-            // ── Empresa (from companyInfo) ─────────────────────────────
-            const responsible = (loadedCompanyInfo.responsibleSST || 'Responsable SG-SST').toUpperCase();
-            const license = loadedCompanyInfo.licenseNumber || '';
-            const licenseExpiry = loadedCompanyInfo.licenseExpiry ? ` — Vence: ${loadedCompanyInfo.licenseExpiry}` : '';
-            const legalRep = (loadedCompanyInfo.legalRepresentative || 'Representante Legal').toUpperCase();
-            const companyName = loadedCompanyInfo.companyName || '';
+            // ── Empresa (from companyInfo) ──────────────────────────────────
+            const responsible   = (loadedCompanyInfo.responsibleSST || 'Responsable SG-SST').toUpperCase();
+            const license       = loadedCompanyInfo.licenseNumber || '';
+            const licenseExpiry = loadedCompanyInfo.licenseExpiry ? ' — Vence: ' + loadedCompanyInfo.licenseExpiry : '';
+            const legalRep      = (loadedCompanyInfo.legalRepresentative || 'Representante Legal').toUpperCase();
+            const companyName   = loadedCompanyInfo.companyName || '';
 
-            const sigBox = 'border-bottom:2px solid #333;width:80%;margin:0 auto 10px auto;min-height:80px;display:flex;align-items:center;justify-content:center;background-color:#f9f9f9;cursor:pointer;border-radius:8px 8px 0 0;transition:all 0.3s ease;';
-            const sigNm = 'font-weight:800;font-size:13px;color:#1e293b;text-transform:uppercase;';
-            const sigSb = 'font-size:11px;color:#64748b;font-weight:600;margin-top:2px;';
-            const sigIn = 'font-size:10px;color:#94a3b8;margin-top:1px;';
-            const tdS = 'width:25%;padding:14px 10px;text-align:center;vertical-align:bottom;';
+            // ── Trabajador afectado ─────────────────────────────────────────
+            const workerName  = formData?.afectadoNombre ? formData.afectadoNombre.toUpperCase() : 'TRABAJADOR AFECTADO';
+            const workerCC    = formData?.afectadoCedula ? 'CC. ' + formData.afectadoCedula : '';
+            const workerCargo = formData?.afectadoCargo || '';
 
-            cleanedReport += `
-<div style="margin-top:50px;page-break-inside:avoid;">
-    <div style="border-top:2px solid #e2e8f0;padding-top:12px;margin-bottom:12px;text-align:center;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;">
-        Firmas de Conformidad &mdash; Investigación de Accidente/Incidente (Res. 1401/2007)
-    </div>
-    <table style="width:100%;border-collapse:collapse;">
-        <tr>
-            <td style="${tdS}">
-                <div class="signature-placeholder" data-signature-id="jefe-inmediato" style="${sigBox}">
-                    <span style="color:#999;font-size:11px;">Haga clic para insertar FIRMA DIGITAL</span>
-                </div>
-                <div style="${sigNm}">${sig1Name}</div>
-                <div style="${sigSb}">Jefe Inmediato / Supervisor</div>
-                <div style="${sigIn}">${sig1CC}</div>
-            </td>
-            <td style="${tdS}">
-                <div class="signature-placeholder" data-signature-id="copasst" style="${sigBox}">
-                    <span style="color:#999;font-size:11px;">Haga clic para insertar FIRMA DIGITAL</span>
-                </div>
-                <div style="${sigNm}">${sig2Name}</div>
-                <div style="${sigSb}">Representante COPASST / Vigía SST</div>
-                <div style="${sigIn}">${sig2CC}</div>
-            </td>
-            <td style="${tdS}">
-                <div class="signature-placeholder" data-signature-id="responsable-sst" style="${sigBox}">
-                    <span style="color:#999;font-size:11px;">Haga clic para insertar FIRMA DIGITAL</span>
-                </div>
-                <div style="${sigNm}">${responsible}</div>
-                <div style="${sigSb}">Responsable SG-SST</div>
-                <div style="${sigIn}">${license ? `Lic. No. ${license}${licenseExpiry}` : ''}</div>
-            </td>
-            <td style="${tdS}">
-                <div class="signature-placeholder" data-signature-id="representante-legal" style="${sigBox}">
-                    <span style="color:#999;font-size:11px;">Haga clic para insertar FIRMA DIGITAL</span>
-                </div>
-                <div style="${sigNm}">${legalRep}</div>
-                <div style="${sigSb}">Representante Legal</div>
-                <div style="${sigIn}">${companyName}</div>
-            </td>
-        </tr>
-    </table>
-    <div style="text-align:center;font-size:10px;color:#cbd5e1;margin-top:18px;font-style:italic;">
-        Documento generado electr&oacute;nicamente por el Gestor Inteligente SGSST &mdash; WAPPY IA By WAPPY LTDA &copy; 2025
-    </div>
-</div>`;
+            // ── Testigos (max 3) ────────────────────────────────────────────
+            const validTestigos = (testigosList || []).filter(t => t.nombre && t.nombre.trim() !== '').slice(0, 3);
+
+            // ── Inline styles ───────────────────────────────────────────────
+            const sigBox  = 'border-bottom:2px solid #333;width:85%;margin:0 auto 8px auto;min-height:70px;display:flex;align-items:center;justify-content:center;background-color:#f9f9f9;cursor:pointer;border-radius:8px 8px 0 0;transition:all 0.3s ease;';
+            const sigNm   = 'font-weight:800;font-size:12px;color:#1e293b;text-transform:uppercase;';
+            const sigSb   = 'font-size:11px;color:#64748b;font-weight:600;margin-top:2px;';
+            const sigIn   = 'font-size:10px;color:#94a3b8;margin-top:1px;';
+            const tdS     = 'width:25%;padding:14px 10px;text-align:center;vertical-align:bottom;';
+            const lbl     = 'color:#999;font-size:10px;';
+
+            const testigoTds = validTestigos.map((t, i) =>
+                '<td style="' + tdS + '">' +
+                '<div class="signature-placeholder" data-signature-id="testigo-' + (i+1) + '" style="' + sigBox + '">' +
+                '<span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div>' +
+                '<div style="' + sigNm + '">' + t.nombre.toUpperCase() + '</div>' +
+                '<div style="' + sigSb + '">Testigo ' + (i+1) + '</div>' +
+                '<div style="' + sigIn + '">' + (t.cedula ? 'CC. ' + t.cedula : '') + (t.cargo ? ' &bull; ' + t.cargo : '') + '</div>' +
+                '</td>'
+            ).join('');
+
+            const emptyCount = Math.max(0, 3 - validTestigos.length);
+            const emptyTds = Array(emptyCount).fill('<td style="' + tdS + '"></td>').join('');
+
+            cleanedReport += '<div style="margin-top:50px;page-break-inside:avoid;">' +
+            '<div style="border-top:2px solid #e2e8f0;padding-top:12px;margin-bottom:12px;text-align:center;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;">Firmas de Conformidad &mdash; Investigaci&oacute;n de Accidente/Incidente (Res. 1401/2007)</div>' +
+            '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">Equipo investigador y empresa</div>' +
+            '<table style="width:100%;border-collapse:collapse;margin-bottom:28px;"><tr>' +
+            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="jefe-inmediato" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + sig1Name + '</div><div style="' + sigSb + '">Jefe Inmediato / Supervisor</div><div style="' + sigIn + '">' + sig1CC + '</div></td>' +
+            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="copasst" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + sig2Name + '</div><div style="' + sigSb + '">Representante COPASST / Vig&iacute;a SST</div><div style="' + sigIn + '">' + sig2CC + '</div></td>' +
+            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="responsable-sst" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + responsible + '</div><div style="' + sigSb + '">Responsable SG-SST</div><div style="' + sigIn + '">' + (license ? 'Lic. No. ' + license + licenseExpiry : '') + '</div></td>' +
+            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="representante-legal" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + legalRep + '</div><div style="' + sigSb + '">Representante Legal</div><div style="' + sigIn + '">' + companyName + '</div></td>' +
+            '</tr></table>' +
+            '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">Trabajador afectado y testigos</div>' +
+            '<table style="width:100%;border-collapse:collapse;"><tr>' +
+            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="trabajador-afectado" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + workerName + '</div><div style="' + sigSb + '">Trabajador Afectado</div><div style="' + sigIn + '">' + workerCC + (workerCargo ? ' &bull; ' + workerCargo : '') + '</div></td>' +
+            testigoTds + emptyTds +
+            '</tr></table>' +
+            '<div style="text-align:center;font-size:10px;color:#cbd5e1;margin-top:20px;font-style:italic;">Documento generado electr&oacute;nicamente por el Gestor Inteligente SGSST &mdash; WAPPY IA By WAPPY LTDA &copy; 2025</div>' +
+            '</div>';
         }
 
         res.json({
