@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Loader2,
     Sparkles,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Upload,
+    Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -149,6 +152,64 @@ const PerfilSociodemografico = () => {
             };
             reader.readAsDataURL(file);
         }
+    };
+
+    // ─── Excel Import/Export ───────────────────────────────────
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleExportExcel = () => {
+        const dataToExport = trabajadores.map(w => {
+            const row: any = { ...w };
+            delete row.id;
+            delete row.firmaDigital;
+            delete row.completedByAI;
+            return row;
+        });
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Trabajadores");
+        XLSX.writeFile(workbook, "Perfil_Sociodemografico.xlsx");
+        showToast({ message: 'Archivo Excel exportado exitosamente', status: 'success' });
+    };
+
+    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (eEvent) => {
+            try {
+                const data = eEvent.target?.result;
+                const workbook = XLSX.read(data, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const importedData = XLSX.utils.sheet_to_json<any>(sheet);
+
+                if (!importedData || importedData.length === 0) {
+                    throw new Error("El archivo no contiene datos.");
+                }
+
+                const newWorkers: WorkerEntry[] = importedData.map((row: any) => {
+                    return {
+                        ...EMPTY_WORKER,
+                        id: crypto.randomUUID(),
+                        ...row,
+                        edad: row.edad || '',
+                        consentimientoFirmaDigital: row.consentimientoFirmaDigital || 'No',
+                        firmaDigital: null,
+                        completedByAI: false,
+                    };
+                });
+
+                setTrabajadores(prev => [...prev, ...newWorkers]);
+                showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, status: 'success' });
+            } catch (err) {
+                console.error("Error importing Excel:", err);
+                showToast({ message: 'Error al importar Excel. Verifique el formato del archivo.', status: 'error' });
+            }
+        };
+        reader.readAsBinaryString(file);
+        if (e.target) e.target.value = '';
     };
 
     // ─── Save & Generate ────────────────────────────────────────
@@ -333,6 +394,18 @@ const PerfilSociodemografico = () => {
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
                         {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
+                    </button>
+                    {/* ===== Excel Actions ===== */}
+                    <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
+                    <button onClick={() => fileInputRef.current?.click()}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-900/30 rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                        <Upload className="h-4 w-4" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Importar Excel</span>
+                    </button>
+                    <button onClick={handleExportExcel} disabled={trabajadores.length === 0}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-900/30 rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                        <Download className="h-4 w-4" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Exportar Excel</span>
                     </button>
                     <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                         className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
