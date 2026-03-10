@@ -10,20 +10,43 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 
-// ─── HELPER: Google Gemini Retry ───────────────────────────────────────
-async function generateWithRetry(model, promptText, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
+// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
+async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(model.apiKey);
+  const currentModelName = model.model.replace('models/', '');
+  
+  const fallbackOrder = [
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite'
+  ];
+  
+  let modelsToTry = [currentModelName];
+  for (const m of fallbackOrder) {
+    if (m !== currentModelName) modelsToTry.push(m);
+  }
+  
+  let lastError;
+  for (const modelName of modelsToTry) {
+    if (!modelName) continue;
     try {
-      return await generateWithRetry(model, promptText);
-    } catch (err) {
-      if (err.message && err.message.includes('503 Service Unavailable') && i < maxRetries - 1) {
-        console.warn(`[Gemini SDK] 503 Error. Retrying ${i + 1}/${maxRetries} in 3 seconds...`);
-        await new Promise(r => setTimeout(r, 3000));
-        continue;
+      if (modelName !== currentModelName) {
+         console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
       }
-      throw err;
+      const fallbackModel = genAI.getGenerativeModel({ 
+          model: modelName, 
+          generationConfig: model.generationConfig || {} 
+      });
+      return await fallbackModel.generateContent(promptText);
+    } catch (err) {
+      console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
+      lastError = err;
     }
   }
+  
+  throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
 }
 
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
