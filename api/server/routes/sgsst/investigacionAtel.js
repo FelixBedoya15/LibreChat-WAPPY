@@ -318,7 +318,46 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             .trim();
 
         if (loadedCompanyInfo) {
-            cleanedReport += buildSignatureSection(loadedCompanyInfo);
+            // Build custom signatory section for Investigacion ATEL
+            // Uses: Jefe Inmediato / Supervisor  +  Representante COPASST / Vigía from equipoList
+            const jefeInmediato = equipoList.find(e =>
+                (e.rol || '').toLowerCase().includes('jefe') || (e.rol || '').toLowerCase().includes('supervisor')
+            );
+            const copasst = equipoList.find(e =>
+                (e.rol || '').toLowerCase().includes('copasst') || (e.rol || '').toLowerCase().includes('vigía') || (e.rol || '').toLowerCase().includes('vigia')
+            );
+
+            const sig1Name = (jefeInmediato?.nombre || 'Jefe Inmediato').toUpperCase();
+            const sig1CC = jefeInmediato?.cedula ? `CC. ${jefeInmediato.cedula}` : '';
+            const sig2Name = (copasst?.nombre || 'Representante COPASST').toUpperCase();
+            const sig2CC = copasst?.cedula ? `CC. ${copasst.cedula}` : '';
+
+            cleanedReport += `
+<div style="margin-top: 50px; page-break-inside: avoid;">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+        <tr>
+            <td style="width: 50%; padding: 20px; text-align: center; vertical-align: bottom;">
+                <div class="signature-placeholder" data-signature-id="jefe-inmediato" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
+                    <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
+                </div>
+                <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${sig1Name}</div>
+                <div style="font-size: 12px; color: #64748b; font-weight: 600;">Jefe Inmediato / Supervisor</div>
+                <div style="font-size: 11px; color: #94a3b8;">${sig1CC}</div>
+            </td>
+            <td style="width: 50%; padding: 20px; text-align: center; vertical-align: bottom;">
+                <div class="signature-placeholder" data-signature-id="representante-copasst" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
+                    <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
+                </div>
+                <div style="font-weight: 800; font-size: 14px; color: #1e293b; text-transform: uppercase;">${sig2Name}</div>
+                <div style="font-size: 12px; color: #64748b; font-weight: 600;">Representante COPASST / Vigía SST</div>
+                <div style="font-size: 11px; color: #94a3b8;">${sig2CC}</div>
+            </td>
+        </tr>
+    </table>
+    <div style="text-align: center; font-size: 10px; color: #cbd5e1; margin-top: 15px; font-style: italic;">
+        Documento generado electrónicamente por el Gestor Inteligente SGSST - WAPPY IA By WAPPY LTDA © 2025
+    </div>
+</div>`;
         }
 
         res.json({

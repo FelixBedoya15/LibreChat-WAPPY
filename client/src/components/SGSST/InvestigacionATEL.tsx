@@ -509,14 +509,21 @@ const InvestigacionATEL = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Tipo de Evento</label>
-                                    <select value={formData.tipoEvento} onChange={e => handleInputChange('tipoEvento', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                        <option>Incidente</option>
-                                        <option>Accidente Leve</option>
-                                        <option>Accidente Grave</option>
-                                        <option>Accidente Mortal</option>
-                                        <option>Enfermedad Laboral</option>
-                                        <option>Casi Accidente</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select
+                                            value={formData.tipoEvento}
+                                            onChange={e => handleInputChange('tipoEvento', e.target.value)}
+                                            className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                                        >
+                                            <option>Incidente</option>
+                                            <option>Accidente Leve</option>
+                                            <option>Accidente Grave</option>
+                                            <option>Accidente Mortal</option>
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
+                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Fecha del Evento</label>
@@ -607,23 +614,33 @@ const InvestigacionATEL = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Tipo de contrato</label>
-                                    <select value={formData.tipoContrato} onChange={e => handleInputChange('tipoContrato', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                        <option>Indefinido</option>
-                                        <option>Fijo</option>
-                                        <option>Obra o labor</option>
-                                        <option>Aprendizaje</option>
-                                        <option>Prestación de servicios</option>
-                                        <option>Temporal</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select value={formData.tipoContrato} onChange={e => handleInputChange('tipoContrato', e.target.value)} className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400">
+                                            <option>Indefinido</option>
+                                            <option>Fijo</option>
+                                            <option>Obra o labor</option>
+                                            <option>Aprendizaje</option>
+                                            <option>Prestación de servicios</option>
+                                            <option>Temporal</option>
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
+                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Jornada laboral</label>
-                                    <select value={formData.jornadaLaboral} onChange={e => handleInputChange('jornadaLaboral', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                        <option>Diurna</option>
-                                        <option>Nocturna</option>
-                                        <option>Mixta</option>
-                                        <option>Por turnos</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select value={formData.jornadaLaboral} onChange={e => handleInputChange('jornadaLaboral', e.target.value)} className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400">
+                                            <option>Diurna</option>
+                                            <option>Nocturna</option>
+                                            <option>Mixta</option>
+                                            <option>Por turnos</option>
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
+                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -675,21 +692,26 @@ const InvestigacionATEL = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Naturaleza de la lesión</label>
-                                    <select value={formData.naturalezaLesion} onChange={e => handleInputChange('naturalezaLesion', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                        <option value="">Seleccionar...</option>
-                                        <option>Golpe / Contusión</option>
-                                        <option>Herida / Laceración</option>
-                                        <option>Fractura</option>
-                                        <option>Esguince / Torcedura</option>
-                                        <option>Quemadura</option>
-                                        <option>Amputación</option>
-                                        <option>Intoxicación</option>
-                                        <option>Electrocución</option>
-                                        <option>Trauma craneoencefálico</option>
-                                        <option>Sin lesión (Incidente)</option>
-                                        <option>Muerte</option>
-                                        <option>Otra</option>
-                                    </select>
+                                    <div className="relative">
+                                        <select value={formData.naturalezaLesion} onChange={e => handleInputChange('naturalezaLesion', e.target.value)} className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400">
+                                            <option value="">Seleccionar...</option>
+                                            <option>Golpe / Contusión</option>
+                                            <option>Herida / Laceración</option>
+                                            <option>Fractura</option>
+                                            <option>Esguince / Torcedura</option>
+                                            <option>Quemadura</option>
+                                            <option>Amputación</option>
+                                            <option>Intoxicación</option>
+                                            <option>Electrocución</option>
+                                            <option>Trauma craneoencefálico</option>
+                                            <option>Sin lesión (Incidente)</option>
+                                            <option>Muerte</option>
+                                            <option>Otra</option>
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
+                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Parte del cuerpo afectada</label>
