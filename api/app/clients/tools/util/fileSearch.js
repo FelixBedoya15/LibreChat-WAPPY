@@ -93,7 +93,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         const body = {
           file_id: file.file_id,
           query,
-          k: 5,
+          k: 10,
         };
         if (!entity_id) {
           return body;
@@ -137,7 +137,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         // TODO: results should be sorted by relevance, not distance
         .sort((a, b) => a.distance - b.distance)
         // TODO: make this configurable
-        .slice(0, 8);
+        .slice(0, 15);
 
       const formattedString = formattedResults
         .map(
