@@ -43,7 +43,7 @@ services:
     restart: always
     user: "${UID}:${GID}"
     volumes:
-      - mongodb_data:/data/db
+       - mongodb_data:/data/db
     #  - ./data-node:/data/db
     command: mongod --noauth
     networks:
@@ -83,8 +83,6 @@ services:
       - DB_HOST=vectordb
       - RAG_PORT=${RAG_PORT:-8000}
     restart: always
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       - vectordb
     env_file:
@@ -99,7 +97,6 @@ volumes:
   librechat_logs:
   librechat_images:
   meili_data_v1.12:
-
 
 networks:
   dokploy-network:

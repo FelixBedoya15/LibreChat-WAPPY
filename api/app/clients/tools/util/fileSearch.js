@@ -53,8 +53,9 @@ const primeFiles = async (options) => {
     if (i === 0) {
       toolContext = `- Note: Use the ${Tools.file_search} tool to find relevant information within:`;
     }
-    toolContext += `\n\t- ${file.filename}${agentResourceIds.has(file.file_id) ? '' : ' (just attached by user)'
-      }`;
+    toolContext += `\n\t- ${file.filename}${
+      agentResourceIds.has(file.file_id) ? '' : ' (just attached by user)'
+    }`;
     files.push({
       file_id: file.file_id,
       filename: file.filename,
@@ -77,11 +78,11 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
   return tool(
     async ({ query }) => {
       if (files.length === 0) {
-        return ['No files to search. Instruct the user to add files for the search.', { [Tools.file_search]: { sources: [], fileCitations } }];
+        return 'No files to search. Instruct the user to add files for the search.';
       }
       const jwtToken = generateShortLivedToken(userId);
       if (!jwtToken) {
-        return ['There was an error authenticating the file search request.', { [Tools.file_search]: { sources: [], fileCitations } }];
+        return 'There was an error authenticating the file search request.';
       }
 
       /**
@@ -93,7 +94,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         const body = {
           file_id: file.file_id,
           query,
-          k: 10,
+          k: 5,
         };
         if (!entity_id) {
           return body;
@@ -121,7 +122,7 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
       const validResults = results.filter((result) => result !== null);
 
       if (validResults.length === 0) {
-        return ['No results found or errors occurred while searching the files.', { [Tools.file_search]: { sources: [], fileCitations } }];
+        return 'No results found or errors occurred while searching the files.';
       }
 
       const formattedResults = validResults
@@ -137,12 +138,13 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
         // TODO: results should be sorted by relevance, not distance
         .sort((a, b) => a.distance - b.distance)
         // TODO: make this configurable
-        .slice(0, 15);
+        .slice(0, 10);
 
       const formattedString = formattedResults
         .map(
           (result, index) =>
-            `File: ${result.filename}${fileCitations ? `\nAnchor: \\ue202turn0file${index} (${result.filename})` : ''
+            `File: ${result.filename}${
+              fileCitations ? `\nAnchor: \\ue202turn0file${index} (${result.filename})` : ''
             }\nRelevance: ${(1.0 - result.distance).toFixed(4)}\nContent: ${result.content}\n`,
         )
         .join('\n---\n');
@@ -162,8 +164,9 @@ const createFileSearchTool = async ({ userId, files, entity_id, fileCitations = 
     {
       name: Tools.file_search,
       responseFormat: 'content_and_artifact',
-      description: `Performs semantic search across attached "${Tools.file_search}" documents using natural language queries. This tool analyzes the content of uploaded files to find relevant information, quotes, and passages that best match your query. Use this to extract specific information or find relevant sections within the available documents.${fileCitations
-        ? `
+      description: `Performs semantic search across attached "${Tools.file_search}" documents using natural language queries. This tool analyzes the content of uploaded files to find relevant information, quotes, and passages that best match your query. Use this to extract specific information or find relevant sections within the available documents.${
+        fileCitations
+          ? `
 
 **CITE FILE SEARCH RESULTS:**
 Use anchor markers immediately after statements derived from file content. Reference the filename in your text:
@@ -172,8 +175,8 @@ Use anchor markers immediately after statements derived from file content. Refer
 - Multi-file: "Multiple sources confirm... \\ue200\\ue202turn0file0\\ue202turn0file1\\ue201"
 
 **ALWAYS mention the filename in your text before the citation marker. NEVER use markdown links or footnotes.**`
-        : ''
-        }`,
+          : ''
+      }`,
       schema: z.object({
         query: z
           .string()

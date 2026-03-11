@@ -252,7 +252,7 @@ endpoints:
   custom:
     - name: "Ollama"
       apiKey: "ollama"
-      baseURL: "http://host.docker.internal:11434/v1"
+      baseURL: "http://ollama:11434/v1"
       models:
         default: [
           "deepseek-r1:1.5b",
@@ -262,7 +262,7 @@ endpoints:
           "dolphin-mixtral",
           "mistral-openorca"
           ]
-        fetch: false
+        fetch: true
       titleConvo: true
       titleModel: "current_model"
       summarize: false
@@ -273,7 +273,7 @@ endpoints:
     - name: "Wappy"
       apiKey: "ollama"
       # use 'host.docker.internal' instead of localhost if running LibreChat in a docker container
-      baseURL: "http://host.docker.internal:11434/v1" 
+      baseURL: "http://ollama:11434/v1/" 
       models:
         default: [
           "deepseek-r1:1.5b",
@@ -283,7 +283,9 @@ endpoints:
           "dolphin-mixtral",
           "mistral-openorca"
           ]
-        fetch: false
+        # fetching list of models is supported but the `name` field must start
+        # with `ollama` (case-insensitive), as it does in this example.
+        fetch: true
       titleConvo: true
       titleModel: "current_model"
       summarize: false
