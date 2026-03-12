@@ -61,6 +61,53 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedCategoryRef = useRef<string | null>(null);
 
+    const [disabledApps, setDisabledApps] = useState<string[]>([]);
+    const isAdmin = user?.role === 'ADMIN';
+
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/config', { headers: { Authorization: `Bearer ${token}` } })
+            .then(res => res.json())
+            .then(data => {
+                if (data && Array.isArray(data.disabledApps)) {
+                    setDisabledApps(data.disabledApps);
+                }
+            }).catch(console.error);
+    }, [token]);
+
+    const handleToggleApp = async (categoryId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isAdmin) return;
+
+        const currentlyDisabled = disabledApps.includes(categoryId);
+        const newDisabledStatus = !currentlyDisabled;
+
+        setDisabledApps(prev => 
+            newDisabledStatus 
+                ? [...prev, categoryId] 
+                : prev.filter(id => id !== categoryId)
+        );
+
+        try {
+            const res = await fetch('/api/sgsst/config/toggle', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ appId: categoryId, disabled: newDisabledStatus })
+            });
+            if (!res.ok) throw new Error('Request error');
+        } catch(err) {
+            console.error(err);
+            setDisabledApps(prev => 
+                !newDisabledStatus 
+                    ? [...prev, categoryId] 
+                    : prev.filter(id => id !== categoryId)
+            );
+        }
+    };
+
     const storageKey = `sgsst_files_${phase.id}`;
 
     // Get categories for this phase
@@ -213,12 +260,14 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-6">
-                {categories.length === 0 ? (
+                {categories.filter(c => isAdmin || !disabledApps.includes(c.id)).length === 0 ? (
                     <div className="p-8 text-center text-text-secondary">
-                        No hay categorías definidas para esta fase.
+                        No hay categorías disponibles para esta fase.
                     </div>
                 ) : (
-                    categories.map((category) => {
+                    categories
+                        .filter(category => isAdmin || !disabledApps.includes(category.id))
+                        .map((category) => {
                         const categoryFiles = files.filter(f => f.category === category.id);
                         const isExpanded = expandedCategories.includes(category.id);
                         const isThisUploading = isUploading === category.id;
@@ -243,15 +292,32 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                         </div>
                                     </div>
 
-                                    <Button
-                                        onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
-                                        disabled={!!isUploading}
-                                        size="sm"
-                                        className="gap-2 bg-white/10 hover:bg-white/20 text-text-primary border border-white/10"
-                                    >
-                                        {isThisUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                                        <span className="hidden sm:inline">Subir</span>
-                                    </Button>
+                                    <div className="flex items-center gap-3">
+                                        {isAdmin && (
+                                            <div 
+                                                className="flex items-center bg-surface-primary px-3 py-1 rounded-full border border-border-medium hover:bg-surface-tertiary transition-colors"
+                                                onClick={(e) => handleToggleApp(category.id, e)}
+                                                title={disabledApps.includes(category.id) ? "Aplicativo Oculto: Clic para mostrar" : "Aplicativo Visible: Clic para ocultar"}
+                                            >
+                                                <div className="relative inline-flex items-center cursor-pointer">
+                                                    <div className={`w-8 h-4 rounded-full transition-colors ${!disabledApps.includes(category.id) ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform ${!disabledApps.includes(category.id) ? 'translate-x-4' : ''}`}></div>
+                                                </div>
+                                                <span className={`ml-2 text-xs font-bold uppercase ${!disabledApps.includes(category.id) ? 'text-green-500' : 'text-gray-400'}`}>
+                                                    {!disabledApps.includes(category.id) ? 'ON' : 'OFF'}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <Button
+                                            onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
+                                            disabled={!!isUploading}
+                                            size="sm"
+                                            className="gap-2 bg-white/10 hover:bg-white/20 text-text-primary border border-white/10"
+                                        >
+                                            {isThisUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                                            <span className="hidden sm:inline">Subir</span>
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 {/* Category Content */}
