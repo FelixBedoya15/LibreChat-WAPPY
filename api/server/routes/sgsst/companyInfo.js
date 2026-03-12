@@ -70,7 +70,7 @@ Actualización Curso 50/20H: ${courseStatus || 'N/A'}
 Descripción General de Actividades: ${generalActivities || 'N/A'}
 --------------------------------------------------------------`;
             
-            const memoryKey = 'Información de la Empresa (SG-SST)';
+            const memoryKey = 'empresa_sgsst';
             const tokenCount = Tokenizer.getTokenCount(memoryContent, 'o200k_base') || 0;
             
             const memories = await getAllUserMemories(req.user.id);
