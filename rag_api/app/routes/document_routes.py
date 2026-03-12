@@ -325,19 +325,46 @@ async def query_embeddings_by_file_id(
     authorized_documents = []
 
     try:
+        # 1. Perform Exact Match Search First
+        exact_matches = []
+        if isinstance(vector_store, AsyncPgVector):
+            exact_matches = await vector_store.aget_exact_matches_by_text(
+                body.query,
+                file_id=body.file_id,
+                limit=3, # take top 3 exact matches
+                executor=request.app.state.thread_pool,
+            )
+        else:
+            exact_matches = vector_store.get_exact_matches_by_text(
+                body.query, file_id=body.file_id, limit=3
+            )
+
+        # 2. Perform Vector Similarity Search
         embedding = get_cached_query_embedding(body.query)
 
         if isinstance(vector_store, AsyncPgVector):
-            documents = await vector_store.asimilarity_search_with_score_by_vector(
+            vector_docs = await vector_store.asimilarity_search_with_score_by_vector(
                 embedding,
                 k=body.k,
                 filter={"file_id": {"$eq": body.file_id}},
                 executor=request.app.state.thread_pool,
             )
         else:
-            documents = vector_store.similarity_search_with_score_by_vector(
+            vector_docs = vector_store.similarity_search_with_score_by_vector(
                 embedding, k=body.k, filter={"file_id": {"$eq": body.file_id}}
             )
+
+        # 3. Combine Results (Exact matches first, then vector docs, avoiding duplicates)
+        documents = []
+        seen_content = set()
+        
+        for doc, score in exact_matches + vector_docs:
+            if doc.page_content not in seen_content:
+                documents.append((doc, score))
+                seen_content.add(doc.page_content)
+                
+        # Trim to the requested k limit
+        documents = documents[:body.k]
 
         if not documents:
             return authorized_documents
@@ -1014,21 +1041,45 @@ async def embed_file_upload(
 @router.post("/query_multiple")
 async def query_embeddings_by_file_ids(request: Request, body: QueryMultipleBody):
     try:
-        # Get the embedding of the query text
+        # 1. Exact Match Search First
+        exact_matches = []
+        if isinstance(vector_store, AsyncPgVector):
+            exact_matches = await vector_store._aget_exact_matches_multiple(
+                body.query,
+                file_ids=body.file_ids,
+                limit=3,
+                executor=request.app.state.thread_pool,
+            )
+        else:
+            exact_matches = vector_store._get_exact_matches_multiple(
+                body.query, file_ids=body.file_ids, limit=3
+            )
+
+        # 2. Vector Similarity Search
         embedding = get_cached_query_embedding(body.query)
 
-        # Perform similarity search with the query embedding and filter by the file_ids in metadata
         if isinstance(vector_store, AsyncPgVector):
-            documents = await vector_store.asimilarity_search_with_score_by_vector(
+            vector_docs = await vector_store.asimilarity_search_with_score_by_vector(
                 embedding,
                 k=body.k,
                 filter={"file_id": {"$in": body.file_ids}},
                 executor=request.app.state.thread_pool,
             )
         else:
-            documents = vector_store.similarity_search_with_score_by_vector(
+            vector_docs = vector_store.similarity_search_with_score_by_vector(
                 embedding, k=body.k, filter={"file_id": {"$in": body.file_ids}}
             )
+
+        # 3. Combine Results (Exact matches first, then vector docs, avoiding duplicates)
+        documents = []
+        seen_content = set()
+        
+        for doc, score in exact_matches + vector_docs:
+            if doc.page_content not in seen_content:
+                documents.append((doc, score))
+                seen_content.add(doc.page_content)
+                
+        documents = documents[:body.k]
 
         # Ensure documents list is not empty
         if not documents:

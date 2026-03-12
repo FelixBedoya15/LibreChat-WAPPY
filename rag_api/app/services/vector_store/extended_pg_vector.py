@@ -165,3 +165,59 @@ class ExtendedPgVector(PGVector):
                 stmt = stmt.where(self.EmbeddingStore.custom_id.in_(ids))
                 session.execute(stmt)
             session.commit()
+
+    def get_exact_matches_by_text(
+        self, query: str, file_id: Optional[str] = None, limit: int = 5
+    ) -> List[tuple[Document, float]]:
+        """
+        Perform an exact text match search using SQL ILIKE.
+        Returns a list of (Document, score) tuples for compatibility with vector search,
+        where score is set to 0.0 (exact match).
+        """
+        with Session(self._bind) as session:
+            # Escape % and _ to prevent SQL injection in LIKE clause
+            safe_query = query.replace("%", "\\%").replace("_", "\\_")
+            search_pattern = f"%{safe_query}%"
+            
+            stmt = session.query(self.EmbeddingStore).filter(
+                self.EmbeddingStore.document.ilike(search_pattern)
+            )
+            
+            if file_id:
+                # Need to use the JSONB metadata field for file_id filtering
+                stmt = stmt.filter(
+                    self.EmbeddingStore.cmetadata.op('->>')('file_id') == file_id
+                )
+                
+            results = stmt.limit(limit).all()
+            
+            return [
+                (Document(page_content=r.document, metadata=r.cmetadata or {}), 0.0)
+                for r in results
+            ]
+            
+    def _get_exact_matches_multiple(
+        self, query: str, file_ids: List[str], limit: int = 5
+    ) -> List[tuple[Document, float]]:
+        """
+        Perform an exact text match search filtering by multiple file IDs.
+        """
+        with Session(self._bind) as session:
+            safe_query = query.replace("%", "\\%").replace("_", "\\_")
+            search_pattern = f"%{safe_query}%"
+            
+            stmt = session.query(self.EmbeddingStore).filter(
+                self.EmbeddingStore.document.ilike(search_pattern)
+            )
+            
+            if file_ids:
+                stmt = stmt.filter(
+                    self.EmbeddingStore.cmetadata.op('->>')('file_id').in_(file_ids)
+                )
+                
+            results = stmt.limit(limit).all()
+            
+            return [
+                (Document(page_content=r.document, metadata=r.cmetadata or {}), 0.0)
+                for r in results
+            ]

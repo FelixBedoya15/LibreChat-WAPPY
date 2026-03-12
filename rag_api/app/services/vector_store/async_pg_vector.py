@@ -98,3 +98,29 @@ class AsyncPgVector(ExtendedPgVector):
         return await self._run_in_executor(
             executor, super().add_documents, documents, ids=ids, **kwargs
         )
+
+    async def aget_exact_matches_by_text(
+        self,
+        query: str,
+        file_id: Optional[str] = None,
+        limit: int = 5,
+        executor=None,
+    ) -> List[Tuple[Document, float]]:
+        """Async version of get_exact_matches_by_text"""
+        executor = executor or self._get_thread_pool()
+        return await self._run_in_executor(
+            executor, super().get_exact_matches_by_text, query, file_id, limit
+        )
+
+    async def _aget_exact_matches_multiple(
+        self,
+        query: str,
+        file_ids: List[str],
+        limit: int = 5,
+        executor=None,
+    ) -> List[Tuple[Document, float]]:
+        """Async version of _get_exact_matches_multiple"""
+        executor = executor or self._get_thread_pool()
+        return await self._run_in_executor(
+            executor, super()._get_exact_matches_multiple, query, file_ids, limit
+        )
