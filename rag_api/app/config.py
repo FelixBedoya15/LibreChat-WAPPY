@@ -355,7 +355,8 @@ elif VECTOR_DB_TYPE == VectorDBType.ATLAS_MONGO:
 else:
     raise ValueError(f"Unsupported vector store type: {VECTOR_DB_TYPE}")
 
-retriever = vector_store.as_retriever()
+RAG_TOP_K = int(get_env_variable("RAG_TOP_K", "20"))
+retriever = vector_store.as_retriever(search_kwargs={"k": RAG_TOP_K})
 
 known_source_ext = [
     "go",
