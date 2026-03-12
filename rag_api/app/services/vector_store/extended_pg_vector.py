@@ -166,6 +166,30 @@ class ExtendedPgVector(PGVector):
                 session.execute(stmt)
             session.commit()
 
+    def _build_exact_search_filter(self, query: str):
+        """Helper to build smart ILIKE filters depending on query structure."""
+        import re
+        from sqlalchemy import and_
+
+        # Extract specific article numbers like "2.2.4.6.28"
+        article_numbers = re.findall(r'\d+(?:\.\d+)+', query)
+        
+        # Extract standalone years or document numbers over 3 digits (1072, 0312, 2015)
+        standalone_numbers = re.findall(r'\b\d{3,4}\b', query)
+
+        conditions = []
+        if article_numbers:
+            for num in article_numbers:
+                conditions.append(self.EmbeddingStore.document.ilike(f"%{num}%"))
+            # Optionally add standalone numbers to make it more specific
+            for num in standalone_numbers:
+                conditions.append(self.EmbeddingStore.document.ilike(f"%{num}%"))
+            return and_(*conditions) if len(conditions) > 1 else conditions[0]
+        else:
+            # Fallback to the whole query string
+            safe_query = query.replace("%", "\\%").replace("_", "\\_")
+            return self.EmbeddingStore.document.ilike(f"%{safe_query}%")
+
     def get_exact_matches_by_text(
         self, query: str, file_id: Optional[str] = None, limit: int = 5
     ) -> List[tuple[Document, float]]:
@@ -175,13 +199,9 @@ class ExtendedPgVector(PGVector):
         where score is set to 0.0 (exact match).
         """
         with Session(self._bind) as session:
-            # Escape % and _ to prevent SQL injection in LIKE clause
-            safe_query = query.replace("%", "\\%").replace("_", "\\_")
-            search_pattern = f"%{safe_query}%"
+            filter_condition = self._build_exact_search_filter(query)
             
-            stmt = session.query(self.EmbeddingStore).filter(
-                self.EmbeddingStore.document.ilike(search_pattern)
-            )
+            stmt = session.query(self.EmbeddingStore).filter(filter_condition)
             
             if file_id:
                 # Need to use the JSONB metadata field for file_id filtering
@@ -203,12 +223,9 @@ class ExtendedPgVector(PGVector):
         Perform an exact text match search filtering by multiple file IDs.
         """
         with Session(self._bind) as session:
-            safe_query = query.replace("%", "\\%").replace("_", "\\_")
-            search_pattern = f"%{safe_query}%"
+            filter_condition = self._build_exact_search_filter(query)
             
-            stmt = session.query(self.EmbeddingStore).filter(
-                self.EmbeddingStore.document.ilike(search_pattern)
-            )
+            stmt = session.query(self.EmbeddingStore).filter(filter_condition)
             
             if file_ids:
                 stmt = stmt.filter(
