@@ -23,6 +23,7 @@ import MatrizLegal from './MatrizLegal';
 import EstadisticasATEL from './EstadisticasATEL';
 import InvestigacionATEL from './InvestigacionATEL';
 import PermisoAlturas from './PermisoAlturas';
+import ReporteActosCondiciones from './ReporteActosCondiciones';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -388,6 +389,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'peligros' && (
                                                     <div className="mb-6">
                                                         <MatrizPeligrosGTC45 />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ReporteActosCondiciones for reporte_actos category */}
+                                                {category.id === 'reporte_actos' && (
+                                                    <div className="mb-6">
+                                                        <ReporteActosCondiciones />
                                                     </div>
                                                 )}
 

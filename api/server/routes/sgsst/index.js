@@ -12,6 +12,7 @@ const rit = require('./rit');
 const responsable = require('./responsable');
 const permisoAlturas = require('./permisoAlturas');
 const investigacionAtel = require('./investigacionAtel');
+const reporteActos = require('./reporteActos');
 
 
 module.exports = {
@@ -30,6 +31,7 @@ module.exports = {
     responsable,
     permisoAlturas,
     investigacionAtel,
+    reporteActos,
     signatures: require('./signatures'),
 };
 
