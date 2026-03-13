@@ -26,7 +26,9 @@ import PermisoAlturas from './PermisoAlturas';
 import ReporteActosCondiciones from './ReporteActosCondiciones';
 import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MetodoOwas from './MetodoOwas';
+import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
+
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
 import PerfilSociodemografico from './PerfilSociodemografico';
@@ -440,6 +442,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'perfil_socio' && (
                                                     <div className="mb-6">
                                                         <PerfilSociodemografico />
+                                                    </div>
+                                                )}
+
+                                                {/* Show AnalisisVulnerabilidad for vulnerabilidad category */}
+                                                {category.id === 'vulnerabilidad' && (
+                                                    <div className="mb-6">
+                                                        <AnalisisVulnerabilidad />
                                                     </div>
                                                 )}
 
