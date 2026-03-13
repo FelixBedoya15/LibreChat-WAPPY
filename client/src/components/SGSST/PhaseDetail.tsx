@@ -24,6 +24,7 @@ import EstadisticasATEL from './EstadisticasATEL';
 import InvestigacionATEL from './InvestigacionATEL';
 import PermisoAlturas from './PermisoAlturas';
 import ReporteActosCondiciones from './ReporteActosCondiciones';
+import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -389,6 +390,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'peligros' && (
                                                     <div className="mb-6">
                                                         <MatrizPeligrosGTC45 />
+                                                    </div>
+                                                )}
+
+                                                {/* Show AnalisisTrabajoSeguro for analisis_trabajo_seguro category */}
+                                                {category.id === 'analisis_trabajo_seguro' && (
+                                                    <div className="mb-6">
+                                                        <AnalisisTrabajoSeguro />
                                                     </div>
                                                 )}
 
