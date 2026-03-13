@@ -45,25 +45,74 @@ const calculateGlobalRisk = (amColor: string, pColor: string, rColor: string, sC
   return 'BAJO';
 };
 
-const QUESTIONS = {
-  personas: [
-    { id: 'p1', q: '¿Existe un comité de emergencias o brigada constituida?' },
-    { id: 'p2', q: '¿El personal ha recibido capacitación en emergencias en el último año?' },
-    { id: 'p3', q: '¿Se han realizado simulacros de esta amenaza específica?' },
-    { id: 'p4', q: '¿La dotación (EPP) de la brigada es adecuada para esta amenaza?' },
-  ],
-  recursos: [
-    { id: 'r1', q: '¿Se cuenta con extintores, redes contra incendio o equipos de control vigentes?' },
-    { id: 'r2', q: '¿Hay disponibilidad inmediata de botiquín, camillas y equipos de rescate?' },
-    { id: 'r3', q: '¿Se tiene sistema de alarma audible y visible en todas las áreas?' },
-    { id: 'r4', q: '¿Existen recursos financieros asignados para atención de esta emergencia?' },
-  ],
-  sistemas: [
-    { id: 's1', q: '¿Están claramente definidas y señalizadas las rutas de evacuación?' },
-    { id: 's2', q: '¿Se cuenta con sistemas alternos de energía o comunicaciones?' },
-    { id: 's3', q: '¿El plan de contingencia específico para esta amenaza está documentado?' },
-    { id: 's4', q: '¿Los servicios públicos (agua, gas, luz) tienen sistemas de corte de emergencia?' },
-  ]
+const QUESTIONS_BY_ORIGIN = {
+  'Natural (Sismo, Inundación...)': {
+    personas: [
+      { id: 'p1', q: '¿Existe brigada capacitada en evacuación y rescate para fenómenos naturales?' },
+      { id: 'p2', q: '¿El personal ha recibido entrenamiento sobre puntos de encuentro y refugio?' },
+      { id: 'p3', q: '¿Se realizan simulacros periódicos enfocados en sismos o inundaciones?' },
+      { id: 'p4', q: '¿El personal vulnerable (movilidad reducida) tiene plan de evacuación asignado?' },
+    ],
+    recursos: [
+      { id: 'r1', q: '¿Se cuenta con botiquines, camillas y cuerdas accesibles e inspeccionados?' },
+      { id: 'r2', q: '¿Hay disponibilidad de linternas, radios y equipo para emergencias naturales?' },
+      { id: 'r3', q: '¿Se tiene un sistema de alarma de evacuación audible en toda la instalación?' },
+      { id: 'r4', q: '¿Existen recursos financieros para reparaciones estructurales urgentes?' },
+    ],
+    sistemas: [
+      { id: 's1', q: '¿La edificación es sismorresistente o cuenta con refuerzos estructurales?' },
+      { id: 's2', q: '¿Existen estanterías, luminarias o elementos altos anclados firmemente?' },
+      { id: 's3', q: '¿Las rutas de evacuación son seguras, amplias y libres de caídas de objetos?' },
+      { id: 's4', q: '¿Existen sistemas alternos de energía (plantas) y agua interconectados?' },
+    ]
+  },
+  'Tecnológico (Incendio, Derrame...)': {
+    personas: [
+      { id: 'p1', q: '¿La brigada está entrenada en control de conatos, incendios y derrames?' },
+      { id: 'p2', q: '¿El personal operativo sabe cómo accionar extintores y paradas de emergencia?' },
+      { id: 'p3', q: '¿Se realizan simulacros de evacuación por humo o químicos peligrosos?' },
+      { id: 'p4', q: '¿Los contratistas/mantenimiento reciben inducción sobre riesgos tecnológicos?' },
+    ],
+    recursos: [
+      { id: 'r1', q: '¿Contamos con extintores vigentes, suficientes y acordes al tipo de riesgo?' },
+      { id: 'r2', q: '¿Existen gabinetes, redes contra incendio o rociadores automáticos (si aplica)?' },
+      { id: 'r3', q: '¿Hay disponibilidad inmediata de kits de control de derrames ambientales?' },
+      { id: 'r4', q: '¿Los sistemas de alarma incluyen detectores de humo, calor o gases?' },
+    ],
+    sistemas: [
+      { id: 's1', q: '¿Se realizan inspecciones periódicas rigurosas a instalaciones eléctricas?' },
+      { id: 's2', q: '¿Las máquinas o procesos críticos tienen botones de parada rápida?' },
+      { id: 's3', q: '¿Las áreas de sustancias químicas cuentan con diques de contención?' },
+      { id: 's4', q: '¿Existen sistemas de corte automático y seguro para gas o combustibles?' },
+    ]
+  },
+  'Social (Robo, Atentado...)': {
+    personas: [
+      { id: 'p1', q: '¿El personal conoce el protocolo de actuación ante una intrusión o asalto?' },
+      { id: 'p2', q: '¿El equipo de seguridad de portería está formado en el manejo de crisis corporativa?' },
+      { id: 'p3', q: '¿Existen inducciones sobre prevención de sabotajes o personas sospechosas?' },
+      { id: 'p4', q: '¿Se han establecido códigos de comunicación o santo seña para alertar peligro?' },
+    ],
+    recursos: [
+      { id: 'r1', q: '¿Se cuenta con botones de pánico conectados a centrales o autoridades locales?' },
+      { id: 'r2', q: '¿El personal de vigilancia tiene elementos de apoyo y comunicación radial?' },
+      { id: 'r3', q: '¿Existen cámaras de seguridad (CCTV) grabando 24/7 áreas críticas y perímetros?' },
+      { id: 'r4', q: '¿Se cuenta con iluminación exterior e interior de emergencia antiasaltos?' },
+    ],
+    sistemas: [
+      { id: 's1', q: '¿Existe control estricto de acceso de visitantes, contratistas y vehículos?' },
+      { id: 's2', q: '¿Las puertas, ventanas y cerramientos perimetrales tienen barreras físicas?' },
+      { id: 's3', q: '¿Existen mecanismos de resguardo en dinero/valores (cajas fuertes, horario seguro)?' },
+      { id: 's4', q: '¿Se protegen activamente los sistemas de información corporativos (backups, ciberseguridad)?' },
+    ]
+  }
+};
+
+const matchOrigen = (origen: string) => {
+  if (!origen) return 'Natural (Sismo, Inundación...)';
+  if (origen.includes('Tecnol') || origen.includes('ncendio')) return 'Tecnológico (Incendio, Derrame...)';
+  if (origen.includes('Social') || origen.includes('obo')) return 'Social (Robo, Atentado...)';
+  return 'Natural (Sismo, Inundación...)';
 };
 
 const WorkerAutocomplete = ({ value, onChange, onSelect, data, searchKey, placeholder, className, wrapperClassName }: any) => {
@@ -109,7 +158,7 @@ interface AmenazaNode {
 const emptyAmenaza = (): AmenazaNode => ({
   id: crypto.randomUUID(),
   amenaza: '',
-  origenAmenaza: 'Natural',
+  origenAmenaza: 'Natural (Sismo, Inundación...)',
   nivelAmenaza: 'Probable',
   descripcionGlobal: '',
   answers: {}
@@ -179,8 +228,10 @@ const AnalisisVulnerabilidad = () => {
     }));
   };
 
-  const getSectionScore = (answers: Record<string, number>, section: 'personas'|'recursos'|'sistemas') => {
-    const sectionAnswers = QUESTIONS[section].map(q => answers[`${section}_${q.id}`]);
+  const getSectionScore = (answers: Record<string, number>, section: 'personas'|'recursos'|'sistemas', origen: string) => {
+    const originKey = matchOrigen(origen) as keyof typeof QUESTIONS_BY_ORIGIN;
+    const questions = QUESTIONS_BY_ORIGIN[originKey][section];
+    const sectionAnswers = questions.map(q => answers[`${section}_${q.id}`]);
     const answeredCount = sectionAnswers.filter(v => v !== undefined).length;
     if (answeredCount === 0) return 0;
     const sum = sectionAnswers.reduce((a, b) => (a || 0) + (b || 0), 0) || 0;
@@ -188,9 +239,9 @@ const AnalisisVulnerabilidad = () => {
   };
 
   const calculateThreatGraphics = (am: AmenazaNode) => {
-    const ptsPers = getSectionScore(am.answers, 'personas');
-    const ptsRec = getSectionScore(am.answers, 'recursos');
-    const ptsSist = getSectionScore(am.answers, 'sistemas');
+    const ptsPers = getSectionScore(am.answers, 'personas', am.origenAmenaza);
+    const ptsRec = getSectionScore(am.answers, 'recursos', am.origenAmenaza);
+    const ptsSist = getSectionScore(am.answers, 'sistemas', am.origenAmenaza);
 
     const amenazaColor = am.nivelAmenaza === 'Inminente' ? 'ROJO' : (am.nivelAmenaza === 'Probable' ? 'AMARILLO' : 'VERDE');
     const colorPers = getColorValue(ptsPers);
@@ -455,8 +506,11 @@ const AnalisisVulnerabilidad = () => {
 
                                   {/* Vulnerabilidades */}
                                   {(['personas', 'recursos', 'sistemas'] as ('personas'|'recursos'|'sistemas')[]).map((sectionTitle) => {
-                                      const p = getSectionScore(am.answers, sectionTitle);
+                                      const p = getSectionScore(am.answers, sectionTitle, am.origenAmenaza);
                                       const color = getColorValue(p);
+                                      const originKey = matchOrigen(am.origenAmenaza) as keyof typeof QUESTIONS_BY_ORIGIN;
+                                      const dynamicQuestions = QUESTIONS_BY_ORIGIN[originKey][sectionTitle];
+
                                       return (
                                         <div key={sectionTitle} className="rounded-xl border border-gray-200 bg-white dark:bg-gray-800 p-4 shadow-sm">
                                           <div className="flex items-center justify-between mb-3 border-b pb-2">
@@ -467,7 +521,7 @@ const AnalisisVulnerabilidad = () => {
                                             </div>
                                           </div>
                                           <div className="space-y-2">
-                                            {QUESTIONS[sectionTitle].map((q, i) => {
+                                            {dynamicQuestions.map((q, i) => {
                                               const currentAns = am.answers[`${sectionTitle}_${q.id}`];
                                               return (
                                                 <div key={q.id} className="flex flex-col xl:flex-row xl:items-center justify-between gap-2 text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded border border-gray-100 dark:border-gray-700">
