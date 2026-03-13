@@ -14,6 +14,7 @@ const permisoAlturas = require('./permisoAlturas');
 const investigacionAtel = require('./investigacionAtel');
 const reporteActos = require('./reporteActos');
 const analisisTrabajoSeguro = require('./analisisTrabajoSeguro');
+const metodoOwas = require('./metodoOwas');
 
 
 module.exports = {
@@ -34,6 +35,7 @@ module.exports = {
     investigacionAtel,
     reporteActos,
     analisisTrabajoSeguro,
+    metodoOwas,
     signatures: require('./signatures'),
 };
 

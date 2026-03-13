@@ -25,6 +25,7 @@ import InvestigacionATEL from './InvestigacionATEL';
 import PermisoAlturas from './PermisoAlturas';
 import ReporteActosCondiciones from './ReporteActosCondiciones';
 import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
+import MetodoOwas from './MetodoOwas';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -390,6 +391,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'peligros' && (
                                                     <div className="mb-6">
                                                         <MatrizPeligrosGTC45 />
+                                                    </div>
+                                                )}
+
+                                                {/* Show MetodoOwas for metodo_owas category */}
+                                                {category.id === 'metodo_owas' && (
+                                                    <div className="mb-6">
+                                                        <MetodoOwas />
                                                     </div>
                                                 )}
 

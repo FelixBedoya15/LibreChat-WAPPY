@@ -220,6 +220,7 @@ const startServer = async () => {
   app.use('/api/sgsst/permiso-alturas', routes.sgsst.permisoAlturas);
   app.use('/api/sgsst/reporte-actos', routes.sgsst.reporteActos);
   app.use('/api/sgsst/analisis-trabajo-seguro', routes.sgsst.analisisTrabajoSeguro);
+  app.use('/api/sgsst/metodo-owas', routes.sgsst.metodoOwas);
   app.use('/api/sgsst/investigacion-atel', routes.sgsst.investigacionAtel);
   app.use('/api/sgsst/matriz', routes.sgsst.matriz);
   app.use('/api/sgsst/estadisticas', routes.sgsst.estadisticas);
