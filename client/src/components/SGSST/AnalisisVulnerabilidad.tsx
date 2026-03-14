@@ -17,6 +17,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 // ─── Diamante de Colores Calculator ───
 const getColorValue = (score: number) => {
@@ -274,6 +276,15 @@ const AnalisisVulnerabilidad = () => {
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
   };
 
+  const handleDummyData = () => {
+    const dummy = generateDummyData.vulnerabilidad();
+    setAmenazasList(dummy.amenazasList as any);
+    setEvaluadoresList(dummy.evaluadoresList);
+    setImages({ foto1: null, foto2: null, foto3: null });
+    setActiveAmenazaId(dummy.amenazasList[0].id);
+    showToast({ message: 'Datos de prueba generados exitosamente.', status: 'success' });
+  };
+
   const handleImageUpload = (field: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -368,6 +379,7 @@ const AnalisisVulnerabilidad = () => {
           {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Análisis (Multi)</span>
         </button>
+        <DummyGenerateButton onClick={handleDummyData} />
         <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
         {generatedReport && (
           <>
@@ -608,7 +620,7 @@ const AnalisisVulnerabilidad = () => {
             </div>
 
             {/* Generate button */}
-            <div className="flex justify-center pt-6">
+            <div className="flex justify-center pt-6 gap-4">
               <button 
                  onClick={handleGenerate} 
                  disabled={isGenerating || amenazasList.some(a => !a.amenaza)} 
@@ -619,6 +631,7 @@ const AnalisisVulnerabilidad = () => {
                   Generar Informe Multi-Amenaza
                 </span>
               </button>
+              <DummyGenerateButton onClick={handleDummyData} />
             </div>
           </div>
         )}

@@ -21,6 +21,8 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import EventLogger, { ATELContext } from './EventLogger';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 interface MonthData {
     numTrabajadores: number | '';
@@ -102,6 +104,14 @@ const EstadisticasATEL = () => {
             ...prev,
             [currentMonthIndex]: { ...prev[currentMonthIndex], [field]: value }
         }));
+    };
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.estadisticasATEL();
+        updateMonthData('numTrabajadores', dummy.numTrabajadores);
+        updateMonthData('diasProgramados', dummy.diasProgramados);
+        updateMonthData('events', dummy.events);
+        showToast({ message: 'Datos estadísticos de prueba generados exitosamente.', status: 'success' });
     };
 
     // Calculate totals for current month based on events
@@ -385,6 +395,7 @@ const EstadisticasATEL = () => {
                         onSelectModel={setSelectedModel}
                         disabled={isGenerating}
                     />
+                    <DummyGenerateButton onClick={handleDummyData} />
                 </div>
             </div>
 
@@ -494,6 +505,7 @@ const EstadisticasATEL = () => {
 
                             {/* 4. Action Buttons */}
                             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border-medium/50">
+                                <DummyGenerateButton onClick={handleDummyData} />
                                 <button
                                     onClick={() => handleGenerate('MONTH')}
                                     disabled={isGenerating || !currentData.numTrabajadores}

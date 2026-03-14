@@ -25,6 +25,8 @@ import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 interface ComplianceStatus {
     itemId: string;
@@ -156,6 +158,24 @@ const MatrizLegal = () => {
             return [...prev, { itemId: id, status }];
         });
     }, []);
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.matrizLegal();
+        const newStatuses: ComplianceStatus[] = MATRIZ_LEGAL_ITEMS.map((item, idx) => ({
+            itemId: item.id,
+            status: idx % 4 === 3 ? 'no_cumple' : idx % 5 === 4 ? 'no_aplica' : 'cumple',
+        }));
+        const newSeguimientos: Record<string, string> = {};
+        dummy.normasAnadidas.forEach(norma => {
+            const match = MATRIZ_LEGAL_ITEMS.find(i => i.norma?.includes(norma.num.split(' ')[0]));
+            if (match) newSeguimientos[match.id] = `${norma.num}: ${norma.info}`;
+        });
+        setStatuses(newStatuses);
+        setSeguimientos(newSeguimientos);
+        if (!activity) setActivity('Manufactura y distribución de productos químicos');
+        if (!location) setLocation('Bogotá D.C.');
+        showToast({ message: 'Datos de matriz legal simulados generados exitosamente.', status: 'success' });
+    };
 
     const toggleCategory = useCallback((category: string) => {
         setExpandedCategories(prev => {
@@ -381,6 +401,7 @@ const MatrizLegal = () => {
                         onSelectModel={setSelectedModel}
                         disabled={isAnalyzing}
                     />
+                    <DummyGenerateButton onClick={handleDummyData} />
                     {generatedMatrix && (
                         <ExportDropdown
                             content={editorContent || generatedMatrix || ''}
@@ -440,14 +461,17 @@ const MatrizLegal = () => {
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isAnalyzing || completedCount === 0}
-                            className="shrink-0 group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleGenerate}
+                                disabled={isAnalyzing || completedCount === 0}
+                                className="shrink-0 group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
+                            </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
+                        </div>
                     </div>
 
                     {/* Metadata Form */}

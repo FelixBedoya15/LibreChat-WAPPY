@@ -19,6 +19,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 const ObjetivosSST = () => {
     const { t } = useTranslation();
@@ -44,6 +46,13 @@ const ObjetivosSST = () => {
 
     // Expand/collapse form
     const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+    const handleDummyData = () => {
+        setPolicySummary('Prevenir accidentes y enfermedades laborales, fomentar la cultura de autocuidado, garantizar el bienestar físico y mental de los trabajadores, cumplir con la normatividad colombiana vigente en SST.');
+        setDiagnosticSummary('Debilidades identificadas: falta de capacitaciones en 40% del personal, plan de emergencias desactualizado, sin indicadores de ausencia activos. Fortalezas: COPASST activo, empresa con <50 trabajadores.');
+        setAdditionalNorms('Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012');
+        showToast({ message: 'Datos de objetivos simulados generados exitosamente.', status: 'success' });
+    };
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
@@ -229,6 +238,7 @@ const ObjetivosSST = () => {
                     onSelectModel={setSelectedModel}
                     disabled={isGenerating}
                 />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedObjectives && (
                     <>
                         <button
@@ -310,7 +320,7 @@ const ObjetivosSST = () => {
                             );
                         })}
 
-                        <div className="flex justify-center pt-2">
+                        <div className="flex justify-center pt-2 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -323,6 +333,7 @@ const ObjetivosSST = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Objetivos con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

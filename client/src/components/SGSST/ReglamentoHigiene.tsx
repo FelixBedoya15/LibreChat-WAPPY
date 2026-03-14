@@ -19,6 +19,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 
 const ReglamentoHigiene = () => {
     const { t } = useTranslation();
@@ -44,6 +45,13 @@ const ReglamentoHigiene = () => {
 
     // Expand/collapse form
     const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+    const handleDummyData = () => {
+        setIdentifiedRisks('Riesgo biomecánico: manejo manual de cargas (>25kg). Riesgo químico: exposición a solventes orgánicos en área de pintura. Riesgo eléctrico: instalaciones de baja tensión en bodega. Riesgo locativo: superficies irregulares en zona de cargue.');
+        setWorkShifts('Jornada diurna: 7:00am a 5:00pm. Turno nocturno de vigilancia: 10:00pm a 6:00am. Personal administrativo: 8:00am a 5:00pm.');
+        setAdditionalRules('Prohibición absoluta de consumo de alcohol o sustancias psicoactivas en instalaciones. Uso obligatorio de EPP en planta. Reporte inmediato de todo incidente o condición insegura al jefe inmediato.');
+        showToast({ message: 'Datos de reglamento simulados generados exitosamente.', status: 'success' });
+    };
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
@@ -225,6 +233,7 @@ const ReglamentoHigiene = () => {
                     onSelectModel={setSelectedModel}
                     disabled={isGenerating}
                 />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedDocument && (
                     <>
                         <button
@@ -303,7 +312,7 @@ const ReglamentoHigiene = () => {
                             );
                         })}
 
-                        <div className="flex justify-center pt-2">
+                        <div className="flex justify-center pt-2 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -316,6 +325,7 @@ const ReglamentoHigiene = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reglamento con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

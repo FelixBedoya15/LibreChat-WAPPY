@@ -23,6 +23,8 @@ import {
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 import {
     CompanySize,
     RiskLevel,
@@ -155,6 +157,22 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             return [...prev, { itemId, status }];
         });
     }, []);
+
+    const handleDummyData = () => {
+        const dummyItems = generateDummyData.checklist(checklist);
+        const newStatuses: ComplianceStatus[] = dummyItems.map((item: any) => ({
+            itemId: item.id,
+            status: item.estado === 'Cumple' ? 'cumple' : item.estado === 'No Cumple' ? 'no_cumple' : 'no_aplica',
+        }));
+        const newObservations: Record<string, string> = {};
+        dummyItems.forEach((item: any) => {
+            if (item.evidencia) newObservations[item.id] = item.evidencia;
+        });
+        
+        setStatuses(newStatuses);
+        setObservations(newObservations);
+        showToast({ message: 'Resultados simulados generados correctamente', status: 'success' });
+    };
 
     const toggleItemExpanded = useCallback((itemId: string) => {
         setExpandedItems(prev => {
@@ -540,6 +558,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                 {t('com_ui_gen_analysis', 'Generar Análisis IA')}
                             </span>
                         </button>
+                        <DummyGenerateButton onClick={handleDummyData} />
                         {analysisReport && (
                             <>
                                 <button
@@ -709,7 +728,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 })}
             </div>
             {/* Bottom Action Button */}
-            <div className="flex justify-center mt-6 mb-4">
+            <div className="flex justify-center mt-6 mb-4 gap-4">
                 <button
                     onClick={handleAnalyze}
                     disabled={isAnalyzing || completedCount === 0}
@@ -722,6 +741,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     )}
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Análisis con IA</span>
                 </button>
+                <DummyGenerateButton onClick={handleDummyData} />
             </div>
             {/* Analysis Report - Editable */}
             {analysisReport && (

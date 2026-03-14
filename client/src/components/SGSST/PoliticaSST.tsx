@@ -21,6 +21,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 
 const PoliticaSST = () => {
     const { t } = useTranslation();
@@ -48,6 +49,15 @@ const PoliticaSST = () => {
 
     // Expand/collapse form
     const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+    const handleDummyData = () => {
+        setHazards('Riesgo biomecánico por posturas prolongadas y levantamiento de cargas, riesgo eléctrico en áreas de producción, riesgo locativo por pisos húmedos y desniveles, riesgo químico por manipulación de solventes.');
+        setScope('Aplica a todos los trabajadores directos, contratistas, subcontratistas y visitantes en todas las instalaciones de la empresa.');
+        setCommitments('Destinación de recursos financieros, técnicos y humanos; cumplimiento estricto de la normativa colombiana vigente; mejora continua del desempeño en SST; protección de la salud física y mental.');
+        setObjectives('Reducir la tasa de accidentalidad en un 20% anual, implementar programa de pausas activas, mantener el SG-SST actualizado conforme a la Res 0312 de 2019.');
+        setAdditionalNorms('Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012');
+        showToast({ message: 'Datos de política simulados generados exitosamente.', status: 'success' });
+    };
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
@@ -255,6 +265,7 @@ const PoliticaSST = () => {
                     onSelectModel={setSelectedModel}
                     disabled={isGenerating}
                 />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedPolicy && (
                     <>
                         <button
@@ -339,7 +350,7 @@ const PoliticaSST = () => {
                             );
                         })}
 
-                        <div className="flex justify-center pt-2">
+                        <div className="flex justify-center pt-2 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -352,6 +363,7 @@ const PoliticaSST = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Política con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

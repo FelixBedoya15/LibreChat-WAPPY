@@ -21,6 +21,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 const WorkerAutocomplete = ({
     value,
@@ -169,6 +171,25 @@ const ReporteActosCondiciones = () => {
             })
             .catch(err => console.error('Error fetching reporte actos data', err));
     }, [token]);
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.reporteActos();
+        setFormData(prev => ({
+            ...prev,
+            actividadGlobal: dummy.actividadGlobal,
+            fecha: dummy.fecha,
+            horaInicio: dummy.horaInicio,
+            seguridadSocial: dummy.seguridadSocial,
+            aptitudMedica: dummy.aptitudMedica,
+            certificacionAlturas: dummy.certificacionAlturas,
+            foto1Desc: dummy.foto1Desc,
+            foto2Desc: dummy.foto2Desc,
+            foto3Desc: dummy.foto3Desc,
+        }));
+        setTrabajadoresList(dummy.trabajadoresList.map(t => ({ nombre: t.nombre, cedula: t.cedula })));
+        setResponsablesList(dummy.responsablesList.map(r => ({ nombre: r.nombre, cedula: r.cedula, rol: r.rol })));
+        showToast({ message: 'Datos de reporte simulados generados exitosamente.', status: 'success' });
+    };
 
     const handleSaveData = async (silent = false) => {
         if (!token) return;
@@ -428,6 +449,7 @@ const ReporteActosCondiciones = () => {
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reporte con IA</span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedReport && (
                     <>
                         <button
@@ -722,7 +744,7 @@ const ReporteActosCondiciones = () => {
                         </div>
 
                         {/* Bottom generate button */}
-                        <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-4 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -735,6 +757,7 @@ const ReporteActosCondiciones = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reporte con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

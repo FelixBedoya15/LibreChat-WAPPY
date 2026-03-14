@@ -22,9 +22,10 @@ import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
-import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 // ─── Worker Autocomplete (identical to PermisoAlturas) ────────────────────────
 const WorkerAutocomplete = ({
@@ -235,6 +236,38 @@ const InvestigacionATEL = () => {
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
         }
+    };
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.investigacion();
+        setFormData(prev => ({
+            ...prev,
+            tipoEvento: 'Accidente Leve', 
+            fechaEvento: dummy.fechaEvento,
+            horaEvento: dummy.horaEvento,
+            lugarEvento: dummy.lugarEvento,
+            departamento: 'Antioquia',
+            municipio: 'Medellín',
+            afectadoNombre: dummy.nombreAccidentado,
+            afectadoCedula: dummy.cedula,
+            afectadoCargo: dummy.cargo,
+            afectadoEps: 'SURA',
+            afectadoArl: 'SURA',
+            tipoContrato: 'Indefinido',
+            jornadaLaboral: dummy.jornadaNormal,
+            experienciaLaboral: '5',
+            tiempoEnCargo: dummy.tiempoCargo,
+            actividadMomento: dummy.laborHabitual === 'Sí' ? 'Labor habitual en bodega' : 'Otra labor',
+            descripcionHechos: dummy.descripcionDetallada,
+            consecuencias: 'Incapacidad temporal, pausa en la producción.',
+            diasIncapacidad: '3',
+            naturalezaLesion: 'Esguince / Torcedura',
+            agenteCausal: dummy.agenteLesion,
+            parteCuerpo: dummy.parteCuerpo,
+        }));
+        setEquipoList(dummy.equipoList.map((item: any) => ({ nombre: item.nombre, cedula: item.cedula, rol: item.cargo })));
+        setTestigosList(dummy.testigosList.map((item: any) => ({ nombre: item.nombre, cedula: item.cedula, cargo: item.cargo, testimonio: item.version })));
+        showToast({ message: 'Datos de investigación simulados generados exitosamente.', status: 'success' });
     };
 
     // ── Voice Input (identical to PermisoAlturas) ──
@@ -455,6 +488,7 @@ const InvestigacionATEL = () => {
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedObjectives && (
                     <>
                         <button
@@ -934,7 +968,7 @@ const InvestigacionATEL = () => {
                         </div>
 
                         {/* ── Generate Button bottom ── */}
-                        <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-4 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -947,6 +981,7 @@ const InvestigacionATEL = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe de Investigación con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

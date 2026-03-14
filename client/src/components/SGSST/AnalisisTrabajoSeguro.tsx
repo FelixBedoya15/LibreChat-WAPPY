@@ -18,6 +18,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 const WorkerAutocomplete = ({
     value,
@@ -175,6 +177,15 @@ const AnalisisTrabajoSeguro = () => {
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
         }
+    };
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.ats();
+        setFormData(prev => ({ ...prev, ...dummy.formData }));
+        setTrabajadoresList(dummy.trabajadoresList);
+        setResponsablesList(dummy.responsablesList);
+        setImages(dummy.images as any);
+        showToast({ message: 'Datos de prueba generados exitosamente.', status: 'success' });
     };
 
     const handleVoiceInput = () => {
@@ -363,6 +374,7 @@ const AnalisisTrabajoSeguro = () => {
                     {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar ATS con IA</span>
                 </button>
+                <DummyGenerateButton onClick={handleDummyData} />
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
                 {generatedReport && (
                     <>
@@ -648,7 +660,7 @@ const AnalisisTrabajoSeguro = () => {
                         </div>
 
                         {/* Bottom generate button */}
-                        <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-4 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -657,6 +669,7 @@ const AnalisisTrabajoSeguro = () => {
                                 {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar ATS con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

@@ -22,6 +22,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 const WorkerAutocomplete = ({
     value,
@@ -168,6 +170,26 @@ const PermisoAlturas = () => {
             })
             .catch(err => console.error('Error fetching permiso alturas data', err));
     }, [token]);
+
+    const handleDummyData = () => {
+        const dummy = generateDummyData.permisoAlturas();
+        setFormData(prev => ({
+            ...prev,
+            actividadGlobal: dummy.medidasSeguridad + '\n\n' + dummy.labor,
+            fecha: dummy.fecha,
+            horaInicio: dummy.horaInicio,
+            horaFin: dummy.horaFin,
+            seguridadSocial: 'Sí',
+            aptitudMedica: 'Sí',
+            certificacionAlturas: 'Sí',
+        }));
+        setTrabajadoresList(dummy.trabajadoresAut.map(t => ({ nombre: t.nombre, cedula: t.cedula })));
+        setResponsablesList([
+            { nombre: dummy.coordinadorAlturas, rol: 'Coordinador de Alturas', cedula: '' },
+            { nombre: dummy.rescatista, rol: 'Rescatista', cedula: '' },
+        ]);
+        showToast({ message: 'Datos de permiso de alturas simulados generados exitosamente.', status: 'success' });
+    };
 
     const handleSaveData = async (silent = false) => {
         if (!token) return;
@@ -438,6 +460,7 @@ const PermisoAlturas = () => {
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar TSA con IA</span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedObjectives && (
                     <>
                         <button
@@ -746,7 +769,7 @@ const PermisoAlturas = () => {
                             </div>
                         </div>
 
-                        <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-4 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -759,6 +782,7 @@ const PermisoAlturas = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Permiso con IA</span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

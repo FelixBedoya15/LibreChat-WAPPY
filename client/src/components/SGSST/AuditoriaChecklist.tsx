@@ -24,6 +24,8 @@ import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -148,6 +150,22 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             return [...prev, { itemId, status }];
         });
     }, []);
+
+    const handleDummyData = () => {
+        const dummyItems = generateDummyData.checklist(AUDITORIA_ITEMS);
+        const newStatuses: ComplianceStatus[] = dummyItems.map((item: any) => ({
+            itemId: item.id,
+            status: item.estado === 'Cumple' ? 'cumple' : item.estado === 'No Cumple' ? 'no_cumple' : 'no_aplica',
+        }));
+        const newObservations: Record<string, string> = {};
+        dummyItems.forEach((item: any) => {
+            if (item.evidencia) newObservations[item.id] = item.evidencia;
+        });
+        
+        setStatuses(newStatuses);
+        setObservations(newObservations);
+        showToast({ message: 'Resultados de auditoría simulados generados correctamente', status: 'success' });
+    };
 
     const toggleItemExpanded = useCallback((itemId: string) => {
         setExpandedItems(prev => {
@@ -478,6 +496,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         onSelectModel={setSelectedModel}
                         disabled={isAnalyzing}
                     />
+                    <DummyGenerateButton onClick={handleDummyData} />
 
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -640,14 +659,17 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     </p>
                 </div>
 
-                <button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || completedCount === 0}
-                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                >
-                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
-                </button>
+                <div className="flex justify-center gap-4">
+                    <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || completedCount === 0}
+                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                    >
+                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
+                    </button>
+                    <DummyGenerateButton onClick={handleDummyData} />
+                </div>
             </div>
 
             {analysisReport && (

@@ -17,6 +17,8 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 // ─── OWAS Risk Category Table (server-side mirror for instant UI feedback) ───
 const OWAS_TABLE: Record<string, number> = {
@@ -192,6 +194,35 @@ const MetodoOwas = () => {
       }).catch(() => {});
   }, [token]);
 
+  const handleDummyData = () => {
+    const dummy = generateDummyData.metodoOwas();
+    setFormData(prev => ({
+      ...prev,
+      cargo: dummy.registros[0]?.cargoAnalizado || 'Operario de Embalaje',
+      area: 'Planta de Producción – Línea 3',
+      tareaDescripcion: 'Empaque manual de cajas y paletizado en banda transportadora',
+      frecuenciaObservacion: 'Cada 30 segundos',
+      actividadGlobal: 'Evaluación ergonómica realizada durante jornada completa. El operario realiza ciclos repetitivos de levantamiento, inclinación de tronco y colocación de cajas con peso promedio de 12 kg. Ambiente: temperatura 24°C, ritmo de trabajo medio-alto (180 ciclos/hora aproximadamente).',
+    }));
+    // Pre-load OWAS observations from the dummy generator
+    const obsFromDummy: Observacion[] = dummy.registros.map((r: any, i: number) => ({
+      id: (Date.now() + i).toString(),
+      descripcion: r.tarea,
+      espalda: parseInt(r.espalda),
+      brazos: parseInt(r.brazos),
+      piernas: parseInt(r.piernas),
+      carga: parseInt(r.carga),
+      espaldaLabel: ESPALDA_OPTIONS.find(o => o.value === parseInt(r.espalda))?.label || r.espalda,
+      brazosLabel: BRAZOS_OPTIONS.find(o => o.value === parseInt(r.brazos))?.label || r.brazos,
+      piernasLabel: PIERNAS_OPTIONS.find(o => o.value === parseInt(r.piernas))?.label || r.piernas,
+      cargaLabel: CARGA_OPTIONS.find(o => o.value === parseInt(r.carga))?.label || r.carga,
+    }));
+    setObservaciones(obsFromDummy);
+    setTrabajadoresList([{ nombre: 'Juan Carlos Mendoza', cedula: '12345678' }]);
+    setResponsablesList([{ nombre: 'Ing. Marcela Salcedo', cedula: '98765432', rol: 'Responsable Ergonómica SST' }]);
+    showToast({ message: `Datos OWAS simulados generados: ${obsFromDummy.length} observaciones cargadas.`, status: 'success' });
+  };
+
   const handleSaveData = async (silent = false) => {
     if (!token) return;
     try {
@@ -352,6 +383,7 @@ const MetodoOwas = () => {
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe OWAS con IA</span>
         </button>
         <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+        <DummyGenerateButton onClick={handleDummyData} />
         {generatedReport && (
           <>
             <button onClick={handleSave} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
@@ -603,13 +635,14 @@ const MetodoOwas = () => {
             </div>
 
             {/* Generate button */}
-            <div className="flex justify-center pt-4">
+            <div className="flex justify-center pt-4 gap-4">
               <button onClick={handleGenerate} disabled={isGenerating || observaciones.length === 0} className="group flex items-center px-5 py-3 bg-purple-700 hover:bg-purple-800 border border-purple-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5">
                 {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
                   {observaciones.length === 0 ? 'Registre observaciones primero' : 'Generar Informe OWAS con IA'}
                 </span>
               </button>
+              <DummyGenerateButton onClick={handleDummyData} />
             </div>
           </div>
         )}

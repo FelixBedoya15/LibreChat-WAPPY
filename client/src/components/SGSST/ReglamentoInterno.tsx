@@ -19,6 +19,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 
 const ReglamentoInterno = () => {
     const { t } = useTranslation();
@@ -52,6 +53,20 @@ const ReglamentoInterno = () => {
 
     // Expand/collapse form
     const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+    const handleDummyData = () => {
+        setChapters({
+            cap1_admision: 'Período de prueba de 2 meses. Contratos a término indefinido para cargos operativos y a término fijo (1 año renovable) para administrativos. Documentos requeridos: hoja de vida, fotocopia cédula, antecedentes.',
+            cap2_horarios: 'Lunes a Viernes 7:30am –5:00pm. Sábados alternos hasta mediodía. Desconexión laboral total los domingos y festivos salvo emergencia operativa documentada.',
+            cap3_descansos: 'Descanso dominical remunerado. Vacaciones 15 días hábiles anuales. 5 días por calamidad doméstica. Licencia de maternidad 18 semanas y paternidad 2 semanas conforme a la ley.',
+            cap4_salarios: 'Pagos quincenales los días 15 y último de cada mes por transferencia bancaria. Auxilio de transporte según ley. Prima legal semestral.',
+            cap5_sgsst: 'Uso estricto y obligatorio de EPP según el puesto de trabajo. Reporte inmediato de accidentes e incidentes al jefe inmediato. Prohibición absoluta de alcohol y sustancias psicoactivas. Participación obligatoria en simulacros.',
+            cap6_obligaciones: 'Empresa: Suministrar EPP, garantizar condiciones seguras, pagar salarios a tiempo. Empleado: Confidencialidad total de información. Prohibición de uso de equipos de la empresa para fines personales sin autorización.',
+            cap7_sanciones: 'Faltas leves (llamado de atención verbal y luego escrito): llegar tarde, descuido de herramientas. Faltas graves (suspensión): desobediencia al jefe, daño intencional de equipos. Faltas gravesísimas (justa causa): robo, violar reglas SST, acoso.',
+            cap8_convivencia: 'Comité de Convivencia sesiona cada 3 meses. Aplicación de Ley 1010 de 2006 contra acoso laboral. Canal de denuncias anónimo disponible. Tolerancia cero con discriminación o violencia.'
+        });
+        showToast({ message: 'Datos del reglamento interno simulados generados exitosamente.', status: 'success' });
+    };
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
@@ -322,6 +337,7 @@ const ReglamentoInterno = () => {
                     onSelectModel={setSelectedModel}
                     disabled={isGenerating}
                 />
+                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedDocument && (
                     <>
                         <button
@@ -400,7 +416,7 @@ const ReglamentoInterno = () => {
                             );
                         })}
 
-                        <div className="flex justify-center pt-2">
+                        <div className="flex justify-center pt-2 gap-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
@@ -415,6 +431,7 @@ const ReglamentoInterno = () => {
                                     {isGenerating && generatingProgress ? `Redactando: ${generatingProgress.title}` : 'Generar Reglamento con IA'}
                                 </span>
                             </button>
+                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}
