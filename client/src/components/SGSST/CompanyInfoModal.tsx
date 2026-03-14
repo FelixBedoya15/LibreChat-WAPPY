@@ -211,7 +211,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     });
 
 
-    const inputClass = 'w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+    const inputClass = 'w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500';
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
     const selectClass = cn(inputClass, 'appearance-none cursor-pointer');
 
@@ -221,8 +221,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-border-medium px-6 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-blue-500/10 p-2">
-                            <Building2 className="h-5 w-5 text-blue-500" />
+                        <div className="rounded-full bg-teal-500/10 p-2">
+                            <Building2 className="h-5 w-5 text-teal-500" />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-text-primary">{t('com_ui_company_info_title', 'Información de la Empresa')}</h2>
@@ -238,7 +238,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {loading ? (
                         <div className="flex h-32 items-center justify-center">
-                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                            <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
                         </div>
                     ) : (
                         <div className="space-y-5">
@@ -463,7 +463,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         onClick={handleSave}
                         disabled={saving || !isFormValid}
                         title={!isFormValid ? "Debe completar todos los campos obligatorios (*)" : ""}
-                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Save className="h-4 w-4" />
                         {saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar')}

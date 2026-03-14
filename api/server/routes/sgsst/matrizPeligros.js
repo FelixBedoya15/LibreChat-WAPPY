@@ -677,8 +677,8 @@ Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`
 - **Regla Crítica:** NO uses clases de Tailwind, usa exclusivamente CSS inline.
 - Los contenedores principales (divs, cajas, tarjetas) deben tener \`style="width: 100%; box-sizing: border-box;"\` para no quedar angostos.
 - Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` o \`color: #fff;\`.
-- Títulos (h2, h3): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
-- Tablas generadas por la IA DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\`. La tabla debe tener los estilos: \`width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`, th con background-color="#004d99" y color="white".
+- Títulos (h2, h3): Color azul oscuro (#0f766e) con \`color: #0f766e;\` explícito.
+- Tablas generadas por la IA DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\`. La tabla debe tener los estilos: \`width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`, th con background-color="#0f766e" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).`;
 
         const model = genAI.getGenerativeModel({ model: modelName });

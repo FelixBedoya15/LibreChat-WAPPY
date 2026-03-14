@@ -237,7 +237,7 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
    - **DESPUÉS** del encabezado, incluye: Auditor Líder, Alcance, Criterios de auditoría.
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
-   - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
+   - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #0f766e; margin-bottom: 20px;">
      Redacta un resumen ejecutivo profundo sobre el estado del SG-SST, mencionando explícitamente el cumplimiento del Decreto 1072 y la Resolución 0312. Incluye los puntajes generales y una síntesis de las principales fortalezas y debilidades.
      </div>
 
@@ -286,8 +286,8 @@ Genera un INFORME DE AUDITORÍA INTERNA MUY DETALLADO Y EXTENSO en formato HTML 
 **ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
 - **Regla Crítica:** NO uses tablas "striped" (filas intercaladas claras/oscuras) porque rompen la lectura en modo oscuro.
 - Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` (si el fondo es claro) o \`color: #fff;\` (si el fondo es oscuro).
-- Títulos (h1, h2): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
-- Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
+- Títulos (h1, h2): Color azul oscuro (#0f766e) con \`color: #0f766e;\` explícito.
+- Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#0f766e" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).
 - NC Mayor: fondo rosa claro (\`background-color: #ffe0e0; color: #000;\`). NC Menor: fondo amarillo claro (\`background-color: #fff8e0; color: #000;\`). Observación: fondo azul claro (\`background-color: #e0f0ff; color: #000;\`).
 - Plan de Acción por Plazo: Inmediato (\`background-color: #ffe0e0; color: #000;\`), Corto (\`background-color: #fff0e0; color: #000;\`), Mediano (\`background-color: #fff8e0; color: #000;\`), Largo (\`background-color: #e0ffe0; color: #000;\`).
@@ -369,7 +369,7 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
    ${diagnosticHeaderHTML}
 
 2. **RESUMEN EJECUTIVO (EXTENSO)**:
-   - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #004d99; margin-bottom: 20px;">
+   - <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #0f766e; margin-bottom: 20px;">
      Realiza una descripción detallada, profunda y explicativa del estado actual del SG-SST. Contextualiza el nivel de cumplimiento. NO seas breve.
      </div>
 
@@ -379,7 +379,7 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
      - Uno naranja/amarillo para el NIVEL DE RIESGO.
    - **GRÁFICOS DE BARRAS (PHVA):** Para cada ciclo (Planear, Hacer, Verificar, Actuar), genera una **BARRA DE PROGRESO** visual usando HTML/CSS.
      - Estilo sugerido: Un contenedor gris claro con una barra interna de color (verde/naranja/rojo según cumplimiento) que tenga un ancho % proporcional.
-   - **TABLA PHVA:** Crea una tabla HTML con encabezados azules (#004d99) y filas alternadas.
+   - **TABLA PHVA:** Crea una tabla HTML con encabezados azules (#0f766e) y filas alternadas.
    - Texto explicativo extenso sobre fortalezas y debilidades.
 
 4. **HALLAZGOS DETALLADOS (TABLA DE NO CONFORMIDADES Y OBSERVACIONES)**:
@@ -408,8 +408,8 @@ Genera un INFORME GERENCIAL MUY DETALLADO, EXTENSO Y PROFUNDO en formato HTML RI
 **ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
 - **Regla Crítica:** NO uses tablas "striped" (filas intercaladas claras/oscuras) porque rompen la lectura en modo oscuro.
 - Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` (si el fondo es claro) o \`color: #fff;\` (si el fondo es oscuro).
-- Títulos (h1, h2): Color azul oscuro (#004d99) con \`color: #004d99;\` explícito.
-- Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#004d99" y color="white".
+- Títulos (h1, h2): Color azul oscuro (#0f766e) con \`color: #0f766e;\` explícito.
+- Tablas: width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", th con background-color="#0f766e" y color="white".
 - Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).
 - NC Mayor: fondo rosa (#ffe0e0) con \`color: #000;\`. NC Menor: fondo amarillo (#fff8e0) con \`color: #000;\`. Observación: fondo azul claro (#e0f0ff) con \`color: #000;\`.
 - Plan de Acción por Plazo: Inmediato (#ffe0e0 rojo, \`color: #000;\`), Corto (#fff0e0 naranja, \`color: #000;\`), Mediano (#fff8e0 amarillo, \`color: #000;\`), Largo (#e0ffe0 verde, \`color: #000;\`).

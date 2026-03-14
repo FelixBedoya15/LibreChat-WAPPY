@@ -180,7 +180,7 @@ ${reportHeaderHTML}
 
 IMPORTANTE: Genera SOLO fragmentos HTML del cuerpo (body). NO incluyas <!DOCTYPE>, <html>, <head>, <body>, <style>.
 MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombres de representantes o responsables al final del documento, ya que el sistema los añadirá automáticamente de forma estandarizada.
-Usa etiquetas HTML semánticas y estilos inline elegantes con colores institucionales (azul #004d99 para encabezados).
+Usa etiquetas HTML semánticas y estilos inline elegantes con colores institucionales (azul #0f766e para encabezados).
 Asegúrate de que el documento se vea como una carta formal de asignación corporativa.`;
 
 

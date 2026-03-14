@@ -221,8 +221,8 @@ Este texto explicativo de alto nivel técnico debe ir después de las tablas y a
 
 9️⃣ **Dictamen Final (Bloque Gráfico Independiente)**
 Debes colocar el Dictamen Final por aparte, totalmente separado del Informe Técnico.
-Crea un cajón visual elegante usando un \`<div style="border: 2px solid #004d99; border-radius: 8px; padding: 25px; text-align: center; margin-top: 35px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background-color: #f8fafc;">\`
-- Dentro del div, pon un título \`<h4 style="color: #004d99; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 0; margin-bottom: 15px;">DICTAMEN FINAL DEL EXPERTO SST</h4>\`
+Crea un cajón visual elegante usando un \`<div style="border: 2px solid #0f766e; border-radius: 8px; padding: 25px; text-align: center; margin-top: 35px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background-color: #f8fafc;">\`
+- Dentro del div, pon un título \`<h4 style="color: #0f766e; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 0; margin-bottom: 15px;">DICTAMEN FINAL DEL EXPERTO SST</h4>\`
 - Luego, un texto explicativo indicando que, basándose en la información suministrada, el responsable SST aprueba (o suspende si hay faltas graves) la labor.
 - Luego, un bloque grande tipo botón: \`<div style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; font-size: 16px; margin: 15px 0;">APROBADO PARA EJECUCIÓN</div>\` (Usa rojo \`#dc2626\` y texto "PERMISO DENEGADO" si el permiso tiene requisitos legales incumplidos).
 - Por último, un texto en cursiva y letra pequeña (ej: \`font-size: 11px; color: #64748b;\`): *"Este permiso pierde validez inmediata si las condiciones meteorológicas cambian o si ocurre un incidente durante la labor. Debe permanecer de forma visible en el área de trabajo."*
@@ -230,7 +230,7 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #004d99
 **INSTRUCCIONES DE DISEÑO HTML Y TABLAS:**
 - Tu respuesta DEBE ser EXCLUSIVAMENTE en código HTML limpio (del <div> o cuerpo del texto).
 - Estructura base de TODAS las tablas: \`<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
-- Encabezados de tabla (<th>): \`<th style="background-color: #004d99; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #003366; word-wrap: break-word;">\`
+- Encabezados de tabla (<th>): \`<th style="background-color: #0f766e; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #003366; word-wrap: break-word;">\`
 - Celdas (<td>): \`<td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; font-size: 13px; color: #334155; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; background-color: #ffffff;">\`
 - Asegúrate de usar porcentajes de ancho adecuados si usas la propiedad width en <th> o <td> (ej: width="20%").
 - NO agregues tablas de firmas ni botones; la plataforma los incluye por defecto.
@@ -268,7 +268,7 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #004d99
         if (images.foto1 || images.foto2 || images.foto3) {
             imagesHtml = `
                 <div style="margin-top: 30px; margin-bottom: 30px;">
-                    <h3 style="color: #004d99; border-bottom: 2px solid #004d99; padding-bottom: 5px;">ANEXO: DOCUMENTACIÓN FOTOGRÁFICA DE LA ACTIVIDAD</h3>
+                    <h3 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 5px;">ANEXO: DOCUMENTACIÓN FOTOGRÁFICA DE LA ACTIVIDAD</h3>
                     <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
             `;
 
@@ -278,7 +278,7 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #004d99
                     imagesHtml += `
                         <div style="flex: 1; min-width: 250px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                             <img src="${images[k]}" style="width: 100%; height: auto; max-width: 300px; border-radius: 4px; object-fit: contain; margin-bottom: 10px;" alt="Evidencia ${i + 1}" />
-                            <strong style="color: #004d99; font-size: 14px; display: block;">${labels[i]}</strong>
+                            <strong style="color: #0f766e; font-size: 14px; display: block;">${labels[i]}</strong>
                             <span style="font-size: 12px; color: #555;">Evidencia adjuntada por el generador del permiso</span>
                         </div>
                     `;

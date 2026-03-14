@@ -236,7 +236,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             const result = response.data;
 
             // Post-process report: Replace broken images with Signature Icon
-            const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-blue-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
+            const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-teal-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-teal-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
 
             const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
 
@@ -351,7 +351,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 }
 
                 // Clean up content: Replace broken images with Signature Icon
-                const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-blue-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
+                const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-teal-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-teal-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
 
                 loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
@@ -380,7 +380,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
     const getCategoryColor = (category: string) => {
         const colors: Record<string, string> = {
-            planear: 'border-blue-500 text-blue-600',
+            planear: 'border-teal-500 text-teal-600',
             hacer: 'border-yellow-500 text-yellow-600',
             verificar: 'border-red-500 text-red-600',
             actuar: 'border-green-500 text-green-600',
@@ -392,7 +392,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         <div className="flex flex-col gap-6">
             <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
                 <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="h-5 w-5 text-blue-500" />
+                    <AlertTriangle className="h-5 w-5 text-teal-500" />
                     <div>
                         <h3 className="font-semibold text-text-primary">Lista de Verificación de Auditoría Interna</h3>
                         <p className="text-xs text-text-secondary">Decreto 1072 de 2015 / Resolución 0312</p>
@@ -416,7 +416,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                 Cumplimiento de requisitos globales y normas adicionales
                             </div>
                         </div>
-                        <div className="h-12 w-12 rounded-full border-4 border-blue-500 flex items-center justify-center text-xs font-bold bg-blue-50 text-blue-700">
+                        <div className="h-12 w-12 rounded-full border-4 border-teal-500 flex items-center justify-center text-xs font-bold bg-teal-50 text-teal-700">
                             {compliancePercentage.toFixed(0)}%
                         </div>
                     </div>
@@ -499,7 +499,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
                         <AnimatedIcon name="history" size={20} />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
@@ -509,7 +509,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
@@ -576,16 +576,16 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                             <div className="flex-1">
                                                                 <div className="flex flex-col gap-1.5">
                                                                     <h4 className="font-medium text-text-primary text-base">
-                                                                        <span className="font-bold text-blue-600 mr-2">{item.code}</span>
+                                                                        <span className="font-bold text-teal-600 mr-2">{item.code}</span>
                                                                         {item.name}
                                                                     </h4>
                                                                     <div className="group relative w-fit">
-                                                                        <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
+                                                                        <span className="inline-block font-mono text-[10px] uppercase tracking-wide font-bold text-text-tertiary bg-surface-tertiary px-2 py-1 rounded cursor-help border border-border-light hover:border-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all">
                                                                             {item.criteria}
                                                                         </span>
                                                                         {item.normativeText && (
                                                                             <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
-                                                                                <div className="font-semibold mb-1 text-blue-500">Fundamento Legal:</div>
+                                                                                <div className="font-semibold mb-1 text-teal-500">Fundamento Legal:</div>
                                                                                 {item.normativeText}
                                                                             </div>
                                                                         )}
@@ -599,7 +599,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                                 )}
                                                                 <button
                                                                     onClick={() => toggleItemExpanded(item.id)}
-                                                                    className="mt-1 text-xs text-blue-500 hover:underline flex items-center gap-1"
+                                                                    className="mt-1 text-xs text-teal-500 hover:underline flex items-center gap-1"
                                                                 >
                                                                     <HelpCircle className="h-3 w-3" /> Ver criterio de evaluación
                                                                 </button>
@@ -630,7 +630,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                             placeholder="Describa el hallazgo, evidencia o motivo de no aplicabilidad..."
                                                             value={observations[item.id] || ''}
                                                             onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-blue-500 focus:outline-none resize-none"
+                                                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-teal-500 focus:outline-none resize-none"
                                                             rows={2}
                                                         />
                                                     </div>
@@ -648,9 +648,9 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
 
             <div className="flex flex-col items-center gap-4 mt-8 mb-6">
-                <div className="max-w-2xl bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300 text-center">
-                    <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center justify-center gap-2">
-                        <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                <div className="max-w-2xl bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300 text-center">
+                    <h4 className="text-sm text-teal-800 dark:text-teal-300 mb-2 font-bold flex items-center justify-center gap-2">
+                        <Sparkles className="h-5 w-5 animate-pulse text-teal-500" />
                         Generación Inteligente
                     </h4>
                     <p className="text-sm text-text-secondary leading-relaxed">
@@ -662,7 +662,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                     >
                         {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>

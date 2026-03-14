@@ -349,7 +349,7 @@ const MatrizLegal = () => {
     if (isLoadingInitial) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
             </div>
         );
     }
@@ -359,7 +359,7 @@ const MatrizLegal = () => {
             {/* Header / Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <Scale className="h-6 w-6" />
                     </div>
                     <div>
@@ -373,7 +373,7 @@ const MatrizLegal = () => {
                     <button
                         onClick={handleGenerate}
                         disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 border border-blue-600 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50"
+                        className="group flex items-center px-3 py-2 bg-gradient-to-r from-teal-600 to-indigo-600 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50"
                     >
                         {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="sparkles" size={20} />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
@@ -390,7 +390,7 @@ const MatrizLegal = () => {
                     </button>
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
                         <AnimatedIcon name="history" size={20} />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
@@ -438,7 +438,7 @@ const MatrizLegal = () => {
                                     cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8"
                                     strokeDasharray={`${2 * Math.PI * 45}`}
                                     strokeDashoffset={`${2 * Math.PI * 45 * (1 - compliancePercentage / 100)}`}
-                                    className="text-blue-500 transition-all duration-1000 ease-in-out"
+                                    className="text-teal-500 transition-all duration-1000 ease-in-out"
                                     strokeLinecap="round"
                                 />
                             </svg>
@@ -451,9 +451,9 @@ const MatrizLegal = () => {
                             <p className="text-sm text-text-secondary">
                                 Progreso de evaluación: {completedCount} de {totalItems} ítems evaluados.
                             </p>
-                            <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
-                                <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
-                                    <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                            <div className="mt-3 bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
+                                <h4 className="text-sm text-teal-800 dark:text-teal-300 mb-2 font-bold flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5 animate-pulse text-teal-500" />
                                     Generación Inteligente
                                 </h4>
                                 <p className="text-sm text-text-secondary leading-relaxed">
@@ -465,7 +465,7 @@ const MatrizLegal = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isAnalyzing || completedCount === 0}
-                                className="shrink-0 group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="shrink-0 group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
@@ -529,7 +529,7 @@ const MatrizLegal = () => {
                                                         <div className="flex flex-col gap-3">
                                                             <div>
                                                                 <div className="flex items-center gap-2 mb-1">
-                                                                    <span className="text-xs font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded uppercase">{item.norma} - {item.articulo}</span>
+                                                                    <span className="text-xs font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 dark:text-teal-400 px-2 py-0.5 rounded uppercase">{item.norma} - {item.articulo}</span>
                                                                 </div>
                                                                 <p className="text-sm font-medium text-text-primary leading-snug">{item.descripcion}</p>
                                                                 <p className="text-xs text-text-secondary mt-1">Evidencia: {item.evidencia}</p>
@@ -561,7 +561,7 @@ const MatrizLegal = () => {
                                                                     placeholder="Notas de seguimiento o justificación..."
                                                                     value={seguimientos[item.id] || ''}
                                                                     onChange={(e) => setSeguimientos({ ...seguimientos, [item.id]: e.target.value })}
-                                                                    className="w-full rounded text-xs border border-border-medium bg-surface-primary px-2 py-1.5 focus:border-blue-500 focus:outline-none"
+                                                                    className="w-full rounded text-xs border border-border-medium bg-surface-primary px-2 py-1.5 focus:border-teal-500 focus:outline-none"
                                                                 />
                                                             </div>
                                                         </div>

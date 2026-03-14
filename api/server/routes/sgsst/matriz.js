@@ -236,12 +236,12 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
         // Generar tabla manual en HTML
         let tableRowsHTML = processedItems.map((item, idx) => {
             const statusColor = item.statusLabel === 'CUMPLE' ? '#22c55e' : item.statusLabel === 'NO CUMPLE' ? '#ef4444' : item.statusLabel === 'NO APLICA' ? '#64748b' : '#3b82f6';
-            const statusBg = item.statusLabel === 'CUMPLE' ? '#f0fdf4' : item.statusLabel === 'NO CUMPLE' ? '#fef2f2' : item.statusLabel === 'NO APLICA' ? '#f8fafc' : '#eff6ff';
+            const statusBg = item.statusLabel === 'CUMPLE' ? '#f0fdf4' : item.statusLabel === 'NO CUMPLE' ? '#fef2f2' : item.statusLabel === 'NO APLICA' ? '#f8fafc' : '#f0fdfa';
 
             return `
   <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; page-break-inside: avoid;">
     <div style="background-color: #f8fafc; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-      <div style="font-weight: 700; color: #004d99; font-size: 15px;">
+      <div style="font-weight: 700; color: #0f766e; font-size: 15px;">
         <span style="color: #64748b;">${idx + 1}.</span> ${item.norma} - ${item.articulo}
       </div>
       <div style="background-color: ${statusColor}; color: white; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; text-transform: uppercase;">
@@ -268,7 +268,7 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
     </div>
   </div>`;
         }).join('\\n');
-        let finalContent = `${cleanedMatrix}\n<div class="mt-12">\n<h3 style="color: #004d99; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #004d99; padding-bottom: 8px;">Anexo: Detalle de Criterios Ley / Matriz Evaluada</h3>\n${tableRowsHTML}</div>`;
+        let finalContent = `${cleanedMatrix}\n<div class="mt-12">\n<h3 style="color: #0f766e; font-size: 20px; margin: 0 0 15px 0; font-weight: 700; border-bottom: 2px solid #0f766e; padding-bottom: 8px;">Anexo: Detalle de Criterios Ley / Matriz Evaluada</h3>\n${tableRowsHTML}</div>`;
 
         if (loadedCompanyInfo) {
             finalContent += buildSignatureSection(loadedCompanyInfo);

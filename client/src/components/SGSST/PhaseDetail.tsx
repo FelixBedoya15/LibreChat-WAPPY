@@ -288,7 +288,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                         <div className="text-text-secondary">
                                             {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                                         </div>
-                                        <div className="p-2 rounded-lg bg-surface-primary text-blue-600 dark:text-blue-400">
+                                        <div className="p-2 rounded-lg bg-surface-primary text-teal-600 dark:text-teal-400">
                                             {renderIcon(category.icon)}
                                         </div>
                                         <div>

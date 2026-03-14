@@ -264,11 +264,11 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
 **ESTILOS CSS - PRECAUCIÓN MODO OSCURO:**
 - **Regla Crítica:** NO uses tablas "striped" (filas con colores alternos) porque rompen la lectura en modo oscuro del sistema.
 - CADA VEZ que uses \`background-color\`, DEBES especificar \`color: #000;\` (si es fondo claro) o \`color: #fff;\` (si es fondo oscuro).
-- **Encabezados:** Color #004d99 (Azul Institucional) con \`color: #004d99;\`. Fuente heredada (inherit).
+- **Encabezados:** Color #0f766e (Azul Institucional) con \`color: #0f766e;\`. Fuente heredada (inherit).
 - **Tablas:** width="100%", table-layout="fixed", word-wrap="break-word", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", font-family: inherit.
-- **Th (Cabeceras):** background-color="#004d99", color="white", padding="12px", text-transform="uppercase", font-size="12px".
+- **Th (Cabeceras):** background-color="#0f766e", color="white", padding="12px", text-transform="uppercase", font-size="12px".
 - **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0" (SIN background-color para que hereden el modo oscuro).
-- **KPI Cards (Indicadores):** background-color="#f8f9fa", color="#000", border-left="5px solid #004d99", padding="15px", margin="10px", border-radius="4px", flex-based layout.
+- **KPI Cards (Indicadores):** background-color="#f8f9fa", color="#000", border-left="5px solid #0f766e", padding="15px", margin="10px", border-radius="4px", flex-based layout.
 - **Alertas:** background-color="#e3f2fd" (azul claro) con color="#000" para informativos, "#ffebee" (rojo claro) con color="#000" para alertas de accidentalidad alta.
 
 **SECCIONES DEL INFORME:**

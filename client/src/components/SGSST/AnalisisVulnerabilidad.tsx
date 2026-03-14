@@ -206,14 +206,16 @@ const AnalisisVulnerabilidad = () => {
     fetch('/api/sgsst/analisis-vulnerabilidad/data', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
-        if (d.amenazasList && d.amenazasList.length > 0) {
+        if (d && Array.isArray(d.amenazasList) && d.amenazasList.length > 0) {
           // ensure valid ids if migrating from old flat schema
           const migrated = d.amenazasList.map((a: any) => ({ ...emptyAmenaza(), ...a, id: a.id || crypto.randomUUID() }));
           setAmenazasList(migrated);
           setActiveAmenazaId(migrated[0].id);
         }
-        if (d.evaluadoresList?.length) setEvaluadoresList(d.evaluadoresList);
-        if (d.images) setImages(d.images);
+        if (d && Array.isArray(d.evaluadoresList) && d.evaluadoresList.length > 0) {
+          setEvaluadoresList(d.evaluadoresList);
+        }
+        if (d && d.images) setImages(d.images);
       }).catch(() => {});
   }, [token]);
 
@@ -233,7 +235,7 @@ const AnalisisVulnerabilidad = () => {
   const getSectionScore = (answers: Record<string, number>, section: 'personas'|'recursos'|'sistemas', origen: string) => {
     if (!answers) return 0;
     const originKey = matchOrigen(origen) as keyof typeof QUESTIONS_BY_ORIGIN;
-    const questions = QUESTIONS_BY_ORIGIN[originKey][section];
+    const questions = QUESTIONS_BY_ORIGIN[originKey]?.[section] || [];
     const sectionAnswers = questions.map(q => answers[`${section}_${q.id}`]);
     const answeredCount = sectionAnswers.filter(v => v !== undefined).length;
     if (answeredCount === 0) return 0;
@@ -270,7 +272,7 @@ const AnalisisVulnerabilidad = () => {
     try {
       const res = await fetch('/api/sgsst/analisis-vulnerabilidad/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer \${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images })
       });
       if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente.', status: 'success' });
@@ -316,7 +318,7 @@ const AnalisisVulnerabilidad = () => {
     setIsGenerating(true);
     handleSaveData(true);
     
-    const dataToSave = amenazasList.map(am => {
+    const dataToSave = (amenazasList || []).map(am => {
        const calc = calculateThreatGraphics(am);
        return { ...am, puntajePersonas: calc.ptsPers, puntajeRecursos: calc.ptsRec, puntajeSistemas: calc.ptsSist, riskLevel: calc.riskLevel };
     });
@@ -324,7 +326,7 @@ const AnalisisVulnerabilidad = () => {
     try {
       const response = await fetch('/api/sgsst/analisis-vulnerabilidad/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer \${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images, modelName: selectedModel }),
       });
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Error al generar'); }

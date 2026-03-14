@@ -181,7 +181,7 @@ NO generes un título principal como "ANÁLISIS DE TRABAJO SEGURO", el encabezad
 1️⃣ **Identificación de la Tarea**
 Tabla con: Tipo de tarea, Área/Proceso, Fecha y hora de ejecución, Categoría de riesgo estimada, Número de trabajadores, Duración estimada.
 Luego, un bloque de contexto (obligatorio):
-\`<div style="border-left: 4px solid #1d4ed8; background-color: #eff6ff; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; margin-top: -10px; font-size: 13.5px; color: #1e3a8a; line-height: 1.6;"><strong>Resumen Técnico de la Tarea:</strong> [ANÁLISIS PROFUNDO DE LA NATURALEZA, COMPLEJIDAD Y NIVEL DE RIESGO INTRÍNSECO DE LA LABOR A EJECUTAR]</div>\`
+\`<div style="border-left: 4px solid #0f766e; background-color: #f0fdfa; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; margin-top: -10px; font-size: 13.5px; color: #1e293b; line-height: 1.6;"><strong>Resumen Técnico de la Tarea:</strong> [ANÁLISIS PROFUNDO DE LA NATURALEZA, COMPLEJIDAD Y NIVEL DE RIESGO INTRÍNSECO DE LA LABOR A EJECUTAR]</div>\`
 
 2️⃣ **Verificación Preoperacional y Recursos Requeridos**
 Tabla con 2 secciones separadas:
@@ -216,8 +216,8 @@ Analiza: La complejidad intrínseca de la tarea y su potencial de daño. Relaci�
 
 8️⃣ **Declaración de Comprensión y Autorización (Bloque Gráfico)**
 Tabla de verificación final:
-\`<div style="border: 2px solid #1d4ed8; border-radius: 8px; padding: 25px; text-align: center; margin-top: 35px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background-color: #f0f9ff;">\`
-- Título: \`<h4 style="color: #1d4ed8; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 0;">AUTORIZACIÓN DE INICIO DE TRABAJO</h4>\`
+\`<div style="border: 2px solid #0f766e; border-radius: 8px; padding: 25px; text-align: center; margin-top: 35px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background-color: #f0fdfa;">\`
+- Título: \`<h4 style="color: #0f766e; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 0;">AUTORIZACIÓN DE INICIO DE TRABAJO</h4>\`
 - Párrafo declarando que los trabajadores conocen los riesgos, han recibido la charla de seguridad y se comprometen a cumplir las medidas establecidas en el ATS.
 - Botón: \`<div style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; font-size: 16px; margin: 15px 0;">AUTORIZADO PARA INICIAR</div>\` (usa rojo #dc2626 y texto "INICIO NO AUTORIZADO" si hay ítems del preoperacional sin cumplir).
 - Nota final en pequeño: *"Este ATS pierde vigencia si las condiciones de la tarea cambian. En ese caso, debe elaborarse uno nuevo."*
@@ -225,7 +225,7 @@ Tabla de verificación final:
 **INSTRUCCIONES DE DISEÑO HTML y TABLAS:**
 - Respuesta EXCLUSIVAMENTE en código HTML limpio.
 - TODAS las tablas: \`<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
-- Encabezados (<th>): \`<th style="background-color: #1d4ed8; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #1e40af; word-wrap: break-word;">\`
+- Encabezados (<th>): \`<th style="background-color: #0f766e; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #1e40af; word-wrap: break-word;">\`
 - Celdas (<td>): \`<td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; font-size: 13px; color: #334155; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; background-color: #ffffff;">\`
 - Filas alternas con: background-color: #f8fafc; para mejor legibilidad.
 - NO agregues tablas de firmas ni botones adicionales; la plataforma los incluye automáticamente.
@@ -255,7 +255,7 @@ Tabla de verificación final:
     if (images.foto1 || images.foto2 || images.foto3) {
       imagesHtml = `
         <div style="margin-top: 30px; margin-bottom: 30px;">
-          <h3 style="color: #1d4ed8; border-bottom: 2px solid #1d4ed8; padding-bottom: 5px;">ANEXO: REGISTRO FOTOGRÁFICO DEL ÁREA Y TAREA</h3>
+          <h3 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 5px;">ANEXO: REGISTRO FOTOGRÁFICO DEL ÁREA Y TAREA</h3>
           <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">`;
 
       const labels = ['Vista General del Área de Trabajo', 'Detalle de Equipos / Herramientas', 'Condiciones del Entorno'];
@@ -264,7 +264,7 @@ Tabla de verificación final:
           imagesHtml += `
             <div style="flex: 1; min-width: 250px; border: 1px solid #ddd; padding: 10px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
               <img src="${images[k]}" style="width: 100%; height: auto; max-width: 300px; border-radius: 4px; object-fit: contain; margin-bottom: 10px;" alt="Foto ${i + 1}" />
-              <strong style="color: #1d4ed8; font-size: 14px; display: block;">${labels[i]}</strong>
+              <strong style="color: #0f766e; font-size: 14px; display: block;">${labels[i]}</strong>
               <span style="font-size: 12px; color: #555;">Fotografía de contexto para el ATS</span>
             </div>`;
         }

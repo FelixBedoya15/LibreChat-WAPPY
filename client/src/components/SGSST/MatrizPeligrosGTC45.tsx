@@ -680,7 +680,7 @@ const MatrizPeligrosGTC45 = () => {
             {/* ═══ Toolbar ═══ */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <AnimatedIcon name="layout-list" size={24} />
                     </div>
                     <div>
@@ -691,7 +691,7 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <DummyGenerateButton onClick={handleDummyData} />
                     <button onClick={handleGenerateFull} disabled={isGeneratingFull}
-                        className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar con IA</span>
                     </button>
@@ -701,13 +701,13 @@ const MatrizPeligrosGTC45 = () => {
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
                     </button>
                     <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
                         <AnimatedIcon name="history" size={20} />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
                     </button>
                     {procesos.length > 0 && (
                         <button onClick={handleAnalyze} disabled={isAnalyzing}
-                            className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                            className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
                             {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe IA</span>
                         </button>
@@ -732,9 +732,9 @@ const MatrizPeligrosGTC45 = () => {
             )}
 
             {/* AI Advisory Notice */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
-                <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
-                    <AnimatedIcon name="sparkles" size={20} className="animate-pulse text-blue-500" />
+            <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
+                <h4 className="text-sm text-teal-800 dark:text-teal-300 mb-2 font-bold flex items-center gap-2">
+                    <AnimatedIcon name="sparkles" size={20} className="animate-pulse text-teal-500" />
                     Generación Inteligente
                 </h4>
                 <p className="text-sm text-text-secondary leading-relaxed">
@@ -746,16 +746,16 @@ const MatrizPeligrosGTC45 = () => {
             <div className="space-y-4">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12 text-text-secondary">
-                        <Loader2 className="h-8 w-8 animate-spin mr-3 text-blue-500" /> Cargando matriz...
+                        <Loader2 className="h-8 w-8 animate-spin mr-3 text-teal-500" /> Cargando matriz...
                     </div>
                 ) : (
                     <>
                         {procesos.map((p, pIdx) => (
-                            <div key={p.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-blue-500 transition-all">
+                            <div key={p.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Proceso Header */}
                                 <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleProceso(p.id)}>
                                     <div className="flex items-center gap-3">
-                                        <div className="text-blue-500">
+                                        <div className="text-teal-500">
                                             {expandedProcesos.has(p.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
                                         <div>
@@ -768,7 +768,7 @@ const MatrizPeligrosGTC45 = () => {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button onClick={(e) => { e.stopPropagation(); handleAddPeligro(p.id); }}
-                                            className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 transition-colors">
+                                            className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-100 transition-colors">
                                             <AnimatedIcon name="plus" size={16} />
                                         </button>
                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteProceso(p.id); }}
@@ -816,7 +816,7 @@ const MatrizPeligrosGTC45 = () => {
 
                                         {/* Controles Existentes del Proceso */}
                                         <div className="pt-2 pb-4">
-                                            <label className="text-xs font-bold text-blue-600 dark:text-blue-400 tracking-tight uppercase mb-3 block border-b border-border-light pb-1">Controles Existentes (Aplicables al Proceso)</label>
+                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 tracking-tight uppercase mb-3 block border-b border-border-light pb-1">Controles Existentes (Aplicables al Proceso)</label>
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                 <div className="space-y-1">
                                                     <label className="text-[10px] font-bold text-text-secondary uppercase">En la Fuente</label>
@@ -842,7 +842,7 @@ const MatrizPeligrosGTC45 = () => {
                                         {/* Hazards Sub-List */}
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between border-b border-border-medium pb-1">
-                                                <h5 className="text-[11px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2">
+                                                <h5 className="text-[11px] font-black text-teal-500 uppercase tracking-widest flex items-center gap-2">
                                                     <Layers className="h-3.5 w-3.5" /> Peligros en este Proceso
                                                 </h5>
                                                 {p.peligros.length === 0 && (
@@ -906,7 +906,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             {(!GTC45_CATEGORIES[h.clasificacion] && h.clasificacion !== '') && (
                                                                                 <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
                                                                                     placeholder="Especifique la clasificación manual..."
-                                                                                    className="w-full text-xs p-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900/20 text-text-primary" />
+                                                                                    className="w-full text-xs p-2 rounded-lg border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary" />
                                                                             )}
                                                                         </div>
                                                                     </div>
@@ -939,7 +939,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             {(!h.clasificacion || !GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro)) && h.descripcionPeligro !== '' && (
                                                                                 <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
                                                                                     placeholder="Describa el peligro aquí..."
-                                                                                    rows={2} className="w-full text-xs p-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900/20 text-text-primary resize-none" />
+                                                                                    rows={2} className="w-full text-xs p-2 rounded-lg border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary resize-none" />
                                                                             )}
                                                                         </div>
                                                                     </div>
@@ -961,7 +961,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             </div>
                                                                             {h.clasificacion && (h.clasificacion.toLowerCase().includes('físico') || h.clasificacion.toLowerCase().includes('químico') || h.clasificacion.toLowerCase().includes('biológico')) && (
                                                                                 <div className="space-y-1 col-span-2">
-                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase text-blue-500">Deficiencia Higiénica (Anexo C)</label>
+                                                                                    <label className="text-[9px] font-bold text-text-secondary uppercase text-teal-500">Deficiencia Higiénica (Anexo C)</label>
                                                                                     <select value={h.deficienciaHigienica || ''} onChange={e => updatePeligroField(p.id, h.id, 'deficienciaHigienica', e.target.value)}
                                                                                         className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
                                                                                         <option value="">Seleccionar...</option>
@@ -1024,7 +1024,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                                     return (
                                                                                         <div key={measure} className="bg-surface-secondary/50 rounded p-2.5 border border-border-light">
                                                                                             <div className="flex justify-between items-center mb-2">
-                                                                                                <span className="text-[10px] font-extrabold text-blue-500 uppercase">{measure.replace('control', '')}</span>
+                                                                                                <span className="text-[10px] font-extrabold text-teal-500 uppercase">{measure.replace('control', '')}</span>
                                                                                                 <span className="bg-fuchsia-100 dark:bg-fuchsia-900/30 px-2 py-0.5 rounded text-[10px] font-bold text-fuchsia-700 dark:text-fuchsia-400 border border-fuchsia-200 dark:border-fuchsia-800">
                                                                                                     J = {(h as any)[jKey] || 0}
                                                                                                 </span>
@@ -1090,7 +1090,7 @@ const MatrizPeligrosGTC45 = () => {
                 )}
 
                 <button onClick={handleAddProceso}
-                    className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-blue-500 transition-all">
+                    className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-teal-500 transition-all">
                     <AnimatedIcon name="plus" size={20} />
                     <span className="font-bold">Agregar Nuevo Proceso</span>
                 </button>

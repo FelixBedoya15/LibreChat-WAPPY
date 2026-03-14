@@ -28,17 +28,17 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 
   return `
 <div style="text-align: center; margin-bottom: 24px;">
-    <h1 style="color: #004d99; font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; border-bottom: none; padding-bottom: 0;">
+    <h1 style="color: #0f766e; font-size: 24px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; border-bottom: none; padding-bottom: 0;">
         ${title}
     </h1>
-    <div style="width: 100px; height: 3px; background-color: #004d99; margin: 0 auto 12px auto;"></div>
+    <div style="width: 100px; height: 3px; background-color: #0f766e; margin: 0 auto 12px auto;"></div>
 </div>
 
 <div style="overflow-x: auto; width: 100%; margin-bottom: 24px; padding-bottom: 8px;">
 <table style="width: 100%; min-width: 700px; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: inherit;">
   <thead>
     <tr>
-      <th colspan="4" style="background-color: #004d99; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+      <th colspan="4" style="background-color: #0f766e; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
         INFORMACIÓN RESUMIDA DE LA ENTIDAD
       </th>
     </tr>

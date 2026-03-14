@@ -312,7 +312,7 @@ const ReglamentoInterno = () => {
                     <DummyGenerateButton onClick={handleDummyData} />
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                 >
                     <AnimatedIcon name="history" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
@@ -322,7 +322,7 @@ const ReglamentoInterno = () => {
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGenerating ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -376,16 +376,16 @@ const ReglamentoInterno = () => {
                 >
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
-                        <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <Briefcase className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                         <span className="font-semibold text-text-primary">Datos para el Reglamento Interno de Trabajo</span>
                     </div>
                 </button>
 
                 {isFormExpanded && (
                     <div className="p-4 space-y-4">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
-                            <h4 className="text-sm text-blue-800 dark:text-blue-300 mb-2 font-bold flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 animate-pulse text-blue-500" />
+                        <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
+                            <h4 className="text-sm text-teal-800 dark:text-teal-300 mb-2 font-bold flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 animate-pulse text-teal-500" />
                                 Generación Inteligente
                             </h4>
                             <p className="text-sm text-text-secondary leading-relaxed">
@@ -410,7 +410,7 @@ const ReglamentoInterno = () => {
                                         onChange={(e) => field.setter(e.target.value)}
                                         placeholder={field.placeholder}
                                         rows={field.rows}
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
+                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 resize-y"
                                     />
                                 </div>
                             );
@@ -420,7 +420,7 @@ const ReglamentoInterno = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                                className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -440,7 +440,7 @@ const ReglamentoInterno = () => {
                 <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
                     <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
                         <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <Briefcase className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                             Reglamento Interno de Trabajo
                         </h3>
                         <span className="text-xs text-text-secondary">Edita el reglamento generado directamente</span>

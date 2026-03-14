@@ -436,7 +436,7 @@ const PermisoAlturas = () => {
                     <DummyGenerateButton onClick={handleDummyData} />
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                 >
                     <AnimatedIcon name="history" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
@@ -451,7 +451,7 @@ const PermisoAlturas = () => {
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isGenerating ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -485,7 +485,7 @@ const PermisoAlturas = () => {
                 <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                        <FileText className="h-5 w-5 text-blue-600" />
+                        <FileText className="h-5 w-5 text-teal-600" />
                         <span className="font-semibold">Datos para el Permiso de Alturas</span>
                     </div>
                 </button>
@@ -518,7 +518,7 @@ const PermisoAlturas = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre completo"
                                         wrapperClassName="w-full md:w-1/2"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                     />
                                     <div className="flex w-full md:w-1/2 gap-2">
                                         <WorkerAutocomplete
@@ -545,7 +545,7 @@ const PermisoAlturas = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                         />
                                         <button
                                             onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))}
@@ -559,7 +559,7 @@ const PermisoAlturas = () => {
                             ))}
                             <button
                                 onClick={() => setTrabajadoresList([...trabajadoresList, { nombre: '', cedula: '' }])}
-                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 font-medium"
                             >
                                 <Plus className="h-4 w-4" /> Añadir Trabajador
                             </button>
@@ -634,7 +634,7 @@ const PermisoAlturas = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre"
                                         wrapperClassName="w-full md:w-1/3"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                     />
                                     <input
                                         type="text"
@@ -678,7 +678,7 @@ const PermisoAlturas = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                         />
                                         <button
                                             onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
@@ -691,7 +691,7 @@ const PermisoAlturas = () => {
                             ))}
                             <button
                                 onClick={() => setResponsablesList([...responsablesList, { nombre: '', cedula: '', rol: '' }])}
-                                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 font-medium"
                             >
                                 <Plus className="h-4 w-4" /> Añadir Responsable
                             </button>
@@ -700,7 +700,7 @@ const PermisoAlturas = () => {
                         <div className="space-y-4 pt-4 border-t border-border-medium">
                             <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-blue-600" /> Detalle de la Actividad (Dictado o Texto)
+                                    <Sparkles className="h-4 w-4 text-teal-600" /> Detalle de la Actividad (Dictado o Texto)
                                 </h4>
                                 <button
                                     onClick={handleVoiceInput}
@@ -708,7 +708,7 @@ const PermisoAlturas = () => {
                                 >
                                     <span className="relative flex h-3 w-3">
                                         {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
-                                        <span className={`relative inline-flex rounded-full h-3 w-3 ${isListening ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                                        <span className={`relative inline-flex rounded-full h-3 w-3 ${isListening ? 'bg-red-500' : 'bg-teal-500'}`}></span>
                                     </span>
                                     {isListening ? 'Escuchando...' : 'Activar Micrófono'}
                                 </button>
@@ -725,7 +725,7 @@ const PermisoAlturas = () => {
                                     }
                                 }}
                                 readOnly={isListening}
-                                className={`w-full rounded-xl border-2 ${isListening ? 'border-solid border-red-300 bg-red-50/10 focus:border-red-400 focus:bg-red-50/20' : 'border-dashed border-blue-200 bg-blue-50/10 focus:bg-blue-50/30 focus:border-blue-400'} p-4 text-sm text-text-primary min-h-[160px] resize-y transition-colors focus:outline-none`}
+                                className={`w-full rounded-xl border-2 ${isListening ? 'border-solid border-red-300 bg-red-50/10 focus:border-red-400 focus:bg-red-50/20' : 'border-dashed border-teal-200 bg-teal-50/10 focus:bg-teal-50/30 focus:border-teal-400'} p-4 text-sm text-text-primary min-h-[160px] resize-y transition-colors focus:outline-none`}
                                 placeholder="Ej: La actividad consistirá en la instalación de luminarias a una altura aproximada de 4 metros usando un andamio certificado..."
                             />
                         </div>
@@ -749,7 +749,7 @@ const PermisoAlturas = () => {
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-blue-500">
+                                                    <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-teal-500">
                                                         <Camera className="h-8 w-8 mb-2" />
                                                         <span className="text-xs text-center px-4">Tocar para tomar/subir foto</span>
                                                         <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(fieldName, e)} />
@@ -773,7 +773,7 @@ const PermisoAlturas = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                                className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -791,7 +791,7 @@ const PermisoAlturas = () => {
                 generatedObjectives && (
                     <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
                         <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                            <h3 className="font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-blue-600" /> Permiso de Alturas Generado</h3>
+                            <h3 className="font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-teal-600" /> Permiso de Alturas Generado</h3>
                         </div>
                         <div className="p-1 overflow-hidden">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>

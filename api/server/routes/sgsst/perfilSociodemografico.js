@@ -140,7 +140,7 @@ router.get('/profile/:workerId', async (req, res) => {
   .header { text-align: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
   .avatar { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg,#0ea5e9,#6366f1); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: white; margin: 0 auto 12px; }
   h1 { font-size: 22px; font-weight: 800; color: #1e40af; line-height: 1.2; margin-bottom: 6px; }
-  .badge { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+  .badge { display: inline-block; background: #dbeafe; color: #0f766e; padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
   .section { margin-bottom: 18px; }
   .section-title { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -446,8 +446,8 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
 - ** Regla Crítica:** NO uses clases de Tailwind, usa exclusivamente CSS inline.
 - Los contenedores principales(divs, cajas, tarjetas) deben tener style = "width: 100%; box-sizing: border-box;" para no quedar angostos.
 - Cada vez que apliques un background - color a un elemento(tr, td, div), ** DEBES OBLIGATORIAMENTE ** especificar color: #000; o color: #fff;.
-                        - Títulos(h2, h3): Color azul oscuro(#004d99) con color: #004d99; explícito.
-- Tablas generadas por la IA DEBEN estar envueltas dentro de un < div style = "overflow-x: auto; width: 100%; margin-bottom: 20px;" >.La tabla debe tener los estilos: width: 100 %; min - width: 700px; border - collapse: separate; border - spacing: 0; border - radius: 12px; border: 1px solid #ddd;, th con background - color="#004d99" y color = "white".
+                        - Títulos(h2, h3): Color azul oscuro(#0f766e) con color: #0f766e; explícito.
+- Tablas generadas por la IA DEBEN estar envueltas dentro de un < div style = "overflow-x: auto; width: 100%; margin-bottom: 20px;" >.La tabla debe tener los estilos: width: 100 %; min - width: 700px; border - collapse: separate; border - spacing: 0; border - radius: 12px; border: 1px solid #ddd;, th con background - color="#0f766e" y color = "white".
 - Celdas(td): padding = "10px", border - bottom="1px solid #ddd"(sin background - color predeterminado para que hereden el modo oscuro).`;
 
     const model = genAI.getGenerativeModel({ model: modelName });

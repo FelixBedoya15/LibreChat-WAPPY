@@ -145,7 +145,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     // Progress calculation
     const completedCount = useMemo(() => {
-        return statuses.filter(s => s.status !== 'pendiente').length;
+        return (statuses || []).filter(s => s.status !== 'pendiente').length;
     }, [statuses]);
 
     const handleStatusChange = useCallback((itemId: string, status: ComplianceStatus['status']) => {
@@ -160,7 +160,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     const handleDummyData = () => {
         const dummyItems = generateDummyData.checklist(checklist);
-        const newStatuses: ComplianceStatus[] = dummyItems.map((item: any) => ({
+        const newStatuses: ComplianceStatus[] = (dummyItems || []).map((item: any) => ({
             itemId: item.id,
             status: item.estado === 'Cumple' ? 'cumple' : item.estado === 'No Cumple' ? 'no_cumple' : 'no_aplica',
         }));
@@ -212,7 +212,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
         try {
             // Merge statuses into checklist items so the backend knows each item's evaluation
-            const checklistWithStatuses = checklist.map(item => ({
+            const checklistWithStatuses = (checklist || []).map(item => ({
                 ...item,
                 status: getItemStatus(item.id),
             }));
@@ -245,7 +245,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             const result = response.data;
 
             // Post-process report: Replace broken images with Signature Icon
-            const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-blue-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
+            const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-teal-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-teal-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
 
             const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
 
@@ -399,7 +399,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 }
 
                 // Clean up content: Replace broken images with Signature Icon
-                const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-blue-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
+                const signatureIcon = '<div class="flex flex-col items-center justify-center my-4 opacity-70"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-teal-900"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg><span class="text-xs text-teal-900 mt-1 font-semibold tracking-wider uppercase">Firmado Digitalmente</span></div>';
 
                 loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
@@ -428,7 +428,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     const getCategoryColor = (category: string): string => {
         const colors: Record<string, string> = {
-            planear: 'border-blue-500 text-blue-600',
+            planear: 'border-teal-500 text-teal-600',
             hacer: 'border-yellow-500 text-yellow-600',
             verificar: 'border-red-500 text-red-600',
             actuar: 'border-green-500 text-green-600',
@@ -453,7 +453,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <select
                             value={companySize}
                             onChange={(e) => handleCompanySizeChange(e.target.value as CompanySize)}
-                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-blue-500 focus:outline-none"
+                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
                         >
                             {COMPANY_SIZE_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -468,7 +468,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <select
                             value={riskLevel}
                             onChange={(e) => handleRiskLevelChange(Number(e.target.value) as RiskLevel)}
-                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-blue-500 focus:outline-none"
+                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
                         >
                             {RISK_LEVEL_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -477,9 +477,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 rounded-lg bg-blue-500/10 p-3 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-blue-500" />
-                    <span className="text-blue-700 dark:text-blue-300">
+                <div className="mt-4 flex items-center gap-2 rounded-lg bg-teal-500/10 p-3 text-sm">
+                    <AlertTriangle className="h-4 w-4 text-teal-500" />
+                    <span className="text-teal-700 dark:text-teal-300">
                         {t('com_ui_applies_article', 'Aplica')} <strong>{t('com_ui_article', 'Artículo')} {applicableArticle}</strong> {t('com_ui_resolution_0312', 'de la Resolución 0312/2019')}
                         ({checklist.length} {t('com_ui_standards', 'estándares')})
                     </span>
@@ -516,9 +516,9 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     </div>
 
                     <div className="flex-1 px-4 hidden md:block">
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
-                            <h4 className="text-xs text-blue-800 dark:text-blue-300 mb-1 font-bold flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 animate-pulse text-blue-500" />
+                        <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
+                            <h4 className="text-xs text-teal-800 dark:text-teal-300 mb-1 font-bold flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 animate-pulse text-teal-500" />
                                 Generación Inteligente
                             </h4>
                             <p className="text-sm text-text-secondary leading-relaxed">
@@ -538,7 +538,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
                         <button
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                            className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                            className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                         >
                             <AnimatedIcon name="history" size={20} />
                             <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
@@ -548,7 +548,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <button
                             onClick={handleAnalyze}
                             disabled={isAnalyzing || completedCount === 0}
-                            className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isAnalyzing ? (
                                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -662,7 +662,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                                         </p>
                                                                         <p className="mt-1 text-sm text-text-secondary leading-relaxed">{item.description}</p>
                                                                         <p className="mt-2 text-xs text-text-tertiary flex items-center gap-2">
-                                                                            <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">
+                                                                            <span className="bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 px-2 py-0.5 rounded-full font-medium">
                                                                                 {item.points} pts
                                                                             </span>
                                                                             <span className="hidden sm:inline">|</span>
@@ -732,7 +732,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <button
                     onClick={handleAnalyze}
                     disabled={isAnalyzing || completedCount === 0}
-                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                 >
                     {isAnalyzing ? (
                         <Loader2 className="h-5 w-5 animate-spin" />

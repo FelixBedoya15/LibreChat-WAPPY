@@ -22,8 +22,8 @@ const phases = [
         id: 'plan',
         title: 'Planear',
         description: 'Política, Identificación de Peligros, Requisitos Legales',
-        color: 'bg-blue-500/10 border-blue-500/50 text-blue-700 dark:text-blue-400',
-        icon: <FileText className="w-8 h-8 text-blue-500" />,
+        color: 'bg-teal-500/10 border-teal-500/50 text-teal-700 dark:text-teal-400',
+        icon: <FileText className="w-8 h-8 text-teal-500" />,
         items: PHASE_CATEGORIES.plan.map(c => c.title),
     },
     {
@@ -168,7 +168,7 @@ const SGSSTDashboard = () => {
                     <h1 className="text-3xl font-bold text-text-primary">Sistema de Gestión SST</h1>
                     <button
                         onClick={() => setShowCompanyInfo(true)}
-                        className="rounded-lg border border-border-medium p-2 text-text-secondary transition-colors hover:bg-surface-hover hover:text-blue-500"
+                        className="rounded-lg border border-border-medium p-2 text-text-secondary transition-colors hover:bg-surface-hover hover:text-teal-500"
                         title="Información de la Empresa"
                     >
                         <Building2 className="h-5 w-5" />

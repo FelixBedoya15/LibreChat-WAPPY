@@ -53,7 +53,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
 
     const getBadgeColor = (tipo: string) => {
         switch (tipo) {
-            case 'AT': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+            case 'AT': return 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400';
             case 'EL': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
             case 'Ausentismo': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
             default: return 'bg-gray-100 text-gray-700';
@@ -64,12 +64,12 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
         <div className="space-y-4 border border-border-medium rounded-lg p-4 bg-surface-primary/50">
             <div className="flex justify-between items-center">
                 <h4 className="font-semibold text-text-primary flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-blue-500" />
+                    <Activity className="h-4 w-4 text-teal-500" />
                     Registro de Eventos - {monthName}
                 </h4>
                 <button
                     onClick={() => setIsAdding(!isAdding)}
-                    className="text-xs flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                    className="text-xs flex items-center gap-1 bg-teal-50 text-teal-600 px-2 py-1 rounded hover:bg-teal-100 transition-colors"
                 >
                     <Plus className="h-3 w-3" /> Agregar Evento
                 </button>
@@ -152,7 +152,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                         <button onClick={() => setIsAdding(false)} className="text-xs text-text-secondary px-3 py-1 hover:bg-surface-hover rounded">Cancelar</button>
-                        <button onClick={handleAdd} className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Guardar Evento</button>
+                        <button onClick={handleAdd} className="text-xs bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700">Guardar Evento</button>
                     </div>
                 </div>
             )}

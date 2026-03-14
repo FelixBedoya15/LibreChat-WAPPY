@@ -339,13 +339,12 @@ const EstadisticasATEL = () => {
             {/* Header / Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <BarChart className="h-6 w-6" />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Gestión de Indicadores ATEL</h2>
                         <div className="flex items-center gap-2 flex-wrap">
-                    <DummyGenerateButton onClick={handleDummyData} />
                             <input
                                 type="number"
                                 value={year}
@@ -358,6 +357,7 @@ const EstadisticasATEL = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                     {/* Botón Guardar Datos (Persistencia) */}
                     <button
                         onClick={handleSaveData}
@@ -373,7 +373,7 @@ const EstadisticasATEL = () => {
 
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                     >
                         <AnimatedIcon name="history" size={20} />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
@@ -426,7 +426,7 @@ const EstadisticasATEL = () => {
                 >
                     <div className="flex items-center gap-2">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
-                        <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <CalendarDays className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                         <span className="font-semibold text-text-primary">
                             Registro Mensual de Eventos
                         </span>
@@ -446,7 +446,7 @@ const EstadisticasATEL = () => {
                                         key={month}
                                         onClick={() => setCurrentMonthIndex(index)}
                                         className={`flex-shrink-0 flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors border-l-4 ${currentMonthIndex === index
-                                            ? 'bg-surface-primary border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                                            ? 'bg-surface-primary border-teal-500 text-teal-600 dark:text-teal-400 shadow-sm'
                                             : 'border-transparent text-text-secondary hover:bg-surface-tertiary hover:text-text-primary'
                                             }`}
                                     >
@@ -468,7 +468,7 @@ const EstadisticasATEL = () => {
                                         value={currentData?.numTrabajadores || ''}
                                         onChange={(e) => updateMonthData('numTrabajadores', Number(e.target.value))}
                                         placeholder="Ej: 50"
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors"
+                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
@@ -478,7 +478,7 @@ const EstadisticasATEL = () => {
                                         value={currentData?.diasProgramados || ''}
                                         onChange={(e) => updateMonthData('diasProgramados', Number(e.target.value))}
                                         placeholder="Ej: 24"
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-blue-500 transition-colors"
+                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
                                     />
                                 </div>
                             </div>
@@ -494,13 +494,13 @@ const EstadisticasATEL = () => {
                             <div className="flex flex-col md:flex-row gap-4">
                                 <div className="flex-1 flex flex-wrap gap-2 text-xs text-text-secondary p-3 bg-surface-tertiary rounded-lg border border-border-medium">
                                     <span className="font-semibold text-text-primary">Resumen Mes:</span>
-                                    <span>AT: <strong className="text-blue-600">{stats.numAT}</strong></span> •
+                                    <span>AT: <strong className="text-teal-600">{stats.numAT}</strong></span> •
                                     <span>EL: <strong className="text-green-600">{stats.casosNuevosEL}</strong></span> •
                                     <span>Incap: <strong className="text-amber-600">{stats.diasIncapacidadAT + stats.diasAusencia}</strong> días</span>
                                 </div>
-                                <div className="flex-1 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all duration-300">
-                                    <h4 className="text-xs text-blue-800 dark:text-blue-300 mb-1 font-bold flex items-center gap-2">
-                                        <Sparkles className="h-4 w-4 animate-pulse text-blue-500" />
+                                <div className="flex-1 bg-teal-50 dark:bg-teal-900/20 p-3 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
+                                    <h4 className="text-xs text-teal-800 dark:text-teal-300 mb-1 font-bold flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 animate-pulse text-teal-500" />
                                         Generación Inteligente
                                     </h4>
                                     <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
@@ -528,7 +528,7 @@ const EstadisticasATEL = () => {
                                 <button
                                     onClick={() => handleGenerate('ANNUAL')}
                                     disabled={isGenerating || !currentData.numTrabajadores}
-                                    className="group flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-600 hover:border-blue-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isGenerating ? (
                                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -550,7 +550,7 @@ const EstadisticasATEL = () => {
                 <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
                     <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
                         <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <BarChart className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                             Informe Generado ({MONTHS[currentMonthIndex]})
                         </h3>
                         <span className="text-xs text-text-secondary">Edita directamente antes de guardar</span>

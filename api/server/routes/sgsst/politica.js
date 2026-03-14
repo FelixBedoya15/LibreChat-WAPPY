@@ -220,7 +220,7 @@ MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombre
 Usa directamente etiquetas HTML semánticas (<h1>, <h2>, <h3>, <p>, <ul>, <li>, <table>, <strong>, etc).
 Para estilos, usa atributos style inline en los elementos (PRECAUCIÓN MODO OSCURO: Cuando uses \`background-color\`, OBLIGATORIAMENTE declara \`color: #000;\` si el fondo es claro, o \`color: #fff;\` si es oscuro. NO uses filas de tablas intercaladas claras/oscuras).
 La política debe ser formal, profesional y cumplir con los requisitos del Decreto 1072 de 2015, Art. 2.2.4.6.5 y 2.2.4.6.6.
-El diseño debe ser elegante con colores institucionales (azul #004d99 para encabezados con \`color: #004d99;\` explícito, bordes sutiles, tipografía profesional).`;
+El diseño debe ser elegante con colores institucionales (azul #0f766e para encabezados con \`color: #0f766e;\` explícito, bordes sutiles, tipografía profesional).`;
 
         // 4. Generate the policy
         const result = await generateWithRetry(model, promptText);
