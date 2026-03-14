@@ -31,6 +31,11 @@ Para que los documentos se generen correctamente, el primer paso SIEMPRE es hace
 > **Edición HTML y Exportación:** Una vez la IA responde, su texto aparecerá en la parte final de la página dentro del **Editor de Texto enriquecido (LiveEditor)**. 
 > *   Este editor es donde "visualizas" el resultado en formato HTML interactivo. Puedes borrar texto, añadir párrafos y manipular tablas libremente antes de finalizar el trabajo.
 > *   Acompañando al editor y a la botonera superior (luego del flujo de generación) aparecerán nuevos botones: **"Guardar Informe"** (asegura el documento final), y el selector **"📤 Exportar"** el cual se despliega y permite descargar de inmediato tu informe directamente como **archivo PDF nativo**, o documento de texto compatible con **Microsoft Word (.docx)** para que lo archiven tus clientes.
+>
+> ✍️ **Sobre las Firmas en los Informes:**
+> *   ¡No tienes que pegar fotos de firmas manualmente! Todos los reportes legales (como Resoluciones, Políticas, Actas, ATS y ATEL) incluyen al final del documento "Marcadores de Posición" o cuadros para las firmas.
+> *   **¿De dónde salen las firmas principales?** Las firmas del **Representante Legal** y la del **Responsable del SG-SST** se cargan una única vez. Debes ir nuevamente al módulo inicial de 🏢 **"Información de la Empresa"** en Gestor SG-SST, bajar en ese formulario y allí en los escuadrones subir los archivos PNG/JPG de las firmas. Una vez subidos ahí, *todos los reportes autocompletarán y estamparán estas dos firmas automáticamente*.
+> *   **Firmas adicionales:** En anexos particulares como el ATS o la Investigación ATEL, notarás que los recuadros de trabajadores como "Testigos" o "Jefes Directos" en el HTML generado te permiten hacer *clic* directamente encima del recuadro dentro del LiveEditor. Si les haces clic, se abrirá un menú para que dibujes la firma de ese operario en pantalla o subas un archivo desde el celular.
 
 El gestor está dividido por colores y fases metodológicas:
 
