@@ -26,6 +26,7 @@ import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import ModelSelector from './ModelSelector';
 
 // ─── Worker Autocomplete (identical to PermisoAlturas) ────────────────────────
 const WorkerAutocomplete = ({

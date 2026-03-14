@@ -14,7 +14,7 @@ export const DummyGenerateButton: React.FC<DummyGenerateButtonProps> = ({
     onClick,
     isLoading = false,
     disabled = false,
-    text = "Generar Informe IA Dummy",
+    text = "IA Dummy",
     className = ""
 }) => {
     return (

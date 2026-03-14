@@ -108,9 +108,15 @@ const EstadisticasATEL = () => {
 
     const handleDummyData = () => {
         const dummy = generateDummyData.estadisticasATEL();
-        updateMonthData('numTrabajadores', dummy.numTrabajadores);
-        updateMonthData('diasProgramados', dummy.diasProgramados);
-        updateMonthData('events', dummy.events);
+        setAnnualData(prev => ({
+            ...prev,
+            [currentMonthIndex]: {
+                ...prev[currentMonthIndex],
+                numTrabajadores: dummy.numTrabajadores,
+                diasProgramados: dummy.diasProgramados,
+                events: dummy.events
+            }
+        }));
         showToast({ message: 'Datos estadísticos de prueba generados exitosamente.', status: 'success' });
     };
 
@@ -338,7 +344,7 @@ const EstadisticasATEL = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Gestión de Indicadores ATEL</h2>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <input
                                 type="number"
                                 value={year}
@@ -351,6 +357,7 @@ const EstadisticasATEL = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                     {/* Botón Guardar Datos (Persistencia) */}
                     <button
                         onClick={handleSaveData}
@@ -395,7 +402,6 @@ const EstadisticasATEL = () => {
                         onSelectModel={setSelectedModel}
                         disabled={isGenerating}
                     />
-                    <DummyGenerateButton onClick={handleDummyData} />
                 </div>
             </div>
 

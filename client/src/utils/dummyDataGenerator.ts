@@ -1,6 +1,76 @@
-// Utility for generating comprehensive dummy data for SGSST applications
-
 export const generateDummyData = {
+    // 0. Perfil Sociodemografico
+    perfilSociodemografico: () => {
+        const d = new Date();
+        const past = (months: number) => new Date(d.setMonth(d.getMonth() - months)).toISOString().split('T')[0];
+        
+        return [
+            {
+                id: crypto.randomUUID(),
+                nombre: 'Carlos Alberto Ramírez Torres',
+                identificacion: '79845123',
+                edad: 45,
+                genero: 'Masculino',
+                estadoCivil: 'Casado/a',
+                nivelEscolaridad: 'Profesional',
+                direccion: 'Carrera 7 # 156-20, Bogotá',
+                telefono: '3104567890',
+                cargo: 'Gerente General',
+                fechaExamenMedico: past(6),
+                fechaCursoAlturasAutorizado: past(12),
+                fechaCursoAlturasCoordinador: past(12),
+                diagnosticoMedico: 'Sano',
+                recomendacionesMedicas: 'Pausas activas visuales cada 2 horas.',
+                fechaSeguimiento: past(-6), // in 6 months
+                completedByAI: false,
+                consentimientoFirmaDigital: 'Sí',
+                firmaDigital: null
+            },
+            {
+                id: crypto.randomUUID(),
+                nombre: 'Ana María Gómez Pérez',
+                identificacion: '52418790',
+                edad: 32,
+                genero: 'Femenino',
+                estadoCivil: 'Soltero/a',
+                nivelEscolaridad: 'Tecnólogo',
+                direccion: 'Calle 100 # 15-40, Bogotá',
+                telefono: '3209876543',
+                cargo: 'Analista SST',
+                fechaExamenMedico: past(2),
+                fechaCursoAlturasAutorizado: past(5),
+                fechaCursoAlturasCoordinador: '',
+                diagnosticoMedico: 'Miopía leve',
+                recomendacionesMedicas: 'Uso de lentes de descanso en pantalla.',
+                fechaSeguimiento: past(-10),
+                completedByAI: false,
+                consentimientoFirmaDigital: 'No',
+                firmaDigital: null
+            },
+            {
+                id: crypto.randomUUID(),
+                nombre: 'Luis Fernando Rodríguez',
+                identificacion: '1098765432',
+                edad: 28,
+                genero: 'Masculino',
+                estadoCivil: 'Unión Libre',
+                nivelEscolaridad: 'Bachiller',
+                direccion: 'Transversal 91 # 120-10, Bogotá',
+                telefono: '3001234567',
+                cargo: 'Operario de Producción',
+                fechaExamenMedico: past(1),
+                fechaCursoAlturasAutorizado: past(1),
+                fechaCursoAlturasCoordinador: '',
+                diagnosticoMedico: 'Lumbalgia mecánica',
+                recomendacionesMedicas: 'Evitar levantamiento de cargas mayores a 15kg. Terapia física.',
+                fechaSeguimiento: past(-1),
+                completedByAI: false,
+                consentimientoFirmaDigital: 'Sí',
+                firmaDigital: null
+            }
+        ];
+    },
+
     // 1. Analisis de Trabajo Seguro (ATS)
     ats: () => ({
         fecha: new Date().toISOString().split('T')[0],
