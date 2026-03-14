@@ -370,6 +370,7 @@ const MetodoOwas = () => {
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
         <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-purple-100 text-purple-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
           <AnimatedIcon name="history" size={20} />
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
@@ -383,7 +384,6 @@ const MetodoOwas = () => {
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe OWAS con IA</span>
         </button>
         <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-        <DummyGenerateButton onClick={handleDummyData} />
         {generatedReport && (
           <>
             <button onClick={handleSave} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
@@ -405,6 +405,7 @@ const MetodoOwas = () => {
       <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
         <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
           <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
             {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             <Activity className="h-5 w-5 text-purple-700" />
             <span className="font-semibold">Evaluación Ergonómica – Método OWAS (Ovako Working Posture Analysing System)</span>
@@ -642,7 +643,6 @@ const MetodoOwas = () => {
                   {observaciones.length === 0 ? 'Registre observaciones primero' : 'Generar Informe OWAS con IA'}
                 </span>
               </button>
-              <DummyGenerateButton onClick={handleDummyData} />
             </div>
           </div>
         )}

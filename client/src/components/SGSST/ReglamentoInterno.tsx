@@ -309,6 +309,7 @@ const ReglamentoInterno = () => {
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                     className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
@@ -337,7 +338,6 @@ const ReglamentoInterno = () => {
                     onSelectModel={setSelectedModel}
                     disabled={isGenerating}
                 />
-                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedDocument && (
                     <>
                         <button
@@ -375,6 +375,7 @@ const ReglamentoInterno = () => {
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"
                 >
                     <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         <span className="font-semibold text-text-primary">Datos para el Reglamento Interno de Trabajo</span>
@@ -431,7 +432,6 @@ const ReglamentoInterno = () => {
                                     {isGenerating && generatingProgress ? `Redactando: ${generatingProgress.title}` : 'Generar Reglamento con IA'}
                                 </span>
                             </button>
-                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

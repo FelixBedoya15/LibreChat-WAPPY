@@ -96,7 +96,7 @@ const EstadisticasATEL = () => {
             }
         };
         loadData();
-    }, [year, token, showToast]);
+    }, [year, token]);
 
     // Helpers to update current month data
     const updateMonthData = (field: keyof MonthData, value: any) => {
@@ -345,6 +345,7 @@ const EstadisticasATEL = () => {
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Gestión de Indicadores ATEL</h2>
                         <div className="flex items-center gap-2 flex-wrap">
+                    <DummyGenerateButton onClick={handleDummyData} />
                             <input
                                 type="number"
                                 value={year}
@@ -425,6 +426,7 @@ const EstadisticasATEL = () => {
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"
                 >
                     <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         <span className="font-semibold text-text-primary">
@@ -511,7 +513,6 @@ const EstadisticasATEL = () => {
 
                             {/* 4. Action Buttons */}
                             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border-medium/50">
-                                <DummyGenerateButton onClick={handleDummyData} />
                                 <button
                                     onClick={() => handleGenerate('MONTH')}
                                     disabled={isGenerating || !currentData.numTrabajadores}

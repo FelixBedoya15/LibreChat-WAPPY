@@ -231,6 +231,7 @@ const AnalisisVulnerabilidad = () => {
   };
 
   const getSectionScore = (answers: Record<string, number>, section: 'personas'|'recursos'|'sistemas', origen: string) => {
+    if (!answers) return 0;
     const originKey = matchOrigen(origen) as keyof typeof QUESTIONS_BY_ORIGIN;
     const questions = QUESTIONS_BY_ORIGIN[originKey][section];
     const sectionAnswers = questions.map(q => answers[`${section}_${q.id}`]);
@@ -367,6 +368,7 @@ const AnalisisVulnerabilidad = () => {
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
         <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
           <AnimatedIcon name="history" size={20} />
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
@@ -379,7 +381,6 @@ const AnalisisVulnerabilidad = () => {
           {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Análisis (Multi)</span>
         </button>
-        <DummyGenerateButton onClick={handleDummyData} />
         <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
         {generatedReport && (
           <>
@@ -402,6 +403,7 @@ const AnalisisVulnerabilidad = () => {
       <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
         <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
           <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
             {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             <Shield className="h-5 w-5 text-teal-700" />
             <span className="font-semibold">Análisis de Vulnerabilidad (Multi-Amenaza)</span>
@@ -631,7 +633,6 @@ const AnalisisVulnerabilidad = () => {
                   Generar Informe Multi-Amenaza
                 </span>
               </button>
-              <DummyGenerateButton onClick={handleDummyData} />
             </div>
           </div>
         )}

@@ -129,6 +129,7 @@ export const generateDummyData = {
                 puntajePersonas: 2.0, // Amarillo
                 puntajeRecursos: 1.0, // Verde
                 puntajeSistemas: 2.1, // Rojo (Ej. No hay planta eléctrica redundante)
+                answers: {}
             },
             {
                 id: crypto.randomUUID(),
@@ -139,6 +140,7 @@ export const generateDummyData = {
                 puntajePersonas: 1.0, // Verde (rutas de evacuación claras)
                 puntajeRecursos: 2.2, // Rojo (extintores vencidos)
                 puntajeSistemas: 1.0, 
+                answers: {}
             },
             {
                 id: crypto.randomUUID(),
@@ -149,6 +151,7 @@ export const generateDummyData = {
                 puntajePersonas: 2.0, 
                 puntajeRecursos: 1.5, 
                 puntajeSistemas: 1.0, 
+                answers: {}
             }
         ],
         evaluadoresList: [

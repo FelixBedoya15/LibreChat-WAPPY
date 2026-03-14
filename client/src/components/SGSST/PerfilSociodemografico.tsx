@@ -449,6 +449,7 @@ const PerfilSociodemografico = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
@@ -676,6 +677,7 @@ const PerfilSociodemografico = () => {
                             Vista Previa del Informe Sociodemográfico
                         </h3>
                         <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                             <button onClick={handleSaveReport}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
                                 <AnimatedIcon name="save" size={20} />

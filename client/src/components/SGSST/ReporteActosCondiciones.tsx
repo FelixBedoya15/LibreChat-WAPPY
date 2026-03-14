@@ -422,6 +422,7 @@ const ReporteActosCondiciones = () => {
         <div className="flex flex-col gap-4">
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                     className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
@@ -449,7 +450,6 @@ const ReporteActosCondiciones = () => {
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reporte con IA</span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-                <DummyGenerateButton onClick={handleDummyData} />
                 {generatedReport && (
                     <>
                         <button
@@ -475,6 +475,7 @@ const ReporteActosCondiciones = () => {
             <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
                 <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
                     <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                         {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                         <AlertTriangle className="h-5 w-5 text-orange-500" />
                         <span className="font-semibold">Datos del Reporte de Acto / Condición Insegura</span>
@@ -757,7 +758,6 @@ const ReporteActosCondiciones = () => {
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reporte con IA</span>
                             </button>
-                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
                 )}

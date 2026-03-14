@@ -369,6 +369,7 @@ const MatrizLegal = () => {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
+                    <DummyGenerateButton onClick={handleDummyData} />
                     <button
                         onClick={handleGenerate}
                         disabled={isAnalyzing || completedCount === 0}
@@ -401,7 +402,6 @@ const MatrizLegal = () => {
                         onSelectModel={setSelectedModel}
                         disabled={isAnalyzing}
                     />
-                    <DummyGenerateButton onClick={handleDummyData} />
                     {generatedMatrix && (
                         <ExportDropdown
                             content={editorContent || generatedMatrix || ''}
@@ -470,7 +470,6 @@ const MatrizLegal = () => {
                                 {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">{generatedMatrix ? 'Regenerar Matriz con IA' : 'Generar Matriz con IA'}</span>
                             </button>
-                            <DummyGenerateButton onClick={handleDummyData} />
                         </div>
                     </div>
 
@@ -583,6 +582,7 @@ const MatrizLegal = () => {
                         <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
                         {generatedMatrix && (
                             <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                                 <button
                                     onClick={handleSaveReport}
                                     className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"

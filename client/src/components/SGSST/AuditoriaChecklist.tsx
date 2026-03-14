@@ -496,7 +496,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         onSelectModel={setSelectedModel}
                         disabled={isAnalyzing}
                     />
-                    <DummyGenerateButton onClick={handleDummyData} />
 
                     <button
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
@@ -668,7 +667,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
                     </button>
-                    <DummyGenerateButton onClick={handleDummyData} />
                 </div>
             </div>
 
@@ -676,10 +674,12 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
                     <div className="flex items-center justify-between p-4 border-b border-border-light">
                         <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                             <FileText className="h-5 w-5 text-text-secondary" />
                             <h3 className="font-semibold text-text-primary">Informe de Auditoría Generado</h3>
                         </div>
                         <div className="flex items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
                             <button
                                 onClick={handleSave}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
