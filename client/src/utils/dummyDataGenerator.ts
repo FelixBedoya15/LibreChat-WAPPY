@@ -73,48 +73,27 @@ export const generateDummyData = {
 
     // 1. Analisis de Trabajo Seguro (ATS)
     ats: () => ({
-        fecha: new Date().toISOString().split('T')[0],
-        horaInicio: "08:00",
-        horaFin: "17:00",
-        lugar: "Planta de Producción Módulo 3",
-        descripcionTarea: "Mantenimiento preventivo y correctivo de banda transportadora principal, incluye cambio de rodillos y tensado de banda.",
-        herramientas: "Juego de llaves, polipasto manual, multímetro, bloqueador de energías (LOTO), taladro inalámbrico.",
-        equipos: "Banda transportadora, motorreductor trifásico.",
-        responsableEjecutante: "Técnico Mecánico",
-        supervisor: "Ingeniero de Mantenimiento",
-        pasos: [
-            {
-                id: crypto.randomUUID(),
-                paso: "1. Aislamiento de energías (LOTO)",
-                peligros: ["Riesgo eléctrico por contacto directo", "Atrapamiento mecánico"],
-                consecuencias: ["Electrocución", "Amputación"],
-                controles: ["Desenergizar tablero principal", "Aplicar candado y tarjeta (LOTO)", "Verificar ausencia de tensión con multímetro"]
-            },
-            {
-                id: crypto.randomUUID(),
-                paso: "2. Desmontaje de rodillos dañados",
-                peligros: ["Sobreesfuerzo", "Caída de objetos pesados"],
-                consecuencias: ["Lumbalgia", "Fracturas en extremidades inferiores"],
-                controles: ["Uso de polipasto para levantar rodillos", "Botas con puntera de acero", "Ayuda mecánica o trabajo en equipo"]
-            },
-            {
-                id: crypto.randomUUID(),
-                paso: "3. Instalación de componentes nuevos y pruebas",
-                peligros: ["Atrapamiento por partes móviles"],
-                consecuencias: ["Machucones, cortes, amputación"],
-                controles: ["Mantener distancia segura", "Instalar guardas antes de la prueba con energía", "Uso de guantes ajustados anticorte"]
-            }
+        formData: {
+            actividadGlobal: "Mantenimiento preventivo rotativo y recambio de repuestos mecánicos",
+            foto1Desc: "Estado inicial del equipo",
+            foto2Desc: "Procedimiento de Bloqueo LOTO aplicado",
+            foto3Desc: "Pruebas documentadas post-intervención",
+            fecha: new Date().toISOString().split('T')[0],
+            horaInicio: "08:00",
+            horaFin: "17:00",
+            seguridadSocial: 'Sí',
+            aptitudMedica: 'Sí',
+            certificacionAlturas: 'N/A'
+        },
+        trabajadoresList: [
+            { nombre: "Carlos Gutiérrez", cedula: "10203040" },
+            { nombre: "Andrés Méndez", cedula: "11223344" }
         ],
-        epp: {
-            casco: true,
-            gafas: true,
-            guantes: true,
-            botas: true,
-            auditiva: true,
-            respiratoria: false,
-            arnes: false,
-            ropa: true
-        }
+        responsablesList: [
+            { nombre: "Diana Martínez", cedula: "987654321", rol: "Ingeniero Mantenimiento" },
+            { nombre: "Pedro Pérez", cedula: "10101010", rol: "Supervisor SST" }
+        ],
+        images: { foto1: null, foto2: null, foto3: null }
     }),
 
     // 2. Analisis de Vulnerabilidad

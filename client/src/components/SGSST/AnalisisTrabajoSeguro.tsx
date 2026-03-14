@@ -418,7 +418,7 @@ const AnalisisTrabajoSeguro = () => {
                         {/* Workers Section */}
                         <div className="space-y-4 border rounded-xl p-4 bg-surface-tertiary/20">
                             <h4 className="font-semibold text-text-primary text-sm">Trabajadores que Ejecutan la Tarea</h4>
-                            {trabajadoresList.map((trabajador, idx) => (
+                            {(trabajadoresList || []).map((trabajador, idx) => (
                                 <div key={idx} className="flex flex-col md:flex-row gap-3">
                                     <WorkerAutocomplete
                                         value={trabajador.nombre}
@@ -519,7 +519,7 @@ const AnalisisTrabajoSeguro = () => {
                         {/* Supervisors */}
                         <div className="space-y-3 pt-3 border-t">
                             <label className="text-sm font-medium">Supervisor / Responsable que Aprueba el ATS</label>
-                            {responsablesList.map((resp, idx) => (
+                            {(responsablesList || []).map((resp, idx) => (
                                 <div key={idx} className="flex flex-col md:flex-row gap-3">
                                     <WorkerAutocomplete
                                         value={resp.nombre}
