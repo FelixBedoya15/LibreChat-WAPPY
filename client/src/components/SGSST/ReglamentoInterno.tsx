@@ -25,16 +25,24 @@ const ReglamentoInterno = () => {
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
 
-    // Form state
-    const [scheduleRules, setScheduleRules] = useState('');
-    const [specialConditions, setSpecialConditions] = useState('');
-    const [additionalBenefits, setAdditionalBenefits] = useState('');
+    // Form state: 8 Chapters
+    const [chapters, setChapters] = useState({
+        cap1_admision: '',
+        cap2_horarios: '',
+        cap3_descansos: '',
+        cap4_salarios: '',
+        cap5_sgsst: '',
+        cap6_obligaciones: '',
+        cap7_sanciones: '',
+        cap8_convivencia: ''
+    });
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
 
     // Generated content
     const [generatedDocument, setGeneratedDocument] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [generatingProgress, setGeneratingProgress] = useState<{current: number, total: number, title: string} | null>(null);
 
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -47,38 +55,82 @@ const ReglamentoInterno = () => {
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
-        try {
-            const response = await fetch('/api/sgsst/rit/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    scheduleRules,
-                    specialConditions,
-                    additionalBenefits,
-                    modelName: selectedModel,
-                }),
-            });
+        setIsFormExpanded(false);
+        setGeneratedDocument('');
+        setEditorContent('');
+        
+        const RIT_CHAPTERS_DEF = [
+            { key: 'cap1_admision', title: 'Condiciones de Admisión y Contrato' },
+            { key: 'cap2_horarios', title: 'Horarios, Jornadas y Desconexión Laboral' },
+            { key: 'cap3_descansos', title: 'Descansos, Permisos y Licencias' },
+            { key: 'cap4_salarios', title: 'Salarios y Pagos' },
+            { key: 'cap5_sgsst', title: 'Seguridad y Salud en el Trabajo (SG-SST)' },
+            { key: 'cap6_obligaciones', title: 'Obligaciones y Prohibiciones (Empresa/Empleado)' },
+            { key: 'cap7_sanciones', title: 'Faltas y Escala de Sanciones Disciplinarias' },
+            { key: 'cap8_convivencia', title: 'Convivencia y Prevención Acoso Laboral' },
+        ];
 
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Error al generar el Reglamento');
+        let accumulatedHtml = '';
+
+        try {
+            for (let i = 0; i < RIT_CHAPTERS_DEF.length; i++) {
+                const chapDef = RIT_CHAPTERS_DEF[i];
+                const userInput = chapters[chapDef.key as keyof typeof chapters];
+                
+                setGeneratingProgress({ current: i + 1, total: RIT_CHAPTERS_DEF.length, title: chapDef.title });
+
+                const response = await fetch('/api/sgsst/rit/generate-chapter', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        chapterTitle: chapDef.title,
+                        userInput: userInput,
+                        chapterIndex: i,
+                        isLast: i === RIT_CHAPTERS_DEF.length - 1,
+                        previousHtml: accumulatedHtml, // Provide context
+                        modelName: selectedModel,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || `Error en el Capítulo: ${chapDef.title}`);
+                }
+
+                const data = await response.json();
+                accumulatedHtml += (i > 0 ? '\\n' : '') + data.chapterHtml;
+                
+                // Show progressive writing in UI
+                setGeneratedDocument(accumulatedHtml);
+                setEditorContent(accumulatedHtml);
             }
 
-            const data = await response.json();
-            setGeneratedDocument(data.document);
-            setEditorContent(data.document);
-            setIsFormExpanded(false);
-            showToast({ message: 'Reglamento generado exitosamente', status: 'success' });
+            // Finally, generate signatures block and append
+            setGeneratingProgress({ current: RIT_CHAPTERS_DEF.length, total: RIT_CHAPTERS_DEF.length, title: 'Generando Firmas...' });
+            const sigResponse = await fetch('/api/sgsst/rit/generate-signature', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (sigResponse.ok) {
+                const sigData = await sigResponse.json();
+                accumulatedHtml += '\\n' + sigData.signatureHtml;
+                setGeneratedDocument(accumulatedHtml);
+                setEditorContent(accumulatedHtml);
+            }
+
+            showToast({ message: 'Reglamento generado exitosamente capítulo por capítulo', status: 'success' });
         } catch (error: any) {
             console.error('RIT generation error:', error);
             showToast({ message: error.message || 'Error al generar el reglamento', status: 'error' });
         } finally {
             setIsGenerating(false);
+            setGeneratingProgress(null);
         }
-    }, [scheduleRules, specialConditions, additionalBenefits, selectedModel, token, showToast]);
+    }, [chapters, selectedModel, token, showToast]);
 
     const handleSave = useCallback(async () => {
         const contentToSave = editorContent || generatedDocument;
@@ -166,31 +218,76 @@ const ReglamentoInterno = () => {
 
     const formFields = [
         {
-            id: 'scheduleRules',
-            label: 'Horarios de Trabajo y Descansos',
+            id: 'cap1_admision',
+            label: 'Capítulo 1: Condiciones de Admisión y Contrato',
+            icon: ScrollText,
+            value: chapters.cap1_admision,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap1_admision: val })),
+            placeholder: 'Ej: Período de prueba de 2 meses. Contratos a término fijo e indefinido.',
+            rows: 2,
+        },
+        {
+            id: 'cap2_horarios',
+            label: 'Capítulo 2: Horarios, Jornadas y Desconexión Laboral',
             icon: Clock,
-            value: scheduleRules,
-            setter: setScheduleRules,
-            placeholder: 'Ej: Lunes a Viernes de 8:00am a 5:00pm, 1 hora de almuerzo. (Opcional)',
+            value: chapters.cap2_horarios,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap2_horarios: val })),
+            placeholder: 'Ej: Lunes a Viernes 8am-5pm. Política estricta de desconexión fines de semana.',
             rows: 2,
         },
         {
-            id: 'specialConditions',
-            label: 'Condiciones Especiales de la Empresa',
+            id: 'cap3_descansos',
+            label: 'Capítulo 3: Descansos, Permisos y Licencias',
             icon: Briefcase,
-            value: specialConditions,
-            setter: setSpecialConditions,
-            placeholder: 'Ej: Trabajo remoto parcial, uso obligatorio de uniforme, manejo de información confidencial. (Opcional)',
+            value: chapters.cap3_descansos,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap3_descansos: val })),
+            placeholder: 'Ej: Permisos por calamidad doméstica (5 días). Descansos dominicales.',
             rows: 2,
         },
         {
-            id: 'additionalBenefits',
-            label: 'Beneficios Adicionales o Disposiciones Extra',
+            id: 'cap4_salarios',
+            label: 'Capítulo 4: Salarios y Pagos',
+            icon: ScrollText,
+            value: chapters.cap4_salarios,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap4_salarios: val })),
+            placeholder: 'Ej: Pagos quincenales por transferencia bancaria.',
+            rows: 2,
+        },
+        {
+            id: 'cap5_sgsst',
+            label: 'Capítulo 5: Seguridad y Salud en el Trabajo (SG-SST)',
             icon: HeartHandshake,
-            value: additionalBenefits,
-            setter: setAdditionalBenefits,
-            placeholder: 'Ej: Día de la familia, bonificaciones extralegales, políticas de bienestar. (Opcional)',
+            value: chapters.cap5_sgsst,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap5_sgsst: val })),
+            placeholder: 'Ej: Uso estricto de EPP. Reporte inmediato de accidentes de trabajo. Prohibición de alcohol.',
             rows: 3,
+        },
+        {
+            id: 'cap6_obligaciones',
+            label: 'Capítulo 6: Obligaciones y Prohibiciones (Empresa/Empleado)',
+            icon: ScrollText,
+            value: chapters.cap6_obligaciones,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap6_obligaciones: val })),
+            placeholder: 'Ej: Confidencialidad obligatoria. Prohibición de usar equipos de empresa para uso personal.',
+            rows: 2,
+        },
+        {
+            id: 'cap7_sanciones',
+            label: 'Capítulo 7: Faltas y Escala de Sanciones Disciplinarias',
+            icon: ScrollText,
+            value: chapters.cap7_sanciones,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap7_sanciones: val })),
+            placeholder: 'Ej: Faltas leves: Llegadas tarde (llamados de atención). Faltas graves (justa causa): Violar SGSST, robo.',
+            rows: 3,
+        },
+        {
+            id: 'cap8_convivencia',
+            label: 'Capítulo 8: Convivencia y Prevención Acoso Laboral',
+            icon: HeartHandshake,
+            value: chapters.cap8_convivencia,
+            setter: (val: string) => setChapters(prev => ({ ...prev, cap8_convivencia: val })),
+            placeholder: 'Ej: Comité de Convivencia sesionará trimestralmente. Aplicación rigurosa de Ley 1010 de 2006.',
+            rows: 2,
         },
     ];
 
@@ -217,7 +314,7 @@ const ReglamentoInterno = () => {
                         <AnimatedIcon name="sparkles" size={20} />
                     )}
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Generar Reglamento IA
+                        {isGenerating && generatingProgress ? `Cap. ${generatingProgress.current}/${generatingProgress.total}: ${generatingProgress.title}` : 'Generar Reglamento IA'}
                     </span>
                 </button>
                 <ModelSelector
@@ -314,7 +411,9 @@ const ReglamentoInterno = () => {
                                 ) : (
                                     <AnimatedIcon name="sparkles" size={20} />
                                 )}
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reglamento con IA</span>
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                                    {isGenerating && generatingProgress ? `Redactando: ${generatingProgress.title}` : 'Generar Reglamento con IA'}
+                                </span>
                             </button>
                         </div>
                     </div>

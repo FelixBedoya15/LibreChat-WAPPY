@@ -48,9 +48,9 @@ async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback m
 }
 
 
-router.post('/generate', requireJwtAuth, async (req, res) => {
+router.post('/generate-chapter', requireJwtAuth, async (req, res) => {
     try {
-        const { scheduleRules, specialConditions, additionalBenefits, modelName } = req.body;
+        const { chapterTitle, userInput, chapterIndex, isLast, previousHtml, modelName } = req.body;
         const userId = req.user.id;
 
         // Fetch company info
@@ -59,42 +59,64 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             return res.status(404).json({ error: 'Company information not found. Please complete it first.' });
         }
 
-        // Construct the context based on user inputs
-        let additionalContextContext = '';
-        if (scheduleRules) {
-            additionalContextContext += `\\n### Horarios de Trabajo y Descansos:\\n${scheduleRules}\\n`;
-        }
-        if (specialConditions) {
-            additionalContextContext += `\\n### Condiciones Especiales:\\n${specialConditions}\\n`;
-        }
-        if (additionalBenefits) {
-            additionalContextContext += `\\n### Beneficios Adicionales o Disposiciones Extra:\\n${additionalBenefits}\\n`;
-        }
+        let prompt;
 
-        const headerHTML = buildStandardHeader({
-            title: 'REGLAMENTO INTERNO DE TRABAJO',
-            companyInfo: companyInfo,
-            date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
-            norm: 'Código Sustantivo del Trabajo',
-            responsibleName: companyInfo.legalRepresentative || req.user?.name
-        });
+        // Ensure we don't send endless context, max 10000 chars of prior history to save tokens
+        const truncatedContext = previousHtml ? previousHtml.substring(Math.max(0, previousHtml.length - 10000)) : '';
 
-        const prompt = `Actúa como un abogado experto en derecho laboral corporativo en Colombia.
-Tu tarea es redactar el REGLAMENTO INTERNO DE TRABAJO (RIT) para la empresa descrita a continuación.
-El reglamento debe cumplir estrictamente con el Código Sustantivo del Trabajo de Colombia y las actualizaciones de la Reforma Laboral (ej. Ley 2466 de 2025).
+        if (chapterIndex === 0) {
+            const headerHTML = buildStandardHeader({
+                title: 'REGLAMENTO INTERNO DE TRABAJO',
+                companyInfo: companyInfo,
+                date: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
+                norm: 'Código Sustantivo del Trabajo',
+                responsibleName: companyInfo.legalRepresentative || req.user?.name
+            });
 
-### Datos de la Empresa
+            prompt = `Actúa como un abogado experto en derecho laboral corporativo en Colombia.
+Estás redactando paso a paso el REGLAMENTO INTERNO DE TRABAJO (RIT) para la siguiente empresa:
 ${buildCompanyContextString(companyInfo)}
-${additionalContextContext}
 
-### Instrucciones de Formato y Estructura:
-1.  **ENCABEZADO**: DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+INICIO DEL REGLAMENTO.
+En esta primera interacción, DEBES comenzar obligatoriamente con el siguiente código HTML de encabezado:
 ${headerHTML}
 
-2.  **Organización legal mínima**: Debes abordar (pero no limitarte) a: Condiciones de admisión, Período de Prueba, Horario de Trabajo y Jornada Laboral, Días de Descanso Legal, Vacaciones Remuneradas, Permisos y Licencias (incluyendo licencia de paternidad modernizada, calamidad doméstica y luto), Salario y Lugar/Días de Pago, Prescripciones de Orden y Seguridad, Obligaciones Especiales para la Empresa y para los Trabajadores, Prohibiciones, Faltas Graves y Leves, Escala de Sanciones Disciplinarias, Procedimiento de Comprobación de Faltas y Mecanismos de Prevención de Acoso Laboral (Ley 1010).
-3.  **Personalización**: Aplica directamente las condiciones especiales, horarios y beneficios si la empresa proveyó esos datos. Si no, genera estándares legales (Ej 47 o 42 horas según la reducción progresiva de la jornada laboral en Colombia).
-4.  **HTML**: Retorna **solamente** el documento formulado en código HTML, sin incluir ticks de markdown (\`\`\`). Utiliza etiquetas estructuradas como <h1>, <h2>, <p>, <ul>, <ol>, <li>, <strong>. No uses CSS inline complejo. No incluyas las etiquetas <html>, <head> o <body>, solo el contenido del documento.
-5.  **FIRMA**: El sistema añadirá la sección de firmas automáticamente. NO la generes tú.`;
+Luego del encabezado, redacta de forma muy extensa, estricta y profesional, el "${chapterTitle}".
+Si el usuario proporcionó instrucciones para este capítulo, aplícalas obligatoriamente:
+---
+${userInput || '(Sin instrucciones específicas, aplica la ley estándar colombiana para este tema)'}
+---
+
+Instrucciones de formato:
+1. Retorna SOLO tú respuesta en código HTML, sin markdown \`\`\`.
+2. Utiliza <h2> para el título del capítulo y <h3> para los artículos (Ej: <h3>Artículo 1º. - Condiciones</h3>).
+3. El texto debe ser muy extenso, cubriendo legalmente todas las ramificaciones de este capítulo. 
+4. No incluyas las etiquetas <html>, <head> o <body>. No generes sección de firmas.`;
+
+        } else {
+            prompt = `Actúa como un abogado experto en derecho laboral corporativo en Colombia.
+Estás redactando paso a paso un extenso REGLAMENTO INTERNO DE TRABAJO (RIT).
+
+Este es el contenido generado hasta ahora (OJO: es sólo para darte contexto general, NO LO VUELVAS A ESCRIBIR en tu respuesta):
+---
+... (contexto previo truncado) ...
+${truncatedContext}
+---
+
+Tu única tarea AHORA es:
+Escribir de manera extensa, seria y profesional, y en formato HTML, exclusivamente el siguiente capítulo: "${chapterTitle}".
+Instrucciones del usuario específicas para este capítulo:
+---
+${userInput || '(Sin instrucciones específicas para este capítulo, desarrolla exhaustivamente según CST y ley colombiana vigente)'}
+---
+
+Instrucciones Críticas de Contenido y Formato:
+1. Retorna SOLO el código HTML de este nuevo capítulo. NO retornes ni repitas el contexto anterior.
+2. Utiliza <h2> para el título del capítulo y <h3> para los artículos (sigue la numeración correlativa aproximada calculando los artículos anteriores).
+3. Si el capítulo habla de "Seguridad y Salud en el Trabajo (SG-SST)", integra fuertemente obligaciones sobre reporte de ATEL, uso de EPP y cumplimiento normativo.
+4. Si el capítulo es de "Faltas y Sanciones", incluye una escala rigurosa, dividiendo faltas leves (llamados, suspensión) y faltas graves como justa causa de despido (ej. violar normas SST o normas de convivencia/acoso).
+5. Omitir markdown de bloque \`\`\`html.`;
+        }
 
         // Retrieve the user's Google API key
         let resolvedApiKey;
@@ -147,14 +169,23 @@ ${headerHTML}
             .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
             .trim();
 
-        if (companyInfo) {
-            cleanedHtml += buildSignatureSection(companyInfo);
-        }
-
-        res.json({ document: cleanedHtml });
+        res.json({ chapterHtml: cleanedHtml });
     } catch (error) {
-        logger.error('[SGSST RIT] Error generating RIT:', error);
-        res.status(500).json({ error: 'Failed to generate RIT', details: error.message });
+        logger.error('[SGSST RIT] Error generating RIT chapter:', error);
+        res.status(500).json({ error: 'Failed to generate RIT chapter', details: error.message });
+    }
+});
+
+router.post('/generate-signature', requireJwtAuth, async (req, res) => {
+    try {
+        const companyInfo = await CompanyInfo.findOne({ user: req.user.id });
+        if (!companyInfo) {
+            return res.status(404).json({ error: 'Company information not found.' });
+        }
+        res.json({ signatureHtml: buildSignatureSection(companyInfo) });
+    } catch (error) {
+        logger.error('[SGSST RIT] Error generating RIT signature:', error);
+        res.status(500).json({ error: 'Failed to generate RIT signature', details: error.message });
     }
 });
 
