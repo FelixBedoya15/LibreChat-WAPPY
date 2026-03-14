@@ -11,6 +11,7 @@ const { AuthKeys } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
 const { generateShortLivedToken } = require('@librechat/api');
+const CompanyInfo = require('../../models/CompanyInfo');
 
 // Knowledge Retrieval System (RAG)
 async function getRelevantTickets(req, userQuery) {
@@ -148,7 +149,29 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
             logger.warn('[Tenshi] Error reading manual file:', e.message);
         }
 
+        // Fetch user company info
+        let companyInfoStr = 'El usuario no ha registrado la información de su empresa en el Gestor SG-SST.';
+        try {
+            const companyInfo = await CompanyInfo.findOne({ user: req.user.id });
+            if (companyInfo) {
+                companyInfoStr = `INFORMACIÓN DE LA EMPRESA DEL USUARIO:\n` +
+                    `- Razón social: ${companyInfo.companyName || 'N/A'}\n` +
+                    `- NIT: ${companyInfo.nit || 'N/A'}\n` +
+                    `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}\n` +
+                    `- Número de Trabajadores: ${companyInfo.workerCount || 'N/A'}\n` +
+                    `- ARL: ${companyInfo.arl || 'N/A'}\n` +
+                    `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
+                    `- Nivel de Riesgo: ${companyInfo.riskLevel || 'N/A'}\n` +
+                    `- Ciudad: ${companyInfo.city || 'N/A'}\n` +
+                    `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}`;
+            }
+        } catch (e) {
+            logger.warn('[Tenshi] Error fetching company info:', e.message);
+        }
+
         const systemMessage = `${config.systemPrompt}
+
+Hola, estás conversando con el usuario: ${req.user.name || req.user.username || 'Usuario'}
 
 MANUAL DE FUNCIONAMIENTO DE WAPPY IA:
 ${manualContent || 'WAPPY IA gestiona SG-SST (Diagnóstico, Matriz Peligros GTC45, ATEL, Política, Objetivos, Auditoría, Perfil Sociodemográfico con QR).'}
@@ -162,10 +185,12 @@ ${courseStr || 'No hay cursos recientes.'}
 CONOCIMIENTO DINÁMICO (Contexto extraído por RAG - Artículos, Cursos, Tickets, Feedback):
 ${ticketContext || 'No se encontró información específica en la base de conocimientos dinámica.'}
 
+${companyInfoStr}
+
 CONOCIMIENTO EXTRA DEL ADMINISTRADOR:
 ${config.extraKnowledge}
 
-Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo realizar algo, responde basándote en el MANUAL DE FUNCIONAMIENTO. Sé amable, conciso y muy profesional.`;
+Instrucciones: Eres Tenshi, la guía oficial. Si el usuario pregunta cómo realizar algo, responde basándote en el MANUAL DE FUNCIONAMIENTO. Si el usuario hace preguntas sobre su propia empresa, usa la "INFORMACIÓN DE LA EMPRESA DEL USUARIO". Saluda cordialmente por el nombre del usuario cuando inicie la conversación. Sé amable, conciso y muy profesional.`;
 
         // format messages for the LLM
         const formattedMessages = [
