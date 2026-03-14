@@ -484,7 +484,6 @@ const PermisoAlturas = () => {
             <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
                 <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
                     <div className="flex items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
                         {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                         <FileText className="h-5 w-5 text-blue-600" />
                         <span className="font-semibold">Datos para el Permiso de Alturas</span>

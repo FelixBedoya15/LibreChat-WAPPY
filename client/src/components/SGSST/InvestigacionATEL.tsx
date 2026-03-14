@@ -524,7 +524,6 @@ const InvestigacionATEL = () => {
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary"
                 >
                     <div className="flex items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
                         {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                         <ShieldAlert className="h-5 w-5 text-red-500" />
                         <span className="font-semibold">Datos para la Investigación de Accidente/Incidente</span>

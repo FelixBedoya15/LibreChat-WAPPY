@@ -129,7 +129,11 @@ export const generateDummyData = {
                 puntajePersonas: 2.0, // Amarillo
                 puntajeRecursos: 1.0, // Verde
                 puntajeSistemas: 2.1, // Rojo (Ej. No hay planta eléctrica redundante)
-                answers: {}
+                answers: {
+                    'personas_p1': 0.5, 'personas_p2': 0.5, 'personas_p3': 1.0, 'personas_p4': 0.5,
+                    'recursos_r1': 0.0, 'recursos_r2': 0.5, 'recursos_r3': 0.0, 'recursos_r4': 0.0,
+                    'sistemas_s1': 1.0, 'sistemas_s2': 0.5, 'sistemas_s3': 0.5, 'sistemas_s4': 1.0,
+                }
             },
             {
                 id: crypto.randomUUID(),
@@ -140,7 +144,11 @@ export const generateDummyData = {
                 puntajePersonas: 1.0, // Verde (rutas de evacuación claras)
                 puntajeRecursos: 2.2, // Rojo (extintores vencidos)
                 puntajeSistemas: 1.0, 
-                answers: {}
+                answers: {
+                    'personas_p1': 0.0, 'personas_p2': 0.5, 'personas_p3': 0.0, 'personas_p4': 0.0,
+                    'recursos_r1': 1.0, 'recursos_r2': 1.0, 'recursos_r3': 0.5, 'recursos_r4': 0.5,
+                    'sistemas_s1': 0.0, 'sistemas_s2': 0.5, 'sistemas_s3': 0.0, 'sistemas_s4': 0.0,
+                }
             },
             {
                 id: crypto.randomUUID(),
@@ -151,7 +159,11 @@ export const generateDummyData = {
                 puntajePersonas: 2.0, 
                 puntajeRecursos: 1.5, 
                 puntajeSistemas: 1.0, 
-                answers: {}
+                answers: {
+                    'personas_p1': 0.5, 'personas_p2': 1.0, 'personas_p3': 0.5, 'personas_p4': 0.5,
+                    'recursos_r1': 0.5, 'recursos_r2': 0.5, 'recursos_r3': 0.0, 'recursos_r4': 0.5,
+                    'sistemas_s1': 0.0, 'sistemas_s2': 0.5, 'sistemas_s3': 0.0, 'sistemas_s4': 0.5,
+                }
             }
         ],
         evaluadoresList: [
@@ -401,7 +413,6 @@ export const generateDummyData = {
         foto3Desc: 'Guantes dieléctricos sobre la mesa, a 3 metros del punto de trabajo.'
     }),
 
-    // 14. Responsable SG-SST
     responsableSGSST: () => ({
         name: "Ing. Andrea Marcela Cardona",
         idNumber: "1.020.333.444",
@@ -413,6 +424,98 @@ export const generateDummyData = {
             { id: crypto.randomUUID(), text: "Promover la participación de todos los miembros de la empresa en la implementación del SG-SST." },
             { id: crypto.randomUUID(), text: "Coordinar y asegurar la realización de auditorías internas para verificar la efectividad del SG-SST." },
             { id: crypto.randomUUID(), text: "Representar a la empresa ante las entidades de control (Mintrabajo, ARL) en materia de riesgos laborales." }
+        ]
+    }),
+
+    // 15. Matriz Peligros GTC 45
+    matrizPeligros: () => ({
+        procesos: [
+            {
+                id: crypto.randomUUID(),
+                proceso: 'Mantenimiento e Infraestructura',
+                zona: 'Planta Principal y Cubiertas',
+                actividad: 'Reparación de iluminación y sellado térmico',
+                tarea: 'Cambio de tejas traslúcidas',
+                rutinario: false,
+                fuenteGeneradora: 'Ninguno',
+                medioExistente: 'Ninguno',
+                individuoControl: 'Ninguno',
+                peligros: [
+                    {
+                        id: crypto.randomUUID(),
+                        descripcionPeligro: 'Trabajo suspendido a 12 metros de altura',
+                        clasificacion: 'Condiciones de seguridad',
+                        efectosPosibles: 'Trauma craneoencefálico, fracturas múltiples, muerte por caída vertical.',
+                        nivelDeficiencia: 6,
+                        nivelExposicion: 3,
+                        nivelProbabilidad: 18,
+                        interpretacionNP: 'Alto',
+                        nivelConsecuencia: 100,
+                        nivelRiesgo: 1800,
+                        interpretacionNR: 'Situación crítica. Suspender actividades. Intervención urgente.',
+                        aceptabilidad: 'No Aceptable',
+                        numExpuestos: 2,
+                        deficienciaHigienica: '',
+                        valoracionCuantitativa: '',
+                        nrFinal: 1800,
+                        factorReduccion: 0,
+                        costoIntervencion: '',
+                        factorCosto: 0,
+                        factorJustificacion: 0,
+                        medidaSeleccionada: '',
+                        justificacion: '',
+                        eliminacion: '', fr_eliminacion: 0, costo_eliminacion: '', fc_eliminacion: 0, j_eliminacion: 0,
+                        sustitucion: '', fr_sustitucion: 0, costo_sustitucion: '', fc_sustitucion: 0, j_sustitucion: 0,
+                        controlIngenieria: 'Instalación de línea de vida horizontal rígida', fr_ingenieria: 80, costo_ingenieria: 'Más de 150 SMMLV', fc_ingenieria: 10, j_ingenieria: 144,
+                        controlAdministrativo: 'Permiso de trabajo en alturas, señalización y demarcación', fr_administrativo: 10, costo_administrativo: '0.06 a 0.29 SMMLV', fc_administrativo: 1, j_administrativo: 180,
+                        epp: 'Arnés de cuerpo entero, eslinga con absorbedor', fr_epp: 5, costo_epp: '0.3 a 2.9 SMMLV', fc_epp: 2, j_epp: 45,
+                        completedByAI: true
+                    }
+                ]
+            },
+            {
+                id: crypto.randomUUID(),
+                proceso: 'Producción de Terminados',
+                zona: 'Taller de Ensamblaje',
+                actividad: 'Soldadura de piezas metálicas (MIG)',
+                tarea: 'Unión de placas de acero',
+                rutinario: true,
+                fuenteGeneradora: 'Sistema de extracción localizada defectuoso',
+                medioExistente: 'Mamparas soldadura limitadas',
+                individuoControl: 'Ninguno (No porta careta)',
+                peligros: [
+                    {
+                        id: crypto.randomUUID(),
+                        descripcionPeligro: 'Inhalación de humos metálicos y gases de soldadura',
+                        clasificacion: 'Químico',
+                        efectosPosibles: 'Neumoconiosis, fiebre de los humos metálicos, irritación respiratoria severa.',
+                        nivelDeficiencia: 6,
+                        nivelExposicion: 4,
+                        nivelProbabilidad: 24,
+                        interpretacionNP: 'Muy Alto',
+                        nivelConsecuencia: 60,
+                        nivelRiesgo: 1440,
+                        interpretacionNR: 'Situación crítica. Suspender actividades. Intervención urgente.',
+                        aceptabilidad: 'No Aceptable',
+                        numExpuestos: 4,
+                        deficienciaHigienica: 'Alto (A)',
+                        valoracionCuantitativa: 'Muestreo ambiental superó 60% VLP',
+                        nrFinal: 1440,
+                        factorReduccion: 0,
+                        costoIntervencion: '',
+                        factorCosto: 0,
+                        factorJustificacion: 0,
+                        medidaSeleccionada: '',
+                        justificacion: '',
+                        eliminacion: '', fr_eliminacion: 0, costo_eliminacion: '', fc_eliminacion: 0, j_eliminacion: 0,
+                        sustitucion: 'Uso de soldadura con menor emanación toxicológica', fr_sustitucion: 30, costo_sustitucion: '3 a 29 SMMLV', fc_sustitucion: 4, j_sustitucion: 108,
+                        controlIngenieria: 'Reparar motor de campana extractora', fr_ingenieria: 60, costo_ingenieria: '0.3 a 2.9 SMMLV', fc_ingenieria: 2, j_ingenieria: 432,
+                        controlAdministrativo: 'Rotación horaria del personal', fr_administrativo: 5, costo_administrativo: 'Menos de 0.06 SMMLV', fc_administrativo: 0.5, j_administrativo: 144,
+                        epp: 'Respirador media cara cartucho para humos', fr_epp: 5, costo_epp: '0.06 a 0.29 SMMLV', fc_epp: 1, j_epp: 72,
+                        completedByAI: true
+                    }
+                ]
+            }
         ]
     })
 };

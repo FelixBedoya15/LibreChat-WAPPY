@@ -582,7 +582,6 @@ const MatrizLegal = () => {
                         <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
                         {generatedMatrix && (
                             <div className="flex items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
                                 <button
                                     onClick={handleSaveReport}
                                     className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"

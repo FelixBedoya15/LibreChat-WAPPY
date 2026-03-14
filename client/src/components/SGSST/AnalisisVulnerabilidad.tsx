@@ -403,7 +403,6 @@ const AnalisisVulnerabilidad = () => {
       <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
         <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
           <div className="flex items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
             {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             <Shield className="h-5 w-5 text-teal-700" />
             <span className="font-semibold">Análisis de Vulnerabilidad (Multi-Amenaza)</span>

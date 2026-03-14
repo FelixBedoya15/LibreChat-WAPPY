@@ -333,7 +333,6 @@ const ResponsableSGSST = () => {
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"
                 >
                     <div className="flex items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <UserCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         <span className="font-semibold text-text-primary">Datos del Responsable SG-SST</span>
