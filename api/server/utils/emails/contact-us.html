@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Solicitud de Contacto - WAPPY IA</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .header {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6, #14b8a6);
+            color: #ffffff;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+        }
+        .content {
+            padding: 40px;
+        }
+        .content p {
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+        .details-box {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .detail-item {
+            margin-bottom: 12px;
+        }
+        .detail-item:last-child {
+            margin-bottom: 0;
+        }
+        .detail-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .detail-value {
+            font-size: 16px;
+            font-weight: 500;
+            color: #111827;
+        }
+        .message-box {
+            margin-top: 16px;
+            padding: 16px;
+            background-color: #ffffff;
+            border-left: 4px solid #8b5cf6;
+            border-radius: 0 4px 4px 0;
+            font-style: italic;
+            color: #374151;
+        }
+        .footer {
+            background-color: #f9fafb;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #9ca3af;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Nueva Solicitud Corporativa</h1>
+        </div>
+        <div class="content">
+            <p>Hola Equipo,</p>
+            <p>Se ha recibido una nueva solicitud de información desde la página de planes corporativos de WAPPY IA. A continuación se detallan los datos ingresados por el prospecto:</p>
+            
+            <div class="details-box">
+                <div class="detail-item">
+                    <span class="detail-label">Nombre del Contacto</span>
+                    <span class="detail-value">{{name}}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Empresa</span>
+                    <span class="detail-value">{{company}}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Correo Electrónico</span>
+                    <span class="detail-value"><a href="mailto:{{email}}" style="color: #6366f1;">{{email}}</a></span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Teléfono</span>
+                    <span class="detail-value">{{phone}}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Plan de Interés</span>
+                    <span class="detail-value" style="color: #6366f1; font-weight: 700;">{{plan}}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Mensaje</span>
+                    <div class="message-box">
+                        {{message}}
+                    </div>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #6b7280; font-size: 14px;">Por favor, contactar al prospecto a la brevedad posible para agendar una reunión o continuar con la gestión comercial.</p>
+        </div>
+        <div class="footer">
+            &copy; 2026 WAPPY IA. Sistema automático de notificaciones comerciales.
+        </div>
+    </div>
+</body>
+</html>
