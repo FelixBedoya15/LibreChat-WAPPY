@@ -44,7 +44,6 @@ const PLANS = [
         ],
         notIncluded: ['Gestor SGSST', 'Agentes personalizados'],
         popular: false,
-        buttonGradient: 'from-blue-500 to-blue-600',
     },
     {
         key: 'plus',
@@ -64,7 +63,6 @@ const PLANS = [
         ],
         notIncluded: ['Agentes personalizados'],
         popular: true,
-        buttonGradient: 'from-green-500 to-emerald-600',
     },
     {
         key: 'pro',
@@ -84,11 +82,14 @@ const PLANS = [
         ],
         notIncluded: [],
         popular: false,
-        buttonGradient: 'from-amber-500 to-orange-600',
     },
+];
+
+/* ─── Corporate Plan definitions ─────────────────────────────────────── */
+const CORPORATE_PLANS = [
     {
         key: 'intermediacion',
-        name: 'Intermediación de Riesgos Laborles',
+        name: 'Intermediación de Riesgos Laborales',
         price: 'Gratis*',
         tagline: 'Plan Intermediación de Riesgos Laborales',
         accentColor: 'text-indigo-500',
@@ -96,6 +97,8 @@ const PLANS = [
         gradientBg: 'from-indigo-500/5 to-indigo-500/10',
         borderColor: 'border-indigo-500/20',
         iconBg: 'bg-indigo-500/10',
+        buttonGradient: 'from-indigo-500 to-indigo-600',
+        contactText: 'Gratis *Revisar Términos y Condiciones',
         features: [
             'Todo lo del plan Plus',
             'Dominio empresarial',
@@ -105,11 +108,6 @@ const PLANS = [
             'Sus propios agentes',
             '200 GB de almacenamiento',
         ],
-        notIncluded: [],
-        popular: false,
-        isContact: true,
-        contactText: 'Gratis *Revisar Términos y Condiciones',
-        buttonGradient: 'from-indigo-500 to-indigo-600',
     },
     {
         key: 'empresas',
@@ -121,6 +119,8 @@ const PLANS = [
         gradientBg: 'from-purple-500/5 to-purple-500/10',
         borderColor: 'border-purple-500/20',
         iconBg: 'bg-purple-500/10',
+        buttonGradient: 'from-purple-500 to-purple-600',
+        contactText: 'Solicitar cotización',
         features: [
             'Todo lo del plan Plus',
             'Dominio empresarial',
@@ -130,10 +130,6 @@ const PLANS = [
             'Sus propios agentes',
             '200 GB de almacenamiento',
         ],
-        notIncluded: [],
-        popular: false,
-        isContact: true,
-        buttonGradient: 'from-purple-500 to-purple-600',
     },
     {
         key: 'asesores',
@@ -145,13 +141,17 @@ const PLANS = [
         gradientBg: 'from-teal-500/5 to-teal-500/10',
         borderColor: 'border-teal-500/20',
         iconBg: 'bg-teal-500/10',
-        features: [
-            'Todo lo del plan Empresas',
-        ],
-        notIncluded: [],
-        popular: false,
-        isContact: true,
         buttonGradient: 'from-teal-500 to-teal-600',
+        contactText: 'Solicitar cotización',
+        features: [
+            'Todo lo del plan Plus',
+            'Dominio empresarial',
+            'Sin límite de usuario',
+            'Plataforma propia de la empresa',
+            'Sus propios logos',
+            'Sus propios agentes',
+            '200 GB de almacenamiento',
+        ],
     },
 ];
 
@@ -680,7 +680,7 @@ export default function PlansPage() {
                         )}
 
                         {/* Plans grid */}
-                        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                             {PLANS.map((plan) => {
                                 const Icon = PLAN_ICON_MAP[plan.key];
 
@@ -712,8 +712,8 @@ export default function PlansPage() {
 
                                 const isNotMonthly = billingInterval !== 'monthly';
                                 const monthsDivisor = billingInterval === 'quarterly' ? 3 : billingInterval === 'semiannual' ? 6 : billingInterval === 'annual' ? 12 : 1;
-                                const totalToBill = (isFree || (plan as any).isContact) ? 0 : ((promotion && promotion.discountPercentage > 0) ? discountedPrice : rawPrice);
-                                const pricePerMonth = (isFree || (plan as any).isContact) ? 0 : (totalToBill / monthsDivisor);
+                                const totalToBill = isFree ? 0 : ((promotion && promotion.discountPercentage > 0) ? discountedPrice : rawPrice);
+                                const pricePerMonth = isFree ? 0 : (totalToBill / monthsDivisor);
 
                                 return (
                                     <div
@@ -768,16 +768,14 @@ export default function PlansPage() {
 
                                             <div className="flex items-end gap-1">
                                                 <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
-                                                    {(plan as any).isContact ? plan.price : isFree ? '$0' : '$' + Math.round(pricePerMonth).toLocaleString('es-CO')}
+                                                    {isFree ? '$0' : '$' + Math.round(pricePerMonth).toLocaleString('es-CO')}
                                                 </span>
-                                                {(!(plan as any).isContact || plan.price === '$0') && (
-                                                    <span className="mb-1 text-xs font-semibold text-text-secondary">
-                                                        /mes
-                                                    </span>
-                                                )}
+                                                <span className="mb-1 text-xs font-semibold text-text-secondary">
+                                                    /mes
+                                                </span>
                                             </div>
 
-                                            {isNotMonthly && !isFree && !(plan as any).isContact && (
+                                            {isNotMonthly && !isFree && (
                                                 <div className={`mt-0.5 text-base font-bold text-text-primary`}>
                                                     ${Math.round(totalToBill).toLocaleString('es-CO')}{' '}
                                                     <span className="text-xs font-semibold text-text-secondary">
@@ -786,7 +784,7 @@ export default function PlansPage() {
                                                 </div>
                                             )}
 
-                                            {promotion && !(plan as any).isContact && (
+                                            {promotion && (
                                                 <div className="mt-2 text-center w-full rounded-md bg-indigo-500/10 py-1.5 px-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                                                     {promotion.text || 'Oferta por tiempo limitado'}
                                                 </div>
@@ -796,34 +794,31 @@ export default function PlansPage() {
                                         {/* CTA */}
                                         <div className="mt-auto pt-2">
                                             <button
-                                                onClick={() => {
-                                                    if ((plan as any).isContact) {
-                                                        navigate(`/contactanos?plan=${plan.key}`);
-                                                    } else if (!isActive && !isFree) {
-                                                        handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion);
-                                                    }
-                                                }}
-                                                disabled={(!(plan as any).isContact && isActive) || (!(plan as any).isContact && isFree) || isLoadingThis || loading}
+                                                onClick={() => !isActive && !isFree && handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
+                                                disabled={isActive || isFree || isLoadingThis || loading}
 
-                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive && !(plan as any).isContact
+                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
                                                     ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
                                                     : isFree
                                                         ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
-                                                        : `bg-gradient-to-r ${(plan as any).buttonGradient || 'from-indigo-500 to-indigo-600'} text-white hover:opacity-90 hover:shadow-md`
+                                                        : `bg-gradient-to-r ${plan.key === 'go'
+                                                            ? 'from-blue-500 to-blue-600'
+                                                            : plan.key === 'plus'
+                                                                ? 'from-green-500 to-emerald-600'
+                                                                : 'from-amber-500 to-orange-600'
+                                                        } text-white hover:opacity-90 hover:shadow-md`
                                                     }`}
                                             >
                                                 {isLoadingThis ? (
                                                     <>
                                                         <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
                                                     </>
-                                                ) : isActive && !(plan as any).isContact ? (
+                                                ) : isActive ? (
                                                     <>
                                                         <Check className="h-4 w-4" /> Plan actual
                                                     </>
                                                 ) : isFree ? (
                                                     'Plan gratuito'
-                                                ) : (plan as any).isContact ? (
-                                                    (plan as any).contactText || 'Solicitar cotización'
                                                 ) : (
                                                     `Comenzar con ${plan.name}`
                                                 )}
@@ -848,6 +843,67 @@ export default function PlansPage() {
                                     </div>
                                 );
                             })}
+                        </div>
+
+                        {/* ─── Corporate / Contact Plans Section ─────────────── */}
+                        <div className="mt-16">
+                            <div className="mb-6 flex items-center gap-4">
+                                <div className="h-px flex-1 bg-border-medium/40" />
+                                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/5 px-4 py-1.5 text-sm font-semibold text-indigo-500">
+                                    <ShieldCheck className="h-4 w-4" />
+                                    Planes Corporativos
+                                </div>
+                                <div className="h-px flex-1 bg-border-medium/40" />
+                            </div>
+                            <p className="mb-6 text-center text-sm text-text-secondary">
+                                Soluciones a medida para organizaciones. Incluyen todas las ventajas del plan Plus y mucho más.
+                            </p>
+                            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                {CORPORATE_PLANS.map((cp) => (
+                                    <div
+                                        key={cp.key}
+                                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${cp.gradientBg} border-border-medium/40 hover:${cp.borderColor} hover:shadow-md bg-surface-primary/60 backdrop-blur-sm`}
+                                    >
+                                        {/* Icon */}
+                                        <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${cp.iconBg}`}>
+                                            <ShieldSVG className={`h-5 w-5 ${cp.iconColor}`} />
+                                        </div>
+
+                                        {/* Name & tagline */}
+                                        <h2 className="text-xl font-bold text-text-primary">{cp.name}</h2>
+                                        <p className="mb-4 text-xs text-text-secondary">{cp.tagline}</p>
+
+                                        {/* Price */}
+                                        <div className="mb-5 flex flex-col items-start gap-1">
+                                            <div className="flex items-end gap-1">
+                                                <span className={`text-3xl font-black tracking-tight ${cp.accentColor}`}>
+                                                    {cp.price}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* CTA */}
+                                        <div className="mt-auto pt-2">
+                                            <button
+                                                onClick={() => navigate(`/contactanos?plan=${cp.key}`)}
+                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all bg-gradient-to-r ${cp.buttonGradient} text-white hover:opacity-90 hover:shadow-md`}
+                                            >
+                                                {cp.contactText}
+                                            </button>
+                                        </div>
+
+                                        {/* Features */}
+                                        <ul className="mt-5 flex-1 space-y-2">
+                                            {cp.features.map((f) => (
+                                                <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
+                                                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
+                                                    {f}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Footer note */}
