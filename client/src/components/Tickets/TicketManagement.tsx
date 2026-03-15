@@ -161,37 +161,52 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                 <AlertCircle className="w-5 h-5 text-blue-500" />
                                 Detalle de la Solicitud
                             </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 text-sm">
                                 <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary">Tipo</label>
-                                    <p className="mt-1 font-medium">{selectedTicket.type}</p>
+                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Tipo</label>
+                                    <p className="font-semibold text-text-primary">{selectedTicket.type}</p>
                                 </div>
                                 <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary">Usuario</label>
-                                    <p className="mt-1 font-medium">{selectedTicket.name}</p>
+                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Usuario</label>
+                                    <p className="font-semibold text-text-primary">{selectedTicket.name}</p>
                                     <p className="text-xs text-text-secondary truncate">{selectedTicket.email}</p>
                                 </div>
                                 <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary">Fecha</label>
-                                    <p className="mt-1 font-medium">{new Date(selectedTicket.createdAt).toLocaleString()}</p>
+                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Contacto Tel.</label>
+                                    {selectedTicket.phone ? (
+                                        <a 
+                                            href={`tel:${selectedTicket.phone}`} 
+                                            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline transition-all"
+                                        >
+                                            {selectedTicket.phone}
+                                        </a>
+                                    ) : (
+                                        <p className="font-semibold text-text-tertiary">No registrado</p>
+                                    )}
                                 </div>
                                 <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary">Estado</label>
-                                    <div className={cn("mt-1 w-fit px-2 py-1 rounded-full text-[10px] font-bold uppercase", getStatusStyles(selectedTicket.status))}>
+                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Fecha</label>
+                                    <p className="font-semibold text-text-primary">{new Date(selectedTicket.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                                </div>
+                                <div>
+                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Estado</label>
+                                    <div className={cn("mt-1 w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider", getStatusStyles(selectedTicket.status))}>
                                         {selectedTicket.status === 'pending' ? 'Pendiente' : 'Resuelto'}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-surface-secondary dark:bg-gray-800/50 p-6 rounded-2xl border border-border-light">
-                            <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-text-tertiary" />
-                                Descripción de la Solicitud
+                        <div className="bg-surface-secondary dark:bg-gray-800/50 p-6 rounded-2xl border border-border-light shadow-sm">
+                            <h4 className="text-sm font-bold mb-4 flex items-center gap-2 text-text-primary">
+                                <FileText className="w-4 h-4 text-violet-500" />
+                                Detalles de la Descripción
                             </h4>
-                            <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
-                                {selectedTicket.description}
-                            </p>
+                            <div className="bg-surface-primary dark:bg-gray-900/50 rounded-xl p-5 border border-border-light/50">
+                                <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed font-medium">
+                                    {selectedTicket.description}
+                                </p>
+                            </div>
                         </div>
                     </div>
 

@@ -138,7 +138,15 @@ export default function ContactPage() {
                             <p className="text-sm text-text-secondary mb-4">Escríbenos directamente o visítanos.</p>
                             <div className="space-y-2 text-sm text-text-primary font-medium">
                                 <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-violet-500" /> info@grupowappy.com</p>
-                                <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-violet-500" /> +57 (312) 641-7890</p>
+                                <a 
+                                    href="https://wa.me/573126417890" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 hover:text-green-500 transition-colors group"
+                                >
+                                    <MessageSquare className="h-4 w-4 text-green-500 group-hover:scale-110 transition-transform" /> 
+                                    +57 (312) 641-7890 (WhatsApp)
+                                </a>
                             </div>
                         </div>
                     </div>
