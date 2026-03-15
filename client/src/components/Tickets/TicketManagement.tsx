@@ -161,37 +161,39 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                 <AlertCircle className="w-5 h-5 text-blue-500" />
                                 Detalle de la Solicitud
                             </h3>
-                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 text-sm">
-                                <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Tipo</label>
-                                    <p className="font-semibold text-text-primary">{selectedTicket.type}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Usuario</label>
-                                    <p className="font-semibold text-text-primary">{selectedTicket.name}</p>
-                                    <p className="text-xs text-text-secondary truncate">{selectedTicket.email}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Contacto Tel.</label>
-                                    {selectedTicket.phone ? (
-                                        <a 
-                                            href={`tel:${selectedTicket.phone}`} 
-                                            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline transition-all"
-                                        >
-                                            {selectedTicket.phone}
-                                        </a>
-                                    ) : (
-                                        <p className="font-semibold text-text-tertiary">No registrado</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Fecha</label>
-                                    <p className="font-semibold text-text-primary">{new Date(selectedTicket.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Estado</label>
-                                    <div className={cn("mt-1 w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider", getStatusStyles(selectedTicket.status))}>
-                                        {selectedTicket.status === 'pending' ? 'Pendiente' : 'Resuelto'}
+                            <div className="overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
+                                <div className="grid grid-cols-5 gap-8 text-sm min-w-[700px]">
+                                    <div className="flex-shrink-0">
+                                        <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Tipo</label>
+                                        <p className="font-semibold text-text-primary whitespace-nowrap">{selectedTicket.type}</p>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Usuario</label>
+                                        <p className="font-semibold text-text-primary whitespace-nowrap">{selectedTicket.name}</p>
+                                        <p className="text-xs text-text-secondary font-medium">{selectedTicket.email}</p>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Contacto Tel.</label>
+                                        {selectedTicket.phone ? (
+                                            <a 
+                                                href={`tel:${selectedTicket.phone}`} 
+                                                className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline transition-all whitespace-nowrap"
+                                            >
+                                                {selectedTicket.phone}
+                                            </a>
+                                        ) : (
+                                            <p className="font-semibold text-text-tertiary whitespace-nowrap">No registrado</p>
+                                        )}
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Fecha</label>
+                                        <p className="font-semibold text-text-primary whitespace-nowrap">{new Date(selectedTicket.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                                    </div>
+                                    <div className="flex-shrink-0">
+                                        <label className="text-xs uppercase font-bold text-text-tertiary block mb-1">Estado</label>
+                                        <div className={cn("mt-1 w-fit px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider", getStatusStyles(selectedTicket.status))}>
+                                            {selectedTicket.status === 'pending' ? 'Pendiente' : 'Resuelto'}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
