@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const { Notification, User } = require('../../models');
+const Notification = require('../../models/Notification');
 const sendEmail = require('../utils/sendEmail');
 const { logger } = require('@librechat/data-schemas');
 
@@ -20,6 +20,8 @@ router.post('/request', async (req, res) => {
         const dateStr = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
 
         // 1. Notify all admins in-app
+        // Using mongoose.model directly to avoid import issues
+        const User = mongoose.model('User');
         const admins = await User.find({ role: 'ADMIN' }).select('_id email').lean();
         
         const titleNotif = 'Nueva Solicitud de Plan Empresarial';
@@ -30,7 +32,6 @@ router.post('/request', async (req, res) => {
             type: 'contact_request',
             title: titleNotif,
             body: bodyNotif,
-            // metadata could be added if needed
         }));
 
         if (notificationDocs.length > 0) {
@@ -50,6 +51,9 @@ router.post('/request', async (req, res) => {
             date: dateStr,
         };
 
+        // Support email for the footer/system
+        const supportEmail = 'info@grupowappy.com';
+
         // Send to each admin or to a general admin email if configured
         const adminEmailRecipient = process.env.ADMIN_EMAIL || (admins.length > 0 ? admins[0].email : process.env.EMAIL_FROM);
 
@@ -63,7 +67,6 @@ router.post('/request', async (req, res) => {
                 });
             } catch (emailErr) {
                 logger.error('[Contact] Error sending admin email:', emailErr.message);
-                // We don't fail the request if email fails, as notification was created
             }
         }
 

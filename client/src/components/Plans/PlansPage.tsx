@@ -90,7 +90,7 @@ const ENTERPRISE_PLANS = [
     {
         key: 'riesgos',
         name: 'Plan Intermediación de Riesgos Laborales',
-        tagline: 'Para intermediadores de ARL y gestores de riesgo',
+        tagline: 'Para intermediadores de ARL',
         accentColor: 'text-violet-500',
         iconColor: 'text-violet-500',
         gradientBg: 'from-violet-500/5 to-purple-500/10',
@@ -886,27 +886,30 @@ export default function PlansPage() {
                                                 <Icon className={`h-5 w-5 ${plan.iconColor}`} />
                                             </div>
 
-                                            {/* Name */}
-                                            <h2 className="text-xl font-bold text-text-primary leading-tight">{plan.name}</h2>
+                                            {/* Header Content with fixed min-height for alignment */}
+                                            <div className="flex flex-col min-h-[160px]">
+                                                {/* Name */}
+                                                <h2 className="text-xl font-bold text-text-primary leading-tight">{plan.name}</h2>
 
-                                            {/* Free note for first enterprise plan */}
-                                            {plan.isFreeEnterprise && (
-                                                <p className="mt-1 text-xs font-semibold text-amber-500 dark:text-amber-400">
-                                                    {plan.freeNote}
-                                                </p>
-                                            )}
+                                                {/* Free note for first enterprise plan */}
+                                                {plan.isFreeEnterprise && (
+                                                    <p className="mt-1 text-xs font-semibold text-amber-500 dark:text-amber-400">
+                                                        {plan.freeNote}
+                                                    </p>
+                                                )}
 
-                                            <p className="mb-5 mt-1.5 text-xs text-text-secondary">{plan.tagline}</p>
+                                                <p className="mb-4 mt-1.5 text-xs text-text-secondary">{plan.tagline}</p>
 
-                                            {/* Price */}
-                                            <div className="mb-5">
-                                                <span className={`text-2xl font-black tracking-tight ${plan.accentColor}`}>
-                                                    {plan.isFreeEnterprise ? 'Gratis' : 'A consultar'}
-                                                </span>
+                                                {/* Price */}
+                                                <div className="mt-auto mb-4">
+                                                    <span className={`text-2xl font-black tracking-tight ${plan.accentColor}`}>
+                                                        {plan.isFreeEnterprise ? 'Gratis' : 'A consultar'}
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             {/* CTA */}
-                                            <div className="mt-auto pt-2">
+                                            <div className="pt-2">
                                                 <button
                                                     onClick={() => navigate('/contactanos')}
                                                     className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all text-white bg-gradient-to-r ${plan.buttonGradient} hover:opacity-90 hover:shadow-md`}
