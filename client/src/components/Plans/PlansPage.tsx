@@ -301,7 +301,7 @@ export default function PlansPage() {
             try {
                 // Fetch dynamic plans configuration
                 const { data: plansData } = await axios.get('/api/wompi/configured-plans');
-                setFetchedPlans(plansData);
+                setFetchedPlans(Array.isArray(plansData) ? plansData : []);
             } catch (err) {
                 console.error('Error fetching dynamic plans config', err);
             } finally {
@@ -597,7 +597,7 @@ export default function PlansPage() {
                                     { id: 'annual', label: 'Anual' }
                                 ].map((interval) => {
                                     let maxDiscount = 0;
-                                    fetchedPlans.forEach((config: any) => {
+                                    (Array.isArray(fetchedPlans) ? fetchedPlans : []).forEach((config: any) => {
                                         if (config.promotions?.[interval.id]?.active) {
                                             maxDiscount = Math.max(maxDiscount, config.promotions[interval.id].discountPercentage || 0);
                                         }
@@ -690,7 +690,7 @@ export default function PlansPage() {
 
                                 const isLoadingThis = checkoutLoading === plan.key;
                                 const isFree = plan.key === 'free';
-                                const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
+                                const fetchedConfig = (Array.isArray(fetchedPlans) ? fetchedPlans : []).find(p => p.planId === plan.key);
 
                                 // Dynamic price
                                 let rawPrice = 0;
