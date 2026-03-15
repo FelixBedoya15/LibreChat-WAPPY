@@ -301,7 +301,12 @@ export default function PlansPage() {
             try {
                 // Fetch dynamic plans configuration
                 const { data: plansData } = await axios.get('/api/wompi/configured-plans');
-                setFetchedPlans(Array.isArray(plansData) ? plansData : []);
+                const normalizedPlans = Array.isArray(plansData)
+                    ? plansData
+                    : plansData && typeof plansData === 'object' && !plansData.error
+                        ? Object.values(plansData)
+                        : [];
+                setFetchedPlans(normalizedPlans);
             } catch (err) {
                 console.error('Error fetching dynamic plans config', err);
             } finally {
