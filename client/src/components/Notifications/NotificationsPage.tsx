@@ -5,13 +5,13 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import {
     Bell, Search, Trash2, CheckCheck, EyeOff, Filter, RefreshCw,
-    MessageSquare, TicketCheck, ChevronRight, X, Inbox
+    MessageSquare, TicketCheck, ChevronRight, X, Inbox, Building2
 } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded';
+    type: 'ticket_created' | 'ticket_responded' | 'contact_request';
     title: string;
     body: string;
     read: boolean;
@@ -19,7 +19,7 @@ interface Notification {
     createdAt: string;
 }
 
-type FilterType = 'all' | 'unread' | 'read' | 'ticket_created' | 'ticket_responded';
+type FilterType = 'all' | 'unread' | 'read' | 'ticket_created' | 'ticket_responded' | 'contact_request';
 
 interface NotificationsPageProps {
     onUnreadCountChange?: (count: number) => void;
@@ -120,8 +120,13 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
         }
         // Navigate based on role and type
         if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
-            // Admin: open settings > admin > pqrs panel
-            const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'admin', subTab: 'pqrs' } });
+            // Admin: open settings > tickets tab
+            const event = new CustomEvent('switch-settings-tab', { 
+                detail: { 
+                    mainTab: 'tickets', 
+                    ticketId: notification.ticketId 
+                } 
+            });
             window.dispatchEvent(event);
             // Trigger settings to open
             const settingsEvent = new CustomEvent('open-settings');
@@ -129,6 +134,17 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
         } else if (notification.type === 'ticket_responded') {
             // User: open settings > account to see their tickets
             const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'account' } });
+            window.dispatchEvent(event);
+            const settingsEvent = new CustomEvent('open-settings');
+            window.dispatchEvent(settingsEvent);
+        } else if (notification.type === 'contact_request' && user?.role === 'ADMIN') {
+            // Admin: open settings > tickets tab
+            const event = new CustomEvent('switch-settings-tab', { 
+                detail: { 
+                    mainTab: 'tickets',
+                    ticketId: notification.ticketId 
+                } 
+            });
             window.dispatchEvent(event);
             const settingsEvent = new CustomEvent('open-settings');
             window.dispatchEvent(settingsEvent);
@@ -157,6 +173,7 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
         { value: 'read', label: 'Leídas' },
         { value: 'ticket_created', label: 'Tickets nuevos' },
         { value: 'ticket_responded', label: 'Respuestas' },
+        { value: 'contact_request', label: 'Planes Empresa' },
     ];
 
     return (
@@ -270,11 +287,15 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
                                 'mt-0.5 p-2 rounded-full flex-shrink-0',
                                 n.type === 'ticket_responded'
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
-                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
+                                    : n.type === 'contact_request'
+                                        ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600'
+                                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                             )}>
                                 {n.type === 'ticket_responded'
                                     ? <MessageSquare className="w-4 h-4" />
-                                    : <TicketCheck className="w-4 h-4" />
+                                    : n.type === 'contact_request'
+                                        ? <Building2 className="w-4 h-4" />
+                                        : <TicketCheck className="w-4 h-4" />
                                 }
                             </div>
 

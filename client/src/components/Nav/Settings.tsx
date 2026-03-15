@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { SettingsTabValues, SystemRoles } from 'librechat-data-provider';
-import { MessageSquare, Command, DollarSign, Bell } from 'lucide-react';
+import { MessageSquare, Command, DollarSign, Bell, TicketCheck } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import {
   GearIcon,
@@ -25,6 +25,7 @@ import {
   Ads,
 } from './SettingsTabs';
 import NotificationsPage from '~/components/Notifications/NotificationsPage';
+import TicketManagement from '~/components/Tickets/TicketManagement';
 import { useAuthContext } from '~/hooks/AuthContext';
 import usePersonalizationAccess from '~/hooks/usePersonalizationAccess';
 import { useLocalize, TranslationKeys } from '~/hooks';
@@ -37,6 +38,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
   const { user } = useAuthContext();
   const localize = useLocalize();
   const [activeTab, setActiveTab] = useState<SettingsTabValues | string>(initialTab || SettingsTabValues.GENERAL);
+  const [targetTicketId, setTargetTicketId] = useState<string | undefined>(undefined);
 
   React.useEffect(() => {
     if (open) {
@@ -52,6 +54,11 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
     const handleSettingsNavigation = (e: CustomEvent) => {
       if (e.detail?.mainTab) {
         setActiveTab(e.detail.mainTab);
+      }
+      if (e.detail?.ticketId) {
+        setTargetTicketId(e.detail.ticketId);
+      } else {
+        setTargetTicketId(undefined);
       }
     };
     // Listen for programmatic open to jump to notifications
@@ -158,6 +165,14 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
         icon: <Bell className="icon-sm" />,
         label: 'Notificaciones' as TranslationKeys,
       },
+      ...(user?.role === SystemRoles.ADMIN
+        ? [
+          {
+            value: 'tickets' as SettingsTabValues,
+            icon: <TicketCheck className="icon-sm" />,
+            label: 'Tickets PQRS' as TranslationKeys,
+          },
+        ] : []),
       ...(user?.role === SystemRoles.ADMIN
         ? [
           {
@@ -314,6 +329,9 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                     )}
                     <Tabs.Content value={'notifications'} tabIndex={-1}>
                       <NotificationsPage />
+                    </Tabs.Content>
+                    <Tabs.Content value={'tickets'} tabIndex={-1}>
+                      <TicketManagement initialTicketId={targetTicketId} />
                     </Tabs.Content>
                   </div>
                 </Tabs.Root>

@@ -19,9 +19,24 @@ router.post('/request', async (req, res) => {
 
         const dateStr = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
 
-        // 1. Notify all admins in-app
-        // Using mongoose.model directly to avoid import issues
         const User = mongoose.model('User');
+        const Ticket = mongoose.model('Ticket');
+        
+        // 1. Create a Ticket record for the admin to manage
+        const planName = plan === 'riesgos' ? 'Plan Intermediación Riesgos Laborales' : 
+                         plan === 'empresas' ? 'Plan Empresas' : 
+                         'Plan Asesores Independientes SST';
+                         
+        const ticket = await Ticket.create({
+            name,
+            email,
+            phone,
+            type: 'Solicitud Empresarial',
+            description: `EMPRESA: ${company || 'N/A'}\nPLAN: ${planName}\nMENSAJE: ${message}`,
+            status: 'pending',
+        });
+
+        // 2. Notify all admins in-app
         const admins = await User.find({ role: 'ADMIN' }).select('_id email').lean();
         
         const titleNotif = 'Nueva Solicitud de Plan Empresarial';
@@ -32,13 +47,14 @@ router.post('/request', async (req, res) => {
             type: 'contact_request',
             title: titleNotif,
             body: bodyNotif,
+            ticketId: ticket._id,
         }));
 
         if (notificationDocs.length > 0) {
             await Notification.insertMany(notificationDocs);
         }
 
-        // 2. Send email to admins
+        // 3. Send email to admins
         const payload = {
             name,
             email,

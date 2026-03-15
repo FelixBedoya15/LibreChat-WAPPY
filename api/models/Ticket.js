@@ -4,7 +4,7 @@ const ticketSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
+        required: false,
     },
     name: {
         type: String,
@@ -20,7 +20,7 @@ const ticketSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['Petición', 'Queja', 'Reclamo', 'Sugerencia'],
+        enum: ['Petición', 'Queja', 'Reclamo', 'Sugerencia', 'Solicitud Empresarial'],
         default: 'Petición',
     },
     description: {

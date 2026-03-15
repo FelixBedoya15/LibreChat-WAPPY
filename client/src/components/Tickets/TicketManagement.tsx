@@ -22,7 +22,7 @@ import {
 import { cn } from '~/utils';
 import ModelSelector from '~/components/SGSST/ModelSelector';
 
-export default function TicketManagement() {
+export default function TicketManagement({ initialTicketId }: { initialTicketId?: string }) {
     const { token } = useAuthContext();
     const { showToast } = useToastContext();
     const [tickets, setTickets] = useState<any[]>([]);
@@ -39,6 +39,18 @@ export default function TicketManagement() {
         // Mark all ticket notifications as read when admin enters this panel
         markAllTicketsAsRead();
     }, []);
+
+    // Effect to handle initial ticket selection from notification
+    useEffect(() => {
+        if (initialTicketId && tickets.length > 0) {
+            const ticket = tickets.find(t => t._id === initialTicketId);
+            if (ticket) {
+                setSelectedTicket(ticket);
+                setResponse(ticket.response || '');
+                markTicketRead(ticket._id);
+            }
+        }
+    }, [initialTicketId, tickets]);
 
     const markAllTicketsAsRead = async () => {
         try {
