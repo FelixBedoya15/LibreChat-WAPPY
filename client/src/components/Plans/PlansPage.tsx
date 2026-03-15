@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Zap, Star, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users } from 'lucide-react';
 import { ThemeSelector } from '@librechat/client';
 import { useToastContext } from '@librechat/client';
 
@@ -85,8 +85,78 @@ const PLANS = [
     },
 ];
 
+/* ─── Enterprise Plan Definitions ──────────────────────────────────── */
+const ENTERPRISE_PLANS = [
+    {
+        key: 'riesgos',
+        name: 'Plan Intermediación de Riesgos Laborales',
+        tagline: 'Para intermediadores de ARL y gestores de riesgo',
+        accentColor: 'text-violet-500',
+        iconColor: 'text-violet-500',
+        gradientBg: 'from-violet-500/5 to-purple-500/10',
+        borderColor: 'border-violet-500/20',
+        iconBg: 'bg-violet-500/10',
+        isFreeEnterprise: true,
+        freeNote: 'Gratis *Revisar Términos y Condiciones',
+        buttonGradient: 'from-violet-500 to-purple-600',
+        features: [
+            'Todo lo del plan Plus',
+            'Dominio empresarial propio',
+            'Sin límite de usuarios',
+            'Plataforma propia de la empresa',
+            'Logos e identidad visual propios',
+            'Agentes IA personalizados propios',
+            '200 GB de almacenamiento',
+        ],
+    },
+    {
+        key: 'empresas',
+        name: 'Plan Empresas',
+        tagline: 'Solución integral para empresas y organizaciones',
+        accentColor: 'text-sky-500',
+        iconColor: 'text-sky-500',
+        gradientBg: 'from-sky-500/5 to-cyan-500/10',
+        borderColor: 'border-sky-500/20',
+        iconBg: 'bg-sky-500/10',
+        isFreeEnterprise: false,
+        freeNote: null,
+        buttonGradient: 'from-sky-500 to-cyan-600',
+        features: [
+            'Todo lo del plan Plus',
+            'Dominio empresarial propio',
+            'Sin límite de usuarios',
+            'Plataforma propia de la empresa',
+            'Logos e identidad visual propios',
+            'Agentes IA personalizados propios',
+            '200 GB de almacenamiento',
+        ],
+    },
+    {
+        key: 'asesores',
+        name: 'Plan Asesores Independientes SST',
+        tagline: 'Para asesores y consultores independientes en SST',
+        accentColor: 'text-rose-500',
+        iconColor: 'text-rose-500',
+        gradientBg: 'from-rose-500/5 to-pink-500/10',
+        borderColor: 'border-rose-500/20',
+        iconBg: 'bg-rose-500/10',
+        isFreeEnterprise: false,
+        freeNote: null,
+        buttonGradient: 'from-rose-500 to-pink-600',
+        features: [
+            'Todo lo del plan Plus',
+            'Dominio empresarial propio',
+            'Sin límite de usuarios',
+            'Plataforma propia de la empresa',
+            'Logos e identidad visual propios',
+            'Agentes IA personalizados propios',
+            '200 GB de almacenamiento',
+        ],
+    },
+];
+
 /* ─── Animated SVGs ─────────────────────────────────────────────────── */
-const FreeSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+const FreeSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
         <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4">
             <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
@@ -100,7 +170,7 @@ const FreeSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     </svg>
 );
 
-const GoSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+const GoSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
         <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" repeatCount="indefinite" />
@@ -112,7 +182,7 @@ const GoSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     </svg>
 );
 
-const PlusSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+const PlusSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="2s" fill="freeze" />
@@ -124,7 +194,7 @@ const PlusSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     </svg>
 );
 
-const ProSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+const ProSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
         <path d="M2.5 19H21.5L19.5 7L15 12.5L12 4L9 12.5L4.5 7L2.5 19Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
             <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
@@ -141,7 +211,7 @@ const ProSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     </svg>
 );
 
-const PricingSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
+const PricingSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
         <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.8">
             <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="1.5s" fill="freeze" />
@@ -156,11 +226,63 @@ const PricingSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     </svg>
 );
 
+/* ─── Enterprise Animated SVGs ──────────────────────────────────────── */
+const RiesgosLaboralesSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <path d="M12 2L3 7V12C3 16.55 7.08 20.74 12 22C16.92 20.74 21 16.55 21 12V7L12 2Z"
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <animate attributeName="stroke-dasharray" values="0 80;80 0" dur="1.8s" fill="freeze" />
+        </path>
+        <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0">
+            <animate attributeName="opacity" from="0" to="1" begin="1.2s" dur="0.4s" fill="freeze" />
+        </path>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1" opacity="0.15">
+            <animate attributeName="r" values="7;10;7" dur="3s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.1;0.25;0.1" dur="3s" repeatCount="indefinite" />
+        </circle>
+    </svg>
+);
+
+const EmpresasSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <rect x="3" y="8" width="18" height="13" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.8">
+            <animate attributeName="stroke-dasharray" values="0 80;80 0" dur="1.6s" fill="freeze" />
+        </rect>
+        <path d="M8 8V6C8 4.89 8.89 4 10 4H14C15.11 4 16 4.89 16 6V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite" />
+        </path>
+        <circle cx="12" cy="14.5" r="1.5" fill="currentColor">
+            <animate attributeName="opacity" values="0.2;1;0.2" dur="2s" repeatCount="indefinite" />
+        </circle>
+        <path d="M12 16V18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+    </svg>
+);
+
+const AsesoresSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="1.5">
+            <animate attributeName="stroke-dasharray" values="0 30;30 0" dur="1.2s" fill="freeze" />
+        </circle>
+        <path d="M5.5 20C5.5 17 8.46 14.5 12 14.5C15.54 14.5 18.5 17 18.5 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <animate attributeName="stroke-dasharray" values="0 30;30 0" dur="1.5s" begin="0.5s" fill="freeze" />
+        </path>
+        <path d="M17 9L19 11L23 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0">
+            <animate attributeName="opacity" from="0" to="1" begin="1.2s" dur="0.4s" fill="freeze" />
+        </path>
+    </svg>
+);
+
 const PLAN_ICON_MAP: Record<string, React.ElementType> = {
     free: FreeSVG,
     go: GoSVG,
     plus: PlusSVG,
     pro: ProSVG,
+};
+
+const ENTERPRISE_ICON_MAP: Record<string, React.ElementType> = {
+    riesgos: RiesgosLaboralesSVG,
+    empresas: EmpresasSVG,
+    asesores: AsesoresSVG,
 };
 
 /* ─── Main Page ─────────────────────────────────────────────────────── */
@@ -187,7 +309,6 @@ export default function PlansPage() {
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
-                // Fetch user's active plan
                 const { data } = await axios.get('/api/wompi/plan');
                 setActivePlan(data.plan ?? 'free');
             } catch {
@@ -195,7 +316,6 @@ export default function PlansPage() {
             }
 
             try {
-                // Fetch dynamic plans configuration
                 const { data: plansData } = await axios.get('/api/wompi/configured-plans');
                 setFetchedPlans(plansData);
             } catch (err) {
@@ -256,7 +376,6 @@ export default function PlansPage() {
                 promoCode: promoValidated?.code || undefined,
             });
 
-            // Load Wompi Widget Script
             const script = document.createElement('script');
             script.src = 'https://checkout.wompi.co/widget.js';
             script.onload = () => {
@@ -266,7 +385,6 @@ export default function PlansPage() {
                     reference: data.reference,
                     publicKey: data.publicKey,
                     signature: data.signature ? { integrity: data.signature } : undefined,
-                    // If the user finishes in a popup window but closes it, Wompi handles it via webhook
                 });
 
                 checkout.open((result: any) => {
@@ -301,7 +419,7 @@ export default function PlansPage() {
                 <ThemeSelector />
             </div>
 
-            {/* Header Bar — same as WappyAboutPage */}
+            {/* Header Bar */}
             <div className="sticky top-0 z-10 border-b border-border-medium/50 bg-surface-secondary/80 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
                     <button
@@ -575,12 +693,11 @@ export default function PlansPage() {
                             </div>
                         )}
 
-                        {/* Plans grid */}
+                        {/* ── Plans grid (existing 4 plans) ── */}
                         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                             {PLANS.map((plan) => {
                                 const Icon = PLAN_ICON_MAP[plan.key];
 
-                                // Si es administrador, lo equiparamos visualmente al plan más alto
                                 const isUserAdmin = !loading && activePlan === 'admin';
                                 const isActive = !loading && (activePlan === plan.key || (isUserAdmin && plan.key === 'pro'));
 
@@ -644,9 +761,7 @@ export default function PlansPage() {
                                         )}
 
                                         {/* Icon */}
-                                        <div
-                                            className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}
-                                        >
+                                        <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}>
                                             <Icon className={`h-5 w-5 ${plan.iconColor}`} />
                                         </div>
 
@@ -672,7 +787,7 @@ export default function PlansPage() {
                                             </div>
 
                                             {isNotMonthly && !isFree && (
-                                                <div className={`mt-0.5 text-base font-bold text-text-primary`}>
+                                                <div className="mt-0.5 text-base font-bold text-text-primary">
                                                     ${Math.round(totalToBill).toLocaleString('es-CO')}{' '}
                                                     <span className="text-xs font-semibold text-text-secondary">
                                                         /{billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
@@ -692,7 +807,6 @@ export default function PlansPage() {
                                             <button
                                                 onClick={() => !isActive && !isFree && handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
                                                 disabled={isActive || isFree || isLoadingThis || loading}
-
                                                 className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
                                                     ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
                                                     : isFree
@@ -741,6 +855,82 @@ export default function PlansPage() {
                             })}
                         </div>
 
+                        {/* ── Enterprise Plans Section ──────────────────────── */}
+                        <div className="mt-16">
+                            {/* Section divider */}
+                            <div className="mb-8 flex items-center gap-4">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-medium/50 to-border-medium/50" />
+                                <div className="flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2">
+                                    <Building2 className="h-5 w-5 text-violet-500" />
+                                    <span className="text-sm font-semibold text-text-primary">Planes Corporativos</span>
+                                </div>
+                                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-border-medium/50 to-border-medium/50" />
+                            </div>
+
+                            <p className="mb-8 text-center text-sm text-text-secondary">
+                                Soluciones personalizadas para empresas, intermediadores ARL y asesores SST independientes.{' '}
+                                <span className="font-semibold text-text-primary">Incluye todas las ventajas del Plan Plus.</span>
+                            </p>
+
+                            {/* Enterprise plans grid */}
+                            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                {ENTERPRISE_PLANS.map((plan) => {
+                                    const Icon = ENTERPRISE_ICON_MAP[plan.key];
+                                    return (
+                                        <div
+                                            key={plan.key}
+                                            className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} border-border-medium/40 hover:border-${plan.borderColor.replace('border-', '')} hover:shadow-lg bg-surface-primary/60 backdrop-blur-sm`}
+                                        >
+                                            {/* Icon */}
+                                            <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}>
+                                                <Icon className={`h-5 w-5 ${plan.iconColor}`} />
+                                            </div>
+
+                                            {/* Name */}
+                                            <h2 className="text-xl font-bold text-text-primary leading-tight">{plan.name}</h2>
+
+                                            {/* Free note for first enterprise plan */}
+                                            {plan.isFreeEnterprise && (
+                                                <p className="mt-1 text-xs font-semibold text-amber-500 dark:text-amber-400">
+                                                    {plan.freeNote}
+                                                </p>
+                                            )}
+
+                                            <p className="mb-5 mt-1.5 text-xs text-text-secondary">{plan.tagline}</p>
+
+                                            {/* Price */}
+                                            <div className="mb-5">
+                                                <span className={`text-2xl font-black tracking-tight ${plan.accentColor}`}>
+                                                    {plan.isFreeEnterprise ? 'Gratis' : 'A consultar'}
+                                                </span>
+                                            </div>
+
+                                            {/* CTA */}
+                                            <div className="mt-auto pt-2">
+                                                <button
+                                                    onClick={() => navigate('/contactanos')}
+                                                    className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all text-white bg-gradient-to-r ${plan.buttonGradient} hover:opacity-90 hover:shadow-md`}
+                                                >
+                                                    <Users className="h-4 w-4" />
+                                                    Contáctanos
+                                                </button>
+                                            </div>
+
+                                            {/* Features */}
+                                            <ul className="mt-1 flex-1 space-y-2">
+                                                {plan.features.map((f) => (
+                                                    <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
+                                                        <Check className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${plan.accentColor}`} />
+                                                        {f}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         {/* Footer note */}
                         <div className="mt-12 rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 p-6 text-center">
                             <p className="text-sm text-text-secondary">
@@ -756,6 +946,10 @@ export default function PlansPage() {
                                 <span>·</span>
                                 <a href="/terms" className="underline hover:text-green-500">
                                     Términos de Servicio
+                                </a>
+                                <span>·</span>
+                                <a href="/contactanos" className="underline hover:text-violet-500">
+                                    Contáctanos
                                 </a>
                             </div>
                             <p className="mt-3 text-xs text-text-tertiary">

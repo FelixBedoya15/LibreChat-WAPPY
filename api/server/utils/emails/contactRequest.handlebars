@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Nueva solicitud de Plan Empresarial</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f7f6; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center; color: white; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .content { padding: 40px; }
+        .field { margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
+        .field:last-child { border-bottom: none; }
+        .label { font-size: 12px; font-weight: bold; color: #9ca3af; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .value { font-size: 16px; color: #111827; font-weight: 600; }
+        .message-box { background: #f9fafb; border-radius: 8px; padding: 20px; border-left: 4px solid #10b981; margin-top: 20px; }
+        .footer { padding: 30px; text-align: center; color: #6b7280; font-size: 12px; border-top: 1px solid #f0f0f0; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .badge-plan { background: #eef2ff; color: #4f46e5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Nueva Solicitud</h1>
+            <p>WAPPY IA - Contacto Empresarial</p>
+        </div>
+        <div class="content">
+            <p style="margin-top: 0; font-size: 18px; color: #111827; font-weight: 700;">Se ha recibido una nueva solicitud de información corporativa:</p>
+            
+            <div class="field">
+                <span class="label">Nombre</span>
+                <span class="value">{{name}}</span>
+            </div>
+            
+            <div class="field">
+                <span class="label">Correo Electrónico</span>
+                <span class="value">{{email}}</span>
+            </div>
+            
+            <div class="field">
+                <span class="label">Teléfono / WhatsApp</span>
+                <span class="value">{{phone}}</span>
+            </div>
+            
+            <div class="field">
+                <span class="label">Empresa</span>
+                <span class="value">{{company}}</span>
+            </div>
+            
+            <div class="field">
+                <span class="label">Plan de Interés</span>
+                <span class="value badge badge-plan">{{plan}}</span>
+            </div>
+            
+            <div class="message-box">
+                <span class="label" style="color: #4b5563;">Mensaje Adicional:</span>
+                <p style="margin: 10px 0 0; color: #374151; white-space: pre-wrap;">{{message}}</p>
+            </div>
+
+            <p style="font-size: 13px; color: #6b7280; margin-top: 30px;">
+                * Esta solicitud fue generada desde la página de contacto de WAPPY IA el {{date}}.
+            </p>
+        </div>
+        <div class="footer">
+            <p>WAPPY LTDA · Todos los derechos reservados · 2026</p>
+        </div>
+    </div>
+</body>
+</html>
