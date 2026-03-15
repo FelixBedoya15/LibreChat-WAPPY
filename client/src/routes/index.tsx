@@ -33,7 +33,6 @@ import BlogPostEditor from '~/components/Blog/BlogPostEditor';
 import BlogPostViewer from '~/components/Blog/BlogPostViewer';
 import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
 import PlansPage from '~/components/Plans/PlansPage';
-import ContactPage from '~/components/Contact/ContactPage';
 import Search from './Search';
 import Root from './Root';
 
@@ -105,11 +104,6 @@ export const router = createBrowserRouter(
     {
       path: 'planes',
       element: <PlansPage />,
-      errorElement: <RouteErrorBoundary />,
-    },
-    {
-      path: 'contactanos',
-      element: <ContactPage />,
       errorElement: <RouteErrorBoundary />,
     },
     {

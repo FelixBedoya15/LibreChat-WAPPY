@@ -37,7 +37,6 @@ const wompi = require('./wompi');
 const tenshi = require('./tenshi');
 const tickets = require('./tickets');
 const notifications = require('./notifications');
-const contact = require('./contact');
 
 module.exports = {
   auth,
@@ -79,5 +78,4 @@ module.exports = {
   tenshi,
   tickets,
   notifications,
-  contact,
 };

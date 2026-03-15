@@ -85,76 +85,6 @@ const PLANS = [
     },
 ];
 
-/* ─── Corporate Plan definitions ─────────────────────────────────────── */
-const CORPORATE_PLANS = [
-    {
-        key: 'intermediacion',
-        name: 'Intermediación de Riesgos Laborales',
-        price: 'Gratis*',
-        tagline: 'Plan Intermediación de Riesgos Laborales',
-        accentColor: 'text-indigo-500',
-        iconColor: 'text-indigo-500',
-        gradientBg: 'from-indigo-500/5 to-indigo-500/10',
-        borderColor: 'border-indigo-500/20',
-        iconBg: 'bg-indigo-500/10',
-        buttonGradient: 'from-indigo-500 to-indigo-600',
-        contactText: 'Gratis *Revisar Términos y Condiciones',
-        features: [
-            'Todo lo del plan Plus',
-            'Dominio empresarial',
-            'Sin límite de usuario',
-            'Plataforma propia de la empresa',
-            'Sus propios logos',
-            'Sus propios agentes',
-            '200 GB de almacenamiento',
-        ],
-    },
-    {
-        key: 'empresas',
-        name: 'Empresas',
-        price: 'Personalizado',
-        tagline: 'Solución completa corporativa',
-        accentColor: 'text-purple-500',
-        iconColor: 'text-purple-500',
-        gradientBg: 'from-purple-500/5 to-purple-500/10',
-        borderColor: 'border-purple-500/20',
-        iconBg: 'bg-purple-500/10',
-        buttonGradient: 'from-purple-500 to-purple-600',
-        contactText: 'Solicitar cotización',
-        features: [
-            'Todo lo del plan Plus',
-            'Dominio empresarial',
-            'Sin límite de usuario',
-            'Plataforma propia de la empresa',
-            'Sus propios logos',
-            'Sus propios agentes',
-            '200 GB de almacenamiento',
-        ],
-    },
-    {
-        key: 'asesores',
-        name: 'Asesores Independientes SST',
-        price: 'Personalizado',
-        tagline: 'Para Asesores Independientes SST',
-        accentColor: 'text-teal-500',
-        iconColor: 'text-teal-500',
-        gradientBg: 'from-teal-500/5 to-teal-500/10',
-        borderColor: 'border-teal-500/20',
-        iconBg: 'bg-teal-500/10',
-        buttonGradient: 'from-teal-500 to-teal-600',
-        contactText: 'Solicitar cotización',
-        features: [
-            'Todo lo del plan Plus',
-            'Dominio empresarial',
-            'Sin límite de usuario',
-            'Plataforma propia de la empresa',
-            'Sus propios logos',
-            'Sus propios agentes',
-            '200 GB de almacenamiento',
-        ],
-    },
-];
-
 /* ─── Animated SVGs ─────────────────────────────────────────────────── */
 const FreeSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
@@ -211,37 +141,6 @@ const ProSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     </svg>
 );
 
-const ShieldSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" className={className} fill="none">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="2s" fill="freeze" />
-        </path>
-        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <animate attributeName="stroke-dashoffset" values="10;0" dur="1.5s" fill="freeze" />
-            <animate attributeName="opacity" values="0;1" dur="1.5s" fill="freeze" />
-        </path>
-    </svg>
-);
-
-const BuildingSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" className={className} fill="none">
-        <path d="M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 21v-4a2 2 0 012-2h2a2 2 0 012 2v4M9 7h6M9 11h6M9 15h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-             <animate attributeName="opacity" values="0.7;1;0.7" dur="2.5s" repeatCount="indefinite" />
-        </path>
-    </svg>
-);
-
-const BriefcaseSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" className={className} fill="none">
-        <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5">
-             <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="2s" fill="freeze" />
-        </rect>
-        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2M12 12v.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-             <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
-        </path>
-    </svg>
-);
-
 const PricingSVG = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
         <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.8">
@@ -262,9 +161,6 @@ const PLAN_ICON_MAP: Record<string, React.ElementType> = {
     go: GoSVG,
     plus: PlusSVG,
     pro: ProSVG,
-    intermediacion: ShieldSVG,
-    empresas: BuildingSVG,
-    asesores: BriefcaseSVG,
 };
 
 /* ─── Main Page ─────────────────────────────────────────────────────── */
@@ -301,12 +197,7 @@ export default function PlansPage() {
             try {
                 // Fetch dynamic plans configuration
                 const { data: plansData } = await axios.get('/api/wompi/configured-plans');
-                const normalizedPlans = Array.isArray(plansData)
-                    ? plansData
-                    : plansData && typeof plansData === 'object' && !plansData.error
-                        ? Object.values(plansData)
-                        : [];
-                setFetchedPlans(normalizedPlans);
+                setFetchedPlans(plansData);
             } catch (err) {
                 console.error('Error fetching dynamic plans config', err);
             } finally {
@@ -602,7 +493,7 @@ export default function PlansPage() {
                                     { id: 'annual', label: 'Anual' }
                                 ].map((interval) => {
                                     let maxDiscount = 0;
-                                    (Array.isArray(fetchedPlans) ? fetchedPlans : []).forEach((config: any) => {
+                                    fetchedPlans.forEach((config: any) => {
                                         if (config.promotions?.[interval.id]?.active) {
                                             maxDiscount = Math.max(maxDiscount, config.promotions[interval.id].discountPercentage || 0);
                                         }
@@ -695,7 +586,7 @@ export default function PlansPage() {
 
                                 const isLoadingThis = checkoutLoading === plan.key;
                                 const isFree = plan.key === 'free';
-                                const fetchedConfig = (Array.isArray(fetchedPlans) ? fetchedPlans : []).find(p => p.planId === plan.key);
+                                const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
 
                                 // Dynamic price
                                 let rawPrice = 0;
@@ -848,67 +739,6 @@ export default function PlansPage() {
                                     </div>
                                 );
                             })}
-                        </div>
-
-                        {/* ─── Corporate / Contact Plans Section ─────────────── */}
-                        <div className="mt-16">
-                            <div className="mb-6 flex items-center gap-4">
-                                <div className="h-px flex-1 bg-border-medium/40" />
-                                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/5 px-4 py-1.5 text-sm font-semibold text-indigo-500">
-                                    <ShieldCheck className="h-4 w-4" />
-                                    Planes Corporativos
-                                </div>
-                                <div className="h-px flex-1 bg-border-medium/40" />
-                            </div>
-                            <p className="mb-6 text-center text-sm text-text-secondary">
-                                Soluciones a medida para organizaciones. Incluyen todas las ventajas del plan Plus y mucho más.
-                            </p>
-                            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                {CORPORATE_PLANS.map((cp) => (
-                                    <div
-                                        key={cp.key}
-                                        className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${cp.gradientBg} border-border-medium/40 hover:${cp.borderColor} hover:shadow-md bg-surface-primary/60 backdrop-blur-sm`}
-                                    >
-                                        {/* Icon */}
-                                        <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${cp.iconBg}`}>
-                                            <ShieldSVG className={`h-5 w-5 ${cp.iconColor}`} />
-                                        </div>
-
-                                        {/* Name & tagline */}
-                                        <h2 className="text-xl font-bold text-text-primary">{cp.name}</h2>
-                                        <p className="mb-4 text-xs text-text-secondary">{cp.tagline}</p>
-
-                                        {/* Price */}
-                                        <div className="mb-5 flex flex-col items-start gap-1">
-                                            <div className="flex items-end gap-1">
-                                                <span className={`text-3xl font-black tracking-tight ${cp.accentColor}`}>
-                                                    {cp.price}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* CTA */}
-                                        <div className="mt-auto pt-2">
-                                            <button
-                                                onClick={() => navigate(`/contactanos?plan=${cp.key}`)}
-                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all bg-gradient-to-r ${cp.buttonGradient} text-white hover:opacity-90 hover:shadow-md`}
-                                            >
-                                                {cp.contactText}
-                                            </button>
-                                        </div>
-
-                                        {/* Features */}
-                                        <ul className="mt-5 flex-1 space-y-2">
-                                            {cp.features.map((f) => (
-                                                <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
-                                                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
-                                                    {f}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
 
                         {/* Footer note */}
