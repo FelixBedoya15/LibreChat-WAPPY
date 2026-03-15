@@ -22,6 +22,13 @@ function Footer({ startupConfig }: { startupConfig: TStartupConfig | null | unde
       >
         {localize('com_ui_terms_of_service')}
       </a>
+      <div className="border-r-[1px] border-gray-300 dark:border-gray-600" />
+      <a
+        className="text-sm text-green-500"
+        href="/planes"
+      >
+        Planes
+      </a>
     </div>
   );
 }
