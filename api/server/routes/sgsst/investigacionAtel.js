@@ -461,9 +461,9 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             ['foto1', 'foto2', 'foto3', 'foto4'].forEach((k, i) => {
                 if (images[k]) {
                     imagesHtml += `
-                        <div style="flex: 1; min-width: 220px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); background-color: #ffffff;">
-                            <img src="${images[k]}" style="width: 100%; height: auto; max-height: 200px; border-radius: 6px; object-fit: contain; margin-bottom: 10px;" alt="Evidencia ${i + 1}" />
-                            <strong style="color: #0c4a6e; font-size: 13px; display: block; margin-bottom: 4px;">${labels[i]}</strong>
+                        <div style="width: calc(50% - 10px); border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); background-color: #ffffff; box-sizing: border-box; margin-bottom: 10px;">
+                            <img src="${images[k]}" style="width: 100%; height: auto; max-height: 250px; border-radius: 6px; object-fit: contain; margin-bottom: 10px;" alt="Evidencia ${i + 1}" />
+                            <strong style="color: #0c4a6e; font-size: 14px; display: block; margin-bottom: 4px;">${labels[i]}</strong>
                             <span style="font-size: 11px; color: #64748b; font-style: italic;">Evidencia técnica adjuntada al informe</span>
                         </div>
                     `;
