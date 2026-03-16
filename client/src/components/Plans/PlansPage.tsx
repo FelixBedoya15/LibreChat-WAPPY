@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users } from 'lucide-react';
+import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
 import { ThemeSelector } from '@librechat/client';
 import { useToastContext } from '@librechat/client';
+import { useAuthContext } from '~/hooks';
 
 /* ─── Plan definitions ──────────────────────────────────────────────── */
 const PLANS = [
@@ -288,6 +289,7 @@ const ENTERPRISE_ICON_MAP: Record<string, React.ElementType> = {
 /* ─── Main Page ─────────────────────────────────────────────────────── */
 export default function PlansPage() {
     const navigate = useNavigate();
+    const { isAuthenticated, login, user: authUser } = useAuthContext();
     const { showToast } = useToastContext();
     const [activePlan, setActivePlan] = useState<string>('free');
     const [loading, setLoading] = useState(true);
@@ -302,16 +304,27 @@ export default function PlansPage() {
     const [promoLoading, setPromoLoading] = useState(false);
     const [promoError, setPromoError] = useState('');
 
+    // Registration for visitors
+    const [showRegister, setShowRegister] = useState(false);
+    const [regLoading, setRegLoading] = useState(false);
+    const [regData, setRegData] = useState({ name: '', username: '', email: '', password: '', confirmPassword: '' });
+    const [showPassword, setShowPassword] = useState(false);
+    const [pendingSubscribe, setPendingSubscribe] = useState<any>(null);
+
     const params = new URLSearchParams(window.location.search);
     const successPlan = params.get('success') ? params.get('plan') : null;
     const wasCancelled = params.get('cancelled') === '1';
 
     useEffect(() => {
         const fetchInitialData = async () => {
-            try {
-                const { data } = await axios.get('/api/wompi/plan');
-                setActivePlan(data.plan ?? 'free');
-            } catch {
+            if (isAuthenticated) {
+                try {
+                    const { data } = await axios.get('/api/wompi/plan');
+                    setActivePlan(data.plan ?? 'free');
+                } catch {
+                    setActivePlan('free');
+                }
+            } else {
                 setActivePlan('free');
             }
 
@@ -326,7 +339,16 @@ export default function PlansPage() {
         };
 
         fetchInitialData();
-    }, []);
+    }, [isAuthenticated]);
+
+    // Effect to handle redirection after login during checkout
+    useEffect(() => {
+        if (isAuthenticated && pendingSubscribe) {
+            setCheckoutPlan(pendingSubscribe);
+            setPendingSubscribe(null);
+            setShowRegister(false);
+        }
+    }, [isAuthenticated, pendingSubscribe]);
 
     useEffect(() => {
         if (successPlan) {
@@ -344,13 +366,48 @@ export default function PlansPage() {
     const handleSubscribe = useCallback(
         (planKey: string, planObj: any, displayPrice: string, discountedPrice: number, rawPrice: number, promotion: any) => {
             if (planKey === 'free') return;
+            const subObj = { planKey, planObj, displayPrice, discountedPrice, rawPrice, promotion };
+            if (!isAuthenticated) {
+                setPendingSubscribe(subObj);
+                setShowRegister(true);
+                return;
+            }
             setPromoCodeInput('');
             setPromoValidated(null);
             setPromoError('');
-            setCheckoutPlan({ planKey, planObj, displayPrice, discountedPrice, rawPrice, promotion });
+            setCheckoutPlan(subObj);
         },
-        [],
+        [isAuthenticated],
     );
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (regData.password !== regData.confirmPassword) {
+            showToast({ message: 'Las contraseñas no coinciden', status: 'error' });
+            return;
+        }
+        setRegLoading(true);
+        try {
+            await axios.post('/api/auth/register', {
+                name: regData.name,
+                username: regData.username,
+                email: regData.email,
+                password: regData.password,
+            });
+            
+            // Login
+            login({
+                email: regData.email,
+                password: regData.password,
+            });
+            
+            showToast({ message: 'Cuenta creada. Iniciando sesión...', status: 'success' });
+        } catch (err: any) {
+            showToast({ message: err?.response?.data?.message || 'Error al registrarse', status: 'error' });
+        } finally {
+            setRegLoading(false);
+        }
+    };
 
     const handleValidatePromo = useCallback(async () => {
         if (!promoCodeInput.trim()) return;
@@ -423,7 +480,7 @@ export default function PlansPage() {
             <div className="sticky top-0 z-10 border-b border-border-medium/50 bg-surface-secondary/80 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
                     <button
-                        onClick={() => navigate('/c/new')}
+                        onClick={() => navigate(isAuthenticated ? '/c/new' : '/register')}
                         className="flex items-center gap-2 rounded-xl bg-surface-primary px-4 py-2 text-sm font-medium text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
                     >
                         <ArrowLeft className="h-4 w-4" />
@@ -584,6 +641,133 @@ export default function PlansPage() {
                                         Pago seguro con Wompi y tu banco
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : showRegister ? (
+                    /* ── REGISTRATION VIEW FOR VISITORS ── */
+                    <div className="mx-auto max-w-xl">
+                        <button
+                            onClick={() => setShowRegister(false)}
+                            className="mb-8 flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Volver a los planes
+                        </button>
+                        
+                        <div className="relative overflow-hidden rounded-[2.5rem] border border-border-medium/40 bg-white/80 dark:bg-gray-900/80 p-10 shadow-2xl backdrop-blur-xl">
+                            <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-green-500/10 blur-3xl" />
+                            <div className="absolute bottom-0 left-0 -ml-20 -mb-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+                            
+                            <div className="relative">
+                                <div className="mb-6 flex justify-center">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500/10 text-green-500">
+                                        <User className="h-8 w-8" />
+                                    </div>
+                                </div>
+                                
+                                <h2 className="text-center text-3xl font-black text-text-primary mb-2">Crea tu cuenta</h2>
+                                <p className="text-center text-text-secondary mb-8 text-sm">
+                                    Necesitamos algunos datos básicos para activar tu plan <strong>{pendingSubscribe?.planObj.name}</strong>.
+                                </p>
+
+                                <form onSubmit={handleRegister} className="space-y-4">
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="relative">
+                                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Nombre Completo</label>
+                                            <div className="relative">
+                                                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    value={regData.name}
+                                                    onChange={e => setRegData({...regData, name: e.target.value})}
+                                                    className="w-full rounded-xl border border-border-medium/30 bg-surface-secondary/50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 transition-all text-text-primary"
+                                                    placeholder="Tu nombre"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="relative">
+                                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Nombre de Usuario</label>
+                                            <div className="relative">
+                                                <div className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary font-bold text-xs">@</div>
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    value={regData.username}
+                                                    onChange={e => setRegData({...regData, username: e.target.value})}
+                                                    className="w-full rounded-xl border border-border-medium/30 bg-surface-secondary/50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 transition-all text-text-primary"
+                                                    placeholder="usuario"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="relative">
+                                        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Correo Electrónico</label>
+                                        <div className="relative">
+                                            <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                                            <input
+                                                required
+                                                type="email"
+                                                value={regData.email}
+                                                onChange={e => setRegData({...regData, email: e.target.value})}
+                                                className="w-full rounded-xl border border-border-medium/30 bg-surface-secondary/50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 transition-all text-text-primary"
+                                                placeholder="email@ejemplo.com"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="relative">
+                                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Contraseña</label>
+                                            <div className="relative">
+                                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                                                <input
+                                                    required
+                                                    type={showPassword ? "text" : "password"}
+                                                    value={regData.password}
+                                                    onChange={e => setRegData({...regData, password: e.target.value})}
+                                                    className="w-full rounded-xl border border-border-medium/30 bg-surface-secondary/50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 transition-all text-text-primary"
+                                                    placeholder="••••••••"
+                                                />
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-primary"
+                                                >
+                                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="relative">
+                                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-text-tertiary">Confirmar</label>
+                                            <div className="relative">
+                                                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary" />
+                                                <input
+                                                    required
+                                                    type={showPassword ? "text" : "password"}
+                                                    value={regData.confirmPassword}
+                                                    onChange={e => setRegData({...regData, confirmPassword: e.target.value})}
+                                                    className="w-full rounded-xl border border-border-medium/30 bg-surface-secondary/50 py-3 pl-11 pr-4 text-sm font-medium outline-none focus:border-green-500/50 focus:ring-4 focus:ring-green-500/5 transition-all text-text-primary"
+                                                    placeholder="••••••••"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={regLoading}
+                                        className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-green-600 py-4 text-sm font-bold text-white shadow-xl shadow-green-500/20 transition-all hover:bg-green-700 disabled:opacity-70"
+                                    >
+                                        {regLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Crear cuenta y continuar"}
+                                    </button>
+                                </form>
+
+                                <p className="mt-6 text-center text-xs text-text-tertiary">
+                                    ¿Ya tienes una cuenta? <button onClick={() => navigate('/login')} className="font-bold text-green-600 hover:underline">Inicia sesión aquí</button>
+                                </p>
                             </div>
                         </div>
                     </div>

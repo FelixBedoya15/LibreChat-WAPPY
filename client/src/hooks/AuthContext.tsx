@@ -156,7 +156,10 @@ const AuthContextProvider = ({
           if (authConfig?.test === true) {
             return;
           }
-          navigate('/login');
+          const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register'];
+          if (!publicPaths.includes(window.location.pathname)) {
+            navigate('/login');
+          }
         }
       },
       onError: (error) => {
@@ -164,7 +167,10 @@ const AuthContextProvider = ({
         if (authConfig?.test === true) {
           return;
         }
-        navigate('/login');
+        const publicPaths = ['/planes', '/contactanos', '/privacy', '/terms', '/about', '/register'];
+        if (!publicPaths.includes(window.location.pathname)) {
+          navigate('/login');
+        }
       },
     });
   }, []);

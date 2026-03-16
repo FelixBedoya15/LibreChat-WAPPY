@@ -104,12 +104,22 @@ export const router = createBrowserRouter(
     },
     {
       path: 'planes',
-      element: <PlansPage />,
+      element: (
+        <AuthContextProvider>
+          <PlansPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
       path: 'contactanos',
-      element: <ContactPage />,
+      element: (
+        <AuthContextProvider>
+          <ContactPage />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
       errorElement: <RouteErrorBoundary />,
     },
     {
