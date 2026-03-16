@@ -480,7 +480,15 @@ export default function PlansPage() {
             <div className="sticky top-0 z-10 border-b border-border-medium/50 bg-surface-secondary/80 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
                     <button
-                        onClick={() => navigate(isAuthenticated ? '/c/new' : '/register')}
+                        onClick={() => {
+                            if (checkoutPlan) {
+                                setCheckoutPlan(null);
+                            } else if (showRegister) {
+                                setShowRegister(false);
+                            } else {
+                                navigate(isAuthenticated ? '/c/new' : '/register');
+                            }
+                        }}
                         className="flex items-center gap-2 rounded-xl bg-surface-primary px-4 py-2 text-sm font-medium text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary"
                     >
                         <ArrowLeft className="h-4 w-4" />
@@ -500,13 +508,7 @@ export default function PlansPage() {
                 {checkoutPlan ? (
                     /* ── CHECKOUT VIEW ── */
                     <div className="mx-auto max-w-3xl">
-                        <button
-                            onClick={() => setCheckoutPlan(null)}
-                            className="mb-8 flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            Volver a los planes
-                        </button>
+
                         <h2 className="text-3xl font-black text-text-primary mb-2">Tu carrito</h2>
                         <p className="text-text-secondary mb-8 text-sm">Revisa tu selección y aplica un código de descuento antes de continuar al pago.</p>
 
@@ -647,13 +649,7 @@ export default function PlansPage() {
                 ) : showRegister ? (
                     /* ── REGISTRATION VIEW FOR VISITORS ── */
                     <div className="mx-auto max-w-xl">
-                        <button
-                            onClick={() => setShowRegister(false)}
-                            className="mb-8 flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            Volver a los planes
-                        </button>
+
                         
                         <div className="relative overflow-hidden rounded-[2.5rem] border border-border-medium/40 bg-white/80 dark:bg-gray-900/80 p-10 shadow-2xl backdrop-blur-xl">
                             <div className="absolute top-0 right-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-green-500/10 blur-3xl" />
