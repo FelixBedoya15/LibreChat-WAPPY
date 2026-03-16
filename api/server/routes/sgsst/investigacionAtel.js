@@ -256,121 +256,134 @@ ${headerHtml}
    - Usa inline styles. Cada tarjeta tiene: Pregunta → Respuesta.
    - PRECAUCIÓN: Aplica siempre color: #111 en las tarjetas con fondos claros.
 
-4. **METODOLOGÍA 2 — DIAGRAMA DE ISHIKAWA (ESPINA DE PESCADO — ESTILO CLÁSICO OBLIGATORIO):**
-   Construye el diagrama con el estilo clásico de espina de pescado: columna vertebral horizontal y espinas diagonales a ambos lados. USA EXCLUSIVAMENTE el siguiente patrón CSS para garantizar consistencia y que NUNCA se descuadre:
+4. **METODOLOGÍA 2 — DIAGRAMA DE ISHIKAWA (ESPINA DE PESCADO — SVG OBLIGATORIO):**
+   DEBES CONSTRUIR ESTE DIAGRAMA USANDO SVG INLINE. Es la única forma de garantizar líneas diagonales precisas y consistentes.
 
-   **ESTRUCTURA OBLIGATORIA:**
-   - Contenedor principal: \`<div style="position:relative;width:100%;padding:20px 0;font-family:inherit;">\` con título centrado.
-   - Columna vertebral horizontal: \`<div style="position:relative;display:flex;align-items:center;margin:0 20px;">\` con una línea \`<div style="flex:1;height:4px;background:#1e40af;"></div>\` a la izquierda y la cabeza del pescado a la derecha.
-   - **CABEZA DEL PESCADO** (el accidente, lado DERECHO): \`<div class="diagram-node" style="background:#dc2626;color:#fff;padding:16px 20px;border-radius:8px;font-weight:800;font-size:13px;text-align:center;max-width:180px;min-width:140px;border:3px solid #b91c1c;line-height:1.4;">NOMBRE DEL ACCIDENTE</div>\`
-   - **ESPINAS SUPERIORES** (3 categorías arriba de la línea, conectadas con líneas diagonales): Utiliza \`<div style="position:absolute;width:2px;height:80px;background:#1e40af;transform-origin:bottom center;transform:rotate(-45deg);bottom:50%;left:XX%;"></div>\` para cada espina diagonal superior.
-   - **ESPINAS INFERIORES** (3 categorías abajo): \`transform:rotate(45deg);top:50%;\`
-   - **CATEGORÍAS** (en la punta de cada espina): \`<div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px 14px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;min-width:130px;">NOMBRE CATEGORÍA</div>\`
-   - **CAUSAS SECUNDARIAS** (a lo largo de cada espina, texto con viñetas): \`<div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:6px 10px;border-radius:0 4px 4px 0;margin:3px 0;">- causa secundaria</div>\`
+   COPIA EXACTAMENTE ESTE BLOQUE HTML y reemplaza SOLO los textos entre [CORCHETES] con el contenido real del accidente:
 
-   ESTRUCTURA COMPLETA DEL HTML — COPIA EXACTAMENTE ESTA ESTRUCTURA BASE Y RELLÉNALA:
-
-   <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;padding:24px;margin:24px 0;">
-     <h3 style="text-align:center;color:#1e40af;margin-bottom:20px;font-size:16px;text-transform:uppercase;">DIAGRAMA DE ISHIKAWA — ANÁLISIS CAUSA-EFECTO</h3>
-     <table style="width:100%;border-collapse:collapse;">
-       <tr>
-         <!-- FILA SUPERIOR: 3 categorías arriba -->
-         <td style="width:30%;vertical-align:bottom;padding:10px;border-right:none;">
-           <div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;margin-bottom:8px;">MANO DE OBRA</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 1]</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 2]</div>
-           <div style="text-align:right;margin-top:6px;"><div style="display:inline-block;width:80%;height:2px;background:#3b82f6;transform:rotate(-6deg);transform-origin:right center;"></div></div>
-         </td>
-         <td style="width:30%;vertical-align:bottom;padding:10px;">
-           <div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;margin-bottom:8px;">MÉTODO</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 1]</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 2]</div>
-           <div style="text-align:right;margin-top:6px;"><div style="display:inline-block;width:80%;height:2px;background:#3b82f6;transform:rotate(-3deg);transform-origin:right center;"></div></div>
-         </td>
-         <td style="width:30%;vertical-align:bottom;padding:10px;">
-           <div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;margin-bottom:8px;">MATERIAL</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 1]</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 2]</div>
-           <div style="text-align:right;margin-top:6px;"><div style="display:inline-block;width:80%;height:2px;background:#3b82f6;transform:rotate(-1deg);transform-origin:right center;"></div></div>
-         </td>
-         <!-- COLUMNA VERTEBRAL + CABEZA (rowspan=2) -->
-         <td rowspan="2" style="width:10%;vertical-align:middle;padding:0;">
-           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;">
-             <div style="width:4px;background:#1e40af;flex:1;"></div>
-           </div>
-         </td>
-         <td rowspan="2" style="width:0;vertical-align:middle;padding:10px 0;">
-           <div class="diagram-node" style="background:#dc2626;color:#fff;padding:20px 16px;border-radius:8px;font-weight:800;font-size:13px;text-align:center;min-width:140px;border:3px solid #b91c1c;line-height:1.5;">[NOMBRE EVENTO/ACCIDENTE]</div>
-         </td>
-       </tr>
-       <tr>
-         <!-- FILA INFERIOR: 3 categorías abajo -->
-         <td style="width:30%;vertical-align:top;padding:10px;">
-           <div style="text-align:right;margin-bottom:6px;"><div style="display:inline-block;width:80%;height:2px;background:#3b82f6;transform:rotate(6deg);transform-origin:right center;"></div></div>
-           <div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;margin-top:8px;margin-bottom:6px;">MÁQUINA / EQUIPO</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 1]</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 2]</div>
-         </td>
-         <td style="width:30%;vertical-align:top;padding:10px;">
-           <div style="text-align:right;margin-bottom:6px;"><div style="display:inline-block;width:80%;height:2px;background:#3b82f6;transform:rotate(3deg);transform-origin:right center;"></div></div>
-           <div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;margin-top:8px;margin-bottom:6px;">ENTORNO / AMBIENTE</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 1]</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 2]</div>
-         </td>
-         <td style="width:30%;vertical-align:top;padding:10px;">
-           <div style="text-align:right;margin-bottom:6px;"><div style="display:inline-block;width:80%;height:2px;background:#3b82f6;transform:rotate(1deg);transform-origin:right center;"></div></div>
-           <div class="diagram-node" style="background:#dbeafe;border:2px solid #3b82f6;border-radius:6px;padding:10px;font-weight:700;font-size:12px;color:#1e3a8a;text-align:center;margin-top:8px;margin-bottom:6px;">GESTIÓN / ADMINISTRACIÓN</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 1]</div>
-           <div class="diagram-node" style="font-size:11px;color:#1e293b;background:#f1f5f9;border-left:3px solid #3b82f6;padding:5px 8px;border-radius:0 4px 4px 0;margin:2px 0;">• [Causa 2]</div>
-         </td>
-       </tr>
-     </table>
+   <div class="diagram-node" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:2px solid #0369a1;border-radius:14px;padding:20px;margin:24px 0;overflow-x:auto;">
+   <h3 style="text-align:center;color:#0c4a6e;font-size:17px;font-weight:800;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px;">DIAGRAMA DE ISHIKAWA — ANÁLISIS CAUSA-EFECTO</h3>
+   <svg viewBox="0 0 960 480" width="100%" style="min-width:700px;font-family:Arial,sans-serif;">
+     <!-- ESPINA DORSAL CENTRAL -->
+     <line x1="60" y1="240" x2="800" y2="240" stroke="#1e3a8a" stroke-width="4"/>
+     <polygon points="800,232 820,240 800,248" fill="#1e3a8a"/>
+     <!-- Cola del pez -->
+     <polyline points="60,215 30,240 60,265" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+     <!-- CABEZA DEL PEZ (PROBLEMA) - Forma de punta apuntada -->
+     <polygon class="diagram-node" points="820,195 912,212 940,240 912,268 820,285" fill="#dc2626" stroke="#991b1b" stroke-width="3"/>
+     <text x="877" y="230" text-anchor="middle" font-size="10" font-weight="800" fill="white">[NOMBRE</text>
+     <text x="877" y="244" text-anchor="middle" font-size="10" font-weight="800" fill="white">ACCIDENTE]</text>
+     <text x="877" y="258" text-anchor="middle" font-size="10" font-weight="800" fill="white">[CONSECUENCIA]</text>
+     <!-- HUESO 1 SUPERIOR: MANO DE OBRA (nace en x=180 de la espina) -->
+     <line x1="180" y1="240" x2="108" y2="95" stroke="#1d4ed8" stroke-width="2.5"/>
+     <circle cx="180" cy="240" r="5" fill="#1d4ed8"/>
+     <rect class="diagram-node" x="18" y="65" width="148" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+     <text x="92" y="87" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">[MANO DE OBRA]</text>
+     <!-- Sub-causas hueso 1 -->
+     <line x1="155" y1="178" x2="118" y2="158" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="62" y="154" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 1]</text>
+     <line x1="143" y1="202" x2="106" y2="182" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="50" y="178" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 2]</text>
+     <!-- HUESO 2 SUPERIOR: MÉTODO (x=380) -->
+     <line x1="380" y1="240" x2="308" y2="95" stroke="#1d4ed8" stroke-width="2.5"/>
+     <circle cx="380" cy="240" r="5" fill="#1d4ed8"/>
+     <rect class="diagram-node" x="221" y="65" width="140" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+     <text x="291" y="87" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">[MÉTODO]</text>
+     <line x1="355" y1="178" x2="318" y2="158" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="262" y="154" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 1]</text>
+     <line x1="343" y1="202" x2="306" y2="182" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="248" y="178" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 2]</text>
+     <!-- HUESO 3 SUPERIOR: MATERIAL (x=580) -->
+     <line x1="580" y1="240" x2="508" y2="95" stroke="#1d4ed8" stroke-width="2.5"/>
+     <circle cx="580" cy="240" r="5" fill="#1d4ed8"/>
+     <rect class="diagram-node" x="421" y="65" width="140" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+     <text x="491" y="87" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">[MATERIAL]</text>
+     <line x1="555" y1="178" x2="518" y2="158" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="462" y="154" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 1]</text>
+     <line x1="543" y1="202" x2="506" y2="182" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="448" y="178" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 2]</text>
+     <!-- HUESO 4 INFERIOR: MAQUINARIA (x=180) -->
+     <line x1="180" y1="240" x2="108" y2="385" stroke="#1d4ed8" stroke-width="2.5"/>
+     <rect class="diagram-node" x="18" y="385" width="148" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+     <text x="92" y="407" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">[MAQUINARIA]</text>
+     <line x1="155" y1="302" x2="118" y2="322" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="60" y="338" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 1]</text>
+     <line x1="143" y1="278" x2="106" y2="298" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="48" y="314" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 2]</text>
+     <!-- HUESO 5 INFERIOR: ENTORNO (x=380) -->
+     <line x1="380" y1="240" x2="308" y2="385" stroke="#1d4ed8" stroke-width="2.5"/>
+     <rect class="diagram-node" x="221" y="385" width="140" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+     <text x="291" y="407" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">[ENTORNO]</text>
+     <line x1="355" y1="302" x2="318" y2="322" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="260" y="338" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 1]</text>
+     <line x1="343" y1="278" x2="306" y2="298" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="248" y="314" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 2]</text>
+     <!-- HUESO 6 INFERIOR: GESTIÓN (x=580) -->
+     <line x1="580" y1="240" x2="508" y2="385" stroke="#1d4ed8" stroke-width="2.5"/>
+     <rect class="diagram-node" x="421" y="385" width="140" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+     <text x="491" y="407" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3a8a">[GESTIÓN / ADM.]</text>
+     <line x1="555" y1="302" x2="518" y2="322" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="460" y="338" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 1]</text>
+     <line x1="543" y1="278" x2="506" y2="298" stroke="#60a5fa" stroke-width="1.5"/>
+     <text x="448" y="314" font-size="10" fill="#1e293b" text-anchor="middle">[Causa 2]</text>
+   </svg>
    </div>
 
-   **REGLA CRÍTICA:** REEMPLAZA TODOS los [Causa X] y [NOMBRE EVENTO] con el contenido real del accidente investigado. MANTÉN EXACTAMENTE la estructura HTML de la tabla de 2 filas x 3+2 columnas de arriba, NO la cambies a cuadrícula cuadrada.
+   REGLAS ABSOLUTAS PARA ISHIKAWA:
+   - NUNCA uses tablas HTML para este diagrama. SIEMPRE usa el SVG de arriba.
+   - Reemplaza CADA texto entre [CORCHETES] con el contenido real del accidente investigado.
+   - Si una causa es muy larga, divide en 2 lineas SVG <text> con dy="13" en la segunda.
+   - Puedes ajustar colores de los rect fill (azul claro=#dbeafe, verde=#dcfce7, amarillo=#fef9c3) pero MANTÉN la estructura de líneas SVG sin mover coordenadas.
+   - NUNCA muevas las coordenadas x1,y1,x2,y2 de las líneas ni los puntos de los rectángulos.
 
+5. **METODOLOGÍA 3 — ÁRBOL DE CAUSAS (MUY EXTENSO, PROFUNDO Y CON CONECTORES VISIBLES):**
+   Construye un árbol descendente con mínimo 4-5 niveles de profundidad. ¡Los conectores son OBLIGATORIOS y deben verse claramente entre cada par de nodos!
 
-5. **METODOLOGÍA 3 — ÁRBOL DE CAUSAS (MUY EXTENSO, PROFUNDO Y CON CONEXIONES CORRECTAS):**
-   Construye un árbol descendente que muestre la cadena causal completa del accidente. ¡ESTA SECCIÓN DEBE SER MUY DETALLADA, con mínimo 4-5 niveles de profundidad!
+   TIPOS DE RELACIONES (Metodología INSST NTP 274-bis):
+   - SECUENCIAL: 1 padre → 1 hijo (línea vertical)
+   - CONJUNCIÓN: varios nodos → 1 resultado (convergen con barra horizontal)
+   - DISYUNCIÓN: 1 nodo → múltiples ramas descendentes
 
-   **TIPOS DE CONEXIONES OBLIGATORIAS (Metodología oficial INSST NTP 274/274-bis):**
-   - **Relación SECUENCIAL** (un hecho causa directamente otro): Conecta UN nodo padre con UN nodo hijo. Usa una línea vertical entre ambos.
-   - **Relación CONJUNCIÓN** (varios hechos simultáneos causan uno): Conecta MÚLTIPLES nodos de un mismo nivel hacia UN nodo inferior mediante líneas que convergen. Indica esto con un arco horizontal en la base que une las líneas antes de bajar.
-   - **Relación DISYUNCIÓN** (un hecho con varias expresiones alternativas): Un nodo superior genera MÚLTIPLES ramas paralelas hacia abajo.
+   NOMENCLATURA OBLIGATORIA:
+   1. CÍRCULOS = "Hechos Inusuales" (eventos que ocurrieron)
+   2. RECTÁNGULOS = "Hechos Permanentes" (condiciones siempre existentes en el sistema)
 
-   **NOMENCLATURA GRÁFICA OFICIAL OBLIGATORIA:**
-   1. **CÍRCULOS** = "Hechos Inusuales" o eventos (variaciones de la situación normal que sucedieron). CSS: \`border-radius:50%;width:130px;height:130px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;text-align:center;border:3px solid #334155;flex-shrink:0;font-size:11px;font-weight:600;color:#111;\`
-   2. **CUADRADOS/RECTÁNGULOS** = "Hechos Permanentes" o condiciones de base (cosas que siempre existen en el sistema). CSS: \`border-radius:6px;padding:14px 18px;text-align:center;border:3px solid #334155;font-size:12px;font-weight:600;color:#111;min-width:160px;\`
+   PATRÓN CSS DE CONECTORES (copia EXACTAMENTE, nunca omitas las líneas de conexión):
 
+   Nodo con UN hijo (secuencial):
+   <div style="display:flex;flex-direction:column;align-items:center;width:100%;">
+     [NODO PADRE]
+     <div style="width:3px;height:35px;background:#334155;"></div>
+     [NODO HIJO]
+   </div>
 
-   Patrón base de conectores (usa siempre este patrón CSS puro):
-
-   <!-- Contenedor de un nivel con nodo padre -->
-   <div style="display:flex;flex-direction:column;align-items:center;">
-     [NODO PADRE - círculo o cuadrado]
-     <!-- Línea vertical descendente -->
-     <div style="width:2px;height:30px;background:#475569;"></div>
-     <!-- Si hay múltiples hijos: barra horizontal conectora -->
-     <div style="display:flex;align-items:flex-start;gap:40px;position:relative;">
-       <!-- Línea horizontal que une los hijos -->
-       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:#475569;"></div>
-       <!-- Cada hijo tiene su línea vertical y luego el nodo -->
-       <div style="display:flex;flex-direction:column;align-items:center;">
-         <div style="width:2px;height:20px;background:#475569;"></div>
-         [NODO HIJO]
+   Nodo con DOS o más hijos (disyunción o conjunción):
+   <div style="display:flex;flex-direction:column;align-items:center;width:100%;">
+     [NODO PADRE]
+     <div style="width:3px;height:30px;background:#334155;"></div>
+     <div style="display:flex;justify-content:center;gap:16px;position:relative;width:90%;">
+       <div style="position:absolute;top:0;left:5%;right:5%;height:3px;background:#334155;"></div>
+       <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+         <div style="width:3px;height:28px;background:#334155;"></div>
+         [HIJO 1]
        </div>
-       <div style="display:flex;flex-direction:column;align-items:center;">
-         <div style="width:2px;height:20px;background:#475569;"></div>
-         [NODO HIJO 2]
+       <div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+         <div style="width:3px;height:28px;background:#334155;"></div>
+         [HIJO 2]
        </div>
      </div>
    </div>
 
-   - Cadena Visual del árbol: CONSECUENCIA (rectángulo rojo/naranja arriba) → HECHOS DIRECTOS (círculos) → CAUSAS INMEDIATAS (rectángulos: Actos Inseguros + Condiciones Inseguras) → CAUSAS BÁSICAS (rectángulos: Factores Personales + Factores de Trabajo) → CAUSA RAÍZ (rectángulo verde/rojo profundo al fondo, el más importante).
+   ESTILOS EXACTOS DE NODOS (usa class="diagram-node" en todos):
+   CÍRCULO: <div class="diagram-node" style="border-radius:50%;width:120px;height:120px;display:flex;align-items:center;justify-content:center;text-align:center;border:3px solid #334155;background:#fef9c3;color:#111;font-size:11px;font-weight:600;padding:8px;flex-shrink:0;">[texto]</div>
+   RECTÁNGULO normal: <div class="diagram-node" style="border-radius:8px;padding:14px 18px;text-align:center;border:3px solid #334155;background:#e0f2fe;color:#111;font-size:12px;font-weight:600;min-width:160px;max-width:280px;">[texto]</div>
+   CONSECUENCIA (primer nodo): <div class="diagram-node" style="border-radius:8px;padding:16px 24px;text-align:center;border:3px solid #991b1b;background:#fca5a5;color:#7f1d1d;font-size:13px;font-weight:800;width:80%;max-width:500px;">[CONSECUENCIA]</div>
+   CAUSA RAÍZ (último nodo): <div class="diagram-node" style="border-radius:8px;padding:16px 24px;text-align:center;border:3px solid #065f46;background:#d1fae5;color:#065f46;font-size:13px;font-weight:800;width:90%;max-width:600px;">[CAUSA RAÍZ]</div>
 
-   - Utiliza \`class="diagram-node"\` en TODAS las figuras (Círculos y Cuadros) obligatoriamente.
-   - PRECAUCIÓN: El texto interior de los cuadros/círculos siempre debe ser oscuro (\`color:#111\`) para asegurar su lectura. Nunca texto blanco sobre fondo amarillo o claro.
-   - Paleta recomendada: Naranja/Rojo para consecuencias, Beige/Amarillo para causas intermedias, Verde oscuro o Teal para causa raíz.
+   Cadena visual: CONSECUENCIA → HECHOS DIRECTOS (círculos) → CAUSAS INMEDIATAS (rects) → CAUSAS BÁSICAS (rects) → CAUSA RAÍZ (rect verde).
+   Usa class="diagram-node" en TODOS. color siempre #111 excepto Causa Raíz que usa #065f46.
+
+
 
 6. **TABLA DE CLASIFICACIÓN DE CAUSAS (Res. 1401/2007 Art. 4):**
    Tabla HTML bien formateada con:
