@@ -12,8 +12,8 @@ const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
-// ─── In-memory form data store (per user) ────────────────────────────────────
-const investigacionDataStore = new Map();
+// ─── DB Model Import ─────────────────────────────────────────────────────────
+const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
 
 // ─── HELPER: Gemini with model fallback ──────────────────────────────────────
 async function generateWithRetry(model, promptParts) {
@@ -50,20 +50,37 @@ async function generateWithRetry(model, promptParts) {
 
 // ─── GET /api/sgsst/investigacion-atel/data ───────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
-    const stored = investigacionDataStore.get(req.user.id) || {};
-    res.json({
-        formData: stored.formData || {},
-        equipoList: stored.equipoList || [],
-        testigosList: stored.testigosList || [],
-        images: stored.images || {},
-    });
+    try {
+        const stored = await InvestigacionAtelData.findOne({ user: req.user.id }).lean();
+        if (stored) {
+            return res.json({
+                formData: stored.formData || {},
+                equipoList: stored.equipoList || [],
+                testigosList: stored.testigosList || [],
+                images: stored.images || {},
+            });
+        }
+        res.json({ formData: {}, equipoList: [], testigosList: [], images: {} });
+    } catch (error) {
+        logger.error('[InvestigacionATEL] Data load error:', error);
+        res.status(500).json({ error: 'Error al cargar los datos del reporte.' });
+    }
 });
 
 // ─── POST /api/sgsst/investigacion-atel/save ─────────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
-    const { formData, equipoList, testigosList, images } = req.body;
-    investigacionDataStore.set(req.user.id, { formData, equipoList, testigosList, images });
-    res.json({ success: true });
+    try {
+        const { formData, equipoList, testigosList, images } = req.body;
+        await InvestigacionAtelData.findOneAndUpdate(
+            { user: req.user.id },
+            { $set: { formData, equipoList, testigosList, images, updatedAt: Date.now() } },
+            { upsert: true, new: true }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('[InvestigacionATEL] Data save error:', error);
+        res.status(500).json({ error: 'Error al guardar los datos.' });
+    }
 });
 
 // ─── POST /api/sgsst/investigacion-atel/generate ─────────────────────────────
@@ -355,36 +372,53 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             const sigNm   = 'font-weight:800;font-size:12px;color:#1e293b;text-transform:uppercase;';
             const sigSb   = 'font-size:11px;color:#64748b;font-weight:600;margin-top:2px;';
             const sigIn   = 'font-size:10px;color:#94a3b8;margin-top:1px;';
-            const tdS     = 'width:25%;padding:14px 10px;text-align:center;vertical-align:bottom;';
+            const tdS     = 'width:33.33%;padding:14px 10px;text-align:center;vertical-align:bottom;';
             const lbl     = 'color:#999;font-size:10px;';
 
-            const testigoTds = validTestigos.map((t, i) =>
-                '<td style="' + tdS + '">' +
-                '<div class="signature-placeholder" data-signature-id="testigo-' + (i+1) + '" style="' + sigBox + '">' +
-                '<span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div>' +
-                '<div style="' + sigNm + '">' + t.nombre.toUpperCase() + '</div>' +
-                '<div style="' + sigSb + '">Testigo ' + (i+1) + '</div>' +
-                '<div style="' + sigIn + '">' + (t.cedula ? 'CC. ' + t.cedula : '') + (t.cargo ? ' &bull; ' + t.cargo : '') + '</div>' +
-                '</td>'
-            ).join('');
+            const buildHtmlSigs = (signaturesArray) => {
+                let html = '<table style="width:100%;border-collapse:collapse;margin-bottom:28px;"><tr>';
+                for (let i = 0; i < signaturesArray.length; i++) {
+                    if (i > 0 && i % 3 === 0) html += '</tr><tr>';
+                    html += signaturesArray[i];
+                }
+                const remainder = signaturesArray.length % 3;
+                if (remainder > 0) {
+                    html += Array(3 - remainder).fill('<td style="' + tdS + '"></td>').join('');
+                }
+                html += '</tr></table>';
+                return html;
+            };
 
-            const emptyCount = Math.max(0, 3 - validTestigos.length);
-            const emptyTds = Array(emptyCount).fill('<td style="' + tdS + '"></td>').join('');
+            const buildSigCell = (id, expectedName, role, subInfo, ccInfo) =>
+                '<td style="' + tdS + '">' +
+                '<div class="signature-placeholder" data-signature-id="' + id + '" style="' + sigBox + '">' +
+                '<span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div>' +
+                '<div style="' + sigNm + '">' + expectedName + '</div>' +
+                '<div style="' + sigSb + '">' + role + '</div>' +
+                '<div style="' + sigIn + '">' + (subInfo || '') + (subInfo && ccInfo ? ' &bull; ' : '') + (ccInfo || '') + '</div>' +
+                '</td>';
+
+            const equipoSigs = [
+                buildSigCell('jefe-inmediato', sig1Name, 'Jefe Inmediato / Supervisor', sig1CC, ''),
+                buildSigCell('copasst', sig2Name, 'Representante COPASST / Vig&iacute;a SST', sig2CC, ''),
+                buildSigCell('responsable-sst', responsible, 'Responsable SG-SST', license ? 'Lic. No. ' + license + licenseExpiry : '', ''),
+                buildSigCell('representante-legal', legalRep, 'Representante Legal', companyName, '')
+            ];
+
+            const afectadoSigs = [
+                buildSigCell('trabajador-afectado', workerName, 'Trabajador Afectado', workerCC, workerCargo)
+            ];
+
+            validTestigos.forEach((t, i) => {
+                afectadoSigs.push(buildSigCell('testigo-' + (i+1), t.nombre.toUpperCase(), 'Testigo ' + (i+1), t.cedula ? 'CC. ' + t.cedula : '', t.cargo));
+            });
 
             cleanedReport += '<div style="margin-top:50px;page-break-inside:avoid;">' +
             '<div style="border-top:2px solid #e2e8f0;padding-top:12px;margin-bottom:12px;text-align:center;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;">Firmas de Conformidad &mdash; Investigaci&oacute;n de Accidente/Incidente (Res. 1401/2007)</div>' +
             '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">Equipo investigador y empresa</div>' +
-            '<table style="width:100%;border-collapse:collapse;margin-bottom:28px;"><tr>' +
-            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="jefe-inmediato" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + sig1Name + '</div><div style="' + sigSb + '">Jefe Inmediato / Supervisor</div><div style="' + sigIn + '">' + sig1CC + '</div></td>' +
-            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="copasst" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + sig2Name + '</div><div style="' + sigSb + '">Representante COPASST / Vig&iacute;a SST</div><div style="' + sigIn + '">' + sig2CC + '</div></td>' +
-            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="responsable-sst" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + responsible + '</div><div style="' + sigSb + '">Responsable SG-SST</div><div style="' + sigIn + '">' + (license ? 'Lic. No. ' + license + licenseExpiry : '') + '</div></td>' +
-            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="representante-legal" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + legalRep + '</div><div style="' + sigSb + '">Representante Legal</div><div style="' + sigIn + '">' + companyName + '</div></td>' +
-            '</tr></table>' +
+            buildHtmlSigs(equipoSigs) +
             '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">Trabajador afectado y testigos</div>' +
-            '<table style="width:100%;border-collapse:collapse;"><tr>' +
-            '<td style="' + tdS + '"><div class="signature-placeholder" data-signature-id="trabajador-afectado" style="' + sigBox + '"><span style="' + lbl + '">Haga clic para insertar FIRMA DIGITAL</span></div><div style="' + sigNm + '">' + workerName + '</div><div style="' + sigSb + '">Trabajador Afectado</div><div style="' + sigIn + '">' + workerCC + (workerCargo ? ' &bull; ' + workerCargo : '') + '</div></td>' +
-            testigoTds + emptyTds +
-            '</tr></table>' +
+            buildHtmlSigs(afectadoSigs) +
             '<div style="text-align:center;font-size:10px;color:#cbd5e1;margin-top:20px;font-style:italic;">Documento generado electr&oacute;nicamente por el Gestor Inteligente SGSST &mdash; WAPPY IA By WAPPY LTDA &copy; 2025</div>' +
             '</div>';
         }

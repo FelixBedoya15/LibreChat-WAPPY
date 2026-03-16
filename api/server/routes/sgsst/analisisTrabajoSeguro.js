@@ -281,9 +281,9 @@ Tabla de verificación final:
 
       let count = 0;
       const addSig = (name, role, idType, cedula) => {
-        if (count > 0 && count % 2 === 0) extraSignatures += '</tr><tr>';
+        if (count > 0 && count % 3 === 0) extraSignatures += '</tr><tr>';
         extraSignatures += `
-          <td style="width: 50%; padding: 20px; text-align: center; vertical-align: bottom;">
+          <td style="width: 33.33%; padding: 20px; text-align: center; vertical-align: bottom;">
             <div class="signature-placeholder" data-signature-id="dyn_${idType}_${count}" style="border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;">
               <span style="color: #999; font-size: 12px;">Haga clic para insertar FIRMA DIGITAL</span>
             </div>
@@ -297,7 +297,8 @@ Tabla de verificación final:
       trabajadoresList?.forEach(t => { if (t.nombre) addSig(t.nombre, 'Trabajador Ejecutor', 'trabajador', t.cedula || 'N/A'); });
       responsablesList?.forEach(r => { if (r.nombre) addSig(r.nombre, r.rol || 'Supervisor / Responsable', 'responsable', r.cedula || 'N/A'); });
 
-      if (count % 2 !== 0) extraSignatures += '<td style="width: 50%;"></td>';
+      const remainder = count % 3;
+      if (remainder > 0) extraSignatures += Array(3 - remainder).fill('<td style="width: 33.33%;"></td>').join('');
       extraSignatures += '</tr></table></div>';
     }
 

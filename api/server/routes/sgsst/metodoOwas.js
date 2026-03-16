@@ -314,8 +314,8 @@ REGLA: EXTREMADAMENTE extenso, múltiples párrafos. Debe incluir:
       extraSignatures += '<table style="width:100%;border-collapse:collapse;"><tr>';
       let count = 0;
       const addSig = (name, role, idType, cedula) => {
-        if (count > 0 && count % 2 === 0) extraSignatures += '</tr><tr>';
-        extraSignatures += `<td style="width:50%;padding:20px;text-align:center;vertical-align:bottom;">
+        if (count > 0 && count % 3 === 0) extraSignatures += '</tr><tr>';
+        extraSignatures += `<td style="width:33.33%;padding:20px;text-align:center;vertical-align:bottom;">
           <div class="signature-placeholder" data-signature-id="dyn_${idType}_${count}" style="border-bottom:2px solid #333;width:80%;margin:0 auto 10px auto;min-height:80px;display:flex;align-items:center;justify-content:center;background-color:#f9f9f9;cursor:pointer;border-radius:8px 8px 0 0;">
             <span style="color:#999;font-size:12px;">Haga clic para insertar FIRMA DIGITAL</span></div>
           <div style="font-weight:800;font-size:14px;color:#1e293b;text-transform:uppercase;">${name}</div>
@@ -325,7 +325,8 @@ REGLA: EXTREMADAMENTE extenso, múltiples párrafos. Debe incluir:
       };
       trabajadoresList?.forEach(t => { if (t.nombre) addSig(t.nombre, 'Trabajador Evaluado', 'trabajador', t.cedula || 'N/A'); });
       responsablesList?.forEach(r => { if (r.nombre) addSig(r.nombre, r.rol || 'Evaluador / Ergónomo', 'resp', r.cedula || 'N/A'); });
-      if (count % 2 !== 0) extraSignatures += '<td style="width:50%;"></td>';
+      const remainder = count % 3;
+      if (remainder > 0) extraSignatures += Array(3 - remainder).fill('<td style="width:33.33%;"></td>').join('');
       extraSignatures += '</tr></table></div>';
     }
 
