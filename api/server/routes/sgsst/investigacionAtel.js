@@ -448,6 +448,31 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
             .trim();
 
+        // ── Incorporate images in the final report HTML ───────────────────────
+        let imagesHtml = '';
+        if (images && (images.foto1 || images.foto2 || images.foto3 || images.foto4)) {
+            imagesHtml = `
+                <div style="margin-top: 30px; margin-bottom: 30px;">
+                    <h3 style="color: #0c4a6e; border-bottom: 2px solid #0c4a6e; padding-bottom: 5px; text-transform: uppercase; font-size: 16px;">ANEXO: REGISTRO FOTOGRÁFICO DE EVIDENCIAS</h3>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px;">
+            `;
+
+            const labels = ['Lugar del Evento', 'Agente Causal', 'Lesiones / Daños', 'Condiciones del Área'];
+            ['foto1', 'foto2', 'foto3', 'foto4'].forEach((k, i) => {
+                if (images[k]) {
+                    imagesHtml += `
+                        <div style="flex: 1; min-width: 220px; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); background-color: #ffffff;">
+                            <img src="${images[k]}" style="width: 100%; height: auto; max-height: 200px; border-radius: 6px; object-fit: contain; margin-bottom: 10px;" alt="Evidencia ${i + 1}" />
+                            <strong style="color: #0c4a6e; font-size: 13px; display: block; margin-bottom: 4px;">${labels[i]}</strong>
+                            <span style="font-size: 11px; color: #64748b; font-style: italic;">Evidencia técnica adjuntada al informe</span>
+                        </div>
+                    `;
+                }
+            });
+
+            imagesHtml += `</div></div>`;
+        }
+
         if (loadedCompanyInfo) {
             // ── Equipo investigador (from equipoList) ───────────────────────
             const jefeInmediato = equipoList.find(e =>
@@ -522,7 +547,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
                 afectadoSigs.push(buildSigCell('testigo-' + (i+1), t.nombre.toUpperCase(), 'Testigo ' + (i+1), t.cedula ? 'CC. ' + t.cedula : '', t.cargo));
             });
 
-            cleanedReport += '<div style="margin-top:50px;page-break-inside:avoid;">' +
+            cleanedReport += imagesHtml + '<div style="margin-top:50px;page-break-inside:avoid;">' +
             '<div style="border-top:2px solid #e2e8f0;padding-top:12px;margin-bottom:12px;text-align:center;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;">Firmas de Conformidad &mdash; Investigaci&oacute;n de Accidente/Incidente (Res. 1401/2007)</div>' +
             '<div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;padding-left:4px;">Equipo investigador y empresa</div>' +
             buildHtmlSigs(equipoSigs) +
