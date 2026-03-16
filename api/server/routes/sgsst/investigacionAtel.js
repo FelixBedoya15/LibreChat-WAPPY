@@ -263,17 +263,18 @@ ${headerHtml}
 
    <div class="diagram-node" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:2px solid #0369a1;border-radius:14px;padding:20px;margin:24px 0;overflow-x:auto;">
    <h3 style="text-align:center;color:#0c4a6e;font-size:17px;font-weight:800;margin-bottom:16px;text-transform:uppercase;letter-spacing:1px;">DIAGRAMA DE ISHIKAWA — ANÁLISIS CAUSA-EFECTO</h3>
-   <svg viewBox="0 0 960 480" width="100%" style="min-width:700px;font-family:Arial,sans-serif;">
+   <svg viewBox="0 0 1010 480" width="100%" style="min-width:700px;font-family:Arial,sans-serif;">
      <!-- ESPINA DORSAL CENTRAL -->
-     <line x1="60" y1="240" x2="800" y2="240" stroke="#1e3a8a" stroke-width="4"/>
-     <polygon points="800,232 820,240 800,248" fill="#1e3a8a"/>
+     <line x1="60" y1="240" x2="798" y2="240" stroke="#1e3a8a" stroke-width="4"/>
+     <polygon points="798,232 818,240 798,248" fill="#1e3a8a"/>
      <!-- Cola del pez -->
      <polyline points="60,215 30,240 60,265" fill="none" stroke="#1e3a8a" stroke-width="3"/>
-     <!-- CABEZA DEL PEZ (PROBLEMA) - Forma de punta apuntada -->
-     <polygon class="diagram-node" points="820,195 912,212 940,240 912,268 820,285" fill="#dc2626" stroke="#991b1b" stroke-width="3"/>
-     <text x="877" y="230" text-anchor="middle" font-size="10" font-weight="800" fill="white">[NOMBRE</text>
-     <text x="877" y="244" text-anchor="middle" font-size="10" font-weight="800" fill="white">ACCIDENTE]</text>
-     <text x="877" y="258" text-anchor="middle" font-size="10" font-weight="800" fill="white">[CONSECUENCIA]</text>
+     <!-- CABEZA DEL PEZ (PROBLEMA) - Forma de punta apuntada, MAS GRANDE -->
+     <polygon class="diagram-node" points="818,160 930,190 968,240 930,290 818,320" fill="#dc2626" stroke="#991b1b" stroke-width="3"/>
+     <text x="878" y="220" text-anchor="middle" font-size="11" font-weight="800" fill="white">[NOMBRE</text>
+     <text x="878" y="236" text-anchor="middle" font-size="11" font-weight="800" fill="white">ACCIDENTE]</text>
+     <text x="878" y="254" text-anchor="middle" font-size="10" font-weight="700" fill="white">[CONSECUENCIA</text>
+     <text x="878" y="270" text-anchor="middle" font-size="10" font-weight="700" fill="white">PRINCIPAL]</text>
      <!-- HUESO 1 SUPERIOR: MANO DE OBRA (nace en x=180 de la espina) -->
      <line x1="180" y1="240" x2="108" y2="95" stroke="#1d4ed8" stroke-width="2.5"/>
      <circle cx="180" cy="240" r="5" fill="#1d4ed8"/>
@@ -338,8 +339,9 @@ ${headerHtml}
 
 5. **METODOLOGÍA 3 — ÁRBOL DE CAUSAS (MUY EXTENSO, PROFUNDO Y CON CONECTORES VISIBLES):**
    Construye un árbol descendente con mínimo 4-5 niveles de profundidad. ¡Los conectores son OBLIGATORIOS y deben verse claramente entre cada par de nodos!
+   IMPORTANTE: El título de esta sección en el informe debe ser simplemente "ÁRBOL DE CAUSAS" sin añadir referencias a metodologías ni normas en el titulo.
 
-   TIPOS DE RELACIONES (Metodología INSST NTP 274-bis):
+   TIPOS DE RELACIONES:
    - SECUENCIAL: 1 padre → 1 hijo (línea vertical)
    - CONJUNCIÓN: varios nodos → 1 resultado (convergen con barra horizontal)
    - DISYUNCIÓN: 1 nodo → múltiples ramas descendentes
