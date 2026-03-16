@@ -240,21 +240,26 @@ ${headerHtml}
    - PRECAUCIÓN: Aplica siempre color: #111 en las tarjetas con fondos claros.
 
 4. **METODOLOGÍA 2 — DIAGRAMA DE ISHIKAWA (Espina de Pescado Visual):**
-   Construye un diagrama real usando CSS Grid/Flexbox:
-   - Cabeza del pescado (el accidente) a la derecha, en una caja destacada.
+   Construye un diagrama estructurado y ordenado usando CSS Flexbox o Tablas.
+   - Cabeza del pescado (el accidente) a la derecha, en una caja destacada roja.
    - 6 espinas principales: Mano de Obra, Máquina/Equipo, Entorno/Ambiente, Material, Método, Gestión/Administración.
-   - Cada espina con 2-3 causas secundarias.
-   - DEBE parecer un verdadero diagrama de espina de pescado, no una lista.
-   - Usa líneas horizontales/diagonales con border CSS para simular las espinas.
-   - Paleta recomendada: fondo #f8fafc, espinas en tonos de azul, rojo para la cabeza.
+   - Cada espina con 2-3 causas secundarias explícitamente detalladas.
+   - EVITA estrictamente usar bordes CSS diagonales o rotaciones completas (transform: rotate) que se desalinean con facilidad ("figuras corridas"). Es preferible un diseño en cuadrícula (2x3) limpio, estructurado y alineado con bordes rectos.
+   - Agrega la etiqueta HTML class="diagram-node" a cada bloque de espina o causa para habilitar la edición interactiva en el sistema.
+   - Paleta recomendada: cajas con fondo #f8fafc (azul muy claro), bordes tonos de azul oscuro.
    - PRECAUCIÓN: Aplica color: #111 o color: #FFF según el fondo de cada sección.
 
-5. **METODOLOGÍA 3 — ÁRBOL DE CAUSAS:**
-   Organigrama descendente mostrando la cadena causal:
-   CONSECUENCIA → HECHOS DIRECTOS → CAUSAS INMEDIATAS → CAUSAS BÁSICAS → CAUSA RAÍZ
-   Usa display:flex y border para simular un árbol. Conecta los nodos con líneas verticales CSS.
-   Paleta: naranja para consecuencias, amarillo para causas inmediatas, rojo para causa raíz.
-   PRECAUCIÓN: Aplica color: #111 en cajas con fondo claro.
+5. **METODOLOGÍA 3 — ÁRBOL DE CAUSAS (MUY EXTENSO Y PROFUNDO):**
+   Organigrama descendente mostrando la cadena causal completa. ¡ESTA SECCIÓN DEBE SER MUY DETALLADA Y PROFUNDA!
+   Plantea TODAS las ramificaciones y razones posibles (Aplica la técnica de los "Por Qué" iterativamente al menos 4-5 niveles hasta la Causa Raíz real).
+   Cadena Visual: CONSECUENCIA → HECHOS DIRECTOS → CAUSAS INMEDIATAS → CAUSAS BÁSICAS → CAUSA RAÍZ
+   - **NOMENCLATURA GRÁFICA OFICIAL OBLIGATORIA:** 
+     1. Usa CÍRCULOS para expresar "Hechos" o eventos inusuales. (Ej: div con border-radius: 50%; width: 130px; height: 130px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; margin: 10px; text-align: center; border: 2px solid #333; flex-shrink: 0;)
+     2. Usa CUADROS (RECTÁNGULOS) para expresar "Hechos Permanentes" o condiciones/causas base. (Ej: div con border-radius: 6px; padding: 15px; margin: 10px; min-width: 150px; text-align: center; border: 2px solid #333;)
+   - Usa display:flex con flex-direction: column y align-items: center para estructurar visualmente un árbol descendente jerárquico.
+   - Utiliza la clase HTML class="diagram-node" en TODAS las figuras (Círculos y Cuadros) obligatoriamente.
+   - Paleta recomendada de fondos: Naranja suave para Consecuencias, Amarillo o Gris suave para causas intermedias, Verde o Rojo suave para la verdadera Causa Raíz.
+   - PRECAUCIÓN: El texto interior de los cuadros/círculos siempre debe ser oscuro (color: #111) para asegurar su lectura óptima, nunca texto blanco en fondo amarillo o claro.
 
 6. **TABLA DE CLASIFICACIÓN DE CAUSAS (Res. 1401/2007 Art. 4):**
    Tabla HTML bien formateada con:

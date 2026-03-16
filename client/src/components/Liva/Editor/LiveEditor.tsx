@@ -34,6 +34,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [tableToolbarPos, setTableToolbarPos] = useState({ top: 0, left: 0 });
     const [selectedGraphic, setSelectedGraphic] = useState<HTMLDivElement | null>(null);
     const [graphicToolbarPos, setGraphicToolbarPos] = useState({ top: 0, left: 0 });
+    const [selectedDiagramNode, setSelectedDiagramNode] = useState<HTMLElement | null>(null);
+    const [diagramNodeToolbarPos, setDiagramNodeToolbarPos] = useState({ top: 0, left: 0 });
     const [activeSignaturePlaceholder, setActiveSignaturePlaceholder] = useState<HTMLElement | null>(null);
     const [activeSignatureName, setActiveSignatureName] = useState<string>('');
 
@@ -310,16 +312,28 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                         left: rect.left - editorRect.left
                     });
                 }
-            } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.signature-modal')) {
+            } else if (target.closest('.diagram-node') && editorRef.current?.contains(target)) {
+                const node = target.closest('.diagram-node') as HTMLElement;
+                clearSelections();
+                node.setAttribute('data-selected', 'true');
+                setSelectedDiagramNode(node);
+                const rect = node.getBoundingClientRect();
+                const editorRect = editorRef.current.getBoundingClientRect();
+                setDiagramNodeToolbarPos({
+                    top: rect.top - editorRect.top - 50 + editorRef.current.scrollTop,
+                    left: rect.left - editorRect.left
+                });
+            } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.diagram-toolbar') && !target.closest('.signature-modal')) {
                 clearSelections();
             }
         };
 
         const clearSelections = () => {
-            editorRef.current?.querySelectorAll('img, td, th, div').forEach(i => i.removeAttribute('data-selected'));
+            editorRef.current?.querySelectorAll('img, td, th, div, span, .diagram-node').forEach(i => i.removeAttribute('data-selected'));
             setSelectedImage(null);
             setSelectedTableCell(null);
             setSelectedGraphic(null);
+            setSelectedDiagramNode(null);
         };
 
         const editor = editorRef.current;
@@ -457,6 +471,25 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         }
         innerBar.style.width = `${percent}%`;
         innerBar.innerText = `${percent}%`;
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const setDiagramNodeColor = (bgColor: string, textColor: string) => {
+        if (!selectedDiagramNode) return;
+        selectedDiagramNode.style.backgroundColor = bgColor;
+        selectedDiagramNode.style.color = textColor;
+        // Also force any direct text spans to inherit or match
+        const spans = selectedDiagramNode.querySelectorAll('span');
+        spans.forEach(span => {
+            span.style.color = textColor;
+        });
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const deleteDiagramNode = () => {
+        if (!selectedDiagramNode) return;
+        selectedDiagramNode.remove();
+        setSelectedDiagramNode(null);
         onUpdate(editorRef.current?.innerHTML || '');
     };
 
@@ -684,6 +717,40 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                         <button onClick={() => setSelectedGraphic(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
                     </div>
                 )}
+
+                {/* Floating Diagram Node Toolbar */}
+                {selectedDiagramNode && (
+                    <div
+                        className="diagram-toolbar absolute z-50 bg-surface-primary shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
+                        style={{
+                            top: `${Math.max(10, diagramNodeToolbarPos.top)}px`,
+                            left: `${Math.max(10, Math.min(diagramNodeToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                        }}
+                    >
+                        <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
+                            <span className="text-[10px] font-bold text-text-tertiary mr-1 uppercase self-center">Fondo:</span>
+                            <button onClick={() => setDiagramNodeColor('#f8fafc', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-[#f8fafc]" title="Gris Claro" />
+                            <button onClick={() => setDiagramNodeColor('#fef08a', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-yellow-200" title="Amarillo" />
+                            <button onClick={() => setDiagramNodeColor('#fed7aa', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-orange-200" title="Naranja" />
+                            <button onClick={() => setDiagramNodeColor('#fca5a5', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-red-300" title="Rojo Claro" />
+                            <button onClick={() => setDiagramNodeColor('#bbf7d0', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-green-200" title="Verde Claro" />
+                            <button onClick={() => setDiagramNodeColor('#e2e8f0', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-slate-200" title="Gris" />
+                        </div>
+                        <button
+                            onClick={deleteDiagramNode}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Eliminar figura"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setSelectedDiagramNode(null)}
+                            className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
                 <div
                     ref={editorRef}
                     className={`flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
@@ -787,10 +854,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     box-shadow: inset 0 0 10px rgba(59, 130, 246, 0.2);
                 }
                 .live-editor-content td[data-selected="true"],
-                .live-editor-content th[data-selected="true"] {
+                .live-editor-content th[data-selected="true"],
+                .live-editor-content div.diagram-node[data-selected="true"] {
                     background-color: rgba(59, 130, 246, 0.05) !important;
                 }
-                .image-toolbar, .table-toolbar, .graphic-toolbar {
+                .image-toolbar, .table-toolbar, .graphic-toolbar, .diagram-toolbar {
                     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
                     backdrop-filter: blur(8px);
                 }
