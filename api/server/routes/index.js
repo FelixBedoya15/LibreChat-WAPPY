@@ -38,6 +38,7 @@ const tenshi = require('./tenshi');
 const tickets = require('./tickets');
 const notifications = require('./notifications');
 const contact = require('./contact');
+const publicReports = require('./publicReports');
 
 module.exports = {
   auth,
@@ -80,4 +81,5 @@ module.exports = {
   tickets,
   notifications,
   contact,
+  publicReports,
 };

@@ -34,8 +34,8 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
     <div style="width: 100px; height: 3px; background-color: #0f766e; margin: 0 auto 12px auto;"></div>
 </div>
 
-<div style="overflow-x: auto; width: 100%; margin-bottom: 24px; padding-bottom: 8px;">
-<table style="width: 100%; min-width: 700px; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: inherit;">
+<div style="overflow-x: auto; width: 100%; margin-bottom: 24px;">
+<table style="width: 100%; min-width: 700px; table-layout: auto; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; font-family: inherit;">
   <thead>
     <tr>
       <th colspan="4" style="background-color: #0f766e; color: white; text-align: left; padding: 12px 16px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">

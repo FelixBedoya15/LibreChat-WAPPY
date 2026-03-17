@@ -1,4 +1,5 @@
 import SGSSTDashboard from '~/components/SGSST/Dashboard';
+import PublicReportView from '~/components/SGSST/PublicReportView';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
@@ -52,6 +53,11 @@ export const router = createBrowserRouter(
     {
       path: 'share/:shareId',
       element: <ShareRoute />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'report/:id',
+      element: <PublicReportView />,
       errorElement: <RouteErrorBoundary />,
     },
     {

@@ -229,7 +229,7 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #0f766e
 
 **INSTRUCCIONES DE DISEÑO HTML Y TABLAS:**
 - Tu respuesta DEBE ser EXCLUSIVAMENTE en código HTML limpio (del <div> o cuerpo del texto).
-- Estructura base de TODAS las tablas: \`<table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
+- Estructura base de TODAS las tablas: \`<table style="width: 100%; table-layout: auto; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
 - Encabezados de tabla (<th>): \`<th style="background-color: #0f766e; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #003366; word-wrap: break-word;">\`
 - Celdas (<td>): \`<td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #f1f5f9; font-size: 13px; color: #334155; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; background-color: #ffffff;">\`
 - Asegúrate de usar porcentajes de ancho adecuados si usas la propiedad width en <th> o <td> (ej: width="20%").

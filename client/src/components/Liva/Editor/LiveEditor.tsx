@@ -789,7 +789,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     border-radius: 12px;
                     overflow: hidden;
                     border: 1px solid #ddd;
-                    table-layout: fixed;
+                    table-layout: auto;
                 }
                 .live-editor-content table th {
                     background-color: #004d99;

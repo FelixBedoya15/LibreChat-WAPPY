@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Globe, FileText, FileDown, ChevronDown } from 'lucide-react';
+import { Download, Globe, FileText, FileDown, ChevronDown, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import { useToastContext } from '@librechat/client';
 
 interface ExportDropdownProps {
     content: string;
@@ -14,7 +16,9 @@ interface ExportDropdownProps {
  */
 const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general' }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const { showToast } = useToastContext();
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -58,12 +62,22 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            margin: 15px 0;
+            margin: 0;
             font-size: 0.9em;
+            table-layout: auto; /* Changed to auto for responsiveness */
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
             border-radius: 12px;
-            overflow: hidden;
             border: 1px solid #ddd;
-            table-layout: fixed;
+            margin: 15px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        @media screen and (max-width: 600px) {
+            table {
+                min-width: 600px; /* Force minimum width to trigger scroll on mobile */
+            }
         }
         th {
             background-color: #004d99;
@@ -96,20 +110,50 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
         tr:hover { background-color: #e8f0fe; }
     </style>
 </head>
-<body class="${reportType === 'checklist' ? 'checklist-mode' : ''}">${content}</body>
+<body class="${reportType === 'checklist' ? 'checklist-mode' : ''}">
+    <div class="report-wrapper">
+        ${content.replace(/<table/g, '<div class="table-responsive"><table').replace(/<\/table>/g, '</table></div>')}
+    </div>
+</body>
 </html>`;
     };
 
     /**
      * Export as HTML — opens in a new browser tab with full styling.
      */
-    const handleExportHtml = () => {
-        const fullHtml = buildFullHtml();
-        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-        setIsOpen(false);
+    /**
+     * Export as HTML — saves to backend and opens a shareable URL.
+     */
+    const handleExportHtml = async () => {
+        setIsSharing(true);
+        try {
+            const fullHtml = buildFullHtml();
+            const response = await axios.post('/api/public-report', {
+                content: fullHtml,
+                fileName,
+                reportType
+            });
+            
+            const { id } = response.data;
+            const publicUrl = `${window.location.origin}/report/${id}`;
+            
+            window.open(publicUrl, '_blank');
+            setIsOpen(false);
+        } catch (error) {
+            console.error('Error sharing report:', error);
+            // Fallback to blob if backend fails
+            const fullHtml = buildFullHtml();
+            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            showToast({
+                status: 'error',
+                message: 'No se pudo generar el link compartido, se abrió una vista temporal.',
+            });
+        } finally {
+            setIsSharing(false);
+        }
     };
 
     /**
