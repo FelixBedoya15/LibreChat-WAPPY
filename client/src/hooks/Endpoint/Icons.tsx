@@ -1,4 +1,4 @@
-import { Feather } from 'lucide-react';
+import { User } from 'lucide-react';
 import { EModelEndpoint } from 'librechat-data-provider';
 import {
   MinimalPlugin,
@@ -53,7 +53,7 @@ const AgentAvatar = ({ className = '', avatar = '', agentName, size }: AgentIcon
     );
   }
 
-  return <Feather className={cn(agentName === '' ? 'icon-2xl' : '', className)} size={size} />;
+  return <User className={cn(agentName === '' ? 'icon-2xl' : '', className)} size={size} />;
 };
 
 const Bedrock = ({ className = '' }: IconMapProps) => {

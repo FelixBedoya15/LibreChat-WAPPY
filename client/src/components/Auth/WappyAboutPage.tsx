@@ -8,7 +8,7 @@ const CompanyLogo = () => (
         <img
             src="/assets/Wappy.png"
             alt="WAPPY LTDA"
-            className="h-28 w-auto object-contain drop-shadow-md"
+            className="h-44 w-auto object-contain drop-shadow-md"
         />
     </div>
 );

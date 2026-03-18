@@ -138,7 +138,7 @@ function AuthLayout({
       <FloatingParticles />
       <Banner />
       <BlinkAnimation active={isFetching}>
-        <div className="mt-6 h-24 w-full bg-cover sm:h-32 md:h-40">
+        <div className="mt-6 h-40 w-full bg-cover sm:h-56 md:h-64">
           <img
             src="assets/logo.png"
             className="h-full w-full object-contain drop-shadow-sm"
