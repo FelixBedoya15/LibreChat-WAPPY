@@ -45,17 +45,32 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     <title>${fileName}</title>
     <style>
         @media print {
-            body { margin: 0; padding: 20px; }
-            @page { margin: 1.5cm; size: A4; }
+            body { margin: 0; padding: 0; background: #fff; }
+            .report-wrapper { padding: 0; width: 100%; border: none !important; box-shadow: none !important; }
+            @page { margin: 1cm; size: A4; }
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff !important;
+            color: #222;
         }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            color: #222;
+            font-family: 'Segoe UI', Arial, Roboto, sans-serif;
             line-height: 1.6;
-            max-width: 900px;
+            min-height: 100vh;
+        }
+        .report-wrapper {
+            max-width: 950px;
             margin: 0 auto;
-            padding: 30px;
+            padding: 40px 30px;
             background: #fff;
+            box-sizing: border-box;
+        }
+        @media screen and (max-width: 600px) {
+            .report-wrapper {
+                padding: 15px 10px;
+            }
         }
         h1 { color: #004d99; text-align: center; margin-bottom: 5px; font-size: 1.8em; }
         h2 { color: #004d99; border-bottom: 2px solid #004d99; padding-bottom: 5px; font-size: 1.4em; }

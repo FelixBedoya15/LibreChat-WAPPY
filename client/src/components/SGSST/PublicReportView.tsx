@@ -47,10 +47,25 @@ const PublicReportView: React.FC = () => {
   }
 
   return (
-    <div 
-      className="public-report-container bg-white min-h-screen"
-      dangerouslySetInnerHTML={{ __html: content }} 
-    />
+    <div className="public-report-viewer bg-white min-h-screen">
+      <style>{`
+        /* Overwrite any global app styles for the public view */
+        html, body {
+          background-color: #ffffff !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+        }
+        #root {
+          max-width: none !important;
+          width: 100% !important;
+        }
+      `}</style>
+      <div 
+        className="public-report-content"
+        dangerouslySetInnerHTML={{ __html: content }} 
+      />
+    </div>
   );
 };
 
