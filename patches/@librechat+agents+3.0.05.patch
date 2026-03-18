@@ -17,6 +17,54 @@ index 1ebb7f6..acbea50 100644
          if (metadata.ls_provider === 'FakeListChatModel') {
              return handlers.handleToolCalls(data?.output?.tool_calls, metadata, graph);
          }
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
+index 450e0d6..bb7c13e 100644
+--- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
+@@ -329,12 +329,19 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
+             .filter((p) => p !== undefined));
+     }
+     if (messages.isAIMessage(message) && message.tool_calls?.length != null) {
+-        functionCalls = message.tool_calls.map((tc) => {
++        const sigs = message.additional_kwargs?.__gemini_function_call_thought_signatures__;
++        functionCalls = message.tool_calls.map((tc, idx) => {
++            const resultFunc = {
++                name: tc.name,
++                args: tc.args,
++            };
++            if (sigs && sigs[idx]) {
++                resultFunc.thought_signature = sigs[idx];
++            } else if (tc.signature) {
++                resultFunc.thought_signature = tc.signature;
++            }
+             return {
+-                functionCall: {
+-                    name: tc.name,
+-                    args: tc.args,
+-                },
++                functionCall: resultFunc,
+             };
+         });
+     }
+@@ -458,6 +465,18 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+         })));
+     }
+     const additional_kwargs = {};
++    const signatures = [];
++    if (candidateContent && Array.isArray(candidateContent.parts)) {
++        for (const pt of candidateContent.parts) {
++            if (pt?.functionCall) {
++                if (pt.functionCall.thought_signature) signatures.push(pt.functionCall.thought_signature);
++                else if (pt.functionCall.thoughtSignature) signatures.push(pt.functionCall.thoughtSignature);
++            }
++        }
++    }
++    if (signatures.length > 0) {
++        additional_kwargs.__gemini_function_call_thought_signatures__ = signatures;
++    }
+     if (reasoningParts.length > 0) {
+         additional_kwargs.reasoning = reasoningParts.join('');
+     }
 diff --git a/node_modules/@librechat/agents/dist/cjs/messages/format.cjs b/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
 index 3579d89..4c52770 100644
 --- a/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
