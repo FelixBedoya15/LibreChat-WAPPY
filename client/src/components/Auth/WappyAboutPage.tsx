@@ -177,9 +177,6 @@ export default function WappyAboutPage() {
                 {/* Hero */}
                 <div className="mb-12 text-center">
                     <CompanyLogo />
-                    <h1 className="mt-6 bg-gradient-to-r from-green-500 via-emerald-500 to-cyan-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
-                        WAPPY LTDA
-                    </h1>
                     <p className="mt-2 text-lg text-text-secondary">
                         Innovación Tecnológica · Medellín, Colombia
                     </p>
