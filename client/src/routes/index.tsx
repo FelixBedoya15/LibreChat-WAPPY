@@ -61,6 +61,12 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      // Catch-all for UUIDs at the root (solves the 404 without prefix)
+      path: ':id',
+      element: <PublicReportView />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'oauth',
       errorElement: <RouteErrorBoundary />,
       children: [

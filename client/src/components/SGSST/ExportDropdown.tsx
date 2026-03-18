@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Download, Globe, FileText, FileDown, ChevronDown, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 interface ExportDropdownProps {
     content: string;
@@ -19,6 +20,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     const [isSharing, setIsSharing] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const { showToast } = useToastContext();
+    const { token } = useAuthContext();
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -132,6 +134,10 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
                 content: fullHtml,
                 fileName,
                 reportType
+            }, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
             });
             
             const { id } = response.data;
