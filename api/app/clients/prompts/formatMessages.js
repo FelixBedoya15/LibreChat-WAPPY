@@ -199,6 +199,13 @@ const formatAgentMessages = (payload) => {
 
         tool_call.args = args;
         lastAIMessage.tool_calls.push(tool_call);
+        if (tool_call.signature) {
+          if (!lastAIMessage.additional_kwargs) lastAIMessage.additional_kwargs = {};
+          if (!lastAIMessage.additional_kwargs.__gemini_function_call_thought_signatures__) {
+            lastAIMessage.additional_kwargs.__gemini_function_call_thought_signatures__ = [];
+          }
+          lastAIMessage.additional_kwargs.__gemini_function_call_thought_signatures__.push(tool_call.signature);
+        }
 
         // Add the corresponding ToolMessage
         messages.push(
