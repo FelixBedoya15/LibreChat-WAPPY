@@ -1,0 +1,37 @@
+diff --git a/node_modules/@librechat/agents/dist/cjs/events.cjs b/node_modules/@librechat/agents/dist/cjs/events.cjs
+index 1ebb7f6..acbea50 100644
+--- a/node_modules/@librechat/agents/dist/cjs/events.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/events.cjs
+@@ -29,6 +29,14 @@ class ModelEndHandler {
+         if (usage != null && this.collectedUsage != null) {
+             this.collectedUsage.push(usage);
+         }
++        if (data?.output && data?.output?.tool_calls && data.output.additional_kwargs && data.output.additional_kwargs.__gemini_function_call_thought_signatures__) {
++            const sigs = data.output.additional_kwargs.__gemini_function_call_thought_signatures__;
++            data.output.tool_calls.forEach((tc, index) => {
++                if (sigs[index]) {
++                    tc.signature = sigs[index];
++                }
++            });
++        }
+         if (metadata.ls_provider === 'FakeListChatModel') {
+             return handlers.handleToolCalls(data?.output?.tool_calls, metadata, graph);
+         }
+diff --git a/node_modules/@librechat/agents/dist/cjs/messages/format.cjs b/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
+index 3579d89..4c52770 100644
+--- a/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/messages/format.cjs
+@@ -212,6 +212,13 @@ function formatAssistantMessage(message) {
+                     lastAIMessage.tool_calls = [];
+                 }
+                 lastAIMessage.tool_calls.push(tool_call);
++                if (tool_call.signature) {
++                    if (!lastAIMessage.additional_kwargs) lastAIMessage.additional_kwargs = {};
++                    if (!lastAIMessage.additional_kwargs.__gemini_function_call_thought_signatures__) {
++                        lastAIMessage.additional_kwargs.__gemini_function_call_thought_signatures__ = [];
++                    }
++                    lastAIMessage.additional_kwargs.__gemini_function_call_thought_signatures__.push(tool_call.signature);
++                }
+                 formattedMessages.push(new messages.ToolMessage({
+                     tool_call_id: tool_call.id ?? '',
+                     name: tool_call.name,
