@@ -45,32 +45,38 @@ export default function BlogDashboard() {
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-            <div className="flex-none p-6 md:p-8 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-start md:items-center gap-4">
+            {/* ═══ Header Section (Wappy Brand Green Style) ═══ */}
+            <div className="flex-none p-6 md:px-12 md:py-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
                         {!navVisible && (
-                            <div className="hidden md:block shrink-0 -ml-2 mr-2">
+                            <button 
+                                onClick={() => setNavVisible(true)}
+                                className="hidden md:flex shrink-0 p-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                            >
                                 <OpenSidebar setNavVisible={setNavVisible} />
-                            </div>
+                            </button>
                         )}
-                        <div className="p-3 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 rounded-lg shrink-0 mt-1 md:mt-0">
-                            <Newspaper className="w-8 h-8 md:w-10 md:h-10 text-indigo-600 dark:text-indigo-300" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white leading-tight">Blog</h1>
-                            <p className="mt-1 text-sm md:text-base text-gray-500 dark:text-gray-400">
-                                Explora las últimas publicaciones, artículos y novedades de nuestro equipo.
-                            </p>
+                        <div className="flex items-center gap-4">
+                            <div className="p-3.5 bg-[#10b981]/10 dark:bg-[#10b981]/20 rounded-2xl shrink-0 mt-1 md:mt-0 transition-transform group-hover:scale-105">
+                                <Newspaper className="w-8 h-8 text-[#10b981]" strokeWidth={2.5} />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Blog</h1>
+                                <p className="mt-1 text-sm md:text-base text-gray-500 dark:text-gray-400 font-medium tracking-wide">
+                                    Explora las últimas publicaciones y novedades normativas.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
                     {isAdmin && (
                         <button
                             onClick={() => navigate('/blog/admin')}
-                            className="group flex items-center px-3 py-2 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 dark:text-gray-900 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm self-start md:self-auto"
+                            className="group flex items-center gap-3 bg-gray-900 dark:bg-gray-800 px-4 py-3 border border-gray-800 dark:border-gray-700 hover:bg-black dark:hover:bg-gray-700 text-white dark:text-gray-100 rounded-2xl transition-all duration-300 shadow-sm self-start md:self-auto"
                         >
-                            <Shield className="w-5 h-5 flex-shrink-0" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            <Shield className="w-5 h-5 flex-shrink-0 text-[#10b981]" />
+                            <span className="font-bold text-sm">
                                 Administrar Publicaciones
                             </span>
                         </button>
@@ -79,51 +85,51 @@ export default function BlogDashboard() {
             </div>
 
             {/* Posts grid */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8">
-                <div className="max-w-6xl mx-auto">
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50 dark:bg-[#111111]">
+                <div className="max-w-7xl mx-auto">
                     {posts.length === 0 ? (
-                        <div className="text-center py-16 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                            <Newspaper className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No hay publicaciones</h3>
+                        <div className="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl border border-dashed border-gray-300 dark:border-gray-800 shadow-sm">
+                            <Newspaper className="mx-auto h-12 w-12 text-gray-400 mb-4 opacity-50" />
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">No hay publicaciones</h3>
                             <p className="mt-1 text-gray-500 dark:text-gray-400">Actualmente no hay artículos disponibles en el blog.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {posts.map((post: any) => (
                                 <div
                                     key={post._id}
-                                    className="group flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+                                    className="group flex flex-col bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:border-[#10b981]/50 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                                     onClick={() => navigate(`/blog/${post._id}`)}
                                 >
-                                    <div className="h-48 w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                                    <div className="h-48 w-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
                                         {post.thumbnail ? (
-                                            <div className="w-full h-full bg-gray-200 dark:bg-gray-700">
-                                                <img src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
+                                            <div className="w-full h-full bg-gray-200 dark:bg-gray-800">
+                                                <img src={post.thumbnail.startsWith('http') || post.thumbnail.startsWith('/') ? post.thumbnail : `/images/${post.thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                             </div>
-                                        ) : (<div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
-                                            <Newspaper className="w-16 h-16 text-indigo-500/50 dark:text-indigo-400/50" />
+                                        ) : (<div className="absolute inset-0 flex items-center justify-center bg-[#10b981]/5 group-hover:scale-110 transition-transform duration-500">
+                                            <Newspaper className="w-16 h-16 text-[#10b981]/30" />
                                         </div>)}
                                     </div>
-                                    <div className="p-5 flex-1 flex flex-col">
-                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 leading-tight">
+                                    <div className="p-6 flex-1 flex flex-col">
+                                        <h3 className="text-xl font-black tracking-tight text-gray-900 dark:text-white group-hover:text-[#10b981] transition-colors line-clamp-2 leading-tight">
                                             {post.title}
                                         </h3>
                                         {post.tags && post.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-3">
+                                            <div className="flex flex-wrap gap-1.5 mt-4">
                                                 {post.tags.slice(0, 3).map((tag: string, i: number) => (
-                                                    <span key={i} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs rounded-md font-medium">
+                                                    <span key={i} className="px-2 py-0.5 text-[10px] font-black tracking-wider uppercase bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-md border border-gray-200 dark:border-gray-700">
                                                         {tag}
                                                     </span>
                                                 ))}
                                                 {post.tags.length > 3 && (
-                                                    <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs rounded-md font-medium">
+                                                    <span className="px-2 py-0.5 text-[10px] font-black tracking-wider uppercase bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-md border border-gray-200 dark:border-gray-700">
                                                         +{post.tags.length - 3}
                                                     </span>
                                                 )}
                                             </div>
                                         )}
-                                        <div className="mt-auto pt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                                            <span>{new Date(post.createdAt || new Date()).toLocaleDateString()}</span>
+                                        <div className="mt-auto pt-5 flex items-center justify-between text-xs font-bold tracking-wide text-gray-400 dark:text-gray-500">
+                                            <span className="text-[#10b981]">{new Date(post.createdAt || new Date()).toLocaleDateString()}</span>
                                             {post.author?.name && <span>{post.author.name}</span>}
                                         </div>
                                     </div>

@@ -35,7 +35,7 @@ const getPhases = () => [
         id: 'plan',
         title: 'Planear',
         subtitle: 'Proyección y Estrategia',
-        description: 'Política, Peligros y Requisitos Legales.',
+        description: 'Políticas SG-SST, Perfil Sociodemográfico, Matriz GTC 45, Requisitos Legales y Plan de Trabajo Institucional.',
         accent: 'text-[#10b981]',
         bgGlow: 'bg-[#10b981]/5',
         borderHover: 'hover:border-[#10b981]',
@@ -45,7 +45,7 @@ const getPhases = () => [
         id: 'do',
         title: 'Hacer',
         subtitle: 'Ejecución Operativa',
-        description: 'Gestión de Salud, Seguridad y Vulnerabilidad.',
+        description: 'Reporte de Actos, Investigación ATEL, Método OWAS, Permiso en Alturas, EPP y Análisis SafeStart.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
         borderHover: 'hover:border-[#0d9488]',
@@ -55,7 +55,7 @@ const getPhases = () => [
         id: 'check',
         title: 'Verificar',
         subtitle: 'Evaluación y Medición',
-        description: 'Auditoría e Indicadores por la Alta Dirección.',
+        description: 'Auditorías de Cumplimiento SG-SST, Supervisión Institucional e Indicadores Clave de Gestión Gerencial.',
         accent: 'text-[#059669]',
         bgGlow: 'bg-[#059669]/5',
         borderHover: 'hover:border-[#059669]',
@@ -65,7 +65,7 @@ const getPhases = () => [
         id: 'act',
         title: 'Actuar',
         subtitle: 'Mejora Continua',
-        description: 'Acciones Correctivas y Preventivas (ACPM).',
+        description: 'Registro de Acciones Correctivas y Preventivas (ACPM), Actualizaciones y Consolidación de Mejora Continua.',
         accent: 'text-[#14b8a6]',
         bgGlow: 'bg-[#14b8a6]/5',
         borderHover: 'hover:border-[#14b8a6]',
@@ -236,13 +236,13 @@ export default function SGSSTDashboard() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
                         {phases.map((phase, i) => (
                             <div
                                 key={phase.id}
                                 onClick={() => handlePhaseSelect(phase)}
                                 className={cn(
-                                    "group relative cursor-pointer flex flex-col rounded-2xl border-2 bg-surface-primary transition-all duration-300 ease-out shadow-sm hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 overflow-hidden",
+                                    "group relative cursor-pointer flex flex-col rounded-2xl border-2 bg-surface-primary transition-all duration-300 ease-out shadow-sm hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 overflow-hidden h-full",
                                     "border-border-medium dark:border-white/10",
                                     phase.borderHover
                                 )}
@@ -259,7 +259,7 @@ export default function SGSSTDashboard() {
                                 </div>
 
                                 {/* Content Block */}
-                                <div className="relative p-6 px-7 flex flex-col h-full bg-transparent z-10">
+                                <div className="relative p-6 px-7 flex flex-col flex-1 bg-transparent z-10 w-full">
                                     <div className="flex justify-between items-start mb-6">
                                         <div className="p-3 bg-white dark:bg-black/20 rounded-2xl shadow-sm border border-border-light group-hover:border-transparent transition-colors">
                                             {phase.icon}
@@ -269,10 +269,10 @@ export default function SGSSTDashboard() {
                                         </div>
                                     </div>
                                     
-                                    <div className="text-left mt-auto">
-                                        <h2 className={cn("text-2xl font-black tracking-tight leading-none mb-2 text-text-primary transition-colors", `group-hover:${phase.accent}`)}>{phase.title}</h2>
-                                        <p className="text-text-secondary font-bold text-xs uppercase tracking-wide mb-3">{phase.subtitle}</p>
-                                        <p className="text-[13px] font-medium text-text-secondary leading-relaxed opacity-90">{phase.description}</p>
+                                    <div className="text-left flex flex-col flex-1">
+                                        <h2 className={cn("text-2xl font-black tracking-tight leading-none mb-2 text-text-primary transition-colors uppercase", `group-hover:${phase.accent}`)}>{phase.title}</h2>
+                                        <p className="text-text-secondary font-bold text-xs uppercase tracking-wide mb-3 min-h-[32px] sm:min-h-0 lg:min-h-[32px]">{phase.subtitle}</p>
+                                        <p className="text-[13px] font-medium text-text-secondary leading-relaxed opacity-90 mt-auto pt-2">{phase.description}</p>
                                     </div>
                                 </div>
                             </div>
