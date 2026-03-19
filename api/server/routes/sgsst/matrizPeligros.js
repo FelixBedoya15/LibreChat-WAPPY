@@ -110,6 +110,84 @@ MatrizPeligrosDataSchema.index({ user: 1 }, { unique: true });
 
 const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', MatrizPeligrosDataSchema);
 
+/**
+ * HELPER: Build integrated SST context from all modules
+ * This fulfills the request to have context from the entire company database
+ */
+async function getIntegratedSSTContext(userId) {
+    let context = '\n\n**ECOSISTEMA SST INTEGRADO (CONTEXTO DE OTRAS ÁREAS):**\n';
+    try {
+        // 1. Perfil Sociodemográfico (Hallazgos médicos)
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        if (PerfilSociodemograficoData) {
+            const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
+            if (psd && psd.trabajadores?.length) {
+                const total = psd.trabajadores.length;
+                const withFindings = psd.trabajadores.filter(t => t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos');
+                context += `- **Perfil Sociodemográfico**: ${total} trabajadores registrados.\n`;
+                if (withFindings.length > 0) {
+                    context += `  * HALLAZGOS MÉDICOS CRÍTICOS: Se reportan ${withFindings.length} casos con diagnósticos o recomendaciones médicas que deben considerarse al evaluar riesgos (ej: ${withFindings.slice(0, 5).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}).\n`;
+                }
+            }
+        }
+
+        // 2. Perfiles de Cargo
+        const PerfilCargoData = mongoose.models.PerfilCargoData;
+        if (PerfilCargoData) {
+            const pcd = await PerfilCargoData.findOne({ user: userId }).lean();
+            if (pcd && pcd.perfilesList?.length) {
+                context += `- **Perfiles de Cargo**: Se han definido ${pcd.perfilesList.length} cargos técnicos.\n`;
+                context += `  * Cargos documentados: ${pcd.perfilesList.map(p => p.nombreCargo).join(', ')}.\n`;
+                // Briefly mention existing risks from profiles
+                const profileRisks = pcd.perfilesList.filter(p => p.contextoAdicional).map(p => `${p.nombreCargo}: ${p.contextoAdicional.substring(0, 100)}...`);
+                if (profileRisks.length > 0) {
+                    context += `  * Contexto de perfiles: ${profileRisks.slice(0, 3).join(' | ')}\n`;
+                }
+            }
+        }
+
+        // 3. Siniestralidad ATEL
+        const ATELAnnualData = mongoose.models.ATELAnnualData;
+        if (ATELAnnualData) {
+            const ad = await ATELAnnualData.findOne({ user: userId }).lean();
+            if (ad && ad.years) {
+                const years = Object.keys(ad.years).sort().reverse();
+                if (years.length > 0) {
+                    const yearToUse = years[0];
+                    let totalEvents = 0;
+                    let commonHazards = new Set();
+                    const yearData = ad.years[yearToUse];
+                    Object.values(yearData).forEach(m => {
+                        if (m && m.events) {
+                            totalEvents += m.events.length;
+                            m.events.forEach(e => { if (e.peligro) commonHazards.add(e.peligro); });
+                        }
+                    });
+                    if (totalEvents > 0) {
+                        context += `- **Estadísticas ATEL (Año ${yearToUse})**: Se han presentado ${totalEvents} accidentes/incidentes.\n`;
+                        context += `  * Peligros causantes reales: ${Array.from(commonHazards).slice(0, 5).join(', ')}.\n`;
+                    }
+                }
+            }
+        }
+
+        // 4. Vulnerabilidad / Emergencias
+        const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
+        if (AnalisisVulnerabilidadData) {
+            const avd = await AnalisisVulnerabilidadData.findOne({ user: userId }).lean();
+            if (avd && avd.formData?.amenazasList?.length) {
+                const critical = avd.formData.amenazasList.filter(a => a.nivelAmenaza === 'Inminente' || a.nivelAmenaza === 'Probable');
+                if (critical.length > 0) {
+                    context += `- **Amenazas de Emergencia**: ${critical.length} amenazas críticas identificadas (${critical.map(a => a.amenaza).join(', ')}).\n`;
+                }
+            }
+        }
+    } catch (err) {
+        logger.debug('[MatrizPeligros] Integrated context failed:', err.message);
+    }
+    return context;
+}
+
 // ─── Helper: Get API Key ─────────────────────────────────────────────
 async function getApiKey(userId) {
     let resolvedApiKey;
@@ -132,6 +210,7 @@ async function getApiKey(userId) {
     }
     return resolvedApiKey;
 }
+
 
 // ─── GTC 45 Reference Tables (for AI prompt) ─────────────────────────
 const GTC45_TABLES = `
@@ -231,10 +310,14 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
         const selectedModel = modelName || 'gemini-3.1-flash-lite-preview';
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
+        // Build expanded SST context
+        const integratedSSTContext = await getIntegratedSSTContext(req.user.id);
+
         const prompt = `
 Eres un experto en Seguridad y Salud en el Trabajo (SST) en Colombia, especializado en la metodología GTC 45 para la identificación de peligros y valoración de riesgos.
 
 ${companyContext ? `**Contexto de la empresa:** ${companyContext}` : ''}
+${integratedSSTContext}
 
 **DATOS DEL PELIGRO A ANALIZAR (Contexto de Proceso):**
 - Proceso: ${proceso.proceso}
@@ -409,11 +492,16 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
 
+        // Build expanded SST context
+        const integratedSSTContext = await getIntegratedSSTContext(req.user.id);
+
         const systemPrompt = `Eres un experto en SST de Colombia (GTC 45 y Decreto 1072/2015).
 Tu tarea es generar la estructura inicial de una Matriz de Peligros para la siguiente empresa:
 Nombre: ${ci.companyName || 'Empresa'}
 Sector/Actividad: ${ci.economicActivity || 'General'}
 Nivel de Riesgo: ${ci.riskLevel || 'N/A'}
+
+${integratedSSTContext}
 
 Genera exactamente 7 procesos principales que sean lógicos para este tipo de empresa.
 Para CADA proceso, identifica de 5 a 8 peligros críticos (GTC 45) aplicables para ese proceso. Sé exhaustivo e incluye los peligros más relevantes (biomecánicos, físicos, psicosociales, biológicos, de seguridad, etc.).
