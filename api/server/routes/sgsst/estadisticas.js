@@ -283,9 +283,14 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
     - No te limites a repetir números. Explica QUÉ SIGNIFICAN para la empresa en términos de productividad y cumplimiento legal.
     - Si no hubo accidentes, felicita la gestión pero recomienda no bajar la guardia.
 
-3.  **TABLERO DE CONTROL (DASHBOARD):**
-    - Presenta los 6 indicadores en una cuadrícula de **TARJETAS VISUALES**.
-    - Cada tarjeta debe mostrar: Nombre del Indicador, EL VALOR EN GRANDE (ej: 2.50), y la interpretación resumida.
+3.  **TABLERO DE CONTROL Y AUDITORÍA FORENSE DE INDICADORES:**
+    - Presenta los 6 indicadores en una cuadrícula de **TARJETAS VISUALES** muy bien diseñadas.
+    - Cada tarjeta debe mostrar: Nombre del Indicador, EL VALOR EN MAXIMO DESTAQUE VISUAL (ej: 2.50).
+    - **AUDITORÍA FORENSE CUALITATIVA (OBLIGATORIO):** Debajo de cada indicador, redacta de forma muy profesional y **altamente pedagógica**:
+      * **Significado Matemático / Científico:** Explica con claridad qué significa exactamente ese valor y cómo funcionó la fórmula. (Ej. "Este 2.5 indica que por cada 100 trabajadores a tiempo completo, 2.5 se accidentaron en este periodo...").
+      * **Impacto Práctico / Gerencial:** Qué repercusiones tiene este número para la productividad, los costos operativos, la prima de la ARL y el bienestar del equipo.
+      * **Diagnóstico Final:** Concluye de manera contundente si este indicador representa un estado Crítico, de Alerta, Normal o de Excelencia. Justifica el porqué.
+    - El propósito es que CUALQUIER persona de gerencia entienda la magnitud y severidad real de los números, dejando de ser un simple reporte vacío.
 
 4.  **ANÁLISIS DE SINIESTRALIDAD (CUALITATIVO):**
     - Si hay eventos:
@@ -303,9 +308,10 @@ Usa los siguientes estilos CSS en línea (inline styles) para garantizar un dise
     - Prioriza según los hallazgos.
 
 7.  **FIRMA:**
-    - El sistema añadirá la sección de firmas automáticamente. NO la generes tú.
+    - El sistema añadirá la sección de firmas automáticamente en el backend.
+    - **CUMPLE ESTA REGLA ESTRICTA:** ESTÁ TOTALMENTE PROHIBIDO INCLUIR LÍNEAS DE FIRMA, BLOQUES DE FIRMA, TEXTOS COMO "FIRMADO POR" O "REPRESENTANTE LEGAL" EN TU GENERACIÓN. DEBES OMITIR CUALQUIER SECCIÓN REFERENTE A APROBACIONES O FIRMAS. SI INCLUYES FIRMAS, ARRUINARÁS EL DOCUMENTO FINAL.
 
-**IMPORTANTE:** El resultado debe ser un HTML limpio, listo para renderizar, visualmente impactante y profesional.
+**IMPORTANTE:** El resultado debe ser un HTML limpio, listo para renderizar, visualmente impactante, profesional, y con explicaciones extremadamente detalladas como te lo solicita la gerencia.
 `;
 
         // ─── 5. Generation ─────────────────────────────────────────────

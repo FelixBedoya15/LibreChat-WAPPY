@@ -14,7 +14,8 @@ import {
     Trash2,
     AlertTriangle,
     Inbox,
-    QrCode
+    QrCode,
+    CheckCircle
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -204,6 +205,9 @@ const ReporteActosCondiciones = () => {
             actividadGlobal: item.data?.descripcion || '',
             fecha: item.data?.fecha || prev.fecha,
             horaInicio: item.data?.hora || prev.horaInicio,
+            foto1Desc: item.data?.foto1Desc || '',
+            foto2Desc: item.data?.foto2Desc || '',
+            foto3Desc: item.data?.foto3Desc || '',
         }));
         setTrabajadoresList([{ 
             nombre: item.trabajador.nombre, 
@@ -211,7 +215,9 @@ const ReporteActosCondiciones = () => {
         }]);
         setImages(prev => ({
             ...prev,
-            foto1: item.data?.foto1 || null
+            foto1: item.data?.foto1 || null,
+            foto2: item.data?.foto2 || null,
+            foto3: item.data?.foto3 || null
         }));
         setIsInboxOpen(false);
         showToast({ message: 'Reporte cargado. Revise y complete la información.', status: 'info' });
@@ -602,10 +608,14 @@ const ReporteActosCondiciones = () => {
                             </p>
                             
                             <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-100 border-dashed w-full h-48 flex items-center justify-center">
-                                {/* Fallback QR Placeholder */}
-                                <div className="text-center text-gray-400">
-                                    <QrCode className="w-24 h-24 mx-auto opacity-30 mb-2" />
-                                    <p className="text-xs font-mono">ID: {user?.id?.slice(0,8)}...</p>
+                                {/* Componente QR */}
+                                <div className="text-center">
+                                    <img 
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`)}`} 
+                                        alt="QR Code" 
+                                        className="w-32 h-32 mx-auto rounded shadow-sm bg-white p-1"
+                                    />
+                                    <p className="text-xs font-mono text-gray-500 mt-2">ID: {user?.id?.slice(0,8)}...</p>
                                 </div>
                             </div>
                             

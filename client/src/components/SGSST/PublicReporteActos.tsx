@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Shield, AlertTriangle, Camera, UserCircle, Key, FileText, Send, CheckCircle, RefreshCcw } from 'lucide-react';
+import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X } from 'lucide-react';
 import axios from 'axios';
 
 export default function PublicReporteActos() {
@@ -17,6 +17,14 @@ export default function PublicReporteActos() {
     const [ubicacion, setUbicacion] = useState('');
     const [descripcion, setDescripcion] = useState('');
     const [foto1, setFoto1] = useState<string | null>(null);
+    const [foto2, setFoto2] = useState<string | null>(null);
+    const [foto3, setFoto3] = useState<string | null>(null);
+    const [foto1Desc, setFoto1Desc] = useState('');
+    const [foto2Desc, setFoto2Desc] = useState('');
+    const [foto3Desc, setFoto3Desc] = useState('');
+    
+    // To handle which image is currently being uploaded
+    const [activePhotoField, setActivePhotoField] = useState<'foto1'|'foto2'|'foto3'>('foto1');
     
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitResult, setSubmitResult] = useState<{success: boolean; message: string} | null>(null);
@@ -42,7 +50,10 @@ export default function PublicReporteActos() {
 
         const reader = new FileReader();
         reader.onloadend = () => {
-             setFoto1(reader.result as string);
+             const result = reader.result as string;
+             if (activePhotoField === 'foto1') setFoto1(result);
+             if (activePhotoField === 'foto2') setFoto2(result);
+             if (activePhotoField === 'foto3') setFoto3(result);
         };
         reader.readAsDataURL(file);
     };
@@ -64,7 +75,7 @@ export default function PublicReporteActos() {
     };
 
     const handleSubmit = async () => {
-        if (!foto1) {
+        if (!foto1 && !foto2 && !foto3) {
             const confirmNoPhoto = window.confirm("¿Está seguro de enviar el reporte sin fotografía? (Es altamente recomendable adjuntar evidencia visual).");
             if (!confirmNoPhoto) return;
         }
@@ -81,7 +92,12 @@ export default function PublicReporteActos() {
                     hora,
                     ubicacion,
                     descripcion,
-                    foto1
+                    foto1,
+                    foto2,
+                    foto3,
+                    foto1Desc,
+                    foto2Desc,
+                    foto3Desc
                 }
             };
             const response = await axios.post(`/api/public-sgsst/reporte-acto/${companyId}`, payload);
@@ -264,36 +280,58 @@ export default function PublicReporteActos() {
                                 </div>
                             </div>
 
-                            <div className="flex-1 flex flex-col justify-center">
-                                {foto1 ? (
-                                    <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-blue-200 group bg-gray-900 flex items-center justify-center">
-                                        <img src={foto1} alt="Evidencia" className="max-h-60 w-full object-contain" />
-                                        <button 
-                                            onClick={() => setFoto1(null)} 
-                                            className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-2 rounded-full hover:bg-red-500 transition-colors"
-                                        >
-                                            <RefreshCcw className="w-4 h-4" />
-                                        </button>
-                                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white text-xs text-center font-medium">Foto adjuntada exitosamente</div>
+                            <div className="flex-1 flex flex-col justify-center space-y-4 overflow-y-auto pr-2 pb-4">
+                                {[
+                                    { id: 'foto1' as const, file: foto1, desc: foto1Desc, setDesc: setFoto1Desc, label: 'Panorámica / Área' },
+                                    { id: 'foto2' as const, file: foto2, desc: foto2Desc, setDesc: setFoto2Desc, label: 'Detalle Específico' },
+                                    { id: 'foto3' as const, file: foto3, desc: foto3Desc, setDesc: setFoto3Desc, label: 'Contexto Adicional' }
+                                ].map((item) => (
+                                    <div key={item.id} className="w-full">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[11px] font-bold text-gray-500 uppercase">{item.label}</span>
+                                        </div>
+                                        {item.file ? (
+                                            <div className="relative rounded-xl overflow-hidden border-2 border-dashed border-blue-200 bg-gray-900 flex flex-col items-center">
+                                                <img src={item.file} alt="Evidencia" className="h-40 w-full object-cover opacity-80" />
+                                                <button 
+                                                    onClick={() => {
+                                                        if (item.id === 'foto1') setFoto1(null);
+                                                        if (item.id === 'foto2') setFoto2(null);
+                                                        if (item.id === 'foto3') setFoto3(null);
+                                                    }} 
+                                                    className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1.5 rounded-full hover:bg-red-500 transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-gray-900 to-transparent pt-6 pb-2 px-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={item.desc} 
+                                                        onChange={(e) => item.setDesc(e.target.value)}
+                                                        placeholder="Descripción breve..." 
+                                                        className="w-full text-xs bg-black/50 border border-gray-600 text-white placeholder-gray-400 rounded px-2 py-1 outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => { setActivePhotoField(item.id); fileInputRef.current?.click(); }}
+                                                className="w-full h-24 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center gap-3 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors group"
+                                            >
+                                                <div className="w-10 h-10 bg-white shadow-sm flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
+                                                    <Camera className="w-5 h-5 opacity-70" />
+                                                </div>
+                                                <span className="text-xs font-semibold text-gray-500 group-hover:text-blue-600">Agregar foto</span>
+                                            </button>
+                                        )}
                                     </div>
-                                ) : (
-                                    <button 
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="w-full p-8 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-4 bg-gray-50 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors group"
-                                    >
-                                        <div className="w-16 h-16 bg-white shadow flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
-                                            <Camera className="w-8 h-8 opacity-70" />
-                                        </div>
-                                        <div className="text-sm font-semibold text-gray-500 group-hover:text-blue-600">
-                                            Tocar para abrir cámara o galería
-                                        </div>
-                                    </button>
-                                )}
+                                ))}
+
                                 <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-                                <p className="text-[11px] text-gray-400 text-center mt-4">Una imagen vale más que mil palabras. Asegúrate de capturar bien la condición.</p>
+                                <p className="text-[10px] text-gray-400 text-center mt-2 leading-tight">Podrás subir hasta 3 imágenes en total para brindar mejor contexto visual del hallazgo.</p>
                             </div>
 
-                            <div className="mt-auto pt-6 flex gap-3">
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex gap-3 shrink-0">
                                 <button onClick={() => setStep(2)} className="px-5 py-3.5 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
                                 <button 
                                     onClick={handleSubmit} 
@@ -319,7 +357,8 @@ export default function PublicReporteActos() {
                             <button 
                                 onClick={() => {
                                     setStep(1);
-                                    setDescripcion(''); setUbicacion(''); setFoto1('');
+                                    setDescripcion(''); setUbicacion(''); setFoto1(''); setFoto2(''); setFoto3('');
+                                    setFoto1Desc(''); setFoto2Desc(''); setFoto3Desc('');
                                     setSubmitResult(null);
                                 }} 
                                 className="px-6 py-3 rounded-xl font-bold bg-gray-100 text-gray-800 hover:bg-gray-200"
