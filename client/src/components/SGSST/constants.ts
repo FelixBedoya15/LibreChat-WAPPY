@@ -25,9 +25,10 @@ export const PHASE_CATEGORIES = {
     check: [
         { id: 'auditoria', title: 'Informe de Auditoría', icon: 'ClipboardCheck' },
         { id: 'revision_direccion', title: 'Informe Revisión Alta Dirección', icon: 'Briefcase' },
-        { id: 'predictivo', title: 'Dashboard Predictivo (IA)', icon: 'Activity' },
     ],
     act: [
+        { id: 'predictivo', title: 'Dashboard Predictivo (IA)', icon: 'Activity' },
         { id: 'acpm', title: 'Matriz ACPM', icon: 'GitMerge' },
     ]
 };
+

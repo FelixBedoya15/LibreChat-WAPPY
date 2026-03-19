@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
     Sparkles,
-    History,
-    BarChart,
     Loader2,
     AlertTriangle,
     ShieldCheck,
@@ -10,6 +8,10 @@ import {
     Activity,
     LineChart,
     RefreshCw,
+    Brain,
+    TrendingUp,
+    Zap,
+    Users,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -32,43 +34,87 @@ interface ForecastData {
     recommendedActions: string[];
 }
 
-// ─── SVG Gauge Component ─────────────────────────────────────────────────────
-const Gauge = ({ value, label, color, icon: Icon }: { value: number, label: string, color: string, icon: any }) => {
-    const radius = 36;
+// ─── Animated Ring Gauge ──────────────────────────────────────────────────────
+const RingGauge = ({
+    value,
+    label,
+    color,
+    bgColor,
+    icon: Icon,
+    description,
+}: {
+    value: number;
+    label: string;
+    color: string;
+    bgColor: string;
+    icon: any;
+    description?: string;
+}) => {
+    const radius = 38;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (value / 100) * circumference;
+    const riskLabel = value >= 70 ? 'CRÍTICO' : value >= 40 ? 'ALTO' : value >= 20 ? 'MODERADO' : 'BAJO';
+    const riskColor = value >= 70 ? '#ef4444' : value >= 40 ? '#f97316' : value >= 20 ? '#eab308' : '#22c55e';
 
     return (
-        <div className="flex flex-col items-center p-6 bg-surface-primary rounded-2xl border border-border-medium shadow-sm transition-all hover:shadow-md hover:border-indigo-500/30 group">
-            <div className="relative flex items-center justify-center">
-                <svg className="w-28 h-28 transform -rotate-90">
+        <div className="flex flex-col items-center p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 group cursor-default">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4`} style={{ backgroundColor: bgColor }}>
+                <Icon className="h-5 w-5" style={{ color }} />
+            </div>
+            <div className="relative flex items-center justify-center mb-4">
+                <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
+                    {/* Background track */}
+                    <circle cx="50" cy="50" r={radius} stroke="#e5e7eb" strokeWidth="9" fill="transparent" className="dark:stroke-gray-700" />
+                    {/* Progress arc */}
                     <circle
-                        cx="56"
-                        cy="56"
-                        r={radius}
-                        stroke="currentColor"
-                        strokeWidth="8"
-                        fill="transparent"
-                        className="text-gray-100 dark:text-gray-800"
-                    />
-                    <circle
-                        cx="56"
-                        cy="56"
+                        cx="50"
+                        cy="50"
                         r={radius}
                         stroke={color}
-                        strokeWidth="8"
+                        strokeWidth="9"
                         strokeDasharray={circumference}
-                        style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                        style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 1.8s cubic-bezier(0.4, 0, 0.2, 1)', filter: `drop-shadow(0 0 6px ${color}60)` }}
                         strokeLinecap="round"
                         fill="transparent"
                     />
                 </svg>
                 <div className="absolute flex flex-col items-center">
-                    <Icon className="h-6 w-6 mb-1 group-hover:scale-110 transition-transform" style={{ color }} />
-                    <span className="text-xl font-bold text-text-primary">{value}%</span>
+                    <span className="text-2xl font-black text-text-primary" style={{ letterSpacing: '-0.04em' }}>{value}%</span>
                 </div>
             </div>
-            <span className="mt-4 text-xs font-bold text-text-secondary uppercase tracking-[0.1em]">{label}</span>
+            <span className="text-xs font-black text-text-primary uppercase tracking-[0.12em] text-center mb-1">{label}</span>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full" style={{ color: riskColor, backgroundColor: `${riskColor}15` }}>
+                {riskLabel}
+            </span>
+            {description && <p className="text-[11px] text-text-secondary text-center mt-2 leading-relaxed">{description}</p>}
+        </div>
+    );
+};
+
+// ─── Horizontal Bar Chart ─────────────────────────────────────────────────────
+const RiskBar = ({ label, value, color, delay }: { label: string; value: number; color: string; delay: number }) => {
+    const [width, setWidth] = useState(0);
+    useEffect(() => {
+        const t = setTimeout(() => setWidth(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+
+    return (
+        <div className="flex items-center gap-3 group">
+            <span className="text-xs font-semibold text-text-secondary w-36 shrink-0 text-right">{label}</span>
+            <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-5 overflow-hidden">
+                <div
+                    className="h-full rounded-full flex items-center justify-end pr-2"
+                    style={{
+                        width: `${width}%`,
+                        backgroundColor: color,
+                        transition: `width 1.2s cubic-bezier(0.4, 0, 0.2, 1) ${delay}ms`,
+                        boxShadow: `0 0 8px ${color}40`,
+                    }}
+                >
+                    <span className="text-[10px] font-black text-white">{value}%</span>
+                </div>
+            </div>
         </div>
     );
 };
@@ -87,7 +133,7 @@ const DashboardPredictivo = () => {
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState('');
 
-    // UI State (same pattern as EstadisticasATEL)
+    // UI State
     const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
@@ -111,7 +157,6 @@ const DashboardPredictivo = () => {
                 showToast({ message: errData.error || 'Error al cargar indicadores', status: 'error' });
             }
         } catch (err) {
-            console.error('Forecast error:', err);
             showToast({ message: 'Error de conexión con el servidor', status: 'error' });
         } finally {
             setIsLoadingForecast(false);
@@ -122,7 +167,7 @@ const DashboardPredictivo = () => {
         fetchForecast();
     }, []);
 
-    // ─── Report Generation (same pattern as EstadisticasATEL.handleGenerate) ──
+    // ─── Report Generation ────────────────────────────────────────────────
     const handleGenerate = useCallback(async () => {
         if (!token) return;
         setIsGenerating(true);
@@ -144,59 +189,41 @@ const DashboardPredictivo = () => {
             const data = await response.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
-
-            // Reset context for new save
             setConversationId('new');
             setReportMessageId(null);
-
             showToast({ message: 'Informe Predictivo generado exitosamente', status: 'success' });
         } catch (error: any) {
-            console.error('Predictive report error:', error);
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
         } finally {
             setIsGenerating(false);
         }
     }, [selectedModel, token, showToast]);
 
-    // ─── Save Report (same pattern as EstadisticasATEL.handleSaveReport) ──
+    // ─── Save Report ──────────────────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
         const contentToSave = editorContent || generatedReport;
-        if (!contentToSave) {
-            showToast({ message: 'No hay informe para guardar', status: 'warning' });
-            return;
-        }
-        if (!token) {
-            showToast({ message: 'Error: No autorizado', status: 'error' });
-            return;
-        }
+        if (!contentToSave) { showToast({ message: 'No hay informe para guardar', status: 'warning' }); return; }
+        if (!token) { showToast({ message: 'Error: No autorizado', status: 'error' }); return; }
 
         try {
             const isNew = !conversationId || conversationId === 'new';
-            const method = isNew ? 'POST' : 'PUT';
-
             const body = {
                 content: contentToSave,
                 ...(isNew ? {
                     title: `Pronóstico IA Predictivo - ${new Date().toLocaleDateString('es-CO')}`,
                     tags: ['sgsst-predictivo-ia']
-                } : {
-                    conversationId,
-                    messageId: reportMessageId
-                })
+                } : { conversationId, messageId: reportMessageId })
             };
 
             const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                method,
+                method: isNew ? 'POST' : 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(body),
             });
 
             if (res.ok) {
                 const data = await res.json();
-                if (isNew) {
-                    setConversationId(data.conversationId);
-                    setReportMessageId(data.messageId);
-                }
+                if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
                 setGeneratedReport(contentToSave);
                 setEditorContent(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
@@ -210,19 +237,14 @@ const DashboardPredictivo = () => {
         }
     }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
 
-    // ─── Select Report from History (same pattern as EstadisticasATEL) ────
+    // ─── Select Report from History ──────────────────────────────────────
     const handleSelectReport = async (reportOrId: any) => {
-        let content = '';
-        let convId = '';
-        let msgId = '';
+        let content = '', convId = '', msgId = '';
 
         if (typeof reportOrId === 'string') {
             convId = reportOrId;
             try {
-                const res = await fetch(`/api/messages/${convId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
+                const res = await fetch(`/api/messages/${convId}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (res.ok) {
                     const messages = await res.json();
                     const reportMsg = messages.reverse().find((m: any) =>
@@ -230,34 +252,17 @@ const DashboardPredictivo = () => {
                         (m.isCreatedByUser === false && m.text && m.text.includes('<html')) ||
                         (m.isCreatedByUser === false && m.text && m.text.length > 100)
                     );
-
-                    if (reportMsg) {
-                        content = reportMsg.text;
-                        msgId = reportMsg.messageId;
-                    } else {
-                        const last = messages[0];
-                        if (last) {
-                            content = last.text;
-                            msgId = last.messageId;
-                        }
-                    }
+                    if (reportMsg) { content = reportMsg.text; msgId = reportMsg.messageId; }
+                    else { const last = messages[0]; if (last) { content = last.text; msgId = last.messageId; } }
                 }
-            } catch (error) {
-                console.error('Error fetching report content:', error);
-                showToast({ message: 'Error al obtener el contenido del informe', status: 'error' });
-                return;
-            }
-        } else if (reportOrId && reportOrId.content) {
-            content = reportOrId.content;
-            convId = reportOrId.conversationId;
-            msgId = reportOrId.messageId;
+            } catch { showToast({ message: 'Error al obtener el contenido del informe', status: 'error' }); return; }
+        } else if (reportOrId?.content) {
+            content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
         }
 
         if (content) {
-            setGeneratedReport(content);
-            setEditorContent(content);
-            setConversationId(convId);
-            setReportMessageId(msgId);
+            setGeneratedReport(content); setEditorContent(content);
+            setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
             showToast({ message: 'Informe cargado desde historial', status: 'info' });
         } else {
@@ -265,74 +270,68 @@ const DashboardPredictivo = () => {
         }
     };
 
+    const overallRisk = forecast?.overallRisk || 0;
+    const riskBadgeColor = overallRisk > 70 ? '#ef4444' : overallRisk > 40 ? '#f97316' : '#22c55e';
+    const riskBadgeBg = overallRisk > 70 ? '#fef2f2' : overallRisk > 40 ? '#fff7ed' : '#f0fdf4';
+    const riskLabel = overallRisk > 70 ? 'Riesgo Extremo' : overallRisk > 40 ? 'Riesgo Alto' : 'Controlado';
+
+    // Build bar data from forecast
+    const barData = [
+        { label: 'Riesgo Ergonómico', value: forecast?.indicators?.ergonomicRisk || 0, color: '#8b5cf6' },
+        { label: 'Vigilancia Salud', value: forecast?.indicators?.healthRisk || 0, color: '#ef4444' },
+        { label: 'Seguridad Física', value: forecast?.indicators?.safetyRisk || 0, color: '#f97316' },
+        { label: 'Riesgo General', value: overallRisk, color: '#0d9488' },
+    ];
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* ═══ Header / Toolbar (Same structure as EstadisticasATEL) ═══ */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+
+            {/* ═══ Header / Toolbar ═══ */}
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-teal-600/10 via-surface-secondary to-purple-600/10 border border-border-medium shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                        <Activity className="h-6 w-6" />
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-md shadow-teal-500/30">
+                        <Brain className="h-6 w-6 text-white" />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Gestor de Inteligencia Predictiva SST</h2>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
                             <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                             <span className="text-sm text-text-secondary">Análisis cruzado de 8 módulos integrados</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Botón Refrescar Indicadores */}
-                    <button
-                        onClick={fetchForecast}
-                        disabled={isLoadingForecast}
-                        title="Actualizar Indicadores Predictivos"
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                    >
-                        <RefreshCw className={cn("h-5 w-5 text-gray-500", isLoadingForecast && "animate-spin")} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                            Actualizar Indicadores
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Refresh */}
+                    <button onClick={fetchForecast} disabled={isLoadingForecast} title="Actualizar Indicadores"
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                        <RefreshCw className={cn("h-4 w-4 text-teal-500", isLoadingForecast && "animate-spin")} />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">
+                            Actualizar
                         </span>
                     </button>
 
-                    {/* Botón Generar Pronóstico IA (equivalente al Sparkles de otros apps) */}
-                    <button
-                        onClick={handleGenerate}
-                        disabled={isGenerating}
-                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm ring-2 ring-teal-500/20 disabled:opacity-50"
-                    >
-                        {isGenerating
-                            ? <Loader2 className="h-5 w-5 animate-spin" />
-                            : <AnimatedIcon name="sparkles" size={20} />
-                        }
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                            Generar Pronóstico IA
-                        </span>
+                    {/* Generate */}
+                    <button onClick={handleGenerate} disabled={isGenerating}
+                        className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white rounded-full transition-all duration-300 shadow-md shadow-teal-500/30 font-semibold text-sm ring-2 ring-teal-500/20 disabled:opacity-50">
+                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <AnimatedIcon name="sparkles" size={16} />}
+                        {isGenerating ? 'Analizando...' : 'Generar Pronóstico IA'}
                     </button>
 
-                    {/* Botón Historial (same as EstadisticasATEL) */}
-                    <button
-                        onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
-                    >
-                        <AnimatedIcon name="history" size={20} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                            Historial Informes
-                        </span>
+                    {/* History */}
+                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                        <AnimatedIcon name="history" size={16} />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">Historial</span>
                     </button>
 
-                    {/* Guardar Informe + Exportar (only when report exists) */}
+                    {/* Save & Export (only when report exists) */}
                     {generatedReport && (
                         <>
-                            <button
-                                onClick={handleSaveReport}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                            >
-                                <AnimatedIcon name="save" size={20} className="text-gray-500" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                                    Guardar Informe
-                                </span>
+                            <button onClick={handleSaveReport}
+                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                <AnimatedIcon name="save" size={16} className="text-gray-500" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">Guardar</span>
                             </button>
                             <ExportDropdown
                                 content={editorContent || generatedReport || ''}
@@ -341,130 +340,187 @@ const DashboardPredictivo = () => {
                         </>
                     )}
 
-                    {/* Model Selector */}
-                    <ModelSelector
-                        selectedModel={selectedModel}
-                        onSelectModel={setSelectedModel}
-                        disabled={isGenerating}
-                    />
+                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
                 </div>
             </div>
 
-            {/* ═══ ReportHistory Sidebar (same pattern as EstadisticasATEL) ═══ */}
+            {/* ═══ Report History ═══ */}
             {isHistoryOpen && (
                 <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                    <ReportHistory
-                        onSelectReport={handleSelectReport}
-                        isOpen={isHistoryOpen}
-                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
-                        refreshTrigger={refreshTrigger}
-                        tags={['sgsst-predictivo-ia']}
-                    />
+                    <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
+                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger} tags={['sgsst-predictivo-ia']} />
                 </div>
             )}
 
-            {/* ═══ Indicadores Predictivos (Gauges) ═══ */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Carta Principal de Probabilidad */}
-                <div className="md:col-span-1 p-8 bg-gradient-to-br from-teal-600 via-teal-700 to-teal-800 rounded-2xl text-white shadow-xl flex flex-col items-center justify-center text-center relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-150 transition-transform duration-700">
-                        <Sparkles className="h-24 w-24" />
+            {/* ═══ Main Dashboard Grid ═══ */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* ── Left: Hero Card ── */}
+                <div className="lg:col-span-1 relative overflow-hidden rounded-2xl p-7 flex flex-col justify-between min-h-[280px]"
+                    style={{ background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 40%, #134e4a 100%)' }}>
+                    {/* Decorative circles */}
+                    <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
+                    <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-white/5" />
+                    <div className="absolute top-1/2 right-4 w-20 h-20 rounded-full bg-white/5" />
+
+                    <div>
+                        <div className="flex items-center gap-2 mb-4">
+                            <Zap className="h-4 w-4 text-teal-200" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-teal-200">Probabilidad de Siniestro</span>
+                        </div>
+                        <div className="text-7xl font-black text-white mb-3" style={{ letterSpacing: '-0.04em' }}>
+                            {isLoadingForecast
+                                ? <div className="h-16 w-32 bg-white/10 rounded-xl animate-pulse" />
+                                : `${overallRisk}%`
+                            }
+                        </div>
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-bold"
+                            style={{ backgroundColor: riskBadgeBg, color: riskBadgeColor }}>
+                            {riskLabel}
+                        </span>
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-3 border-b border-white/20 pb-1">Probabilidad de Siniestro</span>
-                    <div className="text-6xl font-black mb-2 tracking-tighter">
-                        {isLoadingForecast ? <Loader2 className="h-10 w-10 animate-spin" /> : `${forecast?.overallRisk || 0}%`}
-                    </div>
-                    <div className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase",
-                        (forecast?.overallRisk || 0) > 70 ? "bg-red-500" : (forecast?.overallRisk || 0) > 40 ? "bg-amber-500" : "bg-green-500"
-                    )}>
-                        Riesgo {(forecast?.overallRisk || 0) > 70 ? 'Extremo' : (forecast?.overallRisk || 0) > 40 ? 'Alto' : 'Controlado'}
-                    </div>
+
                     {forecast?.criticalArea && (
-                        <div className="mt-6 pt-4 border-t border-white/20 w-full text-xs">
-                            <span className="block opacity-70 mb-1 font-bold">ÁREA DE ENFOQUE CRÍTICO:</span>
-                            <span className="font-black text-teal-100">{forecast.criticalArea.toUpperCase()}</span>
+                        <div className="mt-4 pt-4 border-t border-white/20">
+                            <span className="block text-[10px] text-teal-200 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" /> Área Crítica
+                            </span>
+                            <span className="font-black text-white text-sm">{forecast.criticalArea.toUpperCase()}</span>
                         </div>
                     )}
                 </div>
 
-                {/* Gauges Específicos */}
-                <Gauge value={forecast?.indicators?.safetyRisk || 0} label="Seguridad Física" color="#f59e0b" icon={AlertTriangle} />
-                <Gauge value={forecast?.indicators?.healthRisk || 0} label="Vigilancia Salud" color="#ef4444" icon={HeartPulse} />
-                <Gauge value={forecast?.indicators?.ergonomicRisk || 0} label="Ergonomía" color="#10b981" icon={ShieldCheck} />
+                {/* ── Right: 3 Gauges ── */}
+                <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <RingGauge
+                        value={forecast?.indicators?.safetyRisk || 0}
+                        label="Seguridad Física"
+                        color="#f97316"
+                        bgColor="#fff7ed"
+                        icon={AlertTriangle}
+                        description="Condiciones y actos inseguros no controlados"
+                    />
+                    <RingGauge
+                        value={forecast?.indicators?.healthRisk || 0}
+                        label="Vigilancia Salud"
+                        color="#ef4444"
+                        bgColor="#fef2f2"
+                        icon={HeartPulse}
+                        description="Hallazgos médicos y patologías de origen laboral"
+                    />
+                    <RingGauge
+                        value={forecast?.indicators?.ergonomicRisk || 0}
+                        label="Ergonomía"
+                        color="#8b5cf6"
+                        bgColor="#f5f3ff"
+                        icon={ShieldCheck}
+                        description="Riesgos biomecánicos y posturales (OWAS)"
+                    />
+                </div>
             </div>
 
-            {/* ═══ Resumen de IA y Acciones Prescriptivas ═══ */}
+            {/* ═══ Bar Chart + Predicted Insight ═══ */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Análisis de Correlación */}
-                <div className="p-6 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="text-sm font-bold text-text-primary mb-5 flex items-center gap-2.5">
-                        <AnimatedIcon name="sparkles" size={18} className="text-teal-500" />
-                        ANÁLISIS DE CORRELACIÓN PREDICTIVA
+
+                {/* Bar Chart */}
+                <div className="p-6 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
+                    <h3 className="text-sm font-bold text-text-primary mb-5 flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-teal-500" />
+                        RADAR DE FACTORES DE RIESGO
                     </h3>
-                    <div className="space-y-4">
-                        <p className="text-sm text-text-secondary leading-relaxed font-medium italic p-4 bg-surface-primary rounded-xl border border-border-light shadow-inner">
-                            "{forecast?.predictionSummary || "Haga clic en 'Actualizar Indicadores' para generar el análisis predictivo..."}"
-                        </p>
-                        <div className="p-4 bg-teal-50/50 dark:bg-teal-900/10 rounded-xl border border-teal-100/50 dark:border-teal-800/20">
-                            <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 block mb-3 uppercase tracking-wider">Fuentes de Datos Integradas:</span>
-                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-text-secondary">
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Perfil Sociodemográfico</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Estadísticas ATEL</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Investigaciones ATEL</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Actos/Condiciones Inseguras</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Método OWAS (Ergonomía)</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />ATS (Tareas Críticas)</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Análisis de Vulnerabilidad</li>
-                                <li className="flex items-center gap-2"><div className="h-1 w-1 rounded-full bg-teal-400" />Matriz GTC 45</li>
-                            </ul>
+                    {isLoadingForecast ? (
+                        <div className="space-y-4">
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-28 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                                    <div className="flex-1 h-5 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {barData.map((bar, i) => (
+                                <RiskBar key={bar.label} {...bar} delay={i * 150} />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Data Sources */}
+                    <div className="mt-5 pt-4 border-t border-border-light">
+                        <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 block mb-2 uppercase tracking-wider">Fuentes Integradas:</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                            {['Perfil Sociodemográfico', 'Estadísticas ATEL', 'Investigaciones ATEL', 'Actos/Condiciones', 'Método OWAS', 'ATS', 'Vulnerabilidad', 'Matriz GTC 45'].map(src => (
+                                <div key={src} className="flex items-center gap-1.5 text-[10px] text-text-secondary">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-teal-400 shrink-0" />
+                                    {src}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Acciones Prescriptivas */}
-                <div className="p-6 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
-                    <h3 className="text-sm font-bold text-text-primary mb-5 flex items-center gap-2.5">
-                        <AnimatedIcon name="database" size={18} className="text-green-500" />
-                        ACCIONES PREVENTIVAS DE ALTA PRIORIDAD
-                    </h3>
-                    <div className="space-y-3">
-                        {forecast?.recommendedActions?.length ? forecast.recommendedActions.map((action, i) => (
-                            <div key={i} className="flex items-start gap-3 p-4 bg-surface-primary rounded-xl border border-border-medium hover:border-green-400 hover:shadow-sm transition-all group">
-                                <div className="mt-0.5 h-6 w-6 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center justify-center text-xs font-black group-hover:scale-110 transition-transform">
-                                    {i + 1}
+                {/* Correlation Panel */}
+                <div className="flex flex-col gap-4">
+                    {/* AI Insight Card */}
+                    <div className="p-6 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm flex-1">
+                        <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
+                            <AnimatedIcon name="sparkles" size={16} className="text-teal-500" />
+                            ANÁLISIS DE CORRELACIÓN PREDICTIVA
+                        </h3>
+                        <p className="text-sm text-text-secondary leading-relaxed font-medium italic p-4 bg-surface-primary rounded-xl border border-border-light">
+                            "{forecast?.predictionSummary || "Haga clic en 'Actualizar' para generar el análisis predictivo cruzado de todos los módulos..."}"
+                        </p>
+                    </div>
+
+                    {/* Recommended Actions */}
+                    <div className="p-6 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
+                        <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
+                            <AnimatedIcon name="database" size={16} className="text-green-500" />
+                            ACCIONES PREVENTIVAS PRIORITARIAS
+                        </h3>
+                        <div className="space-y-2">
+                            {forecast?.recommendedActions?.length ? forecast.recommendedActions.map((action, i) => (
+                                <div key={i} className="flex items-start gap-3 p-3 bg-surface-primary rounded-xl border border-border-medium hover:border-green-400/50 hover:shadow-sm transition-all group">
+                                    <div className="mt-0.5 h-6 w-6 rounded-lg flex items-center justify-center text-xs font-black text-white shrink-0 group-hover:scale-110 transition-transform"
+                                        style={{ background: 'linear-gradient(135deg, #10b981, #0d9488)' }}>
+                                        {i + 1}
+                                    </div>
+                                    <span className="text-xs text-text-primary font-medium leading-relaxed">{action}</span>
                                 </div>
-                                <span className="text-sm text-text-primary font-medium">{action}</span>
-                            </div>
-                        )) : [1, 2, 3].map(i => (
-                            <div key={i} className="flex items-center gap-3 p-4 bg-surface-tertiary/50 rounded-xl border border-border-light">
-                                <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
-                                <div className="flex-1 h-4 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
-                            </div>
-                        ))}
+                            )) : [1, 2, 3].map(i => (
+                                <div key={i} className="flex items-center gap-3 p-3 bg-surface-primary rounded-xl border border-border-light">
+                                    <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse shrink-0" />
+                                    <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* ═══ Generated Report - LiveEditor ═══ */}
+            {/* ═══ Generated Report ═══ */}
             {generatedReport && (
                 <div className="rounded-2xl border-2 border-teal-500/20 bg-surface-primary overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="border-b border-border-medium bg-teal-50/50 dark:bg-teal-950/20 px-6 py-4 flex items-center justify-between">
+                    <div className="border-b border-border-medium bg-gradient-to-r from-teal-50/80 to-transparent dark:from-teal-950/30 px-6 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <LineChart className="h-6 w-6 text-teal-600" />
+                            <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
+                                <LineChart className="h-5 w-5 text-teal-600" />
+                            </div>
                             <div>
                                 <h3 className="font-bold text-text-primary">Informe Predictivo Detallado</h3>
                                 <p className="text-[10px] text-text-secondary uppercase tracking-widest">Generado por WAPPY AI Engine</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                             <button
-                                onClick={handleSaveReport}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-colors shadow-sm"
-                            >
+                            <button onClick={handleSaveReport}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-colors shadow-sm">
                                 <AnimatedIcon name="save" size={14} />
                                 Guardar en Historial
                             </button>
+                            <ExportDropdown
+                                content={editorContent || generatedReport || ''}
+                                fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
+                            />
                         </div>
                     </div>
                     <div className="p-2 min-h-[600px] bg-white dark:bg-gray-900">

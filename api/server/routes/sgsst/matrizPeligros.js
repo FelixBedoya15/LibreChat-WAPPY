@@ -830,7 +830,7 @@ Redacta un INFORME EJECUTIVO TÉCNICO EXTREMADAMENTE EXTENSO, PROFUNDO, DETALLAD
 - Analiza la distribución de riesgos por procesos: cuáles procesos concentran mayor riesgo (operativos vs administrativos) y qué implica.
 - Menciona el incumplimiento potencial del ciclo PHVA (Decreto 1072) y la Resolución 0312.
 
-──── SECCIÓN 2: ANÁLISIS CUALITATIVO DE PELIGROS (TODOS) ────
+──── SECCIÓN 2: ANÁLISIS CUALITATIVO DE PELIGROS ────
 **CRÍTICO: NO selecciones solo 4 peligros. DEBES analizar TODOS y CADA UNO de los ${totalPeligros} peligros.**
 Para CADA peligro de las fichas técnicas anteriores, genera una entrada tipo viñeta que incluya:
   • Nombre del Peligro y su Clasificación (ej. "Caída a distinto nivel — Condiciones de Seguridad")
