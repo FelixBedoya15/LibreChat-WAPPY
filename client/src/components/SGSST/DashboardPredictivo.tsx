@@ -33,6 +33,11 @@ interface ForecastData {
         safetyRisk: number;
         ergonomicRisk: number;
     };
+    evidence: {
+        healthEvidence: string;
+        safetyEvidence: string;
+        ergonomicEvidence: string;
+    };
     recommendedActions: string[];
 }
 
@@ -402,7 +407,7 @@ const DashboardPredictivo = () => {
                         color="#f97316"
                         bgColor="#fff7ed"
                         icon={AlertTriangle}
-                        description="Condiciones y actos inseguros no controlados"
+                        description={forecast?.evidence?.safetyEvidence || "Condiciones y actos inseguros no controlados"}
                     />
                     <RingGauge
                         value={forecast?.indicators?.healthRisk || 0}
@@ -410,7 +415,7 @@ const DashboardPredictivo = () => {
                         color="#ef4444"
                         bgColor="#fef2f2"
                         icon={HeartPulse}
-                        description="Hallazgos médicos y patologías de origen laboral"
+                        description={forecast?.evidence?.healthEvidence || "Hallazgos médicos y patologías de origen laboral"}
                     />
                     <RingGauge
                         value={forecast?.indicators?.ergonomicRisk || 0}
@@ -418,7 +423,7 @@ const DashboardPredictivo = () => {
                         color="#8b5cf6"
                         bgColor="#f5f3ff"
                         icon={ShieldCheck}
-                        description="Riesgos biomecánicos y posturales (OWAS)"
+                        description={forecast?.evidence?.ergonomicEvidence || "Riesgos biomecánicos y posturales (OWAS)"}
                     />
                 </div>
             </div>
@@ -520,9 +525,9 @@ const DashboardPredictivo = () => {
                         </div>
                         <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                             <button onClick={handleSaveReport}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-[#10b981] text-white text-xs font-bold rounded-lg hover:bg-[#059669] transition-colors shadow-sm">
-                                <AnimatedIcon name="save" size={14} />
-                                Guardar en Historial
+                                className="group flex items-center px-3 py-2 bg-[#10b981] hover:bg-[#059669] text-white rounded-full transition-all duration-300 shadow-sm font-bold text-xs">
+                                <AnimatedIcon name="save" size={16} />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar en Historial</span>
                             </button>
                             <ExportDropdown
                                 content={editorContent || generatedReport || ''}

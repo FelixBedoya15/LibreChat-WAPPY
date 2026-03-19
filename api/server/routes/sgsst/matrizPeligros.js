@@ -863,6 +863,7 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
       NORMAS DE FORMATO (CRÍTICO)
 ═══════════════════════════════════════
 - **SOLO CÓDIGO HTML VÁLIDO.** Sin etiquetas <html>, <body> ni markdown. Sin \`\`\`html.
+- **PROHIBIDO INCLUIR FIRMAS.** NO incluyas bajo ninguna circunstancia tablas de firmas, espacios para firmar, nombres de representantes o responsables SST al final del documento. El sistema WAPPY añadirá las firmas oficiales automáticamente. Si incluyes firmas, arruinarás el documento.
 - **CSS INLINE OBLIGATORIO.** Usa exclusivamente atributos \`style\`. NO uses clases de Tailwind ni clases CSS.
 - **PRECAUCIÓN MODO OSCURO:** Todo texto debe tener \`color\` explícito. Texto normal: \`color: #1e293b;\`. Títulos (h2, h3): \`color: #0f766e;\`.
 - **Contenedores:** \`width: 100%; box-sizing: border-box;\`.

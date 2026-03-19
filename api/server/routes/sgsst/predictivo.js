@@ -214,6 +214,9 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         let totalHazardsI_II = 0, totalHazards = 0;
         let totalOwasHigh = 0, totalOwas = 0;
         let totalActsConds = 0;
+        let totalATEL = 0;
+        let totalATS = 0;
+        let totalVulnerabilidades = 0;
         let criticalAreasMap = {};
         
         try {
@@ -265,21 +268,73 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
                     totalActsConds = doc.reportesList.filter(r => r.estado !== 'Cerrado').length;
                 }
             }
+
+            const atelData = mongoose.models.InvestigacionAtelData;
+            if (atelData) {
+                const docs = await atelData.find({ user: userId }).lean();
+                if (docs && docs.length > 0) {
+                    totalATEL = docs.length;
+                    docs.forEach(doc => {
+                        const formData = doc.formData || {};
+                        if (formData.cargoAccidentado) {
+                            criticalAreasMap[formData.cargoAccidentado] = (criticalAreasMap[formData.cargoAccidentado] || 0) + 3; // Higheest weight!
+                        }
+                    });
+                }
+            }
+
+            const atsData = mongoose.models.AnalisisTrabajoSeguroData;
+            if (atsData) {
+                const doc = await atsData.findOne({ user: userId }).lean();
+                if (doc?.pasos?.length) {
+                    totalATS = doc.pasos.length;
+                }
+            }
+
+            const vulData = mongoose.models.AnalisisVulnerabilidadData;
+            if (vulData) {
+                const doc = await vulData.findOne({ user: userId }).lean();
+                const amenazas = doc?.formData?.amenazasList || doc?.amenazasList || [];
+                if (amenazas.length) {
+                    totalVulnerabilidades = amenazas.length;
+                }
+            }
+
         } catch(e) { 
             logger.error('[Predictivo] DB Aggregation Error:', e.message); 
         }
         
         let healthRisk = totalWorkers > 0 ? Math.min(100, Math.round((sickWorkers / totalWorkers) * 100 * 2)) : 0;
+        let healthEvidence = sickWorkers > 0 
+            ? `Calculado sobre ${sickWorkers} casos médicos activos de un total de ${totalWorkers} trabajadores (Perfil Sociodemográfico).` 
+            : `Sin hallazgos clínicos críticos en ${totalWorkers} trabajadores.`;
+
         let safetyRisk = totalHazards > 0 ? Math.min(100, Math.round((totalHazardsI_II / totalHazards) * 100 * 1.5)) : 0;
         if (totalActsConds > 0) safetyRisk = Math.min(100, safetyRisk + (totalActsConds * 5));
+        if (totalATEL > 0) safetyRisk = Math.min(100, safetyRisk + (totalATEL * 15));
         
+        let safetyEvidence = [];
+        if (totalHazardsI_II > 0) safetyEvidence.push(`${totalHazardsI_II} peligros Nivel I/II (GTC 45)`);
+        if (totalActsConds > 0) safetyEvidence.push(`${totalActsConds} actos inseguros abiertos`);
+        if (totalATEL > 0) safetyEvidence.push(`${totalATEL} investigaciones ATEL recientes`);
+        if (totalATS > 0) safetyEvidence.push(`${totalATS} pasos de alto riesgo en ATS`);
+        if (totalVulnerabilidades > 0) safetyEvidence.push(`${totalVulnerabilidades} escenarios de vulnerabilidad activa`);
+
+        let safetyEvidenceText = safetyEvidence.length > 0 
+            ? `Cruce de datos: ${safetyEvidence.join(' / ')}.`
+            : `Condiciones operativas estables en Matriz GTC 45 y Seguridad Industrial.`;
+
         let ergonomicRisk = totalOwas > 0 ? Math.min(100, Math.round((totalOwasHigh / totalOwas) * 100 * 1.5)) : 0;
         if (ergonomicRisk === 0 && sickWorkers > 0) ergonomicRisk = Math.floor(healthRisk / 2);
         
+        let ergonomicEvidence = totalOwasHigh > 0
+            ? `Identificadas ${totalOwasHigh} posturas de Riesgo Nivel 3 y 4 (Método OWAS).`
+            : (totalOwas > 0 ? `Analizadas ${totalOwas} posturas operativas bajo control.` : `Nivel basal proyectado desde Perfil Sociodemográfico.`);
+
         let overallRisk = Math.round((healthRisk + safetyRisk + ergonomicRisk) / 3);
-        if (overallRisk === 0 && (totalWorkers > 0 || totalHazards > 0)) {
+        if (overallRisk === 0 && (totalWorkers > 0 || totalHazards > 0 || totalVulnerabilidades > 0)) {
             overallRisk = 12; // Base sub-record risk
-            safetyRisk = 15;
+            safetyRisk = totalVulnerabilidades > 0 ? 25 : 15;
             healthRisk = 10;
         }
 
@@ -289,24 +344,26 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
             if (count > maxCount) { maxCount = count; criticalArea = area; }
         }
 
-        let predictionSummary = "Evaluación determinística en tiempo real. ";
-        if (overallRisk < 20) predictionSummary += "Esceso de reportes nulos; riesgo bajo aparente (posible subregistro en PVE/Condiciones). ";
-        else if (overallRisk < 50) predictionSummary += `Volumen controlable de patologías/riesgos. Foco primario en ${criticalArea}. `;
-        else predictionSummary += `Alerta de contingencia en ${criticalArea}. Convergen diagnósticos médicos y riesgos de alta severidad. `;
+        let predictionSummary = "Evaluación determinística en tiempo real cruzando múltiples bases de datos institucionales. ";
+        if (overallRisk < 20) predictionSummary += "Riesgo proyectado bajo. Monitoreo pasivo recomendado (posible subregistro en Actos/Condiciones). ";
+        else if (overallRisk < 50) predictionSummary += `Volumen controlable de incidentes vaticinados. El principal vector de intervención estructural recae en la sección de: ${criticalArea}. `;
+        else predictionSummary += `ALERTA DE CONTINGENCIA ORQUESTADA EN: ${criticalArea}. La correlación de investigaciones ATEL, hallazgos médicos y severos peligros GTC-45 sugieren inevitabilidad de siniestro a corto plazo. `;
         
-        if (safetyRisk > 60) predictionSummary += "Atención inmediata a peligros Nivel I/II GTC 45. ";
-        if (healthRisk > 40) predictionSummary += "Altos índices de sintomatología clínica activa. ";
-
         res.json({
             overallRisk,
             criticalArea,
             predictionSummary,
             indicators: { healthRisk, safetyRisk, ergonomicRisk },
+            evidence: {
+                healthEvidence,
+                safetyEvidence: safetyEvidenceText,
+                ergonomicEvidence
+            },
             recommendedActions: [
                 "Control y ejecución de intervenciones prioritarias detectadas en la Matriz GTC 45",
-                "Seguimiento epidemiológico a la población con diagnósticos activos",
-                "Verificación y corrección de las posturas críticas categorizadas por OWAS",
-                "Cierre inmediato de los actos y condiciones inseguras abiertas"
+                "Seguimiento epidemiológico a la población con diagnósticos activos y reestructuración de perfiles",
+                "Verificación y corrección de las posturas críticas categorizadas por OWAS en el marco de ingeniería del puesto",
+                "Cierre inmediato de los actos, condiciones inseguras abiertas e investigaciones ATEL (Accidentes/Incidentes)"
             ]
         });
     } catch (err) {
@@ -356,21 +413,22 @@ Produce un INFORME EXTENSO, ESPECÍFICO, DENSO Y TÉCNICO. NO uses frases genér
 
 **ESTRUCTURA EXACTA (7 secciones, cada una extensa y con datos reales):**
 
-──── SECCIÓN 1: RESUMEN EJECUTIVO DE RIESGO PROYECTADO (30 días) ────
+──── SECCIÓN 1: TABLERO DE INDICADORES PREDICTIVOS (Gráficos Textuales Obligatorios) ────
+Genera una TABLA HTML visual (sin 'striped' class) que funcione como un Cuadro de Mando Integrado, que resuma estrictamente los hallazgos de todo el reporte.
+Ejemplo de estructura (hazla más elegante con CSS inline, colores y padding, pero respetando las normas de no-oscuro):
+| Indicador Predictivo | Nivel de Riesgo (%) | Justificación (Evidencia de BD) |
+| --- | --- | --- |
+| Riesgo de Siniestro (General) | [Valor Real] | [Conclusión / Área Crítica] |
+| Salud Operacional | [Valor Real] | [Hallazgos Clínicos] |
+| Seguridad Física | [Valor Real] | [Actos/Condiciones, ATEL, ATS] |
+| Biomecánica (OWAS) | [Valor Real] | [Posturas Críticas] |
+
+──── SECCIÓN 2: RESUMEN EJECUTIVO DE RIESGO PROYECTADO (30 días) ────
 - Mínimo 4-5 párrafos. NO repitas los números crudos sin interpretar.
 - Analiza la probabilidad real de accidente o enfermedad laboral en los próximos 30 días, basado en los datos de todos los módulos.
 - Interpreta la siniestralidad (o su ausencia) como señal de posible subregistro o sesgo de supervivencia.
 - Conecta los diagnósticos médicos reales del perfil sociodemográfico con los riesgos de la matriz GTC 45.
 - Comenta el nivel de riesgo de la ARL vs. los riesgos reales encontrados.
-
-──── SECCIÓN 2: TABLERO DE INDICADORES PREDICTIVOS ────
-Genera tarjetas visuales HTML (una por indicador) mostrando:
-• Riesgo General de Accidente / Siniestro (%)
-• Riesgo de Enfermedad Laboral / Vigilancia Salud (%)
-• Riesgo de Seguridad Física (%)
-• Riesgo Ergonómico / Biomecánico (%)
-• Riesgo Psicosocial (%)
-Los porcentajes deben derivarse lógicamente de los datos reales (diagnósticos, peligros GTC 45, OWAS, subregistro). Explica brevemente bajo cada tarjeta por qué ese %.
 
 ──── SECCIÓN 3: ANÁLISIS DE CORRELACIÓN PROFUNDA (CRUCE DE MÓDULOS) ────
 - Múltiples párrafos, uno por cada correlación encontrada.
@@ -405,13 +463,17 @@ Tabla completa y detallada con columnas:
 - Menciona qué módulos presentan mayor riesgo de incumplimiento normativo.
 - Concluye con una recomendación estratégica de inversión en SST vs. costo de sanciones.
 
-══════════════════════════════════════
+═══════════════════════════════════════
       NORMAS DE FORMATO (CRÍTICO)
-══════════════════════════════════════
+═══════════════════════════════════════
 - **SOLO CÓDIGO HTML VÁLIDO.** Sin etiquetas <html>, <body> ni markdown. Sin \`\`\`html.
-- **CSS INLINE OBLIGATORIO.** Sin clases Tailwind ni CSS externo.
-- **MODO OSCURO:** Todo texto necesita color explícito: texto \`color: #1e293b;\`, títulos H2/H3 \`color: #0f766e;\`.
-- **Tarjetas (cards):** \`width: 100%; box-sizing: border-box; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);\`.
+- **PROHIBIDO INCLUIR FIRMAS.** NO incluyas bajo ninguna circunstancia tablas de firmas, espacios para firmar, nombres de representantes o responsables SST al final del documento. El sistema WAPPY añadirá las firmas oficiales automáticamente. Si incluyes firmas, arruinarás el documento.
+- **CSS INLINE OBLIGATORIO.** Usa exclusivamente atributos \`style\`. NO uses clases de Tailwind ni clases CSS.
+- **PRECAUCIÓN MODO OSCURO:** Todo texto debe tener \`color\` explícito.
+- **Contenedores:** \`width: 100%; box-sizing: border-box;\`.
+- **Cada vez** que apliques \`background-color\` a un tr, td o div, DEBES también especificar \`color\` explícito (\`color: #000;\` si el fondo es claro).
+- **TABLAS:** Nunca uses colores intercalados (striped). Tablas simples con \`border-collapse: separate\`.
+- **SECCIONES:** Usa cajas con \`border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px;\`.
 - **Tablas:** \`width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`. TH: \`background-color: #0f766e; color: white; padding: 12px;\`. TD: \`padding: 10px; border-bottom: 1px solid #e2e8f0;\`.
 - **Barras:** Un div externo \`background-color: #e2e8f0; border-radius: 8px; height: 28px;\` con un div interno \`background-color: #0f766e; color: white; border-radius: 8px; height: 100%; display: flex; align-items: center; padding-left: 10px; font-size: 13px; font-weight: bold;\` con \`width: XX%\`.
 - NO incluyas título H1 (ya está en el encabezado del sistema).`;

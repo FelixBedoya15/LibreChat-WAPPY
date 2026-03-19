@@ -236,7 +236,7 @@ export default function SGSSTDashboard() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-stretch max-w-5xl mx-auto">
                         {phases.map((phase, i) => (
                             <div
                                 key={phase.id}
