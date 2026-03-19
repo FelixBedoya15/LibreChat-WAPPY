@@ -115,19 +115,15 @@ const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model(
  * This fulfills the request to have context from the entire company database
  */
 async function getIntegratedSSTContext(userId) {
-    let context = '\n\n**ECOSISTEMA SST INTEGRADO (CONTEXTO DE OTRAS ÁREAS):**\n';
+    let context = '\n\n**ECOSISTEMA SST INTEGRADO (CONTEXTO MULTI-APLICATIVO):**\n';
     try {
         // 1. Perfil Sociodemográfico (Hallazgos médicos)
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (PerfilSociodemograficoData) {
             const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
             if (psd && psd.trabajadores?.length) {
-                const total = psd.trabajadores.length;
                 const withFindings = psd.trabajadores.filter(t => t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos');
-                context += `- **Perfil Sociodemográfico**: ${total} trabajadores registrados.\n`;
-                if (withFindings.length > 0) {
-                    context += `  * HALLAZGOS MÉDICOS CRÍTICOS: Se reportan ${withFindings.length} casos con diagnósticos o recomendaciones médicas que deben considerarse al evaluar riesgos (ej: ${withFindings.slice(0, 5).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}).\n`;
-                }
+                context += `- **Salud (Perfil Sociodemográfico)**: ${psd.trabajadores.length} trabajadores. CASOS CRÍTICOS: ${withFindings.slice(0, 5).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}.\n`;
             }
         }
 
@@ -136,36 +132,27 @@ async function getIntegratedSSTContext(userId) {
         if (PerfilCargoData) {
             const pcd = await PerfilCargoData.findOne({ user: userId }).lean();
             if (pcd && pcd.perfilesList?.length) {
-                context += `- **Perfiles de Cargo**: Se han definido ${pcd.perfilesList.length} cargos técnicos.\n`;
-                context += `  * Cargos documentados: ${pcd.perfilesList.map(p => p.nombreCargo).join(', ')}.\n`;
-                // Briefly mention existing risks from profiles
-                const profileRisks = pcd.perfilesList.filter(p => p.contextoAdicional).map(p => `${p.nombreCargo}: ${p.contextoAdicional.substring(0, 100)}...`);
-                if (profileRisks.length > 0) {
-                    context += `  * Contexto de perfiles: ${profileRisks.slice(0, 3).join(' | ')}\n`;
-                }
+                context += `- **Perfiles de Cargo**: ${pcd.perfilesList.length} cargos documentados (Ej: ${pcd.perfilesList.slice(0, 5).map(p => p.nombreCargo).join(', ')}).\n`;
             }
         }
 
-        // 3. Siniestralidad ATEL
+        // 3. Siniestralidad ATEL (Estadísticas anuales)
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
             const ad = await ATELAnnualData.findOne({ user: userId }).lean();
             if (ad && ad.years) {
                 const years = Object.keys(ad.years).sort().reverse();
                 if (years.length > 0) {
-                    const yearToUse = years[0];
                     let totalEvents = 0;
                     let commonHazards = new Set();
-                    const yearData = ad.years[yearToUse];
-                    Object.values(yearData).forEach(m => {
-                        if (m && m.events) {
+                    Object.values(ad.years[years[0]]).forEach(m => {
+                        if (m?.events) {
                             totalEvents += m.events.length;
                             m.events.forEach(e => { if (e.peligro) commonHazards.add(e.peligro); });
                         }
                     });
                     if (totalEvents > 0) {
-                        context += `- **Estadísticas ATEL (Año ${yearToUse})**: Se han presentado ${totalEvents} accidentes/incidentes.\n`;
-                        context += `  * Peligros causantes reales: ${Array.from(commonHazards).slice(0, 5).join(', ')}.\n`;
+                        context += `- **Estadísticas ATEL**: ${totalEvents} accidentes este año. Causas comunes: ${Array.from(commonHazards).slice(0, 4).join(', ')}.\n`;
                     }
                 }
             }
@@ -178,15 +165,57 @@ async function getIntegratedSSTContext(userId) {
             if (avd && avd.formData?.amenazasList?.length) {
                 const critical = avd.formData.amenazasList.filter(a => a.nivelAmenaza === 'Inminente' || a.nivelAmenaza === 'Probable');
                 if (critical.length > 0) {
-                    context += `- **Amenazas de Emergencia**: ${critical.length} amenazas críticas identificadas (${critical.map(a => a.amenaza).join(', ')}).\n`;
+                    context += `- **Emergencias**: Amenazas críticas detectadas: ${critical.map(a => a.amenaza).join(', ')}.\n`;
                 }
             }
         }
+
+        // 5. Investigación ATEL (Detalles de accidentes reales)
+        const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
+        if (InvestigacionAtelData) {
+            const iad = await InvestigacionAtelData.findOne({ user: userId }).lean();
+            if (iad && iad.formData?.descripcionHechos) {
+                context += `- **Historial Accidentes (Investigación)**: Último evento relevante: "${iad.formData.descripcionHechos.substring(0, 150)}...". Causa raíz identificada: ${iad.formData.consecuencias || 'Sin especificar'}.\n`;
+            }
+        }
+
+        // 6. Reporte de Actos y Condiciones Inseguras (Alertas tempranas)
+        const ReporteActosData = mongoose.models.ReporteActosData;
+        if (ReporteActosData) {
+            const rad = await ReporteActosData.findOne({ user: userId }).lean();
+            if (rad && rad.reportesList?.length) {
+                const recent = rad.reportesList.slice(-5);
+                context += `- **Reportes de Actos/Condiciones**: ${rad.reportesList.length} reportes. Hallazgos recientes: ${recent.map(r => r.hallazgo).join(' / ')}.\n`;
+            }
+        }
+
+        // 7. Análisis de Trabajo Seguro (ATS - Pasos críticos)
+        const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
+        if (AnalisisTrabajoSeguroData) {
+            const atsd = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
+            if (atsd && atsd.pasos?.length) {
+                context += `- **ATS (Tareas Críticas)**: Actividad analizada en ATS: ${atsd.actividad || 'General'}. Pasos de riesgo: ${atsd.pasos.slice(0, 4).map(p => p.descripcion).join(', ')}.\n`;
+            }
+        }
+
+        // 8. Método OWAS (Ergonomía/Posturas)
+        const MetodoOwasData = mongoose.models.MetodoOwasData;
+        if (MetodoOwasData) {
+            const owasd = await MetodoOwasData.findOne({ user: userId }).lean();
+            if (owasd && owasd.resultados?.length) {
+                const critical = owasd.resultados.filter(r => r.categoriaRiesgo >= 3);
+                if (critical.length > 0) {
+                    context += `- **Ergonomía (OWAS)**: Se detectaron ${critical.length} posturas con NIVEL DE RIESGO CRÍTICO (Categoría 3 o 4) que requieren intervención biomecánica inmediata.\n`;
+                }
+            }
+        }
+
     } catch (err) {
         logger.debug('[MatrizPeligros] Integrated context failed:', err.message);
     }
     return context;
 }
+
 
 // ─── Helper: Get API Key ─────────────────────────────────────────────
 async function getApiKey(userId) {
