@@ -225,10 +225,10 @@ export const defaultAgentFormValues = {
   name: '',
   description: '',
   instructions: '',
-  model: '',
+  model: 'gemini-3.1-flash-lite-preview',
   model_parameters: {},
   tools: [],
-  provider: {},
+  provider: { label: 'Google', value: 'google' },
   projectIds: [],
   edges: [],
   artifacts: '',
@@ -308,7 +308,7 @@ export const openAISettings = {
 
 export const googleSettings = {
   model: {
-    default: 'gemini-1.5-flash-latest' as const,
+    default: 'gemini-3.1-flash-lite-preview' as const,
   },
   maxOutputTokens: {
     min: 1 as const,
@@ -440,7 +440,7 @@ export const anthropicSettings = {
 
 export const agentsSettings = {
   model: {
-    default: 'gpt-3.5-turbo-test' as const,
+    default: 'gemini-3.1-flash-lite-preview' as const,
   },
   temperature: {
     min: 0 as const,
@@ -548,7 +548,7 @@ export enum EAgent {
 
 export const agentOptionSettings = {
   model: {
-    default: 'gpt-4o-mini',
+    default: 'gemini-3.1-flash-lite-preview',
   },
   temperature: {
     min: 0,
