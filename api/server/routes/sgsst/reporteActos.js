@@ -56,6 +56,7 @@ const ReporteActosDataSchema = new mongoose.Schema({
     trabajadoresList: { type: Array, default: [] },
     responsablesList: { type: Array, default: [] },
     images: { type: Object, default: {} },
+    inboxPublico: { type: Array, default: [] },
     updatedAt: { type: Date, default: Date.now },
 });
 
@@ -73,9 +74,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 trabajadoresList: data.trabajadoresList || [],
                 responsablesList: data.responsablesList || [],
                 images: data.images || { foto1: null, foto2: null, foto3: null },
+                inboxPublico: data.inboxPublico || [],
             });
         }
-        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null } });
+        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], inboxPublico: [], images: { foto1: null, foto2: null, foto3: null } });
     } catch (error) {
         logger.error('[SGSST ReporteActos] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
@@ -95,6 +97,22 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     } catch (error) {
         logger.error('[SGSST ReporteActos] Save error:', error);
         res.status(500).json({ error: 'Error al guardar datos' });
+    }
+});
+
+// ─── POST /inbox/dismiss — Remove an item from the public inbox ───
+router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
+    try {
+        const { reportId } = req.body; // Using a timestamp or specific ID
+        const doc = await ReporteActosData.findOne({ user: req.user.id });
+        if (doc && doc.inboxPublico) {
+            doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));
+            await doc.save();
+        }
+        res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
+    } catch (error) {
+        logger.error('[SGSST ReporteActos] Inbox dismiss error:', error);
+        res.status(500).json({ error: 'Error al descartar reporte' });
     }
 });
 

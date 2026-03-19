@@ -12,7 +12,9 @@ import {
     FileText,
     Plus,
     Trash2,
-    AlertTriangle
+    AlertTriangle,
+    Inbox,
+    QrCode
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -141,6 +143,11 @@ const ReporteActosCondiciones = () => {
     const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<any>(null);
 
+    // Public Inbox State
+    const [inboxPublico, setInboxPublico] = useState<any[]>([]);
+    const [isInboxOpen, setIsInboxOpen] = useState(false);
+    const [showQrModal, setShowQrModal] = useState(false);
+
     // Load available workers from Perfil Sociodemográfico
     React.useEffect(() => {
         if (!token) return;
@@ -168,9 +175,47 @@ const ReporteActosCondiciones = () => {
                 if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
                 if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
                 if (data.images) setImages(data.images);
+                if (data.inboxPublico) setInboxPublico(data.inboxPublico);
             })
             .catch(err => console.error('Error fetching reporte actos data', err));
     }, [token]);
+
+    const handleDismissInbox = async (id: string) => {
+        if (!token) return;
+        try {
+            const res = await fetch('/api/sgsst/reporte-actos/inbox/dismiss', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ reportId: id })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setInboxPublico(data.inboxPublico || []);
+                showToast({ message: 'Reporte archivado', status: 'success' });
+            }
+        } catch (err) {
+            showToast({ message: 'Error archivando el reporte', status: 'error' });
+        }
+    };
+
+    const handleLoadInboxItem = (item: any) => {
+        setFormData(prev => ({
+            ...prev,
+            actividadGlobal: item.data?.descripcion || '',
+            fecha: item.data?.fecha || prev.fecha,
+            horaInicio: item.data?.hora || prev.horaInicio,
+        }));
+        setTrabajadoresList([{ 
+            nombre: item.trabajador.nombre, 
+            cedula: item.trabajador.cedula 
+        }]);
+        setImages(prev => ({
+            ...prev,
+            foto1: item.data?.foto1 || null
+        }));
+        setIsInboxOpen(false);
+        showToast({ message: 'Reporte cargado. Revise y complete la información.', status: 'info' });
+    };
 
     const handleDummyData = () => {
         const dummy = generateDummyData.reporteActos();
@@ -430,6 +475,27 @@ const ReporteActosCondiciones = () => {
                     <AnimatedIcon name="history" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
                 </button>
+                <div className="h-6 w-px bg-border-medium mx-1" />
+                <button
+                    onClick={() => setIsInboxOpen(!isInboxOpen)}
+                    className="relative group flex items-center px-3 py-2 border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
+                    <Inbox className="w-5 h-5 text-blue-500" />
+                    {inboxPublico.length > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                            {inboxPublico.length}
+                        </span>
+                    )}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Bandeja de Entrada ({inboxPublico.length})</span>
+                </button>
+                <button
+                    onClick={() => setShowQrModal(true)}
+                    className="group flex items-center px-3 py-2 border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
+                    <QrCode className="w-5 h-5 text-gray-500" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Portal Público</span>
+                </button>
+                <div className="h-6 w-px bg-border-medium mx-1" />
                 <button
                     onClick={() => handleSaveData(false)}
                     className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
@@ -468,6 +534,99 @@ const ReporteActosCondiciones = () => {
             {isHistoryOpen && (
                 <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
                     <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen} toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger} tags={['sgsst-reporte-actos']} />
+                </div>
+            )}
+
+            {/* Inbox Panel */}
+            {isInboxOpen && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50/30 dark:bg-blue-900/10 overflow-hidden shadow-inner p-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
+                            <Inbox className="w-5 h-5" /> Bandeja de Reportes Públicos
+                        </h3>
+                        <button onClick={() => setIsInboxOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    
+                    {inboxPublico.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <CheckCircle className="w-12 h-12 mx-auto text-green-400 mb-3 opacity-50" />
+                            <p>No tienes reportes pendientes por revisar.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {inboxPublico.map((item, idx) => (
+                                <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-100 dark:border-gray-700 p-4 relative flex flex-col hover:border-blue-300 transition-colors">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-6" title={item.trabajador.nombre}>{item.trabajador.nombre}</h4>
+                                            <p className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis w-[180px]">Cargo: {item.trabajador.cargo}</p>
+                                        </div>
+                                        <button onClick={() => handleDismissInbox(item.id)} className="text-gray-400 hover:text-red-500 shrink-0 ml-2" title="Descartar reporte">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-3 my-2 flex-grow italic">"{item.data?.descripcion}"</p>
+                                    <div className="text-[10px] text-gray-400 mb-3 flex justify-between">
+                                        <span>{item.data?.fecha} {item.data?.hora}</span>
+                                        <span>📍 {item.data?.ubicacion || 'Sin ub.'}</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleLoadInboxItem(item)}
+                                        className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50 py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" /> Investigar este reporte
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* QR Modal */}
+            {showQrModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full p-6 relative">
+                        <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                            <X className="w-5 h-5" />
+                        </button>
+                        <div className="text-center space-y-4">
+                            <div className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-2">
+                                <QrCode className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Portal Público SGSST</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                                Comparte este código QR o el enlace en tu empresa. Los trabajadores podrán reportar condiciones inseguras de forma ágil desde su celular.
+                            </p>
+                            
+                            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-100 border-dashed w-full h-48 flex items-center justify-center">
+                                {/* Fallback QR Placeholder */}
+                                <div className="text-center text-gray-400">
+                                    <QrCode className="w-24 h-24 mx-auto opacity-30 mb-2" />
+                                    <p className="text-xs font-mono">ID: {user?.id?.slice(0,8)}...</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 mt-2">
+                                <input 
+                                    readOnly 
+                                    value={`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`}
+                                    className="flex-1 text-xs px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg outline-none text-gray-600 dark:text-gray-300"
+                                />
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`);
+                                        showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                    }}
+                                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                                >
+                                    Copiar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

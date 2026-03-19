@@ -39,6 +39,7 @@ const tickets = require('./tickets');
 const notifications = require('./notifications');
 const contact = require('./contact');
 const publicReports = require('./publicReports');
+const publicSgsst = require('./publicSgsst');
 
 module.exports = {
   auth,
@@ -82,4 +83,5 @@ module.exports = {
   notifications,
   contact,
   publicReports,
+  publicSgsst,
 };
