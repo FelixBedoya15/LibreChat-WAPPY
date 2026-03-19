@@ -2,58 +2,87 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { AuthKeys } = require('librechat-data-provider');
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
-// ─── HELPER: Google Gemini SDK Wrapper with Fallbacks ────────────────────────
-async function generateWithRetry(model, promptText, options = {}) {
+// ─── HELPER: Get API Key (Same pattern as estadisticas.js & matrizPeligros.js) ──
+async function getApiKey(userId) {
+    let key;
+    try {
+        const storedKey = await getUserKey({ userId, name: 'google' });
+        if (storedKey) {
+            try { key = JSON.parse(storedKey)[AuthKeys.GOOGLE_API_KEY] || JSON.parse(storedKey).GOOGLE_API_KEY; }
+            catch { key = storedKey; }
+        }
+    } catch { }
+
+    if (!key) {
+        key = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
+    }
+
+    if (key && typeof key === 'string') {
+        key = key.split(',')[0].trim();
+    }
+
+    return key;
+}
+
+// ─── HELPER: Google Gemini with Fallback (Same pattern as estadisticas.js) ───
+async function generateWithRetry(model, promptText) {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(model.apiKey);
-    
-    // Fallback order for models if the primary one fails
+    const currentModelName = (model.model || 'gemini-3.1-flash-lite-preview').replace('models/', '');
+
     const fallbackOrder = [
-        'gemini-3-flash-preview',
         'gemini-3.1-flash-lite-preview',
+        'gemini-3-flash-preview',
         'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
-        'gemini-1.5-flash'
+        'gemini-2.5-flash-lite'
     ];
-    
-    const currentModelName = model.model || 'gemini-3.1-flash-lite-preview';
+
     let modelsToTry = [currentModelName];
     for (const m of fallbackOrder) {
         if (m !== currentModelName) modelsToTry.push(m);
     }
-    
+
     let lastError;
     for (const modelName of modelsToTry) {
+        if (!modelName) continue;
         try {
-            const genModel = genAI.getGenerativeModel({ 
+            if (modelName !== currentModelName) {
+                console.warn(`[Predictivo] Cambiando a modelo de respaldo: ${modelName}...`);
+            }
+            const fallbackModel = genAI.getGenerativeModel({
                 model: modelName,
-                generationConfig: {
-                    temperature: 0.7,
-                    topP: 0.95,
-                    topK: 40,
-                    maxOutputTokens: 8192,
-                    ...options
-                }
+                generationConfig: model.generationConfig || {}
             });
-            const result = await genModel.generateContent(promptText);
-            if (!result || !result.response) throw new Error('Respuesta de IA vacía');
-            return result;
+            return await fallbackModel.generateContent(promptText);
         } catch (err) {
-            logger.warn(`[Predictivo] Falló modelo ${modelName}: ${err.message}`);
+            console.warn(`[Predictivo] Falló ${modelName}: ${err.message}`);
             lastError = err;
         }
     }
-    
-    throw lastError || new Error('Todos los modelos generativos fallaron');
+
+    throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
 }
 
-// ─── HELPER: Aggregate All SST Context ─────────────────────────────────────
+// ─── HELPER: Clean HTML Output (Same as estadisticas.js) ────────────────────
+function cleanHtmlOutput(text) {
+    return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+        .replace(/<head>[\s\S]*?<\/head>/gi, '')
+        .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+        .trim();
+}
+
+// ─── HELPER: Aggregate All SST Context from DB ─────────────────────────────
 async function getFullSSTContext(userId) {
-    let context = '\n\n**ECOSISTEMA SST - DATOS PARA ANÁLISIS PREDICTIVO:**\n';
+    let context = '\n**ECOSISTEMA SST - DATOS CONSOLIDADOS PARA ANÁLISIS PREDICTIVO:**\n';
     try {
         // 1. Salud (Perfil Sociodemográfico)
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
@@ -61,9 +90,9 @@ async function getFullSSTContext(userId) {
             const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
             if (psd && psd.trabajadores?.length) {
                 const findings = psd.trabajadores.filter(t => t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos');
-                context += `- SALUD: ${psd.trabajadores.length} trabajadores evaluados. Hallazgos críticos detectados: ${findings.length}. Ejemplos: ${findings.slice(0, 15).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}.\n`;
+                context += `- SALUD OCUPACIONAL: ${psd.trabajadores.length} trabajadores evaluados. Hallazgos clínicos relevantes: ${findings.length}. Detalle: ${findings.slice(0, 15).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}.\n`;
             } else {
-                context += `- SALUD: No se registran datos sociodemográficos o de salud.\n`;
+                context += `- SALUD OCUPACIONAL: Sin datos registrados en perfil sociodemográfico.\n`;
             }
         }
 
@@ -82,32 +111,33 @@ async function getFullSSTContext(userId) {
                             m.events.forEach(e => { if (e.peligro) commonHazards.push(e.peligro); });
                         }
                     });
-                    context += `- SINIESTRALIDAD (Año ${years[0]}): ${totalEvents} accidentes/incidentes reportados. Peligros asociados: ${[...new Set(commonHazards)].join(', ')}.\n`;
+                    context += `- SINIESTRALIDAD ATEL (Año ${years[0]}): ${totalEvents} eventos registrados. Peligros frecuentes: ${[...new Set(commonHazards)].join(', ') || 'No categorizados'}.\n`;
                 }
             } else {
-                context += `- SINIESTRALIDAD: Sin historial de accidentes en base de datos.\n`;
+                context += `- SINIESTRALIDAD ATEL: Sin historial de eventos en base de datos.\n`;
             }
         }
 
         // 3. Investigación ATEL (Causas Raíz)
         const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
         if (InvestigacionAtelData) {
-            const iad = await InvestigacionAtelData.findOne({ user: userId }).lean();
-            if (iad && iad.formData) {
-                context += `- ÚLTIMA INVESTIGACIÓN: En el proceso de ${iad.formData.tareaAccidente}. Causa Básica: ${iad.formData.causasBasicas || 'N/A'}. Causa Inmediata: ${iad.formData.causasInmediatas || 'N/A'}.\n`;
+            const investigations = await InvestigacionAtelData.find({ user: userId }).lean();
+            if (investigations?.length) {
+                const latest = investigations[investigations.length - 1];
+                context += `- INVESTIGACIONES ATEL: ${investigations.length} investigaciones realizadas. Última investigación: "${latest.formData?.tareaAccidente || 'N/A'}". Causa Básica: ${latest.formData?.causasBasicas || 'N/A'}. Causa Inmediata: ${latest.formData?.causasInmediatas || 'N/A'}.\n`;
             }
         }
 
-        // 4. Actos y Condiciones Inseguras (Precursores)
+        // 4. Actos y Condiciones Inseguras
         const ReporteActosData = mongoose.models.ReporteActosData;
         if (ReporteActosData) {
             const rad = await ReporteActosData.findOne({ user: userId }).lean();
             if (rad && rad.reportesList?.length) {
                 const acts = rad.reportesList.filter(r => r.tipo === 'Acto Inseguro').length;
                 const conds = rad.reportesList.filter(r => r.tipo === 'Condición Insegura').length;
-                context += `- REPORTES DE CAMPO: ${rad.reportesList.length} registros (${acts} actos inseguros, ${conds} condiciones). Hallazgos recientes: ${rad.reportesList.slice(-10).map(r => r.hallazgo).join(' | ')}.\n`;
+                context += `- REPORTES DE CAMPO: ${rad.reportesList.length} registros (${acts} actos inseguros, ${conds} condiciones inseguras). Hallazgos recientes: ${rad.reportesList.slice(-10).map(r => r.hallazgo).join(' | ')}.\n`;
             } else {
-                context += `- REPORTES DE CAMPO: Sin reportes de actos o condiciones inseguras recientes.\n`;
+                context += `- REPORTES DE CAMPO: Sin reportes de actos o condiciones inseguras.\n`;
             }
         }
 
@@ -117,27 +147,27 @@ async function getFullSSTContext(userId) {
             const owasd = await MetodoOwasData.findOne({ user: userId }).lean();
             if (owasd && owasd.resultados?.length) {
                 const critical = owasd.resultados.filter(r => r.categoriaRiesgo >= 3);
-                context += `- ERGONOMÍA (Evaluaciones OWAS): ${owasd.resultados.length} posturas registradas. ${critical.length} requieren intervención inmediata. Áreas afectadas: ${[...new Set(critical.map(c => c.faseTarea))].join(', ')}.\n`;
+                context += `- ERGONOMÍA (OWAS): ${owasd.resultados.length} posturas evaluadas. ${critical.length} requieren intervención inmediata. Áreas: ${[...new Set(critical.map(c => c.faseTarea))].join(', ') || 'N/A'}.\n`;
             }
         }
 
-        // 6. Actividades Críticas (ATS)
+        // 6. ATS (Tareas Críticas)
         const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
         if (AnalisisTrabajoSeguroData) {
             const atsd = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
             if (atsd && atsd.pasos) {
-                context += `- TAREAS DE ALTO RIESGO (En ATS): Actividad evaluada: "${atsd.actividad}". Pasos con mayor peligro: ${atsd.pasos.slice(0, 5).map(p => p.descripcion).join(', ')}.\n`;
+                context += `- TAREAS ALTO RIESGO (ATS): Actividad: "${atsd.actividad}". Pasos peligrosos: ${atsd.pasos.slice(0, 5).map(p => p.descripcion).join(', ')}.\n`;
             }
         }
 
-        // 7. Amenazas (Vulnerabilidad)
+        // 7. Vulnerabilidad
         const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
         if (AnalisisVulnerabilidadData) {
             const avd = await AnalisisVulnerabilidadData.findOne({ user: userId }).lean();
             if (avd && avd.formData?.amenazasList) {
                 const critical = avd.formData.amenazasList.filter(a => a.nivelAmenaza === 'Inminente' || a.nivelAmenaza === 'Probable');
                 if (critical.length > 0) {
-                    context += `- AMENAZAS EXTERNAS CRÍTICAS: ${critical.map(a => a.amenaza).join(', ')}.\n`;
+                    context += `- AMENAZAS (Vulnerabilidad): ${critical.map(a => a.amenaza).join(', ')}.\n`;
                 }
             }
         }
@@ -147,11 +177,17 @@ async function getFullSSTContext(userId) {
         if (MatrizPeligrosData) {
             const mpd = await MatrizPeligrosData.findOne({ user: userId }).lean();
             if (mpd && mpd.procesos?.length) {
-                let highRiskCount = 0;
+                let totalPeligros = 0;
+                let riskI = 0;
+                let riskII = 0;
                 mpd.procesos.forEach(p => {
-                    (p.peligros || []).forEach(h => { if (h.nivelRiesgo >= 600) highRiskCount++; });
+                    (p.peligros || []).forEach(h => {
+                        totalPeligros++;
+                        if (h.nivelRiesgo >= 600) riskI++;
+                        else if (h.nivelRiesgo >= 150) riskII++;
+                    });
                 });
-                context += `- MATRIZ GTC 45: ${mpd.procesos.length} procesos evaluados. Peligros con Nivel de Riesgo I (No Aceptable): ${highRiskCount}.\n`;
+                context += `- MATRIZ GTC 45: ${mpd.procesos.length} procesos, ${totalPeligros} peligros identificados. Nivel I (No Aceptable): ${riskI}. Nivel II (Alto): ${riskII}.\n`;
             }
         }
 
@@ -161,82 +197,170 @@ async function getFullSSTContext(userId) {
     return context;
 }
 
-// ─── ENDPOINT: Get Forecast JSON (For Gauges and UI) ────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ENDPOINT: Get Forecast JSON (For Gauges and UI) ─────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
 router.get('/forecast', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
-        const apiKey = await getUserKey(userId, 'google');
-        if (!apiKey) return res.status(400).json({ error: 'Falta configurar API Key de Google' });
+        const apiKey = await getApiKey(userId);
+        if (!apiKey) return res.status(400).json({ error: 'Falta configurar la API Key de Google en su perfil.' });
 
         const context = await getFullSSTContext(userId);
-        
-        // Use standard JSON mode if supported, or prompt Engineering
-        const prompt = `
-Actúa como un Auditor de Riesgos Predictivo Senior con IA. Analiza integralmente los datos cruzados de salud, siniestralidad, ergonomía y reportes de campo de la empresa.
-DATOS: ${context}
 
-Genera un pronóstico matemático específico para los próximos 30 días.
-Responde estrictamente en formato JSON con esta estructura (SIN texto adicional antes o después):
+        const prompt = `
+Actúa como un Auditor de Riesgos Predictivo Senior. Analiza integralmente los datos cruzados de todos los módulos SST de la empresa.
+${context}
+
+Genera un pronóstico de riesgo para los próximos 30 días.
+Responde ÚNICAMENTE con un objeto JSON (SIN texto adicional, SIN markdown):
 {
-  "overallRisk": 0-100, 
-  "criticalArea": "Nombre de cargo o proceso",
-  "predictionSummary": "Resumen técnico de 2 frases",
+  "overallRisk": (número 0-100, probabilidad general de accidente),
+  "criticalArea": "nombre del cargo o proceso más vulnerable",
+  "predictionSummary": "análisis breve de 2-3 frases sobre el panorama de riesgo",
   "indicators": {
-    "healthRisk": 0-100,
-    "safetyRisk": 0-100,
-    "ergonomicRisk": 0-100
+    "healthRisk": (número 0-100),
+    "safetyRisk": (número 0-100),
+    "ergonomicRisk": (número 0-100)
   },
-  "recommendedActions": ["Acción 1", "Acción 2", "Acción 3"]
+  "recommendedActions": ["acción 1", "acción 2", "acción 3"]
 }
 `;
 
-        const result = await generateWithRetry({ apiKey }, prompt, { responseMimeType: 'application/json' });
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+
+        let result;
+        try {
+            result = await generateWithRetry({ apiKey, model: 'gemini-3.1-flash-lite-preview' }, prompt);
+        } catch (err) {
+            logger.error('[Predictivo] Gemini forecast failed:', err.message);
+            return res.status(500).json({ error: 'Error al conectar con IA. Verifique su API Key.' });
+        }
+
         let text = result.response.text().trim();
-        // Clean markdown if AI included it
+        // Clean markdown wrapping if Gemini outputs ```json
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        
-        const forecast = JSON.parse(text);
+
+        let forecast;
+        try {
+            forecast = JSON.parse(text);
+        } catch (parseErr) {
+            logger.error('[Predictivo] JSON parse failed. Raw response:', text.substring(0, 300));
+            return res.status(500).json({ error: 'La IA devolvió una respuesta no válida. Intente de nuevo.' });
+        }
+
         res.json(forecast);
     } catch (err) {
         logger.error('[Predictivo] Forecast error:', err.message);
-        res.status(500).json({ error: 'No se pudo generar el pronóstico. Verifique su API Key.' });
+        res.status(500).json({ error: 'Error interno en pronóstico: ' + err.message });
     }
 });
 
-// ─── ENDPOINT: Generate Predictive Report (For LiveEditor) ─────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ENDPOINT: Generate Predictive Report (Same pattern as estadisticas.js) ──
+// ═══════════════════════════════════════════════════════════════════════════════
 router.post('/generate-report', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const { modelName } = req.body;
-        const apiKey = await getUserKey(userId, 'google');
-        if (!apiKey) return res.status(400).json({ error: 'Falta API Key de Google' });
 
+        const apiKey = await getApiKey(userId);
+        if (!apiKey) return res.status(400).json({ error: 'Falta configurar la API Key de Google en su perfil.' });
+
+        // Get company info (same as other apps)
+        const ci = await CompanyInfo.findOne({ user: userId }).lean();
+        const companyContext = buildCompanyContextString(ci);
+        const fecha = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Build header HTML (same as estadisticas, diagnostico, etc.)
+        const headerHTML = buildStandardHeader({
+            title: 'INFORME TÉCNICO DE INTELIGENCIA PREDICTIVA SST',
+            companyInfo: ci,
+            date: fecha,
+            norm: 'Decreto 1072 de 2015 / Resolución 0312 de 2019',
+        });
+
+        // Get all ecosystem data
         const context = await getFullSSTContext(userId);
-        
-        const prompt = `
-Diseña un INFORME EJECUTIVO DE PREDICCIÓN Y PRONÓSTICO DE RIESGOS SST.
-BASES DE DATOS INTEGRADAS: ${context}
 
-EL INFORME DEBE TENER (En HTML profesional con CSS inline):
-1. Título: "INFORME TÉCNICO DE INTELIGENCIA PREDICTIVA SST"
-2. Resumen Ejecutivo: Probabilidad estadística de accidentes.
-3. Cruce de Datos Críticos: Por qué los hallazgos médicos se relacionan con los accidentes pasados.
-4. Mapa de Riesgo Proyectado por Cargo.
-5. Recomendaciones de Intervención Prioritaria.
-6. Glosario Técnico Breve de Predicciones.
+        const promptText = `
+Eres un Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia, con conocimientos avanzados en análisis predictivo de riesgos laborales.
 
-Estilo: Fondo blanco, texto azul oscuro (#0f172a), tablas elegantes con bordes redondeados.
-NO incluyas <html> ni markdown. Solo el contenido del informe.
+${companyContext}
+
+${context}
+
+**Tu tarea:**
+Genera un INFORME EJECUTIVO TÉCNICO DE INTELIGENCIA PREDICTIVA SST extremadamente detallado y profesional.
+
+**ESTRUCTURA OBLIGATORIA REQUERIDA:**
+
+1.  **ENCABEZADO OFICIAL:**
+    - DEBES usar EXACTAMENTE el siguiente código HTML (INCLÚYELO TAL CUAL al inicio):
+    ${headerHTML}
+
+2.  **RESUMEN EJECUTIVO DE RIESGO PROYECTADO (Múltiples párrafos):**
+    - Análisis cuantitativo y cualitativo del panorama de riesgo.
+    - Explica la probabilidad de accidentes en los próximos 30 días.
+    - Relaciona datos de siniestralidad pasada con condiciones actuales.
+    
+3.  **TABLERO DE INDICADORES PREDICTIVOS:**
+    - Tarjetas visuales (cards) con CSS inline para: Riesgo General, Riesgo Salud, Riesgo Seguridad, Riesgo Ergonómico.
+    - Cada tarjeta debe mostrar un porcentaje estimado y su interpretación.
+
+4.  **ANÁLISIS DE CORRELACIÓN (CRUCE DE DATOS):**
+    - Cruza hallazgos médicos (sociodemográfico) con actos inseguros y resultados OWAS.
+    - Detecta patrones ocultos entre los módulos.
+    - Explica POR QUÉ ciertos cargos o procesos tienen mayor probabilidad de accidente.
+
+5.  **GRÁFICA DE BARRAS HTML (Factores de Riesgo):**
+    - Simula una gráfica de barras horizontal con \`<div>\` y porcentajes de ancho (width: X%).
+    - Muestra los 5 factores de riesgo más relevantes con sus porcentajes.
+
+6.  **PLAN PRESCRIPTIVO DE ACCIÓN INMEDIATA:**
+    - Tabla profesional con columnas: Factor de Riesgo, Cargo/Proceso Afectado, Acción Recomendada, Prioridad (Alta/Media/Baja), Responsable Sugerido.
+
+7.  **CONCLUSIÓN Y CUMPLIMIENTO LEGAL:**
+    - Referencia al Decreto 1072 de 2015 y Resolución 0312 de 2019.
+    - Consecuencias legales de no intervenir.
+
+8.  **FIRMA:**
+    - El sistema añadirá la sección de firmas automáticamente. NO la generes tú.
+
+**ESTILOS CSS - PRECAUCIÓN MODO OSCURO (OBLIGATORIO):**
+- **Regla Crítica:** NO uses tablas "striped" (filas con colores alternos) porque rompen la lectura en modo oscuro.
+- CADA VEZ que uses \`background-color\`, DEBES especificar \`color: #000;\` (si es fondo claro) o \`color: #fff;\` (si es fondo oscuro).
+- **Encabezados:** Color #0f766e con \`color: #0f766e;\`.
+- **Tablas:** width="100%", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd".
+- **Th:** background-color="#0f766e", color="white", padding="12px", text-transform="uppercase".
+- **Td:** padding="10px", border-bottom="1px solid #e0e0e0" (SIN background-color para modo oscuro).
+- **Cards:** background-color="#f8f9fa", color="#000", border-left="5px solid #0f766e", padding="15px", margin="10px", border-radius="4px".
+- **Barras:** background-color="#0f766e", color="white", border-radius="6px", padding="8px", margin="4px 0".
+
+**IMPORTANTE:** Retorna SOLAMENTE HTML limpio. SIN markdown ni \`\`\`html.
 `;
 
-        const result = await generateWithRetry({ apiKey, model: modelName }, prompt);
-        let aiHtml = result.response.text().trim();
-        aiHtml = aiHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
 
-        res.json({ report: aiHtml });
-    } catch (err) {
-        logger.error('[Predictivo] Report error:', err.message);
-        res.status(500).json({ error: 'Error al generar el informe con IA.' });
+        const result = await generateWithRetry(model, promptText);
+        const text = result.response.text();
+
+        let cleanedReport = cleanHtmlOutput(text);
+
+        // Add signature section (same as all other apps)
+        if (ci) {
+            cleanedReport += buildSignatureSection(ci);
+        }
+
+        res.json({ report: cleanedReport });
+
+    } catch (error) {
+        logger.error('[Predictivo] Report error:', error);
+        res.status(500).json({ error: `Error: ${error.message}` });
     }
 });
 

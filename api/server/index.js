@@ -233,6 +233,7 @@ const startServer = async () => {
   app.use('/api/sgsst/rhs', routes.sgsst.rhs);
   app.use('/api/sgsst/rit', routes.sgsst.rit);
   app.use('/api/sgsst/perfil-sociodemografico', routes.sgsst.perfilSociodemografico);
+  app.use('/api/sgsst/predictivo', routes.sgsst.predictivo);
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
   app.use('/api/wompi', routes.wompi);
