@@ -767,36 +767,53 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             });
         });
 
-        const promptText = `Eres un Experto en Seguridad y Salud en el Trabajo (SGSST) en Colombia, especializado en la Guía Técnica Colombiana GTC 45.
-Se ha evaluado la Matriz de Peligros de la empresa.
+        const promptText = `Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia, consultor estratégico de alto nivel con especialidad en la Guía Técnica Colombiana GTC 45, el Decreto 1072 de 2015 y la Resolución 0312 de 2019.
 
-**Resumen de Hallazgos:**
+Has sido contratado para analizar la Matriz de Peligros y Riesgos de la organización y redactar el informe ejecutivo definitivo para la alta gerencia.
+
+**Resumen Estadístico de Hallazgos (Datos Reales):**
 - Total de Procesos Evaluados: ${procesos.length}
 - Total de Peligros Identificados: ${totalPeligros}
-- Peligros Críticos (I - No Aceptable): ${riskLevels.I}
-- Peligros Altos (II - No Aceptable o Aceptable con Control Specifico): ${riskLevels.II}
-- Peligros Medios (III - Mejorable): ${riskLevels.III}
-- Peligros Bajos (IV - Aceptable): ${riskLevels.IV}
+- Peligros Críticos (Nivel I - No Aceptable): ${riskLevels.I}
+- Peligros Altos (Nivel II - No Aceptable o Aceptable con Control Específico): ${riskLevels.II}
+- Peligros Medios (Nivel III - Mejorable): ${riskLevels.III}
+- Peligros Bajos (Nivel IV - Aceptable): ${riskLevels.IV}
 
-${criticalPeligros.length > 0 ? `**Principales Peligros (Nivel I y II):**\n${criticalPeligros.slice(0, 10).map(c => `- ${c}`).join('\n')}` : ''}
+${criticalPeligros.length > 0 ? `**Listado de Peligros Prioritarios (Nivel I y II):**\n${criticalPeligros.slice(0, 15).map(c => `- ${c}`).join('\n')}` : ''}
 
 **Tu tarea:**
-Escribe un INFORME EJECUTIVO profesional (en formato HTML) que documente los hallazgos de esta Matriz de Peligros.
-ESTRUCTURA EXACTA REQUERIDA (en div y HTML limpio sin markdown):
-1. Un resumen analítico del estado actual de los riesgos en la empresa según los datos reportados.
-2. Un análisis cualitativo o conclusiones de los principales peligros evaluados (menciona los procesos afectados).
-3. Asegúrate de incluir en tu análisis reflexiones sobre la evaluación cualitativa de riesgos higiénicos (Anexo C) y/o los factores de justificación de intervención (Anexo E), si están presentes en los peligros críticos.
-4. Recomendaciones prioritarias urgentes (Jerarquía de Controles) enfocadas a la mitigación.
+Redacta un INFORME EJECUTIVO TÉCNICO DE ALTO IMPACTO, EXTREMADAMENTE EXTENSO, PROFUNDO Y DETALLADO. El informe debe denotar un rigor técnico excepcional, como si hubiese tomado horas de análisis por un equipo consultor senior. No te limites; expande cada punto con terminología técnica colombiana, análisis de causas raíz y proyecciones de riesgo.
 
-Usa un tono corporativo. Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas \`\`\`html. No incluyas un título principal (<code>h1</code>) porque ya está en el encabezado.
+**ESTRUCTURA OBLIGATORIA REQUERIDA (Retorna exclusivamente HTML limpio):**
 
-**ESTILOS OBLIGATORIOS (CSS INLINE) - PRECAUCIÓN MODO OSCURO:**
-- **Regla Crítica:** NO uses clases de Tailwind, usa exclusivamente CSS inline.
-- Los contenedores principales (divs, cajas, tarjetas) deben tener \`style="width: 100%; box-sizing: border-box;"\` para no quedar angostos.
-- Cada vez que apliques un \`background-color\` a un elemento (tr, td, div), **DEBES OBLIGATORIAMENTE** especificar \`color: #000;\` o \`color: #fff;\`.
-- Títulos (h2, h3): Color azul oscuro (#0f766e) con \`color: #0f766e;\` explícito.
-- Tablas generadas por la IA DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\`. La tabla debe tener los estilos: \`width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`, th con background-color="#0f766e" y color="white".
-- Celdas (td): padding="10px", border-bottom="1px solid #ddd" (sin background-color predeterminado para que hereden el modo oscuro).`;
+1. **Resumen Analítico del Estado de Riesgos (Múltiples párrafos)**:
+   - Presenta un análisis cuantitativo y cualitativo integral. 
+   - No te limites a repetir números; interpreta qué significa que el ${totalPeligros > 0 ? Math.round(((riskLevels.I + riskLevels.II) / totalPeligros) * 100) : 0}% de los peligros sean Críticos (I) o Altos (II). 
+   - Explica cómo este panorama de riesgos compromete la continuidad del negocio, la seguridad jurídica de la empresa y, sobre todo, la integridad biopsicosocial de los colaboradores. 
+   - Analiza la distribución de riesgos por procesos operativos vs. administrativos.
+
+2. **Análisis Cualitativo de Peligros Prioritarios (Visión Estratégica)**:
+   - Selecciona y profundiza en al menos los 4 focos de riesgo más críticos identificados en la lista de peligros anterior.
+   - Describe técnicamente la naturaleza de estos peligros (ej. Riesgos por Trabajo en Alturas, Riesgos Biomecánicos por manipulación de cargas, Riesgo Público en seguridad vial, etc.).
+   - Relaciona estos peligros con procesos específicos de la empresa que se mencionan en los datos de entrada.
+   - Analiza las pautas de exposición y el potencial de daño severo o fatalidad.
+
+3. **Evaluación y Justificación de Intervención (Anexos C y E de la GTC 45)**:
+   - Realiza una argumentación técnica basada estrictamente en la GTC 45.
+   - Aplica los criterios del **Anexo E** (Criterios para establecer controles) para justificar por qué la intervención en los riesgos Nivel I y II es INNEGOCIABLE (mencionando el concepto de "Peor Consecuencia").
+   - Integra un análisis bajo el **Anexo C** (Evaluación Cualitativa de Riesgos Higiénicos), analizando cómo la probabilidad de exposición constante u ocasional agrava las patologías de origen laboral si no se interviene la fuente o el medio.
+
+4. **Plan Maestro de Recomendaciones y Jerarquía de Controles**:
+   - Genera una tabla profesional, robusta y técnicamente detallada.
+   - **Columnas de la tabla:** Peligro Prioritario, Proceso/Actividad Afectada, Jerarquía de Control Recomendada (debe priorizar: Eliminación -> Sustitución -> Ingeniería -> Administrativo -> EPP), y Acción Inmediata Sugerida.
+   - Las recomendaciones deben ser ambiciosas: certificaciones, rediseños de puestos, planes estratégicos (como el PESV), ingeniería de protección, etc.
+
+**NORMAS DE FORMATO Y ESTILO (CRÍTICO):**
+- **SÓLO CÓDIGO HTML VÁLIDO.** No incluyas etiquetas <html>, <body> ni markdown (\`\`\`html).
+- **CSS INLINE OBLIGATORIO.** Usa exclusivamente atributos \`style\`.
+- **PRECAUCIÓN MODO OSCURO:** Todo texto debe tener color explícito. Para fondos claros usa \`color: #1e293b;\` para texto y \`color: #0f766e;\` para títulos (h2, h3).
+- **DISEÑO PREMIUM:** Usa cajas con bordes redondeados, sombras suaves (\`box-shadow: 0 4px 6px rgba(0,0,0,0.05);\`), y tipografía legible.
+- **TABLAS:** Deben ser elegantes, con encabezados en azul oscuro (\`#0f766e\`) y texto blanco, con filas alternas sutiles.`;
 
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await generateWithRetry(model, promptText);
