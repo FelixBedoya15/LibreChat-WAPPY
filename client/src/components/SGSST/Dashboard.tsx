@@ -10,7 +10,8 @@ import {
     AlertTriangle, 
     ChevronRight,
     BrainCircuit,
-    Activity
+    Activity,
+    Box
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -75,12 +76,6 @@ const getPhases = () => [
 const OrganicBlob = () => (
     <svg className="absolute top-0 right-0 w-64 h-64 opacity-20 transform translate-x-12 -translate-y-8 transition-transform duration-[1200ms] group-hover:scale-[1.35] group-hover:-rotate-[15deg] pointer-events-none" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <path fill="#ffffff" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
-    </svg>
-);
-
-const HeaderWaves = () => (
-    <svg className="absolute bottom-0 left-0 w-full opacity-10 pointer-events-none dark:opacity-5" preserveAspectRatio="none" viewBox="0 0 1440 320" style={{ height: '60%' }}>
-        <path fill="#ffffff" d="M0,160L40,144C80,128,160,96,240,112C320,128,400,192,480,213.3C560,235,640,213,720,186.7C800,160,880,128,960,138.7C1040,149,1120,203,1200,213.3C1280,224,1360,192,1400,176L1440,160L1440,320L1400,320C1360,320,1280,320,1200,320C1120,320,1040,320,960,320C880,320,800,320,720,320C640,320,560,320,480,320C400,320,320,320,240,320C160,320,80,320,40,320L0,320Z" />
     </svg>
 );
 
@@ -169,60 +164,45 @@ export default function SGSSTDashboard() {
     return (
         <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary pb-20 scroll-smooth">
             
-            {/* ═══ Header Section (Premium Redesign) ═══ */}
-            <header className="relative bg-gradient-to-r from-teal-900 via-teal-800 to-teal-950 px-6 py-10 shadow-xl overflow-hidden shrink-0 border-b border-border-light dark:from-gray-900 dark:via-gray-900 dark:to-teal-950">
-                <HeaderWaves />
-                
-                {/* Decorative glowing orb */}
-                <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-teal-400/20 rounded-full blur-[80px] pointer-events-none" />
-
-                <div className="relative z-10 max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
-                    {/* Left: Title & Sidebar toggle */}
-                    <div className="flex items-start lg:items-center gap-5">
-                        {!navVisible && (
-                            <button 
-                                onClick={() => setNavVisible(true)}
-                                className="hidden md:flex shrink-0 p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-colors shadow-lg mt-1 lg:mt-0"
-                            >
-                                <OpenSidebar setNavVisible={setNavVisible} />
-                            </button>
-                        )}
+            {/* ═══ Header Section (Standard simple style equivalent to Blog/Aula) ═══ */}
+            <header className="px-6 lg:px-12 py-8 bg-surface-primary flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                {/* Left: Title & Sidebar toggle */}
+                <div className="flex items-center gap-4">
+                    {!navVisible && (
+                        <button 
+                            onClick={() => setNavVisible(true)}
+                            className="hidden md:flex shrink-0 p-2 rounded-xl border border-border-medium hover:bg-surface-secondary transition-colors text-text-secondary hover:text-text-primary"
+                        >
+                            <OpenSidebar setNavVisible={setNavVisible} />
+                        </button>
+                    )}
+                    <div className="flex items-center gap-4">
+                        <div className="bg-[#10b981]/10 p-3.5 rounded-2xl dark:bg-[#10b981]/20">
+                            <Activity className="h-8 w-8 text-[#10b981]" strokeWidth={2.5} />
+                        </div>
                         <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="h-8 w-1.5 bg-gradient-to-b from-teal-300 to-emerald-400 rounded-full" />
-                                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-r from-white to-teal-100">
-                                    Sistema Estratégico SST
-                                </h1>
-                            </div>
-                            <p className="text-teal-100/90 font-medium ml-4 text-sm sm:text-base">Ciclo de Mejora Continua (PHVA) & Análisis Predictivo IA</p>
+                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">Sistema Estratégico SST</h1>
+                            <p className="text-text-secondary mt-1 text-sm font-medium">Ciclo de Mejora Continua (PHVA) & Inteligencia Predictiva.</p>
                         </div>
                     </div>
-
-                    {/* Right: Integrated Company Info Widget */}
-                    <button
-                        onClick={() => setShowCompanyInfo(true)}
-                        className="group relative flex items-center gap-4 bg-white/10 backdrop-blur-lg border border-white/20 px-5 py-3.5 rounded-2xl hover:bg-white/20 transition-all duration-[400ms] hover:shadow-[0_8px_32px_rgba(20,184,166,0.3)] hover:-translate-y-0.5 overflow-hidden w-full lg:w-auto text-left"
-                    >
-                        {/* Shimmer effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-[1200ms] pointer-events-none" />
-                        
-                        <div className="p-3 bg-gradient-to-br from-teal-500/30 to-teal-700/30 border border-white/20 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-500">
-                            <Building2 className="h-6 w-6 text-teal-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
-                        </div>
-                        <div className="flex-1 min-w-0 pr-4">
-                            <p className="text-[10px] uppercase tracking-[0.15em] text-teal-200/80 font-black mb-1">Entidad Evaluada</p>
-                            <p className="text-sm font-bold text-white truncate max-w-[200px] leading-tight">
-                                {companyInfo?.companyName || 'Configurar Organización'}
-                            </p>
-                            {companyInfo?.riskLevel && (
-                                <p className="text-xs text-teal-100/70 mt-1 uppercase">Clase Riesgo ARL: {companyInfo.riskLevel}</p>
-                            )}
-                        </div>
-                        <div className="pl-2 border-l border-white/20 h-10 flex items-center">
-                            <ChevronRight className="h-6 w-6 text-teal-100 opacity-50 group-hover:opacity-100 group-hover:translate-x-1.5 transition-all duration-300" />
-                        </div>
-                    </button>
                 </div>
+
+                {/* Right: Integrated Company Info Widget */}
+                <button
+                    onClick={() => setShowCompanyInfo(true)}
+                    className="group flex items-center gap-3 bg-surface-secondary border border-border-medium px-4 py-3 rounded-2xl hover:bg-surface-hover hover:border-[#10b981]/40 hover:shadow-sm transition-all text-left w-full sm:w-auto"
+                >
+                    <div className="p-2.5 bg-[#10b981]/10 rounded-xl group-hover:bg-[#10b981]/20 group-hover:scale-105 transition-all">
+                        <Building2 className="h-5 w-5 text-[#10b981]" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-[10px] uppercase font-bold text-text-secondary mb-0.5 tracking-wider">Entidad Activa</p>
+                        <p className="text-sm font-bold text-text-primary truncate max-w-[160px]">
+                            {companyInfo?.companyName || 'Configurar Organización'}
+                        </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-text-secondary group-hover:text-[#10b981] group-hover:translate-x-1 transition-all" />
+                </button>
             </header>
 
             {/* ═══ Main Content Container ═══ */}
@@ -244,30 +224,11 @@ export default function SGSSTDashboard() {
                     </div>
                 )}
 
-                {/* ═══ Predictive AI Dashboard (Native Integration) ═══ */}
-                <section className="animate-in fade-in slide-in-from-bottom-8 duration-[800ms] fill-mode-both">
-                    <div className="flex items-center gap-3 mb-6 px-1">
-                        <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
-                            <BrainCircuit className="h-5 w-5 text-teal-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Centro de Inteligencia Predictiva</h2>
-                            <p className="text-sm text-text-secondary font-medium mt-0.5">Monitoreo dinámico del ecosistema SST alimentado por IA.</p>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-surface-primary dark:bg-[#1a1a1a] rounded-3xl overflow-hidden transition-all shadow-sm">
-                        <DashboardPredictivo />
-                    </div>
-                </section>
-
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-border-medium to-transparent opacity-50 my-8" />
-
                 {/* ═══ PHVA Phase Grid (Dynamic SVGs) ═══ */}
-                <section className="animate-in fade-in slide-in-from-bottom-12 duration-[1000ms] fill-mode-both">
+                <section className="animate-in fade-in slide-in-from-bottom-8 duration-[800ms] fill-mode-both">
                     <div className="flex items-center gap-3 mb-8 px-1">
-                        <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                            <Activity className="h-5 w-5 text-purple-600" />
+                        <div className="p-2 rounded-lg bg-[#10b981]/10 dark:bg-[#10b981]/20">
+                            <Box className="h-5 w-5 text-[#10b981]" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-text-primary tracking-tight">Gestión Operativa PHVA</h2>
@@ -316,6 +277,25 @@ export default function SGSSTDashboard() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </section>
+
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-border-medium to-transparent opacity-50 my-8" />
+
+                {/* ═══ Predictive AI Dashboard (Native Integration) ═══ */}
+                <section className="animate-in fade-in slide-in-from-bottom-12 duration-[1000ms] fill-mode-both">
+                    <div className="flex items-center gap-3 mb-6 px-1">
+                        <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
+                            <BrainCircuit className="h-5 w-5 text-teal-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Centro de Inteligencia Predictiva</h2>
+                            <p className="text-sm text-text-secondary font-medium mt-0.5">Monitoreo dinámico del ecosistema SST alimentado por datos cruzados.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-surface-primary dark:bg-[#1a1a1a] rounded-3xl overflow-hidden transition-all shadow-sm">
+                        <DashboardPredictivo />
                     </div>
                 </section>
             </main>

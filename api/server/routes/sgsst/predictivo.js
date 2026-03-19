@@ -209,55 +209,106 @@ async function getFullSSTContext(userId) {
 router.get('/forecast', requireJwtAuth, async (req, res) => {
     try {
         const userId = req.user.id;
-        const apiKey = await getApiKey(userId);
-        if (!apiKey) return res.status(400).json({ error: 'Falta configurar la API Key de Google en su perfil.' });
-
-        const context = await getFullSSTContext(userId);
-
-        const prompt = `
-Actúa como un Auditor de Riesgos Predictivo Senior. Analiza integralmente los datos cruzados REAELS tabulados a continuación. No inventes datos. Si no hay datos críticos, reporta riesgo bajo.
-${context}
-
-Basado EXCLUSIVAMENTE en esos datos, genera un pronóstico objetivo para los próximos 30 días.
-Si los módulos muestran siniestralidad cero (0) y riesgos I o II, puedes sugerir riesgo moderado o probabilidad de subregistro, pero NUNCA un porcentaje de siniestro del 70% o superior si no hay evidencias clínicas, de reportes o ATEL históricas. 
-
-Responde ÚNICAMENTE con un objeto JSON válido (SIN markdown, SIN texto fuera del JSON):
-{
-  "overallRisk": (número 0-100, la probabilidad general de evento en los próximos 30 días, derivado matemáticamente de la severidad del contexto provisto),
-  "criticalArea": (nombre de string, del cargo o área que aparece repetidamente en riesgos/diagnósticos. Si nada, "SISTEMA GENERAL"),
-  "predictionSummary": (un string de "análisis breve de 2-3 frases cruzando el hallazgo de un módulo con otro de forma inteligente. Ejemplo real: 'Los 3 diagnósticos lumbares coinciden con el cargo Administrativo que en GTC45 tiene Nivel II. Si no hay reporte de cond inseguras, indica subregistro.'"),
-  "indicators": {
-    "healthRisk": (0-100, derivado de diagnósticos médicos y restricciones),
-    "safetyRisk": (0-100, derivado de actos inseguros, ATS y nível I GTC45),
-    "ergonomicRisk": (0-100, derivado EXCLUSIVAMENTE de OWAS y posturas)
-  },
-  "recommendedActions": ["acción de choque 1", "acción 2", "acción 3"]
-}
-`;
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
-
-        let result;
+        
+        let totalWorkers = 0, sickWorkers = 0;
+        let totalHazardsI_II = 0, totalHazards = 0;
+        let totalOwasHigh = 0, totalOwas = 0;
+        let totalActsConds = 0;
+        let criticalAreasMap = {};
+        
         try {
-            result = await generateWithRetry({ apiKey, model: 'gemini-3.1-flash-lite-preview' }, prompt);
-        } catch (err) {
-            logger.error('[Predictivo] Gemini forecast failed:', err.message);
-            return res.status(500).json({ error: 'Error al conectar con IA. Verifique su API Key.' });
+            const pData = mongoose.models.PerfilSociodemograficoData;
+            if (pData) {
+                const doc = await pData.findOne({ user: userId }).lean();
+                if (doc?.trabajadores?.length) {
+                    totalWorkers = doc.trabajadores.length;
+                    doc.trabajadores.forEach(t => {
+                        if (t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos' && t.diagnosticoMedico !== 'Apto') {
+                            sickWorkers++;
+                            if (t.cargo) criticalAreasMap[t.cargo] = (criticalAreasMap[t.cargo] || 0) + 1;
+                        }
+                    });
+                }
+            }
+            
+            const mData = mongoose.models.MatrizPeligrosData;
+            if (mData) {
+                const doc = await mData.findOne({ user: userId }).lean();
+                if (doc?.procesos?.length) {
+                    doc.procesos.forEach(p => {
+                        (p.peligros || []).forEach(h => {
+                            totalHazards++;
+                            if (h.nivelRiesgo >= 150) { 
+                                totalHazardsI_II++;
+                                if (p.proceso) criticalAreasMap[p.proceso] = (criticalAreasMap[p.proceso] || 0) + 2;
+                            }
+                        });
+                    });
+                }
+            }
+            
+            const oData = mongoose.models.MetodoOwasData;
+            if (oData) {
+                const doc = await oData.findOne({ user: userId }).lean();
+                if (doc?.resultados?.length) {
+                    doc.resultados.forEach(r => {
+                        totalOwas++;
+                        if (r.categoriaRiesgo >= 3) totalOwasHigh++;
+                    });
+                }
+            }
+            
+            const rData = mongoose.models.ReporteActosData;
+            if (rData) {
+                const doc = await rData.findOne({ user: userId }).lean();
+                if (doc?.reportesList) {
+                    totalActsConds = doc.reportesList.filter(r => r.estado !== 'Cerrado').length;
+                }
+            }
+        } catch(e) { 
+            logger.error('[Predictivo] DB Aggregation Error:', e.message); 
+        }
+        
+        let healthRisk = totalWorkers > 0 ? Math.min(100, Math.round((sickWorkers / totalWorkers) * 100 * 2)) : 0;
+        let safetyRisk = totalHazards > 0 ? Math.min(100, Math.round((totalHazardsI_II / totalHazards) * 100 * 1.5)) : 0;
+        if (totalActsConds > 0) safetyRisk = Math.min(100, safetyRisk + (totalActsConds * 5));
+        
+        let ergonomicRisk = totalOwas > 0 ? Math.min(100, Math.round((totalOwasHigh / totalOwas) * 100 * 1.5)) : 0;
+        if (ergonomicRisk === 0 && sickWorkers > 0) ergonomicRisk = Math.floor(healthRisk / 2);
+        
+        let overallRisk = Math.round((healthRisk + safetyRisk + ergonomicRisk) / 3);
+        if (overallRisk === 0 && (totalWorkers > 0 || totalHazards > 0)) {
+            overallRisk = 12; // Base sub-record risk
+            safetyRisk = 15;
+            healthRisk = 10;
         }
 
-        let text = result.response.text().trim();
-        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-        let forecast;
-        try {
-            forecast = JSON.parse(text);
-        } catch (parseErr) {
-            logger.error('[Predictivo] JSON parse failed. Raw response:', text.substring(0, 300));
-            return res.status(500).json({ error: 'La IA devolvió una respuesta no válida. Intente de nuevo.' });
+        let criticalArea = "SISTEMA GENERAL";
+        let maxCount = 0;
+        for (const [area, count] of Object.entries(criticalAreasMap)) {
+            if (count > maxCount) { maxCount = count; criticalArea = area; }
         }
 
-        res.json(forecast);
+        let predictionSummary = "Evaluación determinística en tiempo real. ";
+        if (overallRisk < 20) predictionSummary += "Esceso de reportes nulos; riesgo bajo aparente (posible subregistro en PVE/Condiciones). ";
+        else if (overallRisk < 50) predictionSummary += `Volumen controlable de patologías/riesgos. Foco primario en ${criticalArea}. `;
+        else predictionSummary += `Alerta de contingencia en ${criticalArea}. Convergen diagnósticos médicos y riesgos de alta severidad. `;
+        
+        if (safetyRisk > 60) predictionSummary += "Atención inmediata a peligros Nivel I/II GTC 45. ";
+        if (healthRisk > 40) predictionSummary += "Altos índices de sintomatología clínica activa. ";
+
+        res.json({
+            overallRisk,
+            criticalArea,
+            predictionSummary,
+            indicators: { healthRisk, safetyRisk, ergonomicRisk },
+            recommendedActions: [
+                "Control y ejecución de intervenciones prioritarias detectadas en la Matriz GTC 45",
+                "Seguimiento epidemiológico a la población con diagnósticos activos",
+                "Verificación y corrección de las posturas críticas categorizadas por OWAS",
+                "Cierre inmediato de los actos y condiciones inseguras abiertas"
+            ]
+        });
     } catch (err) {
         logger.error('[Predictivo] Forecast error:', err.message);
         res.status(500).json({ error: 'Error interno en pronóstico: ' + err.message });
