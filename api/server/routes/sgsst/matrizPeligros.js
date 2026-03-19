@@ -752,68 +752,124 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
             responsibleName: userName || req.user?.name
         });
 
-        // Summary of risks for the prompt
+        // ─── Build FULL technical data for the AI prompt ───
         let totalPeligros = 0;
         let riskLevels = { I: 0, II: 0, III: 0, IV: 0 };
-        let criticalPeligros = [];
+        let fichasTecnicas = [];
 
         procesos.forEach(p => {
-            p.peligros.forEach(h => {
+            (p.peligros || []).forEach(h => {
                 totalPeligros++;
-                if (h.nivelRiesgo >= 600) { riskLevels.I++; criticalPeligros.push(`${p.proceso}: ${h.descripcionPeligro}`); }
-                else if (h.nivelRiesgo >= 150) { riskLevels.II++; criticalPeligros.push(`${p.proceso}: ${h.descripcionPeligro}`); }
+                const nivelTexto = h.nivelRiesgo >= 600 ? 'I (No Aceptable)' :
+                                   h.nivelRiesgo >= 150 ? 'II (Aceptable con Control Específico)' :
+                                   h.nivelRiesgo >= 40  ? 'III (Mejorable)' : 'IV (Aceptable)';
+                if (h.nivelRiesgo >= 600) riskLevels.I++;
+                else if (h.nivelRiesgo >= 150) riskLevels.II++;
                 else if (h.nivelRiesgo >= 40) riskLevels.III++;
                 else riskLevels.IV++;
+
+                let ficha = `▪ PROCESO: ${p.proceso} | ACTIVIDAD: ${p.actividad || '-'} | TAREA: ${p.tarea || '-'} | ZONA: ${p.zona || '-'} | ${p.rutinario ? 'RUTINARIA' : 'NO RUTINARIA'}`;
+                ficha += `\n  Peligro: "${h.descripcionPeligro || 'Sin descripción'}" | Clasificación: ${h.clasificacion || '-'}`;
+                ficha += `\n  Efectos Posibles: ${h.efectosPosibles || '-'}`;
+                ficha += `\n  Controles Existentes → Fuente: ${p.fuenteGeneradora || h.fuenteGeneradora || 'Ninguno'} | Medio: ${p.medioExistente || h.medioExistente || 'Ninguno'} | Individuo: ${p.individuoControl || h.individuoControl || 'Ninguno'}`;
+                ficha += `\n  Valoración: ND=${h.nivelDeficiencia || 0}, NE=${h.nivelExposicion || 0}, NP=${h.nivelProbabilidad || 0} (${h.interpretacionNP || '-'}), NC=${h.nivelConsecuencia || 0}, NR=${h.nivelRiesgo || 0} (${h.interpretacionNR || '-'})`;
+                ficha += `\n  Nivel de Riesgo: ${nivelTexto} | Aceptabilidad: ${h.aceptabilidad || '-'} | Expuestos: ${h.numExpuestos || 'N/A'}`;
+
+                if (h.deficienciaHigienica && h.deficienciaHigienica.trim() && h.deficienciaHigienica.toUpperCase() !== 'N/A' && h.deficienciaHigienica.toUpperCase() !== 'NA') {
+                    ficha += `\n  [Anexo C - Higiene]: Deficiencia Higiénica = ${h.deficienciaHigienica}${h.valoracionCuantitativa ? ` | Detalle: ${h.valoracionCuantitativa}` : ''}`;
+                }
+                if (h.justificacion) {
+                    ficha += `\n  [Anexo E - Justificación]: ${h.justificacion}${h.factorJustificacion ? ` | Factor J=${h.factorJustificacion}` : ''}${h.costoIntervencion ? ` | Costo: ${h.costoIntervencion}` : ''}`;
+                }
+
+                ficha += `\n  Jerarquía de Controles Recomendados:`;
+                ficha += `\n    - Eliminación: ${h.eliminacion || 'N/A'}`;
+                ficha += `\n    - Sustitución: ${h.sustitucion || 'N/A'}`;
+                ficha += `\n    - Ingeniería: ${h.controlIngenieria || 'N/A'}`;
+                ficha += `\n    - Administrativos: ${h.controlAdministrativo || 'N/A'}`;
+                ficha += `\n    - EPP: ${h.epp || 'N/A'}`;
+
+                fichasTecnicas.push(ficha);
             });
         });
 
-        const promptText = `Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia, consultor estratégico de alto nivel con especialidad en la Guía Técnica Colombiana GTC 45, el Decreto 1072 de 2015 y la Resolución 0312 de 2019.
+        const pctCritico = totalPeligros > 0 ? Math.round(((riskLevels.I + riskLevels.II) / totalPeligros) * 100) : 0;
 
-Has sido contratado para analizar la Matriz de Peligros y Riesgos de la organización y redactar el informe ejecutivo definitivo para la alta gerencia.
+        const promptText = `Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia, consultor estratégico de alto nivel. Dominas la Guía Técnica Colombiana GTC 45, el Decreto 1072 de 2015, la Resolución 0312 de 2019, y toda la normativa colombiana aplicable.
 
-**Resumen Estadístico de Hallazgos (Datos Reales):**
-- Total de Procesos Evaluados: ${procesos.length}
-- Total de Peligros Identificados: ${totalPeligros}
-- Peligros Críticos (Nivel I - No Aceptable): ${riskLevels.I}
-- Peligros Altos (Nivel II - No Aceptable o Aceptable con Control Específico): ${riskLevels.II}
-- Peligros Medios (Nivel III - Mejorable): ${riskLevels.III}
-- Peligros Bajos (Nivel IV - Aceptable): ${riskLevels.IV}
+Has sido contratado para analizar la Matriz de Peligros y Riesgos completa de la organización y producir el INFORME EJECUTIVO DEFINITIVO más completo que se haya generado jamás.
 
-${criticalPeligros.length > 0 ? `**Listado de Peligros Prioritarios (Nivel I y II):**\n${criticalPeligros.slice(0, 15).map(c => `- ${c}`).join('\n')}` : ''}
+═══════════════════════════════════════
+      DATOS TÉCNICOS COMPLETOS
+═══════════════════════════════════════
 
-**Tu tarea:**
-Redacta un INFORME EJECUTIVO TÉCNICO DE ALTO IMPACTO, EXTREMADAMENTE EXTENSO, PROFUNDO Y DETALLADO. El informe debe denotar un rigor técnico excepcional, como si hubiese tomado horas de análisis por un equipo consultor senior. No te limites; expande cada punto con terminología técnica colombiana, análisis de causas raíz y proyecciones de riesgo.
+**ESTADÍSTICAS GENERALES:**
+• Total de Procesos Evaluados: ${procesos.length}
+• Total de Peligros Identificados: ${totalPeligros}
+• Nivel I (No Aceptable: NR ≥ 600): ${riskLevels.I} peligros
+• Nivel II (Aceptable con Control Específico: NR 150-599): ${riskLevels.II} peligros
+• Nivel III (Mejorable: NR 40-149): ${riskLevels.III} peligros
+• Nivel IV (Aceptable: NR < 40): ${riskLevels.IV} peligros
+• Porcentaje de peligros Críticos+Altos (I+II): ${pctCritico}%
 
-**ESTRUCTURA OBLIGATORIA REQUERIDA (Retorna exclusivamente HTML limpio):**
+**FICHAS TÉCNICAS DE TODOS LOS PELIGROS (${totalPeligros} en total):**
+${fichasTecnicas.join('\n\n')}
 
-1. **Resumen Analítico del Estado de Riesgos (Múltiples párrafos)**:
-   - Presenta un análisis cuantitativo y cualitativo integral. 
-   - No te limites a repetir números; interpreta qué significa que el ${totalPeligros > 0 ? Math.round(((riskLevels.I + riskLevels.II) / totalPeligros) * 100) : 0}% de los peligros sean Críticos (I) o Altos (II). 
-   - Explica cómo este panorama de riesgos compromete la continuidad del negocio, la seguridad jurídica de la empresa y, sobre todo, la integridad biopsicosocial de los colaboradores. 
-   - Analiza la distribución de riesgos por procesos operativos vs. administrativos.
+═══════════════════════════════════════
+      TU TAREA (INFORME EJECUTIVO)
+═══════════════════════════════════════
 
-2. **Análisis Cualitativo de Peligros Prioritarios (Visión Estratégica)**:
-   - Selecciona y profundiza en al menos los 4 focos de riesgo más críticos identificados en la lista de peligros anterior.
-   - Describe técnicamente la naturaleza de estos peligros (ej. Riesgos por Trabajo en Alturas, Riesgos Biomecánicos por manipulación de cargas, Riesgo Público en seguridad vial, etc.).
-   - Relaciona estos peligros con procesos específicos de la empresa que se mencionan en los datos de entrada.
-   - Analiza las pautas de exposición y el potencial de daño severo o fatalidad.
+Redacta un INFORME EJECUTIVO TÉCNICO EXTREMADAMENTE EXTENSO, PROFUNDO, DETALLADO Y ESPECÍFICO. NO seas genérico. Tienes arriba las fichas técnicas completas de CADA peligro — ÚSALAS. Menciona datos reales (procesos, descripciones, NR, ND, NE, NP, NC, clasificaciones, efectos, controles). Cada sección DEBE ser larga, con múltiples párrafos, terminología técnica colombiana y análisis de causa raíz.
 
-3. **Evaluación y Justificación de Intervención (Anexos C y E de la GTC 45)**:
-   - Realiza una argumentación técnica basada estrictamente en la GTC 45.
-   - Aplica los criterios del **Anexo E** (Criterios para establecer controles) para justificar por qué la intervención en los riesgos Nivel I y II es INNEGOCIABLE (mencionando el concepto de "Peor Consecuencia").
-   - Integra un análisis bajo el **Anexo C** (Evaluación Cualitativa de Riesgos Higiénicos), analizando cómo la probabilidad de exposición constante u ocasional agrava las patologías de origen laboral si no se interviene la fuente o el medio.
+**ESTRUCTURA OBLIGATORIA (4 secciones, cada una EXTENSA):**
 
-4. **Plan Maestro de Recomendaciones y Jerarquía de Controles**:
-   - Genera una tabla profesional, robusta y técnicamente detallada.
-   - **Columnas de la tabla:** Peligro Prioritario, Proceso/Actividad Afectada, Jerarquía de Control Recomendada (debe priorizar: Eliminación -> Sustitución -> Ingeniería -> Administrativo -> EPP), y Acción Inmediata Sugerida.
-   - Las recomendaciones deben ser ambiciosas: certificaciones, rediseños de puestos, planes estratégicos (como el PESV), ingeniería de protección, etc.
+──── SECCIÓN 1: RESUMEN ANALÍTICO DEL ESTADO DE RIESGOS ────
+- Múltiples párrafos extensos (mínimo 4-5 párrafos).
+- Analiza cuantitativamente: qué significa que el ${pctCritico}% de los peligros sean I o II. Interpreta la distribución por niveles.
+- Impacto en continuidad del negocio, seguridad jurídica de la empresa (sanciones del Ministerio del Trabajo, responsabilidades civiles), e integridad biopsicosocial de los trabajadores.
+- Analiza la distribución de riesgos por procesos: cuáles procesos concentran mayor riesgo (operativos vs administrativos) y qué implica.
+- Menciona el incumplimiento potencial del ciclo PHVA (Decreto 1072) y la Resolución 0312.
 
-**NORMAS DE FORMATO Y ESTILO (CRÍTICO):**
-- **SÓLO CÓDIGO HTML VÁLIDO.** No incluyas etiquetas <html>, <body> ni markdown (\`\`\`html).
-- **CSS INLINE OBLIGATORIO.** Usa exclusivamente atributos \`style\`.
-- **PRECAUCIÓN MODO OSCURO:** Todo texto debe tener color explícito. Para fondos claros usa \`color: #1e293b;\` para texto y \`color: #0f766e;\` para títulos (h2, h3).
-- **DISEÑO PREMIUM:** Usa cajas con bordes redondeados, sombras suaves (\`box-shadow: 0 4px 6px rgba(0,0,0,0.05);\`), y tipografía legible.
-- **TABLAS:** Deben ser elegantes, con encabezados en azul oscuro (\`#0f766e\`) y texto blanco, con filas alternas sutiles.`;
+──── SECCIÓN 2: ANÁLISIS CUALITATIVO DE PELIGROS (TODOS) ────
+**CRÍTICO: NO selecciones solo 4 peligros. DEBES analizar TODOS y CADA UNO de los ${totalPeligros} peligros.**
+Para CADA peligro de las fichas técnicas anteriores, genera una entrada tipo viñeta que incluya:
+  • Nombre del Peligro y su Clasificación (ej. "Caída a distinto nivel — Condiciones de Seguridad")
+  • Proceso y Actividad donde se identificó
+  • Nivel de Riesgo (NR) y su Aceptabilidad
+  • Descripción técnica de la naturaleza del peligro, sus causas raíz y el potencial de daño (lesión, enfermedad laboral, fatalidad)
+  • Si tiene evaluación higiénica (Anexo C), mencionarla
+  • Si tiene justificación de intervención (Anexo E), mencionarla con su factor J
+  • Análisis del potencial de los efectos posibles sobre los trabajadores expuestos
+
+──── SECCIÓN 3: EVALUACIÓN Y JUSTIFICACIÓN DE INTERVENCIÓN (GTC 45) ────
+Múltiples párrafos extensos donde:
+- Para CADA peligro de Nivel I y II, explica específicamente por qué la intervención es innegociable usando la lógica del Anexo E ("Peor Consecuencia").
+- Para CADA peligro con evaluación higiénica (Anexo C), analiza cómo la exposición constante agrava patologías laborales.
+- Menciona explícitamente los nombres de los peligros y sus NR reales al argumentar.
+- Señala las implicaciones legales bajo la Resolución 0312 y el Decreto 1072 si no se interviene.
+- Puedes agrupar por tipo de riesgo pero DEBES mencionar cada peligro por nombre.
+
+──── SECCIÓN 4: PLAN MAESTRO DE RECOMENDACIONES Y JERARQUÍA DE CONTROLES ────
+Genera UNA TABLA COMPLETA con una fila para CADA UNO de los ${totalPeligros} peligros.
+**Columnas obligatorias de la tabla:**
+| # | Peligro | Proceso / Actividad | NR | Nivel | Jerarquía de Control Seleccionada | Acción Inmediata Sugerida |
+- En "Jerarquía de Control Seleccionada", indica cuál control de la jerarquía (Eliminación, Sustitución, Ingeniería, Administrativo, EPP) se prioriza para ESE peligro específico, basándote en los datos de su ficha técnica.
+- En "Acción Inmediata", sé específico y ambicioso: certificaciones, rediseños, PESV, programas de vigilancia epidemiológica, ingeniería de protección, etc.
+- TODOS los peligros deben aparecer en la tabla, no solo los críticos.
+
+Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexión estratégica sobre la inversión en SST vs. el riesgo de sanciones y accidentalidad.
+
+═══════════════════════════════════════
+      NORMAS DE FORMATO (CRÍTICO)
+═══════════════════════════════════════
+- **SOLO CÓDIGO HTML VÁLIDO.** Sin etiquetas <html>, <body> ni markdown. Sin \`\`\`html.
+- **CSS INLINE OBLIGATORIO.** Usa exclusivamente atributos \`style\`. NO uses clases de Tailwind ni clases CSS.
+- **PRECAUCIÓN MODO OSCURO:** Todo texto debe tener \`color\` explícito. Texto normal: \`color: #1e293b;\`. Títulos (h2, h3): \`color: #0f766e;\`.
+- **Contenedores:** \`width: 100%; box-sizing: border-box;\`.
+- **Cada vez** que apliques \`background-color\` a un tr, td o div, DEBES también especificar \`color\` explícito.
+- **TABLAS:** Envuélvelas en \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\`. Estilos de tabla: \`width: 100%; min-width: 800px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`. \`th\` con \`background-color: #0f766e; color: white; padding: 12px; text-align: left;\`. \`td\` con \`padding: 10px; border-bottom: 1px solid #e2e8f0;\` (sin background-color por defecto).
+- **SECCIONES:** Usa cajas con \`border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.04);\`.
+- No incluyas título h1 (ya está en el encabezado).`;
 
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await generateWithRetry(model, promptText);
