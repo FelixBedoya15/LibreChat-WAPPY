@@ -27,7 +27,6 @@ export const PHASE_CATEGORIES = {
         { id: 'revision_direccion', title: 'Informe Revisión Alta Dirección', icon: 'Briefcase' },
     ],
     act: [
-        { id: 'predictivo', title: 'Dashboard Predictivo (IA)', icon: 'Activity' },
         { id: 'acpm', title: 'Matriz ACPM', icon: 'GitMerge' },
     ]
 };
