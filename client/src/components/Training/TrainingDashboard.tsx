@@ -46,7 +46,7 @@ export default function TrainingDashboard() {
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200">
             {/* ═══ Header Section (Wappy Brand Green Style) ═══ */}
-            <div className="flex-none p-6 md:px-12 md:py-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+            <div className="flex-none p-6 md:px-12 md:py-8 bg-white dark:bg-gray-900">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         {!navVisible && (
@@ -85,7 +85,7 @@ export default function TrainingDashboard() {
             </div>
 
             {/* Courses grid */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-gray-50 dark:bg-[#111111]">
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-white dark:bg-gray-900">
                 <div className="max-w-7xl mx-auto">
                     {courses.length === 0 ? (
                         <div className="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl border border-dashed border-gray-300 dark:border-gray-800 shadow-sm">
