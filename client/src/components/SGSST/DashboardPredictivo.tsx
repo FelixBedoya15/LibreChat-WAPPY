@@ -12,6 +12,8 @@ import {
     TrendingUp,
     Zap,
     Users,
+    ChevronUp,
+    ChevronDown,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -139,6 +141,7 @@ const DashboardPredictivo = () => {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isReportCollapsed, setIsReportCollapsed] = useState(false);
 
     // ─── Fetch Forecast Data ─────────────────────────────────────────────
     const fetchForecast = useCallback(async () => {
@@ -191,6 +194,7 @@ const DashboardPredictivo = () => {
             setEditorContent(data.report);
             setConversationId('new');
             setReportMessageId(null);
+            setIsReportCollapsed(false);
             showToast({ message: 'Informe Predictivo generado exitosamente', status: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
@@ -500,20 +504,23 @@ const DashboardPredictivo = () => {
 
             {/* ═══ Generated Report ═══ */}
             {generatedReport && (
-                <div className="rounded-2xl border-2 border-teal-500/20 bg-surface-primary overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div className="border-b border-border-medium bg-gradient-to-r from-teal-50/80 to-transparent dark:from-teal-950/30 px-6 py-4 flex items-center justify-between">
+                <div className="rounded-2xl border-2 border-[#10b981]/20 bg-surface-primary overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700">
+                    <div 
+                        className="border-b border-border-medium bg-gradient-to-r from-[#10b981]/10 to-transparent dark:from-[#10b981]/20 px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-[#10b981]/5 transition-colors"
+                        onClick={() => setIsReportCollapsed(!isReportCollapsed)}
+                    >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
-                                <LineChart className="h-5 w-5 text-teal-600" />
+                            <div className="p-2 rounded-lg bg-[#10b981]/20 text-[#10b981]">
+                                <LineChart className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-text-primary">Informe Predictivo Detallado</h3>
+                                <h3 className="font-bold text-[#0d9488] dark:text-[#10b981]">Informe Predictivo Detallado</h3>
                                 <p className="text-[10px] text-text-secondary uppercase tracking-widest">Generado por WAPPY AI Engine</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                             <button onClick={handleSaveReport}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-teal-700 transition-colors shadow-sm">
+                                className="flex items-center gap-2 px-3 py-1.5 bg-[#10b981] text-white text-xs font-bold rounded-lg hover:bg-[#059669] transition-colors shadow-sm">
                                 <AnimatedIcon name="save" size={14} />
                                 Guardar en Historial
                             </button>
@@ -521,15 +528,23 @@ const DashboardPredictivo = () => {
                                 content={editorContent || generatedReport || ''}
                                 fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
                             />
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setIsReportCollapsed(!isReportCollapsed); }}
+                                className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-md transition-colors text-text-secondary"
+                            >
+                                {isReportCollapsed ? <ChevronDown /> : <ChevronUp />}
+                            </button>
                         </div>
                     </div>
-                    <div className="p-2 min-h-[600px] bg-white dark:bg-gray-900">
-                        <LiveEditor
-                            initialContent={generatedReport}
-                            onUpdate={setEditorContent}
-                            onSave={handleSaveReport}
-                        />
-                    </div>
+                    {!isReportCollapsed && (
+                        <div className="p-2 min-h-[600px] bg-white dark:bg-[#1a1a1a]">
+                            <LiveEditor
+                                initialContent={generatedReport}
+                                onUpdate={setEditorContent}
+                                onSave={handleSaveReport}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

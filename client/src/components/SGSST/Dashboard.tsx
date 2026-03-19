@@ -33,42 +33,42 @@ const getPhases = () => [
     {
         id: 'plan',
         title: 'Planear',
-        subtitle: 'Proyección y Diseño Estratégico',
-        description: 'Política, Identificación de Peligros y Requisitos Legales.',
-        gradient: 'from-[#0f766e] to-[#0d9488]', // teal
-        bgGlow: 'bg-teal-500/20',
-        icon: <FileText className="w-8 h-8 text-white relative z-10" strokeWidth={1.5} />,
-        items: PHASE_CATEGORIES.plan.map(c => c.title),
+        subtitle: 'Proyección y Estrategia',
+        description: 'Política, Peligros y Requisitos Legales.',
+        accent: 'text-[#10b981]',
+        bgGlow: 'bg-[#10b981]/5',
+        borderHover: 'hover:border-[#10b981]',
+        icon: <FileText className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
         id: 'do',
         title: 'Hacer',
-        subtitle: 'Ejecución y Control Operativo',
-        description: 'Gestión de Salud, Seguridad en el Trabajo y Vulnerabilidad.',
-        gradient: 'from-[#d97706] to-[#f59e0b]', // amber
-        bgGlow: 'bg-amber-500/20',
-        icon: <ShieldAlert className="w-8 h-8 text-white relative z-10" strokeWidth={1.5} />,
-        items: PHASE_CATEGORIES.do.map(c => c.title),
+        subtitle: 'Ejecución Operativa',
+        description: 'Gestión de Salud, Seguridad y Vulnerabilidad.',
+        accent: 'text-[#0d9488]',
+        bgGlow: 'bg-[#0d9488]/5',
+        borderHover: 'hover:border-[#0d9488]',
+        icon: <ShieldAlert className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
         id: 'check',
         title: 'Verificar',
-        subtitle: 'Evaluación de Resultados',
-        description: 'Auditoría, Medición de Indicadores y Revisión Gerencial.',
-        gradient: 'from-[#be123c] to-[#e11d48]', // rose
-        bgGlow: 'bg-rose-500/20',
-        icon: <ClipboardCheck className="w-8 h-8 text-white relative z-10" strokeWidth={1.5} />,
-        items: PHASE_CATEGORIES.check.map(c => c.title),
+        subtitle: 'Evaluación y Medición',
+        description: 'Auditoría e Indicadores por la Alta Dirección.',
+        accent: 'text-[#059669]',
+        bgGlow: 'bg-[#059669]/5',
+        borderHover: 'hover:border-[#059669]',
+        icon: <ClipboardCheck className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
         id: 'act',
         title: 'Actuar',
-        subtitle: 'Mejora Continua del Sistema',
-        description: 'Manejo de Acciones Correctivas y Preventivas (ACPM).',
-        gradient: 'from-[#0e7490] to-[#0891b2]', // cyan
-        bgGlow: 'bg-cyan-500/20',
-        icon: <BarChart2 className="w-8 h-8 text-white relative z-10" strokeWidth={1.5} />,
-        items: PHASE_CATEGORIES.act.map(c => c.title),
+        subtitle: 'Mejora Continua',
+        description: 'Acciones Correctivas y Preventivas (ACPM).',
+        accent: 'text-[#14b8a6]',
+        bgGlow: 'bg-[#14b8a6]/5',
+        borderHover: 'hover:border-[#14b8a6]',
+        icon: <BarChart2 className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
 ];
 
@@ -275,52 +275,45 @@ export default function SGSSTDashboard() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {phases.map((phase, i) => (
                             <div
                                 key={phase.id}
                                 onClick={() => handlePhaseSelect(phase)}
-                                className="group relative cursor-pointer flex flex-col rounded-[24px] border border-border-medium bg-surface-primary hover:bg-surface-secondary transition-all duration-500 ease-out shadow-sm hover:shadow-[0_12px_40px_-10px_rgba(0,0,0,0.1)] hover:-translate-y-2 overflow-hidden"
-                                style={{ animationDelay: `${i * 150}ms` }}
+                                className={cn(
+                                    "group relative cursor-pointer flex flex-col rounded-2xl border-2 bg-surface-primary transition-all duration-300 ease-out shadow-sm hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 overflow-hidden",
+                                    "border-border-medium dark:border-white/10",
+                                    phase.borderHover
+                                )}
+                                style={{ animationDelay: `${i * 100}ms` }}
                             >
                                 {/* Dynamic Glow Behind Card content */}
-                                <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${phase.bgGlow} -translate-y-1/2 translate-x-1/4 pointer-events-none`} />
+                                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${phase.bgGlow} pointer-events-none`} />
 
-                                {/* Card Header (Colored section) */}
-                                <div className={`relative p-8 pb-12 bg-gradient-to-br ${phase.gradient} overflow-hidden`}>
-                                    <OrganicBlob />
-                                    <div className="relative z-10 flex justify-between items-start">
-                                        <div className="p-3.5 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner border border-white/30 transform transition-transform duration-500 group-hover:scale-105">
+                                {/* Organic blob subtle background */}
+                                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none group-hover:scale-125 transition-transform duration-700">
+                                    <svg className={cn("w-full h-full transform translate-x-4 -translate-y-4", phase.accent)} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                        <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
+                                    </svg>
+                                </div>
+
+                                {/* Content Block */}
+                                <div className="relative p-6 px-7 flex flex-col h-full bg-transparent z-10">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="p-3 bg-white dark:bg-black/20 rounded-2xl shadow-sm border border-border-light group-hover:border-transparent transition-colors">
                                             {phase.icon}
                                         </div>
-                                        <div className="bg-white/20 backdrop-blur-md rounded-full px-3 py-1 border border-white/30 text-white text-[10px] font-black tracking-[0.2em] uppercase shadow-sm">
+                                        <div className="bg-surface-secondary rounded-full px-3 py-1 border border-border-light text-text-secondary text-[10px] font-black tracking-[0.2em] uppercase">
                                             Fase 0{i+1}
                                         </div>
                                     </div>
-                                    <div className="relative z-10 mt-6 text-white text-left">
-                                        <h2 className="text-3xl font-black tracking-tight leading-none mb-2">{phase.title}</h2>
-                                        <p className="text-white/80 font-semibold text-sm leading-tight pr-4">{phase.subtitle}</p>
+                                    
+                                    <div className="text-left mt-auto">
+                                        <h2 className={cn("text-2xl font-black tracking-tight leading-none mb-2 text-text-primary transition-colors", `group-hover:${phase.accent}`)}>{phase.title}</h2>
+                                        <p className="text-text-secondary font-bold text-xs uppercase tracking-wide mb-3">{phase.subtitle}</p>
+                                        <p className="text-[13px] font-medium text-text-secondary leading-relaxed opacity-90">{phase.description}</p>
                                     </div>
                                 </div>
-
-                                {/* Content Block (White overlay) */}
-                                <div className="relative p-7 pt-7 flex-1 flex flex-col bg-surface-primary rounded-t-[24px] -mt-6 border-t border-white/10 dark:border-white/5">
-                                    <p className="text-[13px] font-medium text-text-secondary leading-relaxed pb-5 border-b border-border-light mb-5">{phase.description}</p>
-                                    
-                                    <ul className="space-y-3.5 mt-auto">
-                                        {phase.items.map((item, idx) => (
-                                            <li key={idx} className="flex items-start gap-3 group/item">
-                                                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-border-heavy shrink-0 transition-all duration-300 group-hover/item:bg-gradient-to-r group-hover/item:scale-150" />
-                                                <span className="text-xs font-semibold text-text-secondary group-hover/item:text-text-primary transition-colors leading-snug truncate">
-                                                    {item}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-
-                                {/* Bottom Hover Gradient Bar */}
-                                <div className={`absolute bottom-0 left-0 h-2 w-0 bg-gradient-to-r ${phase.gradient} transition-all duration-700 ease-in-out group-hover:w-full`} />
                             </div>
                         ))}
                     </div>

@@ -80,123 +80,128 @@ function cleanHtmlOutput(text) {
         .trim();
 }
 
-// ─── HELPER: Aggregate All SST Context from DB ─────────────────────────────
+// ──// ─── HELPER: Aggregate All SST Context from DB  ──────────────────────────────
 async function getFullSSTContext(userId) {
-    let context = '\n**ECOSISTEMA SST - DATOS CONSOLIDADOS PARA ANÁLISIS PREDICTIVO:**\n';
+    let fullContext = '\n═══════════════════════════════════════\n   DATOS COMPLETOS DEL ECOSISTEMA SST\n═══════════════════════════════════════\n';
     try {
-        // 1. Salud (Perfil Sociodemográfico)
+        // 1. Perfil Sociodemográfico
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (PerfilSociodemograficoData) {
             const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
-            if (psd && psd.trabajadores?.length) {
-                const findings = psd.trabajadores.filter(t => t.diagnosticoMedico && t.diagnosticoMedico !== 'Apto / Sin Hallazgos');
-                context += `- SALUD OCUPACIONAL: ${psd.trabajadores.length} trabajadores evaluados. Hallazgos clínicos relevantes: ${findings.length}. Detalle: ${findings.slice(0, 15).map(t => `${t.cargo}: ${t.diagnosticoMedico}`).join('; ')}.\n`;
-            } else {
-                context += `- SALUD OCUPACIONAL: Sin datos registrados en perfil sociodemográfico.\n`;
-            }
+            if (psd?.trabajadores?.length) {
+                fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO]\nTotal trabajadores: ${psd.trabajadores.length}\n`;
+                psd.trabajadores.forEach(t => {
+                    fullContext += `  • ${t.nombre || 'N/A'} | Cargo: ${t.cargo || 'N/A'} | Edad: ${t.edad || 'N/A'} | Examen: ${t.fechaExamenMedico || 'No'} | Diagnóstico: ${t.diagnosticoMedico || 'Apto'} | Rec: ${t.recomendacionesMedicas || 'Ninguna'}\n`;
+                });
+            } else fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO] Sin datos.\n`;
         }
 
-        // 2. Siniestralidad (Estadísticas ATEL)
+        // 2. Estadísticas ATEL
         const ATELAnnualData = mongoose.models.ATELAnnualData;
         if (ATELAnnualData) {
             const ad = await ATELAnnualData.findOne({ user: userId }).lean();
-            if (ad && ad.years) {
+            if (ad?.years) {
                 const years = Object.keys(ad.years).sort().reverse();
-                if (years.length > 0) {
-                    let totalEvents = 0;
-                    let commonHazards = [];
-                    Object.values(ad.years[years[0]]).forEach(m => {
+                fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL]\n`;
+                years.slice(0, 2).forEach(yr => {
+                    let totalEvents = 0, totalDays = 0; let eventList = [];
+                    Object.entries(ad.years[yr] || {}).forEach(([mes, m]) => {
                         if (m?.events) {
                             totalEvents += m.events.length;
-                            m.events.forEach(e => { if (e.peligro) commonHazards.push(e.peligro); });
+                            m.events.forEach(e => { totalDays += (e.diasIncapacidad || 0); eventList.push(`${mes}: ${e.peligro || 'N'} (${e.tipoEvento || 'N'})`); });
                         }
                     });
-                    context += `- SINIESTRALIDAD ATEL (Año ${years[0]}): ${totalEvents} eventos registrados. Peligros frecuentes: ${[...new Set(commonHazards)].join(', ') || 'No categorizados'}.\n`;
-                }
-            } else {
-                context += `- SINIESTRALIDAD ATEL: Sin historial de eventos en base de datos.\n`;
-            }
+                    fullContext += `  Año ${yr}: ${totalEvents} eventos, ${totalDays} días incapacidad. Detalle: ${eventList.slice(0, 10).join(' | ') || 'Sin detalle'}.\n`;
+                });
+            } else fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL] Sin historial.\n`;
         }
 
-        // 3. Investigación ATEL (Causas Raíz)
+        // 3. Investigación ATEL
         const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
         if (InvestigacionAtelData) {
             const investigations = await InvestigacionAtelData.find({ user: userId }).lean();
             if (investigations?.length) {
-                const latest = investigations[investigations.length - 1];
-                context += `- INVESTIGACIONES ATEL: ${investigations.length} investigaciones realizadas. Última investigación: "${latest.formData?.tareaAccidente || 'N/A'}". Causa Básica: ${latest.formData?.causasBasicas || 'N/A'}. Causa Inmediata: ${latest.formData?.causasInmediatas || 'N/A'}.\n`;
-            }
+                fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] ${investigations.length} invest:\n`;
+                investigations.slice(0, 5).forEach(inv => {
+                    const f = inv.formData || {};
+                    fullContext += `  • Tarea: "${f.tareaAccidente || 'N'}" | Cargo: ${f.cargoAccidentado || 'N'} | Causa: ${f.causasInmediatas || 'N'} | Lesión: ${f.naturalezaLesion || 'N'}.\n`;
+                });
+            } else fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] Sin invest.\n`;
         }
 
-        // 4. Actos y Condiciones Inseguras
+        // 4. Actos y Condiciones
         const ReporteActosData = mongoose.models.ReporteActosData;
         if (ReporteActosData) {
             const rad = await ReporteActosData.findOne({ user: userId }).lean();
-            if (rad && rad.reportesList?.length) {
-                const acts = rad.reportesList.filter(r => r.tipo === 'Acto Inseguro').length;
-                const conds = rad.reportesList.filter(r => r.tipo === 'Condición Insegura').length;
-                context += `- REPORTES DE CAMPO: ${rad.reportesList.length} registros (${acts} actos inseguros, ${conds} condiciones inseguras). Hallazgos recientes: ${rad.reportesList.slice(-10).map(r => r.hallazgo).join(' | ')}.\n`;
-            } else {
-                context += `- REPORTES DE CAMPO: Sin reportes de actos o condiciones inseguras.\n`;
-            }
+            if (rad?.reportesList?.length) {
+                fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS] ${rad.reportesList.length} reportes.\n`;
+                rad.reportesList.slice(-15).forEach(r => {
+                    fullContext += `  • ${r.tipo}: "${r.hallazgo || 'N'}" | Área: ${r.area || 'N'} | Resp: ${r.responsable || 'N'} | Est: ${r.estado || 'N'}\n`;
+                });
+            } else fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS] Sin reportes.\n`;
         }
 
-        // 5. Ergonomía (OWAS)
+        // 5. Ergonomía OWAS
         const MetodoOwasData = mongoose.models.MetodoOwasData;
         if (MetodoOwasData) {
-            const owasd = await MetodoOwasData.findOne({ user: userId }).lean();
-            if (owasd && owasd.resultados?.length) {
-                const critical = owasd.resultados.filter(r => r.categoriaRiesgo >= 3);
-                context += `- ERGONOMÍA (OWAS): ${owasd.resultados.length} posturas evaluadas. ${critical.length} requieren intervención inmediata. Áreas: ${[...new Set(critical.map(c => c.faseTarea))].join(', ') || 'N/A'}.\n`;
-            }
+            const owas = await MetodoOwasData.findOne({ user: userId }).lean();
+            if (owas?.resultados?.length) {
+                fullContext += `\n[MÓDULO 5 - ERGONOMÍA OWAS]\n`;
+                owas.resultados.forEach(r => {
+                    fullContext += `  • Tarea: "${r.faseTarea || 'N'}" | Riesgo OWAS: ${r.categoriaRiesgo || 'N'} | Acción: ${r.accionRequerida || 'N'} | Cargo: ${owas.cargo || 'N'}\n`;
+                });
+            } else fullContext += `\n[MÓDULO 5 - ERGONOMÍA OWAS] Sin posturas.\n`;
         }
 
-        // 6. ATS (Tareas Críticas)
+        // 6. ATS
         const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
         if (AnalisisTrabajoSeguroData) {
-            const atsd = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
-            if (atsd && atsd.pasos) {
-                context += `- TAREAS ALTO RIESGO (ATS): Actividad: "${atsd.actividad}". Pasos peligrosos: ${atsd.pasos.slice(0, 5).map(p => p.descripcion).join(', ')}.\n`;
-            }
+            const ats = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
+            if (ats?.pasos) {
+                fullContext += `\n[MÓDULO 6 - ATS] Actividad: "${ats.actividad || 'N'}"\n`;
+                ats.pasos.slice(0, 8).forEach(p => {
+                    fullContext += `  • Paso: "${p.descripcion || 'N'}" | Peligro: ${p.peligro || 'N'}\n`;
+                });
+            } else fullContext += `\n[MÓDULO 6 - ATS] Sin ATS.\n`;
         }
 
         // 7. Vulnerabilidad
         const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
         if (AnalisisVulnerabilidadData) {
             const avd = await AnalisisVulnerabilidadData.findOne({ user: userId }).lean();
-            if (avd && avd.formData?.amenazasList) {
-                const critical = avd.formData.amenazasList.filter(a => a.nivelAmenaza === 'Inminente' || a.nivelAmenaza === 'Probable');
-                if (critical.length > 0) {
-                    context += `- AMENAZAS (Vulnerabilidad): ${critical.map(a => a.amenaza).join(', ')}.\n`;
-                }
-            }
+            const amenazas = avd?.formData?.amenazasList || avd?.amenazasList || [];
+            if (amenazas.length) {
+                fullContext += `\n[MÓDULO 7 - VULNERABILIDAD]\n`;
+                amenazas.forEach(a => {
+                    fullContext += `  • Amenaza: "${a.amenaza || 'N'}" | Nivel: ${a.nivelAmenaza || 'N'}\n`;
+                });
+            } else fullContext += `\n[MÓDULO 7 - VULNERABILIDAD] Sin amenazas.\n`;
         }
 
-        // 8. Matriz de Peligros (GTC45)
+        // 8. Matriz GTC 45
         const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
         if (MatrizPeligrosData) {
             const mpd = await MatrizPeligrosData.findOne({ user: userId }).lean();
-            if (mpd && mpd.procesos?.length) {
-                let totalPeligros = 0;
-                let riskI = 0;
-                let riskII = 0;
+            if (mpd?.procesos?.length) {
+                fullContext += `\n[MÓDULO 8 - MATRIZ GTC 45]\n`;
+                let tP = 0, rI = 0, rII = 0;
                 mpd.procesos.forEach(p => {
                     (p.peligros || []).forEach(h => {
-                        totalPeligros++;
-                        if (h.nivelRiesgo >= 600) riskI++;
-                        else if (h.nivelRiesgo >= 150) riskII++;
+                        tP++;
+                        const n = h.nivelRiesgo >= 600 ? 'I' : h.nivelRiesgo >= 150 ? 'II' : 'III';
+                        if (n === 'I') rI++; else if (n === 'II') rII++;
+                        fullContext += `  • Proc: ${p.proceso} | Peligro: "${h.descripcionPeligro || 'N'}" | NR=${h.nivelRiesgo || 0} (${n}) | Acept: ${h.aceptabilidad || '-'}\n`;
                     });
                 });
-                context += `- MATRIZ GTC 45: ${mpd.procesos.length} procesos, ${totalPeligros} peligros identificados. Nivel I (No Aceptable): ${riskI}. Nivel II (Alto): ${riskII}.\n`;
-            }
+                fullContext += `  RESUMEN: ${tP} peligros | Nivel I: ${rI} | Nivel II: ${rII}\n`;
+            } else fullContext += `\n[MÓDULO 8 - MATRIZ GTC 45] Sin peligros.\n`;
         }
 
     } catch (err) {
         logger.error('[Predictivo] Context aggregation failed:', err.message);
     }
-    return context;
+    return fullContext;
 }
-
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── ENDPOINT: Get Forecast JSON (For Gauges and UI) ─────────────────────────
@@ -210,21 +215,23 @@ router.get('/forecast', requireJwtAuth, async (req, res) => {
         const context = await getFullSSTContext(userId);
 
         const prompt = `
-Actúa como un Auditor de Riesgos Predictivo Senior. Analiza integralmente los datos cruzados de todos los módulos SST de la empresa.
+Actúa como un Auditor de Riesgos Predictivo Senior. Analiza integralmente los datos cruzados REAELS tabulados a continuación. No inventes datos. Si no hay datos críticos, reporta riesgo bajo.
 ${context}
 
-Genera un pronóstico de riesgo para los próximos 30 días.
-Responde ÚNICAMENTE con un objeto JSON (SIN texto adicional, SIN markdown):
+Basado EXCLUSIVAMENTE en esos datos, genera un pronóstico objetivo para los próximos 30 días.
+Si los módulos muestran siniestralidad cero (0) y riesgos I o II, puedes sugerir riesgo moderado o probabilidad de subregistro, pero NUNCA un porcentaje de siniestro del 70% o superior si no hay evidencias clínicas, de reportes o ATEL históricas. 
+
+Responde ÚNICAMENTE con un objeto JSON válido (SIN markdown, SIN texto fuera del JSON):
 {
-  "overallRisk": (número 0-100, probabilidad general de accidente),
-  "criticalArea": "nombre del cargo o proceso más vulnerable",
-  "predictionSummary": "análisis breve de 2-3 frases sobre el panorama de riesgo",
+  "overallRisk": (número 0-100, la probabilidad general de evento en los próximos 30 días, derivado matemáticamente de la severidad del contexto provisto),
+  "criticalArea": (nombre de string, del cargo o área que aparece repetidamente en riesgos/diagnósticos. Si nada, "SISTEMA GENERAL"),
+  "predictionSummary": (un string de "análisis breve de 2-3 frases cruzando el hallazgo de un módulo con otro de forma inteligente. Ejemplo real: 'Los 3 diagnósticos lumbares coinciden con el cargo Administrativo que en GTC45 tiene Nivel II. Si no hay reporte de cond inseguras, indica subregistro.'"),
   "indicators": {
-    "healthRisk": (número 0-100),
-    "safetyRisk": (número 0-100),
-    "ergonomicRisk": (número 0-100)
+    "healthRisk": (0-100, derivado de diagnósticos médicos y restricciones),
+    "safetyRisk": (0-100, derivado de actos inseguros, ATS y nível I GTC45),
+    "ergonomicRisk": (0-100, derivado EXCLUSIVAMENTE de OWAS y posturas)
   },
-  "recommendedActions": ["acción 1", "acción 2", "acción 3"]
+  "recommendedActions": ["acción de choque 1", "acción 2", "acción 3"]
 }
 `;
 
@@ -240,7 +247,6 @@ Responde ÚNICAMENTE con un objeto JSON (SIN texto adicional, SIN markdown):
         }
 
         let text = result.response.text().trim();
-        // Clean markdown wrapping if Gemini outputs ```json
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
         let forecast;
@@ -282,147 +288,8 @@ router.post('/generate-report', requireJwtAuth, async (req, res) => {
             norm: 'Decreto 1072 de 2015 / Resolución 0312 de 2019',
         });
 
-        // ─── Build FULL rich context with all detail ───────────────────────
-        let fullContext = '\n═══════════════════════════════════════\n   DATOS COMPLETOS DEL ECOSISTEMA SST\n═══════════════════════════════════════\n';
-
-        try {
-            // 1. Perfil Sociodemográfico (full detail per worker)
-            const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
-            if (PerfilSociodemograficoData) {
-                const psd = await PerfilSociodemograficoData.findOne({ user: userId }).lean();
-                if (psd?.trabajadores?.length) {
-                    fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO]\n`;
-                    fullContext += `Total trabajadores: ${psd.trabajadores.length}\n`;
-                    psd.trabajadores.forEach(t => {
-                        fullContext += `  • ${t.nombre || 'N/A'} | Cargo: ${t.cargo || 'N/A'} | Edad: ${t.edad || 'N/A'} | Género: ${t.genero || 'N/A'} | Escolaridad: ${t.nivelEscolaridad || 'N/A'} | Examen Médico: ${t.fechaExamenMedico || 'No registrado'} | Diagnóstico: ${t.diagnosticoMedico || 'Apto / Sin Hallazgos'} | Recomendaciones: ${t.recomendacionesMedicas || 'Ninguna'}\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 1 - PERFIL SOCIODEMOGRÁFICO] Sin datos registrados.\n`;
-                }
-            }
-
-            // 2. Estadísticas ATEL
-            const ATELAnnualData = mongoose.models.ATELAnnualData;
-            if (ATELAnnualData) {
-                const ad = await ATELAnnualData.findOne({ user: userId }).lean();
-                if (ad?.years) {
-                    const years = Object.keys(ad.years).sort().reverse();
-                    fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL]\n`;
-                    years.slice(0, 2).forEach(yr => {
-                        let totalEvents = 0, totalDays = 0;
-                        let eventList = [];
-                        Object.entries(ad.years[yr] || {}).forEach(([mes, m]) => {
-                            if (m?.events) {
-                                totalEvents += m.events.length;
-                                m.events.forEach(e => { totalDays += (e.diasIncapacidad || 0); eventList.push(`${mes}: ${e.peligro || 'N/A'} (${e.tipoEvento || 'N/A'})`); });
-                            }
-                        });
-                        fullContext += `  Año ${yr}: ${totalEvents} eventos, ${totalDays} días incapacidad. Detalle: ${eventList.slice(0, 10).join(' | ') || 'Sin detalle'}.\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 2 - ESTADÍSTICAS ATEL] Sin historial de eventos registrado. Siniestralidad cero o sin datos.\n`;
-                }
-            }
-
-            // 3. Investigación ATEL
-            const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
-            if (InvestigacionAtelData) {
-                const investigations = await InvestigacionAtelData.find({ user: userId }).lean();
-                if (investigations?.length) {
-                    fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] ${investigations.length} investigaciones:\n`;
-                    investigations.slice(0, 5).forEach(inv => {
-                        const f = inv.formData || {};
-                        fullContext += `  • Evento: "${f.tareaAccidente || 'N/A'}" | Cargo: ${f.cargoAccidentado || 'N/A'} | Causa Inmediata: ${f.causasInmediatas || 'N/A'} | Causa Básica: ${f.causasBasicas || 'N/A'} | Lesión: ${f.naturalezaLesion || 'N/A'}.\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 3 - INVESTIGACIONES ATEL] Sin investigaciones registradas.\n`;
-                }
-            }
-
-            // 4. Actos y Condiciones Inseguras
-            const ReporteActosData = mongoose.models.ReporteActosData;
-            if (ReporteActosData) {
-                const rad = await ReporteActosData.findOne({ user: userId }).lean();
-                if (rad?.reportesList?.length) {
-                    const acts = rad.reportesList.filter(r => r.tipo === 'Acto Inseguro');
-                    const conds = rad.reportesList.filter(r => r.tipo === 'Condición Insegura');
-                    fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS]\n`;
-                    fullContext += `  Total: ${rad.reportesList.length} reportes (${acts.length} actos inseguros, ${conds.length} condiciones inseguras).\n`;
-                    rad.reportesList.slice(-15).forEach(r => {
-                        fullContext += `  • ${r.tipo}: "${r.hallazgo || 'N/A'}" | Área: ${r.area || 'N/A'} | Responsable: ${r.responsable || 'N/A'} | Estado: ${r.estado || 'N/A'}\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 4 - ACTOS Y CONDICIONES INSEGURAS] Sin reportes de campo. Posible subregistro.\n`;
-                }
-            }
-
-            // 5. Ergonomía OWAS
-            const MetodoOwasData = mongoose.models.MetodoOwasData;
-            if (MetodoOwasData) {
-                const owas = await MetodoOwasData.findOne({ user: userId }).lean();
-                if (owas?.resultados?.length) {
-                    fullContext += `\n[MÓDULO 5 - ERGONOMÍA - MÉTODO OWAS]\n`;
-                    owas.resultados.forEach(r => {
-                        fullContext += `  • Tarea: "${r.faseTarea || 'N/A'}" | Cat. Riesgo OWAS: ${r.categoriaRiesgo || 'N/A'} | Acción Requerida: ${r.accionRequerida || 'N/A'} | Trabajadores: ${owas.numTrabajadores || 'N/A'} | Cargo: ${owas.cargo || 'N/A'}\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 5 - ERGONOMÍA OWAS] Sin evaluaciones posturales registradas.\n`;
-                }
-            }
-
-            // 6. ATS
-            const AnalisisTrabajoSeguroData = mongoose.models.AnalisisTrabajoSeguroData;
-            if (AnalisisTrabajoSeguroData) {
-                const ats = await AnalisisTrabajoSeguroData.findOne({ user: userId }).lean();
-                if (ats?.pasos) {
-                    fullContext += `\n[MÓDULO 6 - ANÁLISIS DE TRABAJO SEGURO (ATS)]\n`;
-                    fullContext += `  Actividad: "${ats.actividad || 'N/A'}" | Responsable: ${ats.responsable || 'N/A'}\n`;
-                    (ats.pasos || []).slice(0, 8).forEach(p => {
-                        fullContext += `  • Paso: "${p.descripcion || 'N/A'}" | Peligro: ${p.peligro || 'N/A'} | Control: ${p.control || 'N/A'}\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 6 - ATS] Sin datos de análisis de trabajo seguro.\n`;
-                }
-            }
-
-            // 7. Vulnerabilidad
-            const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData;
-            if (AnalisisVulnerabilidadData) {
-                const avd = await AnalisisVulnerabilidadData.findOne({ user: userId }).lean();
-                const amenazas = avd?.formData?.amenazasList || avd?.amenazasList || [];
-                if (amenazas.length) {
-                    fullContext += `\n[MÓDULO 7 - ANÁLISIS DE VULNERABILIDAD]\n`;
-                    amenazas.forEach(a => {
-                        fullContext += `  • Amenaza: "${a.amenaza || 'N/A'}" | Origen: ${a.origenAmenaza || 'N/A'} | Nivel: ${a.nivelAmenaza || 'N/A'} | Riesgo Global: ${a.riskLevel || 'N/A'}\n`;
-                    });
-                } else {
-                    fullContext += `\n[MÓDULO 7 - VULNERABILIDAD] Sin amenazas registradas.\n`;
-                }
-            }
-
-            // 8. Matriz de Peligros GTC45 (full hazard list)
-            const MatrizPeligrosData = mongoose.models.MatrizPeligrosData;
-            if (MatrizPeligrosData) {
-                const mpd = await MatrizPeligrosData.findOne({ user: userId }).lean();
-                if (mpd?.procesos?.length) {
-                    fullContext += `\n[MÓDULO 8 - MATRIZ DE PELIGROS GTC 45]\n`;
-                    let totalP = 0, rI = 0, rII = 0, rIII = 0;
-                    mpd.procesos.forEach(p => {
-                        (p.peligros || []).forEach(h => {
-                            totalP++;
-                            const nivel = h.nivelRiesgo >= 600 ? 'I' : h.nivelRiesgo >= 150 ? 'II' : h.nivelRiesgo >= 40 ? 'III' : 'IV';
-                            if (nivel === 'I') rI++; else if (nivel === 'II') rII++; else if (nivel === 'III') rIII++;
-                            fullContext += `  • Proceso: ${p.proceso} | Peligro: "${h.descripcionPeligro || 'N/A'}" | Clasificación: ${h.clasificacion || '-'} | NR=${h.nivelRiesgo || 0} (Nivel ${nivel}) | Aceptabilidad: ${h.aceptabilidad || '-'} | Efectos: ${h.efectosPosibles || '-'}\n`;
-                        });
-                    });
-                    fullContext += `  RESUMEN: ${totalP} peligros | Nivel I: ${rI} | Nivel II: ${rII} | Nivel III: ${rIII}\n`;
-                } else {
-                    fullContext += `\n[MÓDULO 8 - MATRIZ GTC 45] Sin datos de peligros registrados.\n`;
-                }
-            }
-        } catch (ctxErr) {
-            logger.error('[Predictivo] Full context build error:', ctxErr.message);
-        }
+        // Use the newly shared deep context block
+        const fullContext = await getFullSSTContext(userId);
 
         const promptText = `Eres un Experto Consultor Estratégico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia. Dominas la GTC 45, el Decreto 1072 de 2015, la Resolución 0312 de 2019 y el análisis predictivo de riesgo laboral.
 
