@@ -29,6 +29,8 @@ import MetodoOwas from './MetodoOwas';
 import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import PerfilesCargo from './PerfilesCargo';
+import DashboardPredictivo from './DashboardPredictivo';
+
 
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -453,12 +455,19 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                     </div>
                                                 )}
 
-                                                {/* Show AnalisisVulnerabilidad for vulnerabilidad category */}
-                                                {category.id === 'vulnerabilidad' && (
-                                                    <div className="mb-6">
-                                                        <AnalisisVulnerabilidad />
-                                                    </div>
-                                                )}
+                                                 {/* Show AnalisisVulnerabilidad for vulnerabilidad category */}
+                                                 {category.id === 'vulnerabilidad' && (
+                                                     <div className="mb-6">
+                                                         <AnalisisVulnerabilidad />
+                                                     </div>
+                                                 )}
+                                                 
+                                                 {/* Show DashboardPredictivo for predictivo category */}
+                                                 {category.id === 'predictivo' && (
+                                                     <div className="mb-6">
+                                                         <DashboardPredictivo />
+                                                     </div>
+                                                 )}
 
                                                 {categoryFiles.length === 0 ? (
                                                     <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-lg">
