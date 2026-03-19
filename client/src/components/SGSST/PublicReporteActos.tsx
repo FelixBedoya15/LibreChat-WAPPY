@@ -27,6 +27,7 @@ export default function PublicReporteActos() {
     const [activePhotoField, setActivePhotoField] = useState<'foto1'|'foto2'|'foto3'>('foto1');
     
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isValidatingWorker, setIsValidatingWorker] = useState(false);
     const [submitResult, setSubmitResult] = useState<{success: boolean; message: string} | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,12 +59,25 @@ export default function PublicReporteActos() {
         reader.readAsDataURL(file);
     };
 
-    const validateIdentity = () => {
+    const validateIdentity = async () => {
         if (!nombre.trim() || !cedula.trim()) {
             alert("Por favor ingrese su nombre y cédula para continuar.");
             return;
         }
-        setStep(2);
+
+        setIsValidatingWorker(true);
+        setSubmitResult(null);
+
+        try {
+            const payload = { cedula, nombre };
+            await axios.post(`/api/public-sgsst/validate-worker/${companyId}`, payload);
+            setStep(2);
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.error || "Error al validar la identidad en la base de datos de la empresa.";
+            setSubmitResult({ success: false, message: errorMsg });
+        } finally {
+            setIsValidatingWorker(false);
+        }
     };
 
     const validateDetails = () => {
@@ -208,7 +222,7 @@ export default function PublicReporteActos() {
                                 </div>
                             </div>
                             
-                            {submitResult && !submitResult.success && (
+                            {submitResult && !submitResult.success && step === 1 && (
                                 <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-sm text-red-700 rounded-r border-y border-r border-red-100">
                                     <strong className="block mb-1">Autorización Denegada</strong>
                                     {submitResult.message}
@@ -218,9 +232,10 @@ export default function PublicReporteActos() {
                             <div className="mt-auto pt-8">
                                 <button 
                                     onClick={validateIdentity}
-                                    className="w-full bg-gray-900 hover:bg-black text-white py-3.5 rounded-xl font-bold tracking-wide shadow-md transition-all active:scale-[0.98]"
+                                    disabled={isValidatingWorker}
+                                    className="w-full bg-gray-900 hover:bg-black text-white py-3.5 rounded-xl font-bold tracking-wide shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                                 >
-                                    Continuar e Identificarme
+                                    {isValidatingWorker ? 'Validando...' : 'Continuar e Identificarme'}
                                 </button>
                             </div>
                         </div>
@@ -331,8 +346,15 @@ export default function PublicReporteActos() {
                                 <p className="text-[10px] text-gray-400 text-center mt-2 leading-tight">Podrás subir hasta 3 imágenes en total para brindar mejor contexto visual del hallazgo.</p>
                             </div>
 
+                            {submitResult && !submitResult.success && step === 3 && (
+                                <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-sm text-red-700 rounded-r border-y border-r border-red-100 shrink-0">
+                                    <strong className="block mb-1">Error al enviar el reporte</strong>
+                                    {submitResult.message}
+                                </div>
+                            )}
+
                             <div className="mt-4 pt-4 border-t border-gray-100 flex gap-3 shrink-0">
-                                <button onClick={() => setStep(2)} className="px-5 py-3.5 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
+                                <button onClick={() => { setStep(2); setSubmitResult(null); }} className="px-5 py-3.5 rounded-xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200" disabled={isSubmitting}>Atrás</button>
                                 <button 
                                     onClick={handleSubmit} 
                                     disabled={isSubmitting}

@@ -30,6 +30,53 @@ router.get('/company/:companyId', async (req, res) => {
     }
 });
 
+// ─── POST /api/public-sgsst/validate-worker/:companyId ─────────────────────
+// Validar tempranamente que el trabajador sí existe en el Perfil Sociodemográfico
+router.post('/validate-worker/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { cedula, nombre } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
+        if (!cedula || !nombre) {
+            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
+        }
+
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        if (!PerfilSociodemograficoData) {
+            return res.status(500).json({ error: 'Modelo PerfilSociodemografico no encontrado' });
+        }
+
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+            return res.status(404).json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
+        }
+
+        const formatStr = (s) => String(s).trim().toLowerCase();
+        
+        const workerFound = perfil.trabajadores.find(t => formatStr(t.identificacion) === formatStr(cedula));
+        if (!workerFound) {
+            return res.status(403).json({ error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización.' });
+        }
+
+        const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
+        const inputNameFormat = formatStr(nombre);
+        
+        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
+        if (!nameMatches && workerFound.nombre) {
+            return res.status(403).json({ error: 'El nombre ingresado no coincide con el registrado para esta cédula.' });
+        }
+
+        return res.json({ success: true, message: 'Validación exitosa' });
+    } catch (error) {
+        logger.error('[Public SGSST] Worker validation error:', error);
+        res.status(500).json({ error: 'Error al procesar la validación' });
+    }
+});
+
 // ─── POST /api/public-sgsst/reporte-acto/:companyId ───────────────────────
 // Submit a new Incident/Act report from a worker
 router.post('/reporte-acto/:companyId', async (req, res) => {
