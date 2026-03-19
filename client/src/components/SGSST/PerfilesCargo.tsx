@@ -19,6 +19,9 @@ import {
     MicOff,
     CheckCircle2,
     X,
+    Database,
+    History,
+    Save,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -27,11 +30,11 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
-import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
+    id: string;
     nombreCargo: string;
     area: string;
     nivelCargo: string;
@@ -43,6 +46,7 @@ interface PerfilCargoData {
     contextoAdicional: string;
     eppSeleccionados: string[];
     entrenamientosSeleccionados: string[];
+    report?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -89,26 +93,34 @@ const EPP_OPTIONS = [
 
 const ENTRENAMIENTO_OPTIONS = [
     'Inducción y Reinducción en SST',
-    'Manejo de Sustancias Químicas (GHS)',
-    'Trabajo Seguro en Alturas (Básico/Avanzado/Reentrenamiento)',
-    'Manejo Seguro de Herramientas Eléctricas y Manuales',
-    'Ergonomía y Pausas Activas (Higiene Postural)',
     'Identificación de Peligros y Riesgos (GTC 45)',
-    'Primeros Auxilios Básicos',
-    'Prevención y Control de Incendios (Uso de Extintores)',
-    'Plan de Emergencias y Evacuación',
-    'Manejo de Residuos Sólidos y Cuidado Ambiental',
-    'Riesgo Psicosocial y Manejo del Estrés',
-    'Seguridad Vial (Plan Estratégico de Seguridad Vial)',
     'Uso y Mantenimiento de EPP',
+    'Primeros Auxilios Básicos',
+    'Prevención y Control de Incendios (Extintores)',
+    'Plan de Emergencias y Evacuación',
+    'Ergonomía y Pausas Activas',
+    'Manejo de Sustancias Químicas (GHS)',
+    'Riesgo Psicosocial y Manejo del Estrés',
+    'Seguridad Vial (PESV)',
     'Reporte de Actos y Condiciones Inseguras',
-    'Prevención de Accidentes de Trabajo y Enfermedades Laborales',
+    // Alturas - Res. 4272/2021
+    'Trabajador Autorizado para Trabajo en Alturas',
+    'Coordinador de Trabajo Seguro en Alturas',
+    'Administrador del Programa de Protección Contra Caídas',
+    // Espacios Confinados - Res. 0491/2020
+    'Trabajador Entrante para Espacios Confinados',
+    'Vigía de Seguridad para Espacios Confinados',
+    'Supervisor de Trabajo en Espacios Confinados',
+    'Administrador de Programa para Espacios Confinados',
+    // Otros
+    'Manejo Seguro de Herramientas Eléctricas y Manuales',
     'Mantenimiento Preventivo de Equipos',
     'Buenas Prácticas de Manufactura (BPM)',
 ];
 
 // ─── Empty form ───────────────────────────────────────────────────────────────
-const EMPTY_FORM: PerfilCargoData = {
+const createInitialPerfil = (): PerfilCargoData => ({
+    id: crypto.randomUUID(),
     nombreCargo: '',
     area: '',
     nivelCargo: 'Operativo',
@@ -120,17 +132,17 @@ const EMPTY_FORM: PerfilCargoData = {
     contextoAdicional: '',
     eppSeleccionados: [],
     entrenamientosSeleccionados: [],
-};
+});
 
-// ─── Field config for quick rendering ─────────────────────────────────────────
+// ─── Field config for rendering ─────────────────────────────────────────────
 const FIELD_SECTIONS = [
     {
         title: 'Identificación del Cargo',
         icon: <Briefcase className="h-4 w-4 text-teal-600" />,
         fields: [
-            { key: 'nombreCargo', label: 'Nombre del Cargo *', placeholder: 'Ej: Auxiliar de Bodega, Contador Público, Técnico SST...', type: 'text', required: true },
-            { key: 'area', label: 'Área / Departamento *', placeholder: 'Ej: Logística, Contabilidad, Producción, RRHH...', type: 'text', required: true },
-            { key: 'jefeInmediato', label: 'Cargo del Jefe Inmediato', placeholder: 'Ej: Jefe de Bodega, Gerente Financiero...', type: 'text' },
+            { key: 'nombreCargo', label: 'Nombre del Cargo *', placeholder: 'Ej: Auxiliar de Bodega, Contador Público...', type: 'text', required: true },
+            { key: 'area', label: 'Área / Departamento *', placeholder: 'Logística, Contabilidad...', type: 'text', required: true },
+            { key: 'jefeInmediato', label: 'Cargo Jefe Inmediato', placeholder: 'Jefe de Bodega...', type: 'text' },
             { key: 'numVacantes', label: 'N° de Vacantes', placeholder: '1', type: 'number' },
         ]
     },
@@ -141,7 +153,7 @@ const FIELD_SECTIONS = [
             { key: 'nivelCargo', label: 'Nivel del Cargo', type: 'select', options: NIVEL_CARGO_OPTIONS },
             { key: 'tipoContrato', label: 'Tipo de Contrato', type: 'select', options: TIPO_CONTRATO_OPTIONS },
             { key: 'jornada', label: 'Jornada Laboral', type: 'select', options: JORNADA_OPTIONS },
-            { key: 'escalasSalarial', label: 'Escala Salarial / Rango', placeholder: 'Ej: 1.5 SMMLV - 2 SMMLV, o $2.000.000 - $3.000.000', type: 'text' },
+            { key: 'escalasSalarial', label: 'Escala Salarial', placeholder: '1.8 SMMLV - 2.5 SMMLV', type: 'text' },
         ]
     },
 ];
@@ -174,17 +186,17 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
             <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">{label}</label>
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="min-h-[42px] w-full rounded-lg border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all"
+                className="min-h-[42px] w-full rounded-lg border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all shadow-sm"
             >
                 {selected.length === 0 && <span className="text-text-tertiary">{placeholder}</span>}
                 {selected.map(val => (
-                    <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 rounded-md text-xs font-medium border border-teal-200 dark:border-teal-800">
+                    <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 rounded-md text-[11px] font-bold border border-teal-200 dark:border-teal-800">
                         {val}
                         <X className="h-3 w-3 hover:text-teal-900 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(val); }} />
                     </span>
                 ))}
-                <div className="ml-auto">
-                    <ChevronDown className={cn("h-4 w-4 text-text-tertiary transition-transform", isOpen && "rotate-180")} />
+                <div className="ml-auto flex items-center">
+                    <ChevronDown className={cn("h-4 w-4 text-text-tertiary transition-transform duration-200", isOpen && "rotate-180")} />
                 </div>
             </div>
 
@@ -197,7 +209,7 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
                                 onClick={() => toggle(opt)}
                                 className={cn(
                                     "flex items-center justify-between px-3 py-2 text-sm rounded-md cursor-pointer transition-colors",
-                                    selected.includes(opt) ? "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300" : "hover:bg-surface-hover text-text-primary"
+                                    selected.includes(opt) ? "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-bold" : "hover:bg-surface-hover text-text-primary"
                                 )}
                             >
                                 <span>{opt}</span>
@@ -216,9 +228,9 @@ const PerfilesCargo = () => {
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
 
-    const [perfiles, setPerfiles] = useState<(PerfilCargoData & { id: string; report?: string })[]>([]);
+    const [perfiles, setPerfiles] = useState<PerfilCargoData[]>([]);
     const [activePerfilId, setActivePerfilId] = useState<string | null>(null);
-    const [formData, setFormData] = useState<PerfilCargoData>(EMPTY_FORM);
+    const [formData, setFormData] = useState<PerfilCargoData>(createInitialPerfil());
     const [isFormExpanded, setIsFormExpanded] = useState(true);
     const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -235,7 +247,7 @@ const PerfilesCargo = () => {
     const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<any>(null);
 
-    // ─── Load saved data ─────────────────────────────────────────────────────
+    // ─── Load saved profiles ────────────────────────────────────────────────
     useEffect(() => {
         if (!token) return;
         fetch('/api/sgsst/perfiles-cargo/data', {
@@ -245,24 +257,30 @@ const PerfilesCargo = () => {
             .then(data => {
                 if (data.perfilesList?.length) {
                     setPerfiles(data.perfilesList);
-                    setFormData({ ...EMPTY_FORM, ...data.perfilesList[0] });
-                    setActivePerfilId(data.perfilesList[0].id);
+                    const first = data.perfilesList[0];
+                    setActivePerfilId(first.id);
+                    setFormData(first);
+                    setGeneratedReport(first.report || null);
+                    setEditorContent(first.report || null);
+                } else {
+                    const initial = createInitialPerfil();
+                    setPerfiles([initial]);
+                    setActivePerfilId(initial.id);
+                    setFormData(initial);
                 }
             })
             .catch(err => console.error('[PerfilesCargo] Error loading data:', err));
     }, [token]);
 
-    // ─── Field helpers ────────────────────────────────────────────────────────
     const handleInput = (key: keyof PerfilCargoData, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
     };
 
     const handleAddPerfil = () => {
-        const newId = crypto.randomUUID();
-        const newPerfil = { ...EMPTY_FORM, id: newId };
+        const newPerfil = createInitialPerfil();
         setPerfiles(prev => [...prev, newPerfil]);
-        setActivePerfilId(newId);
-        setFormData(EMPTY_FORM);
+        setActivePerfilId(newPerfil.id);
+        setFormData(newPerfil);
         setGeneratedReport(null);
         setEditorContent(null);
         setIsFormExpanded(true);
@@ -271,12 +289,19 @@ const PerfilesCargo = () => {
 
     const handleDeletePerfil = (id: string) => {
         const updated = perfiles.filter(p => p.id !== id);
-        setPerfiles(updated);
-        if (activePerfilId === id) {
-            setActivePerfilId(updated[0]?.id || null);
-            setFormData(updated[0] ? { ...EMPTY_FORM, ...updated[0] } : EMPTY_FORM);
-            setGeneratedReport(null);
-            setEditorContent(null);
+        if (updated.length === 0) {
+            const initial = createInitialPerfil();
+            setPerfiles([initial]);
+            setActivePerfilId(initial.id);
+            setFormData(initial);
+        } else {
+            setPerfiles(updated);
+            if (activePerfilId === id) {
+                setActivePerfilId(updated[0].id);
+                setFormData(updated[0]);
+                setGeneratedReport(updated[0].report || null);
+                setEditorContent(updated[0].report || null);
+            }
         }
     };
 
@@ -284,14 +309,18 @@ const PerfilesCargo = () => {
         const perfil = perfiles.find(p => p.id === id);
         if (perfil) {
             setActivePerfilId(id);
-            setFormData({ ...EMPTY_FORM, ...perfil });
+            setFormData(perfil);
             setGeneratedReport(perfil.report || null);
             setEditorContent(perfil.report || null);
             setIsFormExpanded(true);
+            // Reset conversation tracking when switching profiles
+            setConversationId(null);
+            setReportMessageId(null);
+            setRefreshTrigger(p => p + 1);
         }
     };
 
-    // ─── Voice Input Handler ──────────────────────────────────────────
+    // ─── Voice Input (Same interface as Heights Permit) ────────────────────
     const handleVoiceInput = () => {
         if (isListening) {
             if (recognitionRef.current) {
@@ -345,7 +374,7 @@ const PerfilesCargo = () => {
             };
 
             recognition.onerror = (event: any) => {
-                console.error("Speech error:", event.error);
+                showToast({ message: 'Error en reconocimiento de voz', status: 'error' });
                 setIsListening(false);
                 setInterimText('');
             };
@@ -362,18 +391,16 @@ const PerfilesCargo = () => {
         }
     };
 
-    // ─── Save ─────────────────────────────────────────────────────────────────
+    // ─── Save Data ────────────────────────────────────────────────────────────
     const handleSaveData = async (silent = false) => {
         if (!token) return;
-        const updated = activePerfilId
-            ? perfiles.map(p => (p.id === activePerfilId ? { ...p, ...formData } : p))
-            : [...perfiles, { ...formData, id: crypto.randomUUID() }];
-        setPerfiles(updated);
+        const updatedPerfiles = perfiles.map(p => (p.id === activePerfilId ? { ...formData, report: generatedReport || p.report } : p));
+        setPerfiles(updatedPerfiles);
         try {
             const res = await fetch('/api/sgsst/perfiles-cargo/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ perfilesList: updated }),
+                body: JSON.stringify({ perfilesList: updatedPerfiles }),
             });
             if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente', status: 'success' });
         } catch {
@@ -381,30 +408,10 @@ const PerfilesCargo = () => {
         }
     };
 
-    // ─── Dummy data ───────────────────────────────────────────────────────────
-    const handleDummyData = () => {
-        const dummy: PerfilCargoData = {
-            nombreCargo: 'Técnico en Seguridad y Salud en el Trabajo',
-            area: 'Gestión Humana y SST',
-            nivelCargo: 'Profesional / Técnico',
-            tipoContrato: 'Término indefinido',
-            jornada: 'Tiempo completo (8 horas/día)',
-            jefeInmediato: 'Gerente de Operaciones',
-            escalasSalarial: '1.8 SMMLV - 2.5 SMMLV',
-            numVacantes: '1',
-            contextoAdicional:
-                'El cargo es responsable de implementar y mantener el SG-SST, realizar inspecciones de seguridad, liderar investigaciones de accidentes y capacitar a los trabajadores en prevención de riesgos laborales.',
-            eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)'],
-            entrenamientosSeleccionados: ['Inducción y Reinducción en SST', 'Identificación de Peligros y Riesgos (GTC 45)', 'Uso y Mantenimiento de EPP'],
-        };
-        setFormData(dummy);
-        showToast({ message: 'Datos de ejemplo cargados', status: 'success' });
-    };
-
-    // ─── Generate ─────────────────────────────────────────────────────────────
+    // ─── Generation ─────────────────────────────────────────────────────────────
     const handleGenerate = useCallback(async () => {
         if (!formData.nombreCargo.trim()) {
-            showToast({ message: 'Por favor ingresa el nombre del cargo antes de generar', status: 'warning' });
+            showToast({ message: 'Por favor ingresa el nombre del cargo', status: 'warning' });
             return;
         }
         setIsGenerating(true);
@@ -415,18 +422,14 @@ const PerfilesCargo = () => {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ perfilData: formData, modelName: selectedModel }),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Error al generar el perfil');
-            }
+            if (!res.ok) throw new Error('Error al generar el perfil');
             const data = await res.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
             setIsFormExpanded(false);
-            if (activePerfilId) {
-                setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, ...formData, report: data.report } : p));
-            }
-            showToast({ message: 'Perfil de cargo generado exitosamente ✅', status: 'success' });
+            // Persist report in list immediately
+            setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, report: data.report } : p));
+            showToast({ message: 'Perfil generado con éxito ✅', status: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar', status: 'error' });
         } finally {
@@ -434,77 +437,60 @@ const PerfilesCargo = () => {
         }
     }, [formData, selectedModel, token, showToast, activePerfilId]);
 
-    // ─── Save Report ──────────────────────────────────────────────────────────
+    // ─── Report History (Independent) ──────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
         const content = editorContent || generatedReport;
-        if (!content || !token) return;
+        if (!content || !token || !activePerfilId) return;
         setIsSaving(true);
         try {
-            if (conversationId && conversationId !== 'new' && reportMessageId) {
-                const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ conversationId, messageId: reportMessageId, content }),
-                });
-                if (res.ok) {
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Perfil actualizado exitosamente', status: 'success' });
-                }
-                return;
-            }
+            const reportTag = `sgsst-perfil-cargo-${activePerfilId}`;
             const res = await fetch('/api/sgsst/diagnostico/save-report', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                     content,
-                    title: `Perfil de Cargo: ${formData.nombreCargo} - ${new Date().toLocaleDateString('es-CO')}`,
-                    tags: ['sgsst-perfil-cargo'],
+                    title: `Perfil: ${formData.nombreCargo} - ${new Date().toLocaleDateString()}`,
+                    tags: ['sgsst-perfil-cargo', reportTag],
                 }),
             });
             if (res.ok) {
-                const data = await res.json();
-                setConversationId(data.conversationId);
-                setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Perfil guardado en historial exitosamente', status: 'success' });
+                showToast({ message: 'Perfil guardado en el historial', status: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         } finally {
             setIsSaving(false);
         }
-    }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast, formData.nombreCargo]);
+    }, [editorContent, generatedReport, token, activePerfilId, formData.nombreCargo, showToast]);
 
     const handleSelectReport = useCallback(
         async (selectedConvoId: string) => {
-            if (!selectedConvoId) return;
             try {
                 const res = await fetch(`/api/messages/${selectedConvoId}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                if (!res.ok) throw new Error('Failed to load');
+                if (!res.ok) throw new Error('Load failed');
                 const messages = await res.json();
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg?.text) {
                     setGeneratedReport(lastMsg.text);
                     setEditorContent(lastMsg.text);
-                    setConversationId(selectedConvoId);
-                    setReportMessageId(lastMsg.messageId);
                     setIsFormExpanded(false);
-                    showToast({ message: 'Perfil cargado correctamente', status: 'success' });
+                    showToast({ message: 'Reporte cargado desde el historial', status: 'success' });
                 }
             } catch {
-                showToast({ message: 'Error al cargar el perfil', status: 'error' });
+                showToast({ message: 'Error al cargar reporte', status: 'error' });
             }
             setIsHistoryOpen(false);
         },
         [token, showToast],
     );
 
-    // ─── Render field ─────────────────────────────────────────────────────────
+    // ─── Render Field helper ──────────────────────────────────────────────────
     const renderField = (field: any) => {
         const baseClass =
-            'w-full rounded-lg border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all';
+            'w-full rounded-lg border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm';
         if (field.type === 'select') {
             return (
                 <select
@@ -529,279 +515,248 @@ const PerfilesCargo = () => {
         );
     };
 
-    // ─── Info badges ─────────────────────────────────
-    const generationBadges = [
-        { icon: <ClipboardList className="h-4 w-4" />, label: 'Funciones y Responsabilidades', color: 'teal' },
-        { icon: <Brain className="h-4 w-4" />, label: 'Habilidades y Competencias', color: 'violet' },
-        { icon: <BookOpen className="h-4 w-4" />, label: 'Requisitos Físicos, Mentales y Técnicos', color: 'blue' },
-        { icon: <AlertTriangle className="h-4 w-4" />, label: 'Riesgos Laborales GTC 45', color: 'orange' },
-        { icon: <Shield className="h-4 w-4" />, label: 'Medidas Preventivas y Controles', color: 'green' },
-        { icon: <Target className="h-4 w-4" />, label: 'Indicadores de Desempeño (KPIs)', color: 'rose' },
-    ];
+    const actionButtonClass = "group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-semibold text-sm hover:scale-105 active:scale-95 transform cursor-pointer";
 
-    const colorMap: Record<string, string> = {
-        teal: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800/40',
-        violet: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800/40',
-        blue: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/40',
-        orange: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800/40',
-        green: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800/40',
-        rose: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800/40',
-    };
-
-    // ─── Main render ──────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-6 duration-600">
             {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2">
-                <DummyGenerateButton onClick={handleDummyData} />
-
+            <div className="flex flex-wrap items-center gap-2.5">
                 <button
-                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                    onClick={() => {
+                        const dummy = {
+                            ...formData,
+                            nombreCargo: 'Coordinador de Seguridad y Salud en el Trabajo',
+                            area: 'Recursos Humanos / SST',
+                            nivelCargo: 'Profesional / Técnico',
+                            escalasSalarial: '3.5 - 4.5 SMMLV',
+                            contextoAdicional: 'Liderar el programa de alturas, coordinar capacitación de espacios confinados y supervisar brigadas de emergencia.',
+                            eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)'],
+                            entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST']
+                        };
+                        setFormData(dummy);
+                        showToast({ message: 'Ejemplo cargado', status: 'success' });
+                    }}
+                    className={actionButtonClass}
                 >
-                    <AnimatedIcon name="history" size={20} />
+                    <AnimatedIcon name="sparkles" size={18} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Historial
+                        Autocompletar
                     </span>
                 </button>
 
                 <button
-                    onClick={() => handleSaveData(false)}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={cn(actionButtonClass, isHistoryOpen && "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30")}
                 >
-                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
+                    <History className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Historial Perfil
+                    </span>
+                </button>
+
+                <button onClick={() => handleSaveData(false)} className={actionButtonClass}>
+                    <Database className="h-[18px] w-[18px]" />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
                         Guardar Datos
                     </span>
                 </button>
 
+                <div className="flex-1" />
+
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group relative flex items-center px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-xl font-bold text-sm hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Generar Perfil con IA
-                    </span>
+                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                    <span>{isGenerating ? 'Generando...' : 'Generar Perfil con IA'}</span>
                 </button>
 
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-
-                {generatedReport && (
-                    <>
-                        <button
-                            onClick={handleSaveReport}
-                            disabled={isSaving}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                        >
-                            <AnimatedIcon name="save" size={20} className="text-gray-500" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                                Guardar Perfil
-                            </span>
-                        </button>
-                        <ExportDropdown
-                            content={editorContent || ''}
-                            fileName={`Perfil_Cargo_${formData.nombreCargo.replace(/\s+/g, '_') || 'Cargo'}`}
-                        />
-                    </>
-                )}
             </div>
 
-            {/* ── History ── */}
+            {/* ── History (Filtered by Profile ID) ── */}
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                <div className="rounded-2xl border-2 border-teal-100 dark:border-teal-900/30 bg-surface-secondary shadow-lg overflow-hidden animate-in zoom-in-95 duration-200">
                     <ReportHistory
                         onSelectReport={handleSelectReport}
                         isOpen={isHistoryOpen}
-                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
+                        toggleOpen={() => setIsHistoryOpen(false)}
                         refreshTrigger={refreshTrigger}
-                        tags={['sgsst-perfil-cargo']}
+                        tags={['sgsst-perfil-cargo', `sgsst-perfil-cargo-${activePerfilId}`]}
                     />
                 </div>
             )}
 
-            {/* ── Profiles list ── */}
-            {perfiles.length > 1 && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary p-3 overflow-hidden">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">Perfiles Guardados</span>
-                        <button
-                            onClick={handleAddPerfil}
-                            className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 font-medium"
-                        >
-                            <Plus className="h-4 w-4" /> Nuevo Perfil
-                        </button>
+            {/* ── Profiles Quick Access ── */}
+            <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-teal-600" />
+                        <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Perfiles</span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        {perfiles.map(p => (
-                            <div key={p.id} className="flex items-center gap-1">
-                                <button
-                                    onClick={() => handleSelectPerfil(p.id)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${activePerfilId === p.id ? 'bg-teal-600 text-white border-teal-600' : 'bg-surface-primary text-text-primary border-border-medium hover:bg-surface-hover'}`}
-                                >
-                                    {p.nombreCargo || 'Sin nombre'}
-                                </button>
-                                <button
-                                    onClick={() => handleDeletePerfil(p.id)}
-                                    className="p-1 text-red-400 hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                >
-                                    <Trash2 className="h-3 w-3" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                    <button
+                        onClick={handleAddPerfil}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-lg text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                    >
+                        <Plus className="h-3.5 w-3.5" /> Nuevo Cargo
+                    </button>
                 </div>
-            )}
-
-            {/* ── Coverage badges ── */}
-            <div className="rounded-xl border border-teal-200 dark:border-teal-800/40 bg-teal-50/50 dark:bg-teal-900/10 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                    <AnimatedIcon name="sparkles" size={18} className="text-teal-600 animate-pulse" />
-                    <h4 className="text-sm font-bold text-teal-800 dark:text-teal-300">
-                        Contenido generado por IA — <span className="bg-teal-200 px-2 py-0.5 rounded-full text-[11px] border border-teal-300 shadow-sm ml-1 text-teal-900 font-black animate-pulse">Cumple Art. 16 de la Resolución 1843 de 2025</span>
-                    </h4>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {generationBadges.map((b, idx) => (
-                        <div
-                            key={idx}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${colorMap[b.color]}`}
-                        >
-                            {b.icon}
-                            {b.label}
+                <div className="flex flex-wrap gap-2.5">
+                    {perfiles.map(p => (
+                        <div key={p.id} className="group flex items-center gap-1">
+                            <button
+                                onClick={() => handleSelectPerfil(p.id)}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[200px]",
+                                    activePerfilId === p.id 
+                                        ? "bg-teal-600 text-white border-teal-600 ring-2 ring-teal-100 dark:ring-teal-900/40" 
+                                        : "bg-surface-primary text-text-primary border-border-medium hover:border-teal-400"
+                                )}
+                            >
+                                {p.nombreCargo || 'Cargo sin nombre'}
+                            </button>
+                            <button
+                                onClick={() => handleDeletePerfil(p.id)}
+                                className="p-1.5 text-text-tertiary hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* ── Form ── */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                <button
-                    onClick={() => setIsFormExpanded(!isFormExpanded)}
-                    className="w-full flex items-center justify-between p-4 bg-surface-tertiary hover:bg-surface-hover transition-colors"
-                >
-                    <div className="flex items-center gap-2">
-                        {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                        <FileText className="h-5 w-5 text-teal-600" />
-                        <span className="font-semibold">
-                            {formData.nombreCargo ? `Perfil: ${formData.nombreCargo}` : 'Datos del Perfil de Cargo'}
-                        </span>
-                    </div>
-                </button>
-
-                {isFormExpanded && (
-                    <div className="p-6 space-y-6">
-                        {FIELD_SECTIONS.map(section => (
-                            <div key={section.title} className="space-y-3">
-                                <div className="flex items-center gap-2 pb-1 border-b border-border-medium">
-                                    {section.icon}
-                                    <h4 className="font-semibold text-sm text-text-primary">{section.title}</h4>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {section.fields.map(field => (
-                                        <div key={field.key} className="space-y-1">
-                                            <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">
-                                                {field.label}
-                                            </label>
-                                            {renderField(field)}
-                                        </div>
-                                    ))}
-                                </div>
+            {/* ── Core Form ── */}
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-xl overflow-hidden">
+                <div className="p-6 space-y-8">
+                    {FIELD_SECTIONS.map(section => (
+                        <div key={section.title} className="space-y-4">
+                            <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
+                                <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">{section.icon}</div>
+                                <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">{section.title}</h4>
                             </div>
-                        ))}
-
-                        {/* Multi-Select Sections */}
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2 pb-1 border-b border-border-medium">
-                                <Shield className="h-4 w-4 text-teal-600" />
-                                <h4 className="font-semibold text-sm text-text-primary">Equipos y Formación</h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <MultiSelect
-                                    label="EPP Requeridos (GTC 45)"
-                                    placeholder="Seleccionar EPP..."
-                                    options={EPP_OPTIONS}
-                                    selected={formData.eppSeleccionados}
-                                    onChange={(val) => handleInput('eppSeleccionados', val)}
-                                />
-                                <MultiSelect
-                                    label="Entrenamiento / Capacitación (SST)"
-                                    placeholder="Seleccionar entrenamientos..."
-                                    options={ENTRENAMIENTO_OPTIONS}
-                                    selected={formData.entrenamientosSeleccionados}
-                                    onChange={(val) => handleInput('entrenamientosSeleccionados', val)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Context additional with Microphone */}
-                        <div className="space-y-2 pt-2 border-t border-border-medium">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">
-                                    Descripción del Cargo / Contexto Adicional
-                                </label>
-                                <button
-                                    onClick={handleVoiceInput}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm",
-                                        isListening
-                                            ? "bg-red-100 text-red-600 border-red-300 animate-pulse"
-                                            : "bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100"
-                                    )}
-                                >
-                                    {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-                                    {isListening ? 'Detener Micrófono' : 'Activar Micrófono'}
-                                </button>
-                            </div>
-                            <div className="relative">
-                                <textarea
-                                    value={formData.contextoAdicional}
-                                    onChange={e => handleInput('contextoAdicional', e.target.value)}
-                                    placeholder="Ej: El cargo es responsable de coordinar las entregas en bodega, manejar montacargas, operar el sistema ERP de inventarios..."
-                                    className={cn(
-                                        "w-full rounded-xl border-2 border-dashed bg-teal-50/10 p-4 text-sm text-text-primary min-h-[140px] resize-y transition-all focus:outline-none",
-                                        isListening ? "border-red-400 bg-red-50/5 shadow-inner" : "border-teal-200 focus:bg-teal-50/30 focus:border-teal-400"
-                                    )}
-                                />
-                                {interimText && (
-                                    <div className="absolute bottom-4 left-4 right-4 p-2 bg-white/80 dark:bg-black/40 backdrop-blur rounded italic text-xs text-text-secondary border border-border-light">
-                                        {interimText}...
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                                {section.fields.map(field => (
+                                    <div key={field.key} className="space-y-1.5">
+                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-tighter">
+                                            {field.label}
+                                        </label>
+                                        {renderField(field)}
                                     </div>
-                                )}
+                                ))}
                             </div>
                         </div>
+                    ))}
 
-                        <div className="flex justify-center pt-4">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
+                            <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg"><Shield className="h-4 w-4 text-teal-600" /></div>
+                            <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">Equipos y Entrenamiento Especializado</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <MultiSelect
+                                label="EPP Requeridos (GTC 45 / Res. 4272)"
+                                placeholder="Seleccionar EPP..."
+                                options={EPP_OPTIONS}
+                                selected={formData.eppSeleccionados}
+                                onChange={(val) => handleInput('eppSeleccionados', val)}
+                            />
+                            <MultiSelect
+                                label="Entrenamiento / Certificación SST"
+                                placeholder="Seleccionar capacitación..."
+                                options={ENTRENAMIENTO_OPTIONS}
+                                selected={formData.entrenamientosSeleccionados}
+                                onChange={(val) => handleInput('entrenamientosSeleccionados', val)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Microphone Interface (Matching Alturas Permit) */}
+                    <div className="space-y-4 pt-4 border-t border-border-medium">
+                        <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 text-teal-600" /> Descripción Detallada (Dictado o Texto)
+                            </h4>
                             <button
-                                onClick={handleGenerate}
-                                disabled={isGenerating || !formData.nombreCargo.trim()}
-                                className="group flex items-center px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                                onClick={handleVoiceInput}
+                                className={cn(
+                                    "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all shadow-md border flex items-center gap-2.5 hover:scale-105 active:scale-95 transform",
+                                    isListening 
+                                        ? "bg-red-50 text-red-600 border-red-200 animate-pulse" 
+                                        : "bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light"
+                                )}
                             >
-                                {isGenerating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="sparkles" size={20} />}
-                                <span className="ml-2">
-                                    {isGenerating ? 'Generando perfil extenso (GTC 45)...' : 'Generar Perfil de Cargo con IA'}
+                                <span className="relative flex h-3 w-3">
+                                    {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
+                                    <span className={cn("relative inline-flex rounded-full h-3 w-3", isListening ? "bg-red-500" : "bg-teal-500")}></span>
                                 </span>
+                                {isListening ? 'Escuchando...' : 'Activar Micrófono'}
                             </button>
                         </div>
+                        <div className="relative group">
+                            <textarea
+                                value={formData.contextoAdicional + (interimText ? (formData.contextoAdicional && !formData.contextoAdicional.endsWith(' ') ? ' ' : '') + interimText : '')}
+                                onChange={e => {
+                                    if (!isListening) {
+                                        handleInput('contextoAdicional', e.target.value);
+                                    }
+                                }}
+                                readOnly={isListening}
+                                placeholder="Ej: Describe aquí funciones específicas, equipos a operar, o condiciones especiales de riesgo..."
+                                className={cn(
+                                    "w-full rounded-2xl border-2 p-5 text-sm text-text-primary min-h-[180px] transition-all duration-300 focus:outline-none shadow-inner",
+                                    isListening 
+                                        ? "border-solid border-red-300 bg-red-50/10 focus:border-red-400" 
+                                        : "border-dashed border-teal-200 bg-teal-50/5 focus:bg-teal-50/10 focus:border-teal-400"
+                                )}
+                            />
+                            {!isListening && (
+                                <div className="absolute top-4 right-4 text-teal-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <FileText className="h-5 w-5" />
+                                </div>
+                            )}
+                        </div>
                     </div>
-                )}
+                </div>
+
+                {/* Normative Badge Re-styled */}
+                <div className="px-6 py-4 bg-teal-50/50 dark:bg-teal-900/10 border-t border-border-medium flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-teal-600" />
+                    <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">
+                        Cumple Art. 16 de la Resolución 1843 de 2025 & GTC 45 (2012)
+                    </span>
+                </div>
             </div>
 
-            {/* Editor */}
+            {/* Generated Report View */}
             {generatedReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-teal-600" />
-                            Perfil de Cargo: {formData.nombreCargo || 'Generado'}
-                        </h3>
+                <div className="rounded-2xl border border-border-medium bg-surface-primary shadow-2xl overflow-hidden animate-in fade-in duration-500">
+                    <div className="border-b border-border-medium bg-surface-tertiary px-6 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-teal-600 rounded-lg text-white"><FileText className="h-5 w-5" /></div>
+                            <h3 className="font-black text-base tracking-tight">INFORME TÉCNICO GENERADO</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <button
+                                onClick={handleSaveReport}
+                                disabled={isSaving}
+                                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105"
+                            >
+                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                Guardar en Historial
+                            </button>
+                            <ExportDropdown
+                                content={editorContent || ''}
+                                fileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
+                            />
+                        </div>
                     </div>
-                    <div className="p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
+                    <div className="p-1">
+                        <div style={{ minHeight: '700px', overflowX: 'auto' }}>
+                             <div style={{ minWidth: '950px', padding: '24px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new-editor'}
+                                    key={`editor-${activePerfilId}-${refreshTrigger}`}
                                     initialContent={generatedReport}
                                     onUpdate={setEditorContent}
                                     onSave={handleSaveReport}
