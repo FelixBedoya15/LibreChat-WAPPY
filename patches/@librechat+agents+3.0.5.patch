@@ -18,35 +18,38 @@ index 1ebb7f6..acbea50 100644
              return handlers.handleToolCalls(data?.output?.tool_calls, metadata, graph);
          }
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
-index 450e0d6..bb7c13e 100644
+index 450e0d6..6a6b7b1 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
-@@ -329,12 +329,19 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
+@@ -329,13 +329,21 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
              .filter((p) => p !== undefined));
      }
      if (messages.isAIMessage(message) && message.tool_calls?.length != null) {
 -        functionCalls = message.tool_calls.map((tc) => {
+-            return {
+-                functionCall: {
+-                    name: tc.name,
+-                    args: tc.args,
+-                },
 +        const sigs = message.additional_kwargs?.__gemini_function_call_thought_signatures__;
 +        functionCalls = message.tool_calls.map((tc, idx) => {
 +            const resultFunc = {
 +                name: tc.name,
 +                args: tc.args,
+             };
++            const part = {
++                functionCall: resultFunc,
 +            };
 +            if (sigs && sigs[idx]) {
-+                resultFunc.thought_signature = sigs[idx];
++                part.thoughtSignature = sigs[idx];
 +            } else if (tc.signature) {
-+                resultFunc.thought_signature = tc.signature;
++                part.thoughtSignature = tc.signature;
 +            }
-             return {
--                functionCall: {
--                    name: tc.name,
--                    args: tc.args,
--                },
-+                functionCall: resultFunc,
-             };
++            return part;
          });
      }
-@@ -458,6 +465,18 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
+     return [...messageParts, ...functionCalls];
+@@ -458,6 +466,20 @@ function convertResponseContentToChatGenerationChunk(response, extra) {
          })));
      }
      const additional_kwargs = {};
@@ -54,7 +57,9 @@ index 450e0d6..bb7c13e 100644
 +    if (candidateContent && Array.isArray(candidateContent.parts)) {
 +        for (const pt of candidateContent.parts) {
 +            if (pt?.functionCall) {
-+                if (pt.functionCall.thought_signature) signatures.push(pt.functionCall.thought_signature);
++                if (pt.thoughtSignature) signatures.push(pt.thoughtSignature);
++                else if (pt.thought_signature) signatures.push(pt.thought_signature);
++                else if (pt.functionCall.thought_signature) signatures.push(pt.functionCall.thought_signature);
 +                else if (pt.functionCall.thoughtSignature) signatures.push(pt.functionCall.thoughtSignature);
 +            }
 +        }
