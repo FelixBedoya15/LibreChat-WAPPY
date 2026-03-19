@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Sparkles,
     Loader2,
@@ -15,6 +15,10 @@ import {
     Target,
     BookOpen,
     ClipboardList,
+    Mic,
+    MicOff,
+    CheckCircle2,
+    X,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -24,6 +28,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { cn } from '~/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
@@ -36,6 +41,8 @@ interface PerfilCargoData {
     escalasSalarial: string;
     numVacantes: string;
     contextoAdicional: string;
+    eppSeleccionados: string[];
+    entrenamientosSeleccionados: string[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -64,6 +71,42 @@ const JORNADA_OPTIONS = [
     'Jornada flexible',
 ];
 
+const EPP_OPTIONS = [
+    'Casco de seguridad (Dieléctrico/Tipo I/II)',
+    'Gafas de seguridad (Claras/Oscuras/Antiempañantes)',
+    'Protección auditiva (Inserción/Copa)',
+    'Mascarilla para material particulado (N95/P100)',
+    'Respirador con filtros químicos',
+    'Guantes de nitrilo/látex/vaqueta/carnaza',
+    'Guantes de protección mecánica/corte',
+    'Botas de seguridad con puntera (Dieléctrica)',
+    'Overol de trabajo / Chaleco reflectivo',
+    'Arnés de cuerpo completo (4 argollas)',
+    'Eslinga de posicionamiento / Protección de caídas',
+    'Protector solar',
+    'Capas impermeables',
+];
+
+const ENTRENAMIENTO_OPTIONS = [
+    'Inducción y Reinducción en SST',
+    'Manejo de Sustancias Químicas (GHS)',
+    'Trabajo Seguro en Alturas (Básico/Avanzado/Reentrenamiento)',
+    'Manejo Seguro de Herramientas Eléctricas y Manuales',
+    'Ergonomía y Pausas Activas (Higiene Postural)',
+    'Identificación de Peligros y Riesgos (GTC 45)',
+    'Primeros Auxilios Básicos',
+    'Prevención y Control de Incendios (Uso de Extintores)',
+    'Plan de Emergencias y Evacuación',
+    'Manejo de Residuos Sólidos y Cuidado Ambiental',
+    'Riesgo Psicosocial y Manejo del Estrés',
+    'Seguridad Vial (Plan Estratégico de Seguridad Vial)',
+    'Uso y Mantenimiento de EPP',
+    'Reporte de Actos y Condiciones Inseguras',
+    'Prevención de Accidentes de Trabajo y Enfermedades Laborales',
+    'Mantenimiento Preventivo de Equipos',
+    'Buenas Prácticas de Manufactura (BPM)',
+];
+
 // ─── Empty form ───────────────────────────────────────────────────────────────
 const EMPTY_FORM: PerfilCargoData = {
     nombreCargo: '',
@@ -75,6 +118,8 @@ const EMPTY_FORM: PerfilCargoData = {
     escalasSalarial: '',
     numVacantes: '1',
     contextoAdicional: '',
+    eppSeleccionados: [],
+    entrenamientosSeleccionados: [],
 };
 
 // ─── Field config for quick rendering ─────────────────────────────────────────
@@ -101,6 +146,71 @@ const FIELD_SECTIONS = [
     },
 ];
 
+// ─── MultiSelect Component ────────────────────────────────────────────────────
+const MultiSelect = ({ options, selected, onChange, label, placeholder }: { options: string[], selected: string[], onChange: (val: string[]) => void, label: string, placeholder: string }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const toggle = (val: string) => {
+        if (selected.includes(val)) {
+            onChange(selected.filter(s => s !== val));
+        } else {
+            onChange([...selected, val]);
+        }
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="space-y-1 relative" ref={containerRef}>
+            <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">{label}</label>
+            <div
+                onClick={() => setIsOpen(!isOpen)}
+                className="min-h-[42px] w-full rounded-lg border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all"
+            >
+                {selected.length === 0 && <span className="text-text-tertiary">{placeholder}</span>}
+                {selected.map(val => (
+                    <span key={val} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 rounded-md text-xs font-medium border border-teal-200 dark:border-teal-800">
+                        {val}
+                        <X className="h-3 w-3 hover:text-teal-900 cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(val); }} />
+                    </span>
+                ))}
+                <div className="ml-auto">
+                    <ChevronDown className={cn("h-4 w-4 text-text-tertiary transition-transform", isOpen && "rotate-180")} />
+                </div>
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-[60] mt-1 w-full max-h-64 overflow-y-auto bg-surface-secondary border border-border-medium rounded-lg shadow-xl animate-in fade-in slide-in-from-top-2">
+                    <div className="p-1">
+                        {options.map(opt => (
+                            <div
+                                key={opt}
+                                onClick={() => toggle(opt)}
+                                className={cn(
+                                    "flex items-center justify-between px-3 py-2 text-sm rounded-md cursor-pointer transition-colors",
+                                    selected.includes(opt) ? "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300" : "hover:bg-surface-hover text-text-primary"
+                                )}
+                            >
+                                <span>{opt}</span>
+                                {selected.includes(opt) && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 const PerfilesCargo = () => {
     const { showToast } = useToastContext();
@@ -120,6 +230,11 @@ const PerfilesCargo = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
 
+    // Voice Input State
+    const [isListening, setIsListening] = useState(false);
+    const [interimText, setInterimText] = useState('');
+    const recognitionRef = useRef<any>(null);
+
     // ─── Load saved data ─────────────────────────────────────────────────────
     useEffect(() => {
         if (!token) return;
@@ -130,7 +245,7 @@ const PerfilesCargo = () => {
             .then(data => {
                 if (data.perfilesList?.length) {
                     setPerfiles(data.perfilesList);
-                    setFormData(data.perfilesList[0]);
+                    setFormData({ ...EMPTY_FORM, ...data.perfilesList[0] });
                     setActivePerfilId(data.perfilesList[0].id);
                 }
             })
@@ -138,7 +253,7 @@ const PerfilesCargo = () => {
     }, [token]);
 
     // ─── Field helpers ────────────────────────────────────────────────────────
-    const handleInput = (key: keyof PerfilCargoData, value: string) => {
+    const handleInput = (key: keyof PerfilCargoData, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
     };
 
@@ -159,7 +274,7 @@ const PerfilesCargo = () => {
         setPerfiles(updated);
         if (activePerfilId === id) {
             setActivePerfilId(updated[0]?.id || null);
-            setFormData(updated[0] ? { ...updated[0] } : EMPTY_FORM);
+            setFormData(updated[0] ? { ...EMPTY_FORM, ...updated[0] } : EMPTY_FORM);
             setGeneratedReport(null);
             setEditorContent(null);
         }
@@ -169,17 +284,87 @@ const PerfilesCargo = () => {
         const perfil = perfiles.find(p => p.id === id);
         if (perfil) {
             setActivePerfilId(id);
-            setFormData(perfil);
+            setFormData({ ...EMPTY_FORM, ...perfil });
             setGeneratedReport(perfil.report || null);
             setEditorContent(perfil.report || null);
             setIsFormExpanded(true);
         }
     };
 
+    // ─── Voice Input Handler ──────────────────────────────────────────
+    const handleVoiceInput = () => {
+        if (isListening) {
+            if (recognitionRef.current) {
+                try {
+                    recognitionRef.current.stop();
+                } catch (e) { }
+            }
+            setIsListening(false);
+            setInterimText('');
+            return;
+        }
+
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            showToast({ message: 'Su navegador no soporta reconocimiento de voz. Intente con Chrome.', status: 'error' });
+            return;
+        }
+
+        try {
+            const recognition = new SpeechRecognition();
+            recognitionRef.current = recognition;
+            recognition.lang = 'es-CO';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                setIsListening(true);
+                setInterimText('');
+            };
+
+            recognition.onresult = (event: any) => {
+                let currentInterim = '';
+                let newFinal = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        newFinal += event.results[i][0].transcript;
+                    } else {
+                        currentInterim += event.results[i][0].transcript;
+                    }
+                }
+
+                if (newFinal) {
+                    setFormData(prev => ({
+                        ...prev,
+                        contextoAdicional: prev.contextoAdicional + (prev.contextoAdicional && !prev.contextoAdicional.endsWith(' ') ? ' ' : '') + newFinal
+                    }));
+                }
+                setInterimText(currentInterim);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error("Speech error:", event.error);
+                setIsListening(false);
+                setInterimText('');
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+                setInterimText('');
+            };
+
+            recognition.start();
+        } catch (e) {
+            setIsListening(false);
+            showToast({ message: 'Error al iniciar reconocimiento', status: 'error' });
+        }
+    };
+
     // ─── Save ─────────────────────────────────────────────────────────────────
     const handleSaveData = async (silent = false) => {
         if (!token) return;
-        // Sync current form changes to the active profile in the list
         const updated = activePerfilId
             ? perfiles.map(p => (p.id === activePerfilId ? { ...p, ...formData } : p))
             : [...perfiles, { ...formData, id: crypto.randomUUID() }];
@@ -209,6 +394,8 @@ const PerfilesCargo = () => {
             numVacantes: '1',
             contextoAdicional:
                 'El cargo es responsable de implementar y mantener el SG-SST, realizar inspecciones de seguridad, liderar investigaciones de accidentes y capacitar a los trabajadores en prevención de riesgos laborales.',
+            eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)'],
+            entrenamientosSeleccionados: ['Inducción y Reinducción en SST', 'Identificación de Peligros y Riesgos (GTC 45)', 'Uso y Mantenimiento de EPP'],
         };
         setFormData(dummy);
         showToast({ message: 'Datos de ejemplo cargados', status: 'success' });
@@ -236,7 +423,6 @@ const PerfilesCargo = () => {
             setGeneratedReport(data.report);
             setEditorContent(data.report);
             setIsFormExpanded(false);
-            // save report into list
             if (activePerfilId) {
                 setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, ...formData, report: data.report } : p));
             }
@@ -332,16 +518,6 @@ const PerfilesCargo = () => {
                 </select>
             );
         }
-        if (field.type === 'textarea') {
-            return (
-                <textarea
-                    value={(formData as any)[field.key]}
-                    onChange={e => handleInput(field.key as keyof PerfilCargoData, e.target.value)}
-                    placeholder={field.placeholder}
-                    className={`${baseClass} min-h-[100px] resize-y`}
-                />
-            );
-        }
         return (
             <input
                 type={field.type || 'text'}
@@ -353,13 +529,13 @@ const PerfilesCargo = () => {
         );
     };
 
-    // ─── Info badges (what will be generated) ─────────────────────────────────
+    // ─── Info badges ─────────────────────────────────
     const generationBadges = [
         { icon: <ClipboardList className="h-4 w-4" />, label: 'Funciones y Responsabilidades', color: 'teal' },
         { icon: <Brain className="h-4 w-4" />, label: 'Habilidades y Competencias', color: 'violet' },
         { icon: <BookOpen className="h-4 w-4" />, label: 'Requisitos Físicos, Mentales y Técnicos', color: 'blue' },
-        { icon: <AlertTriangle className="h-4 w-4" />, label: 'Riesgos Laborales Asociados', color: 'orange' },
-        { icon: <Shield className="h-4 w-4" />, label: 'Medidas Preventivas SST', color: 'green' },
+        { icon: <AlertTriangle className="h-4 w-4" />, label: 'Riesgos Laborales GTC 45', color: 'orange' },
+        { icon: <Shield className="h-4 w-4" />, label: 'Medidas Preventivas y Controles', color: 'green' },
         { icon: <Target className="h-4 w-4" />, label: 'Indicadores de Desempeño (KPIs)', color: 'rose' },
     ];
 
@@ -445,7 +621,7 @@ const PerfilesCargo = () => {
                 </div>
             )}
 
-            {/* ── Profiles list (sidebar-style tabs when multiple) ── */}
+            {/* ── Profiles list ── */}
             {perfiles.length > 1 && (
                 <div className="rounded-xl border border-border-medium bg-surface-secondary p-3 overflow-hidden">
                     <div className="flex items-center justify-between mb-2">
@@ -483,7 +659,7 @@ const PerfilesCargo = () => {
                 <div className="flex items-center gap-2 mb-3">
                     <AnimatedIcon name="sparkles" size={18} className="text-teal-600 animate-pulse" />
                     <h4 className="text-sm font-bold text-teal-800 dark:text-teal-300">
-                        Contenido generado por IA — Cumple Art. 2.2.4.6.28 Decreto 1072
+                        Contenido generado por IA — <span className="bg-teal-200 px-2 py-0.5 rounded-full text-[11px] border border-teal-300 shadow-sm ml-1 text-teal-900 font-black animate-pulse">Cumple Art. 16 de la Resolución 1843 de 2025</span>
                     </h4>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -512,19 +688,10 @@ const PerfilesCargo = () => {
                             {formData.nombreCargo ? `Perfil: ${formData.nombreCargo}` : 'Datos del Perfil de Cargo'}
                         </span>
                     </div>
-                    {perfiles.length <= 1 && (
-                        <button
-                            onClick={e => { e.stopPropagation(); handleAddPerfil(); }}
-                            className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 font-semibold px-2 py-1 rounded-full border border-teal-200 hover:bg-teal-50 transition-colors"
-                        >
-                            <Plus className="h-3.5 w-3.5" /> Nuevo Perfil
-                        </button>
-                    )}
                 </button>
 
                 {isFormExpanded && (
                     <div className="p-6 space-y-6">
-                        {/* Section-based form */}
                         {FIELD_SECTIONS.map(section => (
                             <div key={section.title} className="space-y-3">
                                 <div className="flex items-center gap-2 pb-1 border-b border-border-medium">
@@ -544,36 +711,76 @@ const PerfilesCargo = () => {
                             </div>
                         ))}
 
-                        {/* Context additional */}
-                        <div className="space-y-1 pt-2 border-t border-border-medium">
-                            <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">
-                                Descripción del Cargo / Contexto Adicional
-                            </label>
-                            <p className="text-xs text-text-secondary leading-relaxed mb-2">
-                                <strong>Importante:</strong> Describe brevemente las principales tareas, el entorno de trabajo, los equipos usados o cualquier particularidad del cargo. Cuanta más información ingreses, más preciso y personalizado será el perfil generado por la IA.
-                            </p>
-                            <textarea
-                                value={formData.contextoAdicional}
-                                onChange={e => handleInput('contextoAdicional', e.target.value)}
-                                placeholder="Ej: El cargo es responsable de coordinar las entregas en bodega, manejar montacargas, operar el sistema ERP de inventarios y supervisar a 5 auxiliares. Opera en turnos de 12 horas en ambiente con ruido y calor..."
-                                className="w-full rounded-xl border-2 border-dashed border-teal-200 bg-teal-50/10 focus:bg-teal-50/30 focus:border-teal-400 p-4 text-sm text-text-primary min-h-[140px] resize-y transition-colors focus:outline-none"
-                            />
+                        {/* Multi-Select Sections */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 pb-1 border-b border-border-medium">
+                                <Shield className="h-4 w-4 text-teal-600" />
+                                <h4 className="font-semibold text-sm text-text-primary">Equipos y Formación</h4>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <MultiSelect
+                                    label="EPP Requeridos (GTC 45)"
+                                    placeholder="Seleccionar EPP..."
+                                    options={EPP_OPTIONS}
+                                    selected={formData.eppSeleccionados}
+                                    onChange={(val) => handleInput('eppSeleccionados', val)}
+                                />
+                                <MultiSelect
+                                    label="Entrenamiento / Capacitación (SST)"
+                                    placeholder="Seleccionar entrenamientos..."
+                                    options={ENTRENAMIENTO_OPTIONS}
+                                    selected={formData.entrenamientosSeleccionados}
+                                    onChange={(val) => handleInput('entrenamientosSeleccionados', val)}
+                                />
+                            </div>
                         </div>
 
-                        {/* Generate button inside form */}
+                        {/* Context additional with Microphone */}
+                        <div className="space-y-2 pt-2 border-t border-border-medium">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">
+                                    Descripción del Cargo / Contexto Adicional
+                                </label>
+                                <button
+                                    onClick={handleVoiceInput}
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm",
+                                        isListening
+                                            ? "bg-red-100 text-red-600 border-red-300 animate-pulse"
+                                            : "bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100"
+                                    )}
+                                >
+                                    {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                                    {isListening ? 'Detener Micrófono' : 'Activar Micrófono'}
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <textarea
+                                    value={formData.contextoAdicional}
+                                    onChange={e => handleInput('contextoAdicional', e.target.value)}
+                                    placeholder="Ej: El cargo es responsable de coordinar las entregas en bodega, manejar montacargas, operar el sistema ERP de inventarios..."
+                                    className={cn(
+                                        "w-full rounded-xl border-2 border-dashed bg-teal-50/10 p-4 text-sm text-text-primary min-h-[140px] resize-y transition-all focus:outline-none",
+                                        isListening ? "border-red-400 bg-red-50/5 shadow-inner" : "border-teal-200 focus:bg-teal-50/30 focus:border-teal-400"
+                                    )}
+                                />
+                                {interimText && (
+                                    <div className="absolute bottom-4 left-4 right-4 p-2 bg-white/80 dark:bg-black/40 backdrop-blur rounded italic text-xs text-text-secondary border border-border-light">
+                                        {interimText}...
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="flex justify-center pt-4">
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating || !formData.nombreCargo.trim()}
                                 className="group flex items-center px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >
-                                {isGenerating ? (
-                                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                ) : (
-                                    <AnimatedIcon name="sparkles" size={20} />
-                                )}
+                                {isGenerating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <AnimatedIcon name="sparkles" size={20} />}
                                 <span className="ml-2">
-                                    {isGenerating ? 'Generando perfil de cargo...' : 'Generar Perfil de Cargo con IA'}
+                                    {isGenerating ? 'Generando perfil extenso (GTC 45)...' : 'Generar Perfil de Cargo con IA'}
                                 </span>
                             </button>
                         </div>
@@ -581,7 +788,7 @@ const PerfilesCargo = () => {
                 )}
             </div>
 
-            {/* ── Generated Report Editor ── */}
+            {/* Editor */}
             {generatedReport && (
                 <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
                     <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">

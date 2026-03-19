@@ -16,8 +16,8 @@ async function generateWithRetry(model, promptParts) {
   const currentModelName = model.model.replace('models/', '');
 
   const fallbackOrder = [
-    'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
   ];
@@ -143,17 +143,25 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
     const companyContext = buildCompanyContextString(loadedCompanyInfo);
     const headerHTML = buildStandardHeader({
-      title: 'PERFIL DE CARGO',
+      title: 'PERFIL DE CARGO EXTENSO (GTC 45)',
       companyInfo: loadedCompanyInfo,
       date: currentDate,
-      norm: 'Decreto 1072 de 2015 – Art. 2.2.4.6.28 & Resolución 0312 de 2019',
+      norm: 'Art. 16 de la Resolución 1843 de 2025 & GTC 45:2012',
       responsibleName: req.user?.name,
     });
 
-    const promptText = `
-Eres un Experto Senior en Gestión Humana, Seguridad y Salud en el Trabajo (SG-SST) y Psicología Organizacional, especializado en el diseño de perfiles de cargo según la normativa colombiana (Decreto 1072 de 2015, Artículo 2.2.4.6.28, y Resolución 0312 de 2019).
+    const eppText = perfilData.eppSeleccionados?.length > 0
+      ? perfilData.eppSeleccionados.join(', ')
+      : 'Específicos según riesgo';
 
-Tu objetivo es generar un **PERFIL DE CARGO COMPLETO, TÉCNICO, PROFESIONAL Y VISUALMENTE ATRACTIVO** en HTML.
+    const entrenamientoText = perfilData.entrenamientosSeleccionados?.length > 0
+      ? perfilData.entrenamientosSeleccionados.join(', ')
+      : 'SST Básico';
+
+    const promptText = `
+Eres un Experto Senior en Gestión Humana, Seguridad y Salud en el Trabajo (SG-SST) y Psicología Organizacional con 20 años de experiencia. Tu especialidad es el diseño técnico de perfiles de cargo altamente detallados según la normativa colombiana actual, integrando rigurosamente la **Guía Técnica Colombiana GTC 45 (2012)** y la **Resolución 1843 de 2025 (Art. 16)**.
+
+Tu objetivo es generar el **PERFIL DE CARGO MÁS COMPLETO, EXTENSO Y TÉCNICO POSIBLE** en formato HTML. No escatimes en detalles. Desarrolla cada punto con profundidad académica y práctica.
 
 **INFORMACIÓN DE LA EMPRESA:**
 ${companyContext}
@@ -167,59 +175,56 @@ ${companyContext}
 - Cargo del Jefe Inmediato: ${perfilData.jefeInmediato || '[PENDIENTE]'}
 - Escala Salarial / Rango: ${perfilData.escalasSalarial || 'No especificado'}
 - Número de Vacantes: ${perfilData.numVacantes || '1'}
-- Descripción General de la Actividad Económica de la empresa: ${loadedCompanyInfo?.generalActivities || loadedCompanyInfo?.economicActivity || 'No especificada'}
-- Información adicional / contexto del cargo: ${perfilData.contextoAdicional || 'No proporcionado'}
+- EPP Seleccionados por el usuario: ${eppText}
+- Entrenamientos Seleccionados por el usuario: ${entrenamientoText}
+- Contexto Adicional proporcionado: ${perfilData.contextoAdicional || 'No proporcionado'}
 
-**INSTRUCCIONES DE ESTRUCTURA Y CONTENIDO OBLIGATORIO (cumple al 100% con Art 2.2.4.6.28 del Decreto 1072):**
+**INSTRUCCIONES DE CONTENIDO CRÍTICO:**
 
-**⚠️ REGLA CRÍTICA:** NO incluyas título principal como "PERFIL DE CARGO" ya que el encabezado ya lo tiene. NO repitas Razón Social, NIT, Nivel de Riesgo ni datos de la empresa.
+1.  **EXTENSIÓN Y PROFUNDIDAD:** Cada sección debe ser rica en texto. Si mencionas una función, explica su impacto. Si mencionas un riesgo, detalla su origen y control según la jerarquía de la GTC 45.
+2.  **RIESGOS Y CONTROLES (GTC 45):** Identifica **TODOS** los peligros que apliquen razonablemente al cargo. Clasifícalos según la tabla de peligros de la GTC 45 (Biológico, Físico, Químico, Psicosocial, Biomecánico, Condiciones de Seguridad, Fenómenos Naturales). Para cada peligro, describe controles existentes en la fuente, el medio y la persona.
+3.  **NORMATIVA:** Debes mencionar y alinearte explícitamente con el Art. 16 de la Resolución 1843 de 2025.
 
-**SECCIONES OBLIGATORIAS — desarróllalas con profundidad y usa tablas HTML elegantes:**
+**ESTRUCTURA OBLIGATORIA (HTML):**
 
-1️⃣ **IDENTIFICACIÓN DEL CARGO**
-   Tabla compacta a dos columnas con: Nombre del Cargo, Área/Departamento, Nivel, Reporta a, N° Vacantes, Tipo de Contrato, Jornada, Fecha de vigencia.
+1️⃣ **IDENTIFICACIÓN TÉCNICA DEL CARGO**
+   Tabla detallada que incluya también: Código de cargo (si aplica), Versión del perfil, Nivel de Riesgo ARL asignado.
 
-2️⃣ **MISIÓN DEL CARGO**
-   Párrafo conciso de 2-3 oraciones que explique el propósito estratégico del cargo. Usa el contenedor:
-   \`<div style="border-left: 4px solid #0f766e; background-color: #f0fdfa; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-bottom: 20px; font-size: 14px; color: #134e4a; line-height: 1.7;"><strong>Misión:</strong> [texto aquí]</div>\`
+2️⃣ **MISIÓN Y PROPÓSITO ESTRATÉGICO**
+   Un texto extenso (mínimo 2 párrafos de 5 líneas) que conecte el cargo con los objetivos de la empresa y la seguridad laboral.
 
-3️⃣ **I. FUNCIONES Y RESPONSABILIDADES** (Decreto 1072 — i, ii)
-   Tabla de 2 columnas: "Función / Tarea" y "Frecuencia". Incluye mínimo 8-12 funciones detalladas y específicas al cargo y empresa. Las funciones deben ser concretas, con verbos de acción.
+3️⃣ **I. MATRIZ DE FUNCIONES, RESPONSABILIDADES Y RENDICIÓN DE CUENTAS**
+   Tabla con 3 columnas: Función Detallada, Periodicidad (Diaria/Semanal/Mensual), y Responsabilidad SST asociada. Incluye al menos 12-15 funciones altamente específicas.
 
-4️⃣ **II. HABILIDADES Y COMPETENCIAS** (Decreto 1072 — iii, iv)
-   Genera DOS tablas separadas y visualmente diferenciadas:
-   - **Tabla A: Competencias Organizacionales** (aplican a todos): Orientación al resultado, Trabajo en equipo, Comunicación asertiva, Adaptabilidad, Ética y transparencia — con nivel requerido (Básico/Intermedio/Avanzado/Experto) y descripción conductual específica.
-   - **Tabla B: Competencias Técnicas del Cargo**: mínimo 5 competencias técnicas propias de la función, indicando herramienta/tecnología o área de conocimiento, nivel de dominio y evidencia observable.
+4️⃣ **II. PERFIL DE COMPETENCIAS (SABER, HACER, SER)**
+   - **Competencias Técnicas (Saber):** Tabla extensa con conocimientos académicos, normativos y de herramientas.
+   - **Competencias del Cargo (Hacer):** Habilidades prácticas.
+   - **Competencias Blandas/Socioemocionales (Ser):** Liderazgo, inteligencia emocional, etc.
 
-5️⃣ **III. REQUISITOS DEL CARGO** (Decreto 1072 — v)
-   Tabla única con 3 secciones, separadas por un \`<tr>\` con fondo gris como subtítulo:
-   - **Requisitos Educativos**: Formación mínima, Formación deseable, Título requerido.
-   - **Requisitos de Experiencia**: Tiempo mínimo de experiencia, Área de experiencia, Experiencia específica valorada.
-   - **Requisitos Técnicos**: Manejo de software/equipos, Certificaciones requeridas, Conocimientos normativos exigidos.
+5️⃣ **III. REQUISITOS DE INGRESO (PROFESIOGRAMA)**
+   Tabla con subtítulos para Formación, Experiencia mínima (meses/años), Experiencia específica y **Capacitaciones Obligatorias de Ley**.
 
-6️⃣ **IV. CONDICIONES FÍSICAS Y MENTALES** (Decreto 1072 — v)
-   Tabla de valoración con columnas: Condición | Descripción | Nivel de Exigencia (Alto/Medio/Bajo). Cubre: Esfuerzo físico, Postura prolongada, Esfuerzo visual, Capacidad de concentración, Manejo de estrés, Toma de decisiones bajo presión, Trabajo en equipo bajo presión. Sé específico para el cargo.
+6️⃣ **IV. REQUISITOS FÍSICOS Y MENTALES (EXIGENCIAS BIOMECÁNICAS)**
+   Detalla posturas (sentado, de pie, caminata), levantamiento de cargas (pesos exactos máximos de ley), exigencia visual, auditiva y carga mental cognitiva.
 
-7️⃣ **V. RIESGOS LABORALES ASOCIADOS** (Decreto 1072 — vi)
-   Tabla completa con columnas: Tipo de Peligro (clasificación GTC 45), Descripción del Riesgo Específico, Probabilidad (Alta/Media/Baja), Impacto Potencial. Incluye mínimo 6 riesgos relevantes al cargo y al sector económico de la empresa.
+7️⃣ **V. MATRIZ DE PELIGROS, RIESGOS Y CONTROLES (BASADA EN GTC 45)**
+   Tabla con columnas: Clasificación del Peligro | Peligro Específico | Descripción de la Actividad de Riesgo | **Controles Existentes (Fuente, Medio, Persona)** | Efectos Posibles en la Salud.
+   *Debe ser la sección más larga del informe.*
 
-8️⃣ **VI. MEDIDAS PREVENTIVAS Y CONTROLES** (Decreto 1072 — vii)
-   Tabla en cascada de jerarquía de controles: Eliminación, Sustitución, Controles de Ingeniería, Controles Administrativos, EPP. Para cada riesgo identificado en la sección anterior, define al menos UN control concreto.
+8️⃣ **VI. PLAN DE ENTRENAMIENTO Y ELEMENTOS DE PROTECCIÓN (EPP)**
+   - Tabla de EPP detallando el tipo de protección (ej. Gafas con filtro UV y antiempañante Z87+). Integra los EPP seleccionados: ${eppText}.
+   - Tabla de formación continua y entrenamientos. Integra: ${entrenamientoText}.
 
-9️⃣ **INDICADORES DE DESEMPEÑO DEL CARGO (KPIs)**
-   Tabla con columnas: Indicador | Fórmula de Medición | Meta | Periodicidad. Mínimo 4 KPIs medibles y relevantes al cargo.
+9️⃣ **VII. INDICADORES DE GESTIÓN (KPIs)**
+   Mínimo 5 indicadores con nombre, fórmula, meta esperada y frecuencia.
 
-🔟 **INDUCCIÓN Y ONBOARDING**
-   Lista estructurada con: Programa de inducción (temas clave), duración estimada, formaciones de ley requeridas (SST, SGSST, etc.) y entregables esperados al primer mes, primer trimestre.
+🔟 **VIII. AUTORIDAD Y TOMA DE DECISIONES**
+   ¿Qué puede decidir el cargo? ¿En qué momentos tiene autoridad para detener un trabajo por riesgo inminente?
 
-**INSTRUCCIONES DE DISEÑO HTML:**
-- Tu respuesta DEBE ser EXCLUSIVAMENTE HTML limpio (sin \`\`\`html ni markdown).
-- Encabezados de sección: \`<h3 style="color: #0f766e; font-size: 16px; font-weight: 700; text-transform: uppercase; margin: 30px 0 12px 0; padding-bottom: 6px; border-bottom: 2px solid #0f766e;">\`
-- Estructura base de TODAS las tablas: \`<table style="width: 100%; table-layout: auto; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 25px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">\`
-- \`<th>\`: \`<th style="background-color: #0f766e; color: #ffffff; padding: 11px 14px; font-size: 12px; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #065f46;">\`
-- \`<td>\`: \`<td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; vertical-align: top;">\`
-- Filas alternas: agrega \`background-color: #f8fafc;\` al \`<tr>\` par.
-- NO incluyas tablas de firmas. La plataforma las añade automáticamente.
+**DISEÑO HTML PREMIUM:**
+- Usa tablas elegantes, sombreados sutiles en las cabeceras (\`#0f766e\`), y tipografía legible.
+- **NO** incluyas bloques de código \`\`\`html. Responde directamente con el código.
+- **NO** incluyas firmas.
 `;
 
     const result = await generateWithRetry(model, [{ text: promptText }]);
