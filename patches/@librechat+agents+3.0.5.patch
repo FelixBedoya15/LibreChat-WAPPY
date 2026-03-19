@@ -18,7 +18,7 @@ index 1ebb7f6..acbea50 100644
              return handlers.handleToolCalls(data?.output?.tool_calls, metadata, graph);
          }
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
-index 450e0d6..6a6b7b1 100644
+index 450e0d6..d8bf6a1 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 +++ b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 @@ -329,13 +329,21 @@ function convertMessageContentToParts(message, isMultimodalModel, previousMessag
@@ -41,9 +41,9 @@ index 450e0d6..6a6b7b1 100644
 +                functionCall: resultFunc,
 +            };
 +            if (sigs && sigs[idx]) {
-+                part.thoughtSignature = sigs[idx];
++                part.thought_signature = sigs[idx];
 +            } else if (tc.signature) {
-+                part.thoughtSignature = tc.signature;
++                part.thought_signature = tc.signature;
 +            }
 +            return part;
          });
