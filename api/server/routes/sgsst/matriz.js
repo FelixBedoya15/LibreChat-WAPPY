@@ -17,8 +17,8 @@ async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback m
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite'
   ];
@@ -220,7 +220,7 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
 `;
 
         // 4. Generate Content
-        const selectedModel = modelName || 'gemini-3-flash-preview';
+        const selectedModel = modelName || 'gemini-3.1-flash-lite-preview';
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
         const result = await generateWithRetry(model, promptText);

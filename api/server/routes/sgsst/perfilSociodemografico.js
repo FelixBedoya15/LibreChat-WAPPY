@@ -17,8 +17,8 @@ async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback m
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite'
   ];
@@ -288,7 +288,7 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+    const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
 
     const systemPrompt = `Eres un experto en Recursos Humanos y SST en Colombia.
 Tu tarea es generar la estructura inicial de un Perfil Sociodemográfico para la siguiente empresa:
@@ -338,7 +338,7 @@ Esquema JSON Requerido (DEBES responder solo json, sin markdown):
 // ─── POST /analyze — Generate AI Exec Report for Sociodemographic ─────────────────────────────
 router.post('/analyze', requireJwtAuth, async (req, res) => {
   try {
-    const { trabajadores, currentDate, userName, modelName = 'gemini-3-flash-preview' } = req.body;
+    const { trabajadores, currentDate, userName, modelName = 'gemini-3.1-flash-lite-preview' } = req.body;
 
     if (!trabajadores || !Array.isArray(trabajadores) || trabajadores.length === 0) {
       return res.status(400).json({ error: 'No hay trabajadores para analizar.' });

@@ -17,8 +17,8 @@ async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback m
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite'
   ];
@@ -228,7 +228,7 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const selectedModel = modelName || 'gemini-3-flash-preview';
+        const selectedModel = modelName || 'gemini-3.1-flash-lite-preview';
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
         const prompt = `
@@ -407,7 +407,7 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
         if (ci) companyContext = buildCompanyContextString(ci);
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
 
         const systemPrompt = `Eres un experto en SST de Colombia (GTC 45 y Decreto 1072/2015).
 Tu tarea es generar la estructura inicial de una Matriz de Peligros para la siguiente empresa:
@@ -599,7 +599,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 // ─── POST /analyze — Generate AI Exec Report for Matrix ─────────────────────────────
 router.post('/analyze', requireJwtAuth, async (req, res) => {
     try {
-        const { procesos, currentDate, userName, modelName = 'gemini-3-flash-preview' } = req.body;
+        const { procesos, currentDate, userName, modelName = 'gemini-3.1-flash-lite-preview' } = req.body;
 
         if (!procesos || !Array.isArray(procesos) || procesos.length === 0) {
             return res.status(400).json({ error: 'No hay procesos para analizar.' });

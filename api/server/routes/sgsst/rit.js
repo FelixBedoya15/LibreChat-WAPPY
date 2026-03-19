@@ -15,8 +15,8 @@ async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback m
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite'
   ];
@@ -147,7 +147,7 @@ Instrucciones Críticas de Contenido y Formato:
         }
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
 
         const result = await generateWithRetry(model, prompt);
         const response = await result.response;

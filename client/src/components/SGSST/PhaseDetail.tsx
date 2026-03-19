@@ -28,6 +28,7 @@ import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MetodoOwas from './MetodoOwas';
 import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
+import PerfilesCargo from './PerfilesCargo';
 
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -442,6 +443,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'perfil_socio' && (
                                                     <div className="mb-6">
                                                         <PerfilSociodemografico />
+                                                    </div>
+                                                )}
+
+                                                {/* Show PerfilesCargo for perfil_cargo category */}
+                                                {category.id === 'perfil_cargo' && (
+                                                    <div className="mb-6">
+                                                        <PerfilesCargo />
                                                     </div>
                                                 )}
 

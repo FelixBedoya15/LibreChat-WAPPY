@@ -113,7 +113,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
 
     // Get applicable checklist
     const checklist = useMemo(() => {

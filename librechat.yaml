@@ -219,6 +219,7 @@ endpoints:
         - "gemini-2.5-flash"
         - "gemini-2.5-flash-lite"
       fetch: false
+    titleModel: "gemini-3.1-flash-lite-preview"
   # assistants:
   #   disableBuilder: false # Disable Assistants Builder Interface by setting to `true`
   #   pollIntervalMs: 3000  # Polling interval for checking assistant updates
@@ -249,6 +250,8 @@ endpoints:
       minRelevanceScore: 0.45
   #   # (optional) Agent Capabilities available to all users. Omit the ones you wish to exclude. Defaults to list below.
       capabilities: ["execute_code", "file_search", "actions", "tools", "artifacts", "context", "ocr", "chain", "web_search"]
+    titleEndpoint: "google"
+    titleModel: "gemini-3.1-flash-lite-preview"
   custom:
     - name: "Ollama"
       apiKey: "ollama"
@@ -264,7 +267,8 @@ endpoints:
           ]
         fetch: true
       titleConvo: true
-      titleModel: "current_model"
+      titleEndpoint: "google"
+      titleModel: "gemini-3.1-flash-lite-preview"
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
@@ -287,7 +291,8 @@ endpoints:
         # with `ollama` (case-insensitive), as it does in this example.
         fetch: true
       titleConvo: true
-      titleModel: "current_model"
+      titleEndpoint: "google"
+      titleModel: "gemini-3.1-flash-lite-preview"
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
@@ -321,7 +326,8 @@ endpoints:
           - 'whisper-large-v3-turbo'
         fetch: true
       titleConvo: true
-      titleModel: 'mixtral-8x7b-32768'
+      titleEndpoint: "google"
+      titleModel: "gemini-3.1-flash-lite-preview"
       modelDisplayLabel: 'Groq'
 
     # Mistral AI Example
@@ -387,7 +393,8 @@ endpoints:
           - "nvidia/nemotron-4-340b-instruct"
         fetch: true
       titleConvo: true
-      titleModel: "current_model"
+      titleEndpoint: "google"
+      titleModel: "gemini-3.1-flash-lite-preview"
       modelDisplayLabel: "NVIDIA"
       iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
       dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]

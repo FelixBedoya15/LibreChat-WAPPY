@@ -229,6 +229,7 @@ const startServer = async () => {
   app.use('/api/sgsst/estadisticas', routes.sgsst.estadisticas);
   app.use('/api/sgsst/atel-data', routes.sgsst.atelData);
   app.use('/api/sgsst/matriz-peligros', routes.sgsst.matrizPeligros);
+  app.use('/api/sgsst/perfiles-cargo', routes.sgsst.perfilesCargo);
   app.use('/api/sgsst/rhs', routes.sgsst.rhs);
   app.use('/api/sgsst/rit', routes.sgsst.rit);
   app.use('/api/sgsst/perfil-sociodemografico', routes.sgsst.perfilSociodemografico);

@@ -11,6 +11,7 @@ const rhs = require('./rhs');
 const rit = require('./rit');
 const responsable = require('./responsable');
 const permisoAlturas = require('./permisoAlturas');
+const perfilesCargo = require('./perfilesCargo');
 const investigacionAtel = require('./investigacionAtel');
 const reporteActos = require('./reporteActos');
 const analisisTrabajoSeguro = require('./analisisTrabajoSeguro');
@@ -33,6 +34,7 @@ module.exports = {
     rit,
     responsable,
     permisoAlturas,
+    perfilesCargo,
     investigacionAtel,
     reporteActos,
     analisisTrabajoSeguro,

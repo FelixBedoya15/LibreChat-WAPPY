@@ -54,7 +54,7 @@ const PerfilSociodemografico = () => {
     const { showToast } = useToastContext();
 
     const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
     const [expandedWorkers, setExpandedWorkers] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);

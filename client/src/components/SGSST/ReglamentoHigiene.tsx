@@ -30,7 +30,7 @@ const ReglamentoHigiene = () => {
     const [identifiedRisks, setIdentifiedRisks] = useState('');
     const [workShifts, setWorkShifts] = useState('');
     const [additionalRules, setAdditionalRules] = useState('');
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
 
     // Generated content
     const [generatedDocument, setGeneratedDocument] = useState<string | null>(null);

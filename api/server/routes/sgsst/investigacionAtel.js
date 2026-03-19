@@ -20,8 +20,8 @@ async function generateWithRetry(model, promptParts) {
     const genAI = new GoogleGenerativeAI(model.apiKey);
     const currentModelName = model.model.replace('models/', '');
     const fallbackOrder = [
-        'gemini-3-flash-preview',
         'gemini-3.1-flash-lite-preview',
+        'gemini-3-flash-preview',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
     ];
@@ -415,7 +415,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
 
         // ── Generate ──
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const selectedModelName = modelName || 'gemini-3-flash-preview';
+        const selectedModelName = modelName || 'gemini-3.1-flash-lite-preview';
         const model = genAI.getGenerativeModel({
             model: selectedModelName,
             generationConfig: { maxOutputTokens: 65000, temperature: 0.65 },

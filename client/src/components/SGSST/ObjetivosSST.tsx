@@ -31,7 +31,7 @@ const ObjetivosSST = () => {
     const [policySummary, setPolicySummary] = useState('');
     const [diagnosticSummary, setDiagnosticSummary] = useState('');
     const [additionalNorms, setAdditionalNorms] = useState('');
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
 
     // Generated objectives
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);

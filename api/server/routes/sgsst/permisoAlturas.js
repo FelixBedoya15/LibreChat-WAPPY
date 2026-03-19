@@ -17,8 +17,8 @@ async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback m
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3-flash-preview',
     'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite'
   ];
@@ -133,7 +133,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
 
         const currentDate = new Date().toLocaleDateString('es-CO', {
             year: 'numeric', month: 'long', day: 'numeric',

@@ -176,7 +176,7 @@ const MatrizPeligrosGTC45 = () => {
     const { showToast } = useToastContext();
 
     const [procesos, setProcesos] = useState<ProcesoEntry[]>([]);
-    const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [expandedProcesos, setExpandedProcesos] = useState<Set<string>>(new Set());
     const [expandedPeligros, setExpandedPeligros] = useState<Set<string>>(new Set());
@@ -738,7 +738,7 @@ const MatrizPeligrosGTC45 = () => {
                     Generación Inteligente
                 </h4>
                 <p className="text-sm text-text-secondary leading-relaxed">
-                    La IA puede generar automáticamente los procesos, peligros y valoraciones basándose en el perfil de su empresa. Si no ingresa una normativa específica, se aplicará por defecto el <strong>Decreto 1072 de 2015</strong>, <strong>Resolución 0312 de 2019</strong> y la <strong>NTC GTC 45</strong>.
+                    La IA puede generar automáticamente los procesos, peligros y valoraciones basándose en el perfil de su empresa.
                 </p>
             </div>
 
