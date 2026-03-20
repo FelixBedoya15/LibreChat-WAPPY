@@ -535,8 +535,22 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             </p>
                         </div>
                     </div>
+                    </div>
+                </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                {/* Progress bar */}
+                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
+                    <div
+                        className={cn(
+                            'h-full transition-all duration-300',
+                            complianceLevel.level === 'crítico' && 'bg-red-500',
+                            complianceLevel.level === 'moderado' && 'bg-yellow-500',
+                            complianceLevel.level === 'aceptable' && 'bg-green-500',
+                        )}
+                        style={{ width: `${(currentScore / totalPoints) * 100}%` }}
+                    />
+                </div>
+                <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-border-light pt-4">
                     <DummyGenerateButton onClick={handleDummyData} />
                         {/* Model Selector */}
                         <ModelSelector
@@ -585,21 +599,6 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                 />
                             </>
                         )}
-                    </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-surface-tertiary">
-                    <div
-                        className={cn(
-                            'h-full transition-all duration-300',
-                            complianceLevel.level === 'crítico' && 'bg-red-500',
-                            complianceLevel.level === 'moderado' && 'bg-yellow-500',
-                            complianceLevel.level === 'aceptable' && 'bg-green-500',
-                        )}
-                        style={{ width: `${(currentScore / totalPoints) * 100}%` }}
-                    />
-                </div>
             </div>
 
             {/* Checklist Items by Category */}
