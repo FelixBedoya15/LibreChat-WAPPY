@@ -116,6 +116,28 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     }
 });
 
+// ─── POST /inbox/mark-processed — Mark an item as processed  ───
+router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
+    try {
+        const { reportId } = req.body;
+        const doc = await ReporteActosData.findOne({ user: req.user.id });
+        if (doc && doc.inboxPublico) {
+            doc.inboxPublico = doc.inboxPublico.map(item => {
+                if (String(item.id) === String(reportId)) {
+                    item.status = 'processed';
+                }
+                return item;
+            });
+            doc.markModified('inboxPublico');
+            await doc.save();
+        }
+        res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
+    } catch (error) {
+        logger.error('[SGSST ReporteActos] Inbox mark-processed error:', error);
+        res.status(500).json({ error: 'Error al marcar reporte como procesado' });
+    }
+});
+
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const { formData, trabajadoresList, responsablesList, images, modelName } = req.body;

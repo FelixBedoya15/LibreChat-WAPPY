@@ -4,7 +4,8 @@ import {
     Sparkles,
     Image as ImageIcon,
     Upload,
-    Download
+    Download,
+    X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -722,41 +723,49 @@ const PerfilSociodemografico = () => {
             {/* ═══ QR Modal ═══ */}
             {selectedQrWorker && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setSelectedQrWorker(null)}>
                     <div
                         className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-slate-800 to-indigo-900 text-white p-5 text-center">
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/10 rounded-full mb-3">
-                                <AnimatedIcon name="qrcode" size={24} />
+                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
+                            <button onClick={() => setSelectedQrWorker(null)} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
+                                <AnimatedIcon name="qrcode" size={28} className="text-white" />
                             </div>
-                            <h3 className="font-bold text-lg">{selectedQrWorker.nombre || 'Trabajador'}</h3>
-                            <p className="text-sm text-slate-300 mt-1">{selectedQrWorker.cargo || 'Sin cargo'}</p>
+                            <h3 className="font-bold text-xl">{selectedQrWorker.nombre || 'Trabajador'}</h3>
+                            <p className="text-sm text-teal-100 mt-1 opacity-90">{selectedQrWorker.cargo || 'Sin cargo'}</p>
                         </div>
 
-                        {/* QR Code */}
-                        <div className="p-8 flex flex-col items-center bg-white space-y-4">
-                            <div className="p-3 border-4 border-slate-200 rounded-2xl shadow-inner">
+                        {/* QR Code Body */}
+                        <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5">
+                            <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
+                                Escanea este código para ver el perfil público del trabajador.
+                            </p>
+                            
+                            <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                 <QRCodeSVG
                                     value={getQrValue(selectedQrWorker)}
-                                    size={192}
+                                    size={160}
                                     level="L"
                                     includeMargin={false}
                                 />
                             </div>
-                            <div className="text-center text-slate-600 space-y-1">
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Escanea para ver el perfil completo</p>
-                                <p className="text-sm font-bold text-slate-700">CC: {selectedQrWorker.identificacion || 'N/A'}</p>
+                            
+                            <div className="text-center text-gray-600 dark:text-gray-400 space-y-1">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Identificación (CC)</p>
+                                <p className="text-base font-bold text-gray-700 dark:text-gray-200">{selectedQrWorker.identificacion || 'N/A'}</p>
                             </div>
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                        <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setSelectedQrWorker(null)}
-                                className="px-6 py-2 rounded-lg font-bold text-sm bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">
+                                className="px-6 py-2 rounded-lg font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                 Cerrar
                             </button>
                         </div>
