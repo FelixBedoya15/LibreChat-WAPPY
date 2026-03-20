@@ -21,6 +21,7 @@ import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 const ObjetivosSST = () => {
     const { t } = useTranslation();
@@ -205,6 +206,14 @@ const ObjetivosSST = () => {
             rows: 2,
         },
     ];
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-objetivos'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col gap-4">

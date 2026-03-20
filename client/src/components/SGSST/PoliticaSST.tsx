@@ -22,6 +22,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 const PoliticaSST = () => {
     const { t } = useTranslation();
@@ -232,6 +233,14 @@ const PoliticaSST = () => {
             rows: 2,
         },
     ];
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-politica'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col gap-4">

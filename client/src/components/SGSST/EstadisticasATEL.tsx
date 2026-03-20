@@ -23,6 +23,7 @@ import EventLogger, { ATELContext } from './EventLogger';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 interface MonthData {
     numTrabajadores: number | '';
@@ -204,6 +205,7 @@ const EstadisticasATEL = () => {
                 throw new Error(err.error || 'Error al generar el informe');
             }
 
+            const data = await response.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
             setIsFormExpanded(false);
@@ -336,11 +338,19 @@ const EstadisticasATEL = () => {
         }
     };
 
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-estadisticas-atel'],
+        generatedReport,
+        handleSelectReport
+    });
+
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header / Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full">
                     <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <BarChart className="h-6 w-6" />
                     </div>
@@ -358,7 +368,7 @@ const EstadisticasATEL = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 w-full">
                     <DummyGenerateButton onClick={handleDummyData} />
                     {/* Botón Guardar Datos (Persistencia) */}
                     <button
@@ -426,7 +436,7 @@ const EstadisticasATEL = () => {
                     onClick={() => setIsFormExpanded(!isFormExpanded)}
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"
                 >
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 w-full">
                         {isFormExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                         <CalendarDays className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                         <span className="font-semibold text-text-primary">

@@ -27,6 +27,7 @@ import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 interface ComplianceStatus {
     itemId: string;
@@ -347,6 +348,14 @@ const MatrizLegal = () => {
     };
 
     if (isLoadingInitial) {
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-matriz-legal'],
+        generatedReport,
+        handleSelectReport
+    });
+
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
@@ -357,8 +366,8 @@ const MatrizLegal = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header / Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full">
                     <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <Scale className="h-6 w-6" />
                     </div>
@@ -509,7 +518,7 @@ const MatrizLegal = () => {
                                         onClick={() => toggleCategory(category)}
                                         className="w-full flex items-center justify-between p-4 bg-surface-tertiary/30 hover:bg-surface-tertiary transition-colors"
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex flex-wrap items-center gap-3 w-full">
                                             {isExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
                                             <div className="text-left">
                                                 <h3 className="font-semibold text-text-primary">{category}</h3>
@@ -581,7 +590,7 @@ const MatrizLegal = () => {
                     <div className="p-3 bg-surface-tertiary/50 border-b border-border-medium flex justify-between items-center shrink-0">
                         <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
                         {generatedMatrix && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 w-full">
                                 <button
                                     onClick={handleSaveReport}
                                     className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"

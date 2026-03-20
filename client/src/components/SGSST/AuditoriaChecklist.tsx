@@ -29,6 +29,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -387,6 +388,14 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         };
         return colors[category] || '';
     };
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-auditoria'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col gap-6">

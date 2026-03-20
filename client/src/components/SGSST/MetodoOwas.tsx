@@ -19,6 +19,7 @@ import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 // ─── OWAS Risk Category Table (server-side mirror for instant UI feedback) ───
 const OWAS_TABLE: Record<string, number> = {
@@ -119,6 +120,14 @@ const WorkerAutocomplete = ({
     return v && String(v).toLowerCase().includes(String(value).toLowerCase());
   });
   const exact = value && filtered.find((w: any) => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-owas'],
+        generatedReport,
+        handleSelectReport
+    });
+
   return (
     <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
       <input type="text" value={value} onChange={e => { onChange(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className={className} placeholder={placeholder} autoComplete="off" />

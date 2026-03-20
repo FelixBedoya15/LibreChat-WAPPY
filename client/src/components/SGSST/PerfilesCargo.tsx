@@ -566,10 +566,12 @@ const PerfilesCargo = () => {
                 <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="group relative flex items-center px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-xl font-bold text-sm hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group relative flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-xl font-bold text-sm hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
-                    <span>{isGenerating ? 'Generando...' : 'Generar Perfil con IA'}</span>
+                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isGenerating ? 'Generando...' : 'Generar Perfil con IA'}
+                    </span>
                 </button>
 
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />

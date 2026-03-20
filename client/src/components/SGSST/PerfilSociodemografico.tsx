@@ -18,6 +18,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import { QRCodeSVG } from 'qrcode.react';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
@@ -345,12 +346,20 @@ const PerfilSociodemografico = () => {
     };
 
     // ─── Render ──────────────────────────────────────────────────
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-perfil-sociodemografico'],
+        generatedReport,
+        handleSelectReport
+    });
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full">
                     <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <AnimatedIcon name="layout-list" size={24} />
                     </div>
@@ -437,7 +446,7 @@ const PerfilSociodemografico = () => {
                             <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Worker Header */}
                                 <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleWorker(w.id)}>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-3 w-full">
                                         <div className="text-teal-500">
                                             {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
@@ -449,7 +458,7 @@ const PerfilSociodemografico = () => {
                                             <p className="text-xs text-text-secondary mt-0.5">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2 w-full">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
@@ -676,7 +685,7 @@ const PerfilSociodemografico = () => {
                             <AnimatedIcon name="file-text" size={20} className="text-indigo-500" />
                             Vista Previa del Informe Sociodemográfico
                         </h3>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 w-full">
                             <button onClick={handleSaveReport}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
                                 <AnimatedIcon name="save" size={20} />

@@ -20,6 +20,7 @@ import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 const WorkerAutocomplete = ({
     value,
@@ -61,6 +62,14 @@ const WorkerAutocomplete = ({
 
     const exactMatch = value && filteredOptions.find(w =>
         String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-ats'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>

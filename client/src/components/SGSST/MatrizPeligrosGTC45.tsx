@@ -11,6 +11,7 @@ import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 // ─── Styled Tooltip ───────────────────────────────────────────────────
 const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
@@ -556,11 +557,19 @@ const MatrizPeligrosGTC45 = () => {
     };
 
     // ─── Render ──────────────────────────────────────────────────
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-matriz-peligros'],
+        generatedReport,
+        handleSelectReport
+    });
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full">
                     <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <AnimatedIcon name="layout-list" size={24} />
                     </div>
@@ -635,7 +644,7 @@ const MatrizPeligrosGTC45 = () => {
                             <div key={p.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Proceso Header */}
                                 <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleProceso(p.id)}>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-3 w-full">
                                         <div className="text-teal-500">
                                             {expandedProcesos.has(p.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
@@ -647,7 +656,7 @@ const MatrizPeligrosGTC45 = () => {
                                             <p className="text-xs text-text-secondary mt-0.5">{p.peligros.length} peligros identificados</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2 w-full">
                                         <button onClick={(e) => { e.stopPropagation(); handleAddPeligro(p.id); }}
                                             className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-100 transition-colors">
                                             <AnimatedIcon name="plus" size={16} />
@@ -736,7 +745,7 @@ const MatrizPeligrosGTC45 = () => {
                                                 return (
                                                     <div key={h.id} className={`rounded-xl border ${hStyle.border} overflow-hidden transition-all duration-200`}>
                                                         <div className={`p-3 flex items-center justify-between cursor-pointer ${hStyle.bg}`} onClick={() => togglePeligro(h.id)}>
-                                                            <div className="flex items-center gap-3">
+                                                            <div className="flex flex-wrap items-center gap-3 w-full">
                                                                 <div className="text-text-secondary">{isHExp ? <AnimatedIcon name="chevron-down" size={16} /> : <AnimatedIcon name="chevron-right" size={16} />}</div>
                                                                 <div>
                                                                     <span className="text-sm font-bold text-text-primary">{hIdx + 1}. {h.descripcionPeligro || 'Peligro No Identificado'}</span>
@@ -750,7 +759,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                     )}
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex flex-wrap items-center gap-2 w-full">
                                                                 <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); }} disabled={loadingIds.has(h.id)}
                                                                     className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1">
                                                                     {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <AnimatedIcon name="sparkles" size={12} />}
@@ -981,7 +990,7 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="mt-8 space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 w-full">
                             <button onClick={handleSaveReport}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
                                 <AnimatedIcon name="save" size={20} />

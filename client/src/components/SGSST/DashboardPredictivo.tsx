@@ -23,6 +23,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { cn } from '~/utils';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 interface ForecastData {
     overallRisk: number;
@@ -62,6 +63,14 @@ const RingGauge = ({
     const offset = circumference - (value / 100) * circumference;
     const riskLabel = value >= 70 ? 'CRÍTICO' : value >= 40 ? 'ALTO' : value >= 20 ? 'MODERADO' : 'BAJO';
     const riskColor = value >= 70 ? '#ef4444' : value >= 40 ? '#f97316' : value >= 20 ? '#eab308' : '#22c55e';
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-predictivo-ia'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col items-center p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 group cursor-default">
@@ -296,14 +305,14 @@ const DashboardPredictivo = () => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* ═══ Header / Toolbar ═══ */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-teal-600/10 via-surface-secondary to-purple-600/10 border border-border-medium shadow-sm">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-teal-600/10 via-surface-secondary to-purple-600/10 border border-border-medium shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full">
                     <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-md shadow-teal-500/30">
                         <Brain className="h-6 w-6 text-white" />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-text-primary">Gestor de Inteligencia Predictiva SST</h2>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 w-full">
                             <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                             <span className="text-sm text-text-secondary">Análisis cruzado de 8 módulos integrados</span>
                         </div>
@@ -440,7 +449,7 @@ const DashboardPredictivo = () => {
                     {isLoadingForecast ? (
                         <div className="space-y-4">
                             {[1, 2, 3, 4].map(i => (
-                                <div key={i} className="flex items-center gap-3">
+                                <div key={i} className="flex flex-wrap items-center gap-3 w-full">
                                     <div className="w-28 h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
                                     <div className="flex-1 h-5 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
                                 </div>
@@ -514,7 +523,7 @@ const DashboardPredictivo = () => {
                         className="border-b border-border-medium bg-gradient-to-r from-[#10b981]/10 to-transparent dark:from-[#10b981]/20 px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-[#10b981]/5 transition-colors"
                         onClick={() => setIsReportCollapsed(!isReportCollapsed)}
                     >
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-3 w-full">
                             <div className="p-2 rounded-lg bg-[#10b981]/20 text-[#10b981]">
                                 <LineChart className="h-5 w-5" />
                             </div>

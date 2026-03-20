@@ -9,6 +9,11 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 // ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
+const MONTHS = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
 async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(model.apiKey);

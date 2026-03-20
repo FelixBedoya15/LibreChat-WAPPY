@@ -41,6 +41,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 // Force rebuild verification
 console.log('DiagnosticoChecklist loaded');
@@ -435,6 +436,14 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         };
         return colors[category] || '';
     };
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-diagnostico'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col gap-6">

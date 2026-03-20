@@ -20,6 +20,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 const ReglamentoInterno = () => {
     const { t } = useTranslation();
@@ -305,6 +306,14 @@ const ReglamentoInterno = () => {
             rows: 2,
         },
     ];
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-rit'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col gap-4">

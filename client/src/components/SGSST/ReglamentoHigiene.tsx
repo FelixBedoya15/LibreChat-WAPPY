@@ -20,6 +20,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
+import { useAutoLoadReport } from './useAutoLoadReport';
 
 const ReglamentoHigiene = () => {
     const { t } = useTranslation();
@@ -201,6 +202,14 @@ const ReglamentoHigiene = () => {
             rows: 3,
         },
     ];
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-rhs'],
+        generatedReport,
+        handleSelectReport
+    });
+
 
     return (
         <div className="flex flex-col gap-4">
