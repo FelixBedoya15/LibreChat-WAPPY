@@ -212,14 +212,14 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
     }
 
     const promptText = `
-Eres un Experto Senior en Gestión del Riesgo de Desastres y Seguridad y Salud en el Trabajo (SST) colombiano.
+Eres un Experto Consultor Senior en Gestión del Riesgo de Desastres y Seguridad y Salud en el Trabajo (SST) colombiano, con un enfoque altamente técnico, estratégico e innovador.
 
-Tu objetivo es redactar un **ANÁLISIS DE VULNERABILIDAD MULTI-AMENAZA** basándote EXACTAMENTE en un listado de amenazas con sus datos y niveles pre-calculados a través del Diamante de Colores.
+Tu objetivo es redactar un **INFORME MAESTRO DE ANÁLISIS DE VULNERABILIDAD MULTI-AMENAZA** que sea EXHAUSTIVO, PROFUNDO y de ALTO IMPACTO GERENCIAL. No aceptaré un informe pobre o genérico. Debes analizar cada detalle con rigor profesional basándote en el Diamante de Colores.
 
 **CONTEXTO GENERAL:**
 - Evaluadores del Comité/SST: ${evaluadoresStr}
 
-**LISTADO DE AMENAZAS EVALUADAS:**
+**LISTADO DE AMENAZAS EVALUADAS (DATOS OFICIALES PARA TU ANÁLISIS):**
 ${resumenConsolidadoContexto}
 
 **INSTRUCCIONES DE FORMATO HTML:**
@@ -230,29 +230,31 @@ ${resumenConsolidadoContexto}
 
 **ESTRUCTURA DEL INFORME QUE DEBES GENERAR:**
 
-NO repitas el título principal ni los datos de la empresa. NO intentes dibujar el diamante visual (los gráficos de los rombos ya están incluidos por mí).
+NO repitas el título principal ni los datos de la empresa. NO intentes dibujar el diamante visual. NO INCLUVAS bloques de firma ni nombres de personas al final (ya los agrega el sistema automáticamente).
 
-1️⃣ **Introducción General**
-Un breve párrafo explicando que mediante la metodología de Diamante de Colores de acuerdo a los lineamientos colombianos, se evaluaron la(s) amenaza(s) consolidadas en este documento.
+1️⃣ **Introducción Técnica y Alcance**
+Un párrafo extenso y formal explicando la metodología de Diamante de Colores (Personas, Recursos, Sistemas, Amenaza), citando la relevancia de la preparación organizacional ante emergencias según la normativa colombiana actual.
 
-2️⃣ **Análisis Detallado por Amenaza (ITERATIVO)**
+2️⃣ **Análisis Forense Detallado por Amenaza (ITERATIVO)**
 Por cada una de las amenazas listadas arriba, crea una sección con el título de la amenaza en un \`<h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:5px;">\`.
 Debajo del título deberás crear:
-- **Resumen Analítico:** Un párrafo analizando por qué esa amenaza (ej. Inminente+Rojos) tiene el nivel de Riesgo Global obtenido para esta organización en particular.
-- **Tabla de Vulnerabilidad para la Amenaza:** Una sola tabla con 3 filas (Personas, Recursos, Sistemas). Para cada una, muestra su Puntaje/Color obtenido (que yo te proveí), e infiere QUÉ falencias (capacitación, alarmas, extintores, políticas, etc.) llevaron a sacar ese color en el contexto de esa amenaza. No inventes los puntajes, usa los que te di.
+- **Resumen Analítico Estratégico:** Al menos 2 párrafos analizando el escenario de riesgo. Por qué esa combinación de factores (ej. Amenaza Inminente + Vulnerabilidad en Recursos) representa un peligro crítico para la continuidad del negocio y la integridad de la vida. Sé muy descriptivo y profesional.
+- **Matriz de Vulnerabilidad Específica:** Una tabla con 3 filas (Personas, Recursos, Sistemas). Para cada una:
+    - Muestra el Puntaje y Color que yo te proveí.
+    - **Inferencia de Hallazgos:** Deduce técnicamente cuáles son las fallas probables (ej. falta de brigadas, equipos sin mantenimiento, ausencia de backups) que justifican este resultado en el contexto de esa amenaza específica.
 
-3️⃣ **Plan de Intervención Consolidado (Acciones de Mejora Obligatorias)**
-Una sola tabla gigante que agrupa las acciones a tomar para mitigar TODAS las amenazas en las que haya aspectos en color AMARILLO o ROJO.
-Estructura de la tabla:
-- Amenaza Relacionada
-- Aspecto Deficiente (Personas, Recursos, Sistemas)
-- Medida Preventiva / Correctiva (Muy extensa y técnica)
-- Tipo de Intervención (Administrativo, Ingeniería, Dotación)
-- Plazo Sugerido (Inmediato, Corto plazo, Mediano Plazo)
+3️⃣ **Plan Integrado de Intervención y Mejora (Matriz de Decisiones)**
+Una tabla exhaustiva que agrupa las acciones para mitigar TODAS las deficiencias detectadas (especialmente amarillos y rojos).
+Columnas de la tabla:
+- **Amenaza / Factor:** Qué estamos tratando.
+- **Amenaza Asociada:** Nombre de la amenaza.
+- **Acción Preventiva / Correctiva:** Una descripción técnica detallada y de alta calidad (no pongas "capacitar", pon "Realizar entrenamiento teórico-práctico en técnicas de escape y rescate...").
+- **Jerarquía de Control:** Administrativo, Ingeniería, o Protección.
+- **Prioridad / Plazo Sugerido:** Inmediato (Rojos), Corto Plazo (Amarillos).
 
-4️⃣ **Dictamen Global de Exposición de la Entidad**
-Cierra con una declaratoria estructurada y técnica como firma del evaluador que determina el estado de preparación de la organización.
-`;
+4️⃣ **Dictamen Final y Declaratoria de Preparación**
+Cierra con una declaratoria técnica robusta que determine el nivel de exposición de la entidad. Debe sonar como la conclusión de un auditor experto firmando un peritaje. (RECUERDA: Solo el texto, nada de firmas o nombres finales).
+\`;
 
     const parts = [{ text: promptText }];
 
@@ -291,31 +293,7 @@ Cierra con una declaratoria estructurada y técnica como firma del evaluador que
       imagesHtml += `</div></div>`;
     }
 
-    // Signatures
-    let extraSignatures = '';
-    if (evaluadoresList?.length) {
-      extraSignatures += '<div style="margin-top:50px;page-break-inside:avoid;">';
-      extraSignatures += '<h4 style="text-align:center;color:#1e293b;margin-bottom:20px;">FIRMAS – EQUIPO EVALUADOR DE VULNERABILIDAD</h4>';
-      extraSignatures += '<table style="width:100%;border-collapse:collapse;"><tr>';
-      let count = 0;
-      evaluadoresList.forEach(r => {
-        if (r.nombre) {
-          if (count > 0 && count % 3 === 0) extraSignatures += '</tr><tr>';
-          extraSignatures += `<td style="width:33.33%;padding:20px;text-align:center;vertical-align:bottom;">
-            <div class="signature-placeholder" data-signature-id="dyn_evaluator_${count}" style="border-bottom:2px solid #333;width:80%;margin:0 auto 10px auto;min-height:80px;display:flex;align-items:center;justify-content:center;background-color:#f9f9f9;cursor:pointer;border-radius:8px 8px 0 0;">
-              <span style="color:#999;font-size:12px;">Haga clic para insertar FIRMA DIGITAL</span></div>
-            <div style="font-weight:800;font-size:14px;color:#1e293b;text-transform:uppercase;">${r.nombre}</div>
-            <div style="font-size:12px;color:#64748b;font-weight:600;">${r.rol || 'Evaluador'}</div>
-            <div style="font-size:11px;color:#94a3b8;">CC: ${r.cedula || 'N/A'}</div></td>`;
-          count++;
-        }
-      });
-      const remainder = count % 3;
-      if (remainder > 0) extraSignatures += Array(3 - remainder).fill('<td style="width:33.33%;"></td>').join('');
-      extraSignatures += '</tr></table></div>';
-    }
-
-    let fullReport = headerHTML + diamantesHtml + '<div style="margin-top:20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
+    let fullReport = headerHTML + diamantesHtml + '<div style="margin-top:20px;">' + htmlBody + '</div>' + imagesHtml;
     if (loadedCompanyInfo) fullReport += buildSignatureSection(loadedCompanyInfo);
 
     res.json({ report: fullReport });
