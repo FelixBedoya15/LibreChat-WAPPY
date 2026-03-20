@@ -231,14 +231,22 @@ const handleWebhook = async (req, res) => {
                 return res.status(200).send('OK'); // don't fail Wompi
             }
 
+            let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
+            let baseDate = new Date();
+            
+            // Si el plan ya existe y no ha expirado, sumamos el tiempo restante
+            if (userPlan && userPlan.planExpiresAt && userPlan.planExpiresAt > new Date()) {
+                baseDate = new Date(userPlan.planExpiresAt);
+                console.log(`[Wompi Webhook] User has active plan till ${baseDate}. Extending from this date.`);
+            }
+
             // Calculate expiration
-            const expiryDate = new Date();
+            const expiryDate = new Date(baseDate);
             if (wompiTx.interval === 'monthly') expiryDate.setMonth(expiryDate.getMonth() + 1);
             else if (wompiTx.interval === 'quarterly') expiryDate.setMonth(expiryDate.getMonth() + 3);
             else if (wompiTx.interval === 'semiannual') expiryDate.setMonth(expiryDate.getMonth() + 6);
             else if (wompiTx.interval === 'annual') expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
-            let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
             if (!userPlan) {
                 userPlan = new UserPlan({ userId: wompiTx.userId });
             }
@@ -311,13 +319,21 @@ const verifyTransaction = async (req, res) => {
 
             const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
             if (planDoc) {
-                const expiryDate = new Date();
+                let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
+                let baseDate = new Date();
+                
+                // Si el plan ya existe y no ha expirado, sumamos el tiempo restante
+                if (userPlan && userPlan.planExpiresAt && userPlan.planExpiresAt > new Date()) {
+                    baseDate = new Date(userPlan.planExpiresAt);
+                    console.log(`[Wompi Verify] User has active plan till ${baseDate}. Extending.`);
+                }
+
+                const expiryDate = new Date(baseDate);
                 if (wompiTx.interval === 'monthly') expiryDate.setMonth(expiryDate.getMonth() + 1);
                 else if (wompiTx.interval === 'quarterly') expiryDate.setMonth(expiryDate.getMonth() + 3);
                 else if (wompiTx.interval === 'semiannual') expiryDate.setMonth(expiryDate.getMonth() + 6);
                 else if (wompiTx.interval === 'annual') expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
-                let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
                 if (!userPlan) {
                     userPlan = new UserPlan({ userId: wompiTx.userId });
                 }

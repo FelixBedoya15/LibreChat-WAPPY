@@ -990,11 +990,9 @@ export default function PlansPage() {
                                         {/* CTA */}
                                         <div className="mt-auto pt-2">
                                             <button
-                                                onClick={() => !isActive && !isFree && handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
-                                                disabled={isActive || isFree || isLoadingThis || loading}
-                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isActive
-                                                    ? `cursor-default border ${plan.borderColor} ${plan.accentColor} bg-transparent`
-                                                    : isFree
+                                                onClick={() => !isFree && handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
+                                                disabled={isFree || isLoadingThis || loading}
+                                                className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${isFree
                                                         ? 'cursor-default border border-border-medium/40 bg-transparent text-text-tertiary'
                                                         : `bg-gradient-to-r ${plan.key === 'go'
                                                             ? 'from-blue-500 to-blue-600'
@@ -1010,7 +1008,7 @@ export default function PlansPage() {
                                                     </>
                                                 ) : isActive ? (
                                                     <>
-                                                        <Check className="h-4 w-4" /> Plan actual
+                                                        <Check className="h-4 w-4" /> Renovar o Ampliar Plan
                                                     </>
                                                 ) : isFree ? (
                                                     'Plan gratuito'
