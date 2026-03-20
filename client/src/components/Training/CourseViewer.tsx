@@ -261,19 +261,7 @@ export default function CourseViewer() {
                                                             className="w-full h-full absolute inset-0"
                                                         ></iframe>
 
-                                                        {/* Protect from navigation - Transparent Overlays */}
-                                                        {/* 1. Main Shield (Top 82%) - Blocks right-click on the video image area */}
-                                                        <div className="absolute top-0 left-0 w-full h-[82%] z-10 bg-transparent pointer-events-auto" />
 
-                                                        {/* 2. Header Protect (Title/Share) - Extra layer for the top bar */}
-                                                        <div className="absolute top-0 left-0 w-full h-16 z-20 bg-transparent" />
-
-                                                        {/* 3. YouTube Logo Protect (Bottom Right) - Covers the logo but leaves space for right-side controls */}
-                                                        <div className="absolute bottom-0 right-12 w-32 h-14 z-20 bg-transparent" />
-
-                                                        {/* 4. Left/Right Edge Protection */}
-                                                        <div className="absolute top-0 left-0 w-8 h-full z-20 bg-transparent" />
-                                                        <div className="absolute top-0 right-0 w-8 h-full z-20 bg-transparent" />
                                                     </div>
                                                 );
                                             }
