@@ -69,13 +69,6 @@ const WorkerAutocomplete = ({
     const exactMatch = value && filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
 
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-reporte-actos'],
-        generatedReport: generatedReport,
-        handleSelectReport
-    });
-
     return (
         <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
             <input
@@ -495,6 +488,13 @@ const ReporteActosCondiciones = () => {
         }
         setIsHistoryOpen(false);
     }, [token, showToast]);
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-reporte-actos'],
+        generatedReport: generatedReport,
+        handleSelectReport
+    });
 
     return (
         <div className="flex flex-col gap-4">

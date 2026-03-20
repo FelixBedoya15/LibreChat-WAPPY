@@ -70,14 +70,6 @@ const WorkerAutocomplete = ({
 
     const exactMatch = value && filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
-
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-investigacion-atel'],
-        generatedReport: generatedObjectives,
-        handleSelectReport
-    });
-
     return (
         <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
             <input
@@ -467,6 +459,13 @@ const InvestigacionATEL = () => {
     // ───────────────────────────────────────────────────────────────────────────
     // RENDER
     // ───────────────────────────────────────────────────────────────────────────
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-investigacion-atel'],
+        generatedReport: generatedObjectives,
+        handleSelectReport
+    });
+
     return (
         <div className="flex flex-col gap-4">
             {/* ── Top Action Bar ── */}

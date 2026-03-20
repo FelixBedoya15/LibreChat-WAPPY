@@ -347,6 +347,13 @@ const MatrizLegal = () => {
         }
     };
 
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-matriz-legal'],
+        generatedReport: generatedMatrix,
+        handleSelectReport
+    });
+
     if (isLoadingInitial) {
 
         return (
@@ -355,13 +362,6 @@ const MatrizLegal = () => {
             </div>
         );
     }
-
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-matriz-legal'],
-        generatedReport: generatedMatrix,
-        handleSelectReport
-    });
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

@@ -64,13 +64,6 @@ const WorkerAutocomplete = ({
         String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
 
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-ats'],
-        generatedReport: generatedReport,
-        handleSelectReport
-    });
-
     return (
         <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
             <input
@@ -356,6 +349,13 @@ const AnalisisTrabajoSeguro = () => {
         }
         setIsHistoryOpen(false);
     }, [token, showToast]);
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-ats'],
+        generatedReport: generatedReport,
+        handleSelectReport
+    });
 
     return (
         <div className="flex flex-col gap-4">
