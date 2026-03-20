@@ -251,7 +251,7 @@ Estructura de la tabla:
 - Plazo Sugerido (Inmediato, Corto plazo, Mediano Plazo)
 
 4️⃣ **Dictamen Global de Exposición de la Entidad**
-Cierra con una declaratoria estructurada y técnica como firma del evaluador que determina el estado de preparación de la organización.
+Cierra con una declaratoria estructurada y técnica. **IMPORTANTE: NO incluyas nombres de personas, cargos ni espacios para firmas al final de tu respuesta**, ya que el sistema los agregará automáticamente en el área de FIRMAS después de tu texto.
 `;
 
     const parts = [{ text: promptText }];
