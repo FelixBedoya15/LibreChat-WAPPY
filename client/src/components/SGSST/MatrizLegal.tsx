@@ -343,7 +343,7 @@ const MatrizLegal = () => {
             setConversationId(convId);
             setReportMessageId(msgId);
             setIsHistoryOpen(false);
-            showToast({ message: t('com_ui_report_loaded', 'Documento de historial cargado') as string, status: 'info' });
+            showToast({ message: t('com_ui_report_loaded', 'Documento de historial cargado'), status: 'info' });
         }
     };
 

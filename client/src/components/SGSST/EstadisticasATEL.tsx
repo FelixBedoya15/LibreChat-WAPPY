@@ -563,7 +563,7 @@ const EstadisticasATEL = () => {
                     <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
                         <h3 className="font-semibold text-text-primary flex items-center gap-2">
                             <BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                            Informe {generatedReport.includes('Acumulado Anual') || generatedReport.includes('INFORME GERENCIAL (ANUAL)') ? 'Anual' : 'Mensual'} ({MONTHS[currentMonthIndex]})
+                            Informe Generado ({MONTHS[currentMonthIndex]})
                         </h3>
                         <span className="text-xs text-text-secondary">Edita directamente antes de guardar</span>
                     </div>

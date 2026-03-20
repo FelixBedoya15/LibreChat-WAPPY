@@ -92,10 +92,10 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         monthsIndices.forEach(idx => {
             // Include this month if:
-            // - Scope is ANNUAL (include all valid months of the year)
+            // - Scope is ANNUAL (include all valid months so far)
             // - Scope is MONTH (only include target month)
             if (scope === 'MONTH' && idx !== targetRealIndex) return;
-            // For ANNUAL, we now include ALL months that have data in the year object
+            if (scope === 'ANNUAL' && idx > targetRealIndex) return; // Optional: stop at current month
 
             const mData = safeAnnualData[idx];
             if (!mData) return;
@@ -230,13 +230,14 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         });
 
         // ─── 4. Build Prompt ───────────────────────────────────────────
-        const periodLabel = scope === 'ANNUAL' ? `Acumulado Anual Año ${year}` : `Mes: ${monthName} ${year}`;
+        const periodLabel = scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`;
         
         let monthlyAnalysisHtml = '';
         if (scope === 'ANNUAL') {
             monthlyAnalysisHtml += `\n**ANÁLISIS MENSUAL DETALLADO MÚLTIPLE (REQUISITO CRÍTICO):**\n`;
-            monthlyAnalysisHtml += `Como es un informe ANUAL consolidado, DEBES analizar TODOS y cada uno de los meses uno por uno que tengan información relevante antes de arrojar los indicadores totales. Estos son los datos de los meses del año ${year}:\n`;
+            monthlyAnalysisHtml += `Como es un informe ANUAL acumulado, DEBES analizar TODOS y cada uno de los meses uno por uno y hacer un respectivo análisis antes de arrojar los indicadores totales. Estos son los datos mes a mes:\n`;
             monthsIndices.forEach(idx => {
+                if (idx > targetRealIndex) return;
                 const mData = safeAnnualData[idx];
                 if (!mData) return;
                 const w = Number(mData.numTrabajadores);

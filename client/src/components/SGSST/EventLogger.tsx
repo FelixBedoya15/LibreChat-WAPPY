@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, AlertTriangle, Activity, Calendar, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Activity, Calendar } from 'lucide-react';
 
 export interface ATELContext {
     id: string;
@@ -93,14 +93,14 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 <select
                                     value={newEvent.tipo}
                                     onChange={e => setNewEvent({ ...newEvent, tipo: e.target.value as any })}
-                                    className="w-full text-xs p-1.5 pr-8 rounded border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none appearance-none"
+                                    className="w-full text-xs p-1.5 pr-6 rounded border border-border-medium bg-surface-primary text-text-primary focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none appearance-none"
                                 >
                                     <option value="AT">Accidente de Trabajo</option>
                                     <option value="EL">Enfermedad Laboral</option>
                                     <option value="Ausentismo">Ausentismo Médico</option>
                                 </select>
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
-                                    <ChevronDown className="h-3 w-3" />
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-text-secondary">
+                                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                             </div>
                         </div>
