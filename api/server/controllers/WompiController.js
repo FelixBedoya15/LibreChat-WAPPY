@@ -276,10 +276,81 @@ const handleWebhook = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/wompi/verify-transaction
+ * Frontend calls this synchronously when Wompi Checkout completes.
+ * Directly asks Wompi API for the transaction status, then provisions plan if APPROVED,
+ * ensuring no race condition with webhooks.
+ */
+const verifyTransaction = async (req, res) => {
+    try {
+        const { transactionId } = req.body;
+        if (!transactionId) return res.status(400).json({ error: 'Falta ID de transacción' });
+
+        const isSandbox = process.env.WOMPI_PUBLIC_KEY?.startsWith('pub_test_');
+        const wompiDomain = isSandbox ? 'sandbox.wompi.co' : 'production.wompi.co';
+        
+        // Fetch real transaction info from Wompi
+        const response = await fetch(`https://${wompiDomain}/v1/transactions/${transactionId}`);
+        const result = await response.json();
+        const txData = result.data;
+        if (!txData) return res.status(404).json({ error: 'Transacción no encontrada en Wompi' });
+
+        if (txData.status !== 'APPROVED') {
+            return res.json({ status: txData.status });
+        }
+
+        const wompiTx = await WompiTransaction.findOne({ reference: txData.reference });
+        if (!wompiTx) return res.json({ status: 'UNKNOWN_REFERENCE' });
+
+        // If it's already approved by webhook, great. If not, we provision right now.
+        if (wompiTx.status !== 'APPROVED') {
+            wompiTx.status = 'APPROVED';
+            wompiTx.transactionId = transactionId;
+            await wompiTx.save();
+
+            const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
+            if (planDoc) {
+                const expiryDate = new Date();
+                if (wompiTx.interval === 'monthly') expiryDate.setMonth(expiryDate.getMonth() + 1);
+                else if (wompiTx.interval === 'quarterly') expiryDate.setMonth(expiryDate.getMonth() + 3);
+                else if (wompiTx.interval === 'semiannual') expiryDate.setMonth(expiryDate.getMonth() + 6);
+                else if (wompiTx.interval === 'annual') expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+                let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
+                if (!userPlan) {
+                    userPlan = new UserPlan({ userId: wompiTx.userId });
+                }
+                userPlan.plan = wompiTx.planId;
+                userPlan.planExpiresAt = expiryDate;
+                await userPlan.save();
+
+                const User = mongoose.model('User');
+                let newRole = 'USER';
+                if (wompiTx.planId === 'go') newRole = 'USER_GO';
+                else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
+                else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
+
+                await User.updateOne(
+                    { _id: wompiTx.userId },
+                    { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
+                );
+                console.log(`[Wompi VerifyTransaction] Synchronous provisioning successful for user ${wompiTx.userId}`);
+            }
+        }
+
+        return res.json({ success: true, status: 'APPROVED' });
+    } catch (err) {
+        console.error('[Wompi VerifyTransaction] error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getPublicPlansConfig,
     validatePromoCode,
     getUserPlan,
     createTransaction,
-    handleWebhook
+    handleWebhook,
+    verifyTransaction
 };

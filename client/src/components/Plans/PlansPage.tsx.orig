@@ -447,12 +447,7 @@ export default function PlansPage() {
                 checkout.open((result: any) => {
                     const transaction = result.transaction;
                     if (transaction.status === 'APPROVED') {
-                        axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id })
-                            .then(() => {
-                                window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
-                            }).catch((err) => {
-                                window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}&fallback=1`;
-                            });
+                        window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
                     } else if (transaction.status === 'PENDING') {
                         showToast({ message: 'El pago está en validación por tu banco', status: 'info' });
                         setTimeout(() => window.location.reload(), 3000);
