@@ -64,14 +64,6 @@ const RingGauge = ({
     const riskLabel = value >= 70 ? 'CRÍTICO' : value >= 40 ? 'ALTO' : value >= 20 ? 'MODERADO' : 'BAJO';
     const riskColor = value >= 70 ? '#ef4444' : value >= 40 ? '#f97316' : value >= 20 ? '#eab308' : '#22c55e';
 
-
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-predictivo-ia'],
-        generatedReport: generatedReport,
-        handleSelectReport
-    });
-
     return (
         <div className="flex flex-col items-center p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 group cursor-default">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4`} style={{ backgroundColor: bgColor }}>
@@ -300,6 +292,13 @@ const DashboardPredictivo = () => {
         { label: 'Seguridad Física', value: forecast?.indicators?.safetyRisk || 0, color: '#f97316' },
         { label: 'Riesgo General', value: overallRisk, color: '#0d9488' },
     ];
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-predictivo-ia'],
+        generatedReport,
+        handleSelectReport
+    });
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
