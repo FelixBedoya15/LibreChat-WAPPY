@@ -441,7 +441,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     useAutoLoadReport({
         token,
         tags: ['sgsst-diagnostico'],
-        generatedReport: generatedReport,
+        generatedReport: analysisReport,
         handleSelectReport
     });
 

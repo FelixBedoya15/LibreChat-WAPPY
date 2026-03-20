@@ -393,7 +393,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     useAutoLoadReport({
         token,
         tags: ['sgsst-auditoria'],
-        generatedReport: generatedReport,
+        generatedReport: analysisReport,
         handleSelectReport
     });
 
