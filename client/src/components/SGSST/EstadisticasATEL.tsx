@@ -64,6 +64,7 @@ const EstadisticasATEL = () => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Load Data Effect
@@ -203,10 +204,10 @@ const EstadisticasATEL = () => {
                 throw new Error(err.error || 'Error al generar el informe');
             }
 
-            const data = await response.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
             setIsFormExpanded(false);
+            setEditorKey(Date.now().toString());
 
             // Reset context for new save
             setConversationId('new');
@@ -327,6 +328,7 @@ const EstadisticasATEL = () => {
             setEditorContent(content);
             setConversationId(convId);
             setReportMessageId(msgId);
+            setEditorKey(Date.now().toString());
             setIsHistoryOpen(false);
             showToast({ message: t('com_ui_report_loaded', 'Informe cargado'), status: 'info' });
         } else {
@@ -559,7 +561,7 @@ const EstadisticasATEL = () => {
                         <div style={{ minHeight: '800px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={reportMessageId || 'editor'}
+                                    key={editorKey}
                                     initialContent={generatedReport}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSaveReport}

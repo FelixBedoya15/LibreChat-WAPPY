@@ -226,92 +226,98 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         // ─── 4. Build Prompt ───────────────────────────────────────────
         const periodLabel = scope === 'ANNUAL' ? `Acumulado Año ${year} (hasta ${monthName})` : `Mes: ${monthName} ${year}`;
+        
+        let monthlyAnalysisHtml = '';
+        if (scope === 'ANNUAL') {
+            monthlyAnalysisHtml += `\n**ANÁLISIS MENSUAL DETALLADO MÚLTIPLE (REQUISITO CRÍTICO):**\n`;
+            monthlyAnalysisHtml += `Como es un informe ANUAL acumulado, DEBES analizar TODOS y cada uno de los meses uno por uno y hacer un respectivo análisis antes de arrojar los indicadores totales. Estos son los datos mes a mes:\n`;
+            monthsIndices.forEach(idx => {
+                if (idx > targetRealIndex) return;
+                const mData = safeAnnualData[idx];
+                if (!mData) return;
+                const w = Number(mData.numTrabajadores);
+                const mEvents = mData.events || [];
+                if (w > 0 || mEvents.length > 0) {
+                    monthlyAnalysisHtml += `- **Mes de ${MONTHS[idx]}:** ${w} trabajadores. ${mEvents.length} eventos (AT: ${mEvents.filter(e=>e.tipo==='AT').length}, EL: ${mEvents.filter(e=>e.tipo==='EL').length}, Ausentismo General y Médico: ${mEvents.filter(e=>e.tipo==='Ausentismo').length}).`;
+                    if (mEvents.length > 0) {
+                        monthlyAnalysisHtml += ` Detalle de eventos del mes: ${mEvents.map(e => `[${e.tipo} | Causa: ${e.causaInmediata} | Días Incap: ${e.diasIncapacidad}]`).join(', ')}`;
+                    } else {
+                        monthlyAnalysisHtml += ` Sin reportes de eventualidades médicas o de siniestralidad.`;
+                    }
+                    monthlyAnalysisHtml += `\n`;
+                }
+            });
+            monthlyAnalysisHtml += `Crea una sección OBLIGATORIA llamada "Evolución Mensual" donde relates y analices el comportamiento mes tras mes exhaustivamente.\n`;
+        }
 
         const promptText = `
-Eres un Experto Consultor en Seguridad y Salud en el Trabajo (SGSST) y Análisis de Datos certificado.
-Actúas como Auditor Líder generando un **INFORME GERENCIAL DE ACCIDENTALIDAD (${scope === 'ANNUAL' ? 'ANUAL/ACUMULADO' : 'MENSUAL'})** oficial.
+Eres un Experto Consultor en Seguridad y Salud en el Trabajo (SGSST) y Análisis de Datos certificado, altamente innovador y profundo.
+Actúas como Auditor Líder y Gerente Estratégico generando un **INFORME GERENCIAL Y PREDICTIVO DE EVENTOS DE SALUD (ATEL Y AUSENTISMO MÉDICO/GENERAL)** oficial.
 
-**OBJETIVO:** Generar un documento HTML profesional, altamente estilizado y visual para la Gerencia.
+**OBJETIVO:** Generar un documento HTML INMENSO, exhaustivo, profesional, altamente estilizado y disruptivo para la Alta Gerencia de la empresa. No quiero un informe pobre; extiende tu capacidad analítica al máximo. 
 
 **CONTEXTO DEL INFORME:**
 - **Periodo Analizado:** ${periodLabel}
 - **Empresa:** ${companyName} (NIT: ${companyNit})
-- **Responsable:** ${userName || 'Consultor SST'}
-- **Fecha de Emisión:** ${new Date().toLocaleDateString('es-CO')}
+- **Autor/Responsable:** ${userName || 'Consultor Estratégico SST'}
 
 ${companyContext}
 
 **DATOS CONSOLIDADOS:**
-- Promedio Trabajadores: ${avgWorkers.toFixed(1)}
-- Total Accidentes (AT): ${aggregated.numAT}
-- Total Días Incapacidad AT: ${aggregated.diasIncapacidadAT}
-- Casos Nuevos Enfermedad (EL): ${aggregated.casosNuevosEL}
-- Días Ausentismo Médico: ${aggregated.diasAusencia}
+- Muestra Promedio de Trabajadores Activos: ${avgWorkers.toFixed(1)}
+- Total Accidentes de Trabajo (AT): ${aggregated.numAT}
+- Total Casos Nuevos Enfermedad Laboral (EL): ${aggregated.casosNuevosEL}
+- Total Eventos de Ausentismo Médico y Enfermedad General: ${aggregated.allEvents.filter(e => e.tipo === 'Ausentismo').length}
+- Días Perdidos Acumulados AT: ${aggregated.diasIncapacidadAT}
+- Días Ausencia Médica General: ${aggregated.diasAusencia}
 
-**INDICADORES CALCULADOS (Res. 0312 Art. 30) - VALORES OFICIALES:**
+${monthlyAnalysisHtml}
+
+**INDICADORES CALCULADOS (Res. 0312 Art. 30) - VALORES ESTADÍSTICOS OFICIALES:**
 ${indicators.map(i => `- ${i.nombre}: **${i.valor}**
-  * Definición: ${i.definicion}
+  * Definición Oficial: ${i.definicion}
   * Formula: ${i.formula}
-  * Interpretación Proyectada: ${i.interpretacion}`).join('\n')}
+  * Interpretación Matemática Proyectada: ${i.interpretacion}`).join('\n')}
 
-**DETALLE DE EVENTOS (INSUMO PARA ANÁLISIS CUALITATIVO PROFUNDO):**
-${eventsSummary || 'No se registraron eventos en este periodo. El análisis debe resaltar esto como un aspecto positivo de la gestión preventiva.'}
+**COMPORTAMIENTO DETALLADO DE TODOS LOS EVENTOS (SUMAMENTE IMPORTANTE ANALIZARLOS TODOS: AT, EL Y AUSENTISMO GENERAL):**
+${eventsSummary || 'No se registraron eventos. ¡Magnífico! Esto debe ser un gran punto de felicitación en la cultura de seguridad, pero sin exceder la confianza.'}
 
-**INSTRUCCIONES DE DISEÑO Y CONTENIDO (OBLIGATORIO):**
+**INSTRUCCIONES DE DISEÑO HTML Y ORGANIZACIÓN DEL CONTENIDO (DEBES CUMPLIR TODAS):**
 
-Genera SOLAMENTE el código HTML del cuerpo del informe (dentro de un <div> contenedor). NO uses Markdown.
-Usa los siguientes estilos CSS en línea (inline styles) para garantizar un diseño "Premium" que respete la tipografía del sistema (font-family: inherit):
+Genera SOLAMENTE el código HTML (dentro de un <div> contenedor) para ser insertado. NADA MÁS. NO Markdown, SOLO HTML PURO con CSS In-line estilizado de forma PREMIUM.
+Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé impecable en el diseño de las tablas, añade alertas con bordes de colores (rojos, amarillos, verdes según el nivel del indicador o el resultado cualitativo). 
+- NO uses tablas "striped" / colores de fila alternos porque arruinan el modo oscuro.
+- Para cada contenedor con \`background-color\` clara, fuerza \`color: #000;\`. Si usas \`background-color\` oscura, usa \`color: #fff;\`.
+- Crea "Cards" visuales para los resultados más impactantes (ej: un cuadro resumen con letras enormes).
+- Estilo: Premium, consultoría de alto nivel, innovador (usa grid o flexbox en línea para posicionar elementos si puedes, barras horizontales de progreso simuladas con divs).
 
-**ESTILOS CSS - PRECAUCIÓN MODO OSCURO:**
-- **Regla Crítica:** NO uses tablas "striped" (filas con colores alternos) porque rompen la lectura en modo oscuro del sistema.
-- CADA VEZ que uses \`background-color\`, DEBES especificar \`color: #000;\` (si es fondo claro) o \`color: #fff;\` (si es fondo oscuro).
-- **Encabezados:** Color #0f766e (Azul Institucional) con \`color: #0f766e;\`. Fuente heredada (inherit).
-- **Tablas:** width="100%", table-layout="fixed", word-wrap="break-word", border-collapse="separate", border-spacing="0", border-radius="12px", overflow="hidden", border="1px solid #ddd", font-family: inherit.
-- **Th (Cabeceras):** background-color="#0f766e", color="white", padding="12px", text-transform="uppercase", font-size="12px".
-- **Td (Celdas):** padding="10px", border-bottom="1px solid #e0e0e0" (SIN background-color para que hereden el modo oscuro).
-- **KPI Cards (Indicadores):** background-color="#f8f9fa", color="#000", border-left="5px solid #0f766e", padding="15px", margin="10px", border-radius="4px", flex-based layout.
-- **Alertas:** background-color="#e3f2fd" (azul claro) con color="#000" para informativos, "#ffebee" (rojo claro) con color="#000" para alertas de accidentalidad alta.
+**CONTENIDO EXIGIDO (ALTO NIVEL DE PROFUNDIDAD Y EXTENSIÓN):**
 
-**SECCIONES DEL INFORME:**
-
-1.  **ENCABEZADO OFICIAL:**
-    - DEBES usar EXACTAMENTE el siguiente código HTML para el encabezado (INCLÚYELO TAL CUAL al inicio del informe):
+1.  **ENCABEZADO OFICIAL (INSERTA ESTO TAL CUAL Y NO LO MODIFIQUES):**
     ${headerHTML}
 
-2.  **RESUMEN EJECUTIVO GERENCIAL:**
-    - Un recuadro destacado con un análisis narrativo profundo.
-    - No te limites a repetir números. Explica QUÉ SIGNIFICAN para la empresa en términos de productividad y cumplimiento legal.
-    - Si no hubo accidentes, felicita la gestión pero recomienda no bajar la guardia.
+2.  **RESUMEN EJECUTIVO Y ANÁLISIS DEL IMPACTO ORGANIZACIONAL:**
+    - Diagnóstico profundo, extenso y crítico. Habla de finanzas, reputación corporativa, costos ocultos y prima ARL. Analiza holísticamente.
 
-3.  **TABLERO DE CONTROL Y AUDITORÍA FORENSE DE INDICADORES:**
-    - Presenta los 6 indicadores en una cuadrícula de **TARJETAS VISUALES** muy bien diseñadas.
-    - Cada tarjeta debe mostrar: Nombre del Indicador, EL VALOR EN MAXIMO DESTAQUE VISUAL (ej: 2.50).
-    - **AUDITORÍA FORENSE CUALITATIVA (OBLIGATORIO):** Debajo de cada indicador, redacta de forma muy profesional y **altamente pedagógica**:
-      * **Significado Matemático / Científico:** Explica con claridad qué significa exactamente ese valor y cómo funcionó la fórmula. (Ej. "Este 2.5 indica que por cada 100 trabajadores a tiempo completo, 2.5 se accidentaron en este periodo...").
-      * **Impacto Práctico / Gerencial:** Qué repercusiones tiene este número para la productividad, los costos operativos, la prima de la ARL y el bienestar del equipo.
-      * **Diagnóstico Final:** Concluye de manera contundente si este indicador representa un estado Crítico, de Alerta, Normal o de Excelencia. Justifica el porqué.
-    - El propósito es que CUALQUIER persona de gerencia entienda la magnitud y severidad real de los números, dejando de ser un simple reporte vacío.
+3.  **ANÁLISIS EVOLUTIVO POR MES (CUMPLIMIENTO ESTRICTO):**
+    - Despliega el análisis mes a mes de los eventos de forma explícita tal y como aparece en los "DATOS CONSOLIDADOS". Compara cada mes, descubre patrones, "por qué noviembre fue peor que septiembre?", etc. Evalúa tanto Accidentes como Ausentismo Médico general.
 
-4.  **ANÁLISIS DE SINIESTRALIDAD (CUALITATIVO):**
-    - Si hay eventos:
-      - Crea una tabla detallada de los eventos.
-      - **GRÁFICA DE BARRAS HTML:** Simula una gráfica de barras horizontal usando \`<div>\` con porcentajes de ancho (width: X%) para mostrar las "Causas Inmediatas" más frecuentes.
-      - Analiza los Peligros.
-    - Si NO hay eventos:
-      - Muestra un mensaje de "CERO ACCIDENTES" en verde, estilo certificado de logro.
+4.  **TABLERO FORENSE DE TODOS LOS INDICADORES (CON IMPACTO DE AUSENTISMO):**
+    - Genera las visuales tipo "tarjeta o ficha" para cada indicador (Frecuencia, Severidad, Incidencia EL, Prevalencia, Ausentismo Médico, Mortalidad).
+    - Explicación de cada número para Dummies y para Gerentes: Qué, Por qué, e Impacto.
 
-5.  **ANÁLISIS DE AUSENTISMO:**
-    - Evalúa el impacto del ausentismo médico.
+5.  **DASHBOARD DE TENDENCIAS PREDICTIVAS (NUEVO & INNOVADOR):**
+    - ¡INNOVA! Genera una tabla de "Riesgos Residuales y Predicción". A base de los datos aportados, predice qué podría salir mal en los próximos meses basándote en la Causa Inmediata y Peligros.
+    - Genera un diagnóstico de "Cultura de Seguridad". ¿Estamos ante una cultura reactiva o proactiva?
 
-6.  **PLAN DE ACCIÓN Y RECOMENDACIONES:**
-    - Tabla con recomendaciones específicas (Técnicas, Administrativas, Humanas).
-    - Prioriza según los hallazgos.
+6.  **RADIOGRAFÍA DE EVENTOS POR ORIGEN (AT, EL Y ENFERMEDAD GENERAL):**
+    - Tabla comparativa que discrimina Accidente, Enfermedad Laboral y Enfermedad General.
+    - Simula gráficas estadísticas de porcentaje mediante de \`div\`s con \`width: XX%\` coloreadas de rojo, índigo y verde para AT, EL y Ausentismo. 
 
-7.  **FIRMA:**
-    - El sistema añadirá la sección de firmas automáticamente en el backend.
-    - **CUMPLE ESTA REGLA ESTRICTA:** ESTÁ TOTALMENTE PROHIBIDO INCLUIR LÍNEAS DE FIRMA, BLOQUES DE FIRMA, TEXTOS COMO "FIRMADO POR" O "REPRESENTANTE LEGAL" EN TU GENERACIÓN. DEBES OMITIR CUALQUIER SECCIÓN REFERENTE A APROBACIONES O FIRMAS. SI INCLUYES FIRMAS, ARRUINARÁS EL DOCUMENTO FINAL.
+7.  **PLAN DE CHOQUE E INVERSIÓN (ACCIONES Y CONCLUSIONES EXTENSAS):**
+    - Diseña una "Matriz de Decisiones Gerenciales" donde recomiendes al menos 6 acciones disruptivas en el área Técnica, Conductual y Administrativa, evaluando Costo de Implementación vs Impacto esperado. ¡Extiéndete con el plan de acción! Hazlo valioso.
 
-**IMPORTANTE:** El resultado debe ser un HTML limpio, listo para renderizar, visualmente impactante, profesional, y con explicaciones extremadamente detalladas como te lo solicita la gerencia.
+**REGLA DE FIRMAS (ALERTA DE SEGURIDAD CRÍTICA):** ESTÁ ESTRICTA Y ABSOLUTAMENTE PROHIBIDO que tú escribas campos de firmas, etiquetas de "Firma del Representante Legal", "Atentamente", líneas "__" para firmar, ni nada similar. ¡Omite las firmas!
 `;
 
         // ─── 5. Generation ─────────────────────────────────────────────
