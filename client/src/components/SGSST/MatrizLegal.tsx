@@ -349,19 +349,19 @@ const MatrizLegal = () => {
 
     if (isLoadingInitial) {
 
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-matriz-legal'],
-        generatedReport,
-        handleSelectReport
-    });
-
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
             </div>
         );
     }
+
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-matriz-legal'],
+        generatedReport: generatedMatrix,
+        handleSelectReport
+    });
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

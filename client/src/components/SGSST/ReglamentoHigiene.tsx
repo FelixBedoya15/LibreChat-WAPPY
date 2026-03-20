@@ -203,13 +203,13 @@ const ReglamentoHigiene = () => {
         },
     ];
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-rhs'],
-        generatedReport,
+        generatedReport: generatedDocument,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-4">

@@ -265,13 +265,13 @@ const ResponsableSGSST = () => {
         },
     ];
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-responsable'],
-        generatedReport,
+        generatedReport: generatedDoc,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-4">

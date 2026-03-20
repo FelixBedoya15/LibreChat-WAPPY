@@ -64,13 +64,13 @@ const RingGauge = ({
     const riskLabel = value >= 70 ? 'CRÍTICO' : value >= 40 ? 'ALTO' : value >= 20 ? 'MODERADO' : 'BAJO';
     const riskColor = value >= 70 ? '#ef4444' : value >= 40 ? '#f97316' : value >= 20 ? '#eab308' : '#22c55e';
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-predictivo-ia'],
-        generatedReport,
+        generatedReport: generatedReport,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col items-center p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 group cursor-default">

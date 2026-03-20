@@ -234,13 +234,13 @@ const PoliticaSST = () => {
         },
     ];
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-politica'],
-        generatedReport,
+        generatedReport: generatedPolicy,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-4">

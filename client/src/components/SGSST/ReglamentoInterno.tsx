@@ -307,13 +307,13 @@ const ReglamentoInterno = () => {
         },
     ];
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-rit'],
-        generatedReport,
+        generatedReport: generatedDocument,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-4">

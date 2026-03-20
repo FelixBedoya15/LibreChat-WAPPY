@@ -437,13 +437,13 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         return colors[category] || '';
     };
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-diagnostico'],
-        generatedReport,
+        generatedReport: generatedReport,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-6">

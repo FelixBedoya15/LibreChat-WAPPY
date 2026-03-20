@@ -207,13 +207,13 @@ const ObjetivosSST = () => {
         },
     ];
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-objetivos'],
-        generatedReport,
+        generatedReport: generatedObjectives,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-4">

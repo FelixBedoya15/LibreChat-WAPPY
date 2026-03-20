@@ -389,13 +389,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         return colors[category] || '';
     };
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-auditoria'],
-        generatedReport,
+        generatedReport: generatedReport,
         handleSelectReport
     });
-
 
     return (
         <div className="flex flex-col gap-6">

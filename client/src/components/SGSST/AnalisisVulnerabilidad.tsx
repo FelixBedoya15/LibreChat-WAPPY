@@ -133,13 +133,6 @@ const WorkerAutocomplete = ({ value, onChange, onSelect, data, searchKey, placeh
   });
   const exact = value && filtered.find((w: any) => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-vulnerabilidad'],
-        generatedReport,
-        handleSelectReport
-    });
-
   return (
     <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
       <input type="text" value={value} onChange={e => { onChange(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className={className} placeholder={placeholder} autoComplete="off" />
@@ -374,6 +367,13 @@ const AnalisisVulnerabilidad = () => {
     } catch { showToast({ message: 'Error al cargar', status: 'error' }); }
     setIsHistoryOpen(false);
   }, [token, showToast]);
+
+  useAutoLoadReport({
+      token,
+      tags: ['sgsst-vulnerabilidad'],
+      generatedReport,
+      handleSelectReport
+  });
 
   return (
     <div className="flex flex-col gap-4">

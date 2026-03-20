@@ -121,13 +121,6 @@ const WorkerAutocomplete = ({
   });
   const exact = value && filtered.find((w: any) => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-owas'],
-        generatedReport,
-        handleSelectReport
-    });
-
   return (
     <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
       <input type="text" value={value} onChange={e => { onChange(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className={className} placeholder={placeholder} autoComplete="off" />
@@ -374,6 +367,13 @@ const MetodoOwas = () => {
 
   const catCfg = CAT_CONFIG[stats.dominant] || CAT_CONFIG[1];
   const currentCatCfg = CAT_CONFIG[currentCategory];
+
+  useAutoLoadReport({
+      token,
+      tags: ['sgsst-owas'],
+      generatedReport,
+      handleSelectReport
+  });
 
   return (
     <div className="flex flex-col gap-4">

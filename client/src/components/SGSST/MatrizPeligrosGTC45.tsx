@@ -561,7 +561,7 @@ const MatrizPeligrosGTC45 = () => {
     useAutoLoadReport({
         token,
         tags: ['sgsst-matriz-peligros'],
-        generatedReport,
+        generatedReport: generatedReport,
         handleSelectReport
     });
 

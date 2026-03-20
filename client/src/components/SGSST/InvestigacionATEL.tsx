@@ -70,13 +70,13 @@ const WorkerAutocomplete = ({
 
     const exactMatch = value && filteredOptions.find(w => String(w[searchKey]).toLowerCase() === String(value).toLowerCase());
 
+
     useAutoLoadReport({
         token,
         tags: ['sgsst-investigacion-atel'],
-        generatedReport,
+        generatedReport: generatedObjectives,
         handleSelectReport
     });
-
 
     return (
         <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>

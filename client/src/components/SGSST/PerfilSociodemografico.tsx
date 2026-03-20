@@ -350,7 +350,7 @@ const PerfilSociodemografico = () => {
     useAutoLoadReport({
         token,
         tags: ['sgsst-perfil-sociodemografico'],
-        generatedReport,
+        generatedReport: generatedReport,
         handleSelectReport
     });
 
