@@ -532,8 +532,10 @@ Nivel de Riesgo: ${ci.riskLevel || 'N/A'}
 
 ${integratedSSTContext}
 
-Genera exactamente 7 procesos principales que sean lógicos para este tipo de empresa.
-Para CADA proceso, identifica de 5 a 8 peligros críticos (GTC 45) aplicables para ese proceso. Sé exhaustivo e incluye los peligros más relevantes (biomecánicos, físicos, psicosociales, biológicos, de seguridad, etc.).
+Genera exactamente 5 a 7 procesos principales que sean lógicos para este tipo de empresa.
+¡ESTRICTAMENTE PROHIBIDO GENERAR UN PROCESO CON 1 O 2 PELIGROS!
+Para CADA proceso, *DEBES INCLUIR MÍNIMO entre 5 y 8 peligros diferentes*. Es obligatorio listar TODAS las dimensiones aplicables (biomecánico por cargas/postura, físico por ruido/iluminación, seguridad por caídas/maquinaria, psicosocial, biológico, etc.). Si es Logística, debes incluir todos estos.
+No acortes la lista para ahorrar texto. Escribe el JSON completo con TODOS los peligros para cada proceso.
 Para CADA peligro, realiza la valoración de riesgo GTC 45 completa:
 - Proporciona ND, NE. NC será calculado por la IA basándose en posibles efectos. NR = (ND x NE) x NC.
 - Proporciona la aceptabilidad, controles sugeridos, y completa *todos* los campos numéricos y de texto del esquema.
