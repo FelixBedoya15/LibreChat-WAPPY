@@ -9,6 +9,70 @@ const WompiTransaction = require('~/models/WompiTransaction');
 // We use crypto to safely create checksums for integrity if required,
 // but for standard Wompi widget, reference generation is sufficient until verification.
 
+// ─── Helpers for Plan Interval ─────────────────────────────────────────────
+const getIntervalDays = (interval) => {
+    if (interval === 'quarterly') return 90;
+    if (interval === 'semiannual') return 180;
+    if (interval === 'annual') return 365;
+    return 30; // monthly default
+};
+
+/**
+ * Calculates the expiry date using the "Time Compensation" algorithm (Option 2):
+ * 
+ * - Same plan renewal → time is simply stacked (e.g. Plus + 3 months = existing expiry + 3 months)
+ * - Different plan tier (upgrade/downgrade) → old unused monetary value is converted to days
+ *   of the new plan and added on top of the new plan duration.
+ *
+ * Example: User has 20 days left of Plus Monthly ($57.800/30 = $1.927/day).
+ *   Unused value = 20 × $1.927 = $38.533
+ *   New plan: Pro Annual ($795.600/365 = $2.179/day)
+ *   Bonus days = $38.533 / $2.179 ≈ 17.7 days
+ *   Total expiry = today + 365 days + 17 days
+ */
+const calculateProratedExpiry = async (planId, interval, userPlan) => {
+    const now = new Date();
+    const newIntervalDays = getIntervalDays(interval);
+
+    // No active plan or already expired → fresh start
+    if (!userPlan || !userPlan.planExpiresAt || userPlan.planExpiresAt <= now) {
+        return new Date(now.getTime() + newIntervalDays * 24 * 60 * 60 * 1000);
+    }
+
+    // Same tier renewal → stack time 1:1 from current expiry
+    if (userPlan.plan === planId) {
+        return new Date(userPlan.planExpiresAt.getTime() + newIntervalDays * 24 * 60 * 60 * 1000);
+    }
+
+    // Different tier → prorate by monetary value
+    const [oldPlanDb, newPlanDb] = await Promise.all([
+        Plan.findOne({ planId: userPlan.plan }).lean(),
+        Plan.findOne({ planId }).lean(),
+    ]);
+
+    if (!oldPlanDb || !newPlanDb) {
+        // Fallback: just add new time from today
+        return new Date(now.getTime() + newIntervalDays * 24 * 60 * 60 * 1000);
+    }
+
+    // Old daily value uses the monthly rate for fairness (most granular price)
+    const oldDailyValue = (oldPlanDb.prices?.monthly || 0) / 30;
+
+    // New daily value uses the actual interval chosen (e.g. annual rate / 365)
+    const newTotalPrice = newPlanDb.prices?.[interval] || newPlanDb.prices?.monthly || 1;
+    const newDailyValue = newTotalPrice / newIntervalDays;
+
+    const remainingDaysOld = Math.max(0, (userPlan.planExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const remainingMonetaryValue = remainingDaysOld * oldDailyValue;
+    const compensatedExtraDays = newDailyValue > 0 ? remainingMonetaryValue / newDailyValue : 0;
+
+    const totalDaysToGrant = newIntervalDays + compensatedExtraDays;
+    console.log(`[Wompi Proration] Old plan: ${userPlan.plan}, ${remainingDaysOld.toFixed(1)} days remaining at $${oldDailyValue.toFixed(0)}/day = $${remainingMonetaryValue.toFixed(0)} unused.`);
+    console.log(`[Wompi Proration] New plan: ${planId} (${interval}) at $${newDailyValue.toFixed(0)}/day → +${compensatedExtraDays.toFixed(1)} bonus days. Total: ${totalDaysToGrant.toFixed(1)} days.`);
+
+    return new Date(now.getTime() + totalDaysToGrant * 24 * 60 * 60 * 1000);
+};
+
 /**
  * GET /api/wompi/configured-plans
  * Returns the configured plans from the database (for frontend UI)
@@ -224,7 +288,7 @@ const handleWebhook = async (req, res) => {
         await wompiTx.save();
 
         if (status === 'APPROVED') {
-            // Upgrade user plan
+            // Verify plan exists in DB
             const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
             if (!planDoc) {
                 console.error('[Wompi Webhook] Missing plan in DB for provisioning.', wompiTx.planId);
@@ -232,20 +296,10 @@ const handleWebhook = async (req, res) => {
             }
 
             let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
-            let baseDate = new Date();
-            
-            // Si el plan ya existe y no ha expirado, sumamos el tiempo restante
-            if (userPlan && userPlan.planExpiresAt && userPlan.planExpiresAt > new Date()) {
-                baseDate = new Date(userPlan.planExpiresAt);
-                console.log(`[Wompi Webhook] User has active plan till ${baseDate}. Extending from this date.`);
-            }
 
-            // Calculate expiration
-            const expiryDate = new Date(baseDate);
-            if (wompiTx.interval === 'monthly') expiryDate.setMonth(expiryDate.getMonth() + 1);
-            else if (wompiTx.interval === 'quarterly') expiryDate.setMonth(expiryDate.getMonth() + 3);
-            else if (wompiTx.interval === 'semiannual') expiryDate.setMonth(expiryDate.getMonth() + 6);
-            else if (wompiTx.interval === 'annual') expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+            // ── Option 2: Time Compensation Proration ──────────────────────
+            // Same tier → stack 1:1. Different tier → convert unused $ to days of new plan.
+            const expiryDate = await calculateProratedExpiry(wompiTx.planId, wompiTx.interval, userPlan);
 
             if (!userPlan) {
                 userPlan = new UserPlan({ userId: wompiTx.userId });
@@ -273,7 +327,7 @@ const handleWebhook = async (req, res) => {
                 }
             );
 
-            console.log(`[Wompi Webhook] Successfully provisioned plan ${wompiTx.planId}, role ${newRole} and dates for user ${wompiTx.userId} via tx ${transactionId}`);
+            console.log(`[Wompi Webhook] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), role ${newRole}, expiry ${expiryDate.toISOString()} for user ${wompiTx.userId} via tx ${transactionId}`);
         }
 
         return res.status(200).send('OK');
@@ -320,19 +374,9 @@ const verifyTransaction = async (req, res) => {
             const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
             if (planDoc) {
                 let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
-                let baseDate = new Date();
-                
-                // Si el plan ya existe y no ha expirado, sumamos el tiempo restante
-                if (userPlan && userPlan.planExpiresAt && userPlan.planExpiresAt > new Date()) {
-                    baseDate = new Date(userPlan.planExpiresAt);
-                    console.log(`[Wompi Verify] User has active plan till ${baseDate}. Extending.`);
-                }
 
-                const expiryDate = new Date(baseDate);
-                if (wompiTx.interval === 'monthly') expiryDate.setMonth(expiryDate.getMonth() + 1);
-                else if (wompiTx.interval === 'quarterly') expiryDate.setMonth(expiryDate.getMonth() + 3);
-                else if (wompiTx.interval === 'semiannual') expiryDate.setMonth(expiryDate.getMonth() + 6);
-                else if (wompiTx.interval === 'annual') expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+                // ── Option 2: Time Compensation Proration ──────────────────────
+                const expiryDate = await calculateProratedExpiry(wompiTx.planId, wompiTx.interval, userPlan);
 
                 if (!userPlan) {
                     userPlan = new UserPlan({ userId: wompiTx.userId });
@@ -351,7 +395,7 @@ const verifyTransaction = async (req, res) => {
                     { _id: wompiTx.userId },
                     { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
                 );
-                console.log(`[Wompi VerifyTransaction] Synchronous provisioning successful for user ${wompiTx.userId}`);
+                console.log(`[Wompi VerifyTransaction] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), expiry ${expiryDate.toISOString()} for user ${wompiTx.userId}`);
             }
         }
 

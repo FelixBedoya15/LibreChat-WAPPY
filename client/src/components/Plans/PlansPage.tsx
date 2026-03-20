@@ -1007,9 +1007,7 @@ export default function PlansPage() {
                                                         <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
                                                     </>
                                                 ) : isActive ? (
-                                                    <>
-                                                        <Check className="h-4 w-4" /> Renovar o Ampliar Plan
-                                                    </>
+                                                    'Renovar o Ampliar'
                                                 ) : isFree ? (
                                                     'Plan gratuito'
                                                 ) : (

@@ -1,0 +1,53 @@
+--- api/server/controllers/WompiController.js
++++ api/server/controllers/WompiController.js
+@@ -10,6 +10,48 @@
+ // We use crypto to safely create checksums for integrity if required,
+ // but for standard Wompi widget, reference generation is sufficient until verification.
+ 
++// Helper for interval days
++const getIntervalDays = (interval) => {
++    if (interval === 'quarterly') return 90;
++    if (interval === 'semiannual') return 180;
++    if (interval === 'annual') return 365;
++    return 30; // monthly default
++};
++
++// Prorrateo Logic Core
++const calculateProratedExpiry = async (wompiTx, userPlan) => {
++    const now = new Date();
++    const newPlanDb = await Plan.findOne({ planId: wompiTx.planId }).lean();
++    if (!newPlanDb) return now; // Fallback
++
++    const newIntervalDays = getIntervalDays(wompiTx.interval);
++    
++    // If they have no active plan or it's expired, just start fresh
++    if (!userPlan || !userPlan.planExpiresAt || userPlan.planExpiresAt <= now) {
++        return new Date(now.getTime() + (newIntervalDays * 24 * 60 * 60 * 1000));
++    }
++
++    // If they are extending the EXACT SAME tier (e.g. Plus to Plus), DO NOT PRORATE VALUE, just add time 1:1.
++    if (userPlan.plan === wompiTx.planId) {
++        return new Date(userPlan.planExpiresAt.getTime() + (newIntervalDays * 24 * 60 * 60 * 1000));
++    }
++
++    // Different tier -> PRORATE by value!
++    const oldPlanDb = await Plan.findOne({ planId: userPlan.plan }).lean();
++    if (!oldPlanDb) {
++        // Fallback: just add new time if we can't find old plan value
++        return new Date(now.getTime() + (newIntervalDays * 24 * 60 * 60 * 1000));
++    }
++
++    // Generous Daily Rate Estimation: Use the monthly price of their old plan for best value retention
++    const oldDailyValue = (oldPlanDb.prices?.monthly || 0) / 30;
++    const newDailyValue = (newPlanDb.prices?.[wompiTx.interval] || newPlanDb.prices?.monthly || 1000) / newIntervalDays;
++
++    const remainingDaysOld = (userPlan.planExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
++    const remainingMonetaryValue = remainingDaysOld * oldDailyValue;
++    const compensatedExtraDays = remainingMonetaryValue / newDailyValue; // Converted to days of NEW plan
++
++    const totalDaysToGrant = newIntervalDays + compensatedExtraDays;
++    return new Date(now.getTime() + (totalDaysToGrant * 24 * 60 * 60 * 1000));
++};
++
+ /**
+  * GET /api/wompi/configured-plans
