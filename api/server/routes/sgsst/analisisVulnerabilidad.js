@@ -315,7 +315,7 @@ Cierra con una declaratoria estructurada y técnica como firma del evaluador que
       extraSignatures += '</tr></table></div>';
     }
 
-    let fullReport = headerHTML + diamanteHtml + '<div style="margin-top:20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
+    let fullReport = headerHTML + diamantesHtml + '<div style="margin-top:20px;">' + htmlBody + '</div>' + imagesHtml + extraSignatures;
     if (loadedCompanyInfo) fullReport += buildSignatureSection(loadedCompanyInfo);
 
     res.json({ report: fullReport });
