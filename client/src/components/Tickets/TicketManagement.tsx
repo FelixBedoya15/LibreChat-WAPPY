@@ -225,8 +225,8 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                                 rel="noopener noreferrer"
                                                 className="group relative overflow-hidden rounded-xl border border-border-light shadow-sm w-36 h-36 bg-surface-primary/50 flex flex-col items-center justify-center hover:border-blue-500 transition-colors"
                                             >
-                                                {/* If image, preview it. We assume receiptUrls from wompi are images */}
-                                                {(url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') || url.toLowerCase().endsWith('.png') || url.toLowerCase().endsWith('.webp') || url.includes('images') || url.includes('png')) ? (
+                                                {/* If image, preview it */}
+                                                {(url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') || url.toLowerCase().endsWith('.png') || url.toLowerCase().endsWith('.webp') || url.includes('/receipt/') || url.includes('images')) ? (
                                                     <img src={url} alt={`Adjunto ${index + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                                 ) : (
                                                     <div className="flex flex-col items-center justify-center gap-2 p-4">

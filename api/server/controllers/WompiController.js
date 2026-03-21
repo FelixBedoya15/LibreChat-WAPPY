@@ -547,7 +547,19 @@ const createManualTransaction = async (req, res) => {
         const reference = `WAPPY-NQ-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
         const amountInCents = Math.round(finalPrice * 100);
 
-        const receiptUrl = req.file.path || req.file.filename || req.file.filepath;
+        // Move the file from temp to a permanent receipts folder
+        const fs = require('fs');
+        const path = require('path');
+        const uploadsDir = path.dirname(path.dirname(req.file.path)); // go up from temp/userId
+        const receiptsDir = path.join(uploadsDir, 'receipts', userId.toString());
+        if (!fs.existsSync(receiptsDir)) {
+            fs.mkdirSync(receiptsDir, { recursive: true });
+        }
+        const permanentPath = path.join(receiptsDir, req.file.filename);
+        fs.renameSync(req.file.path, permanentPath);
+
+        // Store a web-accessible API URL, not the raw filesystem path
+        const receiptUrl = `/api/wompi/receipt/${userId}/${encodeURIComponent(req.file.filename)}`;
 
         const wompiTx = await WompiTransaction.create({
             userId,
