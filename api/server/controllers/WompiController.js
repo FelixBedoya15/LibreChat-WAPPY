@@ -4,6 +4,7 @@ const UserPlan = require('~/db/models/UserPlan');
 const Plan = require('~/models/Plan');
 const PromoCode = require('~/models/PromoCode');
 const WompiTransaction = require('~/models/WompiTransaction');
+const { getAppConfig } = require('~/server/services/Config');
 // Removed User import since role is available in req.user
 
 // We use crypto to safely create checksums for integrity if required,
@@ -550,15 +551,29 @@ const createManualTransaction = async (req, res) => {
         // Move the file from temp to a permanent receipts folder
         const fs = require('fs');
         const path = require('path');
-        // Use appConfig.paths.uploads directly instead of deriving from req.file.path
-        const uploadsDir = req.config?.paths?.uploads || path.dirname(path.dirname(req.file.path));
+        const appConfig = await getAppConfig();
+        const uploadsDir = appConfig.paths.uploads;
         const receiptsDir = path.join(uploadsDir, 'receipts', userId.toString());
-        console.log('[Wompi Manual] file.path:', req.file.path, '| uploadsDir:', uploadsDir);
+        
+        console.log('[Wompi Manual] Moving file:', req.file.path, '->', receiptsDir);
+        
         if (!fs.existsSync(receiptsDir)) {
             fs.mkdirSync(receiptsDir, { recursive: true });
         }
+        
         const permanentPath = path.join(receiptsDir, req.file.filename);
-        try { fs.renameSync(req.file.path, permanentPath); } catch(e) { console.error('[Wompi Manual] Could not move file:', e.message); }
+        try { 
+            fs.renameSync(req.file.path, permanentPath); 
+        } catch(e) { 
+            console.error('[Wompi Manual] Could not move file:', e.message); 
+            // Fallback for cross-partition moves
+            try {
+                fs.copyFileSync(req.file.path, permanentPath);
+                fs.unlinkSync(req.file.path);
+            } catch(copyErr) {
+                console.error('[Wompi Manual] Cross-partition copy failed:', copyErr.message);
+            }
+        }
 
         // Store a web-accessible API URL, not the raw filesystem path
         const receiptUrl = `/api/wompi/receipt/${userId}/${encodeURIComponent(req.file.filename)}`;

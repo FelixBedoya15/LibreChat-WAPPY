@@ -37,14 +37,24 @@ router.get('/receipt/:userId/:filename', async (req, res) => {
     const appConfig = await getAppConfig();
     const uploadsDir = appConfig.paths.uploads;
     const filename = decodeURIComponent(req.params.filename);
-    // First try the permanent receipts folder, then fall back to temp
     const receiptPath = path.resolve(uploadsDir, 'receipts', req.params.userId, filename);
     const tempPath = path.resolve(uploadsDir, 'temp', req.params.userId, filename);
-    console.log('[Wompi Receipt] uploads:', uploadsDir, '| receipt:', receiptPath, '| temp:', tempPath);
-    const filePath = fs.existsSync(receiptPath) ? receiptPath : tempPath;
-    console.log('[Wompi Receipt] serving:', filePath, '| exists:', fs.existsSync(filePath));
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Archivo no encontrado' });
+    const misplacedPath = path.resolve(uploadsDir, 'temp', 'receipts', req.params.userId, filename);
+
+    console.log('[Wompi Receipt] uploads:', uploadsDir, '| searching:', filename);
+    
+    let filePath = null;
+    if (fs.existsSync(receiptPath)) {
+      filePath = receiptPath;
+    } else if (fs.existsSync(tempPath)) {
+      filePath = tempPath;
+    } else if (fs.existsSync(misplacedPath)) {
+      filePath = misplacedPath;
+    }
+
+    if (!filePath) {
+      console.warn('[Wompi Receipt] File not found anywhere:', { receiptPath, tempPath, misplacedPath });
+      return res.status(404).json({ error: 'Comprobante no encontrado en el servidor' });
     }
     // Set content-type based on extension
     const ext = path.extname(filename).toLowerCase();

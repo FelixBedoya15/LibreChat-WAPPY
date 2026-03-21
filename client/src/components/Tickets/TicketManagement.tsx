@@ -46,10 +46,14 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
             // Normalize old filesystem paths (e.g. /app/uploads/temp/userId/file.jpg)
             // into the proper API URL (/api/wompi/receipt/userId/file.jpg)
             let apiUrl = rawUrl;
-            const fsMatch = rawUrl.match(/(?:temp|receipts)\/([^\/]+)\/([^\/]+)$/);
-            if (fsMatch) {
-                const [, userId, filename] = fsMatch;
-                apiUrl = `/api/wompi/receipt/${userId}/${encodeURIComponent(filename)}`;
+            
+            // Only normalize if it doesn't already look like an API route
+            if (!rawUrl.startsWith('/api/wompi/')) {
+                const fsMatch = rawUrl.match(/(?:temp|receipts)\/([^\/]+)\/([^\/]+)$/);
+                if (fsMatch) {
+                    const [, userId, filename] = fsMatch;
+                    apiUrl = `/api/wompi/receipt/${userId}/${encodeURIComponent(filename)}`;
+                }
             }
 
             const res = await axios.get(apiUrl, {
@@ -59,6 +63,7 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
             const objectUrl = URL.createObjectURL(res.data);
             setLightboxUrl(objectUrl);
         } catch (e) {
+            console.error('[TicketAttachments] Error loading receipt:', rawUrl, e);
             showToast({ message: 'No se pudo cargar el comprobante', status: 'error' });
         } finally {
             setLightboxLoading(false);
