@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
+import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock, X, ZoomIn, Download } from 'lucide-react';
 import { ThemeSelector } from '@librechat/client';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -308,6 +308,7 @@ export default function PlansPage() {
     
     // Manual Payment State (Nequi QR)
     const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'nequi'>('wompi');
+    const [isQRModalOpen, setIsQRModalOpen] = useState(false);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [receiptUploading, setReceiptUploading] = useState(false);
 
@@ -397,6 +398,7 @@ export default function PlansPage() {
             setPromoValidated(null);
             setPromoError('');
             setPaymentMethod('wompi');
+        setIsQRModalOpen(false);
             setReceiptFile(null);
             setCheckoutPlan(subObj);
         },
@@ -782,8 +784,15 @@ export default function PlansPage() {
                                             <div className="rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-500/10 p-4 text-sm text-green-800 dark:text-green-300">
                                                 <p className="mb-2 font-bold text-base text-center">Escanea y transfiere esta cantidad exacta:</p>
                                                 <p className="text-3xl font-black text-center mb-4 tracking-tight">${finalCheckoutPrice.toLocaleString('es-CO')}</p>
-                                                <div className="flex justify-center mb-4 bg-white p-2 rounded-xl mx-auto w-fit">
+                                                <div 
+                                                    className="flex justify-center mb-4 bg-white p-2 rounded-xl mx-auto w-fit cursor-pointer hover:ring-2 hover:ring-green-400 transition-all relative group"
+                                                    onClick={() => setIsQRModalOpen(true)}
+                                                >
                                                     <img src="/assets/QRWAPPY.png" alt="QR Nequi Bancolombia" className="h-40 w-40 object-contain rounded-lg shadow-sm" />
+                                                    <div className="absolute inset-0 bg-black/60 rounded-xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <ZoomIn className="w-8 h-8 text-white mb-1" />
+                                                        <span className="text-white text-xs font-bold">Ampliar</span>
+                                                    </div>
                                                 </div>
                                                 <p className="text-xs text-center leading-relaxed">
                                                     Una vez realizada la transferencia, sube aquí tu comprobante. La activación de tu cuenta tomará <strong>hasta 24 horas hábiles</strong> luego de la revisión.
@@ -1306,6 +1315,34 @@ export default function PlansPage() {
                     </>
                 )}
             </div>
+            {/* QR Modal Popup */}
+            {isQRModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setIsQRModalOpen(false)}>
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                        <button 
+                            onClick={() => setIsQRModalOpen(false)}
+                            className="absolute -top-4 -right-4 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 shadow-lg transition-transform hover:scale-105"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <h3 className="text-xl font-black text-center text-text-primary mb-4">Código QR Nequi / Bancolombia</h3>
+                        <div className="bg-white rounded-2xl p-2 mx-auto relative cursor-pointer" onClick={() => setIsQRModalOpen(false)}>
+                            <img src="/assets/QRWAPPY.png" alt="QR Nequi Full Size" className="w-full h-auto object-contain rounded-xl" />
+                        </div>
+                        <p className="text-center text-text-secondary text-sm mt-4">
+                            Escanea este código desde tu App Bancolombia o Nequi para transferir <strong>${finalCheckoutPrice.toLocaleString('es-CO')}</strong>.
+                        </p>
+                        <a 
+                            href="/assets/QRWAPPY.png"
+                            download="QR_Nequi_Wappy.png"
+                            className="mt-6 w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-green-700 bg-green-100 hover:bg-green-200 transition-colors"
+                        >
+                            <Download className="w-4 h-4" />
+                            Descargar Código QR
+                        </a>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
