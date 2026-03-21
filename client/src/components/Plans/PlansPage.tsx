@@ -723,7 +723,6 @@ export default function PlansPage() {
                                             </div>
                                         )}
                                     </div>
-                                     </div>
                                     <div className="my-4 border-t border-border-light" />
                                     
                                     <div className="mb-4">
