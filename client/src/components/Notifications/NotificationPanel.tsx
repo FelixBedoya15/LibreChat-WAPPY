@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 import { useAuthContext } from '~/hooks';
 import { Bell, CheckCheck, Ticket, MessageSquare, X, ChevronRight } from 'lucide-react';
@@ -111,11 +112,11 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    return (
+    const panel = (
         <div
             ref={panelRef}
             className={cn(
-                'absolute bottom-16 left-2 z-[9999] w-80 bg-surface-primary border border-border-light rounded-2xl shadow-2xl overflow-hidden',
+                'fixed bottom-16 left-2 z-[99999] w-80 bg-surface-primary border border-border-light rounded-2xl shadow-2xl overflow-hidden',
                 'animate-in slide-in-from-bottom-4 fade-in duration-200'
             )}
         >
@@ -231,4 +232,6 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
             </div>
         </div>
     );
+
+    return ReactDOM.createPortal(panel, document.body);
 }

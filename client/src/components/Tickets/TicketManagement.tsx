@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import ReactDOM from 'react-dom';
 import { useAuthContext } from '~/hooks';
 import { Button, useToastContext, Input } from '@librechat/client';
 import {
@@ -17,7 +18,10 @@ import {
     Send,
     FileText,
     ChevronRight,
-    Loader2
+    Loader2,
+    X,
+    Download,
+    ZoomIn
 } from 'lucide-react';
 import { cn } from '~/utils';
 import ModelSelector from '~/components/SGSST/ModelSelector';
@@ -33,6 +37,30 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+    const [lightboxLoading, setLightboxLoading] = useState(false);
+
+    const openAttachment = useCallback(async (url: string) => {
+        setLightboxLoading(true);
+        try {
+            const res = await axios.get(url, {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            });
+            const objectUrl = URL.createObjectURL(res.data);
+            setLightboxUrl(objectUrl);
+        } catch (e) {
+            showToast({ message: 'No se pudo cargar el comprobante', status: 'error' });
+        } finally {
+            setLightboxLoading(false);
+        }
+    }, [token, showToast]);
+
+    const closeLightbox = useCallback(() => {
+        if (lightboxUrl) URL.revokeObjectURL(lightboxUrl);
+        setLightboxUrl(null);
+    }, [lightboxUrl]);
+
 
     useEffect(() => {
         fetchTickets();
@@ -218,36 +246,74 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                     </h5>
                                     <div className="flex flex-wrap gap-4">
                                         {selectedTicket.attachments.map((url: string, index: number) => (
-                                            <a
+                                            <button
                                                 key={index}
-                                                href={url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group relative overflow-hidden rounded-xl border border-border-light shadow-sm w-36 h-36 bg-surface-primary/50 flex flex-col items-center justify-center hover:border-blue-500 transition-colors"
+                                                onClick={() => openAttachment(url)}
+                                                disabled={lightboxLoading}
+                                                className="group relative overflow-hidden rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm w-40 h-40 bg-blue-50/50 dark:bg-blue-900/10 flex flex-col items-center justify-center hover:border-blue-500 hover:shadow-md transition-all"
                                             >
-                                                {/* If image, preview it */}
-                                                {(url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') || url.toLowerCase().endsWith('.png') || url.toLowerCase().endsWith('.webp') || url.includes('/receipt/') || url.includes('images')) ? (
-                                                    <img src={url} alt={`Adjunto ${index + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                {lightboxLoading ? (
+                                                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                                                 ) : (
-                                                    <div className="flex flex-col items-center justify-center gap-2 p-4">
-                                                        <FileText className="w-8 h-8 text-blue-500" />
-                                                        <span className="text-[10px] font-bold text-center break-all text-text-secondary line-clamp-2">
-                                                            {url.split('/').pop() || `Archivo ${index + 1}`}
-                                                        </span>
-                                                    </div>
+                                                    <>
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            <div className="w-14 h-14 rounded-xl bg-blue-100 dark:bg-blue-800/30 flex items-center justify-center">
+                                                                <ZoomIn className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                                                            </div>
+                                                            <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                                                                Comprobante {index + 1}
+                                                            </span>
+                                                            <span className="text-[10px] text-blue-500 dark:text-blue-400 font-medium bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded-full">
+                                                                Clic para ver
+                                                            </span>
+                                                        </div>
+                                                    </>
                                                 )}
-                                                <div className="absolute inset-0 bg-blue-900/0 group-hover:bg-blue-900/10 transition-colors flex items-center justify-center">
-                                                    <span className="opacity-0 group-hover:opacity-100 bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
-                                                        Abrir
-                                                    </span>
-                                                </div>
-                                            </a>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
+
+                    {/* Lightbox modal via portal */}
+                    {lightboxUrl && ReactDOM.createPortal(
+                        <div
+                            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                            onClick={closeLightbox}
+                        >
+                            <div
+                                className="relative max-w-4xl max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl"
+                                onClick={e => e.stopPropagation()}
+                            >
+                                <img
+                                    src={lightboxUrl}
+                                    alt="Comprobante de Pago"
+                                    className="max-w-full max-h-[85vh] object-contain rounded-xl"
+                                />
+                                <div className="absolute top-3 right-3 flex gap-2">
+                                    <a
+                                        href={lightboxUrl}
+                                        download="comprobante_pago.jpg"
+                                        className="flex items-center gap-1.5 bg-white/90 dark:bg-gray-900/90 text-blue-700 dark:text-blue-300 text-xs font-bold px-3 py-2 rounded-full shadow hover:bg-white transition-colors"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <Download className="w-3.5 h-3.5" />
+                                        Descargar
+                                    </a>
+                                    <button
+                                        onClick={closeLightbox}
+                                        className="bg-white/90 dark:bg-gray-900/90 text-gray-700 dark:text-gray-300 p-2 rounded-full shadow hover:bg-white transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )}
+
 
                     {/* Editor de Respuesta con IA */}
                     <div className="flex flex-col gap-6">
