@@ -36,13 +36,19 @@ router.get('/receipt/:userId/:filename', async (req, res) => {
     const { getAppConfig } = require('~/server/services/Config');
     const appConfig = await getAppConfig();
     const uploadsDir = appConfig.paths.uploads;
+    const filename = decodeURIComponent(req.params.filename);
     // First try the permanent receipts folder, then fall back to temp
-    const receiptPath = path.join(uploadsDir, 'receipts', req.params.userId, req.params.filename);
-    const tempPath = path.join(uploadsDir, 'temp', req.params.userId, req.params.filename);
+    const receiptPath = path.resolve(uploadsDir, 'receipts', req.params.userId, filename);
+    const tempPath = path.resolve(uploadsDir, 'temp', req.params.userId, filename);
     const filePath = fs.existsSync(receiptPath) ? receiptPath : tempPath;
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Archivo no encontrado' });
     }
+    // Set content-type based on extension
+    const ext = path.extname(filename).toLowerCase();
+    const mimeTypes = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    res.set('Content-Type', contentType);
     return res.sendFile(filePath);
   } catch (err) {
     console.error('[Wompi] Error serving receipt:', err);

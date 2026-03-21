@@ -40,10 +40,19 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
     const [lightboxLoading, setLightboxLoading] = useState(false);
 
-    const openAttachment = useCallback(async (url: string) => {
+    const openAttachment = useCallback(async (rawUrl: string) => {
         setLightboxLoading(true);
         try {
-            const res = await axios.get(url, {
+            // Normalize old filesystem paths (e.g. /app/uploads/temp/userId/file.jpg)
+            // into the proper API URL (/api/wompi/receipt/userId/file.jpg)
+            let apiUrl = rawUrl;
+            const fsMatch = rawUrl.match(/(?:temp|receipts)\/([^\/]+)\/([^\/]+)$/);
+            if (fsMatch) {
+                const [, userId, filename] = fsMatch;
+                apiUrl = `/api/wompi/receipt/${userId}/${encodeURIComponent(filename)}`;
+            }
+
+            const res = await axios.get(apiUrl, {
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob',
             });
