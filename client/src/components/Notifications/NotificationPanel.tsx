@@ -95,7 +95,7 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
 
         // Navigation logic
         if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
-            const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'admin', subTab: 'pqrs' } });
+            const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'tickets' } });
             window.dispatchEvent(event);
             const openEvent = new CustomEvent('open-settings');
             window.dispatchEvent(openEvent);

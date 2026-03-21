@@ -40,7 +40,9 @@ router.get('/receipt/:userId/:filename', async (req, res) => {
     // First try the permanent receipts folder, then fall back to temp
     const receiptPath = path.resolve(uploadsDir, 'receipts', req.params.userId, filename);
     const tempPath = path.resolve(uploadsDir, 'temp', req.params.userId, filename);
+    console.log('[Wompi Receipt] uploads:', uploadsDir, '| receipt:', receiptPath, '| temp:', tempPath);
     const filePath = fs.existsSync(receiptPath) ? receiptPath : tempPath;
+    console.log('[Wompi Receipt] serving:', filePath, '| exists:', fs.existsSync(filePath));
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Archivo no encontrado' });
     }

@@ -550,13 +550,15 @@ const createManualTransaction = async (req, res) => {
         // Move the file from temp to a permanent receipts folder
         const fs = require('fs');
         const path = require('path');
-        const uploadsDir = path.dirname(path.dirname(req.file.path)); // go up from temp/userId
+        // Use appConfig.paths.uploads directly instead of deriving from req.file.path
+        const uploadsDir = req.config?.paths?.uploads || path.dirname(path.dirname(req.file.path));
         const receiptsDir = path.join(uploadsDir, 'receipts', userId.toString());
+        console.log('[Wompi Manual] file.path:', req.file.path, '| uploadsDir:', uploadsDir);
         if (!fs.existsSync(receiptsDir)) {
             fs.mkdirSync(receiptsDir, { recursive: true });
         }
         const permanentPath = path.join(receiptsDir, req.file.filename);
-        fs.renameSync(req.file.path, permanentPath);
+        try { fs.renameSync(req.file.path, permanentPath); } catch(e) { console.error('[Wompi Manual] Could not move file:', e.message); }
 
         // Store a web-accessible API URL, not the raw filesystem path
         const receiptUrl = `/api/wompi/receipt/${userId}/${encodeURIComponent(req.file.filename)}`;
