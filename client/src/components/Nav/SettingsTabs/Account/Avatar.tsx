@@ -214,8 +214,13 @@ function Avatar() {
             {user?.name || user?.username || localize('com_nav_user')}
           </h2>
           <p className="text-sm font-medium text-text-tertiary mt-0.5 opacity-80">
-            @{user?.username || 'usuario'} • Unid@ {new Date(user?.createdAt || Date.now()).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }).replace('.', '')}
+            {user?.email || (user?.username ? `@${user.username}` : 'usuario')} • Unid@ {new Date(user?.createdAt || Date.now()).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' }).replace('.', '')}
           </p>
+          {user?.phoneNumber && (
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">
+              Tel: {user.phoneNumber}
+            </p>
+          )}
         </div>
       </div>
 

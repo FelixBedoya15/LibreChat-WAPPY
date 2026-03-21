@@ -210,6 +210,7 @@ export type TUser = {
   createdAt: string;
   updatedAt: string;
   phoneNumber?: string;
+  inactiveAt?: string;
 };
 
 export type TGetConversationsResponse = {

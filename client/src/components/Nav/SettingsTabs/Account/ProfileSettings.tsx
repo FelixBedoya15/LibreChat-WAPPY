@@ -28,6 +28,7 @@ const ProfileSettings: React.FC = () => {
         password: '',
         confirmPassword: '',
         inactiveAt: '',
+        phoneNumber: '',
     });
 
     useEffect(() => {
@@ -38,6 +39,7 @@ const ProfileSettings: React.FC = () => {
                 password: '',
                 confirmPassword: '',
                 inactiveAt: formatDateForInput(user.inactiveAt),
+                phoneNumber: user.phoneNumber || '',
             });
         }
     }, [user, isDialogOpen]);
@@ -57,6 +59,7 @@ const ProfileSettings: React.FC = () => {
             const payload: Record<string, string> = {
                 name: formData.name,
                 username: formData.username,
+                phoneNumber: formData.phoneNumber,
             };
             if (formData.password) {
                 payload.password = formData.password;
@@ -136,19 +139,33 @@ const ProfileSettings: React.FC = () => {
                         />
                     </div>
                     <div>
+                        <Label htmlFor="phoneNumber">{localize('com_auth_phone_number_label')}</Label>
+                        <Input
+                            id="phoneNumber"
+                            type="text"
+                            name="phoneNumber"
+                            value={formData.phoneNumber}
+                            onChange={handleChange}
+                            placeholder={localize('com_auth_phone_number_placeholder') || 'Ingrese su número de teléfono'}
+                            className="mt-1"
+                        />
+                    </div>
+                    <div>
                         <Label htmlFor="inactiveAt">{localize('com_ui_inactivation_date')}</Label>
                         <Input
                             id="inactiveAt"
                             type="date"
                             name="inactiveAt"
                             value={formData.inactiveAt}
-                            disabled
+                             disabled
                             className="mt-1 bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-70"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                            {formData.inactiveAt
-                                ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
-                                : localize('com_ui_account_active_indefinitely')}
+                            {user?.role === 'USER'
+                                ? 'Indefinida'
+                                : formData.inactiveAt
+                                    ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
+                                    : localize('com_ui_account_active_indefinitely')}
                         </p>
                     </div>
 

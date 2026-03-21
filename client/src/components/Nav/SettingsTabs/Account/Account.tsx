@@ -24,6 +24,7 @@ function Account() {
     password: '',
     confirmPassword: '',
     inactiveAt: '',
+    phoneNumber: '',
   });
 
   useEffect(() => {
@@ -34,6 +35,7 @@ function Account() {
         password: '',
         confirmPassword: '',
         inactiveAt: formatDateForInput(user.inactiveAt),
+        phoneNumber: user.phoneNumber || '',
       });
     }
   }, [user]);
@@ -53,6 +55,7 @@ function Account() {
       const payload: Record<string, string> = {
         name: formData.name,
         username: formData.username,
+        phoneNumber: formData.phoneNumber,
       };
       if (formData.password) {
         payload.password = formData.password;
@@ -125,6 +128,18 @@ function Account() {
               className="mt-1"
             />
           </div>
+          <div>
+            <Label htmlFor="phoneNumber" className="text-xs font-bold text-text-secondary uppercase">{localize('com_auth_phone_number_label')}</Label>
+            <Input
+              id="phoneNumber"
+              type="text"
+              name="phoneNumber"
+              value={formData.phoneNumber}
+              onChange={handleChange}
+              placeholder={localize('com_auth_phone_number_placeholder')}
+              className="mt-1"
+            />
+          </div>
           {/* Dates stacked on mobile, side-by-side on larger screens */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -150,9 +165,11 @@ function Account() {
             </div>
           </div>
           <p className="text-xs text-text-tertiary">
-            {formData.inactiveAt
-              ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
-              : localize('com_ui_account_active_indefinitely')}
+            {user?.role === 'USER'
+              ? 'Indefinida'
+              : formData.inactiveAt
+                ? localize('com_ui_account_will_deactivate') + ' ' + new Date(formData.inactiveAt).toLocaleDateString()
+                : localize('com_ui_account_active_indefinitely')}
           </p>
 
           <div className="border-t border-border-light pt-6 mt-6">
