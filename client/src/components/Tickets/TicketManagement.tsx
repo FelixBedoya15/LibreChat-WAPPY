@@ -209,6 +209,43 @@ export default function TicketManagement({ initialTicketId }: { initialTicketId?
                                     {selectedTicket.description}
                                 </p>
                             </div>
+
+                            {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                                <div className="mt-6">
+                                    <h5 className="text-xs uppercase font-bold text-text-tertiary mb-3 flex items-center gap-2">
+                                        <FileText className="w-3.5 h-3.5" />
+                                        Archivos Adjuntos ({selectedTicket.attachments.length})
+                                    </h5>
+                                    <div className="flex flex-wrap gap-4">
+                                        {selectedTicket.attachments.map((url: string, index: number) => (
+                                            <a
+                                                key={index}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="group relative overflow-hidden rounded-xl border border-border-light shadow-sm w-36 h-36 bg-surface-primary/50 flex flex-col items-center justify-center hover:border-blue-500 transition-colors"
+                                            >
+                                                {/* If image, preview it. We assume receiptUrls from wompi are images */}
+                                                {(url.toLowerCase().endsWith('.jpg') || url.toLowerCase().endsWith('.jpeg') || url.toLowerCase().endsWith('.png') || url.toLowerCase().endsWith('.webp') || url.includes('images') || url.includes('png')) ? (
+                                                    <img src={url} alt={`Adjunto ${index + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center gap-2 p-4">
+                                                        <FileText className="w-8 h-8 text-blue-500" />
+                                                        <span className="text-[10px] font-bold text-center break-all text-text-secondary line-clamp-2">
+                                                            {url.split('/').pop() || `Archivo ${index + 1}`}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 bg-blue-900/0 group-hover:bg-blue-900/10 transition-colors flex items-center justify-center">
+                                                    <span className="opacity-0 group-hover:opacity-100 bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                                                        Abrir
+                                                    </span>
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

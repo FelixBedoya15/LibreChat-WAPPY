@@ -703,6 +703,31 @@ export default function PlansPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Compra y Paga Después Info Box */}
+                                <div className="rounded-2xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-900/10 p-5 shadow-sm mt-6 relative overflow-hidden group">
+                                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20" />
+                                    <div className="flex items-start gap-4 relative z-10">
+                                        <div className="flex-shrink-0 bg-blue-100 dark:bg-blue-800/30 p-2.5 rounded-xl shadow-sm border border-blue-200/50 dark:border-blue-700/30">
+                                            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-sm font-extrabold text-blue-900 dark:text-blue-200 mb-1.5 flex items-center gap-2">
+                                                Compra y Paga Después Bancolombia
+                                            </h4>
+                                            <div className="text-xs text-blue-800/80 dark:text-blue-300/80 leading-relaxed font-medium space-y-2">
+                                                <p>
+                                                    Paga a <strong>4 cuotas con 0% de interés mensual</strong> mediante Wompi. El débito se realizará automáticamente a la cuenta Bancolombia que autorices al finalizar el proceso.
+                                                </p>
+                                                <p className="bg-white/50 dark:bg-black/20 p-2.5 rounded-lg border border-blue-100/50 dark:border-blue-800/50">
+                                                    <span className="font-black text-blue-900 dark:text-blue-300">Activación:</span> Por políticas de verificación bancaria, la activación de tu plan al usar este método se realizará en <strong>hasta 24 horas o al día hábil siguiente</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* RIGHT: Resumen del pedido */}

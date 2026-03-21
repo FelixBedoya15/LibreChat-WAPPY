@@ -115,7 +115,7 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         <div
             ref={panelRef}
             className={cn(
-                'absolute bottom-16 left-2 z-[100] w-80 bg-surface-primary border border-border-light rounded-2xl shadow-2xl overflow-hidden',
+                'absolute bottom-16 left-2 z-[9999] w-80 bg-surface-primary border border-border-light rounded-2xl shadow-2xl overflow-hidden',
                 'animate-in slide-in-from-bottom-4 fade-in duration-200'
             )}
         >
