@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
@@ -303,6 +303,16 @@ export default function PlansPage() {
     const [promoValidated, setPromoValidated] = useState<{ code: string; discountPercentage: number } | null>(null);
     const [promoLoading, setPromoLoading] = useState(false);
     const [promoError, setPromoError] = useState('');
+
+    // Derived: final price considering promo code on top of any existing promotion
+    const finalCheckoutPrice = useMemo(() => {
+        if (!checkoutPlan) return 0;
+        const base = checkoutPlan.discountedPrice > 0 ? checkoutPlan.discountedPrice : checkoutPlan.rawPrice;
+        if (promoValidated && promoValidated.discountPercentage > 0) {
+            return Math.round(base - (base * (promoValidated.discountPercentage / 100)));
+        }
+        return Math.round(base);
+    }, [checkoutPlan, promoValidated]);
 
     // Registration for visitors
     const [showRegister, setShowRegister] = useState(false);
@@ -622,19 +632,25 @@ export default function PlansPage() {
                                         )}
                                         {promoValidated && (
                                             <div className="flex justify-between text-green-600">
-                                                <span>Código {promoValidated.code} ({promoValidated.discountPercentage}%)</span>
-                                                <span className="font-semibold">Aplicado en Wompi</span>
+                                                <span>Cupón {promoValidated.code} ({promoValidated.discountPercentage}%)</span>
+                                                <span className="font-semibold">-${Math.round((checkoutPlan.discountedPrice > 0 ? checkoutPlan.discountedPrice : checkoutPlan.rawPrice) * (promoValidated.discountPercentage / 100)).toLocaleString('es-CO')}</span>
                                             </div>
                                         )}
                                     </div>
                                     <div className="my-4 border-t border-border-light" />
-                                    <div className="flex justify-between text-base font-black text-text-primary mb-6">
-                                        <span>Total</span>
+                                    <div className="flex justify-between text-base font-black text-text-primary mb-2">
+                                        <span>Total a pagar</span>
                                         <span className={checkoutPlan.planObj.accentColor}>
-                                            {checkoutPlan.discountedPrice > 0 ? '$' + checkoutPlan.discountedPrice.toLocaleString('es-CO') : checkoutPlan.displayPrice}
+                                            ${finalCheckoutPrice.toLocaleString('es-CO')}
                                             <span className="text-xs font-medium text-text-tertiary ml-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
                                         </span>
                                     </div>
+                                    {/* Proration info box */}
+                                    {activePlan && activePlan !== 'free' && activePlan !== 'admin' && activePlan !== checkoutPlan.planKey && (
+                                        <div className="mb-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 px-4 py-3 text-xs text-indigo-600 dark:text-indigo-400">
+                                            <strong>📅 Compensación de tiempo:</strong> Los días que te quedan de tu plan <span className="capitalize font-semibold">{activePlan}</span> se convertirán en días adicionales del nuevo plan {checkoutPlan.planObj.name}. ¡No pierdes nada!
+                                        </div>
+                                    )}
                                     <button
                                         onClick={handleConfirmPayment}
                                         disabled={!!checkoutLoading}
