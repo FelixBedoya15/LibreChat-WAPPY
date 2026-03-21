@@ -460,7 +460,17 @@ export default function PlansPage() {
             if (promoValidated?.code) {
                 formData.append('promoCode', promoValidated.code);
             }
-            formData.append('receipt', receiptFile);
+            let finalFile = receiptFile;
+            if (receiptFile.type.startsWith('image/') && receiptFile.type !== 'image/gif') {
+                try {
+                    const { resizeImage } = await import('~/utils/imageResize');
+                    const resized = await resizeImage(receiptFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+                    finalFile = resized.file;
+                } catch (e) {
+                    console.warn('Fallback to original image: failed to resize', e);
+                }
+            }
+            formData.append('receipt', finalFile);
 
             await axios.post('/api/wompi/manual-receipt', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
