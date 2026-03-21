@@ -309,6 +309,7 @@ export default function PlansPage() {
     // Manual Payment State (Nequi QR)
     const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'nequi'>('wompi');
     const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+    const [termsAccepted, setTermsAccepted] = useState(false);
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [receiptUploading, setReceiptUploading] = useState(false);
 
@@ -399,6 +400,7 @@ export default function PlansPage() {
             setPromoError('');
             setPaymentMethod('wompi');
         setIsQRModalOpen(false);
+        setTermsAccepted(false);
             setReceiptFile(null);
             setCheckoutPlan(subObj);
         },
@@ -764,11 +766,27 @@ export default function PlansPage() {
                                         </div>
                                     )}
 
+                                    {/* Terms of Service agreement for checkout */}
+                                    <div className="mb-4 flex items-start gap-3 px-1">
+                                        <div className="flex h-5 items-center">
+                                            <input
+                                                id="terms-checkout"
+                                                type="checkbox"
+                                                checked={termsAccepted}
+                                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                                className="h-4 w-4 rounded border-border-medium bg-surface-primary text-green-600 focus:ring-green-500 cursor-pointer"
+                                            />
+                                        </div>
+                                        <label htmlFor="terms-checkout" className="text-xs text-text-secondary tracking-tight">
+                                            He leído y acepto los <a href="/terms" className="font-semibold text-green-600 hover:text-green-500 hover:underline" target="_blank" rel="noopener noreferrer">Términos de Servicio</a> y la <a href="/privacy" className="font-semibold text-green-600 hover:text-green-500 hover:underline" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
+                                        </label>
+                                    </div>
+
                                     {paymentMethod === 'wompi' ? (
                                         <>
                                             <button
                                                 onClick={handleConfirmPayment}
-                                                disabled={!!checkoutLoading}
+                                                disabled={!!checkoutLoading || !termsAccepted}
                                                 className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
                                             >
                                                 {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
@@ -811,7 +829,7 @@ export default function PlansPage() {
 
                                             <button
                                                 onClick={handleManualPayment}
-                                                disabled={receiptUploading || !receiptFile}
+                                                disabled={receiptUploading || !receiptFile || !termsAccepted}
                                                 className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-green-600 hover:bg-green-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {receiptUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
@@ -929,9 +947,24 @@ export default function PlansPage() {
                                         </div>
                                     </div>
 
+                                    <div className="mt-2 flex items-start gap-3 px-1">
+                                        <div className="flex h-5 items-center">
+                                            <input
+                                                id="terms-register"
+                                                type="checkbox"
+                                                checked={termsAccepted}
+                                                onChange={(e) => setTermsAccepted(e.target.checked)}
+                                                className="h-4 w-4 rounded border-border-medium bg-surface-primary text-green-600 focus:ring-green-500 cursor-pointer"
+                                            />
+                                        </div>
+                                        <label htmlFor="terms-register" className="text-xs text-text-secondary tracking-tight">
+                                            Acepto los <a href="/terms" className="font-semibold text-green-600 hover:text-green-500 hover:underline" target="_blank" rel="noopener noreferrer">Términos de Servicio</a> y la <a href="/privacy" className="font-semibold text-green-600 hover:text-green-500 hover:underline" target="_blank" rel="noopener noreferrer">Política de Privacidad</a>
+                                        </label>
+                                    </div>
+
                                     <button
                                         type="submit"
-                                        disabled={regLoading}
+                                        disabled={regLoading || !termsAccepted}
                                         className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-green-600 py-4 text-sm font-bold text-white shadow-xl shadow-green-500/20 transition-all hover:bg-green-700 disabled:opacity-70"
                                     >
                                         {regLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Crear cuenta y continuar"}

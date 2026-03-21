@@ -30,6 +30,7 @@ const Registration: React.FC = () => {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -240,12 +241,28 @@ const Registration: React.FC = () => {
               </div>
             )}
 
+            <div className="mt-4 flex items-start gap-3 px-1">
+              <div className="flex h-5 items-center">
+                <input
+                  id="terms"
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="h-4 w-4 rounded border-border-medium bg-surface-primary text-green-600 focus:ring-green-500 cursor-pointer"
+                />
+              </div>
+              <label htmlFor="terms" className="text-sm text-text-secondary">
+                Acepto los <a href="/terms" className="font-semibold text-green-600 hover:text-green-500 hover:underline" target="_blank" rel="noopener noreferrer">Términos de Servicio</a> y la <a href="/privacy" className="font-semibold text-green-600 hover:text-green-500 hover:underline" target="_blank" rel="noopener noreferrer">Política de Privacidad</a> de WAPPY IA.
+              </label>
+            </div>
+
             <div className="mt-6">
               <Button
                 disabled={
                   Object.keys(errors).length > 0 ||
                   isSubmitting ||
-                  (requireCaptcha && !turnstileToken)
+                  (requireCaptcha && !turnstileToken) ||
+                  !termsAccepted
                 }
                 type="submit"
                 aria-label="Submit registration"
