@@ -87,7 +87,7 @@ const Registration: React.FC = () => {
             autoComplete={id}
             aria-label={localize(label)}
             {...register(
-              id as 'name' | 'email' | 'username' | 'password' | 'confirm_password',
+              id as 'name' | 'email' | 'username' | 'password' | 'confirm_password' | 'phoneNumber',
               validation,
             )}
             aria-invalid={!!errors[id]}
@@ -183,8 +183,15 @@ const Registration: React.FC = () => {
                 message: localize('com_auth_username_min_length'),
               },
               maxLength: {
-                value: 80,
+                value: 20,
                 message: localize('com_auth_username_max_length'),
+              },
+            })}
+            {renderInput('phoneNumber', 'com_auth_phone_number_label', 'text', {
+              required: 'El número de contacto es obligatorio',
+              pattern: {
+                value: /^\+?[0-9\s-]{7,20}$/,
+                message: 'Número de teléfono inválido',
               },
             })}
             {renderInput('email', 'com_auth_email', 'email', {

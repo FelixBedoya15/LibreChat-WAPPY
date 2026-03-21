@@ -27,6 +27,7 @@ interface CompanyInfoData {
     generalActivities: string;
     sector: string;
     responsibleSST: string;
+    responsibleSSTPhone: string;
     formationLevel: string;
     licenseNumber: string;
     courseStatus: string;
@@ -54,6 +55,7 @@ const INITIAL_DATA: CompanyInfoData = {
     generalActivities: '',
     sector: '',
     responsibleSST: '',
+    responsibleSSTPhone: '',
     formationLevel: '',
     licenseNumber: '',
     courseStatus: '',
@@ -197,7 +199,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         'companyName', 'nit', 'legalRepresentative', 'workerCount',
         'arl', 'economicActivity', 'riskLevel', 'ciiu',
         'address', 'city', 'phone', 'email',
-        'sector', 'responsibleSST', 'generalActivities',
+        'sector', 'responsibleSST', 'responsibleSSTPhone', 'generalActivities',
         'formationLevel', 'licenseNumber', 'courseStatus', 'licenseExpiry',
     ] as const;
 
@@ -305,6 +307,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     <div className="md:col-span-2">
                                         <label className={labelClass}><UserCheck className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
                                         <input className={inputClass} value={data.responsibleSST} onChange={e => handleChange('responsibleSST', e.target.value)} placeholder={t('com_ui_sst_responsible_placeholder', 'Nombre del responsable')} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_sst_responsible_phone', 'Contacto del Responsable')}</label>
+                                        <input className={inputClass} value={data.responsibleSSTPhone} onChange={e => handleChange('responsibleSSTPhone', e.target.value)} placeholder="+57 300 000 0000" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />Nivel de Formación</label>

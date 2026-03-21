@@ -81,6 +81,11 @@ const companyInfoSchema = new mongoose.Schema({
         trim: true,
         default: '',
     },
+    responsibleSSTPhone: {
+        type: String,
+        trim: true,
+        default: '',
+    },
     formationLevel: {
         type: String,
         trim: true,

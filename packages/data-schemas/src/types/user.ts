@@ -38,6 +38,7 @@ export interface IUser extends Document {
   updatedAt?: Date;
   /** Field for external source identification (for consistency with TPrincipal schema) */
   idOnTheSource?: string;
+  phoneNumber?: string;
 }
 
 export interface BalanceConfig {
@@ -66,6 +67,7 @@ export interface UpdateUserRequest {
   personalization?: {
     memories?: boolean;
   };
+  phoneNumber?: string;
 }
 
 export interface UserDeleteResult {

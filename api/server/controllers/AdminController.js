@@ -8,7 +8,7 @@ const { getMessages } = require('~/models');
 
 const getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved inactiveAt activeAt');
+        const users = await User.find({}, 'email name username createdAt provider role accountStatus isApproved inactiveAt activeAt phoneNumber');
 
         // Get last activity (most recent conversation updatedAt) for all users in one aggregation
         const lastActivities = await Conversation.aggregate([
@@ -38,7 +38,7 @@ const getAllUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
     try {
-        const { email, password, name, username, role, accountStatus } = req.body;
+        const { email, password, name, username, role, accountStatus, phoneNumber } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -57,6 +57,7 @@ const createUser = async (req, res) => {
             accountStatus: accountStatus || 'active',
             provider: 'local',
             emailVerified: true, // Admin created users are verified
+            phoneNumber,
         });
 
         await newUser.save();
@@ -69,7 +70,7 @@ const createUser = async (req, res) => {
 
 const updateUser = async (req, res) => {
     try {
-        const { userId, role, accountStatus, name, username, password, inactiveAt, activeAt } = req.body;
+        const { userId, role, accountStatus, name, username, password, inactiveAt, activeAt, phoneNumber } = req.body;
         logger.info(`[AdminController] Updating user ${userId}:`, { role, accountStatus, inactiveAt, activeAt });
 
         const updateData = {};
@@ -83,6 +84,7 @@ const updateUser = async (req, res) => {
             const salt = bcrypt.genSaltSync(10);
             updateData.password = bcrypt.hashSync(password, salt);
         }
+        if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
 
         const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
         if (!user) {

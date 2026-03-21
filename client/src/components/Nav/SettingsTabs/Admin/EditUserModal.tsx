@@ -18,6 +18,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
         password: '', // Optional
         inactiveAt: '',
         activeAt: '',
+        phoneNumber: '',
     });
 
     useEffect(() => {
@@ -32,6 +33,7 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                 password: '',
                 inactiveAt: formatDateForInput(user.inactiveAt),
                 activeAt: formatDateForInput(user.activeAt),
+                phoneNumber: user.phoneNumber || '',
             });
         }
     }, [user]);
@@ -129,6 +131,16 @@ export default function EditUserModal({ isOpen, onClose, user, onUserUpdated }) 
                                             type="email"
                                             name="email"
                                             value={formData.email}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{localize('com_auth_phone_number_label') || 'Número de teléfono'}</label>
+                                        <input
+                                            type="text"
+                                            name="phoneNumber"
+                                            value={formData.phoneNumber}
                                             onChange={handleChange}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         />

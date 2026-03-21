@@ -209,6 +209,7 @@ export type TUser = {
   };
   createdAt: string;
   updatedAt: string;
+  phoneNumber?: string;
 };
 
 export type TGetConversationsResponse = {
@@ -382,6 +383,7 @@ export type TRegisterUser = {
   password: string;
   confirm_password?: string;
   token?: string;
+  phoneNumber?: string;
 };
 
 export type TLoginUser = {

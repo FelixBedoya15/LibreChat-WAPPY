@@ -151,6 +151,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       sparse: true,
     },
+    phoneNumber: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true },
 );

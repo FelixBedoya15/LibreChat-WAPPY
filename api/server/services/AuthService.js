@@ -175,7 +175,7 @@ const registerUser = async (user, additionalData = {}) => {
     return { status: 404, message: errorMessage };
   }
 
-  const { email, password, name, username } = user;
+  const { email, password, name, username, phoneNumber } = user;
 
   let newUserId;
   try {
@@ -210,6 +210,7 @@ const registerUser = async (user, additionalData = {}) => {
       email,
       username,
       name,
+      phoneNumber,
       avatar: null,
       role: isFirstRegisteredUser ? SystemRoles.ADMIN : (process.env.DEFAULT_USER_ROLE || SystemRoles.USER),
       accountStatus: isFirstRegisteredUser ? 'active' : (process.env.DEFAULT_ACCOUNT_STATUS || 'active'),
