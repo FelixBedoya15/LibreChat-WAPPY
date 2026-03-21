@@ -136,6 +136,52 @@ const getUserPlan = async (req, res) => {
 };
 
 /**
+ * Helper: Notify admins when a payment happens (manual QR or automatic)
+ */
+const notifyAdminsOfPayment = async (wompiTx, user, isManual) => {
+    try {
+        const User = mongoose.model('User');
+        const admins = await User.find({ role: 'ADMIN' }).select('_id').lean();
+        if (admins.length === 0) return;
+
+        const Notification = require('~/models/Notification');
+
+        if (isManual) {
+            const Ticket = require('~/models/Ticket');
+            const newTicket = await Ticket.create({
+                name: user?.name || user?.username || 'Usuario',
+                email: user?.email || 'N/A',
+                phone: user?.phoneNumber || 'N/A',
+                type: 'Revisión de Pago',
+                description: `Se ha registrado un pago manual por QR Nequi.\nPlan: ${wompiTx.planId} (${wompiTx.interval})\nMonto: $${(wompiTx.amountInCents / 100).toLocaleString('es-CO')}`,
+                user: wompiTx.userId,
+                attachments: wompiTx.receiptUrl ? [wompiTx.receiptUrl] : [],
+                status: 'pending'
+            });
+
+            const notifs = admins.map(a => ({
+                user: a._id,
+                type: 'ticket_created',
+                title: 'Revisión de Pago Nequi QR',
+                body: `Se ha recibido un comprobante de pago de ${user?.name || 'un usuario'}. Revísalo en tus tickets.`,
+                ticketId: newTicket._id
+            }));
+            await Notification.insertMany(notifs);
+        } else {
+            const notifs = admins.map(a => ({
+                user: a._id,
+                type: 'payment_received',
+                title: 'Pago automático exitoso',
+                body: `Se ha procesado exitosamente el pago del plan ${wompiTx.planId} (${wompiTx.interval}) para ${user?.name || user?.username || 'un usuario'}.`
+            }));
+            await Notification.insertMany(notifs);
+        }
+    } catch (e) {
+        console.error('[WompiController] Error notifying admins of payment:', e);
+    }
+};
+
+/**
  * POST /api/wompi/create-transaction
  * Expects { plan: 'go|monthly', promoCode: 'SUMMER20' }
  * Generates a unique referenced transaction in MongoDB for tracking,
@@ -283,11 +329,12 @@ const handleWebhook = async (req, res) => {
             return res.status(200).send('Reference unknown');
         }
 
+        const wasAlreadyApproved = wompiTx.status === 'APPROVED';
         wompiTx.status = status;
         wompiTx.transactionId = transactionId;
         await wompiTx.save();
 
-        if (status === 'APPROVED') {
+        if (status === 'APPROVED' && !wasAlreadyApproved) {
             // Verify plan exists in DB
             const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
             if (!planDoc) {
@@ -328,6 +375,14 @@ const handleWebhook = async (req, res) => {
             );
 
             console.log(`[Wompi Webhook] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), role ${newRole}, expiry ${expiryDate.toISOString()} for user ${wompiTx.userId} via tx ${transactionId}`);
+            
+            // Notify admins
+            try {
+                const userDoc = await User.findById(wompiTx.userId).lean();
+                await notifyAdminsOfPayment(wompiTx, userDoc, false);
+            } catch (e) {
+                console.error('[Wompi Webhook] Error fetching user for notification', e);
+            }
         }
 
         return res.status(200).send('OK');
@@ -396,6 +451,13 @@ const verifyTransaction = async (req, res) => {
                     { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
                 );
                 console.log(`[Wompi VerifyTransaction] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), expiry ${expiryDate.toISOString()} for user ${wompiTx.userId}`);
+                
+                try {
+                    const userDoc = await User.findById(wompiTx.userId).lean();
+                    await notifyAdminsOfPayment(wompiTx, userDoc, false);
+                } catch (e) {
+                    console.error('[Wompi VerifyTransaction] Error fetching user for notification', e);
+                }
             }
         }
 
@@ -436,6 +498,80 @@ const registerPendingTransaction = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/wompi/manual-receipt
+ * Handles Nequi QR payment submissions. 5% discount applies.
+ */
+const createManualTransaction = async (req, res) => {
+    try {
+        const { plan: planString, promoCode } = req.body;
+        if (!planString || !req.file) {
+            return res.status(400).json({ error: 'Faltan parámetros o el comprobante de pago' });
+        }
+
+        const [planId, interval] = planString.split('|');
+        if (!PLAN_NAMES[planId] || !['monthly', 'quarterly', 'semiannual', 'annual'].includes(interval)) {
+            return res.status(400).json({ error: 'Plan o intervalo inválido' });
+        }
+
+        const userId = req.user._id || req.user.id;
+        const planDoc = await Plan.findOne({ planId }).lean();
+        if (!planDoc) {
+            return res.status(500).json({ error: `Configuración para el plan ${planId} no encontrada` });
+        }
+
+        let rawPrice = planDoc.prices?.[interval] || 0;
+        if (rawPrice === 0) {
+            return res.status(500).json({ error: `Monto base no configurado` });
+        }
+
+        let finalPrice = rawPrice;
+        let appliedDiscount = 0;
+
+        if (promoCode) {
+            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+            if (codeDoc && codeDoc.active) {
+                appliedDiscount = codeDoc.discountPercentage;
+            }
+        } else if (planDoc.promotions?.[interval]?.active) {
+            appliedDiscount = planDoc.promotions[interval].discountPercentage;
+        }
+
+        if (appliedDiscount > 0) {
+            finalPrice = rawPrice - (rawPrice * Math.min(appliedDiscount, 100) / 100);
+        }
+
+        // Apply 5% discount for Nequi QR
+        finalPrice = finalPrice * 0.95;
+
+        const reference = `WAPPY-NQ-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const amountInCents = Math.round(finalPrice * 100);
+
+        const receiptUrl = req.file.path || req.file.filename || req.file.filepath;
+
+        const wompiTx = await WompiTransaction.create({
+            userId,
+            planId,
+            interval,
+            reference,
+            amountInCents,
+            status: 'PENDING_MANUAL_REVIEW',
+            paymentMethod: 'NEQUI_QR',
+            receiptUrl
+        });
+
+        // Notify admins about the manual payment so they can review
+        const userDoc = req.user || await mongoose.model('User').findById(userId).lean();
+        await notifyAdminsOfPayment(wompiTx, userDoc, true);
+
+        return res.json({ success: true, reference, message: 'Pago manual registrado exitosamente.' });
+
+    } catch (error) {
+        console.error('[Wompi Manual] createManualTransaction error:', error);
+        return res.status(500).json({ error: 'Error procesando pago manual', details: error.message });
+    }
+};
+
 module.exports = {
     getPublicPlansConfig,
     validatePromoCode,
@@ -444,4 +580,5 @@ module.exports = {
     handleWebhook,
     verifyTransaction,
     registerPendingTransaction,
+    createManualTransaction,
 };

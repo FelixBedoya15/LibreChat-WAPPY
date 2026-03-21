@@ -305,16 +305,25 @@ export default function PlansPage() {
     const [promoError, setPromoError] = useState('');
     // Pending payment state (for async methods like Compra y Paga Después)
     const [pendingPaymentInfo, setPendingPaymentInfo] = useState<{ planName: string; email: string } | null>(null);
+    
+    // Manual Payment State (Nequi QR)
+    const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'nequi'>('wompi');
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [receiptUploading, setReceiptUploading] = useState(false);
 
     // Derived: final price considering promo code on top of any existing promotion
     const finalCheckoutPrice = useMemo(() => {
         if (!checkoutPlan) return 0;
         const base = checkoutPlan.discountedPrice > 0 ? checkoutPlan.discountedPrice : checkoutPlan.rawPrice;
+        let price = base;
         if (promoValidated && promoValidated.discountPercentage > 0) {
-            return Math.round(base - (base * (promoValidated.discountPercentage / 100)));
+            price = price - (price * (promoValidated.discountPercentage / 100));
         }
-        return Math.round(base);
-    }, [checkoutPlan, promoValidated]);
+        if (paymentMethod === 'nequi') {
+            price = price * 0.95;
+        }
+        return Math.round(price);
+    }, [checkoutPlan, promoValidated, paymentMethod]);
 
     // Registration for visitors
     const [showRegister, setShowRegister] = useState(false);
@@ -387,6 +396,8 @@ export default function PlansPage() {
             setPromoCodeInput('');
             setPromoValidated(null);
             setPromoError('');
+            setPaymentMethod('wompi');
+            setReceiptFile(null);
             setCheckoutPlan(subObj);
         },
         [isAuthenticated],
@@ -435,6 +446,29 @@ export default function PlansPage() {
             setPromoLoading(false);
         }
     }, [promoCodeInput]);
+
+    const handleManualPayment = useCallback(async () => {
+        if (!checkoutPlan || !receiptFile) return;
+        setReceiptUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('plan', checkoutPlan.planKey + '|' + billingInterval);
+            if (promoValidated?.code) {
+                formData.append('promoCode', promoValidated.code);
+            }
+            formData.append('receipt', receiptFile);
+
+            await axios.post('/api/wompi/manual-receipt', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
+            
+        } catch (err: any) {
+            showToast({ message: err?.response?.data?.error || 'Error enviando comprobante', status: 'error' });
+            setReceiptUploading(false);
+        }
+    }, [checkoutPlan, billingInterval, promoValidated, receiptFile, showToast]);
 
     const handleConfirmPayment = useCallback(async () => {
         if (!checkoutPlan) return;
@@ -689,13 +723,38 @@ export default function PlansPage() {
                                             </div>
                                         )}
                                     </div>
+                                     </div>
                                     <div className="my-4 border-t border-border-light" />
+                                    
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-bold text-text-primary mb-3">Método de pago</h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                onClick={() => setPaymentMethod('wompi')}
+                                                className={`flex flex-col items-center justify-center rounded-xl border p-3 text-sm transition-all ${paymentMethod === 'wompi' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold shadow-sm' : 'border-border-light bg-surface-secondary text-text-secondary hover:bg-surface-hover hover:border-border-medium'}`}
+                                            >
+                                                <CreditCard className="h-5 w-5 mb-1.5" />
+                                                Pago en Línea
+                                            </button>
+                                            <button
+                                                onClick={() => setPaymentMethod('nequi')}
+                                                className={`flex flex-col items-center gap-1 justify-center rounded-xl border p-3 text-sm transition-all relative overflow-hidden ${paymentMethod === 'nequi' ? 'border-green-500 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 font-bold shadow-sm' : 'border-border-light bg-surface-secondary text-text-secondary hover:bg-surface-hover hover:border-border-medium'}`}
+                                            >
+                                                <div className="absolute top-0 right-0 bg-green-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-bl-lg tracking-wider">-5%</div>
+                                                <svg className="h-5 w-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2z"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg>
+                                                QR Nequi
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div className="flex justify-between text-base font-black text-text-primary mb-2">
                                         <span>Total a pagar</span>
-                                        <span className={checkoutPlan.planObj.accentColor}>
-                                            ${finalCheckoutPrice.toLocaleString('es-CO')}
-                                            <span className="text-xs font-medium text-text-tertiary ml-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
-                                        </span>
+                                        <div className="text-right">
+                                            <span className={checkoutPlan.planObj.accentColor}>
+                                                ${finalCheckoutPrice.toLocaleString('es-CO')}
+                                            </span>
+                                            <span className="text-xs font-medium text-text-tertiary ml-1 block">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
+                                        </div>
                                     </div>
                                     {/* Proration info box */}
                                     {activePlan && activePlan !== 'free' && activePlan !== 'admin' && activePlan !== checkoutPlan.planKey && (
@@ -703,18 +762,55 @@ export default function PlansPage() {
                                             <strong>📅 Compensación de tiempo:</strong> Los días que te quedan de tu plan <span className="capitalize font-semibold">{activePlan}</span> se convertirán en días adicionales del nuevo plan {checkoutPlan.planObj.name}. ¡No pierdes nada!
                                         </div>
                                     )}
-                                    <button
-                                        onClick={handleConfirmPayment}
-                                        disabled={!!checkoutLoading}
-                                        className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
-                                    >
-                                        {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
-                                        Continuar al pago
-                                    </button>
-                                    <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
-                                        <ShieldCheck className="h-3.5 w-3.5" />
-                                        Pago seguro con Wompi y tu banco
-                                    </div>
+
+                                    {paymentMethod === 'wompi' ? (
+                                        <>
+                                            <button
+                                                onClick={handleConfirmPayment}
+                                                disabled={!!checkoutLoading}
+                                                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
+                                            >
+                                                {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
+                                                Continuar al pago
+                                            </button>
+                                            <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
+                                                <ShieldCheck className="h-3.5 w-3.5" />
+                                                Pago seguro con Wompi y tu banco
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="mt-4 flex flex-col gap-4 border-t border-border-light pt-4">
+                                            <div className="rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-500/10 p-4 text-sm text-green-800 dark:text-green-300">
+                                                <p className="mb-2 font-bold text-base text-center">Escanea y transfiere esta cantidad exacta:</p>
+                                                <p className="text-3xl font-black text-center mb-4 tracking-tight">${finalCheckoutPrice.toLocaleString('es-CO')}</p>
+                                                <div className="flex justify-center mb-4 bg-white p-2 rounded-xl mx-auto w-fit">
+                                                    <img src="/assets/QRWAPPY.png" alt="QR Nequi Bancolombia" className="h-40 w-40 object-contain rounded-lg shadow-sm" />
+                                                </div>
+                                                <p className="text-xs text-center leading-relaxed">
+                                                    Una vez realizada la transferencia, sube aquí tu comprobante. La activación de tu cuenta tomará <strong>hasta 24 horas hábiles</strong> luego de la revisión.
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-text-secondary uppercase mb-2">Comprobante de Pago</label>
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*,application/pdf"
+                                                    onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+                                                    className="w-full text-sm text-text-secondary file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
+                                                />
+                                            </div>
+
+                                            <button
+                                                onClick={handleManualPayment}
+                                                disabled={receiptUploading || !receiptFile}
+                                                className="w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-green-600 hover:bg-green-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {receiptUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
+                                                Enviar comprobante
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

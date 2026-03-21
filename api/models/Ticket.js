@@ -20,7 +20,7 @@ const ticketSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['Petición', 'Queja', 'Reclamo', 'Sugerencia', 'Solicitud Empresarial'],
+        enum: ['Petición', 'Queja', 'Reclamo', 'Sugerencia', 'Solicitud Empresarial', 'Revisión de Pago'],
         default: 'Petición',
     },
     description: {
