@@ -12,8 +12,11 @@ router.post('/webhook', express.json(), wompiController.handleWebhook);
 
 const { createMulterInstance } = require('../routes/files/multer');
 
+const configMiddleware = require('../middleware/config/app');
+
 // Protected endpoints (require user to be logged in)
 router.use(requireJwtAuth);
+router.use(configMiddleware);
 
 // Create multer instance for receipt upload
 createMulterInstance().then(upload => {
