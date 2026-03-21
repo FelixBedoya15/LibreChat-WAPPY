@@ -15,5 +15,6 @@ router.use(requireJwtAuth);
 router.get('/plan', wompiController.getUserPlan);
 router.post('/create-transaction', wompiController.createTransaction);
 router.post('/verify-transaction', wompiController.verifyTransaction);
+router.post('/register-pending', wompiController.registerPendingTransaction);
 
 module.exports = router;

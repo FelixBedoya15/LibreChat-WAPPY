@@ -406,11 +406,42 @@ const verifyTransaction = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/wompi/register-pending
+ * Called by the frontend when the Wompi widget returns PENDING (e.g. Compra y Paga Después).
+ * Stores the real Wompi transactionId on the WompiTransaction record so the poller can query it.
+ */
+const registerPendingTransaction = async (req, res) => {
+    try {
+        const { reference, transactionId } = req.body;
+        if (!reference || !transactionId) {
+            return res.status(400).json({ error: 'Faltan referencia o ID de transacción' });
+        }
+
+        const updated = await WompiTransaction.findOneAndUpdate(
+            { reference, userId: req.user._id || req.user.id },
+            { $set: { transactionId, status: 'PENDING' } },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ error: 'Transacción no encontrada' });
+        }
+
+        console.log(`[Wompi] Registered pending transactionId ${transactionId} for reference ${reference}`);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('[Wompi] registerPendingTransaction error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getPublicPlansConfig,
     validatePromoCode,
     getUserPlan,
     createTransaction,
     handleWebhook,
-    verifyTransaction
+    verifyTransaction,
+    registerPendingTransaction,
 };

@@ -303,6 +303,8 @@ export default function PlansPage() {
     const [promoValidated, setPromoValidated] = useState<{ code: string; discountPercentage: number } | null>(null);
     const [promoLoading, setPromoLoading] = useState(false);
     const [promoError, setPromoError] = useState('');
+    // Pending payment state (for async methods like Compra y Paga Después)
+    const [pendingPaymentInfo, setPendingPaymentInfo] = useState<{ planName: string; email: string } | null>(null);
 
     // Derived: final price considering promo code on top of any existing promotion
     const finalCheckoutPrice = useMemo(() => {
@@ -457,15 +459,28 @@ export default function PlansPage() {
                 checkout.open((result: any) => {
                     const transaction = result.transaction;
                     if (transaction.status === 'APPROVED') {
+                        // Immediate approval (card, Nequi, PSE resolved, etc.)
                         axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id })
                             .then(() => {
                                 window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`;
-                            }).catch((err) => {
+                            }).catch(() => {
                                 window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}&fallback=1`;
                             });
                     } else if (transaction.status === 'PENDING') {
-                        showToast({ message: 'El pago está en validación por tu banco', status: 'info' });
-                        setTimeout(() => window.location.reload(), 3000);
+                        // Async method (e.g. Compra y Paga Después / Bancolombia BNPL)
+                        // Register the transactionId so the background poller can follow it up
+                        axios.post('/api/wompi/register-pending', {
+                            reference: data.reference,
+                            transactionId: transaction.id,
+                        }).catch(() => { /* silent – poller will still catch webhook */ });
+
+                        // Show informative screen instead of blank reload
+                        setPendingPaymentInfo({
+                            planName: checkoutPlan.planObj.name,
+                            email: authUser?.email || '',
+                        });
+                        setCheckoutPlan(null);
+                        setCheckoutLoading(null);
                     } else {
                         showToast({ message: 'El pago no fue exitoso o fue cancelado', status: 'warning' });
                         setCheckoutLoading(null);
@@ -478,7 +493,7 @@ export default function PlansPage() {
             showToast({ message: err?.response?.data?.error || 'Error iniciando el pago con Wompi', status: 'error' });
             setCheckoutLoading(null);
         }
-    }, [checkoutPlan, billingInterval, promoValidated, showToast]);
+    }, [checkoutPlan, billingInterval, promoValidated, showToast, authUser]);
 
     const handleManageSubscription = useCallback(async () => {
         showToast({ message: 'Para modificar o cancelar tu plan, comunícate con soporte@wappy.co', status: 'info' });
@@ -520,7 +535,44 @@ export default function PlansPage() {
             </div>
 
             <div className="mx-auto max-w-5xl px-6 py-12">
-                {checkoutPlan ? (
+                {pendingPaymentInfo ? (
+                    /* ── PENDING PAYMENT INFO VIEW (Compra y Paga Después / async methods) ── */
+                    <div className="mx-auto max-w-lg text-center">
+                        <div className="mb-6 flex justify-center">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 animate-pulse">
+                                <svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <h2 className="text-2xl font-black text-text-primary mb-3">Tu pago está siendo validado</h2>
+                        <p className="text-text-secondary mb-6 text-sm leading-relaxed">
+                            Bancolombia está evaluando tu solicitud de <strong className="text-text-primary">Compra y Paga Después</strong> para el plan{' '}
+                            <strong className="text-text-primary">{pendingPaymentInfo.planName}</strong>.
+                            Este proceso puede tomar entre <strong>unos minutos y hasta 72 horas</strong>.
+                        </p>
+                        <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-700 dark:text-amber-400 text-left space-y-2">
+                            <div className="flex items-start gap-2">
+                                <span className="mt-0.5">📧</span>
+                                <span>Recibirás una confirmación en tu correo <strong>{pendingPaymentInfo.email}</strong> cuando Bancolombia apruebe la transacción.</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <span className="mt-0.5">⚡</span>
+                                <span>Tu plan se activará <strong>automáticamente</strong> tan pronto el pago sea aprobado, sin que tengas que hacer nada más.</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                                <span className="mt-0.5">🔄</span>
+                                <span>Si al ingresar a la plataforma en unas horas no ves tu plan actualizado, cierra sesión y vuelve a entrar.</span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => { setPendingPaymentInfo(null); navigate('/c/new'); }}
+                            className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-sm font-bold text-white shadow hover:opacity-90 transition-all"
+                        >
+                            Volver a la plataforma
+                        </button>
+                    </div>
+                ) : checkoutPlan ? (
                     /* ── CHECKOUT VIEW ── */
                     <div className="mx-auto max-w-3xl">
 

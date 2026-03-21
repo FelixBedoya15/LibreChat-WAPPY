@@ -298,6 +298,10 @@ const startServer = async () => {
     await initializeMCPs();
     await initializeOAuthReconnectManager();
     await checkMigrations();
+
+    // Start background poller for async payment methods (e.g. Compra y Paga Después / Bancolombia BNPL)
+    const { startWompiPoller } = require('./services/wompiPendingPoller');
+    startWompiPoller();
   });
 
   // Setup WebSocket server for voice conversations
