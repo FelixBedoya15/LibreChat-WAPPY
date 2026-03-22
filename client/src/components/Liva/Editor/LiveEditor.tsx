@@ -147,8 +147,9 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     useImperativeHandle(ref, () => ({
         setHTML: (html: string) => {
             if (editorRef.current) {
-                editorRef.current.innerHTML = html;
-                setContent(html);
+                const safeHtml = html.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+                editorRef.current.innerHTML = safeHtml;
+                setContent(safeHtml);
             }
         }
     }));
@@ -160,7 +161,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         // Set content ONLY once when the component first mounts and has content
         // After that, all updates go through the imperative setHTML() handle
         if (!initializedRef.current && editorRef.current && initialContent) {
-            editorRef.current.innerHTML = initialContent;
+            const safeHtml = initialContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+            editorRef.current.innerHTML = safeHtml;
             initializedRef.current = true;
         } else if (!initializedRef.current && editorRef.current) {
             // Mark as initialized even if content is empty, so future setHTML calls work
