@@ -363,54 +363,84 @@ const AnalisisTrabajoSeguro = () => {
     });
 
     return (
-        <div className="flex flex-col gap-4">
-                        {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                {/* Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                    <AnimatedIcon name="history" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Historial</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header & Main Toolbar */}
+            <div className="flex flex-col items-center gap-6 mb-6">
+                <div className="flex items-center gap-4 text-center">
+                    <div className="p-3 rounded-2xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shadow-sm">
+                        <ShieldCheck className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black text-text-primary tracking-tight">Análisis de Trabajo Seguro (ATS)</h2>
+                        <p className="text-sm text-text-secondary font-medium">Identificación de Peligros y Control de Riesgos por Tarea</p>
+                    </div>
+                </div>
 
-                {/* Generar IA */}
-                <button onClick={() => handleGenerate()} disabled={isGenerating} className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Generar Informe IA</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Modelo */}
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Datos */}
-                <button onClick={() => handleSaveData()} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer">
-                    <AnimatedIcon name="database" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Datos</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Informe */}
-                <button onClick={() => handleSave()} disabled={!editorContent && !generatedReport} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                    <AnimatedIcon name="save" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Informe</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Exportar */}
-                {(editorContent || generatedReport) ? (
-                    <ExportDropdown content={editorContent || generatedReport || ''} fileName={"Analisis_Trabajo_Seguro_ATS"} />
-                ) : (
-                    <button disabled className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
-                        <Download className="h-5 w-5" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Exportar</span>
+                {/* ═══ Toolbar Principal Estabilizada (Estilo Imagen 2) ═══ */}
+                <div className="flex flex-wrap items-center justify-center gap-4 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto">
+                    {/* Historial */}
+                    <button 
+                        onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
+                        title="Historial de ATS"
+                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
+                    >
+                        <AnimatedIcon name="history" size={20} />
                     </button>
-                )}
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
-                {/* IA Dummy */}
-                <DummyGenerateButton onClick={handleDummyData}  />
+                    {/* Generar IA */}
+                    <button 
+                        onClick={() => handleGenerate()} 
+                        disabled={isGenerating} 
+                        title="Generar ATS Completo con IA"
+                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
+                    >
+                        {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
+                    </button>
+
+                    {/* Modelo Selector */}
+                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
+                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                    </div>
+
+                    {/* Guardar Datos */}
+                    <button 
+                        onClick={() => handleSaveData()} 
+                        title="Guardar Datos del Formulario ATS"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
+                    >
+                        <AnimatedIcon name="database" size={20} />
+                    </button>
+
+                    {/* Guardar Informe */}
+                    <button 
+                        onClick={() => handleSave()} 
+                        disabled={!editorContent && !generatedReport} 
+                        title="Guardar Informe en Historial"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                        <AnimatedIcon name="save" size={20} />
+                    </button>
+
+                    {/* Exportar */}
+                    {(editorContent || generatedReport) ? (
+                        <div title="Exportar Documento">
+                            <ExportDropdown content={editorContent || generatedReport || ''} fileName="Analisis_Trabajo_Seguro_ATS" />
+                        </div>
+                    ) : (
+                        <button disabled title="Exportar (Gere primero el ATS)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                            <Download className="h-5 w-5" />
+                        </button>
+                    )}
+
+                    {/* IA Dummy */}
+                    <button 
+                        onClick={handleDummyData} 
+                        title="Generar Datos de Prueba"
+                        className="flex items-center justify-center w-12 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:rotate-12"
+                    >
+                        <AnimatedIcon name="robot" size={20} />
+                    </button>
+                </div>
             </div>
 
             {/* History Panel */}
