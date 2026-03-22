@@ -267,7 +267,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                 />
             </div>
 
-            <div className="flex-1 w-full overflow-y-auto space-y-6">
+            <div className="flex-1 w-full overflow-y-scroll space-y-6">
                 {categories.filter(c => isAdmin || !disabledApps.includes(c.id)).length === 0 ? (
                     <div className="p-8 text-center text-text-secondary">
                         No hay categorías disponibles para esta fase.
