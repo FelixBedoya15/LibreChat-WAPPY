@@ -525,7 +525,7 @@ const PerfilesCargo = () => {
     const actionButtonClass = "group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-semibold text-sm hover:scale-105 active:scale-95 transform cursor-pointer";
 
     return (
-        <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-6 duration-600">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ── Toolbar ── */}
             <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Grupo 1: Historial */}
