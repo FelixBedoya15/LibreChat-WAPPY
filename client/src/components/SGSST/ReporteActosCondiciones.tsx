@@ -626,11 +626,11 @@ const ReporteActosCondiciones = () => {
                                         <div>
                                             <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-6 flex items-center gap-2" title={item.trabajador.nombre}>
                                                 {item.trabajador.nombre}
-                                                {isProcessed && <CheckCircle className="w-3 h-3 text-green-500" title="Procesado" />}
+                                                {isProcessed && <CheckCircle className="w-3 h-3 text-green-500" />}
                                             </h4>
                                             <p className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis w-[180px]">Cargo: {item.trabajador.cargo}</p>
                                         </div>
-                                        <button onClick={() => handleDismissInbox(item.id)} className="text-gray-400 hover:text-red-500 shrink-0 ml-2" title="Descartar reporte">
+                                        <button onClick={() => handleDismissInbox(item.id)} className="text-gray-400 hover:text-red-500 shrink-0 ml-2">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>

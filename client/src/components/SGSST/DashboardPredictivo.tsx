@@ -332,7 +332,7 @@ const DashboardPredictivo = () => {
 
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Refresh */}
-                    <button onClick={fetchForecast} disabled={isLoadingForecast} title="Actualizar Indicadores"
+                    <button onClick={fetchForecast} disabled={isLoadingForecast}
                         className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
                         <RefreshCw className={cn("h-4 w-4 text-teal-500", isLoadingForecast && "animate-spin")} />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">
@@ -493,7 +493,6 @@ const DashboardPredictivo = () => {
                     {!isPro ? (
                         <div className="flex-1 flex flex-col justify-center h-full">
                             <UpgradeWall
-                                title="Centro de Inteligencia Pro"
                                 description="Esta sección requiere un plan PRO. Analiza en tiempo real de forma predictiva mediante IA el ecosistema de más de 8 módulos interconectados de SGSST."
                                 isCompact={false}
                                 plan="USER_PLUS"

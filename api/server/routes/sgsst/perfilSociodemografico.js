@@ -453,7 +453,19 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
     const model = genAI.getGenerativeModel({ model: modelName });
     const result = await generateWithRetry(model, promptText);
     let aiHtml = result.response.text().trim();
-    aiHtml = aiHtml.replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
+    aiHtml = aiHtml.replace(/```html\n?/gi, '').replace(/```\n?/gi, '').trim();
+
+    const bodyMatch = aiHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) {
+        aiHtml = bodyMatch[1].trim();
+    }
+    aiHtml = aiHtml
+        .replace(/<!DOCTYPE[^>]*>/gi, '')
+        .replace(/<html[^>]*>/gi, '').replace(/<\/html>/gi, '')
+        .replace(/<head>[\s\S]*?<\/head>/gi, '')
+        .replace(/<body[^>]*>/gi, '').replace(/<\/body>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .trim();
 
     let fullReport = `${headerHTML}
                         <div class="mt-8 space-y-6">

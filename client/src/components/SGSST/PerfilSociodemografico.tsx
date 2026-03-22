@@ -469,8 +469,7 @@ const PerfilSociodemografico = () => {
                                     <div className="flex flex-wrap items-center gap-2 w-full">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
-                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors"
-                                            title="Ver Carnet QR">
+                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors">
                                             <AnimatedIcon name="qrcode" size={18} />
                                         </button>
                                         <button

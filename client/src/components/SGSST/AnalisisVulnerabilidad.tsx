@@ -391,7 +391,7 @@ const AnalisisVulnerabilidad = () => {
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
         </button>
         <button onClick={() => handleSaveData(false)} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-          <AnimatedIcon name="database" size={20} className="text-gray-500" />
+          <AnimatedIcon name="database" size={20} />
           <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
         </button>
         <button onClick={handleGenerate} disabled={isGenerating} className="group flex items-center px-3 py-2 bg-teal-700 hover:bg-teal-800 border border-teal-700 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">

@@ -495,7 +495,6 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
                                                                     className="p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 hover:bg-surface-tertiary transition-all"
-                                                                    title="Eliminar archivo"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </button>

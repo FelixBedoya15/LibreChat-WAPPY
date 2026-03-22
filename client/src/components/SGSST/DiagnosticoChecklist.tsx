@@ -205,6 +205,28 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         return statuses.find(s => s.itemId === itemId)?.status || 'pendiente';
     }, [statuses]);
 
+    const LOCAL_STORAGE_KEY = 'sgsst_diagnostico_form';
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.statuses) setStatuses(data.statuses);
+                if (data.observations) setObservations(data.observations);
+            }
+        } catch(e) {}
+    }, []);
+
+    const handleSaveData = () => {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ statuses, observations }));
+            showToast({ message: 'Calificación de diagnóstico guardada localmente', status: 'success' });
+        } catch(e) {
+            showToast({ message: 'Error al guardar calificación', status: 'error' });
+        }
+    };
+
     const handleAnalyze = useCallback(async () => {
         if (completedCount === 0) {
             showToast({ message: t('com_ui_complete_one_item', 'Complete al menos un ítem antes de analizar'), status: 'warning' });
@@ -555,14 +577,14 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                             {/* ═══ Toolbar ═══ */}
             <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} title="Historial" className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
                     <AnimatedIcon name="history" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Historial</span>
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Generar IA */}
-                <button onClick={handleAnalyze} disabled={isAnalyzing} title="Generar Informe IA" className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                <button onClick={handleAnalyze} disabled={isAnalyzing} className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                     {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Generar Informe IA</span>
                 </button>
@@ -573,15 +595,15 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Datos */}
-                <button onClick={() => handleSave()} title="Guardar Datos" className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer">
-                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
+                <button onClick={handleSaveData} className="group flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer">
+                    <AnimatedIcon name="database" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Datos</span>
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Informe */}
-                <button onClick={() => handleSave()} disabled={!editorContent} title="Guardar Informe" className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                    <AnimatedIcon name="save" size={20} className="text-indigo-600" />
+                <button onClick={() => handleSave()} disabled={!editorContent} className="group flex items-center px-4 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                    <AnimatedIcon name="save" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Informe</span>
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
@@ -590,7 +612,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 {(editorContent) ? (
                     <ExportDropdown content={editorContent || ''} fileName={"Informe_Diagnostico_SST"} />
                 ) : (
-                    <button disabled title="Exportar" className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
+                    <button disabled className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
                         <Download className="h-5 w-5" />
                         <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Exportar</span>
                     </button>
