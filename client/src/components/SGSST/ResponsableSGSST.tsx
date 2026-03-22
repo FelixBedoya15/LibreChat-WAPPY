@@ -190,6 +190,32 @@ const ResponsableSGSST = () => {
         }
     }, [editorContent, generatedDoc, conversationId, reportMessageId, responsableName, formationLevel, token, showToast]);
 
+    const LOCAL_STORAGE_KEY = 'sgsst_responsable_form';
+
+    React.useEffect(() => {
+        try {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.responsableName) setResponsableName(data.responsableName);
+                if (data.formationLevel) setFormationLevel(data.formationLevel);
+                if (data.licenseNumber) setLicenseNumber(data.licenseNumber);
+                if (data.licenseExpiry) setLicenseExpiry(data.licenseExpiry);
+                if (data.courseStatus) setCourseStatus(data.courseStatus);
+                if (data.additionalNorms) setAdditionalNorms(data.additionalNorms);
+            }
+        } catch(e) {}
+    }, []);
+
+    const handleSaveData = () => {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }));
+            showToast({ message: 'Datos guardados exitosamente', status: 'success' });
+        } catch(e) {
+            showToast({ message: 'Error al guardar datos', status: 'error' });
+        }
+    };
+
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
 

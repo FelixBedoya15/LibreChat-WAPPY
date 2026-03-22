@@ -194,7 +194,7 @@ const PoliticaSST = () => {
 
     const LOCAL_STORAGE_KEY = 'sgsst_politica_form';
 
-    useEffect(() => {
+    React.useEffect(() => {
         try {
             const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (saved) {

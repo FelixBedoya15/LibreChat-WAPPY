@@ -527,7 +527,7 @@ const PerfilesCargo = () => {
     return (
         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-6 duration-600">
             {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Grupo 1: Historial */}
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}

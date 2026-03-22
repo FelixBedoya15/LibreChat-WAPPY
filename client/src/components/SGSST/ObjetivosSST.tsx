@@ -185,7 +185,7 @@ const ObjetivosSST = () => {
 
     const LOCAL_STORAGE_KEY = 'sgsst_objetivos_form';
 
-    useEffect(() => {
+    React.useEffect(() => {
         try {
             const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (saved) {

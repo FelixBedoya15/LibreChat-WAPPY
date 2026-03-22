@@ -207,7 +207,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     const LOCAL_STORAGE_KEY = 'sgsst_diagnostico_form';
 
-    useEffect(() => {
+    React.useEffect(() => {
         try {
             const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (saved) {

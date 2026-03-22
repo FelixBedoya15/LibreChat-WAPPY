@@ -359,7 +359,7 @@ const PerfilSociodemografico = () => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-wrap items-center gap-2 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Grupo 1: Historial */}
                 <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
                     className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
