@@ -8,6 +8,7 @@ interface ExportDropdownProps {
     content: string;
     fileName: string;
     reportType?: 'checklist' | 'general';
+    hideText?: boolean;
 }
 
 /**
@@ -15,7 +16,7 @@ interface ExportDropdownProps {
  * Provides HTML, Word, and PDF export options in a single dropdown button.
  * Preserves full HTML styling (tables, colors, formatting) in all formats.
  */
-const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general' }) => {
+const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general', hideText = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -274,14 +275,22 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     return (
         <div ref={dropdownRef} className="relative">
             <button
+                title="Exportar"
                 onClick={() => setIsOpen(!isOpen)}
-                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                className={hideText
+                    ? "flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0"
+                    : "group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm shrink-0"
+                }
             >
                 <Download className="h-5 w-5" />
-                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                    Exportar
-                </span>
-                <ChevronDown className={`h-3 w-3 ml-1 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                {!hideText && (
+                    <>
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                            Exportar
+                        </span>
+                        <ChevronDown className={`h-3 w-3 ml-1 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                    </>
+                )}
             </button>
 
             {isOpen && (
