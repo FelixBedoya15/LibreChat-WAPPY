@@ -598,7 +598,7 @@ const MatrizPeligrosGTC45 = () => {
                     <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                     {/* Guardar Datos */}
-                    <button onClick={handleSaveData} disabled={isSaving} title="Guardar Datos"
+                    <button onClick={() => handleSaveData()} disabled={isSaving} title="Guardar Datos"
                         className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
                         {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
                     </button>

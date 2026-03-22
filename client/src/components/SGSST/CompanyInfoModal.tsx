@@ -466,7 +466,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         {t('com_ui_cancel', 'Cancelar')}
                     </button>
                     <button
-                        onClick={handleSave}
+                        onClick={() => handleSave()}
                         disabled={saving || !isFormValid}
                         title={!isFormValid ? "Debe completar todos los campos obligatorios (*)" : ""}
                         className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"

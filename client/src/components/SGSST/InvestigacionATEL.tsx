@@ -478,7 +478,7 @@ const InvestigacionATEL = () => {
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Generar IA */}
-                <button onClick={handleGenerate} disabled={isGenerating} title="Generar Informe IA" className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => handleGenerate()} disabled={isGenerating} title="Generar Informe IA" className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
@@ -488,13 +488,13 @@ const InvestigacionATEL = () => {
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Datos */}
-                <button onClick={handleSaveData} title="Guardar Datos" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
+                <button onClick={() => handleSaveData()} title="Guardar Datos" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
                     <AnimatedIcon name="database" size={20} className="text-gray-500" />
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Informe */}
-                <button onClick={handleSave} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => handleSave()} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                     <AnimatedIcon name="save" size={20} className="text-indigo-600" />
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
@@ -980,7 +980,7 @@ const InvestigacionATEL = () => {
                         {/* ── Generate Button bottom ── */}
                         <div className="flex justify-center pt-4 gap-4">
                             <button
-                                onClick={handleGenerate}
+                                onClick={() => handleGenerate()}
                                 disabled={isGenerating}
                                 className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >

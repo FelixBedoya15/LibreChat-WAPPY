@@ -22,6 +22,8 @@ import {
     Database,
     History,
     Save,
+    Download,
+    Bot
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -528,7 +530,7 @@ const PerfilesCargo = () => {
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Generar IA */}
-                <button onClick={handleGenerate} disabled={isGenerating} title="Generar Informe IA" className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => handleGenerate()} disabled={isGenerating} title="Generar Informe IA" className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                     {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />

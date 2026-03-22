@@ -527,7 +527,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     {/* Show Save/Export if content exists OR we have analysis results */}
                     {(analysisReport || editorContent || completedCount > 0) && (
                         <>
-                            <button onClick={handleSave} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                            <button onClick={() => handleSave()} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
                                 <AnimatedIcon name="database" size={20} className="text-gray-500" />
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
                                     Guardar Datos
@@ -707,7 +707,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Informe */}
-                <button onClick={handleSave} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => handleSave()} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                     <AnimatedIcon name="save" size={20} className="text-indigo-600" />
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
@@ -727,7 +727,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             </div>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={handleSave}
+                                onClick={() => handleSave()}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                             >
                                 <AnimatedIcon name="save" size={20} className="text-gray-500" />

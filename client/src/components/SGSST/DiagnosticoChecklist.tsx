@@ -575,7 +575,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Informe */}
-                <button onClick={handleSave} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => handleSave()} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                     <AnimatedIcon name="save" size={20} className="text-indigo-600" />
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
@@ -753,7 +753,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         </div>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={handleSave}
+                                onClick={() => handleSave()}
                                 className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                             >
                                 <AnimatedIcon name="save" size={20} className="text-gray-500" />

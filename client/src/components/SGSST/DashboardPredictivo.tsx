@@ -340,7 +340,7 @@ const DashboardPredictivo = () => {
                     </button>
 
                     {/* Generate */}
-                    <button onClick={handleGenerate} disabled={isGenerating}
+                    <button onClick={() => handleGenerate()} disabled={isGenerating}
                         className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white rounded-full transition-all duration-300 shadow-md shadow-teal-500/30 font-semibold text-sm ring-2 ring-teal-500/20 disabled:opacity-50">
                         {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <AnimatedIcon name="sparkles" size={16} />}
                         {isGenerating ? 'Analizando...' : 'Generar Pronóstico IA'}
