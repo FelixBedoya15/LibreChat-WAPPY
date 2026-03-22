@@ -774,7 +774,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-wrap items-center gap-2 w-full">
-                                                                <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); } disabled={loadingIds.has(h.id)}
+                                                                <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); }} disabled={loadingIds.has(h.id)}
                                                                     className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1">
                                                                     {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <AnimatedIcon name="sparkles" size={12} />}
                                                                     IA
