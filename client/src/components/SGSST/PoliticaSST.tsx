@@ -89,7 +89,7 @@ const PoliticaSST = () => {
             setGeneratedPolicy(data.policy);
             setEditorContent(data.policy);
             setEditorKey(Date.now().toString());
-            setConversationId(null);
+            setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Política SST generada exitosamente', status: 'success' });
@@ -374,7 +374,7 @@ const PoliticaSST = () => {
                                     >
                                         <Icon className="h-4 w-4 text-text-secondary" />
                                         {field.label}
-                                        {field.required && <span className="text-red-500">*</span>}
+                                        {(field as any).required && <span className="text-red-500">*</span>}
                                     </label>
                                     <textarea
                                         id={field.id}

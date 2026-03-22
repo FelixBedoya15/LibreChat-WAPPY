@@ -12,10 +12,16 @@ export function useAutoLoadReport({
     handleSelectReport: (conversationId: string) => Promise<void> | void;
 }) {
     const hasAttempted = useRef(false);
+    // Keep a stable ref to the latest handleSelectReport so we don't
+    // include it in the effect dependency array (avoids re-triggering on every render)
+    const handleSelectReportRef = useRef(handleSelectReport);
+    useEffect(() => {
+        handleSelectReportRef.current = handleSelectReport;
+    });
 
     useEffect(() => {
         if (!token || hasAttempted.current || generatedReport) return;
-        
+
         let isMounted = true;
         const autoLoad = async () => {
             hasAttempted.current = true;
@@ -26,11 +32,11 @@ export function useAutoLoadReport({
                 });
                 if (!res.ok) return;
                 const data = await res.json();
-                
+
                 if (isMounted && data && data.conversations && data.conversations.length > 0) {
                     const latestConvoId = data.conversations[0].conversationId;
                     if (latestConvoId) {
-                        await handleSelectReport(latestConvoId);
+                        await handleSelectReportRef.current(latestConvoId);
                     }
                 }
             } catch (err) {
@@ -38,7 +44,10 @@ export function useAutoLoadReport({
             }
         };
         autoLoad();
-        
+
         return () => { isMounted = false; };
-    }, [token, tags, generatedReport, handleSelectReport]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token, generatedReport]);
+    // NOTE: `tags` intentionally omitted — tags are static per component.
+    // `handleSelectReport` replaced by stable ref above.
 }

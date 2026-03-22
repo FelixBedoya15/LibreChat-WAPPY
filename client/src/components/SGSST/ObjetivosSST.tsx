@@ -32,6 +32,8 @@ const ObjetivosSST = () => {
     const [policySummary, setPolicySummary] = useState('');
     const [diagnosticSummary, setDiagnosticSummary] = useState('');
     const [additionalNorms, setAdditionalNorms] = useState('');
+    const [previousObjectives, setPreviousObjectives] = useState('');
+    const [yearPlan, setYearPlan] = useState('');
     const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
 
     // Generated objectives
@@ -82,7 +84,7 @@ const ObjetivosSST = () => {
             setGeneratedObjectives(data.objectives);
             setEditorContent(data.objectives);
             setEditorKey(Date.now().toString());
-            setConversationId(null);
+            setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Objetivos SST generados exitosamente', status: 'success' });

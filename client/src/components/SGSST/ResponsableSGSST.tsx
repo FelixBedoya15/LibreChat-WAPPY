@@ -115,11 +115,8 @@ const ResponsableSGSST = () => {
             const data = await response.json();
             setGeneratedDoc(data.document);
             setEditorContent(data.document);
-            setEditorKey(Date.now().toString()); // Force editor re-render
-            setConversationId(null);             // Reset so next save creates new
-            setReportMessageId(null);
             setEditorKey(Date.now().toString());
-            setConversationId(null);
+            setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Documento generado exitosamente', status: 'success' });
