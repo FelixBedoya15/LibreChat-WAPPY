@@ -529,21 +529,28 @@ const PerfilesCargo = () => {
             {/* ── Toolbar ── */}
             <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Grupo 1: Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                    <AnimatedIcon name="history" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Historial</span>
+                <button
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                >
+                    <History className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Historial
+                    </span>
                 </button>
 
                 {/* Separador */}
                 <div className="h-6 w-px bg-border-medium mx-0.5" />
 
                 {/* Grupo 2: Generar IA - Modelo */}
-                <button onClick={handleGenerate} disabled={isGenerating}
-                    className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">
-                        {isGenerating ? 'Generando...' : 'Generar Informe IA'}
+                <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isGenerating ? 'Generando...' : 'Generar IA'}
                     </span>
                 </button>
                 <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
@@ -552,15 +559,21 @@ const PerfilesCargo = () => {
                 <div className="h-6 w-px bg-border-medium mx-0.5" />
 
                 {/* Grupo 3: Guardar Datos - Guardar Informe */}
-                <button onClick={() => handleSaveData(false)} disabled={isSaving}
-                    className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50">
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Datos</span>
+                <button onClick={() => handleSaveData(false)} className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                    <Database className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Guardar Datos
+                    </span>
                 </button>
-                <button onClick={() => handleSaveReport()} disabled={isSaving || !generatedReport}
-                    className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="save" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Informe</span>
+                <button
+                    onClick={() => handleSaveReport()}
+                    disabled={isSaving || !generatedReport}
+                    className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    {isSaving ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Save className="h-[18px] w-[18px]" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Guardar Informe
+                    </span>
                 </button>
 
                 {/* Separador */}
