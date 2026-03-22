@@ -356,6 +356,8 @@ const PermisoAlturas = () => {
             setGeneratedObjectives(data.report);
             setEditorContent(data.report);
             setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Permiso generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -426,6 +428,7 @@ const PermisoAlturas = () => {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                 showToast({ message: 'Permiso cargado correctamente', status: 'success' });
             }

@@ -89,6 +89,8 @@ const PoliticaSST = () => {
             setGeneratedPolicy(data.policy);
             setEditorContent(data.policy);
             setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Política SST generada exitosamente', status: 'success' });
         } catch (error: any) {
@@ -179,6 +181,7 @@ const PoliticaSST = () => {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                 showToast({ message: 'Política cargada correctamente', status: 'success' });
             }

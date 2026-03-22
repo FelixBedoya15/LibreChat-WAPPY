@@ -119,6 +119,8 @@ const ResponsableSGSST = () => {
             setConversationId(null);             // Reset so next save creates new
             setReportMessageId(null);
             setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Documento generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -204,6 +206,7 @@ const ResponsableSGSST = () => {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                 showToast({ message: 'Documento cargado correctamente', status: 'success' });
             }

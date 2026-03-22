@@ -601,12 +601,12 @@ const MatrizPeligrosGTC45 = () => {
                 <div className="h-6 w-px bg-border-medium mx-0.5" />
 
                 {/* Grupo 3: Guardar Datos - Guardar Informe */}
-                <button onClick={handleSaveData} disabled={isSaving}
+                <button onClick={() => handleSaveData()} disabled={isSaving}
                     className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
                     {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
                 </button>
-                <button onClick={handleSaveReport} disabled={!generatedReport}
+                <button onClick={() => handleSaveReport()} disabled={!generatedReport}
                     className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed">
                     <AnimatedIcon name="save" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>

@@ -336,6 +336,8 @@ const MetodoOwas = () => {
       setGeneratedReport(data.report);
       setEditorContent(data.report);
       setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
       showToast({ message: 'Informe OWAS generado exitosamente', status: 'success' });
     } catch (error: any) {
@@ -364,6 +366,7 @@ const MetodoOwas = () => {
       const messages = await res.json();
       const last = messages[messages.length - 1];
       if (last?.text) { setGeneratedReport(last.text); setEditorContent(last.text); setConversationId(id); setReportMessageId(last.messageId); setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false); showToast({ message: 'OWAS cargado', status: 'success' }); }
     } catch { showToast({ message: 'Error al cargar', status: 'error' }); }
     setIsHistoryOpen(false);
@@ -400,13 +403,13 @@ const MetodoOwas = () => {
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Datos */}
-                <button onClick={handleSaveData} title="Guardar Datos" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
+                <button onClick={() => handleSaveData()} title="Guardar Datos" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
                     <AnimatedIcon name="database" size={20} className="text-gray-500" />
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* Guardar Informe */}
-                <button onClick={handleSave} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => handleSave()} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                     <AnimatedIcon name="save" size={20} className="text-indigo-600" />
                 </button>
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />

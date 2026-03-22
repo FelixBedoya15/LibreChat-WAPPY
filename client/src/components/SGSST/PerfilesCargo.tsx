@@ -429,6 +429,8 @@ const PerfilesCargo = () => {
             setGeneratedReport(data.report);
             setEditorContent(data.report);
             setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
             // Persist report in list immediately
             setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, report: data.report } : p));
@@ -480,6 +482,7 @@ const PerfilesCargo = () => {
                     setGeneratedReport(lastMsg.text);
                     setEditorContent(lastMsg.text);
                     setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                     showToast({ message: 'Reporte cargado desde el historial', status: 'success' });
                 }
@@ -563,7 +566,7 @@ const PerfilesCargo = () => {
                     </span>
                 </button>
                 <button
-                    onClick={handleSaveReport}
+                    onClick={() => handleSaveReport()}
                     disabled={isSaving || !generatedReport}
                     className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >

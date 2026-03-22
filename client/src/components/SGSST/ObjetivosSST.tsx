@@ -82,6 +82,8 @@ const ObjetivosSST = () => {
             setGeneratedObjectives(data.objectives);
             setEditorContent(data.objectives);
             setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Objetivos SST generados exitosamente', status: 'success' });
         } catch (error: any) {
@@ -170,6 +172,7 @@ const ObjetivosSST = () => {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                 showToast({ message: 'Objetivos cargados correctamente', status: 'success' });
             }

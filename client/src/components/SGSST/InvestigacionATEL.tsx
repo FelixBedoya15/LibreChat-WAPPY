@@ -385,6 +385,8 @@ const InvestigacionATEL = () => {
             setGeneratedObjectives(data.report);
             setEditorContent(data.report);
             setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
             showToast({ message: 'Informe de investigación generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -449,6 +451,7 @@ const InvestigacionATEL = () => {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                 showToast({ message: 'Informe cargado correctamente', status: 'success' });
             }

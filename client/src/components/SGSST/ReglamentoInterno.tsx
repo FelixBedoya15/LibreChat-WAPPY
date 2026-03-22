@@ -73,6 +73,8 @@ const ReglamentoInterno = () => {
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
         setEditorKey(Date.now().toString());
+            setConversationId(null);
+            setReportMessageId(null);
             setIsFormExpanded(false);
         setGeneratedDocument('');
         setEditorContent('');
@@ -225,6 +227,7 @@ const ReglamentoInterno = () => {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());
+            
             setIsFormExpanded(false);
                 showToast({ message: 'Reglamento cargado correctamente', status: 'success' });
             }
