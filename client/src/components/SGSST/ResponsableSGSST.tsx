@@ -77,12 +77,12 @@ const ResponsableSGSST = () => {
 
     const handleDummyData = () => {
         const dummy = generateDummyData.responsableSGSST();
-        setResponsableName(dummy.name);
-        setFormationLevel(dummy.profile);
-        setLicenseNumber('4567-2021 - Secretaría de Salud de Antioquia');
-        setLicenseExpiry('2026-12-31');
-        setCourseStatus('2025-03-01');
-        setAdditionalNorms('Resolución 908 de 2025, Decreto 1072 de 2015, Resolución 0312 de 2019');
+        setResponsableName(prev => prev || dummy.name);
+        setFormationLevel(prev => prev || dummy.profile);
+        setLicenseNumber(prev => prev || '4567-2021 - Secretaría de Salud de Antioquia');
+        setLicenseExpiry(prev => prev || '2026-12-31');
+        setCourseStatus(prev => prev || '2025-03-01');
+        setAdditionalNorms(prev => prev || 'Resolución 908 de 2025, Decreto 1072 de 2015, Resolución 0312 de 2019');
         showToast({ message: 'Datos del responsable SG-SST simulados generados exitosamente.', status: 'success' });
     };
 

@@ -525,7 +525,7 @@ const PerfilesCargo = () => {
     const actionButtonClass = "group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-semibold text-sm hover:scale-105 active:scale-95 transform cursor-pointer";
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-full overflow-x-hidden space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ── Toolbar ── */}
             <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Grupo 1: Historial */}
@@ -771,8 +771,8 @@ const PerfilesCargo = () => {
                         <h3 className="font-black text-base tracking-tight">INFORME TÉCNICO GENERADO</h3>
                     </div>
                     <div className="p-1">
-                        <div style={{ minHeight: '700px', overflowX: 'auto' }}>
-                             <div style={{ minWidth: '950px', padding: '24px' }}>
+                        <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+                             <div style={{ minWidth: '100%', padding: '24px' }}>
                                 <LiveEditor
                                     key={`${editorKey}-${refreshTrigger}`}
                                     initialContent={generatedReport}
