@@ -358,67 +358,74 @@ const PerfilSociodemografico = () => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex flex-wrap items-center gap-3 w-full">
-                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                        <AnimatedIcon name="layout-list" size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-text-primary">Perfil Sociodemográfico</h2>
-                        <span className="text-sm text-text-secondary">{trabajadores.length} Trabajadores Registrados</span>
-                    </div>
+            <div className="flex flex-wrap items-center gap-2 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                {/* Grupo 1: Historial */}
+                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                    <AnimatedIcon name="history" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
+                </button>
 
-                    <div className="flex-1 px-4 hidden lg:block">
-                        <div className="bg-teal-50 dark:bg-teal-900/20 p-3 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300">
-                            <h4 className="text-xs text-teal-800 dark:text-teal-300 mb-1 font-bold flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 animate-pulse text-teal-500" />
-                                Generación Inteligente
-                            </h4>
-                            <p className="text-[10px] sm:text-xs text-text-secondary leading-relaxed">
-                                La IA redactará el informe cruzando la información sociodemográfica y hallazgos médicos. Se tomará por defecto el <strong>Decreto 1072 de 2015</strong>, <strong>Resolución 0312 de 2019</strong>, <strong>Res. 1843 de 2025 (Exámenes)</strong> y <strong>Res. 4272 de 2021 (Alturas)</strong> si no especifica otra.
-                            </p>
-                        </div>
-                    </div>
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 2: Generar IA - Modelo */}
+                <button onClick={handleAnalyze} disabled={isAnalyzing}
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isAnalyzing ? 'Generando...' : 'Generar IA'}
+                    </span>
+                </button>
+                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 3: Guardar Datos - Guardar Informe */}
+                <button onClick={handleSaveData} disabled={isSaving}
+                    className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
+                </button>
+                <button onClick={handleSaveReport} disabled={!generatedReport}
+                    className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                    <AnimatedIcon name="save" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                </button>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 4: Exportar */}
+                <div className={!generatedReport ? 'opacity-40 pointer-events-none' : ''}>
+                    <ExportDropdown
+                        content={editorContent || generatedReport || ''}
+                        fileName="Perfil_Sociodemografico"
+                    />
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <DummyGenerateButton onClick={handleDummyData} />
-                    <button onClick={handleSaveData} disabled={isSaving}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
-                    </button>
-                    {/* ===== Excel Actions ===== */}
-                    <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
-                    <button onClick={() => fileInputRef.current?.click()}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-900/30 rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        <Upload className="h-4 w-4" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Importar Excel</span>
-                    </button>
-                    <button onClick={handleExportExcel} disabled={trabajadores.length === 0}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-900/30 rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                        <Download className="h-4 w-4" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Exportar Excel</span>
-                    </button>
-                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                        <AnimatedIcon name="history" size={20} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
-                    </button>
-                    {trabajadores.length > 0 && (
-                        <button onClick={handleAnalyze} disabled={isAnalyzing}
-                            className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe IA Real</span>
-                        </button>
-                    )}
-                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
-                    {generatedReport && (
-                        <ExportDropdown
-                            content={editorContent || generatedReport || ''}
-                            fileName="Perfil_Sociodemografico"
-                        />
-                    )}
-                </div>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 5: IA Dummy */}
+                <DummyGenerateButton onClick={handleDummyData} />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 6: Importar Excel - Exportar Excel */}
+                <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
+                <button onClick={() => fileInputRef.current?.click()}
+                    className="group flex items-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                    <Upload className="h-4 w-4" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Importar Excel</span>
+                </button>
+                <button onClick={handleExportExcel} disabled={trabajadores.length === 0}
+                    className="group flex items-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                    <Download className="h-4 w-4" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Exportar Excel</span>
+                </button>
             </div>
 
             {/* ═══ History Panel ═══ */}
@@ -680,22 +687,11 @@ const PerfilSociodemografico = () => {
             {/* ═══ Report Viewer (inline, igual que MatrizPeligros) ═══ */}
             {generatedReport && (
                 <div className="mt-8 space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                         <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
                             <AnimatedIcon name="file-text" size={20} className="text-indigo-500" />
                             Vista Previa del Informe Sociodemográfico
                         </h3>
-                        <div className="flex flex-wrap items-center gap-2 w-full">
-                            <button onClick={handleSaveReport}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <AnimatedIcon name="save" size={20} />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || generatedReport || ''}
-                                fileName="Perfil_Sociodemografico"
-                            />
-                        </div>
                     </div>
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1 overflow-hidden">
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>

@@ -30,6 +30,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -520,8 +521,71 @@ const PerfilesCargo = () => {
     return (
         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-6 duration-600">
             {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+                {/* Grupo 1: Historial */}
                 <button
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                >
+                    <History className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Historial
+                    </span>
+                </button>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 2: Generar IA - Modelo */}
+                <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isGenerating ? 'Generando...' : 'Generar IA'}
+                    </span>
+                </button>
+                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 3: Guardar Datos - Guardar Informe */}
+                <button onClick={() => handleSaveData(false)} className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                    <Database className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Guardar Datos
+                    </span>
+                </button>
+                <button
+                    onClick={handleSaveReport}
+                    disabled={isSaving || !generatedReport}
+                    className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    {isSaving ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Save className="h-[18px] w-[18px]" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Guardar Informe
+                    </span>
+                </button>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 4: Exportar */}
+                <div className={!generatedReport ? 'opacity-40 pointer-events-none' : ''}>
+                    <ExportDropdown
+                        content={editorContent || ''}
+                        fileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
+                    />
+                </div>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 5: IA Dummy */}
+                <DummyGenerateButton
                     onClick={() => {
                         const dummy = {
                             ...formData,
@@ -536,45 +600,7 @@ const PerfilesCargo = () => {
                         setFormData(dummy);
                         showToast({ message: 'Ejemplo cargado', status: 'success' });
                     }}
-                    className={actionButtonClass}
-                >
-                    <AnimatedIcon name="sparkles" size={18} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Autocompletar
-                    </span>
-                </button>
-
-                <button
-                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={cn(actionButtonClass, isHistoryOpen && "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30")}
-                >
-                    <History className="h-[18px] w-[18px]" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Historial Perfil
-                    </span>
-                </button>
-
-                <button onClick={() => handleSaveData(false)} className={actionButtonClass}>
-                    <Database className="h-[18px] w-[18px]" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Guardar Datos
-                    </span>
-                </button>
-
-                <div className="flex-1" />
-
-                <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="group relative flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-xl font-bold text-sm hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        {isGenerating ? 'Generando...' : 'Generar Perfil con IA'}
-                    </span>
-                </button>
-
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                />
             </div>
 
             {/* ── History (Filtered by Profile ID) ── */}
@@ -734,25 +760,9 @@ const PerfilesCargo = () => {
             {/* Generated Report View */}
             {generatedReport && (
                 <div className="rounded-2xl border border-border-medium bg-surface-primary shadow-2xl overflow-hidden animate-in fade-in duration-500">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-teal-600 rounded-lg text-white"><FileText className="h-5 w-5" /></div>
-                            <h3 className="font-black text-base tracking-tight">INFORME TÉCNICO GENERADO</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <button
-                                onClick={handleSaveReport}
-                                disabled={isSaving}
-                                className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all hover:scale-105"
-                            >
-                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                Guardar en Historial
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || ''}
-                                fileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
-                            />
-                        </div>
+                    <div className="border-b border-border-medium bg-surface-tertiary px-6 py-4 flex items-center gap-3">
+                        <div className="p-2 bg-teal-600 rounded-lg text-white"><FileText className="h-5 w-5" /></div>
+                        <h3 className="font-black text-base tracking-tight">INFORME TÉCNICO GENERADO</h3>
                     </div>
                     <div className="p-1">
                         <div style={{ minHeight: '700px', overflowX: 'auto' }}>

@@ -568,48 +568,65 @@ const MatrizPeligrosGTC45 = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                <div className="flex flex-wrap items-center gap-3 w-full">
-                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
-                        <AnimatedIcon name="layout-list" size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-text-primary">Matriz de Peligros (GTC 45)</h2>
-                        <span className="text-sm text-text-secondary">{procesos.length} Procesos / {procesos.reduce((a, b) => a + b.peligros.length, 0)} Peligros</span>
-                    </div>
+            <div className="flex flex-wrap items-center gap-2 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                {/* Grupo 1: Historial */}
+                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                    <AnimatedIcon name="history" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
+                </button>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 2: Generar Peligros IA - Generar IA - Modelo */}
+                <button onClick={handleGenerateFull} disabled={isGeneratingFull}
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isGeneratingFull ? 'Generando...' : 'Generar Peligros IA'}
+                    </span>
+                </button>
+                <button onClick={handleAnalyze} disabled={isAnalyzing}
+                    className="group flex items-center px-3 py-2 bg-teal-500 hover:bg-teal-600 border border-teal-500 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isAnalyzing ? 'Generando...' : 'Generar IA'}
+                    </span>
+                </button>
+                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 3: Guardar Datos - Guardar Informe */}
+                <button onClick={handleSaveData} disabled={isSaving}
+                    className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
+                </button>
+                <button onClick={handleSaveReport} disabled={!generatedReport}
+                    className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                    <AnimatedIcon name="save" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                </button>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 4: Exportar */}
+                <div className={!generatedReport ? 'opacity-40 pointer-events-none' : ''}>
+                    <ExportDropdown
+                        content={editorContent || generatedReport || ''}
+                        fileName="Matriz_Peligros_GTC45"
+                    />
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <DummyGenerateButton onClick={handleDummyData} />
-                    <button onClick={handleGenerateFull} disabled={isGeneratingFull}
-                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar con IA</span>
-                    </button>
-                    <button onClick={handleSaveData} disabled={isSaving}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
-                    </button>
-                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                        <AnimatedIcon name="history" size={20} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
-                    </button>
-                    {procesos.length > 0 && (
-                        <button onClick={handleAnalyze} disabled={isAnalyzing}
-                            className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe IA</span>
-                        </button>
-                    )}
-                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
-                    {generatedReport && (
-                        <ExportDropdown
-                            content={editorContent || generatedReport || ''}
-                            fileName="Matriz_Peligros_GTC45"
-                        />
-                    )}
-                </div>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 5: IA Dummy */}
+                <DummyGenerateButton onClick={handleDummyData} />
             </div>
 
             {/* ═══ History Panel ═══ */}
@@ -988,19 +1005,8 @@ const MatrizPeligrosGTC45 = () => {
 
             {generatedReport && (
                 <div className="mt-8 space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                         <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
-                        <div className="flex flex-wrap items-center gap-2 w-full">
-                            <button onClick={handleSaveReport}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <AnimatedIcon name="save" size={20} />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || generatedReport || ''}
-                                fileName="Matriz_Peligros_GTC45"
-                            />
-                        </div>
                     </div>
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1 overflow-hidden">
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>

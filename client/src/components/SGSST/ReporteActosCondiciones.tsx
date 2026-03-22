@@ -499,27 +499,83 @@ const ReporteActosCondiciones = () => {
     return (
         <div className="flex flex-col gap-4">
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
+            <div className="flex flex-wrap items-center gap-2 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                {/* Grupo 1: Historial */}
                 <button
                     onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
                 >
                     <AnimatedIcon name="history" size={20} />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
                 </button>
-                <div className="h-6 w-px bg-border-medium mx-1" />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 2: Generar IA - Modelo */}
+                <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isGenerating ? 'Generando...' : 'Generar IA'}
+                    </span>
+                </button>
+                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 3: Guardar Datos - Guardar Informe */}
+                <button
+                    onClick={() => handleSaveData(false)}
+                    className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
+                    <AnimatedIcon name="database" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
+                </button>
+                <button
+                    onClick={handleSave}
+                    disabled={!generatedReport}
+                    className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    <Save className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                </button>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 4: Exportar */}
+                <div className={!generatedReport ? 'opacity-40 pointer-events-none' : ''}>
+                    <ExportDropdown content={editorContent || ''} fileName="Reporte_Actos_Condiciones" />
+                </div>
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 5: IA Dummy */}
+                <DummyGenerateButton onClick={handleDummyData} />
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-border-medium mx-0.5" />
+
+                {/* Grupo 6: Reportes (Bandeja) - Portal Público */}
                 <button
                     onClick={() => setIsInboxOpen(!isInboxOpen)}
                     className="relative group flex items-center px-3 py-2 border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
                 >
                     <Inbox className="w-5 h-5 text-blue-500" />
-                {inboxPublico.filter(i => i.status !== 'processed').length > 0 && (
+                    {inboxPublico.filter(i => i.status !== 'processed').length > 0 && (
                         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                             {inboxPublico.filter(i => i.status !== 'processed').length}
                         </span>
                     )}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Bandeja de Entrada ({inboxPublico.filter(i => i.status !== 'processed').length})</span>
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Reportes ({inboxPublico.filter(i => i.status !== 'processed').length})
+                    </span>
                 </button>
                 <button
                     onClick={() => setShowQrModal(true)}
@@ -528,39 +584,6 @@ const ReporteActosCondiciones = () => {
                     <QrCode className="w-5 h-5 text-gray-500" />
                     <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Portal Público</span>
                 </button>
-                <div className="h-6 w-px bg-border-medium mx-1" />
-                <button
-                    onClick={() => handleSaveData(false)}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                >
-                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
-                </button>
-                <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-orange-600 hover:bg-orange-700 border border-orange-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isGenerating ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                        <AnimatedIcon name="sparkles" size={20} />
-                    )}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reporte con IA</span>
-                </button>
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-                {generatedReport && (
-                    <>
-                        <button
-                            onClick={handleSave}
-                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                        >
-                            <AnimatedIcon name="save" size={20} className="text-gray-500" />
-                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Reporte</span>
-                        </button>
-                        <ExportDropdown content={editorContent || ''} fileName="Reporte_Actos_Condiciones" />
-                    </>
-                )}
             </div>
 
             {/* History Panel */}

@@ -15,7 +15,7 @@ export const PHASE_CATEGORIES = {
         { id: 'estadisticas', title: 'Estadísticas ATEL', icon: 'BarChart' },
         { id: 'investigacion_atel', title: 'Investigación ATEL', icon: 'Activity' },
         { id: 'condiciones_salud', title: 'Informe Condiciones de Salud', icon: 'Activity' },
-        { id: 'peligros', title: 'Matriz de Peligros', icon: 'AlertTriangle' },
+        { id: 'peligros', title: 'Control de Peligros IPEVAR', icon: 'AlertTriangle' },
         { id: 'metodo_owas', title: 'Método OWAS (Evaluación Postural)', icon: 'Activity' },
         { id: 'analisis_trabajo_seguro', title: 'Análisis de Trabajo Seguro (ATS)', icon: 'ShieldAlert' },
         { id: 'reporte_actos', title: 'Reporte de Actos y Condiciones Inseguras', icon: 'AlertTriangle' },
