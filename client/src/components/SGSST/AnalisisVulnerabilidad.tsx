@@ -9,6 +9,7 @@ import {
     Trash2,
     Shield,
     AlertTriangle,
+    Download
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -383,31 +384,67 @@ const AnalisisVulnerabilidad = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-                    <DummyGenerateButton onClick={handleDummyData} />
-        <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-          <AnimatedIcon name="history" size={20} />
-          <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
-        </button>
-        <button onClick={() => handleSaveData(false)} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-          <AnimatedIcon name="database" size={20} />
-          <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
-        </button>
-        <button onClick={handleGenerate} disabled={isGenerating} className="group flex items-center px-3 py-2 bg-teal-700 hover:bg-teal-800 border border-teal-700 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-          {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-          <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Análisis (Multi)</span>
-        </button>
-        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-        {generatedReport && (
-          <>
-            <button onClick={() => handleSave()} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-              <AnimatedIcon name="save" size={20} className="text-gray-500" />
-              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
-            </button>
-            <ExportDropdown content={editorContent || ''} fileName={`Analisis_Vulnerabilidad_${new Date().getTime()}`} />
-          </>
-        )}
+      {/* ═══ Toolbar Principal (Imagen 2) ═══ */}
+      <div className="flex flex-wrap items-center justify-start gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm w-fit mb-2">
+          {/* Historial */}
+          <button 
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
+              className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+          >
+              <AnimatedIcon name="history" size={20} />
+              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Historial</span>
+          </button>
+          <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+          {/* Generar IA */}
+          <button 
+              onClick={handleGenerate} 
+              disabled={isGenerating || amenazasList.some(a => !a.amenaza)} 
+              className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+              {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Generar Análisis IA</span>
+          </button>
+          <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+          {/* Modelo */}
+          <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+          <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+          {/* Guardar Datos */}
+          <button 
+              onClick={() => handleSaveData(false)} 
+              className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
+          >
+              <AnimatedIcon name="database" size={20} />
+              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Datos</span>
+          </button>
+          <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+          {/* Guardar Informe */}
+          <button 
+              onClick={handleSave} 
+              disabled={!editorContent && !generatedReport} 
+              className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+              <AnimatedIcon name="save" size={20} />
+              <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Informe</span>
+          </button>
+          <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+          {/* Exportar */}
+          {(editorContent || generatedReport) ? (
+              <ExportDropdown content={editorContent || generatedReport || ''} fileName={`Analisis_Vulnerabilidad_${new Date().getTime()}`} />
+          ) : (
+              <button disabled className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
+                  <Download className="h-5 w-5" />
+                  <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Exportar</span>
+              </button>
+          )}
+          <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+          {/* IA Dummy */}
+          <DummyGenerateButton onClick={handleDummyData} />
       </div>
 
       {isHistoryOpen && (
@@ -637,19 +674,6 @@ const AnalisisVulnerabilidad = () => {
               </div>
             </div>
 
-            {/* Generate button */}
-            <div className="flex justify-center pt-6 gap-4">
-              <button 
-                 onClick={handleGenerate} 
-                 disabled={isGenerating || amenazasList.some(a => !a.amenaza)} 
-                 className="group flex items-center px-6 py-3 bg-teal-700 hover:bg-teal-800 border border-teal-700 text-white rounded-full transition-all duration-300 shadow-xl hover:shadow-2xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-1"
-               >
-                {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                  Generar Informe Multi-Amenaza
-                </span>
-              </button>
-            </div>
           </div>
         )}
       </div>
