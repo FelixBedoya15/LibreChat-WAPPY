@@ -74,6 +74,31 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const AUDIT_STORAGE_KEY = 'sgsst_auditoria_form';
+    const refreshData = useCallback(() => setRefreshTrigger(prev => prev + 1), []);
+
+    // Load draft from local storage
+    React.useEffect(() => {
+        try {
+            const saved = localStorage.getItem(AUDIT_STORAGE_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.statuses) setStatuses(data.statuses);
+                if (data.observations) setObservations(data.observations);
+            }
+        } catch(e) {
+            console.error('[SGSST Audit Storage] Load error:', e);
+        }
+    }, []);
+
+    const handleSaveData = useCallback(() => {
+        try {
+            localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify({ statuses: validStatuses, observations }));
+            showToast({ message: 'Calificación de auditoría guardada localmente', status: 'success' });
+        } catch(e) {
+            showToast({ message: 'Error al guardar calificación', status: 'error' });
+        }
+    }, [validStatuses, observations, showToast]);
 
     // Filter out any orphaned statuses (from old saved audits)
     const validStatuses = useMemo(() => {
@@ -499,51 +524,73 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     </div>
                 </div>
 
-                <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-border-light pt-4">
-                    {/* Model Selector */}
-                    <ModelSelector
-                        selectedModel={selectedModel}
-                        onSelectModel={setSelectedModel}
-                        disabled={isAnalyzing}
-                    />
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2 border-t border-border-light pt-6">
+                    {/* ═══ Toolbar Principal (Imagen 4) ═══ */}
+                    <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+                        {/* Historial */}
+                        <button 
+                            onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
+                            className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                        >
+                            <AnimatedIcon name="history" size={20} />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Historial</span>
+                        </button>
+                        <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
-                    <button
-                        onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
-                    >
-                        <AnimatedIcon name="history" size={20} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                            Historial
-                        </span>
-                    </button>
-                    <button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
-                    </button>
+                        {/* Generar IA */}
+                        <button 
+                            onClick={handleAnalyze} 
+                            disabled={isAnalyzing || completedCount === 0} 
+                            className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Generar Informe IA</span>
+                        </button>
+                        <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
-                    {/* Show Save/Export if content exists OR we have analysis results */}
-                    {(analysisReport || editorContent || completedCount > 0) && (
-                        <>
-                            <button onClick={() => handleSave()} className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <AnimatedIcon name="database" size={20} />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                                    Guardar Datos
-                                </span>
+                        {/* Modelo */}
+                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing} />
+                        <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+                        {/* Guardar Datos */}
+                        <button 
+                            onClick={handleSaveData} 
+                            className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
+                        >
+                            <AnimatedIcon name="database" size={20} />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Datos</span>
+                        </button>
+                        <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+                        {/* Guardar Informe */}
+                        <button 
+                            onClick={() => handleSave()} 
+                            disabled={!editorContent && !analysisReport} 
+                            className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                            <AnimatedIcon name="save" size={20} />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Informe</span>
+                        </button>
+                        <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
+
+                        {/* Exportar */}
+                        {(editorContent || analysisReport) ? (
+                            <ExportDropdown 
+                                content={editorContent || analysisReport || ''} 
+                                fileName={"Informe_Auditoria_SST"} 
+                                reportType="checklist"
+                            />
+                        ) : (
+                            <button disabled className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
+                                <Download className="h-5 w-5" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Exportar</span>
                             </button>
-                        </>
-                    )}
+                        )}
+                        <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
-                    {(analysisReport || editorContent) && (
-                        <ExportDropdown
-                            content={editorContent || analysisReport || ''}
-                            fileName="Informe_Auditoria_SST"
-                            reportType="checklist"
-                        />
-                    )}
+                        {/* IA Dummy */}
+                        <DummyGenerateButton onClick={handleDummyData} />
+                    </div>
                 </div>
             </div>
 
@@ -657,95 +704,11 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
 
 
-            <div className="flex flex-col items-center gap-4 mt-8 mb-6">
-                <div className="max-w-2xl bg-teal-50 dark:bg-teal-900/20 p-4 rounded-xl border border-teal-100 dark:border-teal-800/30 shadow-sm transition-all duration-300 text-center">
-                    <h4 className="text-sm text-teal-800 dark:text-teal-300 mb-2 font-bold flex items-center justify-center gap-2">
-                        <Sparkles className="h-5 w-5 animate-pulse text-teal-500" />
-                        Generación Inteligente
-                    </h4>
-                    <p className="text-sm text-text-secondary leading-relaxed">
-                        La IA redactará el Informe de Auditoría analizando sus hallazgos, cumplimiento de estándares y requisitos del Decreto 1072. Se tomará por defecto el <strong>Decreto 1072 de 2015</strong> y la <strong>Resolución 0312 de 2019</strong> si no especifica otra.
-                    </p>
-                </div>
 
-                <div className="flex justify-center gap-4">
-                    <button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing || completedCount === 0}
-                        className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                    >
-                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe con IA</span>
-                    </button>
-                </div>
-            </div>
 
             {analysisReport && (
                 <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                    <div className="flex items-center justify-between p-4 border-b border-border-light">
-                                    {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
-                {/* Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                    <AnimatedIcon name="history" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Historial</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
-                {/* Generar IA */}
-                <button onClick={handleAnalyze} disabled={isAnalyzing} className="group flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Generar Informe IA</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Modelo */}
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing} />
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Datos */}
-                <button onClick={() => handleSave()} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer">
-                    <AnimatedIcon name="database" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Datos</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Informe */}
-                <button onClick={() => handleSave()} disabled={!editorContent} className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                    <AnimatedIcon name="save" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Guardar Informe</span>
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Exportar */}
-                {(editorContent) ? (
-                    <ExportDropdown content={editorContent || ''} fileName={"Informe_Auditoria_SST"} />
-                ) : (
-                    <button disabled className="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
-                        <Download className="h-5 w-5" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Exportar</span>
-                    </button>
-                )}
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* IA Dummy */}
-                <DummyGenerateButton onClick={handleDummyData}  />
-            </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => handleSave()}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                            >
-                                <AnimatedIcon name="save" size={20} className="text-gray-500" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || analysisReport || ''}
-                                fileName="Informe_Auditoria"
-                                reportType="checklist"
-                            />
-                        </div>
-                    </div>
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <div style={{ minWidth: '900px' }}>
                             <LiveEditor
