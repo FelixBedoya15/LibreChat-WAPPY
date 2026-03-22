@@ -91,15 +91,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         }
     }, []);
 
-    const handleSaveData = useCallback(() => {
-        try {
-            localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify({ statuses: validStatuses, observations }));
-            showToast({ message: 'Calificación de auditoría guardada localmente', status: 'success' });
-        } catch(e) {
-            showToast({ message: 'Error al guardar calificación', status: 'error' });
-        }
-    }, [validStatuses, observations, showToast]);
-
     // Filter out any orphaned statuses (from old saved audits)
     const validStatuses = useMemo(() => {
         const itemIds = new Set(AUDITORIA_ITEMS.map(i => i.id));
@@ -138,6 +129,15 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const maxPossibleScore = useMemo(() => {
         return AUDITORIA_ITEMS.reduce((sum, item) => sum + (item.points || 0), 0);
     }, []);
+
+    const handleSaveData = useCallback(() => {
+        try {
+            localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify({ statuses: validStatuses, observations }));
+            showToast({ message: 'Calificación de auditoría guardada localmente', status: 'success' });
+        } catch(e) {
+            showToast({ message: 'Error al guardar calificación', status: 'error' });
+        }
+    }, [validStatuses, observations, showToast]);
 
     // Res 0312 Compliance Percentage (Weighted)
     const weightedPercentage = useMemo(() => {
