@@ -400,7 +400,7 @@ const EstadisticasATEL = () => {
 
                 {/* Exportar */}
                 {(editorContent || generatedReport) ? (
-                    <ExportDropdown content={editorContent || generatedReport || ''} fileName={{`Estadisticas_ATEL_${MONTHS[currentMonthIndex]} hideText />
+                    <ExportDropdown content={editorContent || generatedReport || ''} fileName={`Estadisticas_ATEL_${MONTHS[currentMonthIndex]}_${currentYear}`} hideText />
                 ) : (
                     <button disabled title="Exportar" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
                         <Download className="h-5 w-5" />
