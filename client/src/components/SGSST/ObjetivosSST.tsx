@@ -225,7 +225,7 @@ const ObjetivosSST = () => {
         <div className="flex flex-col gap-4">
             {/* Action Buttons */}
                         {/* ═══ Toolbar ═══ */}
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide py-1 w-full border border-border-medium p-2 rounded-xl bg-surface-secondary shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 {/* Historial */}
                 <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} title="Historial" className={`group flex items-center px-4 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
                     <AnimatedIcon name="history" size={20} />
@@ -270,7 +270,7 @@ const ObjetivosSST = () => {
                 <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
 
                 {/* IA Dummy */}
-                <DummyGenerateButton onClick={handleDummyData} hideText text="IA Dummy" />
+                <DummyGenerateButton onClick={handleDummyData}  />
             </div>
 
             {/* History Panel */}
