@@ -14,10 +14,9 @@ interface ModelSelectorProps {
     onSelectModel: (modelId: string) => void;
     disabled?: boolean;
     hideTooltip?: boolean;
-    hideText?: boolean;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectModel, disabled, hideTooltip, hideText = false }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectModel, disabled, hideTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,22 +41,18 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
                 className={cn(
-                    hideText 
-                        ? "flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                        : "group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed shrink-0",
+                    "group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed",
                     isOpen && "bg-surface-hover ring-2 ring-teal-500/20 border-teal-500/50"
                 )}
                 title={hideTooltip ? undefined : "Seleccionar Modelo de IA"}
             >
                 <Brain className="h-5 w-5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
-                {!hideText && (
-                    <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                        <span className="mr-1">
-                            {currentModelName.replace('Gemini ', '')}
-                        </span>
-                        <ChevronDown className={cn("h-4 w-4 text-text-secondary transition-transform duration-200", isOpen && "rotate-180")} />
-                    </div>
-                )}
+                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                    <span className="mr-1">
+                        {currentModelName.replace('Gemini ', '')}
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 text-text-secondary transition-transform duration-200", isOpen && "rotate-180")} />
+                </div>
             </button>
 
             {isOpen && (

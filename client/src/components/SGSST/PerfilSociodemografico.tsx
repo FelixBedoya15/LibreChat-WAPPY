@@ -380,65 +380,44 @@ const PerfilSociodemografico = () => {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide py-1 w-full">
-                    {/* Historial */}
-                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} title="Historial"
-                        className={`flex items-center justify-center w-10 h-10 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                        <AnimatedIcon name="history" size={20} />
-                    </button>
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* Generar IA */}
-                    <button onClick={handleAnalyze} disabled={isAnalyzing || trabajadores.length === 0} title="Generar Informe IA"
-                        className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                    </button>
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* Modelo */}
-                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} hideText />
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* Guardar Datos */}
-                    <button onClick={() => handleSaveData()} disabled={isSaving} title="Guardar Datos"
-                        className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <DummyGenerateButton onClick={handleDummyData} />
+                    <button onClick={handleSaveData} disabled={isSaving}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
                         {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} className="text-gray-500" />}
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
                     </button>
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* Guardar Informe */}
-                    <button onClick={handleSaveReport} disabled={!editorContent && !generatedReport} title="Guardar Informe"
-                        className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <AnimatedIcon name="save" size={20} className="text-indigo-600" />
+                    {/* ===== Excel Actions ===== */}
+                    <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
+                    <button onClick={() => fileInputRef.current?.click()}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-900/30 rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                        <Upload className="h-4 w-4" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Importar Excel</span>
                     </button>
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* Exportar */}
-                    {(editorContent || generatedReport) ? (
-                        <ExportDropdown content={editorContent || generatedReport || ''} fileName="Perfil_Sociodemografico" hideText />
-                    ) : (
-                        <button disabled title="Exportar" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
-                            <Download className="h-5 w-5" />
+                    <button onClick={handleExportExcel} disabled={trabajadores.length === 0}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-900/30 rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                        <Download className="h-4 w-4" />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Exportar Excel</span>
+                    </button>
+                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                        <AnimatedIcon name="history" size={20} />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
+                    </button>
+                    {trabajadores.length > 0 && (
+                        <button onClick={handleAnalyze} disabled={isAnalyzing}
+                            className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
+                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Informe IA Real</span>
                         </button>
                     )}
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* IA Dummy */}
-                    <DummyGenerateButton onClick={handleDummyData} hideText text="IA Dummy" />
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    {/* Extras (Importar/Exportar Excel) */}
-                    <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
-                    <button onClick={() => fileInputRef.current?.click()} title="Importar Excel"
-                        className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0">
-                        <Upload className="h-5 w-5" />
-                    </button>
-                    <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                    <button onClick={handleExportExcel} disabled={trabajadores.length === 0} title="Exportar Excel"
-                        className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <Download className="h-5 w-5" />
-                    </button>
+                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
+                    {generatedReport && (
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Perfil_Sociodemografico"
+                        />
+                    )}
                 </div>
             </div>
 

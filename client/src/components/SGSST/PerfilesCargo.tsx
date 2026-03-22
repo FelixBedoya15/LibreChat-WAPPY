@@ -22,8 +22,6 @@ import {
     Database,
     History,
     Save,
-    Download,
-    Bot
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -522,46 +520,7 @@ const PerfilesCargo = () => {
     return (
         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-6 duration-600">
             {/* ── Toolbar ── */}
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide py-1 w-full border border-border-medium p-2 rounded-xl bg-surface-secondary shadow-sm">
-                {/* Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} title="Historial" className={`flex items-center justify-center w-10 h-10 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 ${isHistoryOpen ? 'bg-teal-100 text-teal-700' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                    <AnimatedIcon name="history" size={20} />
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Generar IA */}
-                <button onClick={() => handleGenerate()} disabled={isGenerating} title="Generar Informe IA" className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Modelo */}
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} hideText />
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Datos */}
-                <button onClick={() => handleSaveData(false)} title="Guardar Datos" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
-                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Informe */}
-                <button onClick={handleSaveReport} disabled={!editorContent && !generatedReport} title="Guardar Informe" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <AnimatedIcon name="save" size={20} className="text-indigo-600" />
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Exportar */}
-                {(editorContent || generatedReport) ? (
-                    <ExportDropdown content={editorContent || generatedReport || ''} fileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`} hideText />
-                ) : (
-                    <button disabled title="Exportar" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
-                        <Download className="h-5 w-5" />
-                    </button>
-                )}
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* IA Dummy */}
+            <div className="flex flex-wrap items-center gap-2.5">
                 <button
                     onClick={() => {
                         const dummy = {
@@ -577,11 +536,45 @@ const PerfilesCargo = () => {
                         setFormData(dummy);
                         showToast({ message: 'Ejemplo cargado', status: 'success' });
                     }}
-                    title="IA Dummy"
-                    className="flex items-center justify-center w-10 h-10 bg-orange-100 hover:bg-orange-200 text-orange-700 border border-orange-200 rounded-full transition-all duration-300 shadow-sm shrink-0"
+                    className={actionButtonClass}
                 >
-                    <Bot className="h-5 w-5" />
+                    <AnimatedIcon name="sparkles" size={18} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Autocompletar
+                    </span>
                 </button>
+
+                <button
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={cn(actionButtonClass, isHistoryOpen && "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30")}
+                >
+                    <History className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Historial Perfil
+                    </span>
+                </button>
+
+                <button onClick={() => handleSaveData(false)} className={actionButtonClass}>
+                    <Database className="h-[18px] w-[18px]" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        Guardar Datos
+                    </span>
+                </button>
+
+                <div className="flex-1" />
+
+                <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="group relative flex items-center px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-full transition-all duration-300 shadow-md hover:shadow-xl font-bold text-sm hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
+                        {isGenerating ? 'Generando...' : 'Generar Perfil con IA'}
+                    </span>
+                </button>
+
+                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
             </div>
 
             {/* ── History (Filtered by Profile ID) ── */}

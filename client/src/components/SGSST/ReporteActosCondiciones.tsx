@@ -15,8 +15,7 @@ import {
     AlertTriangle,
     Inbox,
     QrCode,
-    CheckCircle,
-    Download
+    CheckCircle
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -500,70 +499,68 @@ const ReporteActosCondiciones = () => {
     return (
         <div className="flex flex-col gap-4">
             {/* Toolbar */}
-            <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-hide py-1 w-full border border-border-medium p-2 rounded-xl bg-surface-secondary shadow-sm">
-                {/* Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} title="Historial"
-                    className={`flex items-center justify-center w-10 h-10 border border-border-medium rounded-full transition-all duration-300 shadow-sm shrink-0 ${isHistoryOpen ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+            <div className="flex flex-wrap items-center gap-2">
+                    <DummyGenerateButton onClick={handleDummyData} />
+                <button
+                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
+                >
                     <AnimatedIcon name="history" size={20} />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
                 </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Generar Informe IA */}
-                <button onClick={() => handleGenerate()} disabled={isGenerating} title="Generar Informe IA"
-                    className="flex items-center justify-center w-10 h-10 bg-teal-600 hover:bg-teal-700 border border-teal-600 hover:border-teal-700 text-white rounded-full transition-all duration-300 shadow-sm hover:shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={20} />}
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Modelo */}
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} hideText />
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Datos */}
-                <button onClick={() => handleSaveData(false)} title="Guardar Datos"
-                    className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50">
-                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Guardar Informe */}
-                <button onClick={() => handleSave()} disabled={!editorContent && !generatedReport} title="Guardar Informe"
-                    className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <AnimatedIcon name="save" size={20} className="text-indigo-600" />
-                </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Exportar */}
-                {(editorContent || generatedReport) ? (
-                    <ExportDropdown content={editorContent || generatedReport || ''} fileName="Reporte_Actos_Condiciones" hideText />
-                ) : (
-                    <button disabled title="Exportar" className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
-                        <Download className="h-5 w-5" />
-                    </button>
-                )}
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* IA Dummy */}
-                <DummyGenerateButton onClick={handleDummyData} hideText text="IA Dummy" />
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Reportes (Bandeja de Entrada) */}
-                <button onClick={() => setIsInboxOpen(!isInboxOpen)} title="Reportes"
-                    className="relative flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0">
+                <div className="h-6 w-px bg-border-medium mx-1" />
+                <button
+                    onClick={() => setIsInboxOpen(!isInboxOpen)}
+                    className="relative group flex items-center px-3 py-2 border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
                     <Inbox className="w-5 h-5 text-blue-500" />
-                    {inboxPublico.filter(i => i.status !== 'processed').length > 0 && (
+                {inboxPublico.filter(i => i.status !== 'processed').length > 0 && (
                         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                             {inboxPublico.filter(i => i.status !== 'processed').length}
                         </span>
                     )}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Bandeja de Entrada ({inboxPublico.filter(i => i.status !== 'processed').length})</span>
                 </button>
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* Portal Publico */}
-                <button onClick={() => setShowQrModal(true)} title="Portal Público"
-                    className="flex items-center justify-center w-10 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm shrink-0">
+                <button
+                    onClick={() => setShowQrModal(true)}
+                    className="group flex items-center px-3 py-2 border border-border-medium bg-surface-primary text-text-primary hover:bg-surface-hover rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
                     <QrCode className="w-5 h-5 text-gray-500" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Portal Público</span>
                 </button>
+                <div className="h-6 w-px bg-border-medium mx-1" />
+                <button
+                    onClick={() => handleSaveData(false)}
+                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                >
+                    <AnimatedIcon name="database" size={20} className="text-gray-500" />
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
+                </button>
+                <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="group flex items-center px-3 py-2 bg-orange-600 hover:bg-orange-700 border border-orange-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isGenerating ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                        <AnimatedIcon name="sparkles" size={20} />
+                    )}
+                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Reporte con IA</span>
+                </button>
+                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                {generatedReport && (
+                    <>
+                        <button
+                            onClick={handleSave}
+                            className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                        >
+                            <AnimatedIcon name="save" size={20} className="text-gray-500" />
+                            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Reporte</span>
+                        </button>
+                        <ExportDropdown content={editorContent || ''} fileName="Reporte_Actos_Condiciones" />
+                    </>
+                )}
             </div>
 
             {/* History Panel */}
@@ -600,7 +597,7 @@ const ReporteActosCondiciones = () => {
                                         <div>
                                             <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-6 flex items-center gap-2" title={item.trabajador.nombre}>
                                                 {item.trabajador.nombre}
-                                                {isProcessed && <span title="Procesado"><CheckCircle className="w-3 h-3 text-green-500" /></span>}
+                                                {isProcessed && <CheckCircle className="w-3 h-3 text-green-500" title="Procesado" />}
                                             </h4>
                                             <p className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis w-[180px]">Cargo: {item.trabajador.cargo}</p>
                                         </div>
@@ -650,7 +647,7 @@ const ReporteActosCondiciones = () => {
                             
                             <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                 <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/reportar/${user?.id || (user as any)?._id}`)}`} 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`)}`} 
                                     alt="QR Code" 
                                     className="w-40 h-40 mx-auto"
                                 />
@@ -661,12 +658,12 @@ const ReporteActosCondiciones = () => {
                                 <div className="flex items-center gap-2">
                                     <input 
                                         readOnly 
-                                        value={`${window.location.origin}/sgsst-public/reportar/${user?.id || (user as any)?._id}`}
+                                        value={`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`}
                                         className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none text-gray-600 dark:text-gray-300 ring-0"
                                     />
                                     <button 
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${user?.id || (user as any)?._id}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
@@ -964,7 +961,7 @@ const ReporteActosCondiciones = () => {
                         {/* Bottom generate button */}
                         <div className="flex justify-center pt-4 gap-4">
                             <button
-                                onClick={() => handleGenerate()}
+                                onClick={handleGenerate}
                                 disabled={isGenerating}
                                 className="group flex items-center px-5 py-3 bg-orange-600 hover:bg-orange-700 border border-orange-600 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >
