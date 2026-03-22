@@ -239,6 +239,7 @@ const PerfilesCargo = () => {
     const [editorContent, setEditorContent] = useState<string | null>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
@@ -427,6 +428,7 @@ const PerfilesCargo = () => {
             const data = await res.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             // Persist report in list immediately
             setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, report: data.report } : p));
@@ -477,7 +479,8 @@ const PerfilesCargo = () => {
                 if (lastMsg?.text) {
                     setGeneratedReport(lastMsg.text);
                     setEditorContent(lastMsg.text);
-                    setIsFormExpanded(false);
+                    setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                     showToast({ message: 'Reporte cargado desde el historial', status: 'success' });
                 }
             } catch {
@@ -768,7 +771,7 @@ const PerfilesCargo = () => {
                         <div style={{ minHeight: '700px', overflowX: 'auto' }}>
                              <div style={{ minWidth: '950px', padding: '24px' }}>
                                 <LiveEditor
-                                    key={`editor-${activePerfilId}-${refreshTrigger}`}
+                                    key={`${editorKey}-${refreshTrigger}`}
                                     initialContent={generatedReport}
                                     onUpdate={setEditorContent}
                                     onSave={handleSaveReport}

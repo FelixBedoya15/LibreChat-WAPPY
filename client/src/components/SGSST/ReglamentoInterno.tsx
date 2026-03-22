@@ -49,6 +49,7 @@ const ReglamentoInterno = () => {
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -71,7 +72,8 @@ const ReglamentoInterno = () => {
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
-        setIsFormExpanded(false);
+        setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
         setGeneratedDocument('');
         setEditorContent('');
         
@@ -222,7 +224,8 @@ const ReglamentoInterno = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'Reglamento cargado correctamente', status: 'success' });
             }
         } catch (e) {
@@ -459,7 +462,7 @@ const ReglamentoInterno = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new'}
+                                    key={editorKey}
                                     initialContent={generatedDocument}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}

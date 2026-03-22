@@ -45,6 +45,7 @@ const PoliticaSST = () => {
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -87,6 +88,7 @@ const PoliticaSST = () => {
             const data = await response.json();
             setGeneratedPolicy(data.policy);
             setEditorContent(data.policy);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             showToast({ message: 'Política SST generada exitosamente', status: 'success' });
         } catch (error: any) {
@@ -176,7 +178,8 @@ const PoliticaSST = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'Política cargada correctamente', status: 'success' });
             }
         } catch (e) {
@@ -391,7 +394,7 @@ const PoliticaSST = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new'}
+                                    key={editorKey}
                                     initialContent={generatedPolicy}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}

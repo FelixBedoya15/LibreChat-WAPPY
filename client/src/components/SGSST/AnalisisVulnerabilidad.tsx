@@ -185,6 +185,7 @@ const AnalisisVulnerabilidad = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -335,7 +336,8 @@ const AnalisisVulnerabilidad = () => {
       const data = await response.json();
       setGeneratedReport(data.report);
       setEditorContent(data.report);
-      setIsFormExpanded(false);
+      setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
       showToast({ message: 'Análisis Multi-Amenaza generado', status: 'success' });
     } catch (error: any) {
       showToast({ message: error.message || 'Error al generar', status: 'error' });
@@ -363,7 +365,8 @@ const AnalisisVulnerabilidad = () => {
       const res = await fetch(`/api/messages/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
       const messages = await res.json();
       const last = messages[messages.length - 1];
-      if (last?.text) { setGeneratedReport(last.text); setEditorContent(last.text); setConversationId(id); setReportMessageId(last.messageId); setIsFormExpanded(false); showToast({ message: 'Documento cargado', status: 'success' }); }
+      if (last?.text) { setGeneratedReport(last.text); setEditorContent(last.text); setConversationId(id); setReportMessageId(last.messageId); setEditorKey(Date.now().toString());
+            setIsFormExpanded(false); showToast({ message: 'Documento cargado', status: 'success' }); }
     } catch { showToast({ message: 'Error al cargar', status: 'error' }); }
     setIsHistoryOpen(false);
   }, [token, showToast]);
@@ -658,7 +661,7 @@ const AnalisisVulnerabilidad = () => {
           <div className="p-1 overflow-hidden">
             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
               <div style={{ minWidth: '900px', padding: '16px' }}>
-                <LiveEditor key={conversationId || 'new-vuln-editor'} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} />
+                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} />
               </div>
             </div>
           </div>

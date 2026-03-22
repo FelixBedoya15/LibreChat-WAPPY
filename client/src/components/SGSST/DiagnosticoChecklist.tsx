@@ -113,6 +113,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
@@ -775,7 +776,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <div style={{ minWidth: '900px' }}>
                             <LiveEditor
-                                key={conversationId || 'new'}
+                                key={editorKey}
                                 reportType="checklist"
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}

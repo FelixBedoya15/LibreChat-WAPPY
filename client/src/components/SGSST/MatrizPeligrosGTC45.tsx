@@ -192,6 +192,7 @@ const MatrizPeligrosGTC45 = () => {
     const [editorContent, setEditorContent] = useState('');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -1011,7 +1012,7 @@ const MatrizPeligrosGTC45 = () => {
                     <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1 overflow-hidden">
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor key={conversationId || 'new'} initialContent={generatedReport} onUpdate={setEditorContent} />
+                                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} />
                             </div>
                         </div>
                         <style>{`

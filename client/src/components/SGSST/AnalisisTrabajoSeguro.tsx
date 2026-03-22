@@ -130,6 +130,7 @@ const AnalisisTrabajoSeguro = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -283,6 +284,7 @@ const AnalisisTrabajoSeguro = () => {
             const data = await response.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             showToast({ message: 'ATS generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -340,7 +342,8 @@ const AnalisisTrabajoSeguro = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'ATS cargado correctamente', status: 'success' });
             }
         } catch (e) {
@@ -703,7 +706,7 @@ const AnalisisTrabajoSeguro = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new-ats-editor'}
+                                    key={editorKey}
                                     initialContent={generatedReport}
                                     onUpdate={setEditorContent}
                                     onSave={handleSave}

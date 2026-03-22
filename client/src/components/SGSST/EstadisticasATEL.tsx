@@ -209,6 +209,7 @@ const EstadisticasATEL = () => {
             const data = await response.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             setEditorKey(Date.now().toString());
 

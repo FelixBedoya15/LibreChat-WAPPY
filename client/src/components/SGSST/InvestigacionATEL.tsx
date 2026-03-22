@@ -184,6 +184,7 @@ const InvestigacionATEL = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -383,6 +384,7 @@ const InvestigacionATEL = () => {
             const data = await response.json();
             setGeneratedObjectives(data.report);
             setEditorContent(data.report);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             showToast({ message: 'Informe de investigación generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -446,7 +448,8 @@ const InvestigacionATEL = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'Informe cargado correctamente', status: 'success' });
             }
         } catch (e) {
@@ -1012,7 +1015,7 @@ const InvestigacionATEL = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new-editor'}
+                                    key={editorKey}
                                     initialContent={generatedObjectives}
                                     onUpdate={setEditorContent}
                                     onSave={handleSave}

@@ -42,6 +42,7 @@ const ObjetivosSST = () => {
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -80,6 +81,7 @@ const ObjetivosSST = () => {
             const data = await response.json();
             setGeneratedObjectives(data.objectives);
             setEditorContent(data.objectives);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             showToast({ message: 'Objetivos SST generados exitosamente', status: 'success' });
         } catch (error: any) {
@@ -167,7 +169,8 @@ const ObjetivosSST = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'Objetivos cargados correctamente', status: 'success' });
             }
         } catch (e) {
@@ -362,7 +365,7 @@ const ObjetivosSST = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new'}
+                                    key={editorKey}
                                     initialContent={generatedObjectives}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}

@@ -81,6 +81,7 @@ const MatrizLegal = () => {
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -617,7 +618,7 @@ const MatrizLegal = () => {
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
                                     <LiveEditor
-                                        key={conversationId || 'new'}
+                                        key={editorKey}
                                         initialContent={generatedMatrix}
                                         onUpdate={(html) => setEditorContent(html)}
                                         onSave={handleSaveReport}

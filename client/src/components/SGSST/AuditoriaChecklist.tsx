@@ -71,6 +71,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -748,7 +749,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <div style={{ minWidth: '900px' }}>
                             <LiveEditor
-                                key={conversationId || 'new'}
+                                key={editorKey}
                                 reportType="checklist"
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}

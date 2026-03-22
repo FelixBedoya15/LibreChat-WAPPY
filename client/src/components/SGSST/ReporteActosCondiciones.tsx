@@ -139,6 +139,7 @@ const ReporteActosCondiciones = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -415,6 +416,7 @@ const ReporteActosCondiciones = () => {
             const data = await response.json();
             setGeneratedReport(data.report);
             setEditorContent(data.report);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             showToast({ message: 'Reporte generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -480,7 +482,8 @@ const ReporteActosCondiciones = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'Reporte cargado correctamente', status: 'success' });
             }
         } catch (e) {
@@ -1011,7 +1014,7 @@ const ReporteActosCondiciones = () => {
                     <div className="p-1 overflow-hidden">
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor key={conversationId || 'new-editor'} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} />
+                                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} />
                             </div>
                         </div>
                     </div>

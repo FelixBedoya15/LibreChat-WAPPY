@@ -148,6 +148,7 @@ const DashboardPredictivo = () => {
     const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);

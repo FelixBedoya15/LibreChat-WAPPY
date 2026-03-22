@@ -44,6 +44,7 @@ const ResponsableSGSST = () => {
     // Generated document
     const [generatedDoc, setGeneratedDoc] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState<string | null>(null);
+    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [isGenerating, setIsGenerating] = useState(false);
 
     // History
@@ -114,6 +115,10 @@ const ResponsableSGSST = () => {
             const data = await response.json();
             setGeneratedDoc(data.document);
             setEditorContent(data.document);
+            setEditorKey(Date.now().toString()); // Force editor re-render
+            setConversationId(null);             // Reset so next save creates new
+            setReportMessageId(null);
+            setEditorKey(Date.now().toString());
             setIsFormExpanded(false);
             showToast({ message: 'Documento generado exitosamente', status: 'success' });
         } catch (error: any) {
@@ -198,7 +203,8 @@ const ResponsableSGSST = () => {
                 setEditorContent(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setIsFormExpanded(false);
+                setEditorKey(Date.now().toString());
+            setIsFormExpanded(false);
                 showToast({ message: 'Documento cargado correctamente', status: 'success' });
             }
         } catch (e) {
@@ -421,7 +427,7 @@ const ResponsableSGSST = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={conversationId || 'new'}
+                                    key={editorKey}
                                     initialContent={generatedDoc}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}
