@@ -19,7 +19,8 @@ import {
     Users,
     AlertTriangle,
     Building2,
-, Bot } from 'lucide-react';
+    Bot,
+} from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';

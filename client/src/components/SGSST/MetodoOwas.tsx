@@ -9,7 +9,8 @@ import {
     Trash2,
     Activity,
     AlertCircle,
-, Download } from 'lucide-react';
+    Download,
+} from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
