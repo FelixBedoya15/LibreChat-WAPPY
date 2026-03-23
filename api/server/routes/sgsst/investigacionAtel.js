@@ -58,6 +58,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 equipoList: stored.equipoList || [],
                 testigosList: stored.testigosList || [],
                 images: stored.images || {},
+                video: stored.video || null,
             });
         }
         res.json({ formData: {}, equipoList: [], testigosList: [], images: {} });
@@ -70,10 +71,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /api/sgsst/investigacion-atel/save ─────────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, equipoList, testigosList, images } = req.body;
+        const { formData, equipoList, testigosList, images, video } = req.body;
         await InvestigacionAtelData.findOneAndUpdate(
             { user: req.user.id },
-            { $set: { formData, equipoList, testigosList, images, updatedAt: Date.now() } },
+            { $set: { formData, equipoList, testigosList, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -91,6 +92,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
             equipoList = [],
             testigosList = [],
             images,
+            video,
             modelName,
             userName,
         } = req.body;
@@ -157,6 +159,24 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
                         logger.warn(`[InvestigacionATEL] Error processing image ${i}:`, err.message);
                     }
                 }
+            }
+        }
+
+        // ── Video Part ──
+        if (video?.startsWith('data:video/')) {
+            try {
+                const regex = /^data:(video\/[a-zA-Z0-9]*);base64,([^"]*)$/;
+                const matches = video.match(regex);
+                if (matches && matches.length === 3) {
+                    imageParts.push({
+                        inlineData: {
+                            mimeType: matches[1],
+                            data: matches[2]
+                        }
+                    });
+                }
+            } catch (err) {
+                logger.warn('[InvestigacionATEL] Error processing video part:', err.message);
             }
         }
 
@@ -232,7 +252,7 @@ ${equipoBlock}
 ════════════════════════════════════════
 ${companyInfoBlock || 'No disponible'}
 
-${imageParts.length > 0 ? `*(Tienes ${imageParts.length} foto(s) de evidencia adjuntas — analízalas y refiérete a ellas en el informe)*` : ''}
+${imageParts.length > 0 ? `*(Tienes ${imageParts.length} archivo(s) de evidencia adjuntos (fotos y/o video de 10s) — analízalos profundamente y refiérete a ellos para dar un dictamen técnico preciso)*` : ''}
 
 ════════════════════════════════════════════════════════════════════════════
 📐 INSTRUCCIONES ESTRICTAS PARA GENERAR EL INFORME

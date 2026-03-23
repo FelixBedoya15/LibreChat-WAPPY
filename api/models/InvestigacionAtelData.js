@@ -22,6 +22,10 @@ const InvestigacionAtelDataSchema = new mongoose.Schema({
         type: Object,
         default: {}
     },
+    video: {
+        type: String,
+        default: null
+    },
     updatedAt: {
         type: Date,
         default: Date.now

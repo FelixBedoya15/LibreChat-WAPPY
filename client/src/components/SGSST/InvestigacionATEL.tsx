@@ -16,6 +16,8 @@ import {
     Users,
     UserCheck,
     ClipboardList,
+    Video,
+    Film,
     ShieldAlert, Download } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -162,6 +164,8 @@ const InvestigacionATEL = () => {
         foto3: null,
         foto4: null
     });
+    const [video, setVideo] = useState<string | null>(null);
+    const [isVideoUploading, setIsVideoUploading] = useState(false);
 
     // Equipo Investigador (Res 1401/2007 art. 7: jefe inmediato + COPASST + encargado SST)
     const [equipoList, setEquipoList] = useState([
@@ -219,6 +223,7 @@ const InvestigacionATEL = () => {
                 if (data.equipoList?.length) setEquipoList(data.equipoList);
                 if (data.testigosList?.length) setTestigosList(data.testigosList);
                 if (data.images) setImages(data.images);
+                if (data.video) setVideo(data.video);
             })
             .catch(err => console.error('Error fetching investigacion atel data', err));
     }, [token]);
@@ -230,7 +235,7 @@ const InvestigacionATEL = () => {
             const res = await fetch('/api/sgsst/investigacion-atel/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ formData, equipoList, testigosList, images })
+                body: JSON.stringify({ formData, equipoList, testigosList, images, video })
             });
             if (res.ok && !silent) {
                 showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success' });
@@ -326,6 +331,50 @@ const InvestigacionATEL = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) {
+            showToast({ message: 'El video es demasiado pesado (Máximo 20MB).', status: 'error' });
+            return;
+        }
+
+        setIsVideoUploading(true);
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+
+        videoElement.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(videoElement.src);
+            if (videoElement.duration > 10.5) {
+                showToast({ message: 'El video excede los 10 segundos permitidos.', status: 'error' });
+                setIsVideoUploading(false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                setVideo(readerEvent.target?.result as string);
+                setIsVideoUploading(false);
+                showToast({ message: 'Video de evidencia cargado correctamente.', status: 'success' });
+            };
+            reader.onerror = () => {
+                setIsVideoUploading(false);
+                showToast({ message: 'Error al leer el archivo de video.', status: 'error' });
+            };
+            reader.readAsDataURL(file);
+        };
+
+        videoElement.onerror = () => {
+            setIsVideoUploading(false);
+            showToast({ message: 'Error al procesar el archivo de video.', status: 'error' });
+        };
+
+        videoElement.src = URL.createObjectURL(file);
+    };
+
+    const removeVideo = () => setVideo(null);
+
     // ── Image Upload (identical to PermisoAlturas) ──
     const handleImageUpload = (field: string, e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -373,6 +422,7 @@ const InvestigacionATEL = () => {
                     equipoList,
                     testigosList,
                     images,
+                    video,
                     modelName: selectedModel,
                     userName: user?.name,
                 }),
@@ -954,6 +1004,46 @@ const InvestigacionATEL = () => {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+
+                        {/* ── SECCIÓN 7: Evidencia en Video ── */}
+                        <div className="space-y-4 pt-4 border-t border-border-medium">
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                    <Film className="h-4 w-4 text-teal-600" /> 7. Video de Evidencia Dinámica (Opcional)
+                                </h4>
+                                <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">Máximo 10 Segundos</span>
+                            </div>
+
+                            <div className="bg-surface-tertiary/10 border-2 border-dashed border-teal-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                                {!video ? (
+                                    <div className="flex flex-col items-center justify-center space-y-3">
+                                        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                                            {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-semibold text-text-primary">Sube evidencia dinámica del evento</p>
+                                            <p className="text-xs text-text-secondary mt-1">Permite a la IA analizar la secuencia fáctica y condiciones en tiempo real</p>
+                                        </div>
+                                        <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
+                                            {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                                            <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                                        </label>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="relative rounded-xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-400">
+                                            <video src={video} controls className="w-full h-full" />
+                                            <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <p className="text-center text-xs text-teal-600 font-medium bg-teal-50 py-2 rounded-lg border border-teal-100 italic">
+                                            Evidencia de video lista para análisis pericial
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
