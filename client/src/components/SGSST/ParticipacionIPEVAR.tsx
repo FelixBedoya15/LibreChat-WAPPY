@@ -128,6 +128,7 @@ const ParticipacionIPEVAR = () => {
         foto2: null,
         foto3: null
     });
+    const [video, setVideo] = useState<string | null>(null);
 
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
@@ -240,6 +241,7 @@ const ParticipacionIPEVAR = () => {
             foto2: item.data?.foto2 || null,
             foto3: item.data?.foto3 || null
         }));
+        setVideo(item.data?.video || null);
         setIsInboxOpen(false);
         showToast({ message: 'Reporte cargado. Revise y complete la información.', status: 'info' });
         handleMarkProcessed(item.id);
@@ -276,7 +278,8 @@ const ParticipacionIPEVAR = () => {
                     formData,
                     trabajadoresList,
                     responsablesList,
-                    images
+                    images,
+                    video
                 })
             });
             if (res.ok && !silent) {
@@ -392,6 +395,30 @@ const ParticipacionIPEVAR = () => {
         setImages(prev => ({ ...prev, [field]: null }));
     };
 
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const videoElement = document.createElement('video');
+            videoElement.preload = 'metadata';
+            videoElement.onloadedmetadata = () => {
+                window.URL.revokeObjectURL(videoElement.src);
+                if (videoElement.duration > 10.5) {
+                    showToast({ message: 'El video excede los 10 segundos permitidos.', status: 'error' });
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (readerEvent) => {
+                    setVideo(readerEvent.target?.result as string);
+                };
+                reader.readAsDataURL(file);
+            };
+            videoElement.src = URL.createObjectURL(file);
+        }
+    };
+
+    const removeVideo = () => setVideo(null);
+
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
         handleSaveData(true);
@@ -407,6 +434,7 @@ const ParticipacionIPEVAR = () => {
                     trabajadoresList,
                     responsablesList,
                     images,
+                    video,
                     modelName: selectedModel,
                 }),
             });
@@ -803,6 +831,29 @@ const ParticipacionIPEVAR = () => {
                             </div>
                         </div>
 
+                        {/* Evidencia en Video */}
+                        <div className="space-y-3 pt-4 border-t border-border-medium">
+                            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">Evidencia en Video (Máx. 10s)</h4>
+                            <div className="w-full md:w-1/2">
+                                {video ? (
+                                    <div className="relative rounded-xl overflow-hidden border bg-black aspect-video flex items-center justify-center">
+                                        <video src={video} controls className="max-h-64 h-full" />
+                                        <button onClick={(e) => { e.stopPropagation(); removeVideo(); }} className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white shadow-md z-10 hover:bg-red-600 transition-colors">
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-teal-200 bg-teal-50/10 hover:bg-teal-50/30 transition-colors relative cursor-pointer group rounded-xl">
+                                        <input type="file" accept="video/*" onChange={handleVideoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                        <div className="flex flex-col items-center gap-1">
+                                            <FileText className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[10px] font-bold text-red-500">Video Corto (10s)</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Additional info with dictation */}
                         <div className="space-y-4 pt-4 border-t border-border-medium">
                             <div className="flex items-center justify-between">
@@ -843,7 +894,7 @@ const ParticipacionIPEVAR = () => {
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 ) : (
-                                    <AnimatedIcon name="sparkles" size={20} />
+                                    <Sparkles className="h-5 w-5" />
                                 )}
                                 <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Generar Análisis IA</span>
                             </button>

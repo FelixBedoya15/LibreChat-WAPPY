@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList } from 'lucide-react';
+import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList, FileText } from 'lucide-react';
 import axios from 'axios';
 
 export default function PublicParticipacionIPEVAR() {
@@ -23,6 +23,7 @@ export default function PublicParticipacionIPEVAR() {
         foto2: null,
         foto3: null
     });
+    const [video, setVideo] = useState<string | null>(null);
     const [controlesExistentes, setControlesExistentes] = useState('');
     const [suficientes, setSuficientes] = useState(true);
     
@@ -83,9 +84,33 @@ export default function PublicParticipacionIPEVAR() {
         reader.readAsDataURL(file);
     };
 
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const videoElement = document.createElement('video');
+            videoElement.preload = 'metadata';
+            videoElement.onloadedmetadata = () => {
+                window.URL.revokeObjectURL(videoElement.src);
+                if (videoElement.duration > 10.5) {
+                    alert('El video excede los 10 segundos permitidos.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (readerEvent) => {
+                    setVideo(readerEvent.target?.result as string);
+                };
+                reader.readAsDataURL(file);
+            };
+            videoElement.src = URL.createObjectURL(file);
+        }
+    };
+
     const removeImage = (field: string) => {
         setImages(prev => ({ ...prev, [field]: null }));
     };
+
+    const removeVideo = () => setVideo(null);
 
     const validateIdentity = async () => {
         if (!nombre.trim() || !cedula.trim()) {
@@ -140,6 +165,7 @@ export default function PublicParticipacionIPEVAR() {
                     tarea,
                     peligros,
                     ...images,
+                    video,
                     controlesExistentes,
                     suficientes,
                     sugeridoIngenieria,
@@ -310,7 +336,7 @@ export default function PublicParticipacionIPEVAR() {
                                                     <div className="relative w-full h-full">
                                                         <img src={images[imgKey] as string} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
                                                         <button 
-                                                            onClick={() => removeImage(imgKey)} 
+                                                            onClick={(e) => { e.stopPropagation(); removeImage(imgKey); }} 
                                                             className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-500 transition-colors"
                                                         >
                                                             <X className="w-3 h-3" />
@@ -333,6 +359,36 @@ export default function PublicParticipacionIPEVAR() {
                                                 )}
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+                                <div className="mt-2">
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Evidencia en Video (Máx. 10s)</label>
+                                    <div className="relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed border-red-200 bg-red-50/30 hover:bg-red-50/50 hover:border-red-400 transition-colors flex items-center justify-center group text-center">
+                                        {video ? (
+                                            <div className="relative w-full h-full flex items-center justify-center bg-black">
+                                                <video src={video} className="h-full" />
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); removeVideo(); }} 
+                                                    className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-500 transition-colors z-10"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <FileText className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform" />
+                                                    <span className="text-[10px] font-bold text-red-500">Video Corto (10s)</span>
+                                                </div>
+                                                <input 
+                                                    type="file" 
+                                                    accept="video/*" 
+                                                    capture="environment"
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                                    onChange={handleVideoUpload} 
+                                                />
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -479,7 +535,7 @@ export default function PublicParticipacionIPEVAR() {
                             <button 
                                 onClick={() => {
                                     setStep(1);
-                                    setTarea(''); setPeligros(''); setImages({ foto1: null, foto2: null, foto3: null }); 
+                                    setTarea(''); setPeligros(''); setImages({ foto1: null, foto2: null, foto3: null }); setVideo(null); 
                                     setControlesExistentes(''); setSuficientes(true);
                                     setSugeridoIngenieria(''); setSugeridoAdministrativo(''); setSugeridoEPP('');
                                     setSubmitResult(null);
