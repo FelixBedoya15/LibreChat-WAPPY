@@ -461,7 +461,16 @@ const InvestigacionATEL = () => {
         setIsHistoryOpen(false);
     }, [token, showToast]);
 
-    // ─────────────────────�            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-investigacion-atel'],
+        generatedReport: generatedObjectives,
+        handleSelectReport
+    });
+
+    return (
+        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
             <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto">
                 
                 {/* Grupo 1: Historial */}
@@ -536,16 +545,6 @@ const InvestigacionATEL = () => {
                 <div className="flex items-center gap-2 px-1">
                     <DummyGenerateButton onClick={handleDummyData} />
                 </div>
-            </div>
-assName="group flex items-center px-4 py-2 bg-surface-primary border border-border-medium text-text-primary rounded-full opacity-50 shadow-sm shrink-0 cursor-not-allowed">
-                        <Download className="h-5 w-5" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-medium text-sm">Exportar</span>
-                    </button>
-                )}
-                <div className="w-px h-6 bg-border-medium shrink-0 mx-1" />
-
-                {/* IA Dummy */}
-                <DummyGenerateButton onClick={handleDummyData}  />
             </div>
 
             {/* ── History ── */}

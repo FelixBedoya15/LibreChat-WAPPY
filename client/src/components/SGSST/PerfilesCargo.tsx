@@ -566,18 +566,18 @@ const PerfilesCargo = () => {
                     <button 
                         onClick={() => handleSaveData(false)} 
                         title="Guardar Datos en la Base de Datos"
-                        className="flex items-center justify-center w-12 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
                     >
-                        <Database className="h-5 w-5" />
+                        <AnimatedIcon name="database" size={20} />
                     </button>
 
                     <button 
                         onClick={() => handleSaveReport()} 
                         disabled={isSaving || !generatedReport} 
                         title="Guardar Informe en Historial"
-                        className="flex items-center justify-center w-12 h-10 bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
                     >
-                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="save" size={20} />}
                     </button>
                 </div>
 
