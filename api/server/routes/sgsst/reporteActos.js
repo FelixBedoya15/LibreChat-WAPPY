@@ -56,6 +56,7 @@ const ReporteActosDataSchema = new mongoose.Schema({
     trabajadoresList: { type: Array, default: [] },
     responsablesList: { type: Array, default: [] },
     images: { type: Object, default: {} },
+    video: { type: String, default: null },
     inboxPublico: { type: Array, default: [] },
     updatedAt: { type: Date, default: Date.now },
 });
@@ -74,6 +75,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 trabajadoresList: data.trabajadoresList || [],
                 responsablesList: data.responsablesList || [],
                 images: data.images || { foto1: null, foto2: null, foto3: null },
+                video: data.video || null,
                 inboxPublico: data.inboxPublico || [],
             });
         }
@@ -87,10 +89,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save — Save reporte data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, trabajadoresList, responsablesList, images } = req.body;
+        const { formData, trabajadoresList, responsablesList, images, video } = req.body;
         await ReporteActosData.findOneAndUpdate(
             { user: req.user.id },
-            { $set: { formData, trabajadoresList, responsablesList, images, updatedAt: Date.now() } },
+            { $set: { formData, trabajadoresList, responsablesList, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -140,7 +142,7 @@ router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, trabajadoresList, responsablesList, images, modelName } = req.body;
+        const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
 
         const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
         const responsablesStr = responsablesList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
@@ -219,6 +221,7 @@ Bajo ninguna circunstancia puedes inventar información operativa o condiciones 
     * Requiere Intervención Urgente: ${formData.certificacionAlturas === 'Sí' ? '✅ Alta Prioridad' : '❌ Prioridad Rutinaria'}
 - Descripción del Hallazgo Inseguro: ${formData.actividadGlobal || '[INFORMACIÓN PENDIENTE]'}
 - Contexto visual y entorno: ${formData.foto1Desc || 'Sin descripción'} | ${formData.foto2Desc || 'Sin descripción'} | ${formData.foto3Desc || 'Sin descripción'}
+- EVIDENCIA ADJUNTA: Se han adjuntado fotografías y, opcionalmente, un video corto (máximo 10 segundos) que muestra la tarea o el peligro en tiempo real. Analiza detalladamente tanto las imágenes como el video para dar un dictamen técnico preciso de la criticidad.
 
 **INSTRUCCIONES DE ESTRUCTURA Y CONTENIDO OBLIGATORIO (Desarrolla profundo y usa tablas para TODO):**
 
@@ -280,6 +283,19 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
                     }
                 }
             });
+        }
+
+        if (video) {
+            const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
+            if (match && match.length === 3) {
+                parts.push({
+                    inlineData: {
+                        data: match[2],
+                        mimeType: match[1]
+                    }
+                });
+                parts.push({ text: `(Video corto de evidencia adjunto al reporte - Analizar comportamiento dinámico y entorno)` });
+            }
         }
 
         const result = await generateWithRetry(model, parts);

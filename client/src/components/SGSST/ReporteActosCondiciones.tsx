@@ -129,6 +129,7 @@ const ReporteActosCondiciones = () => {
         foto2: null,
         foto3: null
     });
+    const [video, setVideo] = useState<string | null>(null);
 
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
@@ -180,6 +181,7 @@ const ReporteActosCondiciones = () => {
                 if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
                 if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
                 if (data.images) setImages(data.images);
+                if (data.video) setVideo(data.video);
                 if (data.inboxPublico) setInboxPublico(data.inboxPublico);
             })
             .catch(err => console.error('Error fetching reporte actos data', err));
@@ -240,6 +242,7 @@ const ReporteActosCondiciones = () => {
             foto2: item.data?.foto2 || null,
             foto3: item.data?.foto3 || null
         }));
+        setVideo(item.data?.video || null);
         setIsInboxOpen(false);
         showToast({ message: 'Reporte cargado. Revise y complete la información.', status: 'info' });
         handleMarkProcessed(item.id);
@@ -274,7 +277,8 @@ const ReporteActosCondiciones = () => {
                     formData,
                     trabajadoresList,
                     responsablesList,
-                    images
+                    images,
+                    video
                 })
             });
             if (res.ok && !silent) {
@@ -390,6 +394,30 @@ const ReporteActosCondiciones = () => {
         setImages(prev => ({ ...prev, [field]: null }));
     };
 
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const videoElement = document.createElement('video');
+            videoElement.preload = 'metadata';
+            videoElement.onloadedmetadata = () => {
+                window.URL.revokeObjectURL(videoElement.src);
+                if (videoElement.duration > 10.5) {
+                    showToast({ message: 'El video excede los 10 segundos permitidos.', status: 'error' });
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (readerEvent) => {
+                    setVideo(readerEvent.target?.result as string);
+                };
+                reader.readAsDataURL(file);
+            };
+            videoElement.src = URL.createObjectURL(file);
+        }
+    };
+
+    const removeVideo = () => setVideo(null);
+
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
         handleSaveData(true);
@@ -405,6 +433,7 @@ const ReporteActosCondiciones = () => {
                     trabajadoresList,
                     responsablesList,
                     images,
+                    video,
                     modelName: selectedModel,
                 }),
             });
@@ -930,6 +959,29 @@ const ReporteActosCondiciones = () => {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+
+                        {/* Evidencia en Video */}
+                        <div className="space-y-4 pt-4 border-t border-border-medium flex flex-col items-center">
+                            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">Evidencia en Video (Máx. 10s)</h4>
+                            <div className="w-full md:w-1/3">
+                                {video ? (
+                                    <div className="relative rounded-xl overflow-hidden border bg-black aspect-video flex items-center justify-center">
+                                        <video src={video} controls className="max-h-64 h-full w-full" />
+                                        <button onClick={(e) => { e.stopPropagation(); removeVideo(); }} className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white shadow-md z-10 hover:bg-red-600 transition-colors">
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-orange-200 bg-orange-50/10 hover:bg-orange-50/30 transition-colors relative cursor-pointer group rounded-xl">
+                                        <input type="file" accept="video/*" onChange={handleVideoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                        <div className="flex flex-col items-center gap-1">
+                                            <FileText className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[10px] font-bold text-red-500">Video Corto (10s)</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

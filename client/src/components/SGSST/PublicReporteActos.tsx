@@ -22,6 +22,7 @@ export default function PublicReporteActos() {
     const [foto1Desc, setFoto1Desc] = useState('');
     const [foto2Desc, setFoto2Desc] = useState('');
     const [foto3Desc, setFoto3Desc] = useState('');
+    const [video, setVideo] = useState<string | null>(null);
     
     // To handle which image is currently being uploaded
     const [activePhotoField, setActivePhotoField] = useState<'foto1'|'foto2'|'foto3'>('foto1');
@@ -44,7 +45,6 @@ export default function PublicReporteActos() {
         };
         fetchCompany();
     }, [companyId]);
-
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -58,6 +58,30 @@ export default function PublicReporteActos() {
         };
         reader.readAsDataURL(file);
     };
+
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const videoElement = document.createElement('video');
+            videoElement.preload = 'metadata';
+            videoElement.onloadedmetadata = () => {
+                window.URL.revokeObjectURL(videoElement.src);
+                if (videoElement.duration > 10.5) {
+                    alert('El video excede los 10 segundos permitidos.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (readerEvent) => {
+                    setVideo(readerEvent.target?.result as string);
+                };
+                reader.readAsDataURL(file);
+            };
+            videoElement.src = URL.createObjectURL(file);
+        }
+    };
+
+    const removeVideo = () => setVideo(null);
 
     const validateIdentity = async () => {
         if (!nombre.trim() || !cedula.trim()) {
@@ -89,9 +113,9 @@ export default function PublicReporteActos() {
     };
 
     const handleSubmit = async () => {
-        if (!foto1 && !foto2 && !foto3) {
-            const confirmNoPhoto = window.confirm("¿Está seguro de enviar el reporte sin fotografía? (Es altamente recomendable adjuntar evidencia visual).");
-            if (!confirmNoPhoto) return;
+        if (!foto1 && !foto2 && !foto3 && !video) {
+            const confirmNoMedia = window.confirm("¿Está seguro de enviar el reporte sin evidencia (fotos o video)? (Es altamente recomendable adjuntar evidencia visual).");
+            if (!confirmNoMedia) return;
         }
 
         setIsSubmitting(true);
@@ -109,6 +133,7 @@ export default function PublicReporteActos() {
                     foto1,
                     foto2,
                     foto3,
+                    video,
                     foto1Desc,
                     foto2Desc,
                     foto3Desc
@@ -343,7 +368,38 @@ export default function PublicReporteActos() {
                                 ))}
 
                                 <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
-                                <p className="text-[10px] text-gray-400 text-center mt-2 leading-tight">Podrás subir hasta 3 imágenes en total para brindar mejor contexto visual del hallazgo.</p>
+                                
+                                {/* Video Upload */}
+                                <div className="mt-4 border-t border-gray-100 pt-4">
+                                    <span className="text-[11px] font-bold text-gray-500 uppercase block mb-2 text-center">Evidencia en Video (Máx. 10s)</span>
+                                    {video ? (
+                                        <div className="relative rounded-xl overflow-hidden border-2 border-red-200 bg-black flex items-center justify-center aspect-video">
+                                            <video src={video} controls className="h-full w-full" />
+                                            <button 
+                                                onClick={removeVideo} 
+                                                className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1.5 rounded-full hover:bg-red-500 transition-colors z-10"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="relative h-24 rounded-xl border-2 border-dashed border-red-200 bg-red-50/10 flex items-center justify-center gap-3 hover:bg-red-50/20 hover:border-red-400 transition-colors group">
+                                            <input 
+                                                type="file" 
+                                                accept="video/*" 
+                                                capture="environment" 
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                                onChange={handleVideoUpload} 
+                                            />
+                                            <div className="w-10 h-10 bg-white shadow-sm flex items-center justify-center rounded-full group-hover:scale-110 transition-transform">
+                                                <Send className="w-5 h-5 text-red-500 rotate-90" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-red-600">Agregar video corto</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <p className="text-[10px] text-gray-400 text-center mt-2 leading-tight">Podrás subir fotos y video para brindar un reporte completo del hallazgo.</p>
                             </div>
 
                             {submitResult && !submitResult.success && step === 3 && (
@@ -379,7 +435,7 @@ export default function PublicReporteActos() {
                             <button 
                                 onClick={() => {
                                     setStep(1);
-                                    setDescripcion(''); setUbicacion(''); setFoto1(''); setFoto2(''); setFoto3('');
+                                    setDescripcion(''); setUbicacion(''); setFoto1(''); setFoto2(''); setFoto3(''); setVideo(null);
                                     setFoto1Desc(''); setFoto2Desc(''); setFoto3Desc('');
                                     setSubmitResult(null);
                                 }} 
