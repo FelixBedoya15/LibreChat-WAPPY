@@ -124,7 +124,9 @@ const ParticipacionIPEVAR = () => {
     });
 
     const [images, setImages] = useState<{ [key: string]: string | null }>({
-        foto: null
+        foto1: null,
+        foto2: null,
+        foto3: null
     });
 
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
@@ -234,7 +236,9 @@ const ParticipacionIPEVAR = () => {
         }]);
         setImages(prev => ({
             ...prev,
-            foto: item.data?.foto || null
+            foto1: item.data?.foto1 || null,
+            foto2: item.data?.foto2 || null,
+            foto3: item.data?.foto3 || null
         }));
         setIsInboxOpen(false);
         showToast({ message: 'Reporte cargado. Revise y complete la información.', status: 'info' });
@@ -254,6 +258,11 @@ const ParticipacionIPEVAR = () => {
         }));
         setTrabajadoresList([{ nombre: 'Juan Pérez', cedula: '12345678' }]);
         setResponsablesList([{ nombre: 'Ana Gómez', cedula: '98765432', rol: 'Supervisor SST' }]);
+        setImages({
+            foto1: 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=500',
+            foto2: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=500',
+            foto3: 'https://images.unsplash.com/photo-1621905235210-90805c862d22?auto=format&fit=crop&q=80&w=500'
+        });
         showToast({ message: 'Datos de participación simulados generados exitosamente.', status: 'success' });
     };
 
@@ -756,15 +765,15 @@ const ParticipacionIPEVAR = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-gray-500">Ingeniería</label>
-                                    <textarea rows={3} value={formData.sugeridoIngenieria} onChange={e => handleInputChange('sugeridoIngenieria', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"></textarea>
+                                    <textarea rows={3} placeholder="Ej: Guardas, sensores, ventilación..." value={formData.sugeridoIngenieria} onChange={e => handleInputChange('sugeridoIngenieria', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"></textarea>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-gray-500">Administrativos</label>
-                                    <textarea rows={3} value={formData.sugeridoAdministrativo} onChange={e => handleInputChange('sugeridoAdministrativo', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"></textarea>
+                                    <textarea rows={3} placeholder="Ej: Capacitación, señalización, rotación..." value={formData.sugeridoAdministrativo} onChange={e => handleInputChange('sugeridoAdministrativo', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"></textarea>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-gray-500">Elementos de Protección (EPP)</label>
-                                    <textarea rows={3} value={formData.sugeridoEPP} onChange={e => handleInputChange('sugeridoEPP', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"></textarea>
+                                    <textarea rows={3} placeholder="Ej: Casco, guantes, protección auditiva..." value={formData.sugeridoEPP} onChange={e => handleInputChange('sugeridoEPP', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -772,20 +781,25 @@ const ParticipacionIPEVAR = () => {
                         {/* Evidencia Fotográfica */}
                         <div className="space-y-3 pt-4 border-t border-border-medium">
                             <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">Evidencia Fotográfica</h4>
-                            <div className="flex flex-col gap-2 w-full md:w-1/3">
-                                {images.foto ? (
-                                    <div className="relative rounded-xl overflow-hidden border">
-                                        <img src={images.foto} alt="Evidencia" className="w-full h-48 object-cover" />
-                                        <button onClick={() => removeImage('foto')} className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white shadow-md">
-                                            <X className="h-4 w-4" />
-                                        </button>
+                            <div className="flex flex-col md:flex-row gap-4 w-full">
+                                {['foto1', 'foto2', 'foto3'].map((imgKey, index) => (
+                                    <div key={imgKey} className="flex-1">
+                                        {images[imgKey] ? (
+                                            <div className="relative rounded-xl overflow-hidden border">
+                                                <img src={images[imgKey] as string} alt={`Evidencia ${index + 1}`} className="w-full h-48 object-cover" />
+                                                <button onClick={() => removeImage(imgKey)} className="absolute top-2 right-2 p-1 bg-red-500 rounded-full text-white shadow-md">
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center w-full h-48 border-2 border-dashed border-teal-200 bg-teal-50/10 hover:bg-teal-50/30 transition-colors relative cursor-pointer group rounded-xl">
+                                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(imgKey, e)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                                <Camera className="h-10 w-10 text-teal-600/50 group-hover:scale-110 transition-transform duration-300" />
+                                                <div className="absolute bottom-4 text-xs font-semibold text-teal-700/60">Cargar Foto {index + 1}</div>
+                                            </div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="flex items-center justify-center w-full h-48 border-2 border-dashed border-teal-200 bg-teal-50/10 hover:bg-teal-50/30 transition-colors relative cursor-pointer group rounded-xl">
-                                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload('foto', e)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                        <Camera className="h-10 w-10 text-teal-600/50 group-hover:scale-110 transition-transform duration-300" />
-                                    </div>
-                                )}
+                                ))}
                             </div>
                         </div>
 

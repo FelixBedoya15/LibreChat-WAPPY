@@ -236,17 +236,18 @@ Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si c
 `;
 
         const parts = [{ text: promptText }];
-        let imageCount = 0;
         
-        // Incluir la imagen si hay una
-        if (images?.foto) {
-            const b64 = images.foto;
-            const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
-            if (match && match.length === 3) {
-                parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
-                parts.push({ text: "(Fotografía de Referencia adjunta al reporte)" });
+        // Incluir las imágenes si existen (hasta 3)
+        ['foto1', 'foto2', 'foto3'].forEach((imgKey, idx) => {
+            const b64 = images?.[imgKey];
+            if (b64) {
+                const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+                if (match && match.length === 3) {
+                    parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                    parts.push({ text: `(Fotografía de Referencia #${idx + 1} adjunta al reporte)` });
+                }
             }
-        }
+        });
 
         const result = await generateWithRetry(model, parts);
         const response = await result.response;

@@ -18,7 +18,11 @@ export default function PublicParticipacionIPEVAR() {
     const [peligros, setPeligros] = useState('');
     
     // Step 3 Data
-    const [foto, setFoto] = useState<string | null>(null);
+    const [images, setImages] = useState<{ [key: string]: string | null }>({
+        foto1: null,
+        foto2: null,
+        foto3: null
+    });
     const [controlesExistentes, setControlesExistentes] = useState('');
     const [suficientes, setSuficientes] = useState(true);
     
@@ -46,15 +50,41 @@ export default function PublicParticipacionIPEVAR() {
         fetchCompany();
     }, [companyId]);
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onloadend = () => {
-             setFoto(reader.result as string);
+        reader.onload = (readerEvent) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                } else {
+                    if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                const resizedImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                setImages(prev => ({ ...prev, [field]: resizedImageBase64 }));
+            };
+            img.src = readerEvent.target?.result as string;
         };
         reader.readAsDataURL(file);
+    };
+
+    const removeImage = (field: string) => {
+        setImages(prev => ({ ...prev, [field]: null }));
     };
 
     const validateIdentity = async () => {
@@ -109,7 +139,7 @@ export default function PublicParticipacionIPEVAR() {
                 data: {
                     tarea,
                     peligros,
-                    foto,
+                    ...images,
                     controlesExistentes,
                     suficientes,
                     sugeridoIngenieria,
@@ -273,26 +303,37 @@ export default function PublicParticipacionIPEVAR() {
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Evidencia Fotográfica (Opcional)</label>
-                                    {foto ? (
-                                        <div className="relative rounded-xl overflow-hidden border border-gray-200">
-                                            <img src={foto} alt="Evidencia" className="h-32 w-full object-cover" />
-                                            <button 
-                                                onClick={() => setFoto(null)} 
-                                                className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button 
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="w-full h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center gap-2 bg-gray-50 hover:bg-cyan-50 hover:border-cyan-400 hover:text-cyan-600 transition-colors"
-                                        >
-                                            <Camera className="w-4 h-4 text-gray-400" />
-                                            <span className="text-xs font-semibold text-gray-500">Adjuntar foto de la labor</span>
-                                        </button>
-                                    )}
-                                    <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {['foto1', 'foto2', 'foto3'].map((imgKey, idx) => (
+                                            <div key={imgKey} className="relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-cyan-50 hover:border-cyan-400 transition-colors flex items-center justify-center group">
+                                                {images[imgKey] ? (
+                                                    <div className="relative w-full h-full">
+                                                        <img src={images[imgKey] as string} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                                                        <button 
+                                                            onClick={() => removeImage(imgKey)} 
+                                                            className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-500 transition-colors"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-cyan-600 flex flex-col items-center gap-1">
+                                                            <Camera className="w-5 h-5" />
+                                                            Foto {idx + 1}
+                                                        </span>
+                                                        <input 
+                                                            type="file" 
+                                                            accept="image/*" 
+                                                            capture="environment" 
+                                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                                            onChange={(e) => handleImageUpload(e, imgKey)} 
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                             <div className="mt-auto pt-6 flex gap-3">
@@ -378,7 +419,7 @@ export default function PublicParticipacionIPEVAR() {
                                     <textarea 
                                         rows={2} 
                                         className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Instalar un extractor de pared más potente..."
+                                        placeholder="Ej: Guardas, sensores, ventilación..."
                                         value={sugeridoIngenieria}
                                         onChange={e=>setSugeridoIngenieria(e.target.value)}
                                     ></textarea>
@@ -388,7 +429,7 @@ export default function PublicParticipacionIPEVAR() {
                                     <textarea 
                                         rows={2} 
                                         className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Instalar señales de riesgo de quemaduras..."
+                                        placeholder="Ej: Capacitación, señalización, rotación..."
                                         value={sugeridoAdministrativo}
                                         onChange={e=>setSugeridoAdministrativo(e.target.value)}
                                     ></textarea>
@@ -398,7 +439,7 @@ export default function PublicParticipacionIPEVAR() {
                                     <textarea 
                                         rows={2} 
                                         className="w-full border-gray-300 rounded-xl bg-gray-50 text-sm p-2.5 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-medium" 
-                                        placeholder="Ej: Cambio de guantes porque los actuales son delgados..."
+                                        placeholder="Ej: Casco, guantes, protección auditiva..."
                                         value={sugeridoEPP}
                                         onChange={e=>setSugeridoEPP(e.target.value)}
                                     ></textarea>
@@ -438,7 +479,7 @@ export default function PublicParticipacionIPEVAR() {
                             <button 
                                 onClick={() => {
                                     setStep(1);
-                                    setTarea(''); setPeligros(''); setFoto(null); 
+                                    setTarea(''); setPeligros(''); setImages({ foto1: null, foto2: null, foto3: null }); 
                                     setControlesExistentes(''); setSuficientes(true);
                                     setSugeridoIngenieria(''); setSugeridoAdministrativo(''); setSugeridoEPP('');
                                     setSubmitResult(null);
