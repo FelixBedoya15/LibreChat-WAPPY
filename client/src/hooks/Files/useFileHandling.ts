@@ -23,7 +23,7 @@ import { useDelayedUploadToast } from './useDelayedUploadToast';
 import { processFileForUpload } from '~/utils/heicConverter';
 import { useChatContext } from '~/Providers/ChatContext';
 import { ephemeralAgentByConvoId } from '~/store';
-import { logger, validateFiles } from '~/utils';
+import { logger, validateFiles, getVideoDuration } from '~/utils';
 import useClientResize from './useClientResize';
 import useUpdateFiles from './useUpdateFiles';
 
@@ -285,6 +285,18 @@ const useFileHandling = (params?: UseFileHandling) => {
     if (!filesAreValid) {
       setFilesLoading(false);
       return;
+    }
+
+    /* Video duration check (Gemini models support videos, but limited to 10 seconds as requested) */
+    for (const file of fileList) {
+      if (file.type.startsWith('video/')) {
+        const duration = await getVideoDuration(file);
+        if (duration > 10) {
+          setError('com_error_video_duration');
+          setFilesLoading(false);
+          return;
+        }
+      }
     }
 
     /* Process files */

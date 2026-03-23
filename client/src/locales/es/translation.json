@@ -372,6 +372,7 @@
   "com_error_files_upload_canceled": "La solicitud de carga del archivo fue cancelada. Nota: es posible que la carga del archivo aún esté en proceso y necesite ser eliminada manualmente.",
   "com_error_files_upload_too_large": "El archivo es demasiado grande. Por favor, suba un archivo más pequeño que {{0}} MB",
   "com_error_files_validation": "Se produjo un error durante la validación del archivo.",
+  "com_error_video_duration": "La duración del video excede los 10 segundos.",
   "com_error_google_tool_conflict": "El uso de herramientas integradas de Google no es compatible con herramientas externas. Por favor, deshabilite las herramientas integradas o las externas.",
   "com_error_heic_conversion": "Error al convertir imagen HEIC a JPEG. Por favor, intente convertir la imagen manualmente o use un formato diferente.",
   "com_error_illegal_model_request": "El modelo \"{{0}}\" no está disponible para {{1}}. Por favor, seleccione un modelo diferente.",

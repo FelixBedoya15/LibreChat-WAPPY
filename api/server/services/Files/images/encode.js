@@ -106,7 +106,11 @@ async function encodeAndFormat(req, files, endpoint, mode) {
     /** @type {FileSources} */
     const source = file.source ?? FileSources.local;
 
-    if (!file.height) {
+    const isVideo = file.type?.startsWith('video/');
+    const isAudio = file.type?.startsWith('audio/');
+    const isMultimodal = !!file.height || (endpoint === EModelEndpoint.google && (isVideo || isAudio));
+
+    if (!isMultimodal) {
       promises.push([file, null]);
       continue;
     }
