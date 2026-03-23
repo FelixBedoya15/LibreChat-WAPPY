@@ -532,7 +532,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         <button 
                             onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
                             title="Historial de Auditorías"
-                            className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
+                            className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
                         >
                             <AnimatedIcon name="history" size={20} />
                         </button>
@@ -546,12 +546,12 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                             onClick={handleAnalyze} 
                             disabled={isAnalyzing || completedCount === 0} 
                             title="Generar Auditoría con IA"
-                            className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                            className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
                         >
                             {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
                         </button>
 
-                        <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm transform hover:scale-105 active:scale-95" title="Seleccionar Modelo IA">
+                        <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
                             <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing} />
                         </div>
                     </div>
@@ -562,8 +562,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     <div className="flex items-center gap-2 px-1">
                         <button 
                             onClick={handleSaveData} 
-                            title="Guardar Datos en la Base de Datos"
-                            className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95"
+                            title="Guardar Datos Localmente"
+                            className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer"
                         >
                             <AnimatedIcon name="database" size={20} />
                         </button>
@@ -571,8 +571,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         <button 
                             onClick={() => handleSave()} 
                             disabled={!editorContent && !analysisReport} 
-                            title="Guardar Informe en Historial"
-                            className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                            title="Guardar Informe en el Servidor"
+                            className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             <AnimatedIcon name="save" size={20} />
                         </button>
@@ -583,7 +583,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     {/* Grupo 4: Salida */}
                     <div className="flex items-center gap-2 px-1">
                         {(editorContent || analysisReport) ? (
-                            <div title="Exportar Documento" className="transform hover:scale-110 active:scale-95">
+                            <div title="Exportar Documento">
                                 <ExportDropdown 
                                     content={editorContent || analysisReport || ''} 
                                     fileName={"Informe_Auditoria_SST"} 
@@ -591,11 +591,9 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                 />
                             </div>
                         ) : (
-                            <div className="transform hover:scale-110 active:scale-95">
-                                <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                                    <Download className="h-5 w-5" />
-                                </button>
-                            </div>
+                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                                <Download className="h-5 w-5" />
+                            </button>
                         )}
                     </div>
 
@@ -603,7 +601,13 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
                     {/* Grupo 5: Pruebas */}
                     <div className="flex items-center gap-2 px-1">
-                        <DummyGenerateButton onClick={handleDummyData} />
+                        <button 
+                            onClick={handleDummyData} 
+                            title="Generar Datos de Prueba"
+                            className="flex items-center justify-center w-12 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:rotate-12"
+                        >
+                            <AnimatedIcon name="robot" size={20} />
+                        </button>
                     </div>
                 </div>
             </div>

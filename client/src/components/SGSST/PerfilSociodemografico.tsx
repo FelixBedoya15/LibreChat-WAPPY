@@ -359,14 +359,14 @@ const PerfilSociodemografico = () => {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
-            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
+            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto">
                 
                 {/* Grupo 1: Historial */}
                 <div className="flex items-center gap-2 px-1">
                     <button 
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
                         title="Historial de Reportes"
-                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
+                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
                     >
                         <AnimatedIcon name="history" size={20} />
                     </button>
@@ -380,12 +380,12 @@ const PerfilSociodemografico = () => {
                         onClick={handleAnalyze} 
                         disabled={isAnalyzing} 
                         title="Generar Informe Sociodemográfico con IA"
-                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
                     >
                         {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
                     </button>
 
-                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm transform hover:scale-105 active:scale-95" title="Seleccionar Modelo IA">
+                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
                         <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing} />
                     </div>
                 </div>
@@ -398,7 +398,7 @@ const PerfilSociodemografico = () => {
                         onClick={() => handleSaveData()} 
                         disabled={isSaving} 
                         title="Guardar Base de Datos de Trabajadores"
-                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
                     >
                         {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
                     </button>
@@ -407,7 +407,7 @@ const PerfilSociodemografico = () => {
                         onClick={() => handleSaveReport()} 
                         disabled={!generatedReport} 
                         title="Guardar Informe Final en Historial"
-                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         <AnimatedIcon name="save" size={20} />
                     </button>
@@ -418,15 +418,13 @@ const PerfilSociodemografico = () => {
                 {/* Grupo 4: Salida */}
                 <div className="flex items-center gap-2 px-1">
                     {(generatedReport) ? (
-                        <div title="Exportar Informe" className="transform hover:scale-110 active:scale-95">
+                        <div title="Exportar Informe">
                             <ExportDropdown content={editorContent || generatedReport || ''} fileName="Perfil_Sociodemografico" />
                         </div>
                     ) : (
-                        <div className="transform hover:scale-110 active:scale-95">
-                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                                <Download className="h-5 w-5" />
-                            </button>
-                        </div>
+                        <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                            <Download className="h-5 w-5" />
+                        </button>
                     )}
                 </div>
 
@@ -434,7 +432,13 @@ const PerfilSociodemografico = () => {
 
                 {/* Grupo 5: Pruebas */}
                 <div className="flex items-center gap-2 px-1">
-                    <DummyGenerateButton onClick={handleDummyData} />
+                    <button 
+                        onClick={handleDummyData} 
+                        title="Generar Trabajadores de Prueba"
+                        className="flex items-center justify-center w-12 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:rotate-12"
+                    >
+                        <AnimatedIcon name="robot" size={20} />
+                    </button>
                 </div>
 
                 <div className="h-6 w-px bg-border-medium/60 mx-1" />
@@ -445,7 +449,7 @@ const PerfilSociodemografico = () => {
                     <button 
                         onClick={() => fileInputRef.current?.click()} 
                         title="Importar desde Excel"
-                        className="flex items-center justify-center w-12 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-12 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer"
                     >
                         <Upload className="h-5 w-5" />
                     </button>
@@ -453,7 +457,7 @@ const PerfilSociodemografico = () => {
                         onClick={handleExportExcel} 
                         disabled={trabajadores.length === 0} 
                         title="Exportar base de datos a Excel"
-                        className="flex items-center justify-center w-12 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                        className="flex items-center justify-center w-12 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 cursor-pointer"
                     >
                         <Download className="h-5 w-5" />
                     </button>

@@ -14,7 +14,6 @@ import {
     Users,
     ChevronUp,
     ChevronDown,
-    Download,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
@@ -316,76 +315,61 @@ const DashboardPredictivo = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
-            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto transition-all duration-300">
-                
-                {/* Grupo 1: Historial */}
-                <div className="flex items-center gap-2 px-1">
-                    <button 
-                        onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
-                        title="Historial de Pronósticos"
-                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
-                    >
-                        <AnimatedIcon name="history" size={20} />
-                    </button>
-                </div>
-
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                {/* Grupo 2: Inteligencia Artificial (Actualizar + Generar) */}
-                <div className="flex items-center gap-2 px-1">
-                    <button 
-                        onClick={fetchForecast} 
-                        disabled={isLoadingForecast} 
-                        title="Actualizar Indicadores Predictivos"
-                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-teal-400 text-teal-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
-                    >
-                        <RefreshCw className={cn("h-5 w-5", isLoadingForecast && "animate-spin")} />
-                    </button>
-
-                    <button 
-                        onClick={handleGenerate} 
-                        disabled={isGenerating} 
-                        title="Generar Pronóstico IA Integral"
-                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
-                    >
-                        {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
-                    </button>
-
-                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm transform hover:scale-105 active:scale-95" title="Seleccionar Modelo IA">
-                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+            {/* ═══ Header / Toolbar ═══ */}
+            <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-teal-600/10 via-surface-secondary to-purple-600/10 border border-border-medium shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 w-full">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 shadow-md shadow-teal-500/30">
+                        <Brain className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-text-primary">Gestor de Inteligencia Predictiva SST</h2>
+                        <div className="flex flex-wrap items-center gap-2 w-full">
+                            <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-sm text-text-secondary">Análisis cruzado de 8 módulos integrados</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                {/* Grupo 3: Persistencia */}
-                <div className="flex items-center gap-2 px-1">
-                    <button 
-                        onClick={handleSaveReport} 
-                        disabled={!editorContent && !generatedReport} 
-                        title="Guardar Informe en Historial"
-                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
-                    >
-                        <AnimatedIcon name="save" size={20} />
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Refresh */}
+                    <button onClick={fetchForecast} disabled={isLoadingForecast}
+                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                        <RefreshCw className={cn("h-4 w-4 text-teal-500", isLoadingForecast && "animate-spin")} />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">
+                            Actualizar
+                        </span>
                     </button>
-                </div>
 
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+                    {/* Generate */}
+                    <button onClick={() => handleGenerate()} disabled={isGenerating}
+                        className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white rounded-full transition-all duration-300 shadow-md shadow-teal-500/30 font-semibold text-sm ring-2 ring-teal-500/20 disabled:opacity-50">
+                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <AnimatedIcon name="sparkles" size={16} />}
+                        {isGenerating ? 'Analizando...' : 'Generar Pronóstico IA'}
+                    </button>
 
-                {/* Grupo 4: Salida */}
-                <div className="flex items-center gap-2 px-1">
-                    {(editorContent || generatedReport) ? (
-                        <div title="Exportar Pronóstico" className="transform hover:scale-110 active:scale-95">
-                            <ExportDropdown content={editorContent || generatedReport || ''} fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`} />
-                        </div>
-                    ) : (
-                        <div className="transform hover:scale-110 active:scale-95">
-                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                                <Download className="h-5 w-5" />
+                    {/* History */}
+                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
+                        <AnimatedIcon name="history" size={16} />
+                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">Historial</span>
+                    </button>
+
+                    {/* Save & Export (only when report exists) */}
+                    {generatedReport && (
+                        <>
+                            <button onClick={() => handleSaveReport()}
+                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
+                                <AnimatedIcon name="save" size={16} className="text-gray-500" />
+                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">Guardar</span>
                             </button>
-                        </div>
+                            <ExportDropdown
+                                content={editorContent || generatedReport || ''}
+                                fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
+                            />
+                        </>
                     )}
+
+                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
                 </div>
             </div>
 

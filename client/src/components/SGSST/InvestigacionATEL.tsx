@@ -461,15 +461,6 @@ const InvestigacionATEL = () => {
         setIsHistoryOpen(false);
     }, [token, showToast]);
 
-    useAutoLoadReport({
-        token,
-        tags: ['sgsst-investigacion-atel'],
-        generatedReport: generatedObjectives,
-        handleSelectReport
-    });
-
-    return (
-        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
             <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto">
                 
@@ -546,16 +537,6 @@ const InvestigacionATEL = () => {
                     <DummyGenerateButton onClick={handleDummyData} />
                 </div>
             </div>
-
-            {/* ── History ── */}
-            {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-                    <ReportHistory
-                        onSelectReport={handleSelectReport}
-                        isOpen={isHistoryOpen}
-                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
-                        refreshTrigger={refreshTrigger}
-                        tags={['sgsst-investigacion-atel']}
                     />
                 </div>
             )}

@@ -1132,31 +1132,26 @@ export function getComplianceLevel(score: number, total: number): {
     level: 'crítico' | 'bajo' | 'moderado' | 'aceptable';
     color: string;
     description: string;
-    percentage: string;
 } {
-    const percentageVal = total > 0 ? (score / total) * 100 : 0;
-    const percentage = percentageVal.toFixed(1);
+    const percentage = (score / total) * 100;
 
-    if (percentageVal < 60) {
+    if (percentage < 60) {
         return {
             level: 'crítico',
             color: 'red',
             description: 'Estado crítico. Requiere plan de mejoramiento inmediato.',
-            percentage
         };
-    } else if (percentageVal < 85) {
+    } else if (percentage < 85) {
         return {
             level: 'moderado',
             color: 'yellow',
             description: 'Moderadamente aceptable. Requiere plan de mejoramiento.',
-            percentage
         };
-    } else if (percentageVal < 100) {
+    } else if (percentage < 100) {
         return {
             level: 'aceptable',
             color: 'green',
             description: 'Aceptable. Mantener la calificación y evidencias.',
-            percentage
         };
     }
 
@@ -1164,6 +1159,5 @@ export function getComplianceLevel(score: number, total: number): {
         level: 'aceptable',
         color: 'green',
         description: 'Cumplimiento total de estándares.',
-        percentage
     };
 }
