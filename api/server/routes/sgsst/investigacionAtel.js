@@ -59,9 +59,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 testigosList: stored.testigosList || [],
                 images: stored.images || {},
                 video: stored.video || null,
+                inboxTestimonios: stored.inboxTestimonios || []
             });
         }
-        res.json({ formData: {}, equipoList: [], testigosList: [], images: {} });
+        res.json({ formData: {}, equipoList: [], testigosList: [], images: {}, video: null, inboxTestimonios: [] });
     } catch (error) {
         logger.error('[InvestigacionATEL] Data load error:', error);
         res.status(500).json({ error: 'Error al cargar los datos del reporte.' });
@@ -85,6 +86,22 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 });
 
 // ─── POST /api/sgsst/investigacion-atel/generate ─────────────────────────────
+// ─── POST /api/sgsst/investigacion-atel/inbox/testimonio/dismiss ──────────
+router.post('/inbox/testimonio/dismiss', requireJwtAuth, async (req, res) => {
+    try {
+        const { reportId } = req.body;
+        const doc = await InvestigacionAtelData.findOne({ user: req.user.id });
+        if (doc && doc.inboxTestimonios) {
+            doc.inboxTestimonios = doc.inboxTestimonios.filter(item => String(item.id) !== String(reportId));
+            await doc.save();
+        }
+        res.json({ success: true, inboxTestimonios: doc?.inboxTestimonios || [] });
+    } catch (error) {
+        logger.error('[SGSST InvestigacionAtel] Inbox dismiss error:', error);
+        res.status(500).json({ error: 'Error al descartar testimonio del buzón' });
+    }
+});
+
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
         const {

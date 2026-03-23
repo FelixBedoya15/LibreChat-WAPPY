@@ -26,6 +26,10 @@ const InvestigacionAtelDataSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    inboxTestimonios: {
+        type: Array,
+        default: []
+    },
     updatedAt: {
         type: Date,
         default: Date.now

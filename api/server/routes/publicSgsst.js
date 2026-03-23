@@ -237,4 +237,56 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
     }
 });
 
+// ─── POST /api/public-sgsst/investigacion-atel/testimonio/:companyId ─────────
+// Submit a new testimony from a witness for an ATEL investigation
+router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { cedula, nombre, data } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
+        if (!cedula || !nombre) {
+            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios' });
+        }
+
+        const InvestigacionAtelData = mongoose.models.InvestigacionAtelData;
+        if (!InvestigacionAtelData) {
+            return res.status(500).json({ error: 'Modelo InvestigacionAtelData no encontrado' });
+        }
+
+        // Create the testimony object for the inbox
+        const newInboxItem = {
+            id: new mongoose.Types.ObjectId().toString(),
+            testigo: {
+                nombre,
+                cedula,
+                cargo: data.cargo || 'Testigo Externo / No especificado'
+            },
+            testimonio: data.testimonio || '',
+            media: {
+                foto1: data.foto1 || null,
+                foto2: data.foto2 || null,
+                video: data.video || null
+            },
+            createdAt: new Date(),
+            status: 'pending'
+        };
+
+        // Push to inboxTestimonios
+        await InvestigacionAtelData.findOneAndUpdate(
+            { user: companyId },
+            { $push: { inboxTestimonios: newInboxItem }, $set: { updatedAt: Date.now() } },
+            { upsert: true, new: true }
+        );
+
+        res.json({ success: true, message: 'Su testimonio ha sido radicado exitosamente en el sistema de investigación.' });
+    } catch (error) {
+        logger.error('[Public SGSST] ATEL Testimony submission error:', error);
+        res.status(500).json({ error: 'Error al procesar el testimonio' });
+    }
+});
+
 module.exports = router;
