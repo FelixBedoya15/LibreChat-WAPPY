@@ -103,7 +103,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             id: 'ai-default',
             onClick: onAnalyze,
             title: "Generar con IA",
-            label: "Generar IA",
+            label: "Generar Pronóstico IA",
             icon: "sparkles",
             variant: "ai",
             isLoading: isAnalyzing,
@@ -117,7 +117,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             id: 'save-local-default',
             onClick: onSaveLocal,
             title: "Guardar Localmente",
-            label: "G. Local",
+            label: "Guardar Datos",
             icon: "database",
             variant: "database",
             isLoading: isSavingLocal,
@@ -129,7 +129,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             id: 'save-server-default',
             onClick: onSave,
             title: "Guardar en Servidor",
-            label: "G. Servidor",
+            label: "Guardar Informe",
             icon: "save",
             variant: "save",
             disabled: saveDisabled || !hasContent
@@ -142,7 +142,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             id: 'dummy-default',
             onClick: onDummy,
             title: "Generar Datos de Prueba",
-            label: "Simular",
+            label: "Datos de Prueba",
             icon: "robot",
             variant: "dummy"
         });
@@ -196,10 +196,10 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
     ].filter(g => (g.buttons && g.buttons.length > 0) || g.extra);
 
     return (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
+        <div className="mt-6 flex flex-wrap items-center justify-center p-2 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
             {allGroups.map((group, idx) => (
                 <React.Fragment key={group.id}>
-                    <div className="flex items-center gap-2 px-1">
+                    <div className="flex items-center gap-1">
                         {group.buttons.map(btn => (
                             <ToolbarButton key={btn.id} {...btn} />
                         ))}
@@ -211,7 +211,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             {customSections.map((section, idx) => (
                 <React.Fragment key={`custom-${idx}`}>
                     <ToolbarSeparator />
-                    <div className="flex items-center gap-2 px-1">
+                    <div className="flex items-center gap-1">
                         {section}
                     </div>
                 </React.Fragment>
@@ -256,29 +256,31 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
                 "group flex items-center justify-center h-10 transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none",
                 variantStyles[variant],
                 roundedClass,
-                label ? "px-3" : "w-12"
+                "px-3"
             )}
         >
-            {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-                <div className="relative">
-                    {typeof icon === 'string' ? (
-                        <AnimatedIcon name={icon as IconName} size={20} className="shrink-0" />
-                    ) : (
-                        React.createElement(icon as any, { size: 20, className: "shrink-0" })
-                    )}
-                    {badge !== undefined && (
-                        <span className="absolute -top-3 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                            {badge}
-                        </span>
-                    )}
-                </div>
-            )}
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+                {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                    <>
+                        {typeof icon === 'string' ? (
+                            <AnimatedIcon name={icon as IconName} size={20} />
+                        ) : (
+                            React.createElement(icon as any, { size: 20 })
+                        )}
+                        {badge !== undefined && (
+                            <span className="absolute -top-3 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white z-10">
+                                {badge}
+                            </span>
+                        )}
+                    </>
+                )}
+            </div>
             
             {label && (
-                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
-                    <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
+                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-sm font-bold tracking-wide">{label}</span>
                 </div>
             )}
         </button>

@@ -578,7 +578,7 @@ const MatrizPeligrosGTC45 = () => {
                         onClick: handleGenerateFull,
                         disabled: isGeneratingFull,
                         title: "Generar Peligros con IA (7 Procesos)",
-                        label: "Generar Matriz",
+                        label: "Generar Matriz IA",
                         icon: "sparkles",
                         variant: "ai",
                         isLoading: isGeneratingFull
