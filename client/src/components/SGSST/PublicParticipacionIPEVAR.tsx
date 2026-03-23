@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList, FileText } from 'lucide-react';
+import { Shield, AlertTriangle, Camera, UserCircle, Key, Send, CheckCircle, RefreshCcw, X, HardHat, ClipboardList, FileText, Video, Film, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 export default function PublicParticipacionIPEVAR() {
@@ -24,6 +24,7 @@ export default function PublicParticipacionIPEVAR() {
         foto3: null
     });
     const [video, setVideo] = useState<string | null>(null);
+    const [isVideoUploading, setIsVideoUploading] = useState(false);
     const [controlesExistentes, setControlesExistentes] = useState('');
     const [suficientes, setSuficientes] = useState(true);
     
@@ -86,24 +87,40 @@ export default function PublicParticipacionIPEVAR() {
 
     const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            const videoElement = document.createElement('video');
-            videoElement.preload = 'metadata';
-            videoElement.onloadedmetadata = () => {
-                window.URL.revokeObjectURL(videoElement.src);
-                if (videoElement.duration > 10.5) {
-                    alert('El video excede los 10 segundos permitidos.');
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = (readerEvent) => {
-                    setVideo(readerEvent.target?.result as string);
-                };
-                reader.readAsDataURL(file);
-            };
-            videoElement.src = URL.createObjectURL(file);
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) {
+            alert('El video es demasiado pesado. Máximo 20MB.');
+            return;
         }
+
+        setIsVideoUploading(true);
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+
+        videoElement.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(videoElement.src);
+            if (videoElement.duration > 10.5) {
+                alert('El video excede los 10 segundos permitidos.');
+                setIsVideoUploading(false);
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                setVideo(readerEvent.target?.result as string);
+                setIsVideoUploading(false);
+            };
+            reader.onerror = () => setIsVideoUploading(false);
+            reader.readAsDataURL(file);
+        };
+
+        videoElement.onerror = () => {
+            alert('Error al procesar el video.');
+            setIsVideoUploading(false);
+        };
+
+        videoElement.src = URL.createObjectURL(file);
     };
 
     const removeImage = (field: string) => {
@@ -361,33 +378,38 @@ export default function PublicParticipacionIPEVAR() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="mt-2 flex flex-col items-center">
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 text-center w-full">Evidencia en Video (Máx. 10s)</label>
-                                    <div className="relative w-full md:w-1/3 h-24 rounded-xl overflow-hidden border-2 border-dashed border-red-200 bg-red-50/30 hover:bg-red-50/50 hover:border-red-400 transition-colors flex items-center justify-center group text-center">
-                                        {video ? (
-                                            <div className="relative w-full h-full flex items-center justify-center bg-black">
-                                                <video src={video} className="h-full" />
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); removeVideo(); }} 
-                                                    className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-500 transition-colors z-10"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
+                                <div className="mt-4 w-full">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Evidencia en Video (Opcional)</label>
+                                        <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">Máximo 10s</span>
+                                    </div>
+                                    
+                                    <div className="bg-teal-50/30 border-2 border-dashed border-teal-200 rounded-2xl p-4 transition-all">
+                                        {!video ? (
+                                            <div className="flex flex-col items-center justify-center space-y-2">
+                                                <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                                                    {isVideoUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Video className="h-6 w-6" />}
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-xs font-semibold text-gray-700">Gira el móvil y graba el entorno</p>
+                                                </div>
+                                                <label className="cursor-pointer bg-[#0f766e] hover:bg-[#115e59] text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95">
+                                                    {isVideoUploading ? 'Procesando...' : 'Grabar / Subir Video'}
+                                                    <input type="file" accept="video/*" capture="environment" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                                                </label>
                                             </div>
                                         ) : (
-                                            <>
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <FileText className="w-6 h-6 text-red-400 group-hover:scale-110 transition-transform" />
-                                                    <span className="text-[10px] font-bold text-red-500">Video Corto (10s)</span>
+                                            <div className="space-y-3">
+                                                <div className="relative rounded-xl overflow-hidden bg-black aspect-video w-full shadow-lg border-2 border-teal-400">
+                                                    <video src={video} controls className="w-full h-full" />
+                                                    <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-colors z-10">
+                                                        <X className="h-3 w-3" />
+                                                    </button>
                                                 </div>
-                                                <input 
-                                                    type="file" 
-                                                    accept="video/*" 
-                                                    capture="environment"
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                                                    onChange={handleVideoUpload} 
-                                                />
-                                            </>
+                                                <p className="text-center text-[10px] text-teal-600 font-medium italic">
+                                                    Video listo para validación de seguridad
+                                                </p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
