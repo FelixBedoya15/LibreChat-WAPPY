@@ -85,6 +85,7 @@ const MetodoOwasDataSchema = new mongoose.Schema({
   trabajadoresList: { type: Array, default: [] },
   responsablesList: { type: Array, default: [] },
   images: { type: Object, default: {} },
+  video: { type: String, default: null },
   updatedAt: { type: Date, default: Date.now },
 });
 MetodoOwasDataSchema.index({ user: 1 }, { unique: true });
@@ -101,9 +102,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         trabajadoresList: data.trabajadoresList || [],
         responsablesList: data.responsablesList || [],
         images: data.images || { foto1: null, foto2: null, foto3: null },
+        video: data.video || null,
       });
     }
-    res.json({ formData: {}, observaciones: [], trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null } });
+    res.json({ formData: {}, observaciones: [], trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null }, video: null });
   } catch (error) {
     logger.error('[SGSST OWAS] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos OWAS' });
@@ -113,10 +115,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save ───────────────────────────────────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
-    const { formData, observaciones, trabajadoresList, responsablesList, images } = req.body;
+    const { formData, observaciones, trabajadoresList, responsablesList, images, video } = req.body;
     await MetodoOwasData.findOneAndUpdate(
       { user: req.user.id },
-      { $set: { formData, observaciones, trabajadoresList, responsablesList, images, updatedAt: Date.now() } },
+      { $set: { formData, observaciones, trabajadoresList, responsablesList, images, video, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
     res.json({ success: true });
@@ -129,7 +131,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 // ─── POST /generate ───────────────────────────────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
   try {
-    const { formData, observaciones, trabajadoresList, responsablesList, images, modelName } = req.body;
+    const { formData, observaciones, trabajadoresList, responsablesList, images, video, modelName } = req.body;
 
     // Calculate OWAS categories for each observation
     const obsWithCategories = (observaciones || []).map((obs, i) => {
@@ -215,6 +217,9 @@ ${obsTableRows}
 - Categoría 4 (Riesgo Crítico/Inmediato): ${catCounts[4]} obs. (${totalObs > 0 ? Math.round(catCounts[4]/totalObs*100) : 0}%)
 - Categoría DOMINANTE de la evaluación: **Categoría ${dominantCategory}** → ${catActions[dominantCategory]}
 
+**EVIDENCIA MULTIMEDIA:**
+Analiza cuidadosamente las fotografías y el video (si se adjunta) para corroborar las posturas, el entorno de trabajo y la carga física. El video es una evidencia dinámica fundamental de la tarea.
+
 **INSTRUCCIONES (TU TAREA – Responde EXCLUSIVAMENTE en HTML limpio):**
 
 NO repitas el título principal ni los datos de la empresa; el encabezado ya está incluido.
@@ -271,17 +276,26 @@ REGLA: EXTREMADAMENTE extenso, múltiples párrafos. Debe incluir:
 
     const parts = [{ text: promptText }];
 
-    if (images) {
-      Object.keys(images).forEach((key, index) => {
-        const b64 = images[key];
-        if (b64) {
-          const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
-          if (match) {
-            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
-            parts.push({ text: `(Fotografía del puesto de trabajo ${index + 1}: ${key})` });
+    if (images || video) {
+      if (images) {
+        Object.keys(images).forEach((key, index) => {
+          const b64 = images[key];
+          if (b64) {
+            const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+            if (match) {
+              parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+              parts.push({ text: `(Fotografía del puesto de trabajo ${index + 1}: ${key})` });
+            }
           }
+        });
+      }
+      if (video) {
+        const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
+        if (match) {
+          parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+          parts.push({ text: '(Evidencia en VIDEO de la tarea analizada por OWAS)' });
         }
-      });
+      }
     }
 
     const result = await generateWithRetry(model, parts);

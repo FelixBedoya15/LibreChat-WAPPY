@@ -56,6 +56,7 @@ const PermisoAlturasDataSchema = new mongoose.Schema({
     trabajadoresList: { type: Array, default: [] },
     responsablesList: { type: Array, default: [] },
     images: { type: Object, default: {} },
+    video: { type: String, default: null },
     updatedAt: { type: Date, default: Date.now },
 });
 
@@ -73,9 +74,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
                 trabajadoresList: data.trabajadoresList || [],
                 responsablesList: data.responsablesList || [],
                 images: data.images || { foto1: null, foto2: null, foto3: null },
+                video: data.video || null,
             });
         }
-        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null } });
+        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null }, video: null });
     } catch (error) {
         logger.error('[SGSST PermisoAlturas] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
@@ -85,10 +87,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save — Save permiso alturas data ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, trabajadoresList, responsablesList, images } = req.body;
+        const { formData, trabajadoresList, responsablesList, images, video } = req.body;
         await PermisoAlturasData.findOneAndUpdate(
             { user: req.user.id },
-            { $set: { formData, trabajadoresList, responsablesList, images, updatedAt: Date.now() } },
+            { $set: { formData, trabajadoresList, responsablesList, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -100,7 +102,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, trabajadoresList, responsablesList, images, modelName } = req.body;
+        const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
 
         const trabajadoresStr = trabajadoresList?.map(t => `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
         const responsablesStr = responsablesList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Sin Rol'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
@@ -181,6 +183,9 @@ Bajo ninguna circunstancia puedes inventar, asumir o alucinar información, dato
 - Actividad técnica: ${formData.actividadGlobal || '[INFORMACIÓN PENDIENTE]'}
 - Entorno: ${formData.foto1Desc || 'Sin descripción'} | Acceso: ${formData.foto2Desc || 'Sin descripción'} | EPP: ${formData.foto3Desc || 'Sin descripción'}
 
+**EVIDENCIA MULTIMEDIA DINÁMICA:**
+Analiza minuciosamente el video adjunto (si se proporciona) para verificar sistemas de anclaje, comportamiento del trabajador, estabilidad de la plataforma y peligros circundantes en tiempo real. Complementa con las fotografías de contexto.
+
 **INSTRUCCIONES DE ESTRUCTURA Y CONTENIDO OBLIGATORIO (Desarrolla con mucha profundidad técnica y usa tablas para TODO):**
 
 1️⃣ **Información Operativa del Trabajo**
@@ -240,23 +245,26 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #0f766e
             { text: promptText },
         ];
 
-        if (images) {
-            Object.keys(images).forEach((key, index) => {
-                const b64 = images[key];
-                if (b64) {
-                    const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
-                    if (match && match.length === 3) {
-                        parts.push({
-                            inlineData: {
-                                data: match[2],
-                                mimeType: match[1]
-                            }
-                        });
-                        // Adding context to the model to know what image it is observing
-                        parts.push({ text: `(Foto ${index + 1}: ${key})` });
+        if (images || video) {
+            if (images) {
+                Object.keys(images).forEach((key, index) => {
+                    const b64 = images[key];
+                    if (b64) {
+                        const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+                        if (match && match.length === 3) {
+                            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                            parts.push({ text: `(Foto ${index + 1}: ${key})` });
+                        }
                     }
+                });
+            }
+            if (video) {
+                const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
+                if (match) {
+                    parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                    parts.push({ text: '(Evidencia en VIDEO del trabajo en alturas para validación de seguridad)' });
                 }
-            });
+            }
         }
 
         const result = await generateWithRetry(model, parts);

@@ -39,6 +39,7 @@ const AnalisisVulnerabilidadDataSchema = new mongoose.Schema({
   formData: { type: Object, default: {} },
   evaluadoresList: { type: Array, default: [] },
   images: { type: Object, default: {} },
+  video: { type: String, default: null },
   updatedAt: { type: Date, default: Date.now },
 });
 AnalisisVulnerabilidadDataSchema.index({ user: 1 }, { unique: true });
@@ -53,9 +54,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         amenazasList: data.formData?.amenazasList || [],
         evaluadoresList: data.evaluadoresList || [],
         images: data.images || { foto1: null, foto2: null, foto3: null },
+        video: data.video || null,
       });
     }
-    res.json({ amenazasList: [], evaluadoresList: [], images: { foto1: null, foto2: null, foto3: null } });
+    res.json({ amenazasList: [], evaluadoresList: [], images: { foto1: null, foto2: null, foto3: null }, video: null });
   } catch (error) {
     logger.error('[SGSST Vulnerabilidad] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos' });
@@ -65,10 +67,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save ───────────────────────────────────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
-    const { amenazasList, evaluadoresList, images } = req.body;
+    const { amenazasList, evaluadoresList, images, video } = req.body;
     await AnalisisVulnerabilidadData.findOneAndUpdate(
       { user: req.user.id },
-      { $set: { "formData.amenazasList": amenazasList, evaluadoresList, images, updatedAt: Date.now() } },
+      { $set: { "formData.amenazasList": amenazasList, evaluadoresList, images, video, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
     res.json({ success: true });
@@ -104,7 +106,7 @@ function calculateRiskLevel(amenazaColor, persColor, recColor, sistColor) {
 // ─── POST /generate ───────────────────────────────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
   try {
-    const { amenazasList, evaluadoresList, images, modelName } = req.body;
+    const { amenazasList, evaluadoresList, images, video, modelName } = req.body;
 
     const evaluadoresStr = evaluadoresList?.map(r => `${r.nombre || 'Sin nombre'} - ${r.rol || 'Evaluador'} (CC: ${r.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
 
@@ -251,22 +253,32 @@ Estructura de la tabla:
 - Plazo Sugerido (Inmediato, Corto plazo, Mediano Plazo)
 
 4️⃣ **Dictamen Global de Exposición de la Entidad**
-Cierra con una declaratoria estructurada y técnica. **IMPORTANTE: NO incluyas nombres de personas, cargos ni espacios para firmas al final de tu respuesta**, ya que el sistema los agregará automáticamente en el área de FIRMAS después de tu texto.
+Cierra con una declaratoria estructurada y técnica. **Si se ha proporcionado un video de evidencia**, asegúrate de mencionarlo en tus conclusiones sobre la capacidad de respuesta y vulnerabilidad dinámica observada.
+**IMPORTANTE: NO incluyas nombres de personas, cargos ni espacios para firmas al final de tu respuesta**, ya que el sistema los agregará automáticamente en el área de FIRMAS después de tu texto.
 `;
 
     const parts = [{ text: promptText }];
 
-    if (images) {
-      Object.keys(images).forEach((key, index) => {
-        const b64 = images[key];
-        if (b64) {
-          const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
-          if (match) {
-            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
-            parts.push({ text: `(Evidencia visual de la vulnerabilidad ${index + 1}: ${key})` });
+    if (images || video) {
+      if (images) {
+        Object.keys(images).forEach((key, index) => {
+          const b64 = images[key];
+          if (b64) {
+            const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+            if (match) {
+              parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+              parts.push({ text: `(Evidencia visual de la vulnerabilidad ${index + 1}: ${key})` });
+            }
           }
+        });
+      }
+      if (video) {
+        const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
+        if (match) {
+          parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+          parts.push({ text: '(Evidencia en VIDEO de condiciones de vulnerabilidad/amenaza para análisis dinámico)' });
         }
-      });
+      }
     }
 
     const result = await generateWithRetry(model, parts);

@@ -14,7 +14,7 @@ import {
     FileText,
     Plus,
     Trash2
-, Download } from 'lucide-react';
+, Download, Video, Film } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
@@ -127,6 +127,8 @@ const PermisoAlturas = () => {
         foto2: null,
         foto3: null
     });
+    const [video, setVideo] = useState<string | null>(null);
+    const [isVideoUploading, setIsVideoUploading] = useState(false);
 
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
@@ -171,6 +173,7 @@ const PermisoAlturas = () => {
                 if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
                 if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
                 if (data.images) setImages(data.images);
+                if (data.video) setVideo(data.video);
             })
             .catch(err => console.error('Error fetching permiso alturas data', err));
     }, [token]);
@@ -205,7 +208,8 @@ const PermisoAlturas = () => {
                     formData,
                     trabajadoresList,
                     responsablesList,
-                    images
+                    images,
+                    video
                 })
             });
             if (res.ok && !silent) {
@@ -325,6 +329,51 @@ const PermisoAlturas = () => {
         }
     };
 
+    const handleVideoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) {
+            showToast({ message: 'El video es demasiado pesado. Máximo 20MB.', status: 'error' });
+            return;
+        }
+
+        setIsVideoUploading(true);
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+
+        videoElement.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(videoElement.src);
+            const duration = videoElement.duration;
+
+            if (duration > 10.5) {
+                showToast({ message: 'El video no debe superar los 10 segundos para evidencia.', status: 'error' });
+                setIsVideoUploading(false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                setVideo(ev.target?.result as string);
+                setIsVideoUploading(false);
+                showToast({ message: 'Video de evidencia en alturas cargado.', status: 'success' });
+            };
+            reader.onerror = () => setIsVideoUploading(false);
+            reader.readAsDataURL(file);
+        };
+
+        videoElement.onerror = () => {
+            showToast({ message: 'Error al procesar el video.', status: 'error' });
+            setIsVideoUploading(false);
+        };
+
+        videoElement.src = URL.createObjectURL(file);
+    }, [showToast]);
+
+    const removeVideo = () => {
+        setVideo(null);
+    };
+
     const removeImage = (field: string) => {
         setImages(prev => ({ ...prev, [field]: null }));
     };
@@ -344,6 +393,7 @@ const PermisoAlturas = () => {
                     trabajadoresList,
                     responsablesList,
                     images,
+                    video,
                     modelName: selectedModel,
                 }),
             });
@@ -367,7 +417,7 @@ const PermisoAlturas = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [formData, images, selectedModel, token, showToast]);
+    }, [formData, trabajadoresList, responsablesList, images, video, selectedModel, token, showToast, handleSaveData]);
 
     const handleSave = useCallback(async () => {
         const contentToSave = editorContent || generatedObjectives;
@@ -719,6 +769,7 @@ const PermisoAlturas = () => {
                             />
                         </div>
 
+                        {/* Photos */}
                         <div className="space-y-4 pt-4 border-t border-border-medium">
                             <h4 className="font-semibold text-text-primary text-sm">Registro Fotográfico</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -758,6 +809,47 @@ const PermisoAlturas = () => {
                             </div>
                         </div>
 
+                        {/* Video Evidence */}
+                        <div className="space-y-4 pt-4 border-t border-border-medium">
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                    <Film className="h-4 w-4 text-teal-600" /> Video de Evidencia de Alturas (Opcional)
+                                </h4>
+                                <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">Máximo 10 Segundos</span>
+                            </div>
+
+                            <div className="bg-surface-tertiary/10 border-2 border-dashed border-teal-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                                {!video ? (
+                                    <div className="flex flex-col items-center justify-center space-y-3">
+                                        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                                            {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-semibold text-text-primary">Sube evidencia dinámica en video</p>
+                                            <p className="text-xs text-text-secondary mt-1">Permite a la IA validar sistemas de protección de caídas</p>
+                                        </div>
+                                        <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
+                                            {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                                            <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                                        </label>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="relative rounded-xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-400">
+                                            <video src={video} controls className="w-full h-full" />
+                                            <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <p className="text-center text-xs text-teal-600 font-medium bg-teal-50 py-2 rounded-lg border border-teal-100 italic">
+                                            Evidencia de video de alturas lista para análisis
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+
                         <div className="flex justify-center pt-4 gap-4">
                             <button
                                 onClick={() => handleGenerate()}
@@ -792,7 +884,7 @@ const PermisoAlturas = () => {
                     </div>
                 )
             }
-        </div >
+        </div>
     );
 };
 

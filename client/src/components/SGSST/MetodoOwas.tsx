@@ -10,6 +10,8 @@ import {
     Activity,
     AlertCircle,
     Download,
+    Video,
+    Film,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -161,6 +163,8 @@ const MetodoOwas = () => {
   });
 
   const [images, setImages] = useState<{ [k: string]: string | null }>({ foto1: null, foto2: null, foto3: null });
+  const [video, setVideo] = useState<string | null>(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
   const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
@@ -196,6 +200,7 @@ const MetodoOwas = () => {
         if (d.trabajadoresList?.length) setTrabajadoresList(d.trabajadoresList);
         if (d.responsablesList?.length) setResponsablesList(d.responsablesList);
         if (d.images) setImages(d.images);
+        if (d.video) setVideo(d.video);
       }).catch(() => {});
   }, [token]);
 
@@ -234,7 +239,7 @@ const MetodoOwas = () => {
       const res = await fetch('/api/sgsst/metodo-owas/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ formData, observaciones, trabajadoresList, responsablesList, images })
+        body: JSON.stringify({ formData, observaciones, trabajadoresList, responsablesList, images, video })
       });
       if (res.ok && !silent) showToast({ message: 'Datos OWAS guardados correctamente.', status: 'success' });
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
@@ -304,6 +309,52 @@ const MetodoOwas = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleVideoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Limit size to ~20MB for safety (10 seconds shouldn't exceed this)
+    if (file.size > 20 * 1024 * 1024) {
+      showToast({ message: 'El video es demasiado pesado. Máximo 20MB.', status: 'error' });
+      return;
+    }
+
+    setIsVideoUploading(true);
+    const videoElement = document.createElement('video');
+    videoElement.preload = 'metadata';
+
+    videoElement.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoElement.src);
+      const duration = videoElement.duration;
+
+      if (duration > 10.5) {
+        showToast({ message: 'El video no debe superar los 10 segundos para evidencia.', status: 'error' });
+        setIsVideoUploading(false);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setVideo(ev.target?.result as string);
+        setIsVideoUploading(false);
+        showToast({ message: 'Video de evidencia cargado (Máx 10s).', status: 'success' });
+      };
+      reader.onerror = () => setIsVideoUploading(false);
+      reader.readAsDataURL(file);
+    };
+
+    videoElement.onerror = () => {
+      showToast({ message: 'Error al procesar el video.', status: 'error' });
+      setIsVideoUploading(false);
+    };
+
+    videoElement.src = URL.createObjectURL(file);
+  }, [showToast]);
+
+  const removeVideo = () => {
+    setVideo(null);
+  };
+
   const stats = React.useMemo(() => {
     const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
     observaciones.forEach(o => {
@@ -330,7 +381,7 @@ const MetodoOwas = () => {
       const response = await fetch('/api/sgsst/metodo-owas/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ formData, observaciones, trabajadoresList, responsablesList, images, modelName: selectedModel }),
+        body: JSON.stringify({ formData, observaciones, trabajadoresList, responsablesList, images, video, modelName: selectedModel }),
       });
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Error al generar'); }
       const data = await response.json();
@@ -344,7 +395,7 @@ const MetodoOwas = () => {
     } catch (error: any) {
       showToast({ message: error.message || 'Error al generar el informe OWAS', status: 'error' });
     } finally { setIsGenerating(false); }
-  }, [formData, observaciones, images, selectedModel, token, trabajadoresList, responsablesList, showToast]);
+  }, [formData, observaciones, images, video, selectedModel, token, trabajadoresList, responsablesList, showToast, handleSaveData]);
 
   const handleSave = useCallback(async () => {
     const content = editorContent || generatedReport;
@@ -636,6 +687,46 @@ const MetodoOwas = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Video Evidence */}
+            <div className="space-y-4 pt-4 border-t border-border-medium">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <Film className="h-4 w-4 text-purple-700" /> Video de Evidencia Dinámica (Opcional)
+                </h4>
+                <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase">Máximo 10 Segundos</span>
+              </div>
+              
+              <div className="bg-surface-tertiary/10 border-2 border-dashed border-purple-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                {!video ? (
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                      {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-text-primary">Sube un video corto de la tarea</p>
+                      <p className="text-xs text-text-secondary mt-1">Formatos permitidos: MP4, WebM (Evidencia real)</p>
+                    </div>
+                    <label className="cursor-pointer bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
+                      {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                      <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-purple-400">
+                      <video src={video} controls className="w-full h-full" />
+                      <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-center text-xs text-purple-600 font-medium bg-purple-50 py-2 rounded-lg border border-purple-100 italic">
+                      "Evidencia en video cargada correctamente para análisis multimodal"
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

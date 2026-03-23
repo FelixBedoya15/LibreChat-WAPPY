@@ -9,7 +9,9 @@ import {
     Trash2,
     Shield,
     AlertTriangle,
-    Download
+    Download,
+    Video,
+    Film
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -178,6 +180,8 @@ const AnalisisVulnerabilidad = () => {
   const [activeAmenazaId, setActiveAmenazaId] = useState<string | null>(null);
 
   const [images, setImages] = useState<{ [k: string]: string | null }>({ foto1: null, foto2: null, foto3: null });
+  const [video, setVideo] = useState<string | null>(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [evaluadoresList, setEvaluadoresList] = useState([{ nombre: '', cedula: '', rol: '' }]);
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
@@ -221,6 +225,7 @@ const AnalisisVulnerabilidad = () => {
           setEvaluadoresList(d.evaluadoresList);
         }
         if (d && d.images) setImages(d.images);
+        if (d && d.video) setVideo(d.video);
       }).catch(() => {});
   }, [token]);
 
@@ -278,7 +283,7 @@ const AnalisisVulnerabilidad = () => {
       const res = await fetch('/api/sgsst/analisis-vulnerabilidad/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images })
+        body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images, video })
       });
       if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente.', status: 'success' });
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
@@ -313,6 +318,49 @@ const AnalisisVulnerabilidad = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleVideoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      showToast({ message: 'El video es demasiado pesado. Máximo 20MB.', status: 'error' });
+      return;
+    }
+
+    setIsVideoUploading(true);
+    const videoElement = document.createElement('video');
+    videoElement.preload = 'metadata';
+
+    videoElement.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(videoElement.src);
+      if (videoElement.duration > 10.5) {
+        showToast({ message: 'El video no debe superar los 10 segundos.', status: 'error' });
+        setIsVideoUploading(false);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setVideo(ev.target?.result as string);
+        setIsVideoUploading(false);
+        showToast({ message: 'Video de evidencia cargado.', status: 'success' });
+      };
+      reader.onerror = () => setIsVideoUploading(false);
+      reader.readAsDataURL(file);
+    };
+
+    videoElement.onerror = () => {
+      showToast({ message: 'Error al procesar el video.', status: 'error' });
+      setIsVideoUploading(false);
+    };
+
+    videoElement.src = URL.createObjectURL(file);
+  }, [showToast]);
+
+  const removeVideo = () => {
+    setVideo(null);
+  };
+
   const handleGenerate = useCallback(async () => {
     const invalid = amenazasList.find(a => !a.amenaza.trim());
     if (invalid) {
@@ -332,7 +380,7 @@ const AnalisisVulnerabilidad = () => {
       const response = await fetch('/api/sgsst/analisis-vulnerabilidad/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images, modelName: selectedModel }),
+        body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images, video, modelName: selectedModel }),
       });
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Error al generar'); }
       const data = await response.json();
@@ -346,7 +394,7 @@ const AnalisisVulnerabilidad = () => {
     } catch (error: any) {
       showToast({ message: error.message || 'Error al generar', status: 'error' });
     } finally { setIsGenerating(false); }
-  }, [amenazasList, images, selectedModel, token, evaluadoresList, showToast]);
+  }, [amenazasList, images, video, selectedModel, token, evaluadoresList, showToast, handleSaveData]);
 
   const handleSave = useCallback(async () => {
     const content = editorContent || generatedReport;
@@ -625,6 +673,46 @@ const AnalisisVulnerabilidad = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Video Evidence Global */}
+            <div className="space-y-4 pt-6 border-t border-border-medium">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                  <Film className="h-4 w-4 text-teal-700" /> Video de Evidencia Dinámica (Opcional)
+                </h4>
+                <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">Máximo 10 Segundos</span>
+              </div>
+
+              <div className="bg-surface-tertiary/10 border-2 border-dashed border-teal-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                {!video ? (
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                      {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-text-primary uppercase tracking-wide">Adjuntar Video de Amenaza/Vulnerabilidad</p>
+                      <p className="text-xs text-text-secondary mt-1">El video permite a la IA analizar riesgos dinámicos en tiempo real</p>
+                    </div>
+                    <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
+                      {isVideoUploading ? 'Procesando...' : 'Seleccionar Evidencia'}
+                      <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-500">
+                      <video src={video} controls className="w-full h-full" />
+                      <button onClick={removeVideo} className="absolute top-3 right-3 bg-red-600 text-white p-2.5 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <p className="text-center text-xs text-teal-600 font-medium bg-teal-50 py-2 rounded-lg border border-teal-100 italic">
+                      "Evidencia de video lista para análisis multimodal"
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

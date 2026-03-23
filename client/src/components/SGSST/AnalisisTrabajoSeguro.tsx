@@ -9,7 +9,9 @@ import {
     FileText,
     Plus,
     Trash2,
-    ShieldCheck, Download , Bot } from 'lucide-react';
+    Plus,
+    Trash2,
+    ShieldCheck, Download , Bot, Video, Film } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
@@ -119,6 +121,8 @@ const AnalisisTrabajoSeguro = () => {
     const [images, setImages] = useState<{ [key: string]: string | null }>({
         foto1: null, foto2: null, foto3: null
     });
+    const [video, setVideo] = useState<string | null>(null);
+    const [isVideoUploading, setIsVideoUploading] = useState(false);
 
     const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
     const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
@@ -163,6 +167,7 @@ const AnalisisTrabajoSeguro = () => {
                 if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
                 if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
                 if (data.images) setImages(data.images);
+                if (data.video) setVideo(data.video);
             })
             .catch(err => console.error('Error fetching ATS data', err));
     }, [token]);
@@ -173,7 +178,7 @@ const AnalisisTrabajoSeguro = () => {
             const res = await fetch('/api/sgsst/analisis-trabajo-seguro/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ formData, trabajadoresList, responsablesList, images })
+                body: JSON.stringify({ formData, trabajadoresList, responsablesList, images, video })
             });
             if (res.ok && !silent) showToast({ message: 'Datos del ATS guardados correctamente.', status: 'success' });
         } catch (err) {
@@ -264,6 +269,51 @@ const AnalisisTrabajoSeguro = () => {
         }
     };
 
+    const handleVideoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) {
+            showToast({ message: 'El video es demasiado pesado. Máximo 20MB.', status: 'error' });
+            return;
+        }
+
+        setIsVideoUploading(true);
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+
+        videoElement.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(videoElement.src);
+            const duration = videoElement.duration;
+
+            if (duration > 10.5) {
+                showToast({ message: 'El video no debe superar los 10 segundos para evidencia.', status: 'error' });
+                setIsVideoUploading(false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                setVideo(ev.target?.result as string);
+                setIsVideoUploading(false);
+                showToast({ message: 'Video de evidencia cargado (Máx 10s).', status: 'success' });
+            };
+            reader.onerror = () => setIsVideoUploading(false);
+            reader.readAsDataURL(file);
+        };
+
+        videoElement.onerror = () => {
+            showToast({ message: 'Error al procesar el video.', status: 'error' });
+            setIsVideoUploading(false);
+        };
+
+        videoElement.src = URL.createObjectURL(file);
+    }, [showToast]);
+
+    const removeVideo = () => {
+        setVideo(null);
+    };
+
     const removeImage = (field: string) => {
         setImages(prev => ({ ...prev, [field]: null }));
     };
@@ -275,7 +325,7 @@ const AnalisisTrabajoSeguro = () => {
             const response = await fetch('/api/sgsst/analisis-trabajo-seguro/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ formData, trabajadoresList, responsablesList, images, modelName: selectedModel }),
+                body: JSON.stringify({ formData, trabajadoresList, responsablesList, images, video, modelName: selectedModel }),
             });
             if (!response.ok) {
                 const err = await response.json();
@@ -294,7 +344,7 @@ const AnalisisTrabajoSeguro = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [formData, images, selectedModel, token, trabajadoresList, responsablesList, showToast]);
+    }, [formData, images, video, selectedModel, token, trabajadoresList, responsablesList, showToast, handleSaveData]);
 
     const handleSave = useCallback(async () => {
         const contentToSave = editorContent || generatedReport;
@@ -659,6 +709,47 @@ const AnalisisTrabajoSeguro = () => {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </div>
+
+                        {/* Video Evidence */}
+                        <div className="space-y-4 pt-4 border-t border-border-medium">
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                    <Film className="h-4 w-4 text-teal-700" /> Video de Evidencia Crítica (Opcional)
+                                </h4>
+                                <span className="text-[10px] bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase">Máximo 10 Segundos</span>
+                            </div>
+
+                            <div className="bg-surface-tertiary/10 border-2 border-dashed border-teal-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                                {!video ? (
+                                    <div className="flex flex-col items-center justify-center space-y-3">
+                                        <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 font-bold">
+                                            {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-text-primary uppercase tracking-wide">Adjuntar Video de la Tarea</p>
+                                            <p className="text-xs text-text-secondary mt-1">El video permite a la IA analizar riesgos dinámicos</p>
+                                        </div>
+                                        <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-2">
+                                            {isVideoUploading ? 'Procesando...' : 'Seleccionar Evidencia'}
+                                            <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                                        </label>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="relative rounded-2xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-500">
+                                            <video src={video} controls className="w-full h-full" />
+                                            <button onClick={removeVideo} className="absolute top-3 right-3 bg-red-600 text-white p-2.5 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-center gap-2 text-teal-600 font-bold bg-teal-50 py-3 rounded-xl border border-teal-100 text-sm">
+                                            <ShieldCheck className="h-4 w-4" />
+                                            Evidencia de video lista para análisis de riesgos
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

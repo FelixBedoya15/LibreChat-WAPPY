@@ -55,6 +55,7 @@ const AnalisisTrabajoSeguroDataSchema = new mongoose.Schema({
   trabajadoresList: { type: Array, default: [] },
   responsablesList: { type: Array, default: [] },
   images: { type: Object, default: {} },
+  video: { type: String, default: null },
   updatedAt: { type: Date, default: Date.now },
 });
 AnalisisTrabajoSeguroDataSchema.index({ user: 1 }, { unique: true });
@@ -72,9 +73,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         trabajadoresList: data.trabajadoresList || [],
         responsablesList: data.responsablesList || [],
         images: data.images || { foto1: null, foto2: null, foto3: null },
+        video: data.video || null,
       });
     }
-    res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null } });
+    res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: { foto1: null, foto2: null, foto3: null }, video: null });
   } catch (error) {
     logger.error('[SGSST ATS] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos ATS' });
@@ -84,10 +86,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save ───────────────────────────────────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
-    const { formData, trabajadoresList, responsablesList, images } = req.body;
+    const { formData, trabajadoresList, responsablesList, images, video } = req.body;
     await AnalisisTrabajoSeguroData.findOneAndUpdate(
       { user: req.user.id },
-      { $set: { formData, trabajadoresList, responsablesList, images, updatedAt: Date.now() } },
+      { $set: { formData, trabajadoresList, responsablesList, images, video, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
     res.json({ success: true });
@@ -100,7 +102,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 // ─── POST /generate ───────────────────────────────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
   try {
-    const { formData, trabajadoresList, responsablesList, images, modelName } = req.body;
+    const { formData, trabajadoresList, responsablesList, images, video, modelName } = req.body;
 
     const trabajadoresStr = trabajadoresList?.map(t =>
       `${t.nombre || 'Sin nombre'} (CC: ${t.cedula || 'N/A'})`).join(', ') || '[PENDIENTE]';
@@ -174,6 +176,9 @@ NUNCA inventes pasos, equipos, herramientas, valores, medidas o condiciones que 
 - Tarea a Analizar (Descripción completa): ${formData.actividadGlobal || '[INFORMACIÓN PENDIENTE]'}
 - Contexto fotográfico: ${formData.foto1Desc || 'Sin descripción'} | ${formData.foto2Desc || 'Sin descripción'} | ${formData.foto3Desc || 'Sin descripción'}
 
+**EVIDENCIA MULTIMEDIA:**
+Analiza minuciosamente las fotografías y el video (si se adjunta) para identificar peligros, actos inseguros o condiciones del entorno que deben incluirse en el ATS. El video ofrece una perspectiva dinámica crítica.
+
 **ESTRUCTURA OBLIGATORIA DEL ATS (usa tablas HTML para absolutamente todo):**
 
 NO generes un título principal como "ANÁLISIS DE TRABAJO SEGURO", el encabezado ya está incluido. TAMPOCO repitas el nombre de la empresa, NIT o nivel de riesgo.
@@ -233,17 +238,26 @@ Tabla de verificación final:
 
     const parts = [{ text: promptText }];
 
-    if (images) {
-      Object.keys(images).forEach((key, index) => {
-        const b64 = images[key];
-        if (b64) {
-          const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
-          if (match && match.length === 3) {
-            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
-            parts.push({ text: `(Fotografía de contexto ${index + 1}: ${key})` });
+    if (images || video) {
+      if (images) {
+        Object.keys(images).forEach((key, index) => {
+          const b64 = images[key];
+          if (b64) {
+            const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+            if (match && match.length === 3) {
+              parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+              parts.push({ text: `(Fotografía de contexto ${index + 1}: ${key})` });
+            }
           }
+        });
+      }
+      if (video) {
+        const match = video.match(/^data:(video\/\w+);base64,(.+)$/);
+        if (match) {
+          parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+          parts.push({ text: '(Evidencia en VIDEO de la tarea analizada para el ATS)' });
         }
-      });
+      }
     }
 
     const result = await generateWithRetry(model, parts);
