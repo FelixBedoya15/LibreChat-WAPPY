@@ -358,7 +358,7 @@ const DashboardPredictivo = () => {
                                 key="btn-refresh"
                                 onClick={fetchForecast}
                                 disabled={isLoadingForecast}
-                                className="group flex items-center justify-center h-10 px-2.5 min-w-[40px] bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-sm shrink-0 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none"
+                                className="group flex items-center justify-center h-10 px-2.5 min-w-[40px] bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-sm shrink-0 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none hover:-rotate-3 hover:scale-105"
                             >
                                 <div className="relative flex-shrink-0 flex items-center justify-center">
                                     <RefreshCw className={cn("h-5 w-5 text-teal-500", isLoadingForecast && "animate-spin")} />

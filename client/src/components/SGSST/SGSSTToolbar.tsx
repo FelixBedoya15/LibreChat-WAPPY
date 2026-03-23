@@ -179,11 +179,11 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         ) : null },
         { id: 'persistence', buttons: effectivePersistence },
         { id: 'export', buttons: exportButtons, extra: exportContent ? (
-            <div title="Exportar Documento">
+            <div>
                 <ExportDropdown content={exportContent} fileName={exportFileName || "Documento_SGSST"} />
             </div>
         ) : (!exportContent && (onSave || effectivePersistence.length > 0) ? (
-            <button disabled title="Exportar (Genere primero el informe)" className="group flex items-center justify-center h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed px-3">
+            <button disabled className="group flex items-center justify-center h-10 px-2.5 min-w-[40px] bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
                 <Download className="h-5 w-5" />
                 <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
                     <span className="text-xs font-bold uppercase tracking-wider">Exportar</span>
@@ -251,7 +251,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
             onClick={onClick}
             disabled={disabled}
             className={cn(
-                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl",
+                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
                 variantStyles[variant]
             )}
         >

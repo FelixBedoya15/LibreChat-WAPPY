@@ -41,7 +41,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
                 className={cn(
-                    "group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl",
+                    "group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
                     isOpen ? "bg-surface-hover ring-2 ring-teal-500/20 border-teal-500/50 text-text-primary" : "bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
                 )}
             >
