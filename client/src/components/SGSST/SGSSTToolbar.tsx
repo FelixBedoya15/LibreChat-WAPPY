@@ -1,5 +1,6 @@
 import React from 'react';
 import { Loader2, Download } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '~/utils';
 import { AnimatedIcon, IconName } from '~/components/ui/AnimatedIcon';
 import ModelSelector from './ModelSelector';
@@ -248,7 +249,9 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
     const roundedClass = (variant === 'ai') ? 'rounded-2xl' : 'rounded-xl';
 
     return (
-        <button
+        <motion.button
+            whileHover="hover"
+            whileTap="tap"
             onClick={onClick}
             disabled={disabled}
             title={title}
@@ -283,7 +286,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
                     <span className="text-sm font-bold tracking-wide">{label}</span>
                 </div>
             )}
-        </button>
+        </motion.button>
     );
 };
 
