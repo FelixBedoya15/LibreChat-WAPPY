@@ -832,9 +832,9 @@ const ParticipacionIPEVAR = () => {
                         </div>
 
                         {/* Evidencia en Video */}
-                        <div className="space-y-3 pt-4 border-t border-border-medium">
+                        <div className="space-y-3 pt-4 border-t border-border-medium flex flex-col items-center text-center">
                             <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">Evidencia en Video (Máx. 10s)</h4>
-                            <div className="w-full md:w-1/2">
+                            <div className="w-full md:w-1/3">
                                 {video ? (
                                     <div className="relative rounded-xl overflow-hidden border bg-black aspect-video flex items-center justify-center">
                                         <video src={video} controls className="max-h-64 h-full" />

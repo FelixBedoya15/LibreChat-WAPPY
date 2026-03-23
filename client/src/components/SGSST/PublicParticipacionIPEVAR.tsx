@@ -361,9 +361,9 @@ export default function PublicParticipacionIPEVAR() {
                                         ))}
                                     </div>
                                 </div>
-                                <div className="mt-2">
-                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Evidencia en Video (Máx. 10s)</label>
-                                    <div className="relative w-full h-24 rounded-xl overflow-hidden border-2 border-dashed border-red-200 bg-red-50/30 hover:bg-red-50/50 hover:border-red-400 transition-colors flex items-center justify-center group text-center">
+                                <div className="mt-2 flex flex-col items-center">
+                                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 text-center w-full">Evidencia en Video (Máx. 10s)</label>
+                                    <div className="relative w-full md:w-1/3 h-24 rounded-xl overflow-hidden border-2 border-dashed border-red-200 bg-red-50/30 hover:bg-red-50/50 hover:border-red-400 transition-colors flex items-center justify-center group text-center">
                                         {video ? (
                                             <div className="relative w-full h-full flex items-center justify-center bg-black">
                                                 <video src={video} className="h-full" />
