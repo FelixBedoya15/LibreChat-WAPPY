@@ -928,24 +928,31 @@ const InvestigacionATEL = () => {
                             <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-text-primary text-sm italic">4. Testigos (Relato de los hechos)</h4>
                                 <div className="flex items-center gap-2">
+                                    {/* Botón Bandeja (Inbox) */}
                                     <button
                                         onClick={() => setShowInbox(!showInbox)}
-                                        className={`relative w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showInbox ? 'bg-amber-100 border-amber-300 text-amber-600 shadow-inner' : 'bg-white border-border-medium text-gray-400 hover:text-amber-500 hover:border-amber-200'}`}
-                                        title="Bandeja de Testimonios"
+                                        className={`group relative h-10 flex items-center gap-0 hover:gap-2 px-2.5 rounded-xl border transition-all duration-500 shadow-sm overflow-hidden ${showInbox ? 'bg-amber-100 border-amber-300 text-amber-600 shadow-inner w-auto' : 'bg-white border-border-medium text-gray-400 hover:text-amber-500 hover:border-amber-200 w-10 hover:w-[130px]'}`}
                                     >
-                                        <Inbox className="h-5 w-5" />
-                                        {inboxTestimonios.length > 0 && (
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse shadow-md border border-white">
+                                        <Inbox className="h-5 w-5 shrink-0" />
+                                        <span className={`overflow-hidden transition-all duration-500 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider ${showInbox ? 'max-w-[100px] ml-2' : 'max-w-0 group-hover:max-w-[100px]'}`}>
+                                            Reportes ({inboxTestimonios.length})
+                                        </span>
+                                        {inboxTestimonios.length > 0 && !showInbox && (
+                                            <span className="absolute top-1 right-1 bg-red-500 text-white text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full animate-pulse shadow-md border border-white group-hover:opacity-0 transition-opacity">
                                                 {inboxTestimonios.length}
                                             </span>
                                         )}
                                     </button>
+
+                                    {/* Botón Portal Público (QR) */}
                                     <button
                                         onClick={() => setShowQrModal(true)}
-                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-border-medium text-gray-400 hover:text-teal-500 hover:border-teal-200 transition-all shadow-sm"
-                                        title="Portal Público / QR"
+                                        className="group h-10 w-10 hover:w-[135px] flex items-center gap-0 hover:gap-2 px-2.5 rounded-xl bg-white border border-border-medium text-gray-400 hover:text-teal-500 hover:border-teal-200 transition-all duration-500 shadow-sm overflow-hidden"
                                     >
-                                        <QrCode className="h-5 w-5" />
+                                        <QrCode className="h-5 w-5 shrink-0" />
+                                        <span className="max-w-0 group-hover:max-w-[110px] overflow-hidden transition-all duration-500 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
+                                            Portal Público
+                                        </span>
                                     </button>
                                 </div>
                             </div>
