@@ -182,21 +182,13 @@ async function encodeAndFormat(req, files, endpoint, mode) {
       },
     };
 
-    if (mode === VisionModes.agents) {
-      result.image_urls.push({ ...imagePart });
-      result.files.push({ ...fileMetadata });
-      continue;
-    }
-
-    if (endpoint && endpoint === EModelEndpoint.google && mode === VisionModes.generative) {
+    if (endpoint === EModelEndpoint.google) {
       delete imagePart.image_url;
       imagePart.inlineData = {
         mimeType: file.type,
         data: imageContent,
       };
-    } else if (endpoint && endpoint === EModelEndpoint.google) {
-      imagePart.image_url = imagePart.image_url.url;
-    } else if (endpoint && endpoint === EModelEndpoint.anthropic) {
+    } else if (endpoint === EModelEndpoint.anthropic) {
       imagePart.type = 'image';
       imagePart.source = {
         type: 'base64',
@@ -204,6 +196,12 @@ async function encodeAndFormat(req, files, endpoint, mode) {
         data: imageContent,
       };
       delete imagePart.image_url;
+    }
+
+    if (mode === VisionModes.agents) {
+      result.image_urls.push({ ...imagePart });
+      result.files.push({ ...fileMetadata });
+      continue;
     }
 
     result.image_urls.push({ ...imagePart });

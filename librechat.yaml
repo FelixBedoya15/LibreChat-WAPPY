@@ -250,8 +250,8 @@ endpoints:
       minRelevanceScore: 0.45
   #   # (optional) Agent Capabilities available to all users. Omit the ones you wish to exclude. Defaults to list below.
       capabilities: ["execute_code", "file_search", "actions", "tools", "artifacts", "context", "ocr", "chain", "web_search"]
-    titleEndpoint: "google"
-    titleModel: "gemini-3.1-flash-lite-preview"
+      titleEndpoint: "google"
+      titleModel: "gemini-3.1-flash-lite-preview"
   custom:
     - name: "Ollama"
       apiKey: "ollama"
