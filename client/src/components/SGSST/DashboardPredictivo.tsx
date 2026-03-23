@@ -342,7 +342,7 @@ const DashboardPredictivo = () => {
                                 disabled: isGenerating,
                                 title: "Generar Pronóstico IA",
                                 label: "Generar Pronóstico IA",
-                                icon: "brain",
+                                icon: "sparkles",
                                 variant: "ai",
                                 isLoading: isGenerating
                             }

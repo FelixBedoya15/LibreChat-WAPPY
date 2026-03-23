@@ -523,18 +523,16 @@ const ReporteActosCondiciones = () => {
                         <ToolbarButton
                             id="inbox-public"
                             onClick={() => setIsInboxOpen(!isInboxOpen)}
-                            title={`Reportes (${inboxPublico.filter(i => i.status !== 'processed').length})`}
                             label={`Reportes (${inboxPublico.filter(i => i.status !== 'processed').length})`}
-                            icon={Inbox}
+                            icon="inbox"
                             badge={inboxPublico.filter(i => i.status !== 'processed').length || undefined}
                             active={isInboxOpen}
                         />
                         <ToolbarButton
                             id="qr-portal"
                             onClick={() => setShowQrModal(true)}
-                            title="Portal Público"
                             label="Portal Público"
-                            icon={QrCode}
+                            icon="qrcode"
                         />
                     </div>
                 ]}

@@ -9,7 +9,7 @@ import ExportDropdown from './ExportDropdown';
 export interface ToolbarButtonConfig {
     id: string;
     onClick: () => void;
-    title: string;
+    title?: string;
     label: string;
     icon: IconName | string;
     variant?: 'ai' | 'history' | 'database' | 'save' | 'dummy' | 'excel' | 'default';

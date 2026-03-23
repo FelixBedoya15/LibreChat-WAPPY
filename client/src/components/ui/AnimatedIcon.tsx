@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw';
+export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw' | 'inbox';
 
 interface AnimatedIconProps {
     name: IconName;
@@ -35,8 +35,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { scale: 1.2, rotate: 180 }, tap: { scale: 0.8 } }}
                     transition={{ type: 'spring', stiffness: 300, damping: 10 }}
                 >
@@ -61,8 +61,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { scale: 1.1, y: -2 }, tap: { scale: 0.9 } }}
                     transition={{ type: 'spring', stiffness: 400, damping: 10 }}
                 >
@@ -85,8 +85,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                 >
                     <motion.path
                         d="M3 6h18"
@@ -121,8 +121,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                 >
                     <motion.rect width="5" height="5" x="3" y="3" rx="1" variants={{ hover: { scale: 1.2, x: -1, y: -1 } }} />
                     <motion.rect width="5" height="5" x="16" y="3" rx="1" variants={{ hover: { scale: 1.2, x: 1, y: -1 } }} />
@@ -152,8 +152,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { scale: 1.25, rotate: 180 }, tap: { scale: 0.8 } }}
                     transition={{ type: 'spring', stiffness: 300, damping: 12 }}
                 >
@@ -175,8 +175,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                 >
                     <motion.path
                         d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
@@ -206,8 +206,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                 >
                     <motion.rect width="7" height="7" x="3" y="3" rx="1" variants={{ hover: { scale: 1.1 } }} />
                     <motion.rect width="7" height="7" x="3" y="14" rx="1" variants={{ hover: { scale: 1.1 } }} />
@@ -231,8 +231,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                 >
                     <motion.ellipse cx="12" cy="5" rx="9" ry="3" variants={{ hover: { y: -2, scale: 1.05 } }} transition={{ type: 'spring', stiffness: 300 }} />
                     <motion.path d="M3 5V19A9 3 0 0 0 21 19V5" variants={{ hover: { scaleY: 1.1, originY: "bottom" } }} />
@@ -253,8 +253,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { x: 5 }, tap: { scale: 0.8 } }}
                 >
                     <path d="m9 18 6-6-6-6" />
@@ -274,8 +274,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { y: 5 }, tap: { scale: 0.8 } }}
                 >
                     <path d="m6 9 6 6 6-6" />
@@ -295,8 +295,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                 >
                     <motion.path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" variants={{ hover: { scale: 1.02 } }} />
                     <motion.path d="M14 2v4a2 2 0 0 0 2 2h4" variants={{ hover: { scale: 1.2, originX: 0, originY: 0 } }} />
@@ -319,8 +319,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { scale: 1.1, rotate: [0, -10, 10, -10, 0] }, tap: { scale: 0.9 } }}
                 >
                     <rect x="3" y="11" width="18" height="10" rx="2" />
@@ -344,8 +344,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { scale: 1.2, filter: "drop-shadow(0 0 8px rgba(20, 184, 166, 0.5))" }, tap: { scale: 0.8 } }}
                 >
                     <path d="M9.5 2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5z" />
@@ -367,8 +367,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { y: -3 }, tap: { scale: 0.9 } }}
                 >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -390,8 +390,8 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { y: 3 }, tap: { scale: 0.9 } }}
                 >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -413,12 +413,32 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     className={className}
-                    whileHover="hover"
-                    whileTap="tap"
+                    
+                    
                     variants={{ hover: { rotate: 180 }, tap: { scale: 0.8 } }}
                 >
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
+                </motion.svg>
+            );
+
+        case 'inbox':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { y: -2, scale: 1.05 }, tap: { scale: 0.9 } }}
+                >
+                    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+                    <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
                 </motion.svg>
             );
 
