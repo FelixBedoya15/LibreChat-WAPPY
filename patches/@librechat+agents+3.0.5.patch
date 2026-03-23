@@ -17,6 +17,25 @@ index 1ebb7f6..acbea50 100644
          if (metadata.ls_provider === 'FakeListChatModel') {
              return handlers.handleToolCalls(data?.output?.tool_calls, metadata, graph);
          }
+diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
+index 48c6de6..81f7f15 100644
+--- a/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
++++ b/node_modules/@librechat/agents/dist/cjs/llm/google/index.cjs
+@@ -72,6 +72,14 @@ class CustomChatGoogleGenerativeAI extends googleGenai.ChatGoogleGenerativeAI {
+         });
+         this.streamUsage = fields.streamUsage ?? this.streamUsage;
+     }
++
++    get _isMultimodalModel() {
++        return (this.model.includes('vision') ||
++            this.model.startsWith('gemini-1.5') ||
++            this.model.startsWith('gemini-2') ||
++            this.model.startsWith('gemini-3'));
++    }
++
+     static lc_name() {
+         return 'LibreChatGoogleGenerativeAI';
+     }
 diff --git a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs b/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
 index 450e0d6..d8bf6a1 100644
 --- a/node_modules/@librechat/agents/dist/cjs/llm/google/utils/common.cjs
@@ -88,3 +107,42 @@ index 3579d89..4c52770 100644
                  formattedMessages.push(new messages.ToolMessage({
                      tool_call_id: tool_call.id ?? '',
                      name: tool_call.name,
+diff --git a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
+index f936ded..1aa6088 100644
+--- a/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
++++ b/node_modules/@librechat/agents/dist/esm/llm/google/index.mjs
+@@ -70,6 +70,14 @@ class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+         });
+         this.streamUsage = fields.streamUsage ?? this.streamUsage;
+     }
++
++    get _isMultimodalModel() {
++        return (this.model.includes('vision') ||
++            this.model.startsWith('gemini-1.5') ||
++            this.model.startsWith('gemini-2') ||
++            this.model.startsWith('gemini-3'));
++    }
++
+     static lc_name() {
+         return 'LibreChatGoogleGenerativeAI';
+     }
+diff --git a/node_modules/@librechat/agents/src/llm/google/index.ts b/node_modules/@librechat/agents/src/llm/google/index.ts
+index 2ab8c94..6e2954a 100644
+--- a/node_modules/@librechat/agents/src/llm/google/index.ts
++++ b/node_modules/@librechat/agents/src/llm/google/index.ts
+@@ -107,6 +107,15 @@ export class CustomChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+     this.streamUsage = fields.streamUsage ?? this.streamUsage;
+   }
+ 
++  get _isMultimodalModel(): boolean {
++    return (
++      this.model.includes('vision') ||
++      this.model.startsWith('gemini-1.5') ||
++      this.model.startsWith('gemini-2') ||
++      this.model.startsWith('gemini-3')
++    );
++  }
++
+   static lc_name(): 'LibreChatGoogleGenerativeAI' {
+     return 'LibreChatGoogleGenerativeAI';
+   }

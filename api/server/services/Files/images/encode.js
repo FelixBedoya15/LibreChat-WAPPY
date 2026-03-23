@@ -184,10 +184,9 @@ async function encodeAndFormat(req, files, endpoint, mode) {
 
     if (endpoint === EModelEndpoint.google) {
       delete imagePart.image_url;
-      imagePart.inlineData = {
-        mimeType: file.type,
-        data: imageContent,
-      };
+      imagePart.type = 'media';
+      imagePart.mimeType = file.type;
+      imagePart.data = imageContent;
     } else if (endpoint === EModelEndpoint.anthropic) {
       imagePart.type = 'image';
       imagePart.source = {
