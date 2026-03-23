@@ -358,75 +358,106 @@ const PerfilSociodemografico = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            {/* ═══ Toolbar ═══ */}
-            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
+            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
+                
                 {/* Grupo 1: Historial */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                    <AnimatedIcon name="history" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Historial</span>
-                </button>
-
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
-
-                {/* Grupo 2: Generar IA - Modelo */}
-                <button onClick={handleAnalyze} disabled={isAnalyzing}
-                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        {isAnalyzing ? 'Generando...' : 'Generar IA'}
-                    </span>
-                </button>
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
-
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
-
-                {/* Grupo 3: Guardar Datos - Guardar Informe */}
-                <button onClick={() => handleSaveData()} disabled={isSaving}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Datos</span>
-                </button>
-                <button onClick={() => handleSaveReport()} disabled={!generatedReport}
-                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed">
-                    <AnimatedIcon name="save" size={20} />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
-                </button>
-
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
-
-                {/* Grupo 4: Exportar */}
-                <div className={!generatedReport ? 'opacity-40 pointer-events-none' : ''}>
-                    <ExportDropdown
-                        content={editorContent || generatedReport || ''}
-                        fileName="Perfil_Sociodemografico"
-                    />
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
+                        title="Historial de Reportes"
+                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
+                    >
+                        <AnimatedIcon name="history" size={20} />
+                    </button>
                 </div>
 
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
 
-                {/* Grupo 5: IA Dummy */}
-                <DummyGenerateButton onClick={handleDummyData} />
+                {/* Grupo 2: Inteligencia Artificial */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={handleAnalyze} 
+                        disabled={isAnalyzing} 
+                        title="Generar Informe Sociodemográfico con IA"
+                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
+                    </button>
 
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
+                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm transform hover:scale-105 active:scale-95" title="Seleccionar Modelo IA">
+                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing} />
+                    </div>
+                </div>
 
-                {/* Grupo 6: Importar Excel - Exportar Excel */}
-                <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
-                <button onClick={() => fileInputRef.current?.click()}
-                    className="group flex items-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                    <Upload className="h-4 w-4" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Importar Excel</span>
-                </button>
-                <button onClick={handleExportExcel} disabled={trabajadores.length === 0}
-                    className="group flex items-center px-3 py-2 bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-50">
-                    <Download className="h-4 w-4" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Exportar Excel</span>
-                </button>
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 3: Persistencia */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={() => handleSaveData()} 
+                        disabled={isSaving} 
+                        title="Guardar Base de Datos de Trabajadores"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
+                    </button>
+
+                    <button 
+                        onClick={() => handleSaveReport()} 
+                        disabled={!generatedReport} 
+                        title="Guardar Informe Final en Historial"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        <AnimatedIcon name="save" size={20} />
+                    </button>
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 4: Salida */}
+                <div className="flex items-center gap-2 px-1">
+                    {(generatedReport) ? (
+                        <div title="Exportar Informe" className="transform hover:scale-110 active:scale-95">
+                            <ExportDropdown content={editorContent || generatedReport || ''} fileName="Perfil_Sociodemografico" />
+                        </div>
+                    ) : (
+                        <div className="transform hover:scale-110 active:scale-95">
+                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                                <Download className="h-5 w-5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 5: Pruebas */}
+                <div className="flex items-center gap-2 px-1">
+                    <DummyGenerateButton onClick={handleDummyData} />
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 6: Excel */}
+                <div className="flex items-center gap-2 px-1">
+                    <input type="file" accept=".xlsx, .xls" className="hidden" ref={fileInputRef} onChange={handleImportExcel} />
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        title="Importar desde Excel"
+                        className="flex items-center justify-center w-12 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        <Upload className="h-5 w-5" />
+                    </button>
+                    <button 
+                        onClick={handleExportExcel} 
+                        disabled={trabajadores.length === 0} 
+                        title="Exportar base de datos a Excel"
+                        className="flex items-center justify-center w-12 h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        <Download className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
             {/* ═══ History Panel ═══ */}

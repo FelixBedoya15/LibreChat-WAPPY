@@ -568,84 +568,96 @@ const MatrizPeligrosGTC45 = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* ═══ Toolbar Principal Estabilizada (Estilo Imagen 2) ═══ */}
-            <div className="flex flex-wrap items-center justify-center gap-4 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
-                {/* Historial */}
-                <button 
-                    onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
-                    title="Historial de Matrices"
-                    className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
-                >
-                    <AnimatedIcon name="history" size={20} />
-                </button>
-
-                {/* Generar Peligros IA */}
-                <button 
-                    onClick={handleGenerateFull} 
-                    disabled={isGeneratingFull} 
-                    title="Generar Peligros con IA (7 Procesos)"
-                    className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
-                >
-                    {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
-                </button>
-
-                {/* Generar Informe IA */}
-                <button 
-                    onClick={handleAnalyze} 
-                    disabled={isAnalyzing} 
-                    title="Generar Informe Gerencial con IA"
-                    className="flex items-center justify-center w-16 h-10 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
-                >
-                    {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
-                </button>
-
-                {/* Modelo Selector */}
-                <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
-                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing || isGeneratingFull} />
+            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
+            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
+                
+                {/* Grupo 1: Historial */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
+                        title="Historial de Matrices"
+                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
+                    >
+                        <AnimatedIcon name="history" size={20} />
+                    </button>
                 </div>
 
-                {/* Guardar Datos */}
-                <button 
-                    onClick={handleSaveData} 
-                    disabled={isSaving}
-                    title="Guardar Datos de la Matriz"
-                    className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
-                >
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
-                </button>
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
 
-                {/* Guardar Informe */}
-                <button 
-                    onClick={() => handleSaveReport()} 
-                    disabled={!generatedReport} 
-                    title="Guardar Informe Final"
-                    className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                    <AnimatedIcon name="save" size={20} />
-                </button>
-
-                {/* Exportar */}
-                {(editorContent || generatedReport) ? (
-                    <div title="Exportar Documento">
-                        <ExportDropdown
-                            content={editorContent || generatedReport || ''}
-                            fileName="Matriz_Peligros_GTC45"
-                        />
-                    </div>
-                ) : (
-                    <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                        <Download className="h-5 w-5" />
+                {/* Grupo 2: Inteligencia Artificial */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={handleGenerateFull} 
+                        disabled={isGeneratingFull} 
+                        title="Generar Peligros con IA (7 Procesos)"
+                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isGeneratingFull ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
                     </button>
-                )}
 
-                {/* IA Dummy */}
-                <button 
-                    onClick={handleDummyData} 
-                    title="Generar Datos de Prueba"
-                    className="flex items-center justify-center w-12 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:rotate-12"
-                >
-                    <AnimatedIcon name="robot" size={20} />
-                </button>
+                    <button 
+                        onClick={handleAnalyze} 
+                        disabled={isAnalyzing} 
+                        title="Generar Informe Gerencial con IA"
+                        className="flex items-center justify-center w-16 h-10 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
+                    </button>
+
+                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm transform hover:scale-105 active:scale-95" title="Seleccionar Modelo IA">
+                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing || isGeneratingFull} />
+                    </div>
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 3: Persistencia */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={handleSaveData} 
+                        disabled={isSaving}
+                        title="Guardar Datos en la Base de Datos"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
+                    </button>
+
+                    <button 
+                        onClick={() => handleSaveReport()} 
+                        disabled={!generatedReport} 
+                        title="Guardar Informe en Historial"
+                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        <AnimatedIcon name="save" size={20} />
+                    </button>
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 4: Salida */}
+                <div className="flex items-center gap-2 px-1">
+                    {(editorContent || generatedReport) ? (
+                        <div title="Exportar Documento" className="transform hover:scale-110 active:scale-95">
+                            <ExportDropdown
+                                content={editorContent || generatedReport || ''}
+                                fileName="Matriz_Peligros_GTC45"
+                            />
+                        </div>
+                    ) : (
+                        <div className="transform hover:scale-110 active:scale-95">
+                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                                <Download className="h-5 w-5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 5: Pruebas */}
+                <div className="flex items-center gap-2 px-1">
+                    <DummyGenerateButton onClick={handleDummyData} />
+                </div>
             </div>
 
             {/* ═══ History Panel ═══ */}

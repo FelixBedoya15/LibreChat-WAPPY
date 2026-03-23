@@ -22,6 +22,7 @@ import {
     Database,
     History,
     Save,
+    Download,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -526,87 +527,98 @@ const PerfilesCargo = () => {
 
     return (
         <div className="w-full overflow-x-hidden space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2 p-2 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
+            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
+            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
+                
                 {/* Grupo 1: Historial */}
-                <button
-                    onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                    className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 border-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}
-                >
-                    <History className="h-[18px] w-[18px]" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Historial
-                    </span>
-                </button>
-
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
-
-                {/* Grupo 2: Generar IA - Modelo */}
-                <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="group flex items-center px-3 py-2 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-md font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        {isGenerating ? 'Generando...' : 'Generar IA'}
-                    </span>
-                </button>
-                <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
-
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
-
-                {/* Grupo 3: Guardar Datos - Guardar Informe */}
-                <button onClick={() => handleSaveData(false)} className="group flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 border border-indigo-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                    <Database className="h-[18px] w-[18px]" />
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Guardar Datos
-                    </span>
-                </button>
-                <button
-                    onClick={() => handleSaveReport()}
-                    disabled={isSaving || !generatedReport}
-                    className="group flex items-center px-3 py-2 bg-violet-600 hover:bg-violet-700 border border-violet-600 text-white rounded-full transition-all duration-300 shadow-sm font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                    {isSaving ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Save className="h-[18px] w-[18px]" />}
-                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">
-                        Guardar Informe
-                    </span>
-                </button>
-
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
-
-                {/* Grupo 4: Exportar */}
-                <div className={!generatedReport ? 'opacity-40 pointer-events-none' : ''}>
-                    <ExportDropdown
-                        content={editorContent || ''}
-                        fileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
-                    />
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
+                        title="Historial de Perfiles"
+                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer transform hover:scale-110 active:scale-95 ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
+                    >
+                        <History className="h-5 w-5" />
+                    </button>
                 </div>
 
-                {/* Separador */}
-                <div className="h-6 w-px bg-border-medium mx-0.5" />
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
 
-                {/* Grupo 5: IA Dummy */}
-                <DummyGenerateButton
-                    onClick={() => {
-                        const dummy = {
-                            ...formData,
-                            nombreCargo: 'Coordinador de Seguridad y Salud en el Trabajo',
-                            area: 'Recursos Humanos / SST',
-                            nivelCargo: 'Profesional / Técnico',
-                            escalasSalarial: '3.5 - 4.5 SMMLV',
-                            contextoAdicional: 'Liderar el programa de alturas, coordinar capacitación de espacios confinados y supervisar brigadas de emergencia.',
-                            eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)'],
-                            entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST']
-                        };
-                        setFormData(dummy);
-                        showToast({ message: 'Ejemplo cargado', status: 'success' });
-                    }}
-                />
+                {/* Grupo 2: Inteligencia Artificial */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={handleGenerate} 
+                        disabled={isGenerating} 
+                        title="Generar Perfil con IA"
+                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+                    </button>
+
+                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm transform hover:scale-105 active:scale-95" title="Seleccionar Modelo IA">
+                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                    </div>
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 3: Persistencia */}
+                <div className="flex items-center gap-2 px-1">
+                    <button 
+                        onClick={() => handleSaveData(false)} 
+                        title="Guardar Datos en la Base de Datos"
+                        className="flex items-center justify-center w-12 h-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        <Database className="h-5 w-5" />
+                    </button>
+
+                    <button 
+                        onClick={() => handleSaveReport()} 
+                        disabled={isSaving || !generatedReport} 
+                        title="Guardar Informe en Historial"
+                        className="flex items-center justify-center w-12 h-10 bg-violet-600 hover:bg-violet-700 text-white rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-110 active:scale-95"
+                    >
+                        {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                    </button>
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 4: Salida */}
+                <div className="flex items-center gap-2 px-1">
+                    {generatedReport ? (
+                        <div title="Exportar Documento" className="transform hover:scale-110 active:scale-95">
+                            <ExportDropdown content={editorContent || ''} fileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`} />
+                        </div>
+                    ) : (
+                        <div className="transform hover:scale-110 active:scale-95">
+                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
+                                <Download className="h-5 w-5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="h-6 w-px bg-border-medium/60 mx-1" />
+
+                {/* Grupo 5: Pruebas */}
+                <div className="flex items-center gap-2 px-1">
+                    <DummyGenerateButton
+                        onClick={() => {
+                            const dummy = {
+                                ...formData,
+                                nombreCargo: 'Coordinador de Seguridad y Salud en el Trabajo',
+                                area: 'Recursos Humanos / SST',
+                                nivelCargo: 'Profesional / Técnico',
+                                escalasSalarial: '3.5 - 4.5 SMMLV',
+                                contextoAdicional: 'Liderar el programa de alturas, coordinar capacitación de espacios confinados y supervisar brigadas de emergencia.',
+                                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)'],
+                                entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST']
+                            };
+                            setFormData(dummy);
+                            showToast({ message: 'Ejemplo cargado', status: 'success' });
+                        }}
+                    />
+                </div>
             </div>
 
             {/* ── History (Filtered by Profile ID) ── */}
