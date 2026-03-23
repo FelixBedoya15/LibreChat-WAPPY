@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain';
+export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw';
 
 interface AnimatedIconProps {
     name: IconName;
@@ -351,6 +351,74 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                     <path d="M9.5 2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5z" />
                     <path d="M14.5 2a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5z" />
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </motion.svg>
+            );
+
+        case 'upload':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    whileHover="hover"
+                    whileTap="tap"
+                    variants={{ hover: { y: -3 }, tap: { scale: 0.9 } }}
+                >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </motion.svg>
+            );
+
+        case 'download':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    whileHover="hover"
+                    whileTap="tap"
+                    variants={{ hover: { y: 3 }, tap: { scale: 0.9 } }}
+                >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </motion.svg>
+            );
+
+        case 'refresh-cw':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    whileHover="hover"
+                    whileTap="tap"
+                    variants={{ hover: { rotate: 180 }, tap: { scale: 0.8 } }}
+                >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
                 </motion.svg>
             );
 

@@ -21,6 +21,7 @@ import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
+import SGSSTToolbar from './SGSSTToolbar';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { cn } from '~/utils';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -330,46 +331,44 @@ const DashboardPredictivo = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* Refresh */}
-                    <button onClick={fetchForecast} disabled={isLoadingForecast}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                        <RefreshCw className={cn("h-4 w-4 text-teal-500", isLoadingForecast && "animate-spin")} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">
-                            Actualizar
-                        </span>
-                    </button>
-
-                    {/* Generate */}
-                    <button onClick={() => handleGenerate()} disabled={isGenerating}
-                        className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white rounded-full transition-all duration-300 shadow-md shadow-teal-500/30 font-semibold text-sm ring-2 ring-teal-500/20 disabled:opacity-50">
-                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <AnimatedIcon name="sparkles" size={16} />}
-                        {isGenerating ? 'Analizando...' : 'Generar Pronóstico IA'}
-                    </button>
-
-                    {/* History */}
-                    <button onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className={`group flex items-center px-3 py-2 border border-border-medium rounded-full transition-all duration-300 shadow-sm font-medium text-sm ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' : 'bg-surface-primary text-text-primary hover:bg-surface-hover'}`}>
-                        <AnimatedIcon name="history" size={16} />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">Historial</span>
-                    </button>
-
-                    {/* Save & Export (only when report exists) */}
-                    {generatedReport && (
-                        <>
-                            <button onClick={() => handleSaveReport()}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm">
-                                <AnimatedIcon name="save" size={16} className="text-gray-500" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 text-xs">Guardar</span>
+                <div className="w-full">
+                    <SGSSTToolbar
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
+                        aiButtons={[
+                            {
+                                id: 'generate-predictive',
+                                onClick: handleGenerate,
+                                disabled: isGenerating,
+                                title: "Generar Pronóstico IA",
+                                label: "Generar Pronóstico IA",
+                                icon: "brain",
+                                variant: "ai",
+                                isLoading: isGenerating
+                            }
+                        ]}
+                        selectedModel={selectedModel}
+                        onSelectModel={setSelectedModel}
+                        onSave={handleSaveReport}
+                        hasContent={!!(editorContent || generatedReport)}
+                        exportContent={editorContent || generatedReport || ''}
+                        exportFileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
+                        customSections={[
+                            <button
+                                key="btn-refresh"
+                                onClick={fetchForecast}
+                                disabled={isLoadingForecast}
+                                className="group flex items-center justify-center h-10 px-2.5 min-w-[40px] bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl transition-all duration-300 shadow-sm shrink-0 font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed outline-none"
+                            >
+                                <div className="relative flex-shrink-0 flex items-center justify-center">
+                                    <RefreshCw className={cn("h-5 w-5 text-teal-500", isLoadingForecast && "animate-spin")} />
+                                </div>
+                                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                    <span className="text-sm font-bold tracking-wide">Actualizar</span>
+                                </div>
                             </button>
-                            <ExportDropdown
-                                content={editorContent || generatedReport || ''}
-                                fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
-                            />
-                        </>
-                    )}
-
-                    <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+                        ]}
+                    />
                 </div>
             </div>
 

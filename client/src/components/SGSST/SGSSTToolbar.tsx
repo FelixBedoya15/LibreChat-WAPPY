@@ -104,7 +104,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             id: 'ai-default',
             onClick: onAnalyze,
             title: "Generar con IA",
-            label: "Generar Pronóstico IA",
+            label: "Generar IA",
             icon: "sparkles",
             variant: "ai",
             isLoading: isAnalyzing,
@@ -175,9 +175,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
     const allGroups = [
         { id: 'history', buttons: effectiveHistory },
         { id: 'ai', buttons: effectiveAI, extra: onSelectModel && selectedModel ? (
-            <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
-                <ModelSelector selectedModel={selectedModel} onSelectModel={onSelectModel} disabled={isAnalyzing} />
-            </div>
+            <ModelSelector selectedModel={selectedModel} onSelectModel={onSelectModel} disabled={isAnalyzing} />
         ) : null },
         { id: 'persistence', buttons: effectivePersistence },
         { id: 'export', buttons: exportButtons, extra: exportContent ? (
@@ -233,20 +231,18 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
     badge
 }) => {
     const variantStyles = {
-        ai: "bg-teal-600 hover:bg-teal-700 text-white shadow-md hover:scale-105",
+        ai: "bg-teal-600 hover:bg-teal-700 text-white shadow-md",
         history: active 
             ? "bg-teal-100 text-teal-700 dark:bg-teal-900/10 border-teal-400" 
             : "bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium",
         database: "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600",
         save: "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600",
-        dummy: "bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:rotate-12",
+        dummy: "bg-orange-500 hover:bg-orange-600 text-white shadow-md",
         excel: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md",
         default: active 
             ? "bg-blue-50 text-blue-700 dark:bg-blue-900/10 border-blue-400" 
             : "bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
     };
-
-    const roundedClass = (variant === 'ai') ? 'rounded-2xl' : 'rounded-xl';
 
     return (
         <motion.button
@@ -254,12 +250,9 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
             whileTap="tap"
             onClick={onClick}
             disabled={disabled}
-            title={title}
             className={cn(
-                "group flex items-center justify-center h-10 transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none",
-                variantStyles[variant],
-                roundedClass,
-                "px-3"
+                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl",
+                variantStyles[variant]
             )}
         >
             <div className="relative flex-shrink-0 flex items-center justify-center">
