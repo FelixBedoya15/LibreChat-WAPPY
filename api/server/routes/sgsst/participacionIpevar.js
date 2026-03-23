@@ -131,6 +131,14 @@ router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
             });
             doc.markModified('inboxPublico');
             await doc.save();
+        }
+        res.json({ success: true, inboxPublico: doc.inboxPublico || [] });
+    } catch (error) {
+        logger.error('[SGSST ParticipacionIPEVAR] Inbox mark-processed error:', error);
+        res.status(500).json({ error: 'Error al marcar reporte como procesado' });
+    }
+});
+
  // ─── POST /generate — Create the Pre-Matrix from Form Data ─────────────────────────────
 router.post('/generate', requireJwtAuth, async (req, res) => {
     try {
@@ -239,15 +247,6 @@ Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si c
                 parts.push({ text: "(Fotografía de Referencia adjunta al reporte)" });
             }
         }
-
-        const result = await generateWithRetry(model, parts);
-        const response = await result.response;
-        const htmlBody = response.text().replace(/\`\`\`html\n ?/g, '').replace(/\`\`\`/g, '').trim();               });
-                    parts.push({ text: \`(Fotografía Referencia - Reporte #\${index+1})\` });
-                    imageCount++;
-                }
-            }
-        });
 
         const result = await generateWithRetry(model, parts);
         const response = await result.response;
