@@ -85,7 +85,7 @@ const WorkerAutocomplete = ({
                 autoComplete="off"
             />
             {isOpen && filteredOptions.length > 0 && !exactMatch && (
-                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-lg shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
+                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-xl shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
                     {filteredOptions.map((w, idx) => (
                         <li
                             key={idx}
@@ -567,7 +567,7 @@ const ReporteActosCondiciones = () => {
                             {inboxPublico.map((item, idx) => {
                                 const isProcessed = item.status === 'processed';
                                 return (
-                                <div key={idx} className={`rounded-lg shadow border p-4 relative flex flex-col transition-colors ${isProcessed ? 'bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 opacity-70' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-300'}`}>
+                                <div key={idx} className={`rounded-xl shadow border p-4 relative flex flex-col transition-colors ${isProcessed ? 'bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 opacity-70' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-300'}`}>
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
                                             <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-6 flex items-center gap-2" title={item.trabajador.nombre}>
@@ -634,14 +634,14 @@ const ReporteActosCondiciones = () => {
                                     <input 
                                         readOnly 
                                         value={`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`}
-                                        className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg outline-none text-gray-600 dark:text-gray-300 ring-0"
+                                        className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
                                     />
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
                                         }}
-                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                                     >
                                         Copiar
                                     </button>
@@ -653,7 +653,7 @@ const ReporteActosCondiciones = () => {
                         <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setShowQrModal(false)}
-                                className="px-6 py-2 rounded-lg font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                 Cerrar
                             </button>
                         </div>
@@ -697,7 +697,7 @@ const ReporteActosCondiciones = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre completo"
                                         wrapperClassName="w-full md:w-1/2"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
                                     />
                                     <div className="flex w-full md:w-1/2 gap-2">
                                         <WorkerAutocomplete
@@ -719,11 +719,11 @@ const ReporteActosCondiciones = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                                            className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
                                         />
                                         <button
                                             onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))}
-                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                             disabled={trabajadoresList.length === 1}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -744,30 +744,30 @@ const ReporteActosCondiciones = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Fecha del Hallazgo</label>
-                                <input type="date" value={formData.fecha} onChange={e => handleInputChange('fecha', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                <input type="date" value={formData.fecha} onChange={e => handleInputChange('fecha', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Hora del Hallazgo</label>
-                                <input type="time" value={formData.horaInicio} onChange={e => handleInputChange('horaInicio', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                <input type="time" value={formData.horaInicio} onChange={e => handleInputChange('horaInicio', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Revisión SG-SST Aplicable</label>
-                                <select value={formData.seguridadSocial} onChange={e => handleInputChange('seguridadSocial', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                                <select value={formData.seguridadSocial} onChange={e => handleInputChange('seguridadSocial', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                                     <option>Sí</option><option>No</option>
                                 </select>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Actividad Suspendida por el Hallazgo</label>
-                                <select value={formData.aptitudMedica} onChange={e => handleInputChange('aptitudMedica', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                                <select value={formData.aptitudMedica} onChange={e => handleInputChange('aptitudMedica', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                                     <option>Sí</option><option>No</option>
                                 </select>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Requiere Intervención Urgente</label>
-                                <select value={formData.certificacionAlturas} onChange={e => handleInputChange('certificacionAlturas', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                                <select value={formData.certificacionAlturas} onChange={e => handleInputChange('certificacionAlturas', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                                     <option>Sí</option><option>No</option>
                                 </select>
                             </div>
@@ -801,7 +801,7 @@ const ReporteActosCondiciones = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre"
                                         wrapperClassName="w-full md:w-1/3"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
                                     />
                                     <input
                                         type="text"
@@ -811,7 +811,7 @@ const ReporteActosCondiciones = () => {
                                             newR[idx].rol = e.target.value;
                                             setResponsablesList(newR);
                                         }}
-                                        className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        className="w-full md:w-1/3 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"
                                         placeholder="Rol (Ej: Supervisor, COPASST)"
                                     />
                                     <div className="flex w-full md:w-1/3 gap-2">
@@ -840,11 +840,11 @@ const ReporteActosCondiciones = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                                            className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
                                         />
                                         <button
                                             onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
-                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>

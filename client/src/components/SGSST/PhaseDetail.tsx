@@ -248,12 +248,14 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                 <div className="ml-auto flex gap-2">
                     <button
                         onClick={handleChat}
-                        className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                        className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium text-text-primary"
                     >
-                        <MessageSquare className="h-5 w-5" />
-                        <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 whitespace-nowrap">
+                        <div className="relative flex-shrink-0 flex items-center justify-center">
+                            <MessageSquare className="h-5 w-5" />
+                        </div>
+                        <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                             Chatea con SG-SST
-                        </span>
+                        </div>
                     </button>
                 </div>
 
@@ -291,7 +293,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                         <div className="text-text-secondary">
                                             {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                                         </div>
-                                        <div className="p-2 rounded-lg bg-surface-primary text-teal-600 dark:text-teal-400">
+                                        <div className="p-2 rounded-xl bg-surface-primary text-teal-600 dark:text-teal-400">
                                             {renderIcon(category.icon)}
                                         </div>
                                         <div>
@@ -470,7 +472,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                  )}
 
                                                 {categoryFiles.length === 0 ? (
-                                                    <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-lg">
+                                                    <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-xl">
                                                         <FolderOpen className="h-8 w-8 mb-2 opacity-40" />
                                                         <span className="text-sm">Sin documentos</span>
                                                     </div>
@@ -479,7 +481,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                         {categoryFiles.map((file) => (
                                                             <div
                                                                 key={file.file_id}
-                                                                className="group relative flex items-center gap-3 p-3 rounded-lg border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
+                                                                className="group relative flex items-center gap-3 p-3 rounded-xl border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
                                                             >
                                                                 <div className="flex-shrink-0 p-2 rounded bg-surface-tertiary text-text-secondary">
                                                                     <File className="h-5 w-5" />

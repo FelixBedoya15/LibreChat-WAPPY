@@ -649,11 +649,11 @@ const MatrizPeligrosGTC45 = () => {
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2 w-full">
                                         <button onClick={(e) => { e.stopPropagation(); handleAddPeligro(p.id); }}
-                                            className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg hover:bg-teal-100 transition-colors">
+                                            className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-xl hover:bg-teal-100 transition-colors">
                                             <AnimatedIcon name="plus" size={16} />
                                         </button>
                                         <button onClick={(e) => { e.stopPropagation(); handleDeleteProceso(p.id); }}
-                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
                                             <AnimatedIcon name="trash" size={16} />
                                         </button>
                                     </div>
@@ -668,25 +668,25 @@ const MatrizPeligrosGTC45 = () => {
                                                 <div className="space-y-1 flex-1">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Proceso</label>
                                                     <input type="text" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
-                                                        className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary font-medium" />
+                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium" />
                                                 </div>
                                                 <div className="space-y-1 flex-1">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
                                                     <input type="text" value={p.zona} onChange={e => updateProcesoField(p.id, 'zona', e.target.value)}
-                                                        className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                                 </div>
                                                 <div className="space-y-1 flex-[1.5]">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Actividad</label>
                                                     <input type="text" value={p.actividad} onChange={e => updateProcesoField(p.id, 'actividad', e.target.value)}
-                                                        className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                                 </div>
                                                 <div className="space-y-1 flex-[1.5]">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Tarea / Rut.</label>
                                                     <div className="flex gap-2">
                                                         <input type="text" value={p.tarea} onChange={e => updateProcesoField(p.id, 'tarea', e.target.value)}
-                                                            className="flex-1 text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                            className="flex-1 text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                                         <select value={p.rutinario ? 'si' : 'no'} onChange={e => updateProcesoField(p.id, 'rutinario', e.target.value === 'si')}
-                                                            className="w-16 text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                            className="w-16 text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
                                                             <option value="si">SÍ</option>
                                                             <option value="no">NO</option>
                                                         </select>
@@ -703,19 +703,19 @@ const MatrizPeligrosGTC45 = () => {
                                                     <label className="text-[10px] font-bold text-text-secondary uppercase">En la Fuente</label>
                                                     <textarea value={p.fuenteGeneradora || ''} onChange={e => updateProcesoField(p.id, 'fuenteGeneradora', e.target.value)}
                                                         placeholder="Ej: Aislamiento acústico de la máquina..." rows={2}
-                                                        className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                        className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <label className="text-[10px] font-bold text-text-secondary uppercase">En el Medio</label>
                                                     <textarea value={p.medioExistente || ''} onChange={e => updateProcesoField(p.id, 'medioExistente', e.target.value)}
                                                         placeholder="Ej: Extractores, mamparas..." rows={2}
-                                                        className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                        className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                 </div>
                                                 <div className="space-y-1">
                                                     <label className="text-[10px] font-bold text-text-secondary uppercase">En el Individuo</label>
                                                     <textarea value={p.individuoControl || ''} onChange={e => updateProcesoField(p.id, 'individuoControl', e.target.value)}
                                                         placeholder="Ej: EPP suministrado (casco, guantes)..." rows={2}
-                                                        className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary resize-none" />
+                                                        className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary resize-none" />
                                                 </div>
                                             </div>
                                         </div>
@@ -752,7 +752,7 @@ const MatrizPeligrosGTC45 = () => {
                                                             </div>
                                                             <div className="flex flex-wrap items-center gap-2 w-full">
                                                                 <button onClick={(e) => { e.stopPropagation(); handleCompletePeligro(p, h); }} disabled={loadingIds.has(h.id)}
-                                                                    className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1">
+                                                                    className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1">
                                                                     {loadingIds.has(h.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <AnimatedIcon name="sparkles" size={12} />}
                                                                     IA
                                                                 </button>
@@ -779,7 +779,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                                         updatePeligroField(p.id, h.id, 'descripcionPeligro', '');
                                                                                     }
                                                                                 }}
-                                                                                className="w-full text-xs p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
                                                                                 <option value="">Seleccionar Clasificación...</option>
                                                                                 {Object.keys(GTC45_CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
                                                                                 <option value="OTRO">✏️ Edición Manual / Generado por IA</option>
@@ -787,7 +787,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             {(!GTC45_CATEGORIES[h.clasificacion] && h.clasificacion !== '') && (
                                                                                 <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
                                                                                     placeholder="Especifique la clasificación manual..."
-                                                                                    className="w-full text-xs p-2 rounded-lg border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary" />
+                                                                                    className="w-full text-xs p-2 rounded-xl border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary" />
                                                                             )}
                                                                         </div>
                                                                     </div>
@@ -808,7 +808,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                                     }
                                                                                 }}
                                                                                 disabled={!h.clasificacion && !h.descripcionPeligro}
-                                                                                className="w-full text-[11px] p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary overflow-hidden text-ellipsis"
+                                                                                className="w-full text-[11px] p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary overflow-hidden text-ellipsis"
                                                                             >
                                                                                 <option value="">Seleccionar Componente...</option>
                                                                                 {h.clasificacion && GTC45_CATEGORIES[h.clasificacion] && GTC45_CATEGORIES[h.clasificacion].map(d => (
@@ -820,7 +820,7 @@ const MatrizPeligrosGTC45 = () => {
                                                                             {(!h.clasificacion || !GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro)) && h.descripcionPeligro !== '' && (
                                                                                 <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
                                                                                     placeholder="Describa el peligro aquí..."
-                                                                                    rows={2} className="w-full text-xs p-2 rounded-lg border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary resize-none" />
+                                                                                    rows={2} className="w-full text-xs p-2 rounded-xl border border-teal-300 bg-teal-50 dark:bg-teal-900/20 text-text-primary resize-none" />
                                                                             )}
                                                                         </div>
                                                                     </div>

@@ -297,9 +297,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
                                 <button
                                     key={option.label}
                                     onClick={option.handler}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-hover transition-colors text-left"
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-hover transition-colors text-left"
                                 >
-                                    <div className="p-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                                    <div className="p-1.5 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                                         <Icon className="h-4 w-4" />
                                     </div>
                                     <div>

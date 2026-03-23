@@ -188,7 +188,7 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
             <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">{label}</label>
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="min-h-[42px] w-full rounded-lg border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all shadow-sm"
+                className="min-h-[42px] w-full rounded-xl border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all shadow-sm"
             >
                 {selected.length === 0 && <span className="text-text-tertiary">{placeholder}</span>}
                 {selected.map(val => (
@@ -203,7 +203,7 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
             </div>
 
             {isOpen && (
-                <div className="absolute z-[60] mt-1 w-full max-h-64 overflow-y-auto bg-surface-secondary border border-border-medium rounded-lg shadow-xl animate-in fade-in slide-in-from-top-2">
+                <div className="absolute z-[60] mt-1 w-full max-h-64 overflow-y-auto bg-surface-secondary border border-border-medium rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2">
                     <div className="p-1">
                         {options.map(opt => (
                             <div
@@ -498,7 +498,7 @@ const PerfilesCargo = () => {
     // ─── Render Field helper ──────────────────────────────────────────────────
     const renderField = (field: any) => {
         const baseClass =
-            'w-full rounded-lg border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm';
+            'w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm';
         if (field.type === 'select') {
             return (
                 <select
@@ -578,7 +578,7 @@ const PerfilesCargo = () => {
                     </div>
                     <button
                         onClick={handleAddPerfil}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-lg text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
                     >
                         <Plus className="h-3.5 w-3.5" /> Nuevo Cargo
                     </button>
@@ -599,7 +599,7 @@ const PerfilesCargo = () => {
                             </button>
                             <button
                                 onClick={() => handleDeletePerfil(p.id)}
-                                className="p-1.5 text-text-tertiary hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                                className="p-1.5 text-text-tertiary hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
                             >
                                 <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -614,7 +614,7 @@ const PerfilesCargo = () => {
                     {FIELD_SECTIONS.map(section => (
                         <div key={section.title} className="space-y-4">
                             <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
-                                <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">{section.icon}</div>
+                                <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-xl">{section.icon}</div>
                                 <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">{section.title}</h4>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -632,7 +632,7 @@ const PerfilesCargo = () => {
 
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
-                            <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg"><Shield className="h-4 w-4 text-teal-600" /></div>
+                            <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-xl"><Shield className="h-4 w-4 text-teal-600" /></div>
                             <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">Equipos y Entrenamiento Especializado</h4>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -714,7 +714,7 @@ const PerfilesCargo = () => {
             {generatedReport && (
                 <div className="rounded-2xl border border-border-medium bg-surface-primary shadow-2xl overflow-hidden animate-in fade-in duration-500">
                     <div className="border-b border-border-medium bg-surface-tertiary px-6 py-4 flex items-center gap-3">
-                        <div className="p-2 bg-teal-600 rounded-lg text-white"><FileText className="h-5 w-5" /></div>
+                        <div className="p-2 bg-teal-600 rounded-xl text-white"><FileText className="h-5 w-5" /></div>
                         <h3 className="font-black text-base tracking-tight">INFORME TÉCNICO GENERADO</h3>
                     </div>
                     <div className="p-1">

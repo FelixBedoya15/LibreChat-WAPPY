@@ -75,7 +75,7 @@ const WorkerAutocomplete = ({
                 autoComplete="off"
             />
             {isOpen && filteredOptions.length > 0 && !exactMatch && (
-                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-lg shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
+                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-xl shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
                     {filteredOptions.map((w, idx) => (
                         <li
                             key={idx}
@@ -442,7 +442,7 @@ const AnalisisTrabajoSeguro = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre completo"
                                         wrapperClassName="w-full md:w-1/2"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                                     />
                                     <div className="flex w-full md:w-1/2 gap-2">
                                         <WorkerAutocomplete
@@ -464,11 +464,11 @@ const AnalisisTrabajoSeguro = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                                            className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                                         />
                                         <button
                                             onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))}
-                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                             disabled={trabajadoresList.length === 1}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -489,11 +489,11 @@ const AnalisisTrabajoSeguro = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Fecha de Ejecución</label>
-                                <input type="date" value={formData.fecha} onChange={e => handleInputChange('fecha', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                <input type="date" value={formData.fecha} onChange={e => handleInputChange('fecha', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Hora de Inicio</label>
-                                <input type="time" value={formData.horaInicio} onChange={e => handleInputChange('horaInicio', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                <input type="time" value={formData.horaInicio} onChange={e => handleInputChange('horaInicio', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                         </div>
 
@@ -501,19 +501,19 @@ const AnalisisTrabajoSeguro = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Charla de Seguridad Realizada</label>
-                                <select value={formData.seguridadSocial} onChange={e => handleInputChange('seguridadSocial', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                                <select value={formData.seguridadSocial} onChange={e => handleInputChange('seguridadSocial', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                                     <option>Sí</option><option>No</option>
                                 </select>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Equipos / Herramientas Inspeccionados</label>
-                                <select value={formData.aptitudMedica} onChange={e => handleInputChange('aptitudMedica', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                                <select value={formData.aptitudMedica} onChange={e => handleInputChange('aptitudMedica', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                                     <option>Sí</option><option>No</option>
                                 </select>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Condiciones del Área Verificadas</label>
-                                <select value={formData.certificacionAlturas} onChange={e => handleInputChange('certificacionAlturas', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                                <select value={formData.certificacionAlturas} onChange={e => handleInputChange('certificacionAlturas', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                                     <option>Sí</option><option>No</option>
                                 </select>
                             </div>
@@ -544,13 +544,13 @@ const AnalisisTrabajoSeguro = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre"
                                         wrapperClassName="w-full md:w-1/3"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                                     />
                                     <input
                                         type="text"
                                         value={resp.rol}
                                         onChange={e => { const newR = [...responsablesList]; newR[idx].rol = e.target.value; setResponsablesList(newR); }}
-                                        className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        className="w-full md:w-1/3 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"
                                         placeholder="Rol (Ej: Supervisor, Jefe de Área)"
                                     />
                                     <div className="flex w-full md:w-1/3 gap-2">
@@ -573,11 +573,11 @@ const AnalisisTrabajoSeguro = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                                            className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                                         />
                                         <button
                                             onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))}
-                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>

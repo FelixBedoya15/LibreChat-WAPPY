@@ -520,7 +520,7 @@ const MatrizLegal = () => {
 
                                                             <div className="flex flex-col sm:flex-row gap-3 mt-1 items-start sm:items-center">
                                                                 {/* Status Buttons */}
-                                                                <div className="flex rounded-lg border border-border-medium overflow-hidden shrink-0">
+                                                                <div className="flex rounded-xl border border-border-medium overflow-hidden shrink-0">
                                                                     {STATUS_OPTIONS.map((opt) => {
                                                                         const isSelected = status === opt.value;
                                                                         const Icon = opt.icon;

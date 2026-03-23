@@ -588,7 +588,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                                             {item.criteria}
                                                                         </span>
                                                                         {item.normativeText && (
-                                                                            <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-lg shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
+                                                                            <div className="absolute top-full left-0 mt-2 w-96 p-4 rounded-xl shadow-xl bg-surface-secondary border border-border-medium text-xs text-text-primary opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 whitespace-pre-wrap text-left max-h-[300px] overflow-y-auto">
                                                                                 <div className="font-semibold mb-1 text-teal-500">Fundamento Legal:</div>
                                                                                 {item.normativeText}
                                                                             </div>
@@ -615,7 +615,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                                         key={opt.value}
                                                                         onClick={() => handleStatusChange(item.id, opt.value)}
                                                                         className={cn(
-                                                                            'rounded-lg p-2 transition-all flex-1 sm:flex-none flex justify-center',
+                                                                            'rounded-xl p-2 transition-all flex-1 sm:flex-none flex justify-center',
                                                                             status === opt.value ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary'
                                                                         )}
                                                                         title={opt.label}
@@ -634,7 +634,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                                             placeholder="Describa el hallazgo, evidencia o motivo de no aplicabilidad..."
                                                             value={observations[item.id] || ''}
                                                             onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-teal-500 focus:outline-none resize-none"
+                                                            className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-teal-500 focus:outline-none resize-none"
                                                             rows={2}
                                                         />
                                                     </div>

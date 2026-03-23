@@ -487,7 +487,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <select
                             value={companySize}
                             onChange={(e) => handleCompanySizeChange(e.target.value as CompanySize)}
-                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
+                            className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
                         >
                             {COMPANY_SIZE_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -502,7 +502,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <select
                             value={riskLevel}
                             onChange={(e) => handleRiskLevelChange(Number(e.target.value) as RiskLevel)}
-                            className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
+                            className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
                         >
                             {RISK_LEVEL_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -511,7 +511,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 rounded-lg bg-teal-500/10 p-3 text-sm">
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-teal-500/10 p-3 text-sm">
                     <AlertTriangle className="h-4 w-4 text-teal-500" />
                     <span className="text-teal-700 dark:text-teal-300">
                         {t('com_ui_applies_article', 'Aplica')} <strong>{t('com_ui_article', 'Artículo')} {applicableArticle}</strong> {t('com_ui_resolution_0312', 'de la Resolución 0312/2019')}
@@ -524,19 +524,19 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 sm:gap-6 w-full md:w-auto">
-                        <div className="bg-surface-tertiary/50 p-2 rounded-lg sm:bg-transparent sm:p-0">
+                        <div className="bg-surface-tertiary/50 p-2 rounded-xl sm:bg-transparent sm:p-0">
                             <p className="text-xs sm:text-sm text-text-secondary">{t('com_ui_progress', 'Progreso')}</p>
                             <p className="text-xl sm:text-2xl font-bold text-text-primary">
                                 {completedCount}/{checklist.length}
                             </p>
                         </div>
-                        <div className="bg-surface-tertiary/50 p-2 rounded-lg sm:bg-transparent sm:p-0">
+                        <div className="bg-surface-tertiary/50 p-2 rounded-xl sm:bg-transparent sm:p-0">
                             <p className="text-xs sm:text-sm text-text-secondary">{t('com_ui_score', 'Puntuación')}</p>
                             <p className="text-xl sm:text-2xl font-bold text-text-primary">
                                 {currentScore.toFixed(1)}/{Math.round(totalPoints)}
                             </p>
                         </div>
-                        <div className="col-span-2 sm:col-span-1 bg-surface-tertiary/50 p-2 rounded-lg sm:bg-transparent sm:p-0 flex items-center justify-between sm:block">
+                        <div className="col-span-2 sm:col-span-1 bg-surface-tertiary/50 p-2 rounded-xl sm:bg-transparent sm:p-0 flex items-center justify-between sm:block">
                             <p className="text-xs sm:text-sm text-text-secondary">{t('com_ui_level', 'Nivel')}</p>
                             <span className={cn(
                                 'inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium',
@@ -681,7 +681,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                                             key={opt.value}
                                                                             onClick={() => handleStatusChange(item.id, opt.value)}
                                                                             className={cn(
-                                                                                'rounded-lg p-2 transition-all',
+                                                                                'rounded-xl p-2 transition-all',
                                                                                 isSelected ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary',
                                                                             )}
                                                                             title={opt.label}
@@ -694,7 +694,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                         </div>
 
                                                         {isItemExpanded && (
-                                                            <div className="mt-3 rounded-lg border border-border-light bg-surface-secondary p-3">
+                                                            <div className="mt-3 rounded-xl border border-border-light bg-surface-secondary p-3">
                                                                 <p className="mb-2 text-sm font-medium text-text-primary">
                                                                     {t('com_ui_how_eval', '¿Cómo se evalúa?')}
                                                                 </p>
@@ -709,7 +709,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                                     placeholder={t('com_ui_add_obs', 'Agregar observación...')}
                                                                     value={observations[item.id] || ''}
                                                                     onChange={(e) => setObservations(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                                                    className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none"
+                                                                    className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder-text-tertiary focus:border-yellow-500 focus:outline-none resize-none"
                                                                     rows={2}
                                                                 />
                                                             </div>

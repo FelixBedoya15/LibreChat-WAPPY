@@ -227,7 +227,7 @@ export default function SGSSTDashboard() {
                 {/* ═══ PHVA Phase Grid (Dynamic SVGs) ═══ */}
                 <section className="animate-in fade-in slide-in-from-bottom-8 duration-[800ms] fill-mode-both">
                     <div className="flex items-center gap-3 mb-8 px-1">
-                        <div className="p-2 rounded-lg bg-[#10b981]/10 dark:bg-[#10b981]/20">
+                        <div className="p-2 rounded-xl bg-[#10b981]/10 dark:bg-[#10b981]/20">
                             <Box className="h-5 w-5 text-[#10b981]" />
                         </div>
                         <div>
@@ -285,7 +285,7 @@ export default function SGSSTDashboard() {
                 {/* ═══ Predictive AI Dashboard (Native Integration) ═══ */}
                 <section className="animate-in fade-in slide-in-from-bottom-12 duration-[1000ms] fill-mode-both">
                     <div className="flex items-center gap-3 mb-6 px-1">
-                        <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30">
+                        <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-900/30">
                             <BrainCircuit className="h-5 w-5 text-teal-600" />
                         </div>
                         <div>

@@ -127,7 +127,7 @@ const WorkerAutocomplete = ({
     <div className={`relative ${wrapperClassName || 'w-full'}`} ref={wrapperRef}>
       <input type="text" value={value} onChange={e => { onChange(e.target.value); setIsOpen(true); }} onFocus={() => setIsOpen(true)} className={className} placeholder={placeholder} autoComplete="off" />
       {isOpen && filtered.length > 0 && !exact && (
-        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-lg shadow-xl py-1 text-left">
+        <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-xl shadow-xl py-1 text-left">
           {filtered.map((w: any, idx: number) => (
             <li key={idx} className="px-4 py-2 text-sm cursor-pointer hover:bg-surface-hover" onClick={() => { if (onSelect) onSelect(w); else onChange(w[searchKey]); setIsOpen(false); }}>
               <div className="font-semibold">{w.nombre}</div>
@@ -428,10 +428,10 @@ const MetodoOwas = () => {
               <h4 className="font-semibold text-sm text-text-primary">Trabajador(es) Evaluado(s)</h4>
               {trabajadoresList.map((t, idx) => (
                 <div key={idx} className="flex flex-col md:flex-row gap-3">
-                  <WorkerAutocomplete value={t.nombre} onChange={(v: string) => { const n = [...trabajadoresList]; n[idx].nombre = v; const m = availableWorkers.find(w => w.nombre === v); if (m) n[idx].cedula = m.identificacion; setTrabajadoresList(n); }} onSelect={(w: any) => { const n = [...trabajadoresList]; n[idx].nombre = w.nombre; n[idx].cedula = w.identificacion; setTrabajadoresList(n); }} data={availableWorkers} searchKey="nombre" placeholder="Nombre completo" wrapperClassName="w-full md:w-1/2" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                  <WorkerAutocomplete value={t.nombre} onChange={(v: string) => { const n = [...trabajadoresList]; n[idx].nombre = v; const m = availableWorkers.find(w => w.nombre === v); if (m) n[idx].cedula = m.identificacion; setTrabajadoresList(n); }} onSelect={(w: any) => { const n = [...trabajadoresList]; n[idx].nombre = w.nombre; n[idx].cedula = w.identificacion; setTrabajadoresList(n); }} data={availableWorkers} searchKey="nombre" placeholder="Nombre completo" wrapperClassName="w-full md:w-1/2" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
                   <div className="flex w-full md:w-1/2 gap-2">
-                    <WorkerAutocomplete value={t.cedula} onChange={(v: string) => { const n = [...trabajadoresList]; n[idx].cedula = v; const m = availableWorkers.find(w => w.identificacion === v); if (m && !n[idx].nombre) n[idx].nombre = m.nombre; setTrabajadoresList(n); }} onSelect={(w: any) => { const n = [...trabajadoresList]; n[idx].cedula = w.identificacion; if (!n[idx].nombre) n[idx].nombre = w.nombre; setTrabajadoresList(n); }} data={availableWorkers} searchKey="identificacion" placeholder="Cédula" wrapperClassName="w-full" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
-                    <button onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" disabled={trabajadoresList.length === 1}><Trash2 className="h-4 w-4" /></button>
+                    <WorkerAutocomplete value={t.cedula} onChange={(v: string) => { const n = [...trabajadoresList]; n[idx].cedula = v; const m = availableWorkers.find(w => w.identificacion === v); if (m && !n[idx].nombre) n[idx].nombre = m.nombre; setTrabajadoresList(n); }} onSelect={(w: any) => { const n = [...trabajadoresList]; n[idx].cedula = w.identificacion; if (!n[idx].nombre) n[idx].nombre = w.nombre; setTrabajadoresList(n); }} data={availableWorkers} searchKey="identificacion" placeholder="Cédula" wrapperClassName="w-full" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                    <button onClick={() => setTrabajadoresList(trabajadoresList.filter((_, i) => i !== idx))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl" disabled={trabajadoresList.length === 1}><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               ))}
@@ -442,25 +442,25 @@ const MetodoOwas = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1 md:col-span-1">
                 <label className="text-sm font-medium">Fecha</label>
-                <input type="date" value={formData.fecha} onChange={e => setFormData(p => ({ ...p, fecha: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                <input type="date" value={formData.fecha} onChange={e => setFormData(p => ({ ...p, fecha: e.target.value }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Cargo / Puesto evaluado</label>
-                <input type="text" value={formData.cargo} onChange={e => setFormData(p => ({ ...p, cargo: e.target.value }))} placeholder="Ej: Operario Línea 3" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                <input type="text" value={formData.cargo} onChange={e => setFormData(p => ({ ...p, cargo: e.target.value }))} placeholder="Ej: Operario Línea 3" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Área / Proceso</label>
-                <input type="text" value={formData.area} onChange={e => setFormData(p => ({ ...p, area: e.target.value }))} placeholder="Ej: Almacén, Producción" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                <input type="text" value={formData.area} onChange={e => setFormData(p => ({ ...p, area: e.target.value }))} placeholder="Ej: Almacén, Producción" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium">Descripción de la Tarea Evaluada</label>
-                <input type="text" value={formData.tareaDescripcion} onChange={e => setFormData(p => ({ ...p, tareaDescripcion: e.target.value }))} placeholder="Ej: Empaque manual de cajas en banda" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                <input type="text" value={formData.tareaDescripcion} onChange={e => setFormData(p => ({ ...p, tareaDescripcion: e.target.value }))} placeholder="Ej: Empaque manual de cajas en banda" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Frecuencia de Observación</label>
-                <select value={formData.frecuenciaObservacion} onChange={e => setFormData(p => ({ ...p, frecuenciaObservacion: e.target.value }))} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary">
+                <select value={formData.frecuenciaObservacion} onChange={e => setFormData(p => ({ ...p, frecuenciaObservacion: e.target.value }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
                   <option>Cada 30 segundos</option><option>Cada 1 minuto</option><option>Cada 2 minutos</option><option>Irregular / Según criterio</option>
                 </select>
               </div>
@@ -471,11 +471,11 @@ const MetodoOwas = () => {
               <label className="text-sm font-medium">Evaluador / Ergónomo / Responsable SST</label>
               {responsablesList.map((r, idx) => (
                 <div key={idx} className="flex flex-col md:flex-row gap-3">
-                  <WorkerAutocomplete value={r.nombre} onChange={(v: string) => { const n = [...responsablesList]; n[idx].nombre = v; const m = availableWorkers.find(w => w.nombre === v); if (m) { n[idx].cedula = m.identificacion; if (!n[idx].rol && m.cargo) n[idx].rol = m.cargo; } setResponsablesList(n); }} onSelect={(w: any) => { const n = [...responsablesList]; n[idx].nombre = w.nombre; n[idx].cedula = w.identificacion; if (!n[idx].rol && w.cargo) n[idx].rol = w.cargo; setResponsablesList(n); }} data={availableWorkers} searchKey="nombre" placeholder="Nombre" wrapperClassName="w-full md:w-1/3" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
-                  <input type="text" value={r.rol} onChange={e => { const n = [...responsablesList]; n[idx].rol = e.target.value; setResponsablesList(n); }} className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Rol" />
+                  <WorkerAutocomplete value={r.nombre} onChange={(v: string) => { const n = [...responsablesList]; n[idx].nombre = v; const m = availableWorkers.find(w => w.nombre === v); if (m) { n[idx].cedula = m.identificacion; if (!n[idx].rol && m.cargo) n[idx].rol = m.cargo; } setResponsablesList(n); }} onSelect={(w: any) => { const n = [...responsablesList]; n[idx].nombre = w.nombre; n[idx].cedula = w.identificacion; if (!n[idx].rol && w.cargo) n[idx].rol = w.cargo; setResponsablesList(n); }} data={availableWorkers} searchKey="nombre" placeholder="Nombre" wrapperClassName="w-full md:w-1/3" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                  <input type="text" value={r.rol} onChange={e => { const n = [...responsablesList]; n[idx].rol = e.target.value; setResponsablesList(n); }} className="w-full md:w-1/3 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" placeholder="Rol" />
                   <div className="flex w-full md:w-1/3 gap-2">
-                    <WorkerAutocomplete value={r.cedula} onChange={(v: string) => { const n = [...responsablesList]; n[idx].cedula = v; const m = availableWorkers.find(w => w.identificacion === v); if (m && !n[idx].nombre) { n[idx].nombre = m.nombre; if (!n[idx].rol && m.cargo) n[idx].rol = m.cargo; } setResponsablesList(n); }} onSelect={(w: any) => { const n = [...responsablesList]; n[idx].cedula = w.identificacion; if (!n[idx].nombre) { n[idx].nombre = w.nombre; if (!n[idx].rol && w.cargo) n[idx].rol = w.cargo; } setResponsablesList(n); }} data={availableWorkers} searchKey="identificacion" placeholder="Cédula" wrapperClassName="w-full" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
-                    <button onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                    <WorkerAutocomplete value={r.cedula} onChange={(v: string) => { const n = [...responsablesList]; n[idx].cedula = v; const m = availableWorkers.find(w => w.identificacion === v); if (m && !n[idx].nombre) { n[idx].nombre = m.nombre; if (!n[idx].rol && m.cargo) n[idx].rol = m.cargo; } setResponsablesList(n); }} onSelect={(w: any) => { const n = [...responsablesList]; n[idx].cedula = w.identificacion; if (!n[idx].nombre) { n[idx].nombre = w.nombre; if (!n[idx].rol && w.cargo) n[idx].rol = w.cargo; } setResponsablesList(n); }} data={availableWorkers} searchKey="identificacion" placeholder="Cédula" wrapperClassName="w-full" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                    <button onClick={() => setResponsablesList(responsablesList.filter((_, i) => i !== idx))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               ))}
@@ -499,35 +499,35 @@ const MetodoOwas = () => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium">Descripción breve de la postura observada</label>
-                  <input type="text" value={currentObs.descripcion || ''} onChange={e => setCurrentObs(p => ({ ...p, descripcion: e.target.value }))} placeholder="Ej: Trabajador inclinado cogiendo caja del suelo" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                  <input type="text" value={currentObs.descripcion || ''} onChange={e => setCurrentObs(p => ({ ...p, descripcion: e.target.value }))} placeholder="Ej: Trabajador inclinado cogiendo caja del suelo" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">ESPALDA (1er dígito)</label>
-                    <select value={currentObs.espalda} onChange={e => setCurrentObs(p => ({ ...p, espalda: parseInt(e.target.value) }))} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
+                    <select value={currentObs.espalda} onChange={e => setCurrentObs(p => ({ ...p, espalda: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
                       {ESPALDA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">BRAZOS (2do dígito)</label>
-                    <select value={currentObs.brazos} onChange={e => setCurrentObs(p => ({ ...p, brazos: parseInt(e.target.value) }))} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
+                    <select value={currentObs.brazos} onChange={e => setCurrentObs(p => ({ ...p, brazos: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
                       {BRAZOS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">PIERNAS (3er dígito)</label>
-                    <select value={currentObs.piernas} onChange={e => setCurrentObs(p => ({ ...p, piernas: parseInt(e.target.value) }))} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
+                    <select value={currentObs.piernas} onChange={e => setCurrentObs(p => ({ ...p, piernas: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
                       {PIERNAS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">CARGA / FUERZA (4to dígito)</label>
-                    <select value={currentObs.carga} onChange={e => setCurrentObs(p => ({ ...p, carga: parseInt(e.target.value) }))} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
+                    <select value={currentObs.carga} onChange={e => setCurrentObs(p => ({ ...p, carga: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
                       {CARGA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                 </div>
-                <div className="rounded-lg p-3 text-sm font-medium" style={{ backgroundColor: currentCatCfg.bg, color: currentCatCfg.color, border: `1px solid ${currentCatCfg.border}` }}>
+                <div className="rounded-xl p-3 text-sm font-medium" style={{ backgroundColor: currentCatCfg.bg, color: currentCatCfg.color, border: `1px solid ${currentCatCfg.border}` }}>
                   <AlertCircle className="inline h-4 w-4 mr-2" />
                   {currentCatCfg.action}
                 </div>

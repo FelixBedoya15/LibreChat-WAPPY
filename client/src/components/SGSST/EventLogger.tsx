@@ -61,7 +61,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
     };
 
     return (
-        <div className="space-y-4 border border-border-medium rounded-lg p-4 bg-surface-primary/50">
+        <div className="space-y-4 border border-border-medium rounded-xl p-4 bg-surface-primary/50">
             <div className="flex justify-between items-center">
                 <h4 className="font-semibold text-text-primary flex items-center gap-2">
                     <Activity className="h-4 w-4 text-teal-500" />
@@ -76,7 +76,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
             </div>
 
             {isAdding && (
-                <div className="p-3 bg-surface-tertiary rounded-lg space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-3 bg-surface-tertiary rounded-xl space-y-3 animate-in fade-in zoom-in-95 duration-200">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-text-secondary">Fecha</label>
@@ -163,7 +163,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
             )}
 
             {events.length === 0 ? (
-                <div className="text-center py-6 text-text-secondary text-sm border-2 border-dashed border-border-medium/50 rounded-lg">
+                <div className="text-center py-6 text-text-secondary text-sm border-2 border-dashed border-border-medium/50 rounded-xl">
                     No hay eventos registrados en este mes.
                 </div>
             ) : (
@@ -222,7 +222,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                     {/* Mobile Card View */}
                     <div className="sm:hidden space-y-3">
                         {events.map((event) => (
-                            <div key={event.id} className="p-3 bg-surface-primary border border-border-medium rounded-lg shadow-sm flex flex-col gap-2">
+                            <div key={event.id} className="p-3 bg-surface-primary border border-border-medium rounded-xl shadow-sm flex flex-col gap-2">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-medium text-text-secondary">{event.fecha}</span>
@@ -261,7 +261,7 @@ const EventLogger: React.FC<EventLoggerProps> = ({ events, onChange, monthName }
                                 </div>
                             </div>
                         ))}
-                        <div className="p-3 bg-surface-tertiary rounded-lg text-xs font-semibold text-text-primary flex justify-between">
+                        <div className="p-3 bg-surface-tertiary rounded-xl text-xs font-semibold text-text-primary flex justify-between">
                             <span>Totales Mes:</span>
                             <span>{events.reduce((sum, e) => sum + (e.diasIncapacidad || 0), 0)} días incapacidad</span>
                         </div>

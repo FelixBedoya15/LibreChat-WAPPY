@@ -392,7 +392,7 @@ const ReglamentoInterno = () => {
                                         onChange={(e) => field.setter(e.target.value)}
                                         placeholder={field.placeholder}
                                         rows={field.rows}
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 resize-y"
+                                        className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 resize-y"
                                     />
                                 </div>
                             );

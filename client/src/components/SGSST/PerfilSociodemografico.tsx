@@ -418,12 +418,12 @@ const PerfilSociodemografico = () => {
                                     <div className="flex flex-wrap items-center gap-2 w-full">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
-                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 transition-colors">
+                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors">
                                             <AnimatedIcon name="qrcode" size={18} />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteWorker(w.id); }}
-                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
                                             <AnimatedIcon name="trash" size={18} />
                                         </button>
                                     </div>
@@ -437,34 +437,34 @@ const PerfilSociodemografico = () => {
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Nombre Completo</label>
                                                 <input type="text" value={w.nombre} onChange={e => updateWorkerField(w.id, 'nombre', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary font-medium" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Identificación (CC)</label>
                                                 <input type="text" value={w.identificacion} onChange={e => updateWorkerField(w.id, 'identificacion', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Cargo</label>
                                                 <input type="text" value={w.cargo} onChange={e => updateWorkerField(w.id, 'cargo', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
                                                 <input type="text" value={w.telefono} onChange={e => updateWorkerField(w.id, 'telefono', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                             </div>
 
                                             {/* Col 2 */}
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Edad</label>
                                                 <input type="number" value={w.edad} onChange={e => updateWorkerField(w.id, 'edad', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Género</label>
                                                 <select value={w.genero} onChange={e => updateWorkerField(w.id, 'genero', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
                                                     <option value="">Seleccione...</option>
                                                     <option>Masculino</option>
                                                     <option>Femenino</option>
@@ -474,7 +474,7 @@ const PerfilSociodemografico = () => {
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Estado Civil</label>
                                                 <select value={w.estadoCivil} onChange={e => updateWorkerField(w.id, 'estadoCivil', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
                                                     <option value="">Seleccione...</option>
                                                     <option>Soltero/a</option>
                                                     <option>Casado/a</option>
@@ -486,7 +486,7 @@ const PerfilSociodemografico = () => {
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
                                                 <select value={w.nivelEscolaridad} onChange={e => updateWorkerField(w.id, 'nivelEscolaridad', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary">
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
                                                     <option value="">Seleccione...</option>
                                                     <option>Ninguna</option>
                                                     <option>Primaria</option>
@@ -503,21 +503,21 @@ const PerfilSociodemografico = () => {
                                                 <label className="text-xs font-bold text-text-secondary uppercase">Dirección (Google Maps)</label>
                                                 <input type="text" value={w.direccion} onChange={e => updateWorkerField(w.id, 'direccion', e.target.value)}
                                                     placeholder="Ej: Calle 123 #45-67, Medellín, Antioquia"
-                                                    className="w-full text-sm p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                             </div>
 
                                             {/* Dates and Medical */}
                                             <div className="space-y-1 lg:col-span-2">
                                                 <label className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase">Último Examen Médico</label>
                                                 <input type="date" value={w.fechaExamenMedico} onChange={e => updateWorkerField(w.id, 'fechaExamenMedico', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-orange-200 bg-orange-50/10 dark:bg-orange-900/10 text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-orange-200 bg-orange-50/10 dark:bg-orange-900/10 text-text-primary" />
                                             </div>
 
                                             {/* Diagnóstico Médico */}
                                             <div className="space-y-1 lg:col-span-3">
                                                 <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Diagnóstico / Hallazgos Médicos</label>
                                                 <select value={w.diagnosticoMedico || ''} onChange={e => updateWorkerField(w.id, 'diagnosticoMedico', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary">
+                                                    className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary">
                                                     <option value="">Seleccione diagnóstico...</option>
                                                     <option value="Apto / Sin Hallazgos">Apto / Sin Hallazgos / Ninguno</option>
 
@@ -562,7 +562,7 @@ const PerfilSociodemografico = () => {
                                             <div className="space-y-1">
                                                 <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Fecha de Seguimiento</label>
                                                 <input type="date" value={w.fechaSeguimiento || ''} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
                                             </div>
 
                                             {/* Recomendaciones y Seguimiento */}
@@ -570,25 +570,25 @@ const PerfilSociodemografico = () => {
                                                 <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Recomendaciones Médicas</label>
                                                 <input type="text" value={w.recomendacionesMedicas || ''} onChange={e => updateWorkerField(w.id, 'recomendacionesMedicas', e.target.value)}
                                                     placeholder="Ej: Pausas activas visuales cada hora, restricción de cargas..."
-                                                    className="w-full text-sm p-2 rounded-lg border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
                                             </div>
 
                                             <div className="space-y-1 lg:col-span-2">
                                                 <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Trab. Autorizado</label>
                                                 <input type="date" value={w.fechaCursoAlturasAutorizado} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasAutorizado', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
                                             </div>
                                             <div className="space-y-1 lg:col-span-2">
                                                 <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Coordinador</label>
                                                 <input type="date" value={w.fechaCursoAlturasCoordinador} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasCoordinador', e.target.value)}
-                                                    className="w-full text-sm p-2 rounded-lg border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
+                                                    className="w-full text-sm p-2 rounded-xl border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
                                             </div>
                                             <div className="space-y-1 lg:col-span-4 mt-2 p-4 border rounded-xl bg-surface-tertiary/30">
                                                 <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                                                     <div className="space-y-1 w-full md:w-1/2">
                                                         <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
                                                         <select value={w.consentimientoFirmaDigital || 'No'} onChange={e => updateWorkerField(w.id, 'consentimientoFirmaDigital', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-lg border border-indigo-200 bg-indigo-50/10 dark:bg-indigo-900/10 text-text-primary">
+                                                            className="w-full text-sm p-2 rounded-xl border border-indigo-200 bg-indigo-50/10 dark:bg-indigo-900/10 text-text-primary">
                                                             <option>Sí</option>
                                                             <option>No</option>
                                                         </select>
@@ -719,7 +719,7 @@ const PerfilSociodemografico = () => {
                         <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
                             <button
                                 onClick={() => setSelectedQrWorker(null)}
-                                className="px-6 py-2 rounded-lg font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                 Cerrar
                             </button>
                         </div>

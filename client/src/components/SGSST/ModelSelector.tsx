@@ -72,7 +72,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
                                     setIsOpen(false);
                                 }}
                                 className={cn(
-                                    "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-lg transition-colors text-left",
+                                    "w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-xl transition-colors text-left",
                                     selectedModel === model.id
                                         ? "bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 font-medium"
                                         : "text-text-primary hover:bg-surface-hover"

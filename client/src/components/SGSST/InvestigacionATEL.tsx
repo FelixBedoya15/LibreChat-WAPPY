@@ -81,7 +81,7 @@ const WorkerAutocomplete = ({
                 autoComplete="off"
             />
             {isOpen && filteredOptions.length > 0 && !exactMatch && (
-                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-lg shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
+                <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-surface-primary border border-border-medium rounded-xl shadow-xl py-1 text-left origin-top animate-in fade-in zoom-in-95 duration-200">
                     {filteredOptions.map((w, idx) => (
                         <li
                             key={idx}
@@ -105,7 +105,7 @@ const WorkerAutocomplete = ({
 // ─── Section Header ────────────────────────────────────────────────────────────
 const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
     <div className="flex items-center gap-3 pb-3 mb-4 border-b border-border-medium">
-        <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-lg text-teal-600">
+        <div className="p-2 bg-teal-100 dark:bg-teal-900/30 rounded-xl text-teal-600">
             {icon}
         </div>
         <div>
@@ -541,7 +541,7 @@ const InvestigacionATEL = () => {
                                         <select
                                             value={formData.tipoEvento}
                                             onChange={e => handleInputChange('tipoEvento', e.target.value)}
-                                            className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                            className="w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                         >
                                             <option>Incidente</option>
                                             <option>Accidente Leve</option>
@@ -555,30 +555,30 @@ const InvestigacionATEL = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Fecha del Evento</label>
-                                    <input type="date" value={formData.fechaEvento} onChange={e => handleInputChange('fechaEvento', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="date" value={formData.fechaEvento} onChange={e => handleInputChange('fechaEvento', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Hora del Evento</label>
-                                    <input type="time" value={formData.horaEvento} onChange={e => handleInputChange('horaEvento', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="time" value={formData.horaEvento} onChange={e => handleInputChange('horaEvento', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-1 md:col-span-1">
                                     <label className="text-sm font-medium">Lugar / Área del Evento</label>
-                                    <input type="text" value={formData.lugarEvento} onChange={e => handleInputChange('lugarEvento', e.target.value)} placeholder="Ej: Planta de producción, Piso 2" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.lugarEvento} onChange={e => handleInputChange('lugarEvento', e.target.value)} placeholder="Ej: Planta de producción, Piso 2" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Departamento</label>
-                                    <input type="text" value={formData.departamento} onChange={e => handleInputChange('departamento', e.target.value)} placeholder="Ej: Antioquia" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.departamento} onChange={e => handleInputChange('departamento', e.target.value)} placeholder="Ej: Antioquia" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Municipio</label>
-                                    <input type="text" value={formData.municipio} onChange={e => handleInputChange('municipio', e.target.value)} placeholder="Ej: Medellín" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.municipio} onChange={e => handleInputChange('municipio', e.target.value)} placeholder="Ej: Medellín" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Actividad que realizaba al momento del evento</label>
-                                <input type="text" value={formData.actividadMomento} onChange={e => handleInputChange('actividadMomento', e.target.value)} placeholder="Ej: Instalación de tubería en altura, manejo de maquinaria..." className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                <input type="text" value={formData.actividadMomento} onChange={e => handleInputChange('actividadMomento', e.target.value)} placeholder="Ej: Instalación de tubería en altura, manejo de maquinaria..." className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                         </div>
 
@@ -605,7 +605,7 @@ const InvestigacionATEL = () => {
                                         data={availableWorkers}
                                         searchKey="nombre"
                                         placeholder="Nombre del afectado"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -622,27 +622,27 @@ const InvestigacionATEL = () => {
                                         data={availableWorkers}
                                         searchKey="identificacion"
                                         placeholder="Cédula de ciudadanía"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                     />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Cargo</label>
-                                    <input type="text" value={formData.afectadoCargo} onChange={e => handleInputChange('afectadoCargo', e.target.value)} placeholder="Cargo en la empresa" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.afectadoCargo} onChange={e => handleInputChange('afectadoCargo', e.target.value)} placeholder="Cargo en la empresa" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">EPS</label>
-                                    <input type="text" value={formData.afectadoEps} onChange={e => handleInputChange('afectadoEps', e.target.value)} placeholder="EPS afiliada" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.afectadoEps} onChange={e => handleInputChange('afectadoEps', e.target.value)} placeholder="EPS afiliada" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">ARL</label>
-                                    <input type="text" value={formData.afectadoArl} onChange={e => handleInputChange('afectadoArl', e.target.value)} placeholder="ARL afiliada" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.afectadoArl} onChange={e => handleInputChange('afectadoArl', e.target.value)} placeholder="ARL afiliada" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Tipo de contrato</label>
                                     <div className="relative">
-                                        <select value={formData.tipoContrato} onChange={e => handleInputChange('tipoContrato', e.target.value)} className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
+                                        <select value={formData.tipoContrato} onChange={e => handleInputChange('tipoContrato', e.target.value)} className="w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
                                             <option>Indefinido</option>
                                             <option>Fijo</option>
                                             <option>Obra o labor</option>
@@ -658,7 +658,7 @@ const InvestigacionATEL = () => {
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Jornada laboral</label>
                                     <div className="relative">
-                                        <select value={formData.jornadaLaboral} onChange={e => handleInputChange('jornadaLaboral', e.target.value)} className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
+                                        <select value={formData.jornadaLaboral} onChange={e => handleInputChange('jornadaLaboral', e.target.value)} className="w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
                                             <option>Diurna</option>
                                             <option>Nocturna</option>
                                             <option>Mixta</option>
@@ -673,11 +673,11 @@ const InvestigacionATEL = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Experiencia laboral total (años)</label>
-                                    <input type="text" value={formData.experienciaLaboral} onChange={e => handleInputChange('experienciaLaboral', e.target.value)} placeholder="Ej: 5" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.experienciaLaboral} onChange={e => handleInputChange('experienciaLaboral', e.target.value)} placeholder="Ej: 5" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Tiempo en el cargo actual</label>
-                                    <input type="text" value={formData.tiempoEnCargo} onChange={e => handleInputChange('tiempoEnCargo', e.target.value)} placeholder="Ej: 8 meses" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.tiempoEnCargo} onChange={e => handleInputChange('tiempoEnCargo', e.target.value)} placeholder="Ej: 8 meses" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                             </div>
                         </div>
@@ -719,7 +719,7 @@ const InvestigacionATEL = () => {
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Naturaleza de la lesión</label>
                                     <div className="relative">
-                                        <select value={formData.naturalezaLesion} onChange={e => handleInputChange('naturalezaLesion', e.target.value)} className="w-full appearance-none rounded-lg border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
+                                        <select value={formData.naturalezaLesion} onChange={e => handleInputChange('naturalezaLesion', e.target.value)} className="w-full appearance-none rounded-xl border px-3 py-2 pr-8 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400">
                                             <option value="">Seleccionar...</option>
                                             <option>Golpe / Contusión</option>
                                             <option>Herida / Laceración</option>
@@ -741,20 +741,20 @@ const InvestigacionATEL = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Parte del cuerpo afectada</label>
-                                    <input type="text" value={formData.parteCuerpo} onChange={e => handleInputChange('parteCuerpo', e.target.value)} placeholder="Ej: Mano derecha, rodilla izquierda" className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="text" value={formData.parteCuerpo} onChange={e => handleInputChange('parteCuerpo', e.target.value)} placeholder="Ej: Mano derecha, rodilla izquierda" className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium">Días de incapacidad</label>
-                                    <input type="number" min="0" value={formData.diasIncapacidad} onChange={e => handleInputChange('diasIncapacidad', e.target.value)} className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                    <input type="number" min="0" value={formData.diasIncapacidad} onChange={e => handleInputChange('diasIncapacidad', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                                 </div>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Agente causal del evento</label>
-                                <input type="text" value={formData.agenteCausal} onChange={e => handleInputChange('agenteCausal', e.target.value)} placeholder="Ej: Maquinaria, piso húmedo, material cortante, caída de altura..." className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
+                                <input type="text" value={formData.agenteCausal} onChange={e => handleInputChange('agenteCausal', e.target.value)} placeholder="Ej: Maquinaria, piso húmedo, material cortante, caída de altura..." className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Consecuencias del evento</label>
-                                <textarea value={formData.consecuencias} onChange={e => handleInputChange('consecuencias', e.target.value)} placeholder="Describa las consecuencias para la persona, el proceso y la empresa..." className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary min-h-[80px] resize-y" />
+                                <textarea value={formData.consecuencias} onChange={e => handleInputChange('consecuencias', e.target.value)} placeholder="Describa las consecuencias para la persona, el proceso y la empresa..." className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary min-h-[80px] resize-y" />
                             </div>
                         </div>
 
@@ -765,7 +765,7 @@ const InvestigacionATEL = () => {
                                 subtitle="Personas presentes durante el evento (opcional)"
                             />
                             {testigosList.map((testigo, idx) => (
-                                <div key={idx} className="border border-border-medium rounded-lg p-4 bg-surface-primary space-y-3 relative">
+                                <div key={idx} className="border border-border-medium rounded-xl p-4 bg-surface-primary space-y-3 relative">
                                     <p className="text-xs text-text-secondary font-medium">Testigo {idx + 1}</p>
                                     <div className="flex flex-col md:flex-row gap-3">
                                         <WorkerAutocomplete
@@ -784,7 +784,7 @@ const InvestigacionATEL = () => {
                                             searchKey="nombre"
                                             placeholder="Nombre del testigo"
                                             wrapperClassName="w-full md:w-1/2"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                            className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                         />
                                         <input
                                             type="text"
@@ -795,7 +795,7 @@ const InvestigacionATEL = () => {
                                                 setTestigosList(newL);
                                             }}
                                             placeholder="Cédula"
-                                            className="w-full md:w-1/4 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                            className="w-full md:w-1/4 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"
                                         />
                                         <div className="flex w-full md:w-1/4 gap-2">
                                             <input
@@ -807,11 +807,11 @@ const InvestigacionATEL = () => {
                                                     setTestigosList(newL);
                                                 }}
                                                 placeholder="Cargo"
-                                                className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                                className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"
                                             />
                                             <button
                                                 onClick={() => setTestigosList(testigosList.filter((_, i) => i !== idx))}
-                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors flex-shrink-0"
                                                 disabled={testigosList.length === 1}
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -826,7 +826,7 @@ const InvestigacionATEL = () => {
                                             setTestigosList(newL);
                                         }}
                                         placeholder="Versión del testigo sobre cómo ocurrieron los hechos..."
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary min-h-[80px] resize-y"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary min-h-[80px] resize-y"
                                     />
                                 </div>
                             ))}
@@ -865,7 +865,7 @@ const InvestigacionATEL = () => {
                                         searchKey="nombre"
                                         placeholder="Nombre del investigador"
                                         wrapperClassName="w-full md:w-1/3"
-                                        className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                        className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                     />
                                     <input
                                         type="text"
@@ -875,7 +875,7 @@ const InvestigacionATEL = () => {
                                             newE[idx].rol = e.target.value;
                                             setEquipoList(newE);
                                         }}
-                                        className="w-full md:w-1/3 rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary"
+                                        className="w-full md:w-1/3 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary"
                                         placeholder="Rol en la investigación"
                                     />
                                     <div className="flex w-full md:w-1/3 gap-2">
@@ -898,11 +898,11 @@ const InvestigacionATEL = () => {
                                             searchKey="identificacion"
                                             placeholder="Cédula"
                                             wrapperClassName="w-full"
-                                            className="w-full rounded-lg border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
+                                            className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400"
                                         />
                                         <button
                                             onClick={() => setEquipoList(equipoList.filter((_, i) => i !== idx))}
-                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
+                                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors flex-shrink-0"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>

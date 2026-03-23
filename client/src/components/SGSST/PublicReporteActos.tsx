@@ -151,11 +151,11 @@ export default function PublicReporteActos() {
             <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200 p-4 shrink-0">
                 <div className="flex items-center gap-3">
                     {company.logo ? (
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 shrink-0 bg-white">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-200 shrink-0 bg-white">
                             <img src={company.logo} alt="Logo" className="w-full h-full object-contain" />
                         </div>
                     ) : (
-                        <div className="w-10 h-10 rounded-lg bg-[#10b981]/10 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-[#10b981]/10 flex items-center justify-center shrink-0">
                             <Shield className="w-5 h-5 text-[#10b981]" />
                         </div>
                     )}
@@ -255,16 +255,16 @@ export default function PublicReporteActos() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Fecha</label>
-                                        <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} className="w-full border-gray-300 rounded-lg text-sm bg-gray-50 py-2.5 focus:ring-orange-500 focus:border-orange-500" />
+                                        <input type="date" value={fecha} onChange={e=>setFecha(e.target.value)} className="w-full border-gray-300 rounded-xl text-sm bg-gray-50 py-2.5 focus:ring-orange-500 focus:border-orange-500" />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Hora (Aprox)</label>
-                                        <input type="time" value={hora} onChange={e=>setHora(e.target.value)} className="w-full border-gray-300 rounded-lg text-sm bg-gray-50 py-2.5 focus:ring-orange-500 focus:border-orange-500" />
+                                        <input type="time" value={hora} onChange={e=>setHora(e.target.value)} className="w-full border-gray-300 rounded-xl text-sm bg-gray-50 py-2.5 focus:ring-orange-500 focus:border-orange-500" />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ubicación Exacta</label>
-                                    <input type="text" placeholder="Ej: Bodega 2, Pasillo A" value={ubicacion} onChange={e=>setUbicacion(e.target.value)} className="w-full border-gray-300 rounded-lg text-sm bg-gray-50 py-2.5 focus:ring-orange-500 focus:border-orange-500 font-medium" />
+                                    <input type="text" placeholder="Ej: Bodega 2, Pasillo A" value={ubicacion} onChange={e=>setUbicacion(e.target.value)} className="w-full border-gray-300 rounded-xl text-sm bg-gray-50 py-2.5 focus:ring-orange-500 focus:border-orange-500 font-medium" />
                                 </div>
                                 <div>
                                     <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Descripción Detallada</label>

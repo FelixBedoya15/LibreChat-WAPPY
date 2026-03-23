@@ -356,7 +356,7 @@ const EstadisticasATEL = () => {
             {/* Header / Toolbar */}
             <div className="flex flex-col items-start justify-center gap-4 p-4 rounded-xl bg-surface-secondary border border-border-medium shadow-sm">
                 <div className="flex flex-wrap items-center gap-3 w-full">
-                    <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                    <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
                         <BarChart className="h-6 w-6" />
                     </div>
                     <div>
@@ -463,7 +463,7 @@ const EstadisticasATEL = () => {
                                         value={currentData?.numTrabajadores || ''}
                                         onChange={(e) => updateMonthData('numTrabajadores', Number(e.target.value))}
                                         placeholder="Ej: 50"
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
+                                        className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
                                     />
                                 </div>
                                 <div className="space-y-1.5">
@@ -473,7 +473,7 @@ const EstadisticasATEL = () => {
                                         value={currentData?.diasProgramados || ''}
                                         onChange={(e) => updateMonthData('diasProgramados', Number(e.target.value))}
                                         placeholder="Ej: 24"
-                                        className="w-full rounded-lg border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
+                                        className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 transition-colors"
                                     />
                                 </div>
                             </div>
@@ -487,7 +487,7 @@ const EstadisticasATEL = () => {
 
                             {/* 3. Auto-calculated Summary Badge */}
                             <div className="flex flex-col md:flex-row gap-4">
-                                <div className="flex-1 flex flex-wrap gap-2 text-xs text-text-secondary p-3 bg-surface-tertiary rounded-lg border border-border-medium">
+                                <div className="flex-1 flex flex-wrap gap-2 text-xs text-text-secondary p-3 bg-surface-tertiary rounded-xl border border-border-medium">
                                     <span className="font-semibold text-text-primary">Resumen Mes:</span>
                                     <span>AT: <strong className="text-teal-600">{stats.numAT}</strong></span> •
                                     <span>EL: <strong className="text-green-600">{stats.casosNuevosEL}</strong></span> •

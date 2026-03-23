@@ -519,7 +519,7 @@ const DashboardPredictivo = () => {
                                 <div className="space-y-2">
                                     {forecast?.recommendedActions?.length ? forecast.recommendedActions.map((action, i) => (
                                         <div key={i} className="flex items-start gap-3 p-3 bg-surface-primary rounded-xl border border-border-medium hover:border-green-400/50 hover:shadow-sm transition-all group">
-                                            <div className="mt-0.5 h-6 w-6 rounded-lg flex items-center justify-center text-xs font-black text-white shrink-0 group-hover:scale-110 transition-transform"
+                                            <div className="mt-0.5 h-6 w-6 rounded-xl flex items-center justify-center text-xs font-black text-white shrink-0 group-hover:scale-110 transition-transform"
                                                 style={{ background: 'linear-gradient(135deg, #10b981, #0d9488)' }}>
                                                 {i + 1}
                                             </div>
@@ -527,7 +527,7 @@ const DashboardPredictivo = () => {
                                         </div>
                                     )) : [1, 2, 3].map(i => (
                                         <div key={i} className="flex items-center gap-3 p-3 bg-surface-primary rounded-xl border border-border-light">
-                                            <div className="h-6 w-6 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse shrink-0" />
+                                            <div className="h-6 w-6 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse shrink-0" />
                                             <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
                                         </div>
                                     ))}
@@ -545,7 +545,7 @@ const DashboardPredictivo = () => {
                         onClick={() => setIsReportCollapsed(!isReportCollapsed)}
                     >
                         <div className="flex flex-wrap items-center gap-3 w-full">
-                            <div className="p-2 rounded-lg bg-[#10b981]/20 text-[#10b981]">
+                            <div className="p-2 rounded-xl bg-[#10b981]/20 text-[#10b981]">
                                 <LineChart className="h-5 w-5" />
                             </div>
                             <div>
@@ -555,9 +555,13 @@ const DashboardPredictivo = () => {
                         </div>
                         <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
                             <button onClick={() => handleSaveReport()}
-                                className="group flex items-center px-3 py-2 bg-[#10b981] hover:bg-[#059669] text-white rounded-full transition-all duration-300 shadow-sm font-bold text-xs">
-                                <AnimatedIcon name="save" size={16} />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar en Historial</span>
+                                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-[#10b981] hover:bg-[#059669] text-white">
+                                <div className="relative flex-shrink-0 flex items-center justify-center">
+                                    <AnimatedIcon name="save" size={20} />
+                                </div>
+                                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                    <span className="text-sm font-bold tracking-wide">Guardar en Historial</span>
+                                </div>
                             </button>
                             <ExportDropdown
                                 content={editorContent || generatedReport || ''}
