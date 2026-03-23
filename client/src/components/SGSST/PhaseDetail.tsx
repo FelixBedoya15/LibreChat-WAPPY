@@ -28,6 +28,7 @@ import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MetodoOwas from './MetodoOwas';
 import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
 import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
+import ParticipacionIPEVAR from './ParticipacionIPEVAR';
 import PerfilesCargo from './PerfilesCargo';
 import DashboardPredictivo from './DashboardPredictivo';
 
@@ -426,6 +427,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'permiso_alturas' && (
                                                     <div className="mb-6">
                                                         <PermisoAlturas />
+                                                    </div>
+                                                )}
+
+                                                {/* Show ParticipacionIPEVAR for participacion_ipevar category */}
+                                                {category.id === 'participacion_ipevar' && (
+                                                    <div className="mb-6">
+                                                        <ParticipacionIPEVAR />
                                                     </div>
                                                 )}
 

@@ -472,9 +472,9 @@ Tabla completa y detallada con columnas:
 - **PRECAUCIÓN MODO OSCURO:** Todo texto debe tener \`color\` explícito.
 - **Contenedores:** \`width: 100%; box-sizing: border-box;\`.
 - **Cada vez** que apliques \`background-color\` a un tr, td o div, DEBES también especificar \`color\` explícito (\`color: #000;\` si el fondo es claro).
-- **TABLAS:** Nunca uses colores intercalados (striped). Tablas simples con \`border-collapse: separate\`.
+- **TABLAS:** Nunca uses colores intercalados (striped). Tablas simples con \`border-collapse: separate\`. DEBEN ir OBLIGATORIAMENTE envueltas en un \`<div style="overflow-x: auto; width: 100%; padding-bottom: 15px;">\`.
+- **Estilos Tablas:** \`<table style="width: 100%; table-layout: auto; word-wrap: break-word; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;">\`. TH: \`background-color: #0f766e; color: white; padding: 12px;\`. TD: \`padding: 10px; border-bottom: 1px solid #e2e8f0;\`.
 - **SECCIONES:** Usa cajas con \`border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px;\`.
-- **Tablas:** \`width: 100%; min-width: 700px; border-collapse: separate; border-spacing: 0; border-radius: 12px; border: 1px solid #ddd;\`. TH: \`background-color: #0f766e; color: white; padding: 12px;\`. TD: \`padding: 10px; border-bottom: 1px solid #e2e8f0;\`.
 - **Barras:** Un div externo \`background-color: #e2e8f0; border-radius: 8px; height: 28px;\` con un div interno \`background-color: #0f766e; color: white; border-radius: 8px; height: 100%; display: flex; align-items: center; padding-left: 10px; font-size: 13px; font-weight: bold;\` con \`width: XX%\`.
 - NO incluyas título H1 (ya está en el encabezado del sistema).`;
 
