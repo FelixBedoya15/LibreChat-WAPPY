@@ -12,6 +12,8 @@ import {
     FileText,
     Plus,
     Trash2,
+    Inbox,
+    MessageSquare,
     AlertTriangle,
     Users,
     UserCheck,
@@ -172,6 +174,7 @@ const InvestigacionATEL = () => {
     const [isVideoUploading, setIsVideoUploading] = useState(false);
     const [inboxTestimonios, setInboxTestimonios] = useState<any[]>([]);
     const [showInbox, setShowInbox] = useState(false);
+    const [showQrModal, setShowQrModal] = useState(false);
 
     // Equipo Investigador (Res 1401/2007 art. 7: jefe inmediato + COPASST + encargado SST)
     const [equipoList, setEquipoList] = useState([
@@ -382,11 +385,6 @@ const InvestigacionATEL = () => {
 
     const removeVideo = () => setVideo(null);
 
-    const generateTestimonyLink = () => {
-        const url = `${window.location.origin}/sgsst-public/atel-testimonio/${user?.id}`;
-        navigator.clipboard.writeText(url);
-        showToast({ message: 'Enlace del portal de testimonios copiado al portapapeles.', status: 'success' });
-    };
 
     const handleDismissTestimony = async (id: string) => {
         try {
@@ -632,68 +630,68 @@ const InvestigacionATEL = () => {
 
                 {isFormExpanded && (
                     <div className="grid grid-cols-1 gap-8">
-                        {/* ── BANDEJA DE TESTIMONIOS (INBOX) ── */}
-                        {inboxTestimonios.length > 0 && (
-                            <div className="mb-2 bg-amber-50/50 border border-amber-200 rounded-2xl p-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className="flex items-center gap-2 text-amber-800">
-                                        <div className="relative">
-                                            <MessageSquare className="h-5 w-5" />
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1 rounded-full animate-pulse">{inboxTestimonios.length}</span>
-                                        </div>
-                                        <h3 className="font-bold text-sm uppercase tracking-wider">Bandeja de Testimonios Recibidos</h3>
-                                    </div>
-                                    <button 
-                                        onClick={() => setShowInbox(!showInbox)}
-                                        className="text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full border border-amber-200"
-                                    >
-                                        {showInbox ? 'Ocultar Bandeja' : 'Ver Testimonios'}
-                                    </button>
+                {/* ── QR CODE MODAL ── */}
+                {showQrModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
+                        <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium" onClick={e => e.stopPropagation()}>
+                            {/* Modal Header */}
+                            <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
+                                <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                                <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
+                                    <QrCode className="w-7 h-7 text-white" />
                                 </div>
-
-                                {showInbox && (
-                                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                                        {inboxTestimonios.map((item) => (
-                                            <div key={item.id} className="bg-white border border-amber-100 rounded-xl p-3 shadow-sm hover:border-amber-300 transition-all">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <p className="font-bold text-sm text-gray-900">{item.testigo.nombre}</p>
-                                                        <p className="text-[10px] text-gray-500 font-medium italic">{item.testigo.cargo} • CC: {item.testigo.cedula}</p>
-                                                    </div>
-                                                    <span className="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold uppercase">
-                                                        {new Date(item.createdAt).toLocaleDateString()}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-gray-700 line-clamp-3 bg-gray-50 p-2 rounded-lg border border-gray-100 mb-3">{item.testimonio}</p>
-                                                
-                                                {/* Media preview from inbox */}
-                                                {(item.media?.foto1 || item.media?.video) && (
-                                                    <div className="flex gap-2 mb-3">
-                                                        {item.media.foto1 && <img src={item.media.foto1} className="w-12 h-12 rounded-lg object-cover border border-gray-200" />}
-                                                        {item.media.video && <div className="w-12 h-12 rounded-lg bg-black flex items-center justify-center"><Film className="h-4 w-4 text-white" /></div>}
-                                                    </div>
-                                                )}
-
-                                                <div className="flex gap-2 justify-end">
-                                                    <button 
-                                                        onClick={() => handleDismissTestimony(item.id)}
-                                                        className="flex items-center gap-1 text-[10px] font-bold text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" /> Descartar
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleAcceptTestimony(item)}
-                                                        className="flex items-center gap-1 text-[10px] font-bold bg-teal-600 text-white hover:bg-teal-700 px-3 py-2 rounded-lg transition-all shadow-sm active:scale-95"
-                                                    >
-                                                        <Check className="h-3.5 w-3.5" /> Aceptar e Incorporar
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <h3 className="font-bold text-xl uppercase tracking-wider">Portal Público de Testigos</h3>
                             </div>
-                        )}
+
+                            {/* QR Code Body */}
+                            <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5">
+                                <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
+                                    Comparte este código o enlace. Los testigos podrán radicar su versión desde su celular de forma segura.
+                                </p>
+                                
+                                <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
+                                    <img 
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id}`)}`} 
+                                        alt="QR Code" 
+                                        className="w-40 h-40 mx-auto"
+                                    />
+                                </div>
+                                
+                                <div className="w-full space-y-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Enlace de acceso público</p>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            readOnly 
+                                            value={`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id}`}
+                                            className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
+                                        />
+                                        <button 
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/atel-testimonio/${user?.id || user?._id}`);
+                                                showToast({ message: 'Enlace del portal de testimonios copiado al portapapeles.', status: 'success' });
+                                            }}
+                                            className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                                        >
+                                            Copiar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
+                                <button
+                                    onClick={() => setShowQrModal(false)}
+                                    className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                         {/* ── SECCIÓN 1: Datos del Evento ── */}
                         <div className="border rounded-xl p-5 bg-surface-tertiary/20 space-y-4">
@@ -925,17 +923,101 @@ const InvestigacionATEL = () => {
                             </div>
                         </div>
 
-                        {/* ── SECCIÓN 4: Testigos ── */}
+                        {/* ── SECCIÓN 4: Testigos (Relato de los hechos) ── */}
                         <div className="border rounded-xl p-5 bg-surface-tertiary/20 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-text-primary text-sm italic">4. Testigos (Relato de los hechos)</h4>
-                                <button
-                                    onClick={generateTestimonyLink}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-xl text-[10px] font-bold hover:bg-teal-100 transition-all active:scale-95 shadow-sm"
-                                >
-                                    <QrCode className="h-3.5 w-3.5" /> Generar Link/QR para Testigos
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setShowInbox(!showInbox)}
+                                        className={`relative w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm ${showInbox ? 'bg-amber-100 border-amber-300 text-amber-600 shadow-inner' : 'bg-white border-border-medium text-gray-400 hover:text-amber-500 hover:border-amber-200'}`}
+                                        title="Bandeja de Testimonios"
+                                    >
+                                        <Inbox className="h-5 w-5" />
+                                        {inboxTestimonios.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full animate-pulse shadow-md border border-white">
+                                                {inboxTestimonios.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowQrModal(true)}
+                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-border-medium text-gray-400 hover:text-teal-500 hover:border-teal-200 transition-all shadow-sm"
+                                        title="Portal Público / QR"
+                                    >
+                                        <QrCode className="h-5 w-5" />
+                                    </button>
+                                </div>
                             </div>
+
+                            {/* ── BANDEJA DE TESTIMONIOS (INBOX) INTEGRADA ── */}
+                            {showInbox && inboxTestimonios.length > 0 && (
+                                <div className="mb-4 bg-amber-50/70 border border-amber-200 rounded-2xl p-4 shadow-inner animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="flex items-center gap-2 text-amber-800 mb-3 border-b border-amber-100 pb-2">
+                                        <MessageSquare className="h-4 w-4" />
+                                        <h5 className="font-bold text-xs uppercase tracking-wider">Testimonios Pendientes</h5>
+                                    </div>
+                                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {inboxTestimonios.map((item) => (
+                                            <div key={item.id} className="bg-white border border-amber-100 rounded-xl p-3 shadow-sm hover:border-amber-300 transition-all group">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900 text-xs truncate max-w-[180px]" title={item.testigo.nombre}>{item.testigo.nombre}</h4>
+                                                        <p className="text-[10px] text-gray-500 font-medium italic">{item.testigo.cargo} • CC: {item.testigo.cedula}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleDismissTestimony(item.id); }}
+                                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Descartar"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleAcceptTestimony(item); }}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-[10px] font-black hover:bg-teal-700 shadow-sm active:scale-95 transition-all"
+                                                        >
+                                                            <Check className="h-3 w-3" /> Aceptar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-gray-700 line-clamp-3 bg-gray-50 p-2 rounded-lg border border-gray-100 leading-relaxed font-medium">"{item.testimonio}"</p>
+                                                
+                                                {/* Multimedia preview */}
+                                                {(item.testigo.foto1 || item.testigo.foto2 || item.testigo.video) && (
+                                                    <div className="flex gap-2 mt-2">
+                                                        {item.testigo.foto1 && (
+                                                            <div className="relative group/img">
+                                                                <img src={item.testigo.foto1} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shadow-sm cursor-zoom-in transition-transform group-hover/img:scale-105" />
+                                                                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 rounded-lg transition-colors" />
+                                                            </div>
+                                                        )}
+                                                        {item.testigo.foto2 && (
+                                                            <div className="relative group/img">
+                                                                <img src={item.testigo.foto2} className="w-10 h-10 rounded-lg object-cover border border-gray-200 shadow-sm cursor-zoom-in transition-transform group-hover/img:scale-105" />
+                                                                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 rounded-lg transition-colors" />
+                                                            </div>
+                                                        )}
+                                                        {item.testigo.video && (
+                                                            <div className="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center shadow-sm relative overflow-hidden group/vid">
+                                                                <Video className="h-4 w-4 text-teal-400" />
+                                                                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/vid:opacity-100 transition-opacity" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {showInbox && inboxTestimonios.length === 0 && (
+                                <div className="mb-4 bg-teal-50/50 border border-teal-100 rounded-2xl p-6 text-center animate-in fade-in slide-in-from-top-2">
+                                    <Check className="w-8 h-8 text-teal-400 mx-auto mb-2" />
+                                    <p className="text-xs text-teal-700 font-bold">No hay testimonios pendientes por revisar.</p>
+                                </div>
+                            )}
                             {testigosList.map((testigo, idx) => (
                                 <div key={idx} className="border border-border-medium rounded-xl p-4 bg-surface-primary space-y-3 relative">
                                     <p className="text-xs text-text-secondary font-medium">Testigo {idx + 1}</p>

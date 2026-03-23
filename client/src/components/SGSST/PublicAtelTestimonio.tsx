@@ -22,6 +22,9 @@ export default function PublicAtelTestimonio() {
     const [activePhotoField, setActivePhotoField] = useState<'foto1'|'foto2'>('foto1');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitResult, setSubmitResult] = useState<{success: boolean; message: string} | null>(null);
+    const [isListening, setIsListening] = useState(false);
+    const [interimText, setInterimText] = useState('');
+    const recognitionRef = useRef<any>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -105,6 +108,71 @@ export default function PublicAtelTestimonio() {
             return;
         }
         setStep(3);
+    };
+
+    const handleVoiceInput = () => {
+        if (isListening) {
+            if (recognitionRef.current) {
+                try { recognitionRef.current.stop(); } catch (e) { }
+            }
+            setIsListening(false);
+            setInterimText('');
+            return;
+        }
+
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('Su navegador no soporta reconocimiento de voz. Intente con Chrome.');
+            return;
+        }
+
+        try {
+            const recognition = new SpeechRecognition();
+            recognitionRef.current = recognition;
+            recognition.lang = 'es-CO';
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                setIsListening(true);
+                setInterimText('');
+            };
+
+            recognition.onresult = (event: any) => {
+                let currentInterim = '';
+                let newFinal = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        newFinal += event.results[i][0].transcript;
+                    } else {
+                        currentInterim += event.results[i][0].transcript;
+                    }
+                }
+
+                if (newFinal) {
+                    setTestimonio(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + newFinal);
+                }
+                setInterimText(currentInterim);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error('Speech error:', event.error);
+                setIsListening(false);
+                setInterimText('');
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+                setInterimText('');
+            };
+
+            recognition.start();
+        } catch (e) {
+            setIsListening(false);
+            alert('Error al iniciar reconocimiento');
+        }
     };
 
     const handleSubmit = async () => {
@@ -241,9 +309,14 @@ export default function PublicAtelTestimonio() {
                                         onChange={e=>setTestimonio(e.target.value)}
                                     ></textarea>
                                     <div className="absolute bottom-3 right-3 flex gap-2">
-                                        <div className="p-2 bg-teal-100 text-teal-600 rounded-full hover:bg-teal-200 transition-colors cursor-pointer">
+                                        {interimText && <span className="text-[10px] text-teal-600 bg-teal-50 px-2 py-1 rounded-lg border border-teal-100 animate-pulse max-w-[150px] truncate">{interimText}</span>}
+                                        <button 
+                                            onClick={handleVoiceInput}
+                                            className={`p-2 rounded-full transition-all cursor-pointer shadow-sm ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-teal-100 text-teal-600 hover:bg-teal-200'}`}
+                                            title={isListening ? 'Detener dictado' : 'Dictar testimonio'}
+                                        >
                                             <Mic className="w-4 h-4" />
-                                        </div>
+                                        </button>
                                     </div>
                                 </div>
                                 <p className="text-[10px] text-gray-400 italic">Recuerda ser lo más objetivo posible en tu relato.</p>
