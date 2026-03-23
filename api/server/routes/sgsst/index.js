@@ -18,6 +18,7 @@ const analisisTrabajoSeguro = require('./analisisTrabajoSeguro');
 const metodoOwas = require('./metodoOwas');
 const analisisVulnerabilidad = require('./analisisVulnerabilidad');
 const predictivo = require('./predictivo');
+const participacionIpevar = require('./participacionIpevar');
 
 
 
@@ -43,6 +44,7 @@ module.exports = {
     metodoOwas,
     analisisVulnerabilidad,
     predictivo,
+    participacionIpevar,
     signatures: require('./signatures'),
 };
 

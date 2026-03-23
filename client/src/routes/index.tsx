@@ -1,6 +1,7 @@
 import SGSSTDashboard from '~/components/SGSST/Dashboard';
 import PublicReportView from '~/components/SGSST/PublicReportView';
 import PublicReporteActos from '~/components/SGSST/PublicReporteActos';
+import PublicParticipacionIPEVAR from '~/components/SGSST/PublicParticipacionIPEVAR';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
@@ -64,6 +65,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/reportar/:companyId',
       element: <PublicReporteActos />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/ipevar/:companyId',
+      element: <PublicParticipacionIPEVAR />,
       errorElement: <RouteErrorBoundary />,
     },
     {

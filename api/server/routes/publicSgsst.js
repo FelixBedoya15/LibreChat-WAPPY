@@ -158,4 +158,83 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
     }
 });
 
+// ─── POST /api/public-sgsst/participacion-ipevar/:companyId ───────────────────────
+// Submit a new Participacion IPEVAR Trabajadores report from a worker
+router.post('/participacion-ipevar/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { cedula, nombre, data } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
+        if (!cedula || !nombre) {
+            return res.status(400).json({ error: 'Nombre y Cédula son obligatorios para la participación' });
+        }
+
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+
+        if (!PerfilSociodemograficoData || !ParticipacionIpevarData) {
+            return res.status(500).json({ error: 'Los modelos de datos no están listos' });
+        }
+
+        // 1. Validar identidad cruzada con el Perfil Sociodemográfico
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+            return res.status(404).json({ 
+                error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' 
+            });
+        }
+
+        const formatStr = (s) => String(s).trim().toLowerCase();
+        
+        const workerFound = perfil.trabajadores.find(t => 
+            formatStr(t.identificacion) === formatStr(cedula)
+        );
+
+        if (!workerFound) {
+            return res.status(403).json({ 
+                error: 'Cédula no encontrada en la base de datos de esta empresa. No tiene autorización.' 
+            });
+        }
+
+        const workerNameParts = formatStr(workerFound.nombre).split(' ').filter(p => p.length > 2);
+        const inputNameFormat = formatStr(nombre);
+        
+        const nameMatches = workerNameParts.some(part => inputNameFormat.includes(part));
+        if (!nameMatches && workerFound.nombre) {
+            return res.status(403).json({ 
+                error: 'El nombre ingresado no coincide con el registrado para esta cédula.' 
+            });
+        }
+
+        // 2. Crear el objeto para el Inbox
+        const newInboxItem = {
+            id: new mongoose.Types.ObjectId().toString(),
+            trabajador: {
+                nombre: workerFound.nombre,
+                cedula: workerFound.identificacion,
+                cargo: workerFound.cargo || 'No especificado'
+            },
+            data: data || {}, // contains foto, tarea, peligros, controlesExistentes, etc
+            createdAt: new Date()
+        };
+
+        // 3. Guardar en el Inbox Público de ParticipacionIpevarData
+        await ParticipacionIpevarData.findOneAndUpdate(
+            { user: companyId },
+            { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
+            { upsert: true, new: true }
+        );
+
+        res.json({ success: true, message: 'Su participación ha sido enviada exitosamente al equipo SGSST.' });
+
+    } catch (error) {
+        logger.error('[Public SGSST] Participacion IPEVAR submission error:', error);
+        res.status(500).json({ error: 'Error al procesar la participación' });
+    }
+});
+
 module.exports = router;
