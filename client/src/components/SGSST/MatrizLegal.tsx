@@ -23,11 +23,11 @@ import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
+import SGSSTToolbar from './SGSSTToolbar';
 import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
-import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
-import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 
 interface ComplianceStatus {
     itemId: string;
@@ -377,89 +377,21 @@ const MatrizLegal = () => {
                     </div>
                 </div>
 
-                {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
-                <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto">
-                    
-                    {/* Grupo 1: Historial */}
-                    <div className="flex items-center gap-2 px-1">
-                        <button 
-                            onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
-                            title="Historial de Matrices"
-                            className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
-                        >
-                            <AnimatedIcon name="history" size={20} />
-                        </button>
-                    </div>
+                <SGSSTToolbar
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
+                    onAnalyze={handleGenerate}
+                    isAnalyzing={isAnalyzing}
+                    selectedModel={selectedModel}
+                    onSelectModel={setSelectedModel}
+                    onSaveLocal={handleSaveData}
+                    onSave={handleSaveReport}
+                    hasContent={!!(editorContent || generatedMatrix)}
+                    exportContent={editorContent || generatedMatrix || ''}
+                    exportFileName="Matriz_Legal_SGSST"
+                    onDummy={handleDummyData}
+                />
 
-                    <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                    {/* Grupo 2: Inteligencia Artificial */}
-                    <div className="flex items-center gap-2 px-1">
-                        <button 
-                            onClick={() => handleGenerate()} 
-                            disabled={isAnalyzing} 
-                            title="Generar Matriz Legal con IA"
-                            className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
-                        >
-                            {isAnalyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
-                        </button>
-
-                        <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
-                            <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isAnalyzing} />
-                        </div>
-                    </div>
-
-                    <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                    {/* Grupo 3: Persistencia */}
-                    <div className="flex items-center gap-2 px-1">
-                        <button 
-                            onClick={() => handleSaveData()} 
-                            disabled={isSavingData}
-                            title="Guardar Avance de Evaluación"
-                            className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
-                        >
-                            {isSavingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <AnimatedIcon name="database" size={20} />}
-                        </button>
-
-                        <button 
-                            onClick={() => handleSaveReport()} 
-                            disabled={!editorContent && !generatedMatrix} 
-                            title="Guardar Informe en Historial"
-                            className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                            <AnimatedIcon name="save" size={20} />
-                        </button>
-                    </div>
-
-                    <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                    {/* Grupo 4: Salida */}
-                    <div className="flex items-center gap-2 px-1">
-                        {(editorContent || generatedMatrix) ? (
-                            <div title="Exportar Documento">
-                                <ExportDropdown content={editorContent || generatedMatrix || ''} fileName="Matriz_Legal_SGSST" />
-                            </div>
-                        ) : (
-                            <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                                <Download className="h-5 w-5" />
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                    {/* Grupo 5: Pruebas */}
-                    <div className="flex items-center gap-2 px-1">
-                        <button 
-                            onClick={handleDummyData} 
-                            title="Generar Datos de Prueba"
-                            className="flex items-center justify-center w-12 h-10 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition-all duration-300 shadow-md shrink-0 cursor-pointer transform hover:rotate-12"
-                        >
-                            <AnimatedIcon name="robot" size={20} />
-                        </button>
-                    </div>
-                </div>
             </div>
 
             {/* History Panel */}

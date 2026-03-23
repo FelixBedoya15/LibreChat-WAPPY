@@ -22,8 +22,8 @@ import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
+import SGSSTToolbar from './SGSSTToolbar';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
-import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import ModelSelector from './ModelSelector';
 import { useAutoLoadReport } from './useAutoLoadReport';
@@ -461,82 +461,52 @@ const InvestigacionATEL = () => {
         setIsHistoryOpen(false);
     }, [token, showToast]);
 
-            {/* ═══ Toolbar Principal Estabilizada Agrupada ═══ */}
-            <div className="flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto">
-                
-                {/* Grupo 1: Historial */}
-                <div className="flex items-center gap-2 px-1">
-                    <button 
-                        onClick={() => setIsHistoryOpen(!isHistoryOpen)} 
-                        title="Historial de Investigaciones ATEL"
-                        className={`flex items-center justify-center w-12 h-10 border border-border-medium rounded-xl transition-all duration-300 shadow-sm shrink-0 cursor-pointer ${isHistoryOpen ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/10' : 'bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400'}`}
-                    >
-                        <AnimatedIcon name="history" size={20} />
-                    </button>
-                </div>
+    useAutoLoadReport({
+        token,
+        tags: ['sgsst-investigacion-atel'],
+        generatedReport: generatedObjectives,
+        handleSelectReport
+    });
 
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                {/* Grupo 2: Inteligencia Artificial */}
-                <div className="flex items-center gap-2 px-1">
-                    <button 
-                        onClick={() => handleGenerate()} 
-                        disabled={isGenerating} 
-                        title="Generar Informe ATEL con IA"
-                        className="flex items-center justify-center w-16 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl transition-all duration-300 shadow-md shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transform hover:scale-105"
-                    >
-                        {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : <AnimatedIcon name="sparkles" size={22} />}
-                    </button>
-
-                    <div className="flex items-center justify-center bg-surface-primary border border-border-medium rounded-xl h-10 px-1 hover:border-teal-400 transition-colors shadow-sm" title="Seleccionar Modelo IA">
-                        <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} disabled={isGenerating} />
+    return (
+        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header & Main Toolbar */}
+            <div className="flex flex-col items-center gap-6 mb-6">
+                <div className="flex items-center gap-4 text-center">
+                    <div className="p-3 rounded-2xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 shadow-sm">
+                        <ShieldAlert className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-black text-text-primary tracking-tight">Investigación de Accidentes e Incidentes (ATEL)</h2>
+                        <p className="text-sm text-text-secondary font-medium">Resolución 1401 de 2007</p>
                     </div>
                 </div>
 
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                {/* Grupo 3: Persistencia */}
-                <div className="flex items-center gap-2 px-1">
-                    <button 
-                        onClick={() => handleSaveData()} 
-                        title="Guardar Datos del Formulario"
-                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-blue-400 text-blue-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 cursor-pointer"
-                    >
-                        <AnimatedIcon name="database" size={20} />
-                    </button>
-
-                    <button 
-                        onClick={() => handleSave()} 
-                        disabled={!editorContent && !generatedObjectives} 
-                        title="Guardar Informe en Historial"
-                        className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium hover:bg-surface-hover hover:border-purple-400 text-purple-600 rounded-xl transition-all duration-300 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                        <AnimatedIcon name="save" size={20} />
-                    </button>
-                </div>
-
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                {/* Grupo 4: Salida */}
-                <div className="flex items-center gap-2 px-1">
-                    {editorContent || generatedObjectives ? (
-                        <div title="Exportar Documento">
-                            <ExportDropdown content={editorContent || generatedObjectives || ''} fileName={"Investigacion_ATEL"} />
-                        </div>
-                    ) : (
-                        <button disabled title="Exportar (Gere primero el informe)" className="flex items-center justify-center w-12 h-10 bg-surface-primary border border-border-medium text-text-tertiary rounded-xl opacity-30 shadow-sm shrink-0 cursor-not-allowed">
-                            <Download className="h-5 w-5" />
-                        </button>
-                    )}
-                </div>
-
-                <div className="h-6 w-px bg-border-medium/60 mx-1" />
-
-                {/* Grupo 5: Pruebas */}
-                <div className="flex items-center gap-2 px-1">
-                    <DummyGenerateButton onClick={handleDummyData} />
-                </div>
+                <SGSSTToolbar
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                    isHistoryOpen={isHistoryOpen}
+                    onAnalyze={handleGenerate}
+                    isAnalyzing={isGenerating}
+                    selectedModel={selectedModel}
+                    onSelectModel={setSelectedModel}
+                    onSaveLocal={handleSaveData}
+                    onSave={handleSave}
+                    hasContent={!!(editorContent || generatedObjectives)}
+                    exportContent={editorContent || generatedObjectives || ''}
+                    exportFileName="Investigacion_ATEL"
+                    onDummy={handleDummyData}
+                />
             </div>
+
+            {/* History Panel */}
+            {isHistoryOpen && (
+                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                    <ReportHistory
+                        onSelectReport={handleSelectReport}
+                        isOpen={isHistoryOpen}
+                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
+                        refreshTrigger={refreshTrigger}
+                        tags={['sgsst-investigacion-atel']}
                     />
                 </div>
             )}
