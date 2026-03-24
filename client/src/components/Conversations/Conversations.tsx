@@ -1,10 +1,14 @@
 import { useMemo, memo, type FC, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import throttle from 'lodash/throttle';
+import { Plus, Bookmark, Shield, Camera, PanelLeft } from 'lucide-react';
 import { Spinner, useMediaQuery } from '@librechat/client';
 import { List, AutoSizer, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
 import { TConversation } from 'librechat-data-provider';
-import { useLocalize, TranslationKeys } from '~/hooks';
-import { groupConversationsByDate } from '~/utils';
+import { useLocalize, TranslationKeys, useNewConvo } from '~/hooks';
+import { groupConversationsByDate, clearMessagesCache, cn } from '~/utils';
+import store from '~/store';
 import Convo from './Convo';
 
 interface ConversationsProps {
@@ -15,6 +19,7 @@ interface ConversationsProps {
   loadMoreConversations: () => void;
   isLoading: boolean;
   isSearchLoading: boolean;
+  subHeaders?: React.ReactNode;
 }
 
 const LoadingSpinner = memo(() => {
@@ -42,6 +47,7 @@ const DateLabel: FC<{ groupName: string }> = memo(({ groupName }) => {
 DateLabel.displayName = 'DateLabel';
 
 type FlattenedItem =
+  | { type: 'actions' }
   | { type: 'header'; groupName: string }
   | { type: 'convo'; convo: TConversation }
   | { type: 'loading' };
@@ -75,10 +81,42 @@ const Conversations: FC<ConversationsProps> = ({
   loadMoreConversations,
   isLoading,
   isSearchLoading,
+  subHeaders,
 }) => {
   const localize = useLocalize();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { newConversation: newConvo } = useNewConvo();
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const convoHeight = isSmallScreen ? 44 : 34;
+
+  const clickHandler = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
+      if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        clearMessagesCache(queryClient);
+        newConvo();
+        navigate('/c/new');
+        store.set(store.isFullWidth, false);
+      }
+    },
+    [newConvo, navigate, queryClient],
+  );
+
+  const ActionButton = ({ icon, label, onClick, className = "" }: { icon: React.ReactNode, label: string, onClick?: (e: any) => void, className?: string }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex h-10 w-full items-center gap-3 rounded-xl border border-border-light/50 bg-white px-3 text-sm font-medium text-text-primary transition-all hover:bg-surface-hover hover:border-border-medium shadow-sm",
+        className
+      )}
+    >
+      <div className="flex-shrink-0 text-text-tertiary">
+        {icon}
+      </div>
+      <span className="truncate">{label}</span>
+    </button>
+  );
 
   const filteredConversations = useMemo(
     () => rawConversations.filter((c): c is TConversation =>
@@ -94,6 +132,10 @@ const Conversations: FC<ConversationsProps> = ({
 
   const flattenedItems = useMemo(() => {
     const items: FlattenedItem[] = [];
+    
+    // Prepend Actions
+    items.push({ type: 'actions' });
+
     groupedConversations.forEach(([groupName, convos]) => {
       items.push({ type: 'header', groupName });
       items.push(...convos.map((convo) => ({ type: 'convo' as const, convo })));
@@ -112,13 +154,16 @@ const Conversations: FC<ConversationsProps> = ({
         defaultHeight: convoHeight,
         keyMapper: (index) => {
           const item = flattenedItems[index];
-          if (item.type === 'header') {
+          if (item?.type === 'actions') {
+            return 'actions-row';
+          }
+          if (item?.type === 'header') {
             return `header-${index}`;
           }
-          if (item.type === 'convo') {
+          if (item?.type === 'convo') {
             return `convo-${item.convo.conversationId}`;
           }
-          if (item.type === 'loading') {
+          if (item?.type === 'loading') {
             return `loading-${index}`;
           }
           return `unknown-${index}`;
@@ -130,6 +175,45 @@ const Conversations: FC<ConversationsProps> = ({
   const rowRenderer = useCallback(
     ({ index, key, parent, style }) => {
       const item = flattenedItems[index];
+
+      if (!item) {
+        return null;
+      }
+
+      if (item.type === 'actions') {
+        return (
+          <CellMeasurer cache={cache} columnIndex={0} key={key} parent={parent} rowIndex={index}>
+            {({ registerChild }) => (
+              <div ref={registerChild} style={style} className="flex flex-col gap-2 p-1 py-4 w-full">
+                <ActionButton 
+                  icon={<Plus size={18} />} 
+                  label={localize('com_ui_new_chat')} 
+                  onClick={clickHandler}
+                />
+                <div className="w-full">
+                  {subHeaders}
+                </div>
+                <ActionButton 
+                  icon={<Bookmark size={18} />} 
+                  label="Marcadores" 
+                  onClick={() => {}} 
+                />
+                <ActionButton 
+                  icon={<Shield size={18} />} 
+                  label="Gestor SG-SST" 
+                  onClick={() => navigate('/sgsst')}
+                />
+                <ActionButton 
+                  icon={<Camera size={18} />} 
+                  label="Cámara de Riesgo" 
+                  onClick={() => navigate('/risk-camera')}
+                />
+              </div>
+            )}
+          </CellMeasurer>
+        );
+      }
+
       if (item.type === 'loading') {
         return (
           <CellMeasurer cache={cache} columnIndex={0} key={key} parent={parent} rowIndex={index}>
@@ -159,7 +243,7 @@ const Conversations: FC<ConversationsProps> = ({
         </CellMeasurer>
       );
     },
-    [cache, flattenedItems, moveToTop, toggleNav],
+    [cache, flattenedItems, moveToTop, toggleNav, subHeaders, clickHandler, navigate, localize],
   );
 
   const getRowHeight = useCallback(

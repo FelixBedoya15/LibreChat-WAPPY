@@ -240,7 +240,6 @@ const Nav = memo(
                   >
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
                       <MemoNewChat
-                        subHeaders={navWidth === NAV_WIDTH_COLLAPSED ? null : subHeaders}
                         toggleNav={toggleNavVisible}
                       />
                       {navWidth !== NAV_WIDTH_COLLAPSED && (
@@ -252,6 +251,7 @@ const Nav = memo(
                             loadMoreConversations={loadMoreConversations}
                             isLoading={isFetchingNextPage || showLoading || isLoading}
                             isSearchLoading={isSearchLoading}
+                            subHeaders={subHeaders}
                         />
                       )}
                     </div>
