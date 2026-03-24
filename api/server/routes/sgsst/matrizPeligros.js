@@ -218,6 +218,19 @@ async function getIntegratedSSTContext(userId) {
                 }
             }
         }
+        
+        // 9. Participación IPEVAR Trabajadores (Insumo primordial)
+        const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+        if (ParticipacionIpevarData) {
+            const pid = await ParticipacionIpevarData.findOne({ user: userId }).lean();
+            if (pid && pid.formData) {
+                const f = pid.formData;
+                context += `- **Participación IPEVAR (Trabajadores)**: El personal identificó peligros en la tarea "${f.tarea || 'N/A'}". Reportaron: "${f.peligros || 'Sin especificar'}". Controles existentes observados: "${f.controlesExistentes || 'N/A'}". Percepción de suficiencia: ${f.suficientes ? 'Suficientes' : 'Insuficientes'}.\n`;
+                if (f.sugeridoIngenieria || f.sugeridoAdministrativo || f.sugeridoEPP) {
+                     context += `  * Mejoras sugeridas por el trabajador: ${[f.sugeridoIngenieria, f.sugeridoAdministrativo, f.sugeridoEPP].filter(Boolean).join('; ')}.\n`;
+                }
+            }
+        }
 
     } catch (err) {
         logger.debug('[MatrizPeligros] Integrated context failed:', err.message);

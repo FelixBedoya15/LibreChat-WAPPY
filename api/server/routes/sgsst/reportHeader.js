@@ -95,6 +95,9 @@ function buildCompanyContextString(companyInfo) {
 - Sector Económico: ${companyInfo.sector || 'No registrado'}
 - Dirección: ${companyInfo.address || 'No registrada'}, ${companyInfo.city || ''}
 - Responsable SG-SST: ${companyInfo.responsibleSST || 'No registrado'}
+- Nivel de Formación: ${companyInfo.formationLevel || 'No registrado'}
+- Licencia SST: ${companyInfo.licenseNumber || 'No registrado'} (Vence: ${companyInfo.licenseExpiry || 'N/A'})
+- Curso 50/20H: ${companyInfo.courseStatus || 'No registrado'}
 
 **Actividades Generales de la Empresa (Contexto Crítico para la IA):**
 ${companyInfo.generalActivities || 'No registradas (Asume un entorno operativo general asociado a su sector económico vigente).'}
