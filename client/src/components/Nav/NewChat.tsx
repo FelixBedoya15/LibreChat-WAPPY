@@ -1,12 +1,13 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { QueryKeys, Constants } from 'librechat-data-provider';
-import { TooltipAnchor, NewChatIcon, MobileSidebar, Sidebar, Button } from '@librechat/client';
-import type { TMessage } from 'librechat-data-provider';
+import { QueryKeys } from 'librechat-data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { motion } from 'framer-motion';
+import { cn } from '~/utils';
 
 export default function NewChat({
   index = 0,
@@ -47,41 +48,43 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center justify-between py-[2px] md:py-2">
-        <TooltipAnchor
-          description={localize('com_nav_close_sidebar')}
-          render={
-            <Button
-              size="icon"
-              variant="outline"
-              data-testid="close-sidebar-button"
-              aria-label={localize('com_nav_close_sidebar')}
-              className="rounded-full border-none bg-transparent p-2 hover:bg-surface-hover md:rounded-xl"
-              onClick={toggleNav}
-            >
-              <Sidebar className="max-md:hidden" />
-              <MobileSidebar className="m-1 inline-flex size-10 items-center justify-center md:hidden" />
-            </Button>
-          }
-        />
-        <div className="flex gap-0.5">
+      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm">
+        <motion.button
+          whileHover="hover"
+          whileTap="tap"
+          onClick={toggleNav}
+          className={cn(
+            "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+            "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+          )}
+        >
+          <div className="relative flex-shrink-0 flex items-center justify-center">
+            <AnimatedIcon name="sidebar" size={20} />
+          </div>
+          <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+            <span className="text-xs font-bold uppercase tracking-wider">{localize('com_nav_close_sidebar')}</span>
+          </div>
+        </motion.button>
+
+        <div className="flex items-center gap-1">
           {headerButtons}
 
-          <TooltipAnchor
-            description={localize('com_ui_new_chat')}
-            render={
-              <Button
-                size="icon"
-                variant="outline"
-                data-testid="nav-new-chat-button"
-                aria-label={localize('com_ui_new_chat')}
-                className="rounded-full border-none bg-transparent p-2 hover:bg-surface-hover md:rounded-xl"
-                onClick={clickHandler}
-              >
-                <NewChatIcon className="icon-lg text-text-primary" />
-              </Button>
-            }
-          />
+          <motion.button
+            whileHover="hover"
+            whileTap="tap"
+            onClick={clickHandler}
+            className={cn(
+              "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+              "bg-teal-600 hover:bg-teal-700 text-white border-transparent"
+            )}
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <AnimatedIcon name="plus" size={20} />
+            </div>
+            <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-white">
+              <span className="text-xs font-bold uppercase tracking-wider">{localize('com_ui_new_chat')}</span>
+            </div>
+          </motion.button>
         </div>
       </div>
       {subHeaders != null ? subHeaders : null}

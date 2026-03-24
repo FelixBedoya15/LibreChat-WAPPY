@@ -1,4 +1,6 @@
 import { useState, memo, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
@@ -66,10 +68,14 @@ function AccountSettings() {
         <Select.Select
           aria-label={localize('com_nav_account_settings')}
           data-testid="nav-user"
-          className="mt-text-sm flex h-auto w-full items-center gap-2 rounded-xl p-2 text-sm transition-all duration-200 ease-in-out hover:bg-surface-hover"
+          as={motion.button}
+          whileHover="hover"
+          whileTap="tap"
+          className="group mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-2.5 text-sm transition-all duration-300 ease-in-out bg-surface-secondary/30 border border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 hover:-rotate-1 hover:scale-[1.02] shadow-sm backdrop-blur-sm shadow-inner cursor-pointer outline-none"
         >
-          <div className="-ml-0.9 -mt-0.8 h-8 w-8 flex-shrink-0">
-            <div className="relative flex">
+          <div className="relative flex-shrink-0 flex items-center justify-center p-0.5 bg-white border border-border-medium rounded-xl shadow-sm group-hover:border-teal-200 transition-colors overflow-hidden">
+            <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center relative translate-y-[2px]">
+              <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -78,7 +84,7 @@ function AccountSettings() {
                 }}
                 className="z-50"
               >
-                <Avatar user={user} size={32} />
+                <Avatar user={user} size={36} className="rounded-lg" />
               </button>
               {/* Notification Badge */}
               {unreadCount > 0 && (
@@ -87,8 +93,8 @@ function AccountSettings() {
                     e.stopPropagation();
                     setShowNotifications(prev => !prev);
                   }}
-                  className="absolute -top-1.5 -right-1.5 z-10 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-surface-primary"
-                  style={{ boxShadow: '0 0 8px rgba(239, 68, 68, 0.7)' }}
+                  className="absolute -top-2 -right-2 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
+                  style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' }}
                   title={`${unreadCount} notificaciones sin leer`}
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -96,11 +102,14 @@ function AccountSettings() {
               )}
             </div>
           </div>
-          <div
-            className="mt-2 grow overflow-hidden text-ellipsis whitespace-nowrap text-left text-text-primary"
-            style={{ marginTop: '0', marginLeft: '0' }}
-          >
-            {user?.name ?? user?.username ?? localize('com_nav_user')}
+          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+            <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
+            <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
+              {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
+            </span>
+          </div>
+          <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
+             <AnimatedIcon name="chevron-right" size={16} />
           </div>
         </Select.Select>
         <Select.SelectPopover

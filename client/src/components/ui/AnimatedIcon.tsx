@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw' | 'inbox';
+export type IconName = 'sparkles' | 'save' | 'trash' | 'qrcode' | 'plus' | 'history' | 'layout-list' | 'database' | 'chevron-right' | 'chevron-down' | 'file-text' | 'robot' | 'brain' | 'upload' | 'download' | 'refresh-cw' | 'inbox' | 'sidebar' | 'bookmark' | 'camera' | 'shield' | 'search' | 'user';
 
 interface AnimatedIconProps {
     name: IconName;
@@ -439,6 +439,125 @@ export const AnimatedIcon: React.FC<AnimatedIconProps> = ({
                 >
                     <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
                     <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+                </motion.svg>
+            );
+
+        case 'sidebar':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { x: -2, scale: 1.1 }, tap: { scale: 0.9 } }}
+                >
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M9 3v18" />
+                </motion.svg>
+            );
+
+        case 'bookmark':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { y: -3, rotate: 15 }, tap: { scale: 0.8 } }}
+                >
+                    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                </motion.svg>
+            );
+
+        case 'camera':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { scale: 1.1, rotate: [0, -10, 10, 0] }, tap: { scale: 0.9 } }}
+                >
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                </motion.svg>
+            );
+
+        case 'shield':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { scale: 1.15, y: -2 }, tap: { scale: 0.85 } }}
+                >
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z" />
+                    <path d="m9 12 2 2 4-4" />
+                </motion.svg>
+            );
+
+        case 'search':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { scale: 1.2, x: 2, y: -2 }, tap: { scale: 0.8 } }}
+                >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                </motion.svg>
+            );
+
+        case 'user':
+            return (
+                <motion.svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    variants={{ hover: { scale: 1.1, y: -1 }, tap: { scale: 0.9 } }}
+                >
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
                 </motion.svg>
             );
 

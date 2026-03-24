@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import type { FC } from 'react';
 import { TooltipAnchor } from '@librechat/client';
 import { Menu, MenuButton, MenuItems } from '@headlessui/react';
@@ -15,6 +17,9 @@ type BookmarkNavProps = {
   isSmallScreen: boolean;
 };
 
+import { motion } from 'framer-motion';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+
 const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags, isSmallScreen }: BookmarkNavProps) => {
   const localize = useLocalize();
   const { data } = useGetConversationTags();
@@ -27,28 +32,30 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags, isSmallScreen }: Boo
     <Menu as="div" className="group relative">
       {({ open }) => (
         <>
-          <TooltipAnchor
-            description={label}
-            render={
-              <MenuButton
-                id="bookmark-menu-button"
-                aria-label={localize('com_ui_bookmarks')}
-                className={cn(
-                  'flex items-center justify-center',
-                  'size-10 border-none text-text-primary hover:bg-accent hover:text-accent-foreground',
-                  'rounded-full border-none p-2 hover:bg-surface-hover md:rounded-xl',
-                  open ? 'bg-surface-hover' : '',
-                )}
-                data-testid="bookmark-menu"
-              >
-                {tags.length > 0 ? (
-                  <BookmarkFilledIcon className="icon-lg text-text-primary" aria-hidden="true" />
-                ) : (
-                  <BookmarkIcon className="icon-lg text-text-primary" aria-hidden="true" />
-                )}
-              </MenuButton>
-            }
-          />
+          <MenuButton
+            id="bookmark-menu-button"
+            aria-label={localize('com_ui_bookmarks')}
+            as={motion.button}
+            whileHover="hover"
+            whileTap="tap"
+            className={cn(
+              "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+              open || tags.length > 0
+                ? "bg-amber-100/50 border-amber-400 text-amber-600 shadow-inner" 
+                : "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+            )}
+            data-testid="bookmark-menu"
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+                <AnimatedIcon name="bookmark" size={20} />
+            </div>
+            <div className={cn(
+                "flex items-center max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out whitespace-nowrap",
+                "group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-2"
+            )}>
+                <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+            </div>
+          </MenuButton>
           <MenuItems
             anchor="bottom"
             className="absolute left-0 top-full z-[100] mt-1 w-60 translate-y-0 overflow-hidden rounded-lg bg-surface-secondary p-1.5 shadow-lg outline-none"

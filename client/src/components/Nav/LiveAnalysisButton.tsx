@@ -1,8 +1,9 @@
-import React, { useCallback } from 'react';
-import { Camera } from 'lucide-react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TooltipAnchor, Button } from '@librechat/client';
 import { useLocalize } from '~/hooks';
+import { motion } from 'framer-motion';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { cn } from '~/utils';
 
 interface LiveAnalysisButtonProps {
     isSmallScreen?: boolean;
@@ -16,7 +17,7 @@ export default function LiveAnalysisButton({
     const navigate = useNavigate();
     const localize = useLocalize();
 
-    const handleLiveAnalysis = useCallback(() => {
+    const handleLiveAnalysis = React.useCallback(() => {
         navigate('/live');
         if (isSmallScreen) {
             toggleNav();
@@ -24,19 +25,24 @@ export default function LiveAnalysisButton({
     }, [navigate, isSmallScreen, toggleNav]);
 
     return (
-        <TooltipAnchor
-            description="Live Analysis"
-            render={
-                <Button
-                    variant="outline"
-                    data-testid="nav-live-analysis-button"
-                    aria-label="Live Analysis"
-                    className="rounded-full border-none bg-transparent p-2 hover:bg-surface-hover md:rounded-xl"
-                    onClick={handleLiveAnalysis}
-                >
-                    <Camera className="icon-lg text-text-primary" />
-                </Button>
-            }
-        />
+        <motion.button
+            whileHover="hover"
+            whileTap="tap"
+            onClick={handleLiveAnalysis}
+            className={cn(
+                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+                "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+            )}
+        >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+                <AnimatedIcon name="camera" size={20} />
+            </div>
+            <div className={cn(
+                "flex items-center max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out whitespace-nowrap",
+                "group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-2"
+            )}>
+                <span className="text-[10px] font-bold uppercase tracking-wider">Cámara Riesgo</span>
+            </div>
+        </motion.button>
     );
 }

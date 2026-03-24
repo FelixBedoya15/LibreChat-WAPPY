@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useRecoilValue } from 'recoil';
 import { useParams } from 'react-router-dom';
 import { Constants } from 'librechat-data-provider';
@@ -130,10 +131,14 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
   };
 
   return (
-    <div
+    <motion.div
+      whileHover="hover"
+      whileTap="tap"
       className={cn(
-        'group relative flex h-12 w-full items-center rounded-lg transition-colors duration-200 md:h-9',
-        isActiveConvo ? 'bg-surface-active-alt' : 'hover:bg-surface-active-alt',
+        'group relative flex h-11 w-full items-center rounded-xl transition-all duration-300 px-2 my-0.5 border shadow-sm',
+        isActiveConvo 
+          ? 'bg-teal-50/50 border-teal-400/50 text-teal-700 shadow-inner translate-x-1' 
+          : 'bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 hover:scale-[1.02] hover:-rotate-1',
       )}
       role="button"
       tabIndex={renaming ? -1 : 0}
@@ -193,6 +198,6 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
       >
         {!renaming && <ConvoOptions {...convoOptionsProps} />}
       </div>
-    </div>
+    </motion.div>
   );
 }

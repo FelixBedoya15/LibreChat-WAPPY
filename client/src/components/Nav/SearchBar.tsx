@@ -1,4 +1,6 @@
 import React, { forwardRef, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import debounce from 'lodash/debounce';
 import { useRecoilState } from 'recoil';
 import { Search, X } from 'lucide-react';
@@ -107,18 +109,21 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
   }, [search.isTyping, search.isSearching, search.debouncedQuery, search.query, setSearchState]);
 
   return (
-    <div
+    <motion.div
       ref={ref}
+      whileHover="hover"
       className={cn(
-        'group relative mt-1 flex h-10 cursor-pointer items-center gap-3 rounded-lg border-border-medium px-3 py-2 text-text-primary transition-colors duration-200 focus-within:bg-surface-hover hover:bg-surface-hover',
-        isSmallScreen === true ? 'mb-2 h-14 rounded-xl' : '',
+        'group relative mt-1 flex h-10 cursor-pointer items-center gap-3 rounded-xl border border-border-medium/50 px-3 py-2 text-text-primary transition-all duration-300 bg-surface-secondary/30 backdrop-blur-sm shadow-sm hover:border-teal-400 hover:-rotate-1 hover:scale-[1.02]',
+        isSmallScreen === true ? 'mb-2 h-14 rounded-2xl' : '',
       )}
     >
-      <Search className="absolute left-3 h-4 w-4 text-text-secondary group-focus-within:text-text-primary group-hover:text-text-primary" />
+      <div className="absolute left-3 flex items-center justify-center">
+        <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
+      </div>
       <input
         type="text"
         ref={inputRef}
-        className="m-0 mr-0 w-full border-none bg-transparent p-0 pl-7 text-sm leading-tight placeholder-text-secondary placeholder-opacity-100 focus-visible:outline-none group-focus-within:placeholder-text-primary group-hover:placeholder-text-primary"
+        className="m-0 mr-0 w-full border-none bg-transparent p-0 pl-8 text-sm leading-tight placeholder-text-secondary placeholder-opacity-100 focus-visible:outline-none group-focus-within:placeholder-text-primary group-hover:placeholder-text-primary"
         value={text}
         onChange={onChange}
         onKeyDown={(e) => {
@@ -144,9 +149,9 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
         tabIndex={showClearIcon ? 0 : -1}
         disabled={!showClearIcon}
       >
-        <X className="h-5 w-5 cursor-pointer" />
+        <X className="h-5 w-5 cursor-pointer text-text-secondary hover:text-red-500 transition-colors" />
       </button>
-    </div>
+    </motion.div>
   );
 });
 
