@@ -1,5 +1,5 @@
 import { useMemo, memo, type FC, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import throttle from 'lodash/throttle';
 import { Search, PlusCircle, Bookmark, Shield, Camera } from 'lucide-react';
