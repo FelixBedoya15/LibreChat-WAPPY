@@ -132,13 +132,12 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, rotate: -1, zIndex: 50 }}
       whileTap="tap"
       className={cn(
-        'group relative flex h-11 w-full items-center rounded-xl transition-all duration-300 px-2 my-0.5 border shadow-sm',
+        'group relative flex h-10 w-full items-center rounded-lg transition-all duration-200 px-2 my-1 border-none',
         isActiveConvo 
-          ? 'bg-teal-50/50 border-teal-400/50 text-teal-700 shadow-inner translate-x-1' 
-          : 'bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 hover:scale-[1.02]',
+          ? 'bg-teal-500/10 text-teal-700 font-medium' 
+          : 'bg-transparent hover:bg-surface-hover text-text-secondary hover:text-text-primary',
       )}
       role="button"
       tabIndex={renaming ? -1 : 0}

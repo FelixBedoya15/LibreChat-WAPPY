@@ -21,6 +21,7 @@ export default function NewChat({
   isSmallScreen?: boolean;
   subHeaders?: React.ReactNode;
   headerButtons?: React.ReactNode;
+  isCollapsed?: boolean;
 }) {
   const queryClient = useQueryClient();
   /** Note: this component needs an explicit index passed if using more than one */
@@ -48,26 +49,30 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative min-h-[56px] h-auto z-20 hover:z-[100] flex-wrap gap-1">
+      <div className={cn(
+        "flex py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative z-20 hover:z-[100] gap-1 transition-all duration-300",
+        isCollapsed 
+          ? "flex-col items-center w-auto min-h-0 mx-auto" 
+          : "flex-row items-center justify-between min-h-[56px] h-auto flex-wrap"
+      )}>
         <motion.button
           whileTap="tap"
           onClick={toggleNav}
           className={cn(
             "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
-            "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+            "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary",
+            isCollapsed && "order-first mb-1"
           )}
         >
           <div className="relative flex-shrink-0 flex items-center justify-center">
-            <AnimatedIcon name="sidebar" size={20} />
-          </div>
-          <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{localize('com_nav_close_sidebar')}</span>
+            <AnimatedIcon name="sidebar" size={20} className={cn("transition-transform", isCollapsed && "rotate-180")} />
           </div>
         </motion.button>
 
-        <div className="flex items-center gap-1 overflow-visible flex-wrap justify-center">
-          {headerButtons}
-
+        <div className={cn(
+            "flex items-center gap-1 overflow-visible justify-center",
+            isCollapsed ? "flex-col" : "flex-row flex-wrap"
+        )}>
           <motion.button
             whileTap="tap"
             onClick={clickHandler}
@@ -79,13 +84,45 @@ export default function NewChat({
             <div className="relative flex-shrink-0 flex items-center justify-center">
               <AnimatedIcon name="plus" size={20} />
             </div>
-            <div className="hidden sm:flex absolute right-full mr-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
+            <div className={cn(
+                "hidden sm:flex absolute items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]",
+                isCollapsed ? "left-full ml-2" : "right-full mr-2"
+            )}>
               <span className="text-[10px] font-bold uppercase tracking-wider">{localize('com_ui_new_chat')}</span>
             </div>
           </motion.button>
+
+          <motion.button
+            whileTap="tap"
+            onClick={() => {
+              if (isCollapsed) {
+                toggleNav();
+              }
+              // Focus after expansion
+              setTimeout(() => {
+                const searchInput = document.querySelector('nav input');
+                if (searchInput) {
+                  (searchInput as HTMLInputElement).focus();
+                }
+              }, 400);
+            }}
+            className={cn(
+              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
+              "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+            )}
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <AnimatedIcon name="search" size={20} />
+            </div>
+            <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{localize('com_ui_search')}</span>
+            </div>
+          </motion.button>
+
+          {headerButtons}
         </div>
       </div>
-      {subHeaders != null ? subHeaders : null}
+      {!isCollapsed && subHeaders != null ? subHeaders : null}
     </>
   );
 }

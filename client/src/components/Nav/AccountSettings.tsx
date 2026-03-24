@@ -15,7 +15,7 @@ import store from '~/store';
 import axios from 'axios';
 import NotificationPanel from '~/components/Notifications/NotificationPanel';
 
-function AccountSettings() {
+function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
   const localize = useLocalize();
   const navigate = useNavigate();
   const { user, token, isAuthenticated, logout } = useAuthContext();
@@ -74,9 +74,12 @@ function AccountSettings() {
             whileHover={{ scale: 1.05, rotate: -3 }}
             whileTap={{ scale: 0.98 }}
             style={{ zIndex: 100 }}
-            className="flex h-full w-full items-center gap-3 rounded-2xl p-2.5 transition-all duration-300 bg-surface-secondary/30 border border-border-medium/50 group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner overflow-hidden"
+            className={cn(
+                "flex h-full w-full items-center transition-all duration-300 bg-surface-secondary/30 border border-border-medium/50 group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner overflow-hidden",
+                isCollapsed ? "justify-center p-0 rounded-xl" : "gap-3 rounded-2xl p-2.5"
+            )}
           >
-           <div className="relative flex-shrink-0 flex items-center justify-center translate-y-[1px]">
+           <div className={cn("relative flex-shrink-0 flex items-center justify-center", !isCollapsed && "translate-y-[1px]")}>
              <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center relative">
                <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
                <button
@@ -89,7 +92,6 @@ function AccountSettings() {
                >
                  <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-300" />
                </button>
-               {/* Notification Badge */}
                {unreadCount > 0 && (
                  <button
                    onClick={(e) => {
@@ -105,15 +107,19 @@ function AccountSettings() {
                )}
              </div>
            </div>
-           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-             <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
-             <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
-               {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
-             </span>
-           </div>
-           <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
-              <AnimatedIcon name="chevron-right" size={16} />
-           </div>
+           {!isCollapsed && (
+               <>
+                <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                    <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
+                    <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
+                        {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
+                    </span>
+                </div>
+                <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
+                    <AnimatedIcon name="chevron-right" size={16} />
+                </div>
+               </>
+           )}
           </motion.div>
         </Select.Select>
         <Select.SelectPopover

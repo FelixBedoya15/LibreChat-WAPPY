@@ -40,8 +40,7 @@ export default function NavToggle({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <TooltipAnchor
-        side={side === 'right' ? 'left' : 'right'}
+      <button
         aria-label={side === 'left' ? localize('com_ui_chat_history') : localize('com_ui_controls')}
         aria-expanded={navVisible}
         aria-controls={side === 'left' ? 'chat-history-nav' : 'controls-nav'}
@@ -51,11 +50,7 @@ export default function NavToggle({
           e.stopPropagation();
           onToggle();
         }}
-        role="button"
-        description={
-          navVisible ? localize('com_nav_close_sidebar') : localize('com_nav_open_sidebar')
-        }
-        className="flex items-center justify-center p-0"
+        className="flex items-center justify-center p-0 border-none bg-transparent outline-none cursor-pointer"
         tabIndex={0}
       >
         <motion.div
@@ -89,7 +84,7 @@ export default function NavToggle({
             </svg>
           </div>
         </motion.div>
-      </TooltipAnchor>
+      </button>
     </div>
   );
 }
