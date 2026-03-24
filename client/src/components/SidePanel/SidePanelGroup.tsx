@@ -93,13 +93,11 @@ const SidePanelGroup = memo(
         setFullCollapse(true);
         localStorage.setItem('fullPanelCollapse', 'true');
         panelRef.current?.collapse();
-        return;
       } else {
-        setIsCollapsed(defaultCollapsed);
         setCollapsedSize(navCollapsedSize);
         setMinSize(defaultMinSize);
       }
-    }, [isSmallScreen, defaultCollapsed, navCollapsedSize, fullPanelCollapse, setIsCollapsed, setFullCollapse]);
+    }, [isSmallScreen, navCollapsedSize, setIsCollapsed, setFullCollapse]);
 
     const minSizeMain = useMemo(() => (artifacts != null ? 15 : 30), [artifacts]);
 

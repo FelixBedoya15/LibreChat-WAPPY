@@ -94,19 +94,17 @@ const SidePanel = ({
     if (newUser) {
       setNewUser(false);
     }
-    setIsCollapsed((prev: boolean) => {
-      if (prev) {
-        setMinSize(defaultMinSize);
-        setCollapsedSize(navCollapsedSize);
-        setFullCollapse(false);
-        localStorage.setItem('fullPanelCollapse', 'false');
-      }
-      return !prev;
-    });
-    if (!isCollapsed) {
-      panelRef.current?.collapse();
-    } else {
+    const nextCollapsed = !isCollapsed;
+    setIsCollapsed(nextCollapsed);
+
+    if (isCollapsed) {
+      setMinSize(defaultMinSize);
+      setCollapsedSize(navCollapsedSize);
+      setFullCollapse(false);
+      localStorage.setItem('fullPanelCollapse', 'false');
       panelRef.current?.expand();
+    } else {
+      panelRef.current?.collapse();
     }
   }, [
     newUser,
