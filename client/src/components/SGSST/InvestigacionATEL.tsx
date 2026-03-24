@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { cn } from '~/utils';
 import {
     Sparkles,
     Save,
@@ -927,33 +929,49 @@ const InvestigacionATEL = () => {
                         <div className="border rounded-xl p-5 bg-surface-tertiary/20 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-text-primary text-sm italic">4. Testigos (Relato de los hechos)</h4>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 p-1 bg-surface-secondary/50 border border-border-medium rounded-2xl shadow-sm">
                                     {/* Botón Bandeja (Inbox) */}
-                                    <button
+                                    <motion.button
+                                        whileHover="hover"
+                                        whileTap="tap"
                                         onClick={() => setShowInbox(!showInbox)}
-                                        className={`group relative h-10 flex items-center gap-0 hover:gap-2 px-2.5 rounded-xl border transition-all duration-500 shadow-sm overflow-hidden ${showInbox ? 'bg-amber-100 border-amber-300 text-amber-600 shadow-inner w-auto' : 'bg-white border-border-medium text-gray-400 hover:text-amber-500 hover:border-amber-200 w-10 hover:w-[130px]'}`}
-                                    >
-                                        <Inbox className="h-5 w-5 shrink-0" />
-                                        <span className={`overflow-hidden transition-all duration-500 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider ${showInbox ? 'max-w-[100px] ml-2' : 'max-w-0 group-hover:max-w-[100px]'}`}>
-                                            Reportes ({inboxTestimonios.length})
-                                        </span>
-                                        {inboxTestimonios.length > 0 && !showInbox && (
-                                            <span className="absolute top-1 right-1 bg-red-500 text-white text-[8px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full animate-pulse shadow-md border border-white group-hover:opacity-0 transition-opacity">
-                                                {inboxTestimonios.length}
-                                            </span>
+                                        className={cn(
+                                            "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+                                            showInbox 
+                                                ? "bg-amber-100 text-amber-700 border-amber-400 shadow-inner w-auto" 
+                                                : "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-amber-400 text-amber-600 w-10 hover:w-[130px]"
                                         )}
-                                    </button>
+                                    >
+                                        <div className="relative flex-shrink-0 flex items-center justify-center">
+                                            <AnimatedIcon name="inbox" size={20} />
+                                            {inboxTestimonios.length > 0 && !showInbox && (
+                                                <span className="absolute -top-3 -right-3 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white z-10 animate-pulse">
+                                                    {inboxTestimonios.length}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className={cn(
+                                            "flex items-center max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-in-out whitespace-nowrap",
+                                            showInbox ? "max-w-[200px] opacity-100 ml-2" : "group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2"
+                                        )}>
+                                            <span className="text-sm font-bold tracking-wide">Reportes ({inboxTestimonios.length})</span>
+                                        </div>
+                                    </motion.button>
 
                                     {/* Botón Portal Público (QR) */}
-                                    <button
+                                    <motion.button
+                                        whileHover="hover"
+                                        whileTap="tap"
                                         onClick={() => setShowQrModal(true)}
-                                        className="group h-10 w-10 hover:w-[135px] flex items-center gap-0 hover:gap-2 px-2.5 rounded-xl bg-white border border-border-medium text-gray-400 hover:text-teal-500 hover:border-teal-200 transition-all duration-500 shadow-sm overflow-hidden"
+                                        className="group flex items-center justify-center h-10 px-2.5 min-w-[40px] w-10 hover:w-[150px] bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-teal-600 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105 overflow-hidden"
                                     >
-                                        <QrCode className="h-5 w-5 shrink-0" />
-                                        <span className="max-w-0 group-hover:max-w-[110px] overflow-hidden transition-all duration-500 whitespace-nowrap text-[10px] font-bold uppercase tracking-wider">
-                                            Portal Público
-                                        </span>
-                                    </button>
+                                        <div className="relative flex-shrink-0 flex items-center justify-center">
+                                            <AnimatedIcon name="qrcode" size={20} />
+                                        </div>
+                                        <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                            <span className="text-sm font-bold tracking-wide">Portal Público</span>
+                                        </div>
+                                    </motion.button>
                                 </div>
                             </div>
 
