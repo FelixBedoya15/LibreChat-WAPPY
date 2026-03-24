@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
-import { Plus, PanelLeft } from 'lucide-react';
+import { PlusCircle } from 'lucide-react';
+import { Sidebar } from '@librechat/client';
 import BookmarkNav from './Bookmarks/BookmarkNav';
 
 export default function NewChat({
@@ -45,7 +46,7 @@ export default function NewChat({
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
           title={localize('com_nav_close_sidebar')}
         >
-          <PanelLeft size={20} />
+          <Sidebar size={20} />
         </button>
 
         {/* Quick Actions (Right) */}
@@ -56,7 +57,7 @@ export default function NewChat({
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-md"
             title={localize('com_ui_new_chat')}
           >
-            <Plus size={18} />
+            <PlusCircle size={18} />
           </button>
         </div>
       </div>

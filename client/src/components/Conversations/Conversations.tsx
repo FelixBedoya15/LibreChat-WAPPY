@@ -2,11 +2,11 @@ import { useMemo, memo, type FC, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import throttle from 'lodash/throttle';
-import { Plus, Bookmark, Shield, Camera, PanelLeft } from 'lucide-react';
+import { Search, PlusCircle, Bookmark, Shield, Camera } from 'lucide-react';
 import { Spinner, useMediaQuery } from '@librechat/client';
 import { List, AutoSizer, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
-import { TConversation } from 'librechat-data-provider';
-import { useLocalize, TranslationKeys, useNewConvo } from '~/hooks';
+import { TConversation, PermissionTypes, Permissions } from 'librechat-data-provider';
+import { useLocalize, TranslationKeys, useNewConvo, useHasAccess } from '~/hooks';
 import { groupConversationsByDate, clearMessagesCache, cn } from '~/utils';
 import store from '~/store';
 import BookmarkNav from '../Nav/Bookmarks/BookmarkNav';
@@ -92,6 +92,10 @@ const Conversations: FC<ConversationsProps> = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { newConversation: newConvo } = useNewConvo();
+  const hasLiveAnalysisAccess = useHasAccess({
+    permissionType: PermissionTypes.LIVE_ANALYSIS,
+    permission: Permissions.USE,
+  });
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
   const convoHeight = isSmallScreen ? 44 : 34;
 
@@ -191,7 +195,7 @@ const Conversations: FC<ConversationsProps> = ({
             {({ registerChild }) => (
               <div ref={registerChild} style={style} className="flex flex-col gap-2 p-1 py-4 w-full">
                 <ActionButton 
-                  icon={<Plus size={18} />} 
+                  icon={<PlusCircle size={18} />} 
                   label={localize('com_ui_new_chat')} 
                   onClick={clickHandler}
                   className="bg-teal-600 text-white hover:bg-teal-700"
@@ -205,11 +209,13 @@ const Conversations: FC<ConversationsProps> = ({
                   label="Gestor SG-SST" 
                   onClick={() => navigate('/sgsst')}
                 />
-                <ActionButton 
-                  icon={<Camera size={18} />} 
-                  label="Cámara de Riesgo" 
-                  onClick={() => navigate('/risk-camera')}
-                />
+                {hasLiveAnalysisAccess && (
+                  <ActionButton 
+                    icon={<Camera size={18} />} 
+                    label="Cámara de Riesgo" 
+                    onClick={() => navigate('/risk-camera')}
+                  />
+                )}
               </div>
             )}
           </CellMeasurer>
