@@ -290,7 +290,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
             onClick={onClick}
             disabled={disabled}
             className={cn(
-                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
                 variantStyles[variant]
             )}
         >
@@ -314,7 +314,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
             </div>
             
             {label && (
-                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
                     <span className="text-sm font-bold tracking-wide">{label}</span>
                 </div>
             )}

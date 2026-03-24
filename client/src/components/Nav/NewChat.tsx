@@ -48,40 +48,38 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative h-14 z-20 hover:z-[100]">
+      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative min-h-[56px] h-auto z-20 hover:z-[100] flex-wrap gap-1">
         <motion.button
-          whileHover={{ scale: 1.05, rotate: -3, zIndex: 100 }}
           whileTap="tap"
           onClick={toggleNav}
           className={cn(
-            "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:scale-105",
+            "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
             "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
           )}
         >
           <div className="relative flex-shrink-0 flex items-center justify-center">
             <AnimatedIcon name="sidebar" size={20} />
           </div>
-          <div className="absolute left-full ml-2 flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
+          <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
             <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{localize('com_nav_close_sidebar')}</span>
           </div>
         </motion.button>
 
-        <div className="flex items-center gap-1 overflow-visible">
+        <div className="flex items-center gap-1 overflow-visible flex-wrap justify-center">
           {headerButtons}
 
           <motion.button
-            whileHover={{ scale: 1.05, rotate: -3, zIndex: 100 }}
             whileTap="tap"
             onClick={clickHandler}
             className={cn(
-              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:scale-105",
+              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
               "bg-teal-600 hover:bg-teal-700 text-white border-transparent"
             )}
           >
             <div className="relative flex-shrink-0 flex items-center justify-center">
               <AnimatedIcon name="plus" size={20} />
             </div>
-            <div className="absolute right-full mr-2 flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
+            <div className="hidden sm:flex absolute right-full mr-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
               <span className="text-[10px] font-bold uppercase tracking-wider">{localize('com_ui_new_chat')}</span>
             </div>
           </motion.button>
