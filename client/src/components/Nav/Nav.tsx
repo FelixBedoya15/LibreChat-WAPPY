@@ -218,7 +218,7 @@ const Nav = memo(
         <div
           data-testid="nav"
           className={cn(
-            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium/30',
+            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium',
             navVisible ? 'overflow-visible' : 'overflow-hidden'
           )}
           style={{

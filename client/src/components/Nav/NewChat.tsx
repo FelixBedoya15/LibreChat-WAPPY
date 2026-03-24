@@ -51,7 +51,7 @@ export default function NewChat({
   return (
     <>
       <div className={cn(
-        "flex py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative z-20 hover:z-[100] gap-1 transition-all duration-300",
+        "flex py-2 mb-1 px-1 bg-surface-secondary border border-border-medium rounded-2xl shadow-sm overflow-visible relative z-20 hover:z-[100] gap-1 transition-all duration-300",
         isCollapsed 
           ? "flex-col items-center w-auto min-h-0 mx-auto" 
           : "flex-row items-center justify-between min-h-[56px] h-auto flex-wrap"
@@ -115,7 +115,7 @@ export default function NewChat({
             <div className="relative flex-shrink-0 flex items-center justify-center">
               <AnimatedIcon name="search" size={20} />
             </div>
-            <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
+            <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
               <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{localize('com_ui_search')}</span>
             </div>
           </motion.button>

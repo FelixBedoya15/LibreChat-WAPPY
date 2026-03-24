@@ -76,7 +76,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
             whileTap={{ scale: 0.98 }}
             style={{ zIndex: 100 }}
             className={cn(
-                "flex h-full w-full items-center transition-all duration-300 bg-surface-secondary/30 border border-border-medium/50 group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner overflow-hidden",
+                "flex h-full w-full items-center transition-all duration-300 bg-surface-secondary border border-border-medium group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm shadow-inner overflow-hidden",
                 isCollapsed ? "justify-center p-0 rounded-xl" : "gap-3 rounded-2xl p-2.5"
             )}
           >
@@ -124,7 +124,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
           </motion.div>
         </Select.Select>
         <Select.SelectPopover
-          className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white/80 dark:bg-surface-primary/80 p-1.5 shadow-2xl outline-none backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"
+          className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white dark:bg-surface-primary p-1.5 shadow-2xl outline-none transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"
           style={{
             boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
           }}
