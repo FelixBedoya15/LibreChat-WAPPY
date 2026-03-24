@@ -1,19 +1,22 @@
-import React, { useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { QueryKeys } from 'librechat-data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
-import { Plus, Bookmark, Shield, Camera, PanelLeft } from 'lucide-react';
-import { cn } from '~/utils';
+import { Plus, PanelLeft } from 'lucide-react';
+import BookmarkNav from './Bookmarks/BookmarkNav';
 
 export default function NewChat({
   index = 0,
   toggleNav,
+  tags = [],
+  setTags,
 }: {
   index?: number;
   toggleNav: () => void;
+  tags?: string[];
+  setTags: (tags: string[]) => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -47,19 +50,13 @@ export default function NewChat({
 
         {/* Quick Actions (Right) */}
         <div className="flex items-center gap-1">
+          <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={false} />
           <button
             onClick={clickHandler}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-md"
             title={localize('com_ui_new_chat')}
           >
             <Plus size={18} />
-          </button>
-          <button
-            onClick={() => {}} // Handle Bookmark quick access
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
-            title="Marcadores"
-          >
-            <Bookmark size={18} />
           </button>
         </div>
       </div>

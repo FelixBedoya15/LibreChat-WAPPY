@@ -9,6 +9,7 @@ import { TConversation } from 'librechat-data-provider';
 import { useLocalize, TranslationKeys, useNewConvo } from '~/hooks';
 import { groupConversationsByDate, clearMessagesCache, cn } from '~/utils';
 import store from '~/store';
+import BookmarkNav from '../Nav/Bookmarks/BookmarkNav';
 import Convo from './Convo';
 
 interface ConversationsProps {
@@ -20,6 +21,8 @@ interface ConversationsProps {
   isLoading: boolean;
   isSearchLoading: boolean;
   subHeaders?: React.ReactNode;
+  tags?: string[];
+  setTags: (tags: string[]) => void;
 }
 
 const LoadingSpinner = memo(() => {
@@ -82,6 +85,8 @@ const Conversations: FC<ConversationsProps> = ({
   isLoading,
   isSearchLoading,
   subHeaders,
+  tags = [],
+  setTags,
 }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
@@ -189,15 +194,12 @@ const Conversations: FC<ConversationsProps> = ({
                   icon={<Plus size={18} />} 
                   label={localize('com_ui_new_chat')} 
                   onClick={clickHandler}
+                  className="bg-teal-600 text-white hover:bg-teal-700"
                 />
                 <div className="w-full">
                   {subHeaders}
                 </div>
-                <ActionButton 
-                  icon={<Bookmark size={18} />} 
-                  label="Marcadores" 
-                  onClick={() => {}} 
-                />
+                <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={false} fullWidth={true} />
                 <ActionButton 
                   icon={<Shield size={18} />} 
                   label="Gestor SG-SST" 

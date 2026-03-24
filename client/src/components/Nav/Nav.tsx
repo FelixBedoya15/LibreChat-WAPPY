@@ -211,7 +211,7 @@ const Nav = memo(
         <div
           data-testid="nav"
           className={cn(
-            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium/30',
+            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium/30 bg-surface-primary',
             navVisible ? 'overflow-visible' : 'overflow-hidden'
           )}
           style={{
@@ -241,6 +241,8 @@ const Nav = memo(
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
                       <MemoNewChat
                         toggleNav={toggleNavVisible}
+                        tags={tags}
+                        setTags={setTags}
                       />
                       {navWidth !== NAV_WIDTH_COLLAPSED && (
                         <Conversations
@@ -252,6 +254,8 @@ const Nav = memo(
                             isLoading={isFetchingNextPage || showLoading || isLoading}
                             isSearchLoading={isSearchLoading}
                             subHeaders={subHeaders}
+                            tags={tags}
+                            setTags={setTags}
                         />
                       )}
                     </div>
