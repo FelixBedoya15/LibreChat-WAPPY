@@ -44,10 +44,10 @@ const SidePanelGroup = memo(
     const panelRef = useRef<ImperativePanelHandle>(null);
     const [minSize, setMinSize] = useState(defaultMinSize);
     const [isCollapsed, setIsCollapsed] = useRecoilState(store.sidePanelCollapsed);
-    const [fullCollapse, setFullCollapse] = useState(fullPanelCollapse);
+    const [fullCollapse, setFullCollapse] = useRecoilState(store.sidePanelFullCollapse);
     const [collapsedSize, setCollapsedSize] = useState(navCollapsedSize);
 
-    const isSmallScreen = useMediaQuery('(max-width: 767px)');
+    const isSmallScreen = useMediaQuery('(max-width: 768px)');
     const hideSidePanel = useRecoilValue(store.hideSidePanel);
 
     const calculateLayout = useCallback(() => {
@@ -75,6 +75,17 @@ const SidePanelGroup = memo(
     );
 
     useEffect(() => {
+      if (isSmallScreen && isCollapsed) {
+        setFullCollapse(true);
+        panelRef.current?.collapse();
+      } else if (isSmallScreen && !isCollapsed) {
+        setFullCollapse(false);
+        setMinSize(defaultMinSize);
+        panelRef.current?.expand();
+      }
+    }, [isSmallScreen, isCollapsed, setFullCollapse]);
+
+    useEffect(() => {
       if (isSmallScreen) {
         setIsCollapsed(true);
         setCollapsedSize(0);
@@ -88,21 +99,19 @@ const SidePanelGroup = memo(
         setCollapsedSize(navCollapsedSize);
         setMinSize(defaultMinSize);
       }
-    }, [isSmallScreen, defaultCollapsed, navCollapsedSize, fullPanelCollapse]);
+    }, [isSmallScreen, defaultCollapsed, navCollapsedSize, fullPanelCollapse, setIsCollapsed, setFullCollapse]);
 
     const minSizeMain = useMemo(() => (artifacts != null ? 15 : 30), [artifacts]);
 
     /** Memoized close button handler to prevent re-creating it */
     const handleClosePanel = useCallback(() => {
-      setIsCollapsed(() => {
-        localStorage.setItem('fullPanelCollapse', 'true');
-        setFullCollapse(true);
-        setCollapsedSize(0);
-        setMinSize(0);
-        return false;
-      });
+      setIsCollapsed(true);
+      setFullCollapse(true);
+      setCollapsedSize(0);
+      setMinSize(0);
+      localStorage.setItem('fullPanelCollapse', 'true');
       panelRef.current?.collapse();
-    }, []);
+    }, [panelRef, setIsCollapsed, setFullCollapse]);
 
     return (
       <>

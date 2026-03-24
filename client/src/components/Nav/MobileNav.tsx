@@ -11,6 +11,12 @@ export default function MobileNav({
 }) {
   const localize = useLocalize();
   const setIsCollapsed = useSetRecoilState(store.sidePanelCollapsed);
+  const setFullCollapse = useSetRecoilState(store.sidePanelFullCollapse);
+
+  const toggleRightPanel = () => {
+    setIsCollapsed((prev) => !prev);
+    setFullCollapse((prev) => !prev);
+  };
 
   return (
     <div className="bg-token-main-surface-primary sticky top-0 z-10 flex min-h-[40px] items-center justify-between bg-white px-1 dark:bg-gray-800 dark:text-white md:hidden">
@@ -51,7 +57,7 @@ export default function MobileNav({
         data-testid="mobile-header-open-tools-button"
         aria-label="Open tool sidebar"
         className="m-1 inline-flex size-10 items-center justify-center rounded-full hover:bg-surface-hover transition-colors"
-        onClick={() => setIsCollapsed((prev) => !prev)}
+        onClick={toggleRightPanel}
       >
         <span className="sr-only">Open tool sidebar</span>
         <svg

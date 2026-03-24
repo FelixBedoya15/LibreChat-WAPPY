@@ -49,7 +49,7 @@ const SidePanel = ({
   const [newUser, setNewUser] = useLocalStorage('newUser', true);
   const { data: endpointsConfig = {} as TEndpointsConfig } = useGetEndpointsQuery();
 
-  const isSmallScreen = useMediaQuery('(max-width: 767px)');
+  const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
   const { data: keyExpiry = { expiresAt: undefined } } = useUserKeyQuery(endpoint ?? '');
 
@@ -167,11 +167,11 @@ const SidePanel = ({
           localStorage.setItem('react-resizable-panels:collapsed', 'true');
         }}
         className={cn(
-          'sidenav hide-scrollbar border-l border-border-light bg-background py-1 transition-opacity',
-          isCollapsed ? 'min-w-[50px]' : 'min-w-[340px] sm:min-w-[352px]',
-          (isSmallScreen && isCollapsed && (minSize === 0 || collapsedSize === 0)) || fullCollapse
-            ? 'hidden min-w-0'
-            : 'opacity-100',
+          'sidenav hide-scrollbar border-l border-border-light bg-background py-1 transition-all duration-300 ease-in-out',
+          isSmallScreen && 'fixed inset-y-0 right-0 z-[1100] w-[320px] shadow-2xl border-l',
+          isSmallScreen && isCollapsed ? 'translate-x-full opacity-0 pointer-events-none' : 'translate-x-0 opacity-100',
+          !isSmallScreen && (isCollapsed ? 'min-w-[50px]' : 'min-w-[340px] sm:min-w-[352px]'),
+          !isSmallScreen && ((isCollapsed && (minSize === 0 || collapsedSize === 0)) || fullCollapse) && 'hidden min-w-0',
         )}
       >
         <Nav

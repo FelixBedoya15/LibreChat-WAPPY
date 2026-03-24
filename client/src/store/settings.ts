@@ -23,6 +23,7 @@ const localStorageAtoms = {
    autoScroll: atomWithLocalStorage('autoScroll', false),
   hideSidePanel: atomWithLocalStorage('hideSidePanel', false),
   sidePanelCollapsed: atomWithLocalStorage('sidePanelCollapsed', false),
+  sidePanelFullCollapse: atomWithLocalStorage('sidePanelFullCollapse', false),
   fontFamily: atomWithLocalStorage('fontFamily', 'system'),
   enableUserMsgMarkdown: atomWithLocalStorage<boolean>(
     LocalStorageKeys.ENABLE_USER_MSG_MARKDOWN,
