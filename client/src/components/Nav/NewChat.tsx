@@ -15,6 +15,7 @@ export default function NewChat({
   subHeaders,
   isSmallScreen,
   headerButtons,
+  isCollapsed,
 }: {
   index?: number;
   toggleNav: () => void;
