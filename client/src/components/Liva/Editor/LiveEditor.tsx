@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { motion } from 'framer-motion';
 import {
     Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered,
     AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon,
@@ -496,51 +497,105 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     };
 
     const ToolbarButton = ({ icon: Icon, command, value, label, onClick }: { icon: any, command?: string, value?: string, label: string, onClick?: () => void }) => (
-        <button
+        <motion.button
+            whileHover={{ scale: 1.05, rotate: -3 }}
+            whileTap={{ scale: 0.95 }}
             onClick={onClick ? onClick : () => command && execCmd(command, value)}
-            className="p-2 hover:bg-surface-hover rounded transition-colors text-primary"
+            className="group relative flex items-center justify-center h-9 px-2 min-w-[36px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-border-medium/50 rounded-lg hover:bg-surface-hover hover:border-teal-400 bg-surface-primary text-text-primary outline-none"
             title={label}
             type="button"
         >
             <Icon className="w-4 h-4" />
-        </button>
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-teal-500/50">
+                <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+            </div>
+        </motion.button>
     );
 
+    const editorGroups = [
+        { id: 'format', buttons: [
+            { icon: Bold, command: 'bold', label: localize('com_ui_bold') },
+            { icon: Italic, command: 'italic', label: localize('com_ui_italic') },
+            { icon: Underline, command: 'underline', label: localize('com_ui_underline') }
+        ]},
+        { id: 'headings', buttons: [
+            { icon: Heading1, command: 'formatBlock', value: 'H1', label: localize('com_ui_heading_1') },
+            { icon: Heading2, command: 'formatBlock', value: 'H2', label: localize('com_ui_heading_2') }
+        ]},
+        { id: 'lists', buttons: [
+            { icon: List, command: 'insertUnorderedList', label: localize('com_ui_bullet_list') },
+            { icon: ListOrdered, command: 'insertOrderedList', label: localize('com_ui_numbered_list') }
+        ]},
+        { id: 'align', buttons: [
+            { icon: AlignLeft, command: 'justifyLeft', label: localize('com_ui_align_left') },
+            { icon: AlignCenter, command: 'justifyCenter', label: localize('com_ui_align_center') },
+            { icon: AlignRight, command: 'justifyRight', label: localize('com_ui_align_right') }
+        ]},
+        { id: 'media', buttons: [
+            { icon: ImageIcon, label: "Imagen", onClick: () => fileInputRef.current?.click() },
+            { icon: PenTool, label: "Firma", onClick: () => setIsSignatureModalOpen(true) }
+        ]},
+        { id: 'save', buttons: onSave ? [
+            { icon: Save, label: localize('com_ui_save_report') || "Guardar", onClick: onSave }
+        ] : []}
+    ].filter(g => g.buttons.length > 0);
+
+    const editorRows = React.useMemo(() => {
+        const result: any[][] = [];
+        let currentRow: any[] = [];
+        let count = 0;
+        editorGroups.forEach(g => {
+            if (count + g.buttons.length > 5 && currentRow.length > 0) {
+                result.push(currentRow);
+                currentRow = [g];
+                count = g.buttons.length;
+            } else {
+                currentRow.push(g);
+                count += g.buttons.length;
+            }
+        });
+        if (currentRow.length > 0) result.push(currentRow);
+        return result;
+    }, [editorGroups]);
+
+    const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
+
     return (
-        <div className="w-full h-full flex flex-col">
+        <div className="w-full h-full flex flex-col bg-white dark:bg-zinc-900">
             {/* Toolbar */}
-            <div className="bg-surface-secondary p-2 border-b border-light flex flex-wrap gap-2 items-center sticky top-0 z-10">
-                {/* Group 1: Formatting Text */}
-                <div className="flex gap-1 items-center">
-                    <ToolbarButton icon={Bold} command="bold" label={localize('com_ui_bold')} />
-                    <ToolbarButton icon={Italic} command="italic" label={localize('com_ui_italic')} />
-                    <ToolbarButton icon={Underline} command="underline" label={localize('com_ui_underline')} />
-                    <div className="w-px h-6 bg-border-medium mx-1" />
-                    <ToolbarButton icon={Heading1} command="formatBlock" value="H1" label={localize('com_ui_heading_1')} />
-                    <ToolbarButton icon={Heading2} command="formatBlock" value="H2" label={localize('com_ui_heading_2')} />
-                    <div className="w-px h-6 bg-border-medium mx-1" />
-                    <ToolbarButton icon={List} command="insertUnorderedList" label={localize('com_ui_bullet_list')} />
-                    <ToolbarButton icon={ListOrdered} command="insertOrderedList" label={localize('com_ui_numbered_list')} />
+            <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
+                {/* Desktop View */}
+                <div className="hidden sm:flex flex-wrap gap-2 items-center justify-center">
+                    {editorGroups.map((group, idx) => (
+                        <React.Fragment key={group.id}>
+                            <div className="flex gap-1.5 items-center">
+                                {group.buttons.map((btn, bIdx) => (
+                                    <ToolbarButton key={bIdx} {...btn} />
+                                ))}
+                            </div>
+                            {idx < editorGroups.length - 1 && <ToolbarSeparator />}
+                        </React.Fragment>
+                    ))}
                 </div>
 
-                {/* Group 2: Alignment & Save */}
-                <div className="flex gap-1 items-center">
-                    <div className="w-px h-6 bg-border-medium mx-1 hidden sm:block" />
-                    <ToolbarButton icon={AlignLeft} command="justifyLeft" label={localize('com_ui_align_left')} />
-                    <ToolbarButton icon={AlignCenter} command="justifyCenter" label={localize('com_ui_align_center')} />
-                    <ToolbarButton icon={AlignRight} command="justifyRight" label={localize('com_ui_align_right')} />
-
-                    <div className="w-px h-6 bg-border-medium mx-1" />
-                    <ToolbarButton icon={ImageIcon} label="Insertar Imagen" onClick={() => fileInputRef.current?.click()} />
-                    <ToolbarButton icon={PenTool} label="Firma Digital" onClick={() => setIsSignatureModalOpen(true)} />
-
-                    {onSave && (
-                        <>
-                            <div className="w-px h-6 bg-border-medium mx-1" />
-                            <ToolbarButton icon={Save} label={localize('com_ui_save_report') || "Guardar Informe"} onClick={onSave} />
-                        </>
-                    )}
+                {/* Mobile View */}
+                <div className="flex sm:hidden flex-col gap-2 items-center">
+                    {editorRows.map((row, rIdx) => (
+                        <div key={rIdx} className="flex gap-1.5 items-center justify-center">
+                            {row.map((group, gIdx) => (
+                                <React.Fragment key={group.id}>
+                                    <div className="flex gap-1.5 items-center">
+                                        {group.buttons.map((btn, bIdx) => (
+                                            <ToolbarButton key={bIdx} {...btn} />
+                                        ))}
+                                    </div>
+                                    {gIdx < row.length - 1 && <ToolbarSeparator />}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    ))}
                 </div>
+            </div>
 
                 <input
                     type="file"
@@ -556,7 +611,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     accept="image/*"
                     onChange={handleSignatureUpload}
                 />
-            </div>
 
             {/* Signature Management Modal */}
             {isSignatureModalOpen && (

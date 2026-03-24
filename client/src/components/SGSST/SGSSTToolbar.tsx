@@ -194,27 +194,66 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
         { id: 'test', buttons: effectiveTest }
     ].filter(g => (g.buttons && g.buttons.length > 0) || g.extra);
 
+    const allItems = React.useMemo(() => [
+        ...allGroups,
+        ...customSections.map((section, idx) => ({ id: `custom-${idx}`, buttons: [], extra: section }))
+    ], [allGroups, customSections]);
+
+    const rows = React.useMemo(() => {
+        const result: any[][] = [];
+        let currentRow: any[] = [];
+        let rowCount = 0;
+
+        allItems.forEach(group => {
+            const groupSize = (group.buttons?.length || 0) + (group.extra ? 1 : 0);
+            if (rowCount + groupSize > 5 && currentRow.length > 0) {
+                result.push(currentRow);
+                currentRow = [group];
+                rowCount = groupSize;
+            } else {
+                currentRow.push(group);
+                rowCount += groupSize;
+            }
+        });
+        if (currentRow.length > 0) result.push(currentRow);
+        return result;
+    }, [allItems]);
+
     return (
-        <div className="mt-6 flex flex-wrap items-center justify-center p-2 rounded-2xl bg-surface-secondary border border-border-medium shadow-lg w-fit mx-auto mb-6">
-            {allGroups.map((group, idx) => (
-                <React.Fragment key={group.id}>
-                    <div className="flex items-center gap-1">
-                        {group.buttons.map(btn => (
-                            <ToolbarButton key={btn.id} {...btn} />
+        <div className="mt-6 flex flex-col items-center justify-center p-2 rounded-3xl bg-surface-secondary/80 backdrop-blur-md border border-border-medium shadow-2xl w-fit mx-auto mb-6 gap-2">
+            {/* Desktop View: Single Row */}
+            <div className="hidden sm:flex flex-wrap items-center justify-center">
+                {allItems.map((group, idx) => (
+                    <React.Fragment key={group.id}>
+                        <div className="flex items-center gap-1.5 px-0.5">
+                            {(group.buttons || []).map(btn => (
+                                <ToolbarButton key={btn.id} {...btn} />
+                            ))}
+                            {group.extra}
+                        </div>
+                        {idx < allItems.length - 1 && <ToolbarSeparator />}
+                    </React.Fragment>
+                ))}
+            </div>
+
+            {/* Mobile View: Multi-row logic (max 5 buttons per row, group-aware) */}
+            <div className="flex sm:hidden flex-col items-center gap-2">
+                {rows.map((row, rIdx) => (
+                    <div key={rIdx} className="flex items-center justify-center gap-1">
+                        {row.map((group, gIdx) => (
+                            <React.Fragment key={group.id}>
+                                <div className="flex items-center gap-1.5 px-0.5">
+                                    {(group.buttons || []).map(btn => (
+                                        <ToolbarButton key={btn.id} {...btn} />
+                                    ))}
+                                    {group.extra}
+                                </div>
+                                {gIdx < row.length - 1 && <ToolbarSeparator />}
+                            </React.Fragment>
                         ))}
-                        {group.extra}
                     </div>
-                    {idx < allGroups.length - 1 && <ToolbarSeparator />}
-                </React.Fragment>
-            ))}
-            {customSections.map((section, idx) => (
-                <React.Fragment key={`custom-${idx}`}>
-                    <ToolbarSeparator />
-                    <div className="flex items-center gap-1">
-                        {section}
-                    </div>
-                </React.Fragment>
-            ))}
+                ))}
+            </div>
         </div>
     );
 };
