@@ -50,11 +50,6 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags, isSmallScreen, fullW
             {fullWidth && (
               <span className="truncate">{localize('com_ui_bookmarks')}</span>
             )}
-            {!fullWidth && (
-              <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{label}</span>
-              </div>
-            )}
           </MenuButton>
           <MenuItems
             anchor="bottom start"

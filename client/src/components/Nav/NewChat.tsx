@@ -5,7 +5,7 @@ import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
 import { PlusCircle } from 'lucide-react';
-import { Sidebar } from '@librechat/client';
+import { Sidebar, TooltipAnchor } from '@librechat/client';
 import BookmarkNav from './Bookmarks/BookmarkNav';
 
 export default function NewChat({
@@ -41,24 +41,37 @@ export default function NewChat({
       {/* Top Row: Toggle (Left) and Quick Actions (Right) */}
       <div className="flex items-center justify-between h-10 mb-2 w-full">
         {/* Toggle Button (Left) */}
-        <button
-          onClick={toggleNav}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
-          title={localize('com_nav_close_sidebar')}
-        >
-          <Sidebar size={20} />
-        </button>
+        <TooltipAnchor
+          description={localize('com_nav_close_sidebar')}
+          render={
+            <button
+              onClick={toggleNav}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
+            >
+              <Sidebar size={20} />
+            </button>
+          }
+        />
 
         {/* Quick Actions (Right) */}
         <div className="flex items-center gap-1">
-          <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={false} />
-          <button
-            onClick={clickHandler}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-md"
-            title={localize('com_ui_new_chat')}
-          >
-            <PlusCircle size={18} />
-          </button>
+          <TooltipAnchor
+            description={localize('com_ui_bookmarks')}
+            render={
+              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={false} />
+            }
+          />
+          <TooltipAnchor
+            description={localize('com_ui_new_chat')}
+            render={
+              <button
+                onClick={clickHandler}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-md"
+              >
+                <PlusCircle size={18} />
+              </button>
+            }
+          />
         </div>
       </div>
     </div>
