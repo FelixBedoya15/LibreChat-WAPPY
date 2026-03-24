@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { Spinner, useToastContext, SelectDropDown } from '@librechat/client';
 import { useForm, FormProvider, Controller, useWatch } from 'react-hook-form';

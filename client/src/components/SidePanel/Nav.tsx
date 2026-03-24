@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import {
   AccordionContent,
