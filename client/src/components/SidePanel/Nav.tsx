@@ -39,10 +39,9 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                           asChild
                           variant="ghost"
                           size="icon"
-                          className="h-12 w-12 p-0 overflow-visible mb-2"
+                          className="h-10 w-10 p-0 overflow-visible mb-2"
                         >
                           <motion.button
-                            whileHover={{ scale: 1.1, rotate: -3, zIndex: 10 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={(e) => {
                               if (link.onClick) {
@@ -54,10 +53,10 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                               resize && resize(25);
                             }}
                             className={cn(
-                              "flex items-center justify-center rounded-xl border transition-all duration-300 w-full h-full shadow-md",
+                              "flex items-center justify-center rounded-xl border transition-all duration-300 w-full h-full shadow-sm sm:hover:scale-105 sm:hover:-rotate-3",
                               variant === 'default' 
                                 ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner" 
-                                : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-teal-400 hover:text-teal-600 text-text-secondary"
+                                : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
                             )}
                           >
                             <link.icon className="h-5 w-5" />
