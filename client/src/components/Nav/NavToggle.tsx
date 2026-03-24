@@ -33,9 +33,8 @@ export default function NavToggle({
     <div
       className={cn(
         className,
-        '-translate-y-1/2 transition-transform',
-        navVisible ? 'rotate-0' : 'rotate-180',
-        navVisible && translateX ? 'translate-x-[260px]' : 'translate-x-0',
+        '-translate-y-1/2 transition-all duration-300 z-50',
+        navVisible && translateX ? (side === 'left' ? 'translate-x-[260px]' : '-translate-x-[260px]') : 'translate-x-0',
       )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -46,39 +45,49 @@ export default function NavToggle({
         aria-expanded={navVisible}
         aria-controls={side === 'left' ? 'chat-history-nav' : 'controls-nav'}
         id={`toggle-${side}-nav`}
-        onClick={onToggle}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
         role="button"
         description={
           navVisible ? localize('com_nav_close_sidebar') : localize('com_nav_open_sidebar')
         }
-        className="flex items-center justify-center"
+        className="flex items-center justify-center p-0"
         tabIndex={0}
       >
-        <span className="" data-state="closed">
-          <div
-            className="flex h-[72px] w-8 items-center justify-center"
-            style={{ ...transition, opacity: isHovering ? 1 : 0.25 }}
-          >
-            <div className="flex h-6 w-6 flex-col items-center">
-              {/* Top bar */}
-              <div
-                className="h-3 w-1 rounded-full bg-black dark:bg-white"
-                style={{
-                  ...transition,
-                  transform: `translateY(0.15rem) rotate(${topBarRotation}) translateZ(0px)`,
-                }}
-              />
-              {/* Bottom bar */}
-              <div
-                className="h-3 w-1 rounded-full bg-black dark:bg-white"
-                style={{
-                  ...transition,
-                  transform: `translateY(-0.15rem) rotate(${bottomBarRotation}) translateZ(0px)`,
-                }}
-              />
-            </div>
+        <motion.div
+           whileHover={{ scale: 1.1, rotate: side === 'left' ? -5 : 5, zIndex: 100 }}
+           whileTap={{ scale: 0.9 }}
+           className={cn(
+             "group flex h-12 w-8 items-center justify-center rounded-xl border transition-all duration-300 shadow-md",
+             "bg-white dark:bg-surface-primary border-border-medium/30 hover:border-teal-400 text-text-secondary hover:text-teal-600 shadow-sm"
+           )}
+        >
+          <div className={cn(
+            "transition-transform duration-300",
+            navVisible ? (side === 'left' ? "rotate-0" : "rotate-0") : (side === 'left' ? "rotate-180" : "rotate-180")
+          )}>
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="16" 
+              height="16" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              {side === 'left' ? (
+                <polyline points="15 18 9 12 15 6"></polyline>
+              ) : (
+                <polyline points="9 18 15 12 9 6"></polyline>
+              )}
+            </svg>
           </div>
-        </span>
+        </motion.div>
       </TooltipAnchor>
     </div>
   );

@@ -37,8 +37,8 @@ export default function LiveAnalysisButton({
             <div className="relative flex-shrink-0 flex items-center justify-center">
                 <AnimatedIcon name="camera" size={20} />
             </div>
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">Cámara Riesgo</span>
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110] border border-teal-500/50">
+                <span className="text-[10px] font-bold uppercase tracking-wider">Cámara Riesgo</span>
             </div>
         </motion.button>
     );

@@ -68,49 +68,53 @@ function AccountSettings() {
         <Select.Select
           aria-label={localize('com_nav_account_settings')}
           data-testid="nav-user"
-          as={motion.button}
-          whileHover={{ scale: 1.05, rotate: -3, zIndex: 100 }}
-          whileTap={{ scale: 0.98 }}
-          className="group mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-2.5 text-sm transition-all duration-300 ease-in-out bg-surface-secondary/30 border border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner cursor-pointer outline-none"
+          className="group relative mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-0 text-sm transition-all duration-300 ease-in-out bg-transparent border-none cursor-pointer outline-none"
         >
-          <div className="relative flex-shrink-0 flex items-center justify-center translate-y-[1px]">
-            <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setShowNotifications(prev => !prev);
-                }}
-                className="z-50 focus:outline-none"
-              >
-                <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-300" />
-              </button>
-              {/* Notification Badge */}
-              {unreadCount > 0 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowNotifications(prev => !prev);
-                  }}
-                  className="absolute -top-1 -right-1 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
-                  style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' }}
-                  title={`${unreadCount} notificaciones sin leer`}
-                >
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-            <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
-            <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
-              {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
-            </span>
-          </div>
-          <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
-             <AnimatedIcon name="chevron-right" size={16} />
-          </div>
+          <motion.div 
+            whileHover={{ scale: 1.05, rotate: -3 }}
+            whileTap={{ scale: 0.98 }}
+            style={{ zIndex: 100 }}
+            className="flex h-full w-full items-center gap-3 rounded-2xl p-2.5 transition-all duration-300 bg-surface-secondary/30 border border-border-medium/50 group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner overflow-hidden"
+          >
+           <div className="relative flex-shrink-0 flex items-center justify-center translate-y-[1px]">
+             <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center relative">
+               <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   e.preventDefault();
+                   setShowNotifications(prev => !prev);
+                 }}
+                 className="z-50 focus:outline-none"
+               >
+                 <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-300" />
+               </button>
+               {/* Notification Badge */}
+               {unreadCount > 0 && (
+                 <button
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     setShowNotifications(prev => !prev);
+                   }}
+                   className="absolute -top-1 -right-1 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
+                   style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' }}
+                   title={`${unreadCount} notificaciones sin leer`}
+                 >
+                   {unreadCount > 9 ? '9+' : unreadCount}
+                 </button>
+               )}
+             </div>
+           </div>
+           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+             <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
+             <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
+               {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
+             </span>
+           </div>
+           <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
+              <AnimatedIcon name="chevron-right" size={16} />
+           </div>
+          </motion.div>
         </Select.Select>
         <Select.SelectPopover
           className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white/80 dark:bg-surface-primary/80 p-1.5 shadow-2xl outline-none backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"

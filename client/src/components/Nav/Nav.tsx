@@ -177,28 +177,19 @@ const Nav = memo(
             </Suspense>
           )}
           {hasAccessToBookmarks && (
-            <>
-              <div className="mt-1.5" />
-              <Suspense fallback={null}>
-                <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} />
-              </Suspense>
-            </>
+            <Suspense fallback={null}>
+              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} />
+            </Suspense>
           )}
           {hasAccessToLiveAnalysis && (
-            <>
-              <div className="mt-1.5" />
-              <Suspense fallback={null}>
-                <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
-              </Suspense>
-            </>
+            <Suspense fallback={null}>
+              <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+            </Suspense>
           )}
           {hasAccessToSGSST && (
-            <>
-              <div className="mt-1.5" />
-              <Suspense fallback={null}>
-                <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
-              </Suspense>
-            </>
+            <Suspense fallback={null}>
+              <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+            </Suspense>
           )}
         </>
       ),
