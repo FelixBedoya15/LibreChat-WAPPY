@@ -1,4 +1,4 @@
-import { useMemo, memo, type FC, useCallback } from 'react';
+import { useMemo, memo, type FC, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import throttle from 'lodash/throttle';
