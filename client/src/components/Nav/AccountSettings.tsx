@@ -71,41 +71,16 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
           data-testid="nav-user"
           className="group relative mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-0 text-sm transition-all duration-300 ease-in-out bg-transparent border-none cursor-pointer outline-none"
         >
-          <motion.div 
-            whileHover={{ scale: 1.05, rotate: -3 }}
-            whileTap={{ scale: 0.98 }}
-            style={{ zIndex: 100 }}
+          <div 
             className={cn(
-                "flex h-full w-full items-center transition-all duration-300 bg-surface-secondary/30 border border-border-medium/50 group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner overflow-hidden",
+                "flex h-full w-full items-center transition-all duration-300 bg-white border border-border-light hover:border-border-medium hover:bg-surface-hover shadow-sm overflow-hidden",
                 isCollapsed ? "justify-center p-0 rounded-xl" : "gap-3 rounded-2xl p-2.5"
             )}
           >
-           <div className={cn("relative flex-shrink-0 flex items-center justify-center", !isCollapsed && "translate-y-[1px]")}>
+           <div className={cn("relative flex-shrink-0 flex items-center justify-center")}>
              <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center relative">
-               <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
-               <button
-                 onClick={(e) => {
-                   e.stopPropagation();
-                   e.preventDefault();
-                   setShowNotifications(prev => !prev);
-                 }}
-                 className="z-50 focus:outline-none"
-               >
-                 <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-300" />
-               </button>
-               {unreadCount > 0 && (
-                 <button
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     setShowNotifications(prev => !prev);
-                   }}
-                   className="absolute -top-1 -right-1 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
-                   style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' }}
-                   title={`${unreadCount} notificaciones sin leer`}
-                 >
-                   {unreadCount > 9 ? '9+' : unreadCount}
-                 </button>
-               )}
+               <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-light" />
+               <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
              </div>
            </div>
            {!isCollapsed && (
@@ -121,7 +96,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                 </div>
                </>
            )}
-          </motion.div>
+          </div>
         </Select.Select>
         <Select.SelectPopover
           className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white/80 dark:bg-surface-primary/80 p-1.5 shadow-2xl outline-none backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"

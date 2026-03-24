@@ -225,7 +225,8 @@ const Nav = memo(
             zIndex: 1000,
             width: navVisible ? navWidth : '0px',
             transform: navVisible ? 'translateX(0)' : 'translateX(-100%)',
-          }}
+            '--nav-width': navVisible ? navWidth : '0px',
+          } as React.CSSProperties}
         >
           <div className={cn(
             "h-full overflow-visible transition-all duration-300",
@@ -264,9 +265,17 @@ const Nav = memo(
                         />
                       )}
                     </div>
-                    <Suspense fallback={null}>
-                      <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
-                    </Suspense>
+                    <div className="flex flex-col gap-2 mt-auto">
+                      {!isCollapsed && headerButtons && (
+                          <div className="flex flex-row flex-wrap gap-1 mb-2 justify-center px-2">
+                            {headerButtons}
+                          </div>
+                      )}
+                      
+                      <Suspense fallback={null}>
+                        <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
+                      </Suspense>
+                    </div>
                   </nav>
                 </div>
               </div>

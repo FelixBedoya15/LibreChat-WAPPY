@@ -49,81 +49,48 @@ export default function NewChat({
   );
 
   return (
-    <>
-      <div className={cn(
-        "flex py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative z-20 hover:z-[100] gap-1 transition-all duration-300",
-        isCollapsed 
-          ? "flex-col items-center w-auto min-h-0 mx-auto" 
-          : "flex-row items-center justify-between min-h-[56px] h-auto flex-wrap"
-      )}>
-        <motion.button
-          whileTap="tap"
+    <div className={cn("flex flex-col gap-2 p-1 transition-all duration-300", isCollapsed && "items-center")}>
+      <div className={cn("flex items-center gap-2", isCollapsed ? "flex-col" : "flex-row w-full")}>
+        {/* Toggle Button */}
+        <button
           onClick={toggleNav}
           className={cn(
-            "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
-            "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary",
-            isCollapsed && "order-first mb-1"
+            "flex items-center justify-center h-10 w-10 shrink-0 transition-colors rounded-xl border border-border-light/50 bg-white hover:bg-surface-hover hover:border-border-medium shadow-sm",
+            isCollapsed && "order-first"
           )}
         >
-          <div className="relative flex-shrink-0 flex items-center justify-center">
-            <AnimatedIcon name="sidebar" size={20} className={cn("transition-transform", isCollapsed && "rotate-180")} />
-          </div>
+          <AnimatedIcon name="sidebar" size={20} className={cn("transition-transform", isCollapsed && "rotate-180")} />
+        </button>
+
+        {/* New Chat Button */}
+        <motion.button
+          whileTap="tap"
+          onClick={clickHandler}
+          className={cn(
+            "group relative flex items-center justify-center h-10 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-teal-600/30 outline-none rounded-xl bg-teal-600 text-white hover:bg-teal-700",
+            isCollapsed ? "w-10" : "flex-1 px-4"
+          )}
+        >
+          <AnimatedIcon name="plus" size={20} />
+          {!isCollapsed && <span className="ml-2 whitespace-nowrap text-sm font-bold uppercase tracking-tight">{localize('com_ui_new_chat')}</span>}
         </motion.button>
+      </div>
 
-        <div className={cn(
-            "flex items-center gap-1 overflow-visible justify-center",
-            isCollapsed ? "flex-col" : "flex-row flex-wrap"
-        )}>
-          <motion.button
-            whileTap="tap"
-            onClick={clickHandler}
-            className={cn(
-              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
-              "bg-teal-600 hover:bg-teal-700 text-white border-transparent"
-            )}
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <AnimatedIcon name="plus" size={20} />
-            </div>
-            <div className={cn(
-                "hidden sm:flex absolute items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]",
-                isCollapsed ? "left-full ml-2" : "right-full mr-2"
-            )}>
-              <span className="text-[10px] font-bold uppercase tracking-wider">{localize('com_ui_new_chat')}</span>
-            </div>
-          </motion.button>
+      {/* Search Bar & Extra Buttons */}
+      {!isCollapsed && (
+        <div className="flex flex-col gap-1 w-full">
+          {subHeaders}
+          <div className="flex flex-row flex-wrap gap-1 mt-1 justify-center">
+            {headerButtons}
+          </div>
+        </div>
+      )}
 
-          <motion.button
-            whileTap="tap"
-            onClick={() => {
-              if (isCollapsed) {
-                toggleNav();
-              }
-              // Focus after expansion
-              setTimeout(() => {
-                const searchInput = document.querySelector('nav input');
-                if (searchInput) {
-                  (searchInput as HTMLInputElement).focus();
-                }
-              }, 400);
-            }}
-            className={cn(
-              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
-              "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
-            )}
-          >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-              <AnimatedIcon name="search" size={20} />
-            </div>
-            <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{localize('com_ui_search')}</span>
-            </div>
-          </motion.button>
-
+      {isCollapsed && (
+        <div className="flex flex-col gap-2 mt-2">
           {headerButtons}
         </div>
-      </div>
-      {!isCollapsed && subHeaders != null ? subHeaders : null}
-    </>
+      )}
+    </div>
   );
 }
