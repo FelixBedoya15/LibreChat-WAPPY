@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useMemo, memo, lazy, Suspense, useRef } from 'react';
 import { useRecoilValue } from 'recoil';
-import { useMediaQuery } from '@librechat/client';
+import { useMediaQuery, TooltipAnchor } from '@librechat/client';
 import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import type { InfiniteQueryObserverResult } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import NewChat from './NewChat';
 import NavToggle from './NavToggle';
 import { cn } from '~/utils';
 import store from '~/store';
+import { Search } from 'lucide-react';
 
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
@@ -167,11 +168,6 @@ const Nav = memo(
 
     const isCollapsedState = navWidth === NAV_WIDTH_COLLAPSED;
 
-    const subHeaders = useMemo(
-      () => search.enabled === true && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={isCollapsedState} />,
-      [search.enabled, isSmallScreen, isCollapsedState],
-    );
-
     const headerButtons = useMemo(
       () => (
         <>
@@ -197,7 +193,7 @@ const Nav = memo(
           )}
         </>
       ),
-      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents],
+      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
@@ -243,38 +239,112 @@ const Nav = memo(
                     id="chat-history-nav"
                     aria-label={localize('com_ui_chat_history')}
                     className={cn(
-                        "flex h-full flex-col px-2 pb-3.5 md:px-3 transition-all duration-300",
-                        isCollapsedState ? 'px-1 md:px-1' : ''
+                      "flex h-full flex-col pb-3.5 transition-all duration-300",
+                      isCollapsedState ? 'px-1 items-center' : 'px-2 md:px-3'
                     )}
                   >
-                    <div className="flex flex-1 flex-col" ref={outerContainerRef}>
-                        <Conversations
-                            conversations={conversations}
-                            moveToTop={moveToTop}
-                            toggleNav={itemToggleNav}
-                            containerRef={listRef}
-                            loadMoreConversations={loadMoreConversations}
-                            isLoading={isFetchingNextPage || showLoading || isLoading}
-                            isSearchLoading={isSearchLoading}
-                            isCollapsed={isCollapsedState}
-                            headerContent={
-                                <>
-                                    <MemoNewChat
-                                        toggleNav={toggleNavVisible}
-                                        isSmallScreen={isSmallScreen}
-                                        isCollapsed={isCollapsedState}
-                                    />
-                                    <div className="flex flex-col gap-2 mt-2 mb-4">
-                                        {subHeaders}
-                                        {headerButtons}
-                                    </div>
-                                </>
-                            }
+                    {/* Collapsed: icon-only column identical to right panel */}
+                    {isCollapsedState ? (
+                      <div className="flex flex-col gap-2 pt-2 w-full items-center">
+                        {/* New Chat icon */}
+                        <TooltipAnchor
+                          description="Nuevo Chat"
+                          side="right"
+                          render={
+                            <MemoNewChat
+                              toggleNav={toggleNavVisible}
+                              isSmallScreen={isSmallScreen}
+                              isCollapsed={true}
+                            />
+                          }
                         />
-                    </div>
-                    <Suspense fallback={null}>
-                      <AccountSettings isCollapsed={isCollapsedState} />
-                    </Suspense>
+                        {/* Search icon */}
+                        <TooltipAnchor
+                          description="Buscar mensajes"
+                          side="right"
+                          render={
+                            <button
+                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-primary hover:bg-surface-hover hover:border-teal-400 text-text-primary transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3"
+                              onClick={() => {}}
+                            >
+                              <Search className="h-5 w-5" />
+                            </button>
+                          }
+                        />
+                        {/* Bookmarks icon */}
+                        {hasAccessToBookmarks && (
+                          <Suspense fallback={null}>
+                            <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
+                          </Suspense>
+                        )}
+                        {/* Camera icon */}
+                        {hasAccessToLiveAnalysis && (
+                          <Suspense fallback={null}>
+                            <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
+                        {/* SG-SST icon */}
+                        {hasAccessToSGSST && (
+                          <Suspense fallback={null}>
+                            <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
+                        <div className="mt-auto">
+                          <Suspense fallback={null}>
+                            <AccountSettings isCollapsed={true} />
+                          </Suspense>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Expanded: full width with chat history */
+                      <div className="flex flex-1 flex-col" ref={outerContainerRef}>
+                        <Conversations
+                          conversations={conversations}
+                          moveToTop={moveToTop}
+                          toggleNav={itemToggleNav}
+                          containerRef={listRef}
+                          loadMoreConversations={loadMoreConversations}
+                          isLoading={isFetchingNextPage || showLoading || isLoading}
+                          isSearchLoading={isSearchLoading}
+                          isCollapsed={false}
+                          headerContent={
+                            <>
+                              <MemoNewChat
+                                toggleNav={toggleNavVisible}
+                                isSmallScreen={isSmallScreen}
+                                isCollapsed={false}
+                              />
+                              <div className="flex flex-col gap-1.5 mt-1 mb-3">
+                                {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
+                                {hasAccessToAgents && (
+                                  <Suspense fallback={null}>
+                                    <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {hasAccessToBookmarks && (
+                                  <Suspense fallback={null}>
+                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {hasAccessToLiveAnalysis && (
+                                  <Suspense fallback={null}>
+                                    <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {hasAccessToSGSST && (
+                                  <Suspense fallback={null}>
+                                    <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                              </div>
+                            </>
+                          }
+                        />
+                        <Suspense fallback={null}>
+                          <AccountSettings isCollapsed={false} />
+                        </Suspense>
+                      </div>
+                    )}
                   </nav>
                 </div>
               </div>

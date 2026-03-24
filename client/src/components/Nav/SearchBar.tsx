@@ -1,6 +1,5 @@
 import React, { forwardRef, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import debounce from 'lodash/debounce';
 import { useRecoilState } from 'recoil';
 import { Search, X } from 'lucide-react';
@@ -132,10 +131,12 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     <motion.div
       ref={ref}
       className={cn(
-        'group relative flex h-11 w-full cursor-pointer items-center gap-3 rounded-xl border border-border-medium px-3 py-2 text-text-primary transition-all duration-300 bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400'
+        'group flex w-full items-center gap-3 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary p-3 text-sm text-text-secondary transition-all duration-300 shadow-sm hover:border-teal-400 hover:text-teal-600 cursor-text'
       )}
     >
-      <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors shrink-0" />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-secondary group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500 transition-colors">
+        <Search className="h-5 w-5" />
+      </div>
       <input
         type="text"
         ref={inputRef}

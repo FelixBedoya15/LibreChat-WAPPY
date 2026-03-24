@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { ShieldCheck } from 'lucide-react';
+import { TooltipAnchor } from '@librechat/client';
 import { cn } from '~/utils';
 
 export default function SGSSTButton({
@@ -23,27 +24,50 @@ export default function SGSSTButton({
         }
     };
 
+    if (isCollapsed) {
+        return (
+            <TooltipAnchor
+              description="Gestor SG-SST"
+              side="right"
+              render={
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleClick}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3",
+                    isActive
+                      ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner"
+                      : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+                  )}
+                >
+                  <ShieldCheck className="h-5 w-5" />
+                </motion.button>
+              }
+            />
+        );
+    }
+
     return (
         <motion.button
-            whileTap="tap"
+            whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
+            whileTap={{ scale: 0.98 }}
             onClick={handleClick}
             className={cn(
-                "group relative flex items-center h-11 px-3 w-full gap-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-[1.02] sm:hover:-rotate-1",
-                isActive 
-                    ? "bg-teal-50 border-teal-400 text-teal-600" 
-                    : "bg-white dark:bg-gray-800 border-border-medium hover:bg-surface-hover text-text-primary",
-                isCollapsed && "justify-center px-0"
+                "group flex w-full items-center gap-3 rounded-xl border p-3 text-sm transition-all duration-300 shadow-sm",
+                isActive
+                    ? "bg-teal-50/50 border-teal-400/50 text-teal-700 shadow-inner"
+                    : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-teal-600"
             )}
         >
-            <div className="relative flex-shrink-0 flex items-center justify-center">
-                <AnimatedIcon name="shield" size={18} className={cn(isActive ? "text-teal-600" : "text-text-secondary group-hover:text-teal-500")} />
+            <div className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
+                isActive
+                    ? "bg-white border-teal-200 text-teal-600 shadow-sm"
+                    : "bg-surface-secondary border-border-medium/50 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
+            )}>
+                <ShieldCheck className="h-5 w-5" />
             </div>
-            {!isCollapsed && <span className="text-sm font-semibold leading-tight mt-0.5">Gestor SG-SST</span>}
-            {isCollapsed && (
-                <div className="hidden sm:flex absolute left-full ml-3 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-2 rounded-lg shadow-2xl pointer-events-none z-[110]">
-                    <span className="text-xs font-semibold">Gestor SG-SST</span>
-                </div>
-            )}
+            <span className="font-bold tracking-tight text-text-primary text-[13px]">Gestor SG-SST</span>
         </motion.button>
     );
 }
