@@ -47,7 +47,7 @@ export default function Header() {
               }`}
           >
             <OpenSidebar setNavVisible={setNavVisible} className="max-md:hidden" />
-            <HeaderNewChat />
+            {!isSmallScreen && <HeaderNewChat />}
           </div>
           <div
             className={`flex items-center gap-2 ${!isSmallScreen ? 'transition-all duration-200 ease-in-out' : ''
@@ -57,14 +57,15 @@ export default function Header() {
             {interfaceConfig.presets === true && interfaceConfig.modelSelect && <PresetsMenu />}
             {hasAccessToBookmarks === true && <BookmarkMenu />}
             {hasAccessToMultiConvo === true && <AddMultiConvo />}
-            {isSmallScreen && (
-              <>
-                <ExportAndShareMenu
-                  isSharedButtonEnabled={startupConfig?.sharedLinksEnabled ?? false}
-                />
-                <TemporaryChat />
-              </>
-            )}
+             {isSmallScreen && (
+               <>
+                 <HeaderNewChat />
+                 <ExportAndShareMenu
+                   isSharedButtonEnabled={startupConfig?.sharedLinksEnabled ?? false}
+                 />
+                 <TemporaryChat />
+               </>
+             )}
           </div>
         </div>
         {!isSmallScreen && (

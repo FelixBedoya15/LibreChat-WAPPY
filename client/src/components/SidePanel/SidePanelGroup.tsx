@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import throttle from 'lodash/throttle';
-import { useRecoilValue } from 'recoil';
+import { useRecoilValue, useRecoilState } from 'recoil';
 import { getConfigDefaults } from 'librechat-data-provider';
 import {
   ResizableHandleAlt,
@@ -43,7 +43,7 @@ const SidePanelGroup = memo(
 
     const panelRef = useRef<ImperativePanelHandle>(null);
     const [minSize, setMinSize] = useState(defaultMinSize);
-    const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+    const [isCollapsed, setIsCollapsed] = useRecoilState(store.sidePanelCollapsed);
     const [fullCollapse, setFullCollapse] = useState(fullPanelCollapse);
     const [collapsedSize, setCollapsedSize] = useState(navCollapsedSize);
 

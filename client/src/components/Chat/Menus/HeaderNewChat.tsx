@@ -27,9 +27,7 @@ export default function HeaderNewChat() {
         <Button
           size="icon"
           variant="outline"
-          data-testid="wide-header-new-chat-button"
-          aria-label={localize('com_ui_new_chat')}
-          className="rounded-xl border border-border-light bg-surface-secondary p-2 hover:bg-surface-hover max-md:hidden"
+          className="inline-flex size-10 items-center justify-center rounded-xl border border-border-light bg-transparent text-text-primary transition-all ease-in-out hover:bg-surface-tertiary disabled:pointer-events-none disabled:opacity-50 md:size-icon md:bg-surface-secondary md:p-2 md:hover:bg-surface-hover"
           onClick={clickHandler}
         >
           <NewChatIcon />
