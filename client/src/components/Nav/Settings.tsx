@@ -218,7 +218,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
           <div className={cn('fixed inset-0 flex w-screen items-center justify-center p-4')}>
             <DialogPanel
               className={cn(
-                'min-h-[600px] overflow-hidden rounded-xl rounded-b-lg bg-background pb-6 shadow-2xl backdrop-blur-2xl animate-in sm:rounded-2xl md:min-h-[373px] md:w-[850px]',
+                'min-h-[600px] overflow-hidden rounded-xl rounded-b-lg bg-background pb-6 shadow-2xl backdrop-blur-2xl animate-in sm:rounded-2xl md:min-h-[600px] md:w-[1050px]',
               )}
             >
               <DialogTitle
@@ -251,7 +251,7 @@ export default function Settings({ open, onOpenChange, activeTab: initialTab }: 
                   <span className="sr-only">{localize('com_ui_close_settings')}</span>
                 </button>
               </DialogTitle>
-              <div className="max-h-[550px] overflow-auto px-6 md:max-h-[400px] md:min-h-[400px] md:w-[850px]">
+              <div className="max-h-[550px] overflow-auto px-6 md:max-h-[700px] md:min-h-[600px] md:w-[1050px]">
                 <Tabs.Root
                   value={activeTab}
                   onValueChange={handleTabChange}
