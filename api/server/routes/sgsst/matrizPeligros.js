@@ -97,6 +97,15 @@ const ProcesoEntrySchema = new mongoose.Schema({
     tarea: String,
     rutinario: { type: Boolean, default: true },
     controlesExistentes: String,
+    images: {
+        foto1: String,
+        foto2: String,
+        foto3: String,
+        foto1Desc: String,
+        foto2Desc: String,
+        foto3Desc: String
+    },
+    video: String,
     peligros: [PeligroItemSchema],
 }, { _id: false });
 
@@ -359,12 +368,18 @@ ${peligro?.descripcionPeligro ? `- Peligro específico ya identificado: ${peligr
 
 ${GTC45_TABLES}
 
+**EVIDENCIA MULTIMEDIA DISPONIBLE:**
+Analice cuidadosamente las imágenes y el video adjuntos (si existen) para identificar peligros no reportados textualmente o para validar la severidad de los mismos.
+- Foto 1 (Actividad): ${proceso.images?.foto1Desc || 'Sin descripción'}
+- Foto 2 (Ambiente): ${proceso.images?.foto2Desc || 'Sin descripción'}
+- Foto 3 (Controles): ${proceso.images?.foto3Desc || 'Sin descripción'}
+
 **INSTRUCCIONES:**
-Analiza la actividad/tarea descrita y genera la valoración completa según GTC 45.
+Analiza la actividad/tarea y la evidencia visual descrita/adjunta para generar la valoración completa según GTC 45.
 - SI la clasificación sugerida es Físico, Químico o Biológico (Higiénico), OBLIGATORIAMENTE evalúa "deficienciaHigienica" usando la escala cualitativa (Muy Alto (MA), Alto (A), Medio (M), Bajo (B)) y asigna el "nivelDeficiencia" numérico correspondiente (MA=10, A=6, M=2, B=0).
 - Para CADA medida de intervención propuesta (eliminacion, sustitucion, ingenieria, administrativo, epp), DEBES asignar obligatoriamente un FR (>0) y FC (>0) asumiendo que el control SÍ se implementará. NUNCA los dejes en 0 si propones una medida.
 - Evalúa mentalmente J = (NR * FR) / FC para cada medida y elige la más costo-efectiva. Llena "medidaSeleccionada" con esa medida.
-- Añade "justificacion" (Anexo E) argumentando tu elección de la medida seleccionada.
+- Añade "justificacion" (Anexo E) argumentando tu elección de la medida seleccionada basándote también en lo observado en las imágenes.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el objeto JSON puro).
 
 **ESTRUCTURA JSON REQUERIDA (OBLIGATORIO RESPETAR ESTAS LLAVES):**
@@ -413,7 +428,29 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el 
 
 Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
 
-        const result = await generateWithRetry(model, prompt);
+        const parts = [{ text: prompt }];
+
+        if (proceso.images || proceso.video) {
+            if (proceso.images) {
+                ['foto1', 'foto2', 'foto3'].forEach(k => {
+                    const b64 = proceso.images[k];
+                    if (b64) {
+                        const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+                        if (match) {
+                            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                        }
+                    }
+                });
+            }
+            if (proceso.video) {
+                const match = proceso.video.match(/^data:(video\/\w+);base64,(.+)$/);
+                if (match) {
+                    parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                }
+            }
+        }
+
+        const result = await generateWithRetry(model, parts);
         const response = await result.response;
         let text = response.text().trim();
 
@@ -799,6 +836,9 @@ router.post('/analyze', requireJwtAuth, async (req, res) => {
 
         const promptText = `Eres un Experto Técnico Senior en Seguridad y Salud en el Trabajo (SGSST) en Colombia, consultor estratégico de alto nivel. Dominas la Guía Técnica Colombiana GTC 45, el Decreto 1072 de 2015, la Resolución 0312 de 2019, y toda la normativa colombiana aplicable.
 
+**EVIDENCIA MULTIMEDIA DISPONIBLE:**
+Para cada proceso analizado, se han adjuntado imágenes y videos que muestran las condiciones reales de trabajo. Úselas para validar los peligros reportados y proponer medidas de control coherentes con la realidad observada.
+
 Has sido contratado para analizar la Matriz de Peligros y Riesgos completa de la organización y producir el INFORME EJECUTIVO DEFINITIVO más completo que se haya generado jamás.
 
 ═══════════════════════════════════════
@@ -875,7 +915,32 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
 - No incluyas título h1 (ya está en el encabezado).`;
 
         const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await generateWithRetry(model, promptText);
+        const parts = [{ text: promptText }];
+
+        // Collect all media from all processes for the AI context
+        procesos.forEach((p, pIdx) => {
+            if (p.images) {
+                ['foto1', 'foto2', 'foto3'].forEach(k => {
+                    const b64 = p.images[k];
+                    if (b64) {
+                        const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+                        if (match) {
+                            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                            parts.push({ text: `(Evidencia de Proceso ${pIdx + 1}: ${p.proceso} - ${k === 'foto1' ? 'Actividad' : k === 'foto2' ? 'Ambiente' : 'Controles'})` });
+                        }
+                    }
+                });
+            }
+            if (p.video) {
+                const match = p.video.match(/^data:(video\/\w+);base64,(.+)$/);
+                if (match) {
+                    parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                    parts.push({ text: `(Video de Proceso ${pIdx + 1}: ${p.proceso})` });
+                }
+            }
+        });
+
+        const result = await generateWithRetry(model, parts);
         let aiHtml = result.response.text().trim();
         aiHtml = aiHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
 
@@ -909,6 +974,37 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
       </div>
       <div style="clear: both;"></div>
     </div>
+
+    ${p.images?.foto1 || p.images?.foto2 || p.images?.foto3 || p.video ? `
+    <div style="margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background-color: #fbfcfe;">
+      <span style="display: block; font-size: 13px; font-weight: 700; color: #0f766e; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Evidencia Multimedia del Proceso</span>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        ${p.images?.foto1 ? `
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+          <img src="${p.images.foto1}" style="width: 100%; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 4px;" />
+          <div style="font-size: 10px; font-weight: 700;">Actividad</div>
+          ${p.images.foto1Desc ? `<div style="font-size: 9px; line-height: 1.2;">${p.images.foto1Desc}</div>` : ''}
+        </div>` : ''}
+        ${p.images?.foto2 ? `
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+          <img src="${p.images.foto2}" style="width: 100%; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 4px;" />
+          <div style="font-size: 10px; font-weight: 700;">Ambiente</div>
+          ${p.images.foto2Desc ? `<div style="font-size: 9px; line-height: 1.2;">${p.images.foto2Desc}</div>` : ''}
+        </div>` : ''}
+        ${p.images?.foto3 ? `
+        <div style="flex: 1; min-width: 150px; text-align: center;">
+          <img src="${p.images.foto3}" style="width: 100%; border-radius: 4px; border: 1px solid #ddd; margin-bottom: 4px;" />
+          <div style="font-size: 10px; font-weight: 700;">Controles</div>
+          ${p.images.foto3Desc ? `<div style="font-size: 9px; line-height: 1.2;">${p.images.foto3Desc}</div>` : ''}
+        </div>` : ''}
+        ${p.video ? `
+        <div style="flex: 1; min-width: 150px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 4px;">
+          <div style="font-size: 24px;">📹</div>
+          <div style="font-size: 10px; font-weight: 700;">Video de Evidencia</div>
+          <div style="font-size: 9px;">Registrado</div>
+        </div>` : ''}
+      </div>
+    </div>` : ''}
 
     <div style="margin-bottom: 24px;">
       <span style="display: block; font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;">Controles Existentes del Proceso</span>

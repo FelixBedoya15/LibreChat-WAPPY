@@ -83,6 +83,15 @@ interface ProcesoEntry {
     fuenteGeneradora: string;
     medioExistente: string;
     individuoControl: string;
+    images?: {
+        foto1?: string | null;
+        foto2?: string | null;
+        foto3?: string | null;
+        foto1Desc?: string;
+        foto2Desc?: string;
+        foto3Desc?: string;
+    };
+    video?: string | null;
     peligros: PeligroItem[];
 }
 
@@ -106,6 +115,8 @@ const EMPTY_HAZARD: Omit<PeligroItem, 'id'> = {
 const EMPTY_PROCESO: Omit<ProcesoEntry, 'id' | 'peligros'> = {
     proceso: '', zona: '', actividad: '', tarea: '', rutinario: true,
     fuenteGeneradora: '', medioExistente: '', individuoControl: '',
+    images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+    video: null,
 };
 
 const COST_FACTOR_OPTIONS = [
@@ -265,6 +276,56 @@ const MatrizPeligrosGTC45 = () => {
         setProcesos(prev => prev.map(p => p.id === procesoId ? { ...p, [field]: value } : p));
     };
 
+    const handleImageUpload = (procesoId: string, key: string, file: File) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setProcesos(prev => prev.map(p => {
+                if (p.id !== procesoId) return p;
+                return {
+                    ...p,
+                    images: {
+                        ...(p.images || {}),
+                        [key]: base64
+                    }
+                };
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleVideoUpload = (procesoId: string, file: File) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(video.src);
+            if (video.duration > 10) {
+                showToast({ message: 'El video no debe superar los 10 segundos.', status: 'error' });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result as string;
+                updateProcesoField(procesoId, 'video', base64);
+            };
+            reader.readAsDataURL(file);
+        };
+        video.src = URL.createObjectURL(file);
+    };
+
+    const deleteMedia = (procesoId: string, type: 'video' | 'image', key?: string) => {
+        setProcesos(prev => prev.map(p => {
+            if (p.id !== procesoId) return p;
+            if (type === 'video') return { ...p, video: null };
+            const newImages = { ...(p.images || {}) };
+            if (key) {
+                newImages[key] = null;
+                newImages[`${key}Desc`] = '';
+            }
+            return { ...p, images: newImages };
+        }));
+    };
+
     const recalculateHazard = (h: PeligroItem): PeligroItem => {
         const nd = Number(h.nivelDeficiencia) || 0;
         const ne = Number(h.nivelExposicion) || 0;
@@ -380,6 +441,7 @@ const MatrizPeligrosGTC45 = () => {
             const data = await res.json();
             if (data.procesos) {
                 const refreshedProcesos = data.procesos.map((p: any) => ({
+                    ...EMPTY_PROCESO,
                     ...p,
                     peligros: (p.peligros || []).map((h: any) => recalculateHazard({ ...EMPTY_HAZARD, ...h }))
                 }));
@@ -720,6 +782,72 @@ const MatrizPeligrosGTC45 = () => {
                                             </div>
                                         </div>
 
+                                        {/* Registro Multimedia del Proceso */}
+                                        <div className="pt-2 pb-4 border-t border-border-light mt-2 bg-surface-tertiary/20 rounded-xl px-3">
+                                            <div className="flex items-center gap-2 mb-4 border-b border-border-light pb-1 mt-2">
+                                                <AnimatedIcon name="camera" size={16} className="text-teal-500" />
+                                                <label className="text-xs font-bold text-teal-600 dark:text-teal-400 tracking-tight uppercase">Evidencia Multimedia (Fotos y Video de la Actividad)</label>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                {/* Images */}
+                                                {[
+                                                    { key: 'foto1', label: 'Actividad', descKey: 'foto1Desc' },
+                                                    { key: 'foto2', label: 'Ambiente', descKey: 'foto2Desc' },
+                                                    { key: 'foto3', label: 'Controles', descKey: 'foto3Desc' }
+                                                ].map((img) => (
+                                                    <div key={img.key} className="space-y-2">
+                                                        <label className="text-[10px] font-bold text-text-secondary uppercase">{img.label}</label>
+                                                        <div className="relative group aspect-video rounded-xl border-2 border-dashed border-border-medium hover:border-teal-500 transition-all overflow-hidden bg-surface-primary">
+                                                            {p.images?.[img.key] ? (
+                                                                <>
+                                                                    <img src={p.images[img.key]} className="w-full h-full object-cover" />
+                                                                    <button onClick={() => deleteMedia(p.id, 'image', img.key)}
+                                                                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                        <AnimatedIcon name="trash" size={14} />
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/10">
+                                                                    <AnimatedIcon name="upload" size={20} className="text-text-secondary" />
+                                                                    <span className="text-[10px] text-text-secondary mt-1">Cargar Foto</span>
+                                                                    <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleImageUpload(p.id, img.key, e.target.files[0])} />
+                                                                </label>
+                                                            )}
+                                                        </div>
+                                                        <input type="text" value={p.images?.[img.descKey] || ''}
+                                                            onChange={e => {
+                                                                const newImages = { ...(p.images || {}), [img.descKey]: e.target.value };
+                                                                updateProcesoField(p.id, 'images', newImages);
+                                                            }}
+                                                            placeholder="Descripción breve..."
+                                                            className="w-full text-[10px] p-2 rounded-lg border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                ))}
+
+                                                {/* Video */}
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-text-secondary uppercase">Video de Evidencia (Máx 10s)</label>
+                                                    <div className="relative group aspect-video rounded-xl border-2 border-dashed border-border-medium hover:border-teal-500 transition-all overflow-hidden bg-surface-primary">
+                                                        {p.video ? (
+                                                            <>
+                                                                <video src={p.video} className="w-full h-full object-cover" controls />
+                                                                <button onClick={() => deleteMedia(p.id, 'video')}
+                                                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                                                    <AnimatedIcon name="trash" size={14} />
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-teal-50 dark:hover:bg-teal-900/10">
+                                                                <AnimatedIcon name="video" size={20} className="text-text-secondary" />
+                                                                <span className="text-[10px] text-text-secondary mt-1">Cargar Video</span>
+                                                                <input type="file" accept="video/*" className="hidden" onChange={e => e.target.files?.[0] && handleVideoUpload(p.id, e.target.files[0])} />
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[9px] text-text-secondary italic text-center">Video corto de la actividad o controles</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                         {/* Hazards Sub-List */}
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between border-b border-border-medium pb-1">
