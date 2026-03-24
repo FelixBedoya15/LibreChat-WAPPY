@@ -281,6 +281,22 @@ const Nav = memo(
             </div>
           </div>
         </div>
+        <div
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+          className="relative flex w-px items-center justify-center"
+          style={{ zIndex: 2000 }}
+        >
+          <NavToggle
+            navVisible={isSmallScreen ? navVisible : !isCollapsedState}
+            isHovering={isHovering}
+            onToggle={toggleNavVisible}
+            setIsHovering={setIsHovering}
+            className="fixed top-1/2"
+            translateX={false}
+            side="left"
+          />
+        </div>
         {isSmallScreen && <NavMask navVisible={navVisible} toggleNavVisible={() => setNavVisible(false)} />}
       </>
     );
