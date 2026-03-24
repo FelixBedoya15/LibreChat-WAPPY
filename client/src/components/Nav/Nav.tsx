@@ -131,15 +131,13 @@ const Nav = memo(
       if (isSmallScreen) {
           setNavVisible((prev: boolean) => !prev);
       } else {
-          setIsCollapsed((prev: boolean) => {
-              localStorage.setItem('navCollapsed', JSON.stringify(!prev));
-              return !prev;
-          });
+          setIsCollapsed(!isCollapsed);
+          localStorage.setItem('navCollapsed', JSON.stringify(!isCollapsed));
       }
       if (newUser) {
         setNewUser(false);
       }
-    }, [newUser, setNewUser, setIsCollapsed, isSmallScreen, setNavVisible]);
+    }, [newUser, setNewUser, isCollapsed, setIsCollapsed, isSmallScreen, setNavVisible]);
 
     const itemToggleNav = useCallback(() => {
       if (isSmallScreen) {

@@ -33,9 +33,9 @@ export default function NavToggle({
   return (
     <div
       className={cn(
-        className,
-        '-translate-y-1/2 transition-all duration-300 z-50',
+        '-translate-y-1/2 transition-all duration-300 z-[50]',
         navVisible && translateX ? (side === 'left' ? 'translate-x-[260px]' : '-translate-x-[260px]') : 'translate-x-0',
+        className
       )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
