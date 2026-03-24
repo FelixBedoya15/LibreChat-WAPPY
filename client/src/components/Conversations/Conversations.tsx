@@ -294,23 +294,27 @@ const Conversations: FC<ConversationsProps> = ({
       ) : (
         <div className="flex-1">
           <AutoSizer key={navVisible ? 'visible' : 'hidden'}>
-            {({ width, height }) => (
-              <List
-                ref={containerRef as React.RefObject<List>}
-                width={width}
-                height={height}
-                deferredMeasurementCache={cache}
-                rowCount={flattenedItems.length}
-                rowHeight={getRowHeight}
-                rowRenderer={rowRenderer}
-                overscanRowCount={10}
-                className="outline-none"
-                style={{ outline: 'none' }}
-                aria-label="Conversations"
-                onRowsRendered={handleRowsRendered}
-                tabIndex={-1}
-              />
-            )}
+            {({ height, width: measuredWidth }) => {
+              const parsedNavWidth = navWidth ? parseInt(navWidth.replace('px', '')) : 0;
+              const finalWidth = parsedNavWidth || measuredWidth;
+              return (
+                <List
+                  ref={containerRef as React.RefObject<List>}
+                  width={finalWidth}
+                  height={height}
+                  deferredMeasurementCache={cache}
+                  rowCount={flattenedItems.length}
+                  rowHeight={getRowHeight}
+                  rowRenderer={rowRenderer}
+                  overscanRowCount={10}
+                  className="outline-none"
+                  style={{ outline: 'none' }}
+                  aria-label="Conversations"
+                  onRowsRendered={handleRowsRendered}
+                  tabIndex={-1}
+                />
+              );
+            }}
           </AutoSizer>
         </div>
       )}

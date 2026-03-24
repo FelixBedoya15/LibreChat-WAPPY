@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo } from 'react';
-import { useMediaQuery, useHasAccess } from '@librechat/client';
+import { useMediaQuery } from '@librechat/client';
 import { useOutletContext } from 'react-router-dom';
 import { getConfigDefaults, PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { ContextType } from '~/common';
@@ -11,7 +11,7 @@ import ExportAndShareMenu from './ExportAndShareMenu';
 import BookmarkMenu from './Menus/BookmarkMenu';
 import { TemporaryChat } from './TemporaryChat';
 import AddMultiConvo from './AddMultiConvo';
-import { useLocalize } from '~/hooks';
+import { useLocalize, useHasAccess } from '~/hooks';
 
 export default function Header() {
   const { navVisible, setNavVisible } = useOutletContext<ContextType>();
