@@ -14,6 +14,7 @@ import Settings from './Settings';
 import store from '~/store';
 import axios from 'axios';
 import NotificationPanel from '~/components/Notifications/NotificationPanel';
+import { cn } from '~/utils';
 
 function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
   const localize = useLocalize();
