@@ -111,7 +111,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     return (
       <div
         className={cn(
-          'group relative flex h-12 w-full cursor-pointer items-center justify-center rounded-2xl border border-border-medium bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400 transition-all duration-300'
+          'group relative flex h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-border-medium bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400 transition-all duration-300'
         )}
         onClick={() => {
             const toggleBtn = document.querySelector('#nav-toggle-button');
@@ -120,9 +120,9 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
             }
         }}
       >
-        <AnimatedIcon name="search" size={20} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
-        <div className="hidden sm:flex absolute left-full ml-4 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-white dark:bg-gray-800 border border-teal-400/50 px-3 py-2 rounded-xl shadow-2xl pointer-events-none z-[110]">
-          <span className="text-xs font-bold uppercase tracking-wider text-teal-700">{localize('com_ui_search')}</span>
+        <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
+        <div className="hidden sm:flex absolute left-full ml-3 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-white dark:bg-gray-800 border border-teal-400/50 px-3 py-2 rounded-lg shadow-2xl pointer-events-none z-[110]">
+          <span className="text-xs font-semibold text-teal-700">{localize('com_ui_search')}</span>
         </div>
       </div>
     );
@@ -132,10 +132,10 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     <motion.div
       ref={ref}
       className={cn(
-        'group relative flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl border border-border-medium px-4 py-2 text-text-primary transition-all duration-300 bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400'
+        'group relative flex h-11 w-full cursor-pointer items-center gap-3 rounded-xl border border-border-medium px-3 py-2 text-text-primary transition-all duration-300 bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400'
       )}
     >
-      <AnimatedIcon name="search" size={20} className="text-text-secondary group-hover:text-teal-500 transition-colors shrink-0" />
+      <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors shrink-0" />
       <input
         type="text"
         ref={inputRef}

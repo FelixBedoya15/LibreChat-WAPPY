@@ -60,17 +60,17 @@ export default function NewChat({
           whileTap="tap"
           onClick={clickHandler}
           className={cn(
-            "group relative flex items-center justify-center h-12 px-4 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-2xl sm:hover:scale-105 sm:hover:-rotate-1 w-full",
+            "group relative flex items-center justify-center h-11 px-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-[1.02] sm:hover:-rotate-1 w-full",
             "bg-teal-600 hover:bg-teal-700 text-white border-transparent"
           )}
         >
           <div className="relative flex-shrink-0 flex items-center justify-center">
-            <AnimatedIcon name="plus" size={24} />
+            <AnimatedIcon name="plus" size={20} />
           </div>
-          {!isCollapsed && <span className="ml-3 text-base font-bold uppercase tracking-widest">{localize('com_ui_new_chat')}</span>}
+          {!isCollapsed && <span className="ml-3 text-sm font-semibold">{localize('com_ui_new_chat')}</span>}
           {isCollapsed && (
-            <div className="hidden sm:flex absolute left-full ml-4 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-2 rounded-xl shadow-2xl pointer-events-none z-[110]">
-              <span className="text-xs font-bold uppercase tracking-wider">{localize('com_ui_new_chat')}</span>
+            <div className="hidden sm:flex absolute left-full ml-3 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-2 rounded-lg shadow-2xl pointer-events-none z-[110]">
+              <span className="text-xs font-semibold">{localize('com_ui_new_chat')}</span>
             </div>
           )}
         </motion.button>

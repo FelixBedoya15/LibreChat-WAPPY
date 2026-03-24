@@ -218,20 +218,6 @@ const Nav = memo(
 
     return (
       <>
-        <div className="relative flex w-px items-center justify-center float-right z-50">
-             <NavToggle
-                navVisible={isSmallScreen ? navVisible : !isCollapsed}
-                isHovering={isHovering}
-                onToggle={toggleNavVisible}
-                setIsHovering={setIsHovering}
-                className={cn(
-                    'fixed top-1/2 z-[1050]',
-                    isSmallScreen ? (navVisible ? 'left-[320px]' : '-left-4') : (isCollapsed ? 'left-[56px]' : 'left-[260px]')
-                )}
-                translateX={false}
-                side="left"
-             />
-        </div>
         <div
           data-testid="nav"
           className={cn(

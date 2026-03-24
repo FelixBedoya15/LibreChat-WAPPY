@@ -55,18 +55,18 @@ export default function AgentMarketplaceButton({
         whileTap="tap"
         onClick={handleAgentMarketplace}
         className={cn(
-            "group relative flex items-center h-12 px-4 w-full gap-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-2xl shadow-sm hover:border-teal-400 sm:hover:scale-105 sm:hover:-rotate-1",
+            "group relative flex items-center h-11 px-3 w-full gap-3 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-[1.02] sm:hover:-rotate-1",
             "bg-white dark:bg-gray-800 border-border-medium hover:bg-surface-hover text-text-primary",
             isCollapsed && "justify-center px-0"
         )}
     >
         <div className="relative flex-shrink-0 flex items-center justify-center">
-            <AnimatedIcon name="layout-list" size={20} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
+            <AnimatedIcon name="layout-list" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
         </div>
-        {!isCollapsed && <span className="text-sm font-bold leading-tight uppercase tracking-wider">{localize('com_agents_marketplace')}</span>}
+        {!isCollapsed && <span className="text-sm font-semibold leading-tight mt-0.5">{localize('com_agents_marketplace')}</span>}
         {isCollapsed && (
-            <div className="hidden sm:flex absolute left-full ml-4 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[170px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-2 rounded-xl shadow-2xl pointer-events-none z-[110]">
-                <span className="text-xs font-bold uppercase tracking-wider">{localize('com_agents_marketplace')}</span>
+            <div className="hidden sm:flex absolute left-full ml-3 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[170px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-2 rounded-lg shadow-2xl pointer-events-none z-[110]">
+                <span className="text-xs font-semibold">{localize('com_agents_marketplace')}</span>
             </div>
         )}
     </motion.button>
