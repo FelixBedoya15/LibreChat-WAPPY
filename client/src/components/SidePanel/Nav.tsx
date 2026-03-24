@@ -39,7 +39,7 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                           asChild
                           variant="ghost"
                           size="icon"
-                          className="h-10 w-10 p-0 overflow-visible"
+                          className="h-12 w-12 p-0 overflow-visible mb-2"
                         >
                           <motion.button
                             whileHover={{ scale: 1.1, rotate: -3, zIndex: 10 }}
@@ -54,13 +54,13 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                               resize && resize(25);
                             }}
                             className={cn(
-                              "flex items-center justify-center rounded-xl border transition-all duration-300 w-full h-full shadow-sm",
+                              "flex items-center justify-center rounded-xl border transition-all duration-300 w-full h-full shadow-md",
                               variant === 'default' 
                                 ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner" 
-                                : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-text-primary"
+                                : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-teal-400 hover:text-teal-600 text-text-secondary"
                             )}
                           >
-                            <link.icon className="h-4 w-4" />
+                            <link.icon className="h-5 w-5" />
                             <span className="sr-only">{localize(link.title)}</span>
                           </motion.button>
                         </Button>
@@ -75,17 +75,17 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                       collapsible
                       className="w-full"
                     >
-                      <AccordionItem value={link.id} className="w-full border-none mb-1.5">
+                      <AccordionItem value={link.id} className="w-full border-none mb-2">
                         <AccordionPrimitive.Header asChild>
                           <AccordionPrimitive.Trigger asChild>
                             <motion.button
                               whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
                               whileTap={{ scale: 0.98 }}
                               className={cn(
-                                "group flex w-full items-center gap-2 rounded-xl border p-2.5 text-sm transition-all duration-300 shadow-sm",
+                                "group flex w-full items-center gap-3 rounded-xl border p-3 text-sm transition-all duration-300 shadow-sm",
                                 active === link.id
                                   ? "bg-teal-50/50 border-teal-400/50 text-teal-700 shadow-inner"
-                                  : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-text-primary"
+                                  : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-teal-600"
                               )}
                               onClick={(e) => {
                                 if (link.onClick) {
@@ -95,18 +95,18 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                               }}
                             >
                               <div className={cn(
-                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
                                 active === link.id
                                   ? "bg-white border-teal-200 text-teal-600 shadow-sm"
-                                  : "bg-surface-secondary border-border-medium/50 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
+                                  : "bg-surface-secondary border-border-medium/30 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
                               )}>
-                                <link.icon className="h-4 w-4" />
+                                <link.icon className="h-5 w-5" />
                               </div>
-                              <span className="font-bold tracking-tight text-text-primary">{localize(link.title)}</span>
+                              <span className="font-bold tracking-tight text-text-primary text-[13px]">{localize(link.title)}</span>
                               {link.label != null && link.label && (
                                 <span
                                   className={cn(
-                                    'ml-auto text-[10px] font-bold uppercase tracking-widest opacity-70 transition-all duration-300 ease-in-out',
+                                    'ml-auto text-[10px] font-bold uppercase tracking-widest opacity-80 transition-all duration-300 ease-in-out',
                                     active === link.id ? 'text-teal-600' : 'text-text-tertiary group-hover:text-teal-500',
                                   )}
                                 >
@@ -116,7 +116,6 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                             </motion.button>
                           </AccordionPrimitive.Trigger>
                         </AccordionPrimitive.Header>
-
                         <AccordionContent className="w-full text-text-primary">
                           {link.Component && <link.Component />}
                         </AccordionContent>
