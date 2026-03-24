@@ -230,14 +230,14 @@ const Nav = memo(
                 className={`flex h-full flex-col transition-opacity duration-200 ease-in-out overflow-visible ${navVisible ? 'opacity-100' : 'opacity-0'}`}
               >
                 <div className="flex h-full flex-col overflow-visible">
-                  <nav
-                    id="chat-history-nav"
-                    aria-label={localize('com_ui_chat_history')}
-                    className={cn(
-                        "flex h-full flex-col px-2 pb-3.5 md:px-3 transition-all duration-300",
-                        navWidth === NAV_WIDTH_COLLAPSED ? 'px-1 md:px-1' : ''
-                    )}
-                  >
+                    <nav
+                      id="chat-history-nav"
+                      aria-label={localize('com_ui_chat_history')}
+                      className={cn(
+                          "flex h-full flex-col px-1 pb-3.5 transition-all duration-300",
+                          navWidth === NAV_WIDTH_COLLAPSED ? 'px-0' : ''
+                      )}
+                    >
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
                       <MemoNewChat
                         toggleNav={toggleNavVisible}

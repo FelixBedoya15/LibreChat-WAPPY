@@ -37,7 +37,7 @@ export default function NewChat({
   );
 
   return (
-    <div className="flex flex-col w-full px-2 py-4 gap-2 overflow-visible">
+    <div className="flex flex-col w-full px-1 py-4 gap-2 overflow-visible">
       {/* Top Row: Toggle (Left) and Quick Actions (Right) */}
       <div className="flex items-center justify-between h-10 mb-2 w-full">
         {/* Toggle Button (Left) */}
