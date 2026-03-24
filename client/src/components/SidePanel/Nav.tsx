@@ -26,7 +26,7 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
         <div className="flex h-full min-h-0 flex-col">
           <div className="flex h-full min-h-0 flex-col opacity-100 transition-opacity">
             <div className="scrollbar-trigger relative h-full w-full flex-1 items-start border-white/20">
-              <div className="flex h-full w-full flex-col gap-1 px-3 py-2.5 group-[[data-collapsed=true]]:items-center group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-2">
+              <div className="flex h-full w-full flex-col gap-1 px-3 py-2.5 group-[[data-collapsed=true]]:items-center group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-0">
                 {links.map((link, index) => {
                   const variant = getVariant(link);
                   return isCollapsed ? (
@@ -35,34 +35,27 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                       side="left"
                       key={`nav-link-${index}`}
                       render={
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-10 w-10 p-0 overflow-visible mb-2"
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            if (link.onClick) {
+                              link.onClick(e);
+                              setActive('');
+                              return;
+                            }
+                            setActive(link.id);
+                            resize && resize(25);
+                          }}
+                          className={cn(
+                            "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm mb-2 sm:hover:scale-105 sm:hover:-rotate-3",
+                            variant === 'default' 
+                              ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner" 
+                              : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+                          )}
                         >
-                          <motion.button
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              if (link.onClick) {
-                                link.onClick(e);
-                                setActive('');
-                                return;
-                              }
-                              setActive(link.id);
-                              resize && resize(25);
-                            }}
-                            className={cn(
-                              "flex items-center justify-center rounded-xl border transition-all duration-300 w-full h-full shadow-sm sm:hover:scale-105 sm:hover:-rotate-3",
-                              variant === 'default' 
-                                ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner" 
-                                : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
-                            )}
-                          >
-                            <link.icon className="h-5 w-5" />
-                            <span className="sr-only">{localize(link.title)}</span>
-                          </motion.button>
-                        </Button>
+                          <link.icon className="h-5 w-5" />
+                          <span className="sr-only">{localize(link.title)}</span>
+                        </motion.button>
                       }
                     />
                   ) : (
@@ -94,10 +87,10 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                               }}
                             >
                               <div className={cn(
-                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
                                 active === link.id
                                   ? "bg-white border-teal-200 text-teal-600 shadow-sm"
-                                  : "bg-surface-secondary border-border-medium/30 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
+                                  : "bg-surface-secondary border-border-medium/50 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
                               )}>
                                 <link.icon className="h-5 w-5" />
                               </div>

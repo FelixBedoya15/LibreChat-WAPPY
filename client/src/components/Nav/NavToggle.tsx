@@ -62,8 +62,8 @@ export default function NavToggle({
            whileHover={{ scale: 1.1, rotate: side === 'left' ? -5 : 5, zIndex: 100 }}
            whileTap={{ scale: 0.9 }}
            className={cn(
-             "group flex h-12 w-8 items-center justify-center rounded-xl border transition-all duration-300 shadow-md",
-             "bg-white dark:bg-surface-primary border-border-medium/30 hover:border-teal-400 text-text-secondary hover:text-teal-600 shadow-sm"
+             "group flex h-10 w-8 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm",
+             "bg-surface-primary border-border-medium/50 hover:border-teal-400 text-text-secondary hover:text-teal-600 shadow-sm"
            )}
         >
           <div className={cn(
