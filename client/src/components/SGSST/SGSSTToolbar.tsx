@@ -155,7 +155,7 @@ export const SGSSTToolbar: React.FC<SGSSTToolbarProps> = ({
             id: 'excel-import',
             onClick: onImportExcel,
             title: "Importar desde Excel",
-            label: "Importar",
+            label: "Importar Excel",
             icon: "upload",
             variant: "excel"
         });

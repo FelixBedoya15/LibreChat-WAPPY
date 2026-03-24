@@ -727,6 +727,14 @@ const PerfilSociodemografico = () => {
                 </div>
             )}
 
+            {/* ═══ Excel Import Hidden Input ═══ */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImportExcel}
+                accept=".xlsx, .xls"
+                className="hidden"
+            />
         </div>
     );
 };
