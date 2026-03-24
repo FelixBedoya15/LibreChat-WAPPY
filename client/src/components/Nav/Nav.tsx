@@ -167,6 +167,8 @@ const Nav = memo(
       fetchNextPage();
     }, [isFetchingNextPage, computedHasNextPage, fetchNextPage]);
 
+    const isCollapsedState = navWidth === NAV_WIDTH_COLLAPSED;
+
     const subHeaders = useMemo(
       () => search.enabled === true && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={isCollapsedState} />,
       [search.enabled, isSmallScreen, isCollapsedState],
@@ -203,8 +205,6 @@ const Nav = memo(
     const [isSearchLoading, setIsSearchLoading] = useState(
       !!search.query && (search.isTyping || isLoading || isFetching),
     );
-
-    const isCollapsedState = navWidth === NAV_WIDTH_COLLAPSED;
 
     useEffect(() => {
       if (search.isTyping) {
