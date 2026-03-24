@@ -211,64 +211,53 @@ const Nav = memo(
         <div
           data-testid="nav"
           className={cn(
-            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium/30 bg-surface-primary',
-            navVisible ? 'overflow-visible' : 'overflow-hidden'
+            'nav active fixed bottom-0 left-0 top-0 z-50 flex h-full flex-col bg-surface-primary transition-all duration-300 ease-in-out sm:relative',
+            !navVisible ? '-translate-x-full' : 'translate-x-0',
+            isSmallScreen ? 'w-full shadow-xl' : '',
           )}
           style={{
             zIndex: 1000,
-            width: navVisible ? navWidth : '0px',
-            transform: navVisible ? 'translateX(0)' : 'translateX(-100%)',
+            width: isSmallScreen ? '100%' : (navVisible ? navWidth : '0px'),
+            visibility: !navVisible && !isSmallScreen ? 'hidden' : 'visible',
+            borderRight: navVisible && !isSmallScreen ? '1px solid var(--border-light)' : 'none',
             '--nav-width': navVisible ? navWidth : '0px',
           } as React.CSSProperties}
         >
-          <div className={cn(
-            "h-full overflow-visible transition-all duration-300",
-            navWidth === NAV_WIDTH_COLLAPSED ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
-          )}>
-            <div className="flex h-full flex-col overflow-visible">
-              <div
-                className={`flex h-full flex-col transition-opacity duration-200 ease-in-out overflow-visible ${navVisible ? 'opacity-100' : 'opacity-0'}`}
+          <div className="flex h-full min-h-0 flex-col w-full overflow-hidden">
+            <div className="flex h-full flex-1 flex-col transition-opacity duration-300 ease-in-out w-full">
+              <nav
+                id="chat-history-nav"
+                aria-label={localize('com_ui_chat_history')}
+                className={cn(
+                  'flex h-full flex-col px-1 pb-3.5 transition-all duration-300',
+                  navWidth === NAV_WIDTH_COLLAPSED ? 'px-0' : '',
+                )}
               >
-                <div className="flex h-full flex-col overflow-visible">
-                    <nav
-                      id="chat-history-nav"
-                      aria-label={localize('com_ui_chat_history')}
-                      className={cn(
-                          "flex h-full flex-col px-1 pb-3.5 transition-all duration-300",
-                          navWidth === NAV_WIDTH_COLLAPSED ? 'px-0' : ''
-                      )}
-                    >
-                    <div className="flex flex-1 flex-col" ref={outerContainerRef}>
-                      <MemoNewChat
-                        toggleNav={toggleNavVisible}
-                        tags={tags}
-                        setTags={setTags}
-                      />
-                      {navWidth !== NAV_WIDTH_COLLAPSED && (
-                        <Conversations
-                            conversations={conversations}
-                            moveToTop={moveToTop}
-                            toggleNav={itemToggleNav}
-                            containerRef={listRef}
-                            loadMoreConversations={loadMoreConversations}
-                            isLoading={isFetchingNextPage || showLoading || isLoading}
-                            isSearchLoading={isSearchLoading}
-                            subHeaders={subHeaders}
-                            tags={tags}
-                            setTags={setTags}
-                            navWidth={navWidth}
-                            navVisible={navVisible}
-                        />
-                      )}
-                    </div>
-                      <div className="mt-auto pt-2 pb-2">
-                        <Suspense fallback={null}>
-                          <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
-                        </Suspense>
-                      </div>
-                  </nav>
+                <div className="flex flex-1 flex-col" ref={outerContainerRef}>
+                  <MemoNewChat toggleNav={toggleNavVisible} tags={tags} setTags={setTags} />
+                  {navWidth !== NAV_WIDTH_COLLAPSED && (
+                    <Conversations
+                      conversations={conversations}
+                      moveToTop={moveToTop}
+                      toggleNav={itemToggleNav}
+                      containerRef={listRef}
+                      loadMoreConversations={loadMoreConversations}
+                      isLoading={isFetchingNextPage || showLoading || isLoading}
+                      isSearchLoading={isSearchLoading}
+                      subHeaders={subHeaders}
+                      tags={tags}
+                      setTags={setTags}
+                      navWidth={navWidth}
+                      navVisible={navVisible}
+                    />
+                  )}
                 </div>
-              </div>
+                <div className="mt-auto pt-2 pb-2">
+                  <Suspense fallback={null}>
+                    <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
+                  </Suspense>
+                </div>
+              </nav>
             </div>
           </div>
         </div>

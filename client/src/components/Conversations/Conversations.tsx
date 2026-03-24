@@ -187,10 +187,14 @@ const Conversations: FC<ConversationsProps> = ({
   );
 
   useEffect(() => {
-    if (navWidth && cache) {
+    if (cache) {
       cache.clearAll();
     }
-  }, [navWidth, cache]);
+    if (containerRef.current && 'recomputeRowHeights' in containerRef.current) {
+      containerRef.current.recomputeRowHeights();
+      containerRef.current.forceUpdate();
+    }
+  }, [navWidth, navVisible, cache, containerRef]);
 
   const rowRenderer = useCallback(
     ({ index, key, parent, style }) => {
