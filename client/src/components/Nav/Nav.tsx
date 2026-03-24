@@ -61,7 +61,6 @@ const Nav = memo(
     const localize = useLocalize();
     const { isAuthenticated } = useAuthContext();
 
-    const [navWidth, setNavWidth] = useState(NAV_WIDTH_DESKTOP);
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
     const [showLoading, setShowLoading] = useState(false);
@@ -230,7 +229,7 @@ const Nav = memo(
         >
           <div className={cn(
             "h-full overflow-visible transition-all duration-300",
-            navWidth === '56px' ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
+            navWidth === NAV_WIDTH_COLLAPSED ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
           )}>
             <div className="flex h-full flex-col overflow-visible">
               <div
@@ -242,7 +241,7 @@ const Nav = memo(
                     aria-label={localize('com_ui_chat_history')}
                     className={cn(
                         "flex h-full flex-col px-2 pb-3.5 md:px-3 transition-all duration-300",
-                        navWidth === '56px' ? 'px-1 md:px-1' : ''
+                        navWidth === NAV_WIDTH_COLLAPSED ? 'px-1 md:px-1' : ''
                     )}
                   >
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
@@ -253,7 +252,7 @@ const Nav = memo(
                         isSmallScreen={isSmallScreen}
                         isCollapsed={navWidth === NAV_WIDTH_COLLAPSED}
                       />
-                      {navWidth !== '56px' && (
+                      {navWidth !== NAV_WIDTH_COLLAPSED && (
                         <Conversations
                             conversations={conversations}
                             moveToTop={moveToTop}
