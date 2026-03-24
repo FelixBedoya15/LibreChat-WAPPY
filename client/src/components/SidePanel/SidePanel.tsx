@@ -122,21 +122,23 @@ const SidePanel = ({
 
   return (
     <>
-      <div
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-        className="relative flex w-px items-center justify-center"
-      >
-        <NavToggle
-          navVisible={!isCollapsed}
-          isHovering={isHovering}
-          onToggle={toggleNavVisible}
-          setIsHovering={setIsHovering}
-          className="fixed top-1/2"
-          translateX={false}
-          side="right"
-        />
-      </div>
+      {!isSmallScreen && (
+        <div
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+          className="relative flex w-px items-center justify-center"
+        >
+          <NavToggle
+            navVisible={!isCollapsed}
+            isHovering={isHovering}
+            onToggle={toggleNavVisible}
+            setIsHovering={setIsHovering}
+            className="fixed top-1/2"
+            translateX={false}
+            side="right"
+          />
+        </div>
+      )}
       {(!isCollapsed || minSize > 0) && !isSmallScreen && !fullCollapse && (
         <ResizableHandleAlt withHandle className="bg-transparent text-text-primary" />
       )}

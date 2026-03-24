@@ -47,7 +47,7 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                             resize && resize(25);
                           }}
                           className={cn(
-                            "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm mb-2 sm:hover:scale-105 sm:hover:-rotate-3",
+                            "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3",
                             variant === 'default' 
                               ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner" 
                               : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
