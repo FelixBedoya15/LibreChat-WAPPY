@@ -69,8 +69,8 @@ function AccountSettings() {
           aria-label={localize('com_nav_account_settings')}
           data-testid="nav-user"
           as={motion.button}
-          whileHover={{ scale: 1.02, rotate: -1, zIndex: 50 }}
-          whileTap="tap"
+          whileHover={{ scale: 1.05, rotate: -3, zIndex: 100 }}
+          whileTap={{ scale: 0.98 }}
           className="group mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-2.5 text-sm transition-all duration-300 ease-in-out bg-surface-secondary/30 border border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner cursor-pointer outline-none"
         >
           <div className="relative flex-shrink-0 flex items-center justify-center translate-y-[1px]">
