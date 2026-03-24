@@ -27,7 +27,7 @@ export default function HeaderNewChat() {
         <Button
           size="icon"
           variant="outline"
-          className="inline-flex size-10 items-center justify-center rounded-xl border border-border-light bg-transparent text-text-primary transition-all ease-in-out hover:bg-surface-tertiary disabled:pointer-events-none disabled:opacity-50 md:size-icon md:bg-surface-secondary md:p-2 md:hover:bg-surface-hover"
+          className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light bg-transparent text-text-primary transition-all ease-in-out hover:bg-surface-tertiary disabled:pointer-events-none disabled:opacity-50 md:size-icon md:bg-surface-secondary md:p-2 md:hover:bg-surface-hover"
           onClick={clickHandler}
         >
           <NewChatIcon />
