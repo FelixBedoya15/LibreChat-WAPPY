@@ -193,7 +193,7 @@ const Conversations: FC<ConversationsProps> = ({
         return (
           <CellMeasurer cache={cache} columnIndex={0} key={key} parent={parent} rowIndex={index}>
             {({ registerChild }) => (
-              <div ref={registerChild} style={style} className="flex flex-col gap-2 p-1 py-4 w-full">
+              <div ref={registerChild} style={style} className="flex flex-col gap-2 px-2 py-4 w-full">
                 <ActionButton 
                   icon={<PlusCircle size={18} />} 
                   label={localize('com_ui_new_chat')} 
