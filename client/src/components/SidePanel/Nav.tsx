@@ -35,20 +35,33 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                       key={`nav-link-${index}`}
                       render={
                         <Button
+                          asChild
                           variant="ghost"
                           size="icon"
-                          onClick={(e) => {
-                            if (link.onClick) {
-                              link.onClick(e);
-                              setActive('');
-                              return;
-                            }
-                            setActive(link.id);
-                            resize && resize(25);
-                          }}
+                          className="h-10 w-10 p-0 overflow-visible"
                         >
-                          <link.icon className="h-4 w-4 text-text-secondary" />
-                          <span className="sr-only">{localize(link.title)}</span>
+                          <motion.button
+                            whileHover={{ scale: 1.1, rotate: -3, zIndex: 10 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              if (link.onClick) {
+                                link.onClick(e);
+                                setActive('');
+                                return;
+                              }
+                              setActive(link.id);
+                              resize && resize(25);
+                            }}
+                            className={cn(
+                              "flex items-center justify-center rounded-xl border transition-all duration-300 w-full h-full shadow-sm",
+                              variant === 'default' 
+                                ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner" 
+                                : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-text-primary"
+                            )}
+                          >
+                            <link.icon className="h-4 w-4" />
+                            <span className="sr-only">{localize(link.title)}</span>
+                          </motion.button>
                         </Button>
                       }
                     />
@@ -59,14 +72,20 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                       value={active}
                       onValueChange={setActive}
                       collapsible
+                      className="w-full"
                     >
-                      <AccordionItem value={link.id} className="w-full border-none">
+                      <AccordionItem value={link.id} className="w-full border-none mb-1.5">
                         <AccordionPrimitive.Header asChild>
                           <AccordionPrimitive.Trigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full justify-start bg-transparent text-text-secondary data-[state=open]:bg-surface-secondary data-[state=open]:text-text-primary"
+                            <motion.button
+                              whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
+                              whileTap={{ scale: 0.98 }}
+                              className={cn(
+                                "group flex w-full items-center gap-2 rounded-xl border p-2.5 text-sm transition-all duration-300 shadow-sm",
+                                active === link.id
+                                  ? "bg-teal-50/50 border-teal-400/50 text-teal-700 shadow-inner"
+                                  : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-text-primary"
+                              )}
                               onClick={(e) => {
                                 if (link.onClick) {
                                   link.onClick(e);
@@ -74,19 +93,26 @@ function NavContent({ links, isCollapsed, resize }: Omit<NavProps, 'defaultActiv
                                 }
                               }}
                             >
-                              <link.icon className="mr-2 h-4 w-4" />
-                              {localize(link.title)}
+                              <div className={cn(
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                                active === link.id
+                                  ? "bg-white border-teal-200 text-teal-600 shadow-sm"
+                                  : "bg-surface-secondary border-border-medium/50 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
+                              )}>
+                                <link.icon className="h-4 w-4" />
+                              </div>
+                              <span className="font-bold tracking-tight text-text-primary">{localize(link.title)}</span>
                               {link.label != null && link.label && (
                                 <span
                                   className={cn(
-                                    'ml-auto opacity-100 transition-all duration-300 ease-in-out',
-                                    variant === 'default' ? 'text-text-primary' : '',
+                                    'ml-auto text-[10px] font-bold uppercase tracking-widest opacity-70 transition-all duration-300 ease-in-out',
+                                    active === link.id ? 'text-teal-600' : 'text-text-tertiary group-hover:text-teal-500',
                                   )}
                                 >
                                   {link.label}
                                 </span>
                               )}
-                            </Button>
+                            </motion.button>
                           </AccordionPrimitive.Trigger>
                         </AccordionPrimitive.Header>
 

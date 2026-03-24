@@ -36,10 +36,10 @@ const BookmarkNav: FC<BookmarkNavProps> = ({ tags, setTags, isSmallScreen }: Boo
             id="bookmark-menu-button"
             aria-label={localize('com_ui_bookmarks')}
             as={motion.button}
-            whileHover="hover"
+            whileHover={{ scale: 1.05, rotate: -3, zIndex: 50 }}
             whileTap="tap"
             className={cn(
-              "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+              "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:scale-105",
               open || tags.length > 0
                 ? "bg-amber-100/50 border-amber-400 text-amber-600 shadow-inner" 
                 : "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"

@@ -69,22 +69,22 @@ function AccountSettings() {
           aria-label={localize('com_nav_account_settings')}
           data-testid="nav-user"
           as={motion.button}
-          whileHover="hover"
+          whileHover={{ scale: 1.02, rotate: -1, zIndex: 50 }}
           whileTap="tap"
-          className="group mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-2.5 text-sm transition-all duration-300 ease-in-out bg-surface-secondary/30 border border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 hover:-rotate-1 hover:scale-[1.02] shadow-sm backdrop-blur-sm shadow-inner cursor-pointer outline-none"
+          className="group mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-2.5 text-sm transition-all duration-300 ease-in-out bg-surface-secondary/30 border border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 shadow-sm backdrop-blur-sm shadow-inner cursor-pointer outline-none"
         >
-          <div className="relative flex-shrink-0 flex items-center justify-center p-0.5 bg-white border border-border-medium rounded-xl shadow-sm group-hover:border-teal-200 transition-colors overflow-hidden">
-            <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center relative translate-y-[2px]">
-              <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative flex-shrink-0 flex items-center justify-center translate-y-[1px]">
+            <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center relative">
+              <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   setShowNotifications(prev => !prev);
                 }}
-                className="z-50"
+                className="z-50 focus:outline-none"
               >
-                <Avatar user={user} size={36} className="rounded-lg" />
+                <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-300" />
               </button>
               {/* Notification Badge */}
               {unreadCount > 0 && (
@@ -93,7 +93,7 @@ function AccountSettings() {
                     e.stopPropagation();
                     setShowNotifications(prev => !prev);
                   }}
-                  className="absolute -top-2 -right-2 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
+                  className="absolute -top-1 -right-1 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
                   style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' }}
                   title={`${unreadCount} notificaciones sin leer`}
                 >
@@ -113,11 +113,9 @@ function AccountSettings() {
           </div>
         </Select.Select>
         <Select.SelectPopover
-          className="popover-ui w-[235px]"
+          className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white/80 dark:bg-surface-primary/80 p-1.5 shadow-2xl outline-none backdrop-blur-xl transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"
           style={{
-            transformOrigin: 'bottom',
-            marginRight: '0px',
-            translate: '0px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
           }}
         >
           <Select.SelectItem
@@ -126,12 +124,14 @@ function AccountSettings() {
               setActiveSettingsTab('account');
               setShowSettings(true);
             }}
-            className="select-item text-sm flex items-center gap-2 group"
+            className="select-item mb-1 text-sm flex items-center gap-3 group rounded-xl p-2 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
           >
-            <UserCircle className="icon-md text-text-tertiary group-hover:text-text-primary transition-colors shrink-0" />
+            <div className="p-1.5 bg-teal-500/10 rounded-lg group-hover:bg-teal-500/20 transition-colors">
+              <UserCircle className="icon-md text-teal-600 transition-colors shrink-0" />
+            </div>
             <span className="flex flex-col min-w-0">
-              <span className="truncate font-medium">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
-              <span className="text-xs text-text-tertiary group-hover:text-indigo-500 transition-colors">Editar cuenta →</span>
+              <span className="truncate font-bold tracking-tight text-text-primary">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary group-hover:text-teal-600 transition-colors">Editar cuenta →</span>
             </span>
           </Select.SelectItem>
           <DropdownMenuSeparator />
@@ -171,7 +171,7 @@ function AccountSettings() {
           <Select.SelectItem
             value=""
             onClick={() => navigate('/training')}
-            className="select-item text-sm"
+            className="select-item text-sm mb-0.5 rounded-lg px-2 py-1.5 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
           >
             <BookOpen className="icon-md" aria-hidden="true" />
             {localize('com_nav_help_faq')}
@@ -179,7 +179,7 @@ function AccountSettings() {
           <Select.SelectItem
             value=""
             onClick={() => navigate('/blog')}
-            className="select-item text-sm"
+            className="select-item text-sm mb-0.5 rounded-lg px-2 py-1.5 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
           >
             <Newspaper className="icon-md" aria-hidden="true" />
             {localize('com_nav_blog')}
@@ -187,7 +187,7 @@ function AccountSettings() {
           <Select.SelectItem
             value=""
             onClick={() => setShowFiles(true)}
-            className="select-item text-sm"
+            className="select-item text-sm mb-0.5 rounded-lg px-2 py-1.5 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
           >
             <FileText className="icon-md" aria-hidden="true" />
             {localize('com_nav_my_files')}
@@ -195,7 +195,7 @@ function AccountSettings() {
           <Select.SelectItem
             value=""
             onClick={() => navigate('/planes')}
-            className="select-item text-sm"
+            className="select-item text-sm mb-0.5 rounded-lg px-2 py-1.5 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
           >
             <CreditCard className="icon-md" aria-hidden="true" />
             Planes
@@ -206,7 +206,7 @@ function AccountSettings() {
               setActiveSettingsTab(undefined);
               setShowSettings(true);
             }}
-            className="select-item text-sm"
+            className="select-item text-sm mb-0.5 rounded-lg px-2 py-1.5 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
           >
             <GearIcon className="icon-md" aria-hidden="true" />
             {localize('com_nav_settings')}
@@ -226,9 +226,9 @@ function AccountSettings() {
             aria-selected={true}
             onClick={() => logout()}
             value="logout"
-            className="select-item text-sm"
+            className="select-item text-sm mt-1 rounded-lg px-2 py-2 hover:bg-red-500/10 hover:text-red-600 transition-all duration-200 font-medium"
           >
-            <LogOut className="icon-md" />
+            <LogOut className="icon-md text-red-500" />
             {localize('com_nav_log_out')}
           </Select.SelectItem>
         </Select.SelectPopover>

@@ -236,8 +236,10 @@ export default function AssistantPanel({
           />
           {/* Select Button */}
           {assistant_id && (
-            <button
-              className="btn btn-primary focus:shadow-outline mx-2 mt-1 h-[40px] rounded bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-400 focus:border-green-500 focus:outline-none focus:ring-0"
+            <motion.button
+              whileHover={{ scale: 1.05, rotate: -2 }}
+              whileTap={{ scale: 0.95 }}
+              className="group mx-2 mt-1 h-[40px] flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-1.5 font-bold tracking-tight text-white shadow-sm hover:bg-teal-700 transition-all duration-300 border border-teal-500/50"
               type="button"
               disabled={!assistant_id}
               onClick={(e) => {
@@ -245,8 +247,9 @@ export default function AssistantPanel({
                 onSelectAssistant(assistant_id);
               }}
             >
+              <Bot className="h-4 w-4" />
               {localize('com_ui_select')}
-            </button>
+            </motion.button>
           )}
         </div>
         <div className="bg-surface-50 h-auto px-4 pb-8 pt-3 dark:bg-transparent">
@@ -416,18 +419,23 @@ export default function AssistantPanel({
                 })}
               <div className="flex space-x-2">
                 {toolsEnabled === true && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02, rotate: -1 }}
+                    whileTap={{ scale: 0.98 }}
                     type="button"
                     onClick={() => setShowToolDialog(true)}
-                    className="btn btn-neutral border-token-border-light relative h-8 w-full rounded-lg font-medium"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-border-medium/50 bg-surface-primary p-2 text-sm font-bold tracking-tight text-text-primary shadow-sm hover:border-teal-400 hover:bg-surface-hover transition-all duration-300"
                   >
                     <div className="flex w-full items-center justify-center gap-2">
+                       <AnimatedIcon name="plus" size={16} />
                       {localize('com_assistants_add_tools')}
                     </div>
-                  </button>
+                  </motion.button>
                 )}
                 {actionsEnabled === true && (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02, rotate: -1 }}
+                    whileTap={{ scale: 0.98 }}
                     type="button"
                     disabled={!assistant_id}
                     onClick={() => {
@@ -439,12 +447,13 @@ export default function AssistantPanel({
                       }
                       setActivePanel(Panel.actions);
                     }}
-                    className="btn btn-neutral border-token-border-light relative h-8 w-full rounded-lg font-medium"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-border-medium/50 bg-surface-primary p-2 text-sm font-bold tracking-tight text-text-primary shadow-sm hover:border-teal-400 hover:bg-surface-hover transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex w-full items-center justify-center gap-2">
+                      <AnimatedIcon name="plus" size={16} />
                       {localize('com_assistants_add_actions')}
                     </div>
-                  </button>
+                  </motion.button>
                 )}
               </div>
             </div>
@@ -459,12 +468,15 @@ export default function AssistantPanel({
               endpoint={endpoint}
             />
             {/* Submit Button */}
-            <button
-              className="btn btn-primary focus:shadow-outline flex w-full items-center justify-center px-4 py-2 font-semibold text-white hover:bg-green-600 focus:border-green-500"
+            <motion.button
+              whileHover={{ scale: 1.02, rotate: -1.5 }}
+              whileTap={{ scale: 0.98 }}
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 font-bold tracking-tight text-white shadow-lg hover:bg-teal-700 transition-all duration-300 border border-teal-500/50 shadow-teal-500/20"
               type="submit"
             >
+              <AnimatedIcon name="plus" size={18} />
               {submitContext}
-            </button>
+            </motion.button>
           </div>
         </div>
         <AssistantToolsDialog

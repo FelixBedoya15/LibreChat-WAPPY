@@ -224,20 +224,22 @@ const Nav = memo(
         <div
           data-testid="nav"
           className={cn(
-            'nav active max-w-[320px] flex-shrink-0 transform overflow-x-hidden bg-surface-primary-alt transition-all duration-200 ease-in-out',
+            'nav active max-w-[320px] flex-shrink-0 transform bg-surface-primary-alt transition-all duration-200 ease-in-out',
             'md:max-w-[260px]',
+            navVisible ? 'overflow-visible' : 'overflow-hidden'
           )}
           style={{
+            zIndex: 1000,
             width: navVisible ? navWidth : '0px',
             transform: navVisible ? 'translateX(0)' : 'translateX(-100%)',
           }}
         >
-          <div className="h-full w-[320px] md:w-[260px]">
-            <div className="flex h-full flex-col">
+          <div className="h-full w-[320px] md:w-[260px] overflow-visible">
+            <div className="flex h-full flex-col overflow-visible">
               <div
-                className={`flex h-full flex-col transition-opacity duration-200 ease-in-out ${navVisible ? 'opacity-100' : 'opacity-0'}`}
+                className={`flex h-full flex-col transition-opacity duration-200 ease-in-out overflow-visible ${navVisible ? 'opacity-100' : 'opacity-0'}`}
               >
-                <div className="flex h-full flex-col">
+                <div className="flex h-full flex-col overflow-visible">
                   <nav
                     id="chat-history-nav"
                     aria-label={localize('com_ui_chat_history')}

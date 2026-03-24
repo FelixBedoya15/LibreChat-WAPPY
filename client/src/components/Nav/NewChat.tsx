@@ -48,13 +48,13 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm">
+      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible">
         <motion.button
-          whileHover="hover"
+          whileHover={{ scale: 1.05, rotate: -3, zIndex: 50 }}
           whileTap="tap"
           onClick={toggleNav}
           className={cn(
-            "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+            "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:scale-105",
             "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
           )}
         >
@@ -66,15 +66,15 @@ export default function NewChat({
           </div>
         </motion.button>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-visible">
           {headerButtons}
 
           <motion.button
-            whileHover="hover"
+            whileHover={{ scale: 1.05, rotate: -3, zIndex: 50 }}
             whileTap="tap"
             onClick={clickHandler}
             className={cn(
-              "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:-rotate-3 hover:scale-105",
+              "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl hover:scale-105",
               "bg-teal-600 hover:bg-teal-700 text-white border-transparent"
             )}
           >

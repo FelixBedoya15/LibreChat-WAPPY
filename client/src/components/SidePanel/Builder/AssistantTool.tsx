@@ -55,7 +55,7 @@ export default function AssistantTool({
     <OGDialog>
       <div
         className={cn(
-          'flex w-full items-center rounded-lg text-sm',
+          'flex w-full h-10 items-center rounded-xl border border-border-medium/50 bg-surface-primary text-sm transition-all duration-300 hover:border-teal-400 hover:bg-surface-hover hover:scale-[1.02] shadow-sm',
           !assistant_id ? 'opacity-40' : '',
         )}
         onMouseEnter={() => setIsHovering(true)}
@@ -63,15 +63,15 @@ export default function AssistantTool({
       >
         <div className="flex grow items-center">
           {currentTool.icon && (
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-surface-secondary">
               <div
-                className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-center bg-no-repeat dark:bg-white/20"
+                className="flex h-6 w-6 items-center justify-center overflow-hidden rounded bg-center bg-no-repeat dark:bg-white/20"
                 style={{ backgroundImage: `url(${currentTool.icon})`, backgroundSize: 'cover' }}
               />
             </div>
           )}
           <div
-            className="h-9 grow px-3 py-2"
+            className="grow px-3 py-2 font-medium text-text-primary"
             style={{ textOverflow: 'ellipsis', wordBreak: 'break-all', overflow: 'hidden' }}
           >
             {currentTool.name}
@@ -82,9 +82,9 @@ export default function AssistantTool({
           <OGDialogTrigger asChild>
             <button
               type="button"
-              className="flex h-9 w-9 min-w-9 items-center justify-center rounded-lg transition-colors duration-200 hover:bg-gray-200 dark:hover:bg-gray-700"
+              className="flex h-10 w-10 min-w-10 items-center justify-center rounded-xl transition-all duration-300 hover:bg-red-500/10 text-text-tertiary hover:text-red-600"
             >
-              <TrashIcon />
+              <TrashIcon className="icon-sm" />
             </button>
           </OGDialogTrigger>
         )}
