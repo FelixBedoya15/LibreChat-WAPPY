@@ -227,25 +227,25 @@ const Nav = memo(
           onMouseLeave={() => setIsHovering(false)}
         >
           <div className={cn(
-            "h-full overflow-visible transition-all duration-300",
+            "h-full overflow-hidden",
             isCollapsedState ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
           )}>
-            <div className="flex h-full flex-col overflow-visible">
+            <div className="flex h-full flex-col">
               <div
-                className={`flex h-full flex-col transition-opacity duration-200 ease-in-out overflow-visible ${navVisible ? 'opacity-100' : 'opacity-0'}`}
+                className={`flex h-full flex-col overflow-hidden ${navVisible ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
               >
-                <div className="flex h-full flex-col overflow-visible">
+                <div className="flex h-full flex-col">
                   <nav
                     id="chat-history-nav"
                     aria-label={localize('com_ui_chat_history')}
                     className={cn(
-                      "flex h-full flex-col pb-3.5 transition-all duration-300",
-                      isCollapsedState ? 'px-1 items-center' : 'px-2 md:px-3'
+                      "flex h-full flex-col pb-3.5",
+                      isCollapsedState ? 'px-2 items-center' : 'px-2 md:px-3'
                     )}
                   >
-                    {/* Collapsed: icon-only column identical to right panel */}
+                    {/* Collapsed: icon-only column */}
                     {isCollapsedState ? (
-                      <div className="flex flex-col gap-2 pt-2 w-full items-center">
+                      <div className="flex flex-col gap-1.5 pt-2 w-full items-center">
                         {/* New Chat icon */}
                         <TooltipAnchor
                           description="Nuevo Chat"

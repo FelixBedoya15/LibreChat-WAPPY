@@ -66,23 +66,43 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
   return (
     <div ref={containerRef} className="relative">
       <Select.SelectProvider>
-        <Select.Select
+      <Select.Select
           aria-label={localize('com_nav_account_settings')}
           data-testid="nav-user"
-          className="group relative mt-auto mb-2 flex h-14 w-full items-center gap-3 rounded-2xl p-0 text-sm transition-all duration-300 ease-in-out bg-transparent border-none cursor-pointer outline-none"
+          className="group relative mt-auto mb-2 flex w-full items-center p-0 text-sm transition-all duration-200 bg-transparent border-none cursor-pointer outline-none"
         >
+          {isCollapsed ? (
+            // Collapsed: avatar only
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+              className="relative flex h-10 w-10 items-center justify-center"
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowNotifications(prev => !prev);
+                }}
+                className="focus:outline-none"
+              >
+                <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 hover:border-teal-400/50 transition-all duration-200" />
+              </button>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 z-10 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none shadow-lg ring-2 ring-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </motion.div>
+          ) : (
           <motion.div 
-            whileHover={{ scale: 1.05, rotate: -3 }}
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             style={{ zIndex: 100 }}
-            className={cn(
-                "flex h-full w-full items-center transition-all duration-300 bg-surface-secondary border border-border-medium group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm shadow-inner overflow-hidden",
-                isCollapsed ? "justify-center p-0 rounded-xl" : "gap-3 rounded-2xl p-2.5"
-            )}
+            className="flex h-full w-full items-center gap-3 bg-surface-secondary border border-border-medium group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm overflow-hidden rounded-xl p-2"
           >
-           <div className={cn("relative flex-shrink-0 flex items-center justify-center", !isCollapsed && "translate-y-[1px]")}>
-             <div className="h-10 w-10 flex-shrink-0 flex items-center justify-center relative">
-               <div className="absolute inset-0 bg-teal-500/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+           <div className={cn("relative flex-shrink-0 flex items-center justify-center")}>
+             <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center relative">
                <button
                  onClick={(e) => {
                    e.stopPropagation();
@@ -91,7 +111,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                  }}
                  className="z-50 focus:outline-none"
                >
-                 <Avatar user={user} size={38} className="rounded-xl shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-300" />
+                 <Avatar user={user} size={34} className="rounded-lg shadow-sm border border-border-medium/30 group-hover:border-teal-400/50 transition-all duration-200" />
                </button>
                {unreadCount > 0 && (
                  <button
@@ -99,8 +119,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                      e.stopPropagation();
                      setShowNotifications(prev => !prev);
                    }}
-                   className="absolute -top-1 -right-1 z-10 min-w-[20px] h-[20px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none shadow-lg animate-pulse ring-2 ring-white"
-                   style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)' }}
+                   className="absolute -top-1 -right-1 z-10 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none shadow-lg ring-2 ring-white"
                    title={`${unreadCount} notificaciones sin leer`}
                  >
                    {unreadCount > 9 ? '9+' : unreadCount}
@@ -108,20 +127,17 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                )}
              </div>
            </div>
-           {!isCollapsed && (
-               <>
-                <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
-                    <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
-                    <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
-                        {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
-                    </span>
-                </div>
-                <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
-                    <AnimatedIcon name="chevron-right" size={16} />
-                </div>
-               </>
-           )}
+           <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+               <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
+               <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
+                   {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
+               </span>
+           </div>
+           <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
+               <AnimatedIcon name="chevron-right" size={14} />
+           </div>
           </motion.div>
+          )}
         </Select.Select>
         <Select.SelectPopover
           className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white dark:bg-surface-primary p-1.5 shadow-2xl outline-none transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"

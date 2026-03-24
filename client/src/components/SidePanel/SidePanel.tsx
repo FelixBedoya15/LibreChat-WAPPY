@@ -132,12 +132,7 @@ const SidePanel = ({
           isHovering={isHovering}
           onToggle={toggleNavVisible}
           setIsHovering={setIsHovering}
-          className={cn(
-            'fixed top-1/2',
-            (isCollapsed && (minSize === 0 || collapsedSize === 0)) || fullCollapse
-              ? 'mr-9'
-              : 'mr-16',
-          )}
+          className="fixed top-1/2"
           translateX={false}
           side="right"
         />

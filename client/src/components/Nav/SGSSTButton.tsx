@@ -34,9 +34,9 @@ export default function SGSSTButton({
                   whileTap={{ scale: 0.95 }}
                   onClick={handleClick}
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3",
+                    "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-200 shadow-sm",
                     isActive
-                      ? "bg-teal-100/50 border-teal-400 text-teal-600 shadow-inner"
+                      ? "bg-teal-100/50 border-teal-400 text-teal-600"
                       : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
                   )}
                 >
@@ -49,25 +49,17 @@ export default function SGSSTButton({
 
     return (
         <motion.button
-            whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleClick}
             className={cn(
-                "group flex w-full items-center gap-3 rounded-xl border p-3 text-sm transition-all duration-300 shadow-sm",
+                "group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200 shadow-sm",
                 isActive
-                    ? "bg-teal-50/50 border-teal-400/50 text-teal-700 shadow-inner"
+                    ? "bg-teal-50/50 border-teal-400/50 text-teal-700"
                     : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-teal-600"
             )}
         >
-            <div className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors",
-                isActive
-                    ? "bg-white border-teal-200 text-teal-600 shadow-sm"
-                    : "bg-surface-secondary border-border-medium/50 group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500"
-            )}>
-                <ShieldCheck className="h-5 w-5" />
-            </div>
-            <span className="font-bold tracking-tight text-text-primary text-[13px]">Gestor SG-SST</span>
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="font-semibold text-text-primary text-[13px]">Gestor SG-SST</span>
         </motion.button>
     );
 }

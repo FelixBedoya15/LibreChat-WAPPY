@@ -34,7 +34,7 @@ export default function LiveAnalysisButton({
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={handleLiveAnalysis}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-primary hover:bg-surface-hover hover:border-teal-400 text-text-primary transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105 sm:hover:-rotate-3"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-primary hover:bg-surface-hover hover:border-teal-400 text-text-primary transition-all duration-200 shadow-sm"
                 >
                   <Camera className="h-5 w-5" />
                 </motion.button>
@@ -45,15 +45,12 @@ export default function LiveAnalysisButton({
 
     return (
         <motion.button
-            whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLiveAnalysis}
-            className="group flex w-full items-center gap-3 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary p-3 text-sm text-text-secondary transition-all duration-300 shadow-sm hover:bg-surface-hover hover:border-teal-400 hover:text-teal-600"
+            className="group flex w-full items-center gap-2.5 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary px-3 py-2.5 text-sm text-text-secondary transition-all duration-200 shadow-sm hover:bg-surface-hover hover:border-teal-400 hover:text-teal-600"
         >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-medium/50 bg-surface-secondary group-hover:border-teal-200 text-text-tertiary group-hover:text-teal-500 transition-colors">
-                <Camera className="h-5 w-5" />
-            </div>
-            <span className="font-bold tracking-tight text-text-primary text-[13px]">Cámara de Riesgo</span>
+            <Camera className="h-4 w-4 shrink-0" />
+            <span className="font-semibold text-text-primary text-[13px]">Cámara de Riesgo</span>
         </motion.button>
     );
 }

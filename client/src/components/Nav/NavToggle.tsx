@@ -21,21 +21,16 @@ export default function NavToggle({
   translateX?: boolean;
 }) {
   const localize = useLocalize();
-  const transition = {
-    transition: 'transform 0.3s ease, opacity 0.2s ease',
-  };
-
-  const rotationDegree = 15;
-  const rotation = isHovering || !navVisible ? `${rotationDegree}deg` : '0deg';
-  const topBarRotation = side === 'right' ? `-${rotation}` : rotation;
-  const bottomBarRotation = side === 'right' ? rotation : `-${rotation}`;
 
   return (
     <div
       className={cn(
-        '-translate-y-1/2 transition-all duration-300 z-[50]',
-        navVisible && translateX ? (side === 'left' ? 'translate-x-[260px]' : '-translate-x-[260px]') : 'translate-x-0',
-        className
+        // Sits centered on the 1px divider line
+        'absolute top-1/2 -translate-y-1/2 transition-none',
+        // Offset so the button straddles the border equally
+        side === 'left' ? '-right-4' : '-left-4',
+        'z-[2000]',
+        className,
       )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -50,39 +45,38 @@ export default function NavToggle({
           e.stopPropagation();
           onToggle();
         }}
-        className="flex items-center justify-center p-0 border-none bg-transparent outline-none cursor-pointer"
+        className="flex items-center justify-center border-none bg-transparent p-0 outline-none cursor-pointer"
         tabIndex={0}
       >
         <motion.div
-           whileHover={{ scale: 1.1, rotate: side === 'left' ? -5 : 5, zIndex: 100 }}
-           whileTap={{ scale: 0.9 }}
-           className={cn(
-             "group flex h-10 w-8 items-center justify-center rounded-xl border transition-all duration-300 shadow-sm",
-             "bg-surface-primary border-border-medium/50 hover:border-teal-400 text-text-secondary hover:text-teal-600 shadow-sm"
-           )}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className={cn(
+            'flex h-6 w-6 items-center justify-center rounded-full border transition-colors duration-200 shadow-sm',
+            'bg-surface-primary border-border-medium/50 hover:border-teal-400 text-text-secondary hover:text-teal-600',
+          )}
         >
-          <div className={cn(
-            "transition-transform duration-300",
-            navVisible ? (side === 'left' ? "rotate-0" : "rotate-0") : (side === 'left' ? "rotate-180" : "rotate-180")
-          )}>
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="16" 
-              height="16" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2.5" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              {side === 'left' ? (
-                <polyline points="15 18 9 12 15 6"></polyline>
-              ) : (
-                <polyline points="9 18 15 12 9 6"></polyline>
-              )}
-            </svg>
-          </div>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {side === 'left' ? (
+              navVisible
+                ? <polyline points="15 18 9 12 15 6" />
+                : <polyline points="9 18 15 12 9 6" />
+            ) : (
+              navVisible
+                ? <polyline points="9 18 15 12 9 6" />
+                : <polyline points="15 18 9 12 15 6" />
+            )}
+          </svg>
         </motion.div>
       </button>
     </div>
