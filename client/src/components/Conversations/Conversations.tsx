@@ -15,6 +15,8 @@ interface ConversationsProps {
   loadMoreConversations: () => void;
   isLoading: boolean;
   isSearchLoading: boolean;
+  isCollapsed?: boolean;
+  headerContent?: React.ReactNode;
 }
 
 const LoadingSpinner = memo(() => {
@@ -44,7 +46,8 @@ DateLabel.displayName = 'DateLabel';
 type FlattenedItem =
   | { type: 'header'; groupName: string }
   | { type: 'convo'; convo: TConversation }
-  | { type: 'loading' };
+  | { type: 'loading' }
+  | { type: 'custom_header' };
 
 const MemoizedConvo = memo(
   ({
@@ -75,6 +78,8 @@ const Conversations: FC<ConversationsProps> = ({
   loadMoreConversations,
   isLoading,
   isSearchLoading,
+  isCollapsed,
+  headerContent,
 }) => {
   const localize = useLocalize();
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
@@ -94,6 +99,9 @@ const Conversations: FC<ConversationsProps> = ({
 
   const flattenedItems = useMemo(() => {
     const items: FlattenedItem[] = [];
+    if (headerContent) {
+        items.push({ type: 'custom_header' });
+    }
     groupedConversations.forEach(([groupName, convos]) => {
       items.push({ type: 'header', groupName });
       items.push(...convos.map((convo) => ({ type: 'convo' as const, convo })));
@@ -103,7 +111,7 @@ const Conversations: FC<ConversationsProps> = ({
       items.push({ type: 'loading' } as any);
     }
     return items;
-  }, [groupedConversations, isLoading]);
+  }, [groupedConversations, isLoading, headerContent]);
 
   const cache = useMemo(
     () =>
@@ -120,6 +128,9 @@ const Conversations: FC<ConversationsProps> = ({
           }
           if (item.type === 'loading') {
             return `loading-${index}`;
+          }
+          if (item.type === 'custom_header') {
+            return 'custom_header';
           }
           return `unknown-${index}`;
         },
@@ -148,6 +159,8 @@ const Conversations: FC<ConversationsProps> = ({
         rendering = (
           <MemoizedConvo conversation={item.convo} retainView={moveToTop} toggleNav={toggleNav} />
         );
+      } else if (item.type === 'custom_header') {
+        rendering = <>{headerContent}</>;
       }
       return (
         <CellMeasurer cache={cache} columnIndex={0} key={key} parent={parent} rowIndex={index}>

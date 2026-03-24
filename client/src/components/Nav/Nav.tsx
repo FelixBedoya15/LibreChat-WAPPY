@@ -128,11 +128,18 @@ const Nav = memo(
     const [navWidth, setNavWidth] = useState(isSmallScreen ? NAV_WIDTH_MOBILE : (isCollapsed ? NAV_WIDTH_COLLAPSED : NAV_WIDTH_DESKTOP));
 
     const toggleNavVisible = useCallback(() => {
-      setIsCollapsed((prev: boolean) => !prev);
+      if (isSmallScreen) {
+          setNavVisible((prev: boolean) => !prev);
+      } else {
+          setIsCollapsed((prev: boolean) => {
+              localStorage.setItem('navCollapsed', JSON.stringify(!prev));
+              return !prev;
+          });
+      }
       if (newUser) {
         setNewUser(false);
       }
-    }, [newUser, setNewUser, setIsCollapsed]);
+    }, [newUser, setNewUser, setIsCollapsed, isSmallScreen, setNavVisible]);
 
     const itemToggleNav = useCallback(() => {
       if (isSmallScreen) {
@@ -161,8 +168,8 @@ const Nav = memo(
     }, [isFetchingNextPage, computedHasNextPage, fetchNextPage]);
 
     const subHeaders = useMemo(
-      () => search.enabled === true && <SearchBar isSmallScreen={isSmallScreen} />,
-      [search.enabled, isSmallScreen],
+      () => search.enabled === true && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={isCollapsedState} />,
+      [search.enabled, isSmallScreen, isCollapsedState],
     );
 
     const headerButtons = useMemo(
@@ -170,22 +177,22 @@ const Nav = memo(
         <>
           {hasAccessToAgents && (
             <Suspense fallback={null}>
-              <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+              <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
           {hasAccessToBookmarks && (
             <Suspense fallback={null}>
-              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} />
+              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
           {hasAccessToLiveAnalysis && (
             <Suspense fallback={null}>
-              <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+              <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
           {hasAccessToSGSST && (
             <Suspense fallback={null}>
-              <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} />
+              <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
         </>
@@ -211,6 +218,20 @@ const Nav = memo(
 
     return (
       <>
+        <div className="relative flex w-px items-center justify-center float-right z-50">
+             <NavToggle
+                navVisible={isSmallScreen ? navVisible : !isCollapsed}
+                isHovering={isHovering}
+                onToggle={toggleNavVisible}
+                setIsHovering={setIsHovering}
+                className={cn(
+                    'fixed top-1/2 z-[1050]',
+                    isSmallScreen ? (navVisible ? 'left-[320px]' : '-left-4') : (isCollapsed ? 'left-[56px]' : 'left-[260px]')
+                )}
+                translateX={false}
+                side="left"
+             />
+        </div>
         <div
           data-testid="nav"
           className={cn(
@@ -225,19 +246,6 @@ const Nav = memo(
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
         >
-          <div className="relative flex w-px items-center justify-center float-right">
-             <NavToggle
-                navVisible={!isCollapsed}
-                isHovering={isHovering}
-                onToggle={toggleNavVisible}
-                setIsHovering={setIsHovering}
-                className={cn(
-                    'fixed top-1/2 -right-4',
-                )}
-                translateX={false}
-                side="left"
-             />
-          </div>
           <div className={cn(
             "h-full overflow-visible transition-all duration-300",
             isCollapsedState ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
@@ -256,18 +264,6 @@ const Nav = memo(
                     )}
                   >
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
-                      <MemoNewChat
-                        toggleNav={toggleNavVisible}
-                        isSmallScreen={isSmallScreen}
-                        isCollapsed={isCollapsedState}
-                      />
-                      {!isCollapsedState && (
-                        <div className="flex flex-col gap-2 mt-2 mb-4">
-                           {subHeaders}
-                           {headerButtons}
-                        </div>
-                      )}
-                      {!isCollapsedState && (
                         <Conversations
                             conversations={conversations}
                             moveToTop={moveToTop}
@@ -276,8 +272,21 @@ const Nav = memo(
                             loadMoreConversations={loadMoreConversations}
                             isLoading={isFetchingNextPage || showLoading || isLoading}
                             isSearchLoading={isSearchLoading}
+                            isCollapsed={isCollapsedState}
+                            headerContent={
+                                <>
+                                    <MemoNewChat
+                                        toggleNav={toggleNavVisible}
+                                        isSmallScreen={isSmallScreen}
+                                        isCollapsed={isCollapsedState}
+                                    />
+                                    <div className="flex flex-col gap-2 mt-2 mb-4">
+                                        {subHeaders}
+                                        {headerButtons}
+                                    </div>
+                                </>
+                            }
                         />
-                      )}
                     </div>
                     <Suspense fallback={null}>
                       <AccountSettings isCollapsed={isCollapsedState} />

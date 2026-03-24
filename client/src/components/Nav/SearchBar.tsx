@@ -13,6 +13,7 @@ import store from '~/store';
 
 type SearchBarProps = {
   isSmallScreen?: boolean;
+  isCollapsed?: boolean;
 };
 
 const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivElement>) => {
@@ -20,7 +21,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
   const location = useLocation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { isSmallScreen } = props;
+  const { isSmallScreen, isCollapsed } = props;
 
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,30 +101,45 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
     }
   };
 
-  // Automatically set isTyping to false when loading is done and debouncedQuery matches query
-  // (prevents stuck loading state if input is still focused)
   useEffect(() => {
     if (search.isTyping && !search.isSearching && search.debouncedQuery === search.query) {
       setSearchState((prev) => ({ ...prev, isTyping: false }));
     }
   }, [search.isTyping, search.isSearching, search.debouncedQuery, search.query, setSearchState]);
 
+  if (isCollapsed) {
+    return (
+      <div
+        className={cn(
+          'group relative flex h-12 w-full cursor-pointer items-center justify-center rounded-2xl border border-border-medium bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400 transition-all duration-300'
+        )}
+        onClick={() => {
+            const toggleBtn = document.querySelector('#nav-toggle-button');
+            if (toggleBtn) {
+                (toggleBtn as HTMLButtonElement).click();
+            }
+        }}
+      >
+        <AnimatedIcon name="search" size={20} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
+        <div className="hidden sm:flex absolute left-full ml-4 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-white dark:bg-gray-800 border border-teal-400/50 px-3 py-2 rounded-xl shadow-2xl pointer-events-none z-[110]">
+          <span className="text-xs font-bold uppercase tracking-wider text-teal-700">{localize('com_ui_search')}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       ref={ref}
-      whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
       className={cn(
-        'group relative mt-1 flex h-10 cursor-pointer items-center gap-3 rounded-xl border border-border-medium px-3 py-2 text-text-primary transition-all duration-300 bg-surface-secondary shadow-sm hover:border-teal-400',
-        isSmallScreen === true ? 'mb-2 h-14 rounded-2xl' : '',
+        'group relative flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl border border-border-medium px-4 py-2 text-text-primary transition-all duration-300 bg-white dark:bg-gray-800 shadow-sm hover:border-teal-400'
       )}
     >
-      <div className="absolute left-3 flex items-center justify-center">
-        <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
-      </div>
+      <AnimatedIcon name="search" size={20} className="text-text-secondary group-hover:text-teal-500 transition-colors shrink-0" />
       <input
         type="text"
         ref={inputRef}
-        className="m-0 mr-0 w-full border-none bg-transparent p-0 pl-8 text-sm leading-tight placeholder-text-secondary placeholder-opacity-100 focus-visible:outline-none group-focus-within:placeholder-text-primary group-hover:placeholder-text-primary"
+        className="m-0 w-full border-none bg-transparent p-0 text-sm font-medium focus:outline-none focus:ring-0 placeholder:text-text-tertiary"
         value={text}
         onChange={onChange}
         onKeyDown={(e) => {
