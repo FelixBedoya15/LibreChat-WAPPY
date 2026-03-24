@@ -1,15 +1,10 @@
-import { useMemo, memo, type FC, useCallback, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMemo, memo, type FC, useCallback } from 'react';
 import throttle from 'lodash/throttle';
-import { Search, PlusCircle, Bookmark, Shield, Camera } from 'lucide-react';
 import { Spinner, useMediaQuery } from '@librechat/client';
 import { List, AutoSizer, CellMeasurer, CellMeasurerCache } from 'react-virtualized';
-import { TConversation, PermissionTypes, Permissions } from 'librechat-data-provider';
-import { useLocalize, TranslationKeys, useNewConvo, useHasAccess } from '~/hooks';
-import { groupConversationsByDate, clearMessagesCache, cn } from '~/utils';
-import store from '~/store';
-import BookmarkNav from '../Nav/Bookmarks/BookmarkNav';
+import { TConversation } from 'librechat-data-provider';
+import { useLocalize, TranslationKeys } from '~/hooks';
+import { groupConversationsByDate } from '~/utils';
 import Convo from './Convo';
 
 interface ConversationsProps {
@@ -20,11 +15,6 @@ interface ConversationsProps {
   loadMoreConversations: () => void;
   isLoading: boolean;
   isSearchLoading: boolean;
-  subHeaders?: React.ReactNode;
-  tags?: string[];
-  setTags: (tags: string[]) => void;
-  navWidth?: string;
-  navVisible?: boolean;
 }
 
 const LoadingSpinner = memo(() => {
@@ -52,7 +42,6 @@ const DateLabel: FC<{ groupName: string }> = memo(({ groupName }) => {
 DateLabel.displayName = 'DateLabel';
 
 type FlattenedItem =
-  | { type: 'actions' }
   | { type: 'header'; groupName: string }
   | { type: 'convo'; convo: TConversation }
   | { type: 'loading' };
@@ -86,51 +75,10 @@ const Conversations: FC<ConversationsProps> = ({
   loadMoreConversations,
   isLoading,
   isSearchLoading,
-  subHeaders,
-  tags = [],
-  setTags,
-  navWidth,
-  navVisible,
 }) => {
   const localize = useLocalize();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { newConversation: newConvo } = useNewConvo();
-  const hasLiveAnalysisAccess = useHasAccess({
-    permissionType: PermissionTypes.LIVE_ANALYSIS,
-    permission: Permissions.USE,
-  });
-
-  const { conversationId: currentConvoId } = useParams();
-  const convoHeight = 48;
-
-  const clickHandler = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
-      if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-        event.preventDefault();
-        clearMessagesCache(queryClient);
-        newConvo();
-        navigate('/c/new');
-        store.set(store.isFullWidth, false);
-      }
-    },
-    [newConvo, navigate, queryClient],
-  );
-
-  const ActionButton = ({ icon, label, onClick, className = "" }: { icon: React.ReactNode, label: string, onClick?: (e: any) => void, className?: string }) => (
-    <button
-      onClick={onClick}
-      className={cn(
-        "flex h-10 w-full items-center gap-3 rounded-xl border border-border-light/50 bg-white px-3 text-sm font-medium text-text-primary transition-all hover:bg-surface-hover hover:border-border-medium shadow-sm",
-        className
-      )}
-    >
-      <div className="flex-shrink-0 text-text-tertiary">
-        {icon}
-      </div>
-      <span className="truncate">{label}</span>
-    </button>
-  );
+  const isSmallScreen = useMediaQuery('(max-width: 768px)');
+  const convoHeight = isSmallScreen ? 44 : 34;
 
   const filteredConversations = useMemo(
     () => rawConversations.filter((c): c is TConversation =>
@@ -146,10 +94,6 @@ const Conversations: FC<ConversationsProps> = ({
 
   const flattenedItems = useMemo(() => {
     const items: FlattenedItem[] = [];
-    
-    // Prepend Actions
-    items.push({ type: 'actions' });
-
     groupedConversations.forEach(([groupName, convos]) => {
       items.push({ type: 'header', groupName });
       items.push(...convos.map((convo) => ({ type: 'convo' as const, convo })));
@@ -168,16 +112,13 @@ const Conversations: FC<ConversationsProps> = ({
         defaultHeight: convoHeight,
         keyMapper: (index) => {
           const item = flattenedItems[index];
-          if (item?.type === 'actions') {
-            return 'actions-row';
-          }
-          if (item?.type === 'header') {
+          if (item.type === 'header') {
             return `header-${index}`;
           }
-          if (item?.type === 'convo') {
+          if (item.type === 'convo') {
             return `convo-${item.convo.conversationId}`;
           }
-          if (item?.type === 'loading') {
+          if (item.type === 'loading') {
             return `loading-${index}`;
           }
           return `unknown-${index}`;
@@ -186,57 +127,9 @@ const Conversations: FC<ConversationsProps> = ({
     [flattenedItems, convoHeight],
   );
 
-  useEffect(() => {
-    if (cache) {
-      cache.clearAll();
-    }
-    if (containerRef.current && 'recomputeRowHeights' in containerRef.current) {
-      containerRef.current.recomputeRowHeights();
-      containerRef.current.forceUpdate();
-    }
-  }, [navWidth, navVisible, cache, containerRef]);
-
   const rowRenderer = useCallback(
     ({ index, key, parent, style }) => {
       const item = flattenedItems[index];
-
-      if (!item) {
-        return null;
-      }
-
-      if (item.type === 'actions') {
-        return (
-          <CellMeasurer cache={cache} columnIndex={0} key={key} parent={parent} rowIndex={index}>
-            {({ registerChild }) => (
-              <div ref={registerChild} style={style} className="flex flex-col gap-2 px-0 py-4 w-full">
-                <ActionButton 
-                  icon={<PlusCircle size={18} />} 
-                  label={localize('com_ui_new_chat')} 
-                  onClick={clickHandler}
-                  className="bg-teal-600 text-white hover:bg-teal-700"
-                />
-                <div className="w-full">
-                  {subHeaders}
-                </div>
-                <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={false} fullWidth={true} />
-                <ActionButton 
-                  icon={<Shield size={18} />} 
-                  label="Gestor SG-SST" 
-                  onClick={() => navigate('/sgsst')}
-                />
-                {hasLiveAnalysisAccess && (
-                  <ActionButton 
-                    icon={<Camera size={18} />} 
-                    label="Cámara de Riesgo" 
-                    onClick={() => navigate('/risk-camera')}
-                  />
-                )}
-              </div>
-            )}
-          </CellMeasurer>
-        );
-      }
-
       if (item.type === 'loading') {
         return (
           <CellMeasurer cache={cache} columnIndex={0} key={key} parent={parent} rowIndex={index}>
@@ -266,7 +159,7 @@ const Conversations: FC<ConversationsProps> = ({
         </CellMeasurer>
       );
     },
-    [cache, flattenedItems, moveToTop, toggleNav, subHeaders, clickHandler, navigate, localize],
+    [cache, flattenedItems, moveToTop, toggleNav],
   );
 
   const getRowHeight = useCallback(
@@ -297,28 +190,24 @@ const Conversations: FC<ConversationsProps> = ({
         </div>
       ) : (
         <div className="flex-1">
-          <AutoSizer key={navVisible ? 'visible' : 'hidden'}>
-            {({ height, width: measuredWidth }) => {
-              const parsedNavWidth = navWidth ? parseInt(navWidth.replace('px', '')) : 0;
-              const finalWidth = parsedNavWidth || measuredWidth;
-              return (
-                <List
-                  ref={containerRef as React.RefObject<List>}
-                  width={finalWidth}
-                  height={height}
-                  deferredMeasurementCache={cache}
-                  rowCount={flattenedItems.length}
-                  rowHeight={getRowHeight}
-                  rowRenderer={rowRenderer}
-                  overscanRowCount={10}
-                  className="outline-none"
-                  style={{ outline: 'none' }}
-                  aria-label="Conversations"
-                  onRowsRendered={handleRowsRendered}
-                  tabIndex={-1}
-                />
-              );
-            }}
+          <AutoSizer>
+            {({ width, height }) => (
+              <List
+                ref={containerRef as React.RefObject<List>}
+                width={width}
+                height={height}
+                deferredMeasurementCache={cache}
+                rowCount={flattenedItems.length}
+                rowHeight={getRowHeight}
+                rowRenderer={rowRenderer}
+                overscanRowCount={10}
+                className="outline-none"
+                style={{ outline: 'none' }}
+                aria-label="Conversations"
+                onRowsRendered={handleRowsRendered}
+                tabIndex={-1}
+              />
+            )}
           </AutoSizer>
         </div>
       )}

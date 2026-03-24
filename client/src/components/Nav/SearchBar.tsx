@@ -109,14 +109,16 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
   }, [search.isTyping, search.isSearching, search.debouncedQuery, search.query, setSearchState]);
 
   return (
-    <div
+    <motion.div
       ref={ref}
+      whileHover={{ scale: 1.02, rotate: -1, zIndex: 10 }}
       className={cn(
-        'group relative mt-1 flex h-10 w-full cursor-pointer items-center gap-3 rounded-xl border border-border-light/50 px-3 text-text-primary transition-all duration-300 bg-white hover:border-border-medium hover:bg-surface-hover shadow-sm',
+        'group relative mt-1 flex h-10 cursor-pointer items-center gap-3 rounded-xl border border-border-medium/50 px-3 py-2 text-text-primary transition-all duration-300 bg-surface-secondary/30 backdrop-blur-sm shadow-sm hover:border-teal-400',
+        isSmallScreen === true ? 'mb-2 h-14 rounded-2xl' : '',
       )}
     >
       <div className="absolute left-3 flex items-center justify-center">
-        <Search className="h-4 w-4 text-text-secondary group-hover:text-text-primary transition-colors" />
+        <AnimatedIcon name="search" size={18} className="text-text-secondary group-hover:text-teal-500 transition-colors" />
       </div>
       <input
         type="text"
@@ -149,7 +151,7 @@ const SearchBar = forwardRef((props: SearchBarProps, ref: React.Ref<HTMLDivEleme
       >
         <X className="h-5 w-5 cursor-pointer text-text-secondary hover:text-red-500 transition-colors" />
       </button>
-    </div>
+    </motion.div>
   );
 });
 

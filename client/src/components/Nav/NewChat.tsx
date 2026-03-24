@@ -1,79 +1,129 @@
-import { useMemo, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { QueryKeys } from 'librechat-data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
-import { PlusCircle } from 'lucide-react';
-import { Sidebar, TooltipAnchor } from '@librechat/client';
-import BookmarkNav from './Bookmarks/BookmarkNav';
+import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import { motion } from 'framer-motion';
+import { cn } from '~/utils';
 
 export default function NewChat({
   index = 0,
   toggleNav,
-  tags = [],
-  setTags,
+  subHeaders,
+  isSmallScreen,
+  headerButtons,
+  isCollapsed,
 }: {
   index?: number;
   toggleNav: () => void;
-  tags?: string[];
-  setTags: (tags: string[]) => void;
+  isSmallScreen?: boolean;
+  subHeaders?: React.ReactNode;
+  headerButtons?: React.ReactNode;
+  isCollapsed?: boolean;
 }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { newConversation: newConvo } = useNewConvo();
+  /** Note: this component needs an explicit index passed if using more than one */
+  const { newConversation: newConvo } = useNewConvo(index);
+  const navigate = useNavigate();
   const localize = useLocalize();
+  const { conversation } = store.useCreateConversationAtom(index);
 
-  const clickHandler = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
-      if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-        event.preventDefault();
-        index === 0 ? newConvo() : clearMessagesCache(queryClient);
-        navigate('/c/new');
-        store.set(store.isFullWidth, false);
+  const clickHandler: React.MouseEventHandler<HTMLButtonElement> = useCallback(
+    (e) => {
+      if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
+        window.open('/c/new', '_blank');
+        return;
+      }
+      clearMessagesCache(queryClient, conversation?.conversationId);
+      queryClient.invalidateQueries([QueryKeys.messages]);
+      newConvo();
+      navigate('/c/new', { state: { focusChat: true } });
+      if (isSmallScreen) {
+        toggleNav();
       }
     },
-    [index, newConvo, navigate, queryClient],
+    [queryClient, conversation, newConvo, navigate, toggleNav, isSmallScreen],
   );
 
   return (
-    <div className="flex flex-col w-full px-1 py-4 gap-2 overflow-visible">
-      {/* Top Row: Toggle (Left) and Quick Actions (Right) */}
-      <div className="flex items-center justify-between h-10 mb-2 w-full">
-        {/* Toggle Button (Left) */}
-        <TooltipAnchor
-          description={localize('com_nav_close_sidebar')}
-          render={
-            <button
-              onClick={toggleNav}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
-            >
-              <Sidebar size={20} />
-            </button>
-          }
-        />
+    <>
+      <div className={cn(
+        "flex py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative z-20 hover:z-[100] gap-1 transition-all duration-300",
+        isCollapsed 
+          ? "flex-col items-center w-auto min-h-0 mx-auto" 
+          : "flex-row items-center justify-between min-h-[56px] h-auto flex-wrap"
+      )}>
+        <motion.button
+          whileTap="tap"
+          onClick={toggleNav}
+          className={cn(
+            "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
+            "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary",
+            isCollapsed && "order-first mb-1"
+          )}
+        >
+          <div className="relative flex-shrink-0 flex items-center justify-center">
+            <AnimatedIcon name="sidebar" size={20} className={cn("transition-transform", isCollapsed && "rotate-180")} />
+          </div>
+        </motion.button>
 
-        {/* Quick Actions (Right) */}
-        <div className="flex items-center gap-1">
-          <TooltipAnchor
-            description={localize('com_ui_bookmarks')}
-            render={
-              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={false} />
-            }
-          />
-          <TooltipAnchor
-            description={localize('com_ui_new_chat')}
-            render={
-              <button
-                onClick={clickHandler}
-                className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-teal-600 text-white hover:bg-teal-700 transition-all shadow-md"
-              >
-                <PlusCircle size={18} />
-              </button>
-            }
-          />
+        <div className={cn(
+            "flex items-center gap-1 overflow-visible justify-center",
+            isCollapsed ? "flex-col" : "flex-row flex-wrap"
+        )}>
+          <motion.button
+            whileTap="tap"
+            onClick={clickHandler}
+            className={cn(
+              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
+              "bg-teal-600 hover:bg-teal-700 text-white border-transparent"
+            )}
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <AnimatedIcon name="plus" size={20} />
+            </div>
+            <div className={cn(
+                "hidden sm:flex absolute items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]",
+                isCollapsed ? "left-full ml-2" : "right-full mr-2"
+            )}>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{localize('com_ui_new_chat')}</span>
+            </div>
+          </motion.button>
+
+          <motion.button
+            whileTap="tap"
+            onClick={() => {
+              if (isCollapsed) {
+                toggleNav();
+              }
+              // Focus after expansion
+              setTimeout(() => {
+                const searchInput = document.querySelector('nav input');
+                if (searchInput) {
+                  (searchInput as HTMLInputElement).focus();
+                }
+              }, 400);
+            }}
+            className={cn(
+              "group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:scale-105 sm:hover:-rotate-3",
+              "bg-surface-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+            )}
+          >
+            <div className="relative flex-shrink-0 flex items-center justify-center">
+              <AnimatedIcon name="search" size={20} />
+            </div>
+            <div className="hidden sm:flex absolute left-full ml-2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-surface-primary/95 backdrop-blur-md border border-teal-400/50 px-3 py-1.5 rounded-lg shadow-xl pointer-events-none z-[110]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700">{localize('com_ui_search')}</span>
+            </div>
+          </motion.button>
+
+          {headerButtons}
         </div>
       </div>
-    </div>
+      {!isCollapsed && subHeaders != null ? subHeaders : null}
+    </>
   );
 }

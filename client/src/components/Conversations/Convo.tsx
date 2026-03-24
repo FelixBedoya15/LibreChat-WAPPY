@@ -131,9 +131,10 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
   };
 
   return (
-    <div
+    <motion.div
+      whileTap="tap"
       className={cn(
-        'group relative flex h-10 w-full items-center rounded-lg px-1 border-none',
+        'group relative flex h-10 w-full items-center rounded-lg transition-all duration-200 px-2 my-1 border-none',
         isActiveConvo 
           ? 'bg-teal-500/10 text-teal-700 font-medium' 
           : 'bg-transparent hover:bg-surface-hover text-text-secondary hover:text-text-primary',
@@ -187,15 +188,15 @@ export default function Conversation({ conversation, retainView, toggleNav }: Co
       )}
       <div
         className={cn(
-          'mr-1 flex items-center',
+          'mr-2 flex origin-left',
           isPopoverActive || isActiveConvo
-            ? 'opacity-100 flex-shrink-0'
-            : 'opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity duration-200',
+            ? 'pointer-events-auto max-w-[28px] scale-x-100 opacity-100'
+            : 'pointer-events-none max-w-0 scale-x-0 opacity-0 group-focus-within:pointer-events-auto group-focus-within:max-w-[28px] group-focus-within:scale-x-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:max-w-[28px] group-hover:scale-x-100 group-hover:opacity-100',
         )}
         aria-hidden={!(isPopoverActive || isActiveConvo)}
       >
         {!renaming && <ConvoOptions {...convoOptionsProps} />}
       </div>
-    </div>
+    </motion.div>
   );
 }

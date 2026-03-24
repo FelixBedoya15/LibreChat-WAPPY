@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { TooltipAnchor } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import { cn } from '~/utils';
 
@@ -10,7 +11,6 @@ export default function NavToggle({
   side = 'left',
   className = '',
   translateX = true,
-  navWidth = '260px',
 }: {
   onToggle: () => void;
   navVisible: boolean;
@@ -19,7 +19,6 @@ export default function NavToggle({
   side?: 'left' | 'right';
   className?: string;
   translateX?: boolean;
-  navWidth?: string;
 }) {
   const localize = useLocalize();
   const transition = {
@@ -35,8 +34,8 @@ export default function NavToggle({
     <div
       className={cn(
         className,
-        '-translate-y-1/2 transition-all duration-[400ms] cubic-bezier(0.4, 0, 0.2, 1) z-50',
-        navVisible && translateX ? (side === 'left' ? 'left-0 translate-x-[var(--nav-width,260px)]' : 'right-0 -translate-x-[260px]') : 'translate-x-0',
+        '-translate-y-1/2 transition-all duration-300 z-50',
+        navVisible && translateX ? (side === 'left' ? 'translate-x-[260px]' : '-translate-x-[260px]') : 'translate-x-0',
       )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
