@@ -48,7 +48,7 @@ export default function NewChat({
 
   return (
     <>
-      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative h-14">
+      <div className="flex items-center justify-between py-2 mb-1 px-1 bg-surface-secondary/30 border border-border-medium/50 rounded-2xl shadow-sm backdrop-blur-sm overflow-visible relative h-14 z-20 hover:z-[100]">
         <motion.button
           whileHover={{ scale: 1.05, rotate: -3, zIndex: 100 }}
           whileTap="tap"
