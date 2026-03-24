@@ -5,92 +5,95 @@ import { QueryKeys } from 'librechat-data-provider';
 import { useLocalize, useNewConvo } from '~/hooks';
 import { clearMessagesCache } from '~/utils';
 import store from '~/store';
-import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
-import { motion } from 'framer-motion';
+import { Plus, Bookmark, Shield, Camera, LayoutPanelLeft } from 'lucide-react';
 import { cn } from '~/utils';
 
 export default function NewChat({
   index = 0,
   toggleNav,
   subHeaders,
-  isSmallScreen,
-  headerButtons,
-  isCollapsed,
 }: {
   index?: number;
   toggleNav: () => void;
-  isSmallScreen?: boolean;
   subHeaders?: React.ReactNode;
-  headerButtons?: React.ReactNode;
-  isCollapsed?: boolean;
 }) {
-  const queryClient = useQueryClient();
-  /** Note: this component needs an explicit index passed if using more than one */
-  const { newConversation: newConvo } = useNewConvo(index);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { newConversation: newConvo } = useNewConvo();
   const localize = useLocalize();
-  const { conversation } = store.useCreateConversationAtom(index);
 
-  const clickHandler: React.MouseEventHandler<HTMLButtonElement> = useCallback(
-    (e) => {
-      if (e.button === 0 && (e.ctrlKey || e.metaKey)) {
-        window.open('/c/new', '_blank');
-        return;
-      }
-      clearMessagesCache(queryClient, conversation?.conversationId);
-      queryClient.invalidateQueries([QueryKeys.messages]);
-      newConvo();
-      navigate('/c/new', { state: { focusChat: true } });
-      if (isSmallScreen) {
-        toggleNav();
+  const clickHandler = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
+      if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        index === 0 ? newConvo() : clearMessagesCache(queryClient);
+        navigate('/c/new');
+        store.set(store.isFullWidth, false);
       }
     },
-    [queryClient, conversation, newConvo, navigate, toggleNav, isSmallScreen],
+    [index, newConvo, navigate, queryClient],
+  );
+
+  const ActionButton = ({ icon, label, onClick, className = "" }: { icon: React.ReactNode, label: string, onClick?: (e: any) => void, className?: string }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex h-10 w-full items-center gap-3 rounded-xl border border-border-light/50 bg-white px-3 text-sm font-medium text-text-primary transition-all hover:bg-surface-hover hover:border-border-medium shadow-sm",
+        className
+      )}
+    >
+      <div className="flex-shrink-0 text-text-tertiary">
+        {icon}
+      </div>
+      <span className="truncate">{label}</span>
+    </button>
   );
 
   return (
-    <div className={cn("flex flex-col gap-2 p-1 transition-all duration-300", isCollapsed && "items-center")}>
-      <div className={cn("flex items-center gap-2", isCollapsed ? "flex-col" : "flex-row w-full")}>
-        {/* Toggle Button */}
+    <div className="flex flex-col w-full px-2 py-4 gap-2 overflow-visible">
+      {/* Top Row: Toggle */}
+      <div className="flex items-center h-10 mb-2">
         <button
           onClick={toggleNav}
-          className={cn(
-            "flex items-center justify-center h-10 w-10 shrink-0 transition-colors rounded-xl border border-border-light/50 bg-white hover:bg-surface-hover hover:border-border-medium shadow-sm",
-            isCollapsed && "order-first"
-          )}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-border-light/50 bg-white text-text-tertiary hover:bg-surface-hover transition-all shadow-sm"
+          title={localize('com_nav_close_sidebar')}
         >
-          <AnimatedIcon name="sidebar" size={20} className={cn("transition-transform", isCollapsed && "rotate-180")} />
+          <LayoutPanelLeft size={20} />
         </button>
-
-        {/* New Chat Button */}
-        <motion.button
-          whileTap="tap"
-          onClick={clickHandler}
-          className={cn(
-            "group relative flex items-center justify-center h-10 transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-teal-600/30 outline-none rounded-xl bg-teal-600 text-white hover:bg-teal-700",
-            isCollapsed ? "w-10" : "flex-1 px-4"
-          )}
-        >
-          <AnimatedIcon name="plus" size={20} />
-          {!isCollapsed && <span className="ml-2 whitespace-nowrap text-sm font-bold uppercase tracking-tight">{localize('com_ui_new_chat')}</span>}
-        </motion.button>
       </div>
 
-      {/* Search Bar & Extra Buttons */}
-      {!isCollapsed && (
-        <div className="flex flex-col gap-1 w-full">
+      {/* Vertical Stack */}
+      <div className="flex flex-col gap-2 w-full">
+        <ActionButton 
+          icon={<Plus size={18} />} 
+          label={localize('com_ui_new_chat')} 
+          onClick={clickHandler}
+          className="bg-white"
+        />
+        
+        {/* Search Bar Container */}
+        <div className="w-full">
           {subHeaders}
-          <div className="flex flex-row flex-wrap gap-1 mt-1 justify-center">
-            {headerButtons}
-          </div>
         </div>
-      )}
 
-      {isCollapsed && (
-        <div className="flex flex-col gap-2 mt-2">
-          {headerButtons}
-        </div>
-      )}
+        <ActionButton 
+          icon={<Bookmark size={18} />} 
+          label="Marcadores" 
+          onClick={() => {}} // Handle navigation or trigger
+        />
+
+        <ActionButton 
+          icon={<Shield size={18} />} 
+          label="Gestor SG-SST" 
+          onClick={() => navigate('/sgsst')}
+        />
+
+        <ActionButton 
+          icon={<Camera size={18} />} 
+          label="Cámara de Riesgo" 
+          onClick={() => navigate('/risk-camera')}
+        />
+      </div>
     </div>
   );
 }

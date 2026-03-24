@@ -127,18 +127,11 @@ const Nav = memo(
     const [navWidth, setNavWidth] = useState(isSmallScreen ? NAV_WIDTH_MOBILE : (isCollapsed ? NAV_WIDTH_COLLAPSED : NAV_WIDTH_DESKTOP));
 
     const toggleNavVisible = useCallback(() => {
-      if (isSmallScreen) {
-        setNavVisible((prev: boolean) => {
-          localStorage.setItem('navVisible', JSON.stringify(!prev));
-          return !prev;
-        });
-      } else {
-        setIsCollapsed((prev: boolean) => !prev);
-      }
+      setNavVisible((prev: boolean) => !prev);
       if (newUser) {
         setNewUser(false);
       }
-    }, [newUser, setNavVisible, setNewUser, isSmallScreen, setIsCollapsed]);
+    }, [newUser, setNavVisible, setNewUser]);
 
     const itemToggleNav = useCallback(() => {
       if (isSmallScreen) {
@@ -249,9 +242,6 @@ const Nav = memo(
                       <MemoNewChat
                         subHeaders={navWidth === NAV_WIDTH_COLLAPSED ? null : subHeaders}
                         toggleNav={toggleNavVisible}
-                        headerButtons={headerButtons}
-                        isSmallScreen={isSmallScreen}
-                        isCollapsed={navWidth === NAV_WIDTH_COLLAPSED}
                       />
                       {navWidth !== NAV_WIDTH_COLLAPSED && (
                         <Conversations
@@ -265,17 +255,11 @@ const Nav = memo(
                         />
                       )}
                     </div>
-                    <div className="flex flex-col gap-2 mt-auto">
-                      {!isCollapsed && headerButtons && (
-                          <div className="flex flex-row flex-wrap gap-1 mb-2 justify-center px-2">
-                            {headerButtons}
-                          </div>
-                      )}
-                      
-                      <Suspense fallback={null}>
-                        <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
-                      </Suspense>
-                    </div>
+                      <div className="mt-auto pt-2 pb-2">
+                        <Suspense fallback={null}>
+                          <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
+                        </Suspense>
+                      </div>
                   </nav>
                 </div>
               </div>
