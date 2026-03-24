@@ -1,5 +1,6 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import { useMemo } from 'react';
-import { useMediaQuery } from '@librechat/client';
+import { useMediaQuery, useHasAccess } from '@librechat/client';
 import { useOutletContext } from 'react-router-dom';
 import { getConfigDefaults, PermissionTypes, Permissions } from 'librechat-data-provider';
 import type { ContextType } from '~/common';
@@ -10,16 +11,15 @@ import ExportAndShareMenu from './ExportAndShareMenu';
 import BookmarkMenu from './Menus/BookmarkMenu';
 import { TemporaryChat } from './TemporaryChat';
 import AddMultiConvo from './AddMultiConvo';
-import { useHasAccess } from '~/hooks';
-
-const defaultInterface = getConfigDefaults().interface;
+import { useLocalize } from '~/hooks';
 
 export default function Header() {
-  const { data: startupConfig } = useGetStartupConfig();
   const { navVisible, setNavVisible } = useOutletContext<ContextType>();
+  const { data: startupConfig = getConfigDefaults() } = useGetStartupConfig();
+  const localize = useLocalize();
 
   const interfaceConfig = useMemo(
-    () => startupConfig?.interface ?? defaultInterface,
+    () => startupConfig?.interface ?? getConfigDefaults().interface,
     [startupConfig],
   );
 
@@ -38,21 +38,23 @@ export default function Header() {
   return (
     <div className="sticky top-0 z-10 flex h-14 w-full items-center justify-between bg-surface-primary p-2 font-semibold text-text-primary">
       <div className="hide-scrollbar flex w-full items-center justify-between gap-2 overflow-x-auto">
-        <div className="mx-1 flex items-center gap-2">
-          <div
-            className={`flex items-center gap-2 ${!isSmallScreen ? 'transition-all duration-200 ease-in-out' : ''
-              } ${!navVisible
-                ? 'translate-x-0 opacity-100'
-                : 'pointer-events-none translate-x-[-100px] opacity-0'
-              }`}
-          >
-            <OpenSidebar setNavVisible={setNavVisible} className="max-md:hidden" />
-            <HeaderNewChat />
-          </div>
-          <div
-            className={`flex items-center gap-2 ${!isSmallScreen ? 'transition-all duration-200 ease-in-out' : ''
-              }`}
-          >
+        <div className="mx-1 flex items-center">
+          <AnimatePresence initial={false}>
+            {!navVisible && (
+              <motion.div
+                key="header-nav-buttons"
+                initial={{ width: 0, opacity: 0, marginRight: 0 }}
+                animate={{ width: 'auto', opacity: 1, marginRight: 8 }}
+                exit={{ width: 0, opacity: 0, marginRight: 0 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="flex items-center gap-2 overflow-hidden whitespace-nowrap"
+              >
+                <OpenSidebar setNavVisible={setNavVisible} className="max-md:hidden" />
+                <HeaderNewChat />
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <div className="flex items-center gap-2">
             <ModelSelector startupConfig={startupConfig} />
             {interfaceConfig.presets === true && interfaceConfig.modelSelect && <PresetsMenu />}
             {hasAccessToBookmarks === true && <BookmarkMenu />}
