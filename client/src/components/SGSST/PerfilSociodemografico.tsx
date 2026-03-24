@@ -164,13 +164,24 @@ const PerfilSociodemografico = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleExportExcel = () => {
-        const dataToExport = trabajadores.map(w => {
-            const row: any = { ...w };
-            delete row.id;
-            delete row.firmaDigital;
-            delete row.completedByAI;
-            return row;
-        });
+        const dataToExport = trabajadores.map(w => ({
+            'Nombre': w.nombre,
+            'Identificación': w.identificacion,
+            'Edad': w.edad,
+            'Género': w.genero,
+            'Estado Civil': w.estadoCivil,
+            'Nivel Escolaridad': w.nivelEscolaridad,
+            'Dirección': w.direccion,
+            'Teléfono': w.telefono,
+            'Cargo': w.cargo,
+            'Fecha Examen Médico': w.fechaExamenMedico,
+            'Curso Alturas Autorizado': w.fechaCursoAlturasAutorizado,
+            'Curso Alturas Coordinador': w.fechaCursoAlturasCoordinador,
+            'Diagnóstico Médico': w.diagnosticoMedico,
+            'Recomendaciones Medicas': w.recomendacionesMedicas,
+            'Fecha Seguimiento': w.fechaSeguimiento,
+            'Consentimiento Firma': w.consentimientoFirmaDigital
+        }));
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Trabajadores");
@@ -186,7 +197,7 @@ const PerfilSociodemografico = () => {
         reader.onload = (eEvent) => {
             try {
                 const data = eEvent.target?.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
+                const workbook = XLSX.read(data, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
                 const importedData = XLSX.utils.sheet_to_json<any>(sheet);
@@ -199,9 +210,22 @@ const PerfilSociodemografico = () => {
                     return {
                         ...EMPTY_WORKER,
                         id: crypto.randomUUID(),
-                        ...row,
-                        edad: row.edad || '',
-                        consentimientoFirmaDigital: row.consentimientoFirmaDigital || 'No',
+                        nombre: row['Nombre'] || row.nombre || '',
+                        identificacion: row['Identificación'] || row.identificacion || '',
+                        edad: row['Edad'] || row.edad || '',
+                        genero: row['Género'] || row.genero || '',
+                        estadoCivil: row['Estado Civil'] || row.estadoCivil || '',
+                        nivelEscolaridad: row['Nivel Escolaridad'] || row.nivelEscolaridad || '',
+                        direccion: row['Dirección'] || row.direccion || '',
+                        telefono: row['Teléfono'] || row.telefono || '',
+                        cargo: row['Cargo'] || row.cargo || '',
+                        fechaExamenMedico: row['Fecha Examen Médico'] || row.fechaExamenMedico || '',
+                        fechaCursoAlturasAutorizado: row['Curso Alturas Autorizado'] || row.fechaCursoAlturasAutorizado || '',
+                        fechaCursoAlturasCoordinador: row['Curso Alturas Coordinador'] || row.fechaCursoAlturasCoordinador || '',
+                        diagnosticoMedico: row['Diagnóstico Médico'] || row.diagnosticoMedico || '',
+                        recomendacionesMedicas: row['Recomendaciones Medicas'] || row.recomendacionesMedicas || '',
+                        fechaSeguimiento: row['Fecha Seguimiento'] || row.fechaSeguimiento || '',
+                        consentimientoFirmaDigital: row['Consentimiento Firma'] || row.consentimientoFirmaDigital || 'No',
                         firmaDigital: null,
                         completedByAI: false,
                     };
@@ -214,7 +238,7 @@ const PerfilSociodemografico = () => {
                 showToast({ message: 'Error al importar Excel. Verifique el formato del archivo.', status: 'error' });
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
         if (e.target) e.target.value = '';
     };
 
