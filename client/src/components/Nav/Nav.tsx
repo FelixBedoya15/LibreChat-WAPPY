@@ -256,6 +256,8 @@ const Nav = memo(
                             subHeaders={subHeaders}
                             tags={tags}
                             setTags={setTags}
+                            navWidth={navWidth}
+                            navVisible={navVisible}
                         />
                       )}
                     </div>

@@ -23,6 +23,8 @@ interface ConversationsProps {
   subHeaders?: React.ReactNode;
   tags?: string[];
   setTags: (tags: string[]) => void;
+  navWidth?: string;
+  navVisible?: boolean;
 }
 
 const LoadingSpinner = memo(() => {
@@ -87,6 +89,8 @@ const Conversations: FC<ConversationsProps> = ({
   subHeaders,
   tags = [],
   setTags,
+  navWidth,
+  navVisible,
 }) => {
   const localize = useLocalize();
   const navigate = useNavigate();
@@ -96,8 +100,9 @@ const Conversations: FC<ConversationsProps> = ({
     permissionType: PermissionTypes.LIVE_ANALYSIS,
     permission: Permissions.USE,
   });
-  const isSmallScreen = useMediaQuery('(max-width: 768px)');
-  const convoHeight = isSmallScreen ? 44 : 34;
+
+  const { conversationId: currentConvoId } = useParams();
+  const convoHeight = 48;
 
   const clickHandler = useCallback(
     (event: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
@@ -180,6 +185,12 @@ const Conversations: FC<ConversationsProps> = ({
       }),
     [flattenedItems, convoHeight],
   );
+
+  useEffect(() => {
+    if (navWidth && cache) {
+      cache.clearAll();
+    }
+  }, [navWidth, cache]);
 
   const rowRenderer = useCallback(
     ({ index, key, parent, style }) => {
@@ -282,7 +293,7 @@ const Conversations: FC<ConversationsProps> = ({
         </div>
       ) : (
         <div className="flex-1">
-          <AutoSizer>
+          <AutoSizer key={navVisible ? 'visible' : 'hidden'}>
             {({ width, height }) => (
               <List
                 ref={containerRef as React.RefObject<List>}
