@@ -187,14 +187,6 @@ export default function useSideNavLinks({
       });
     }
 
-    links.push({
-      title: 'com_sidepanel_hide_panel',
-      label: '',
-      icon: ArrowRightToLine,
-      onClick: hidePanel,
-      id: 'hide-panel',
-    });
-
     return links;
   }, [
     endpointsConfig,

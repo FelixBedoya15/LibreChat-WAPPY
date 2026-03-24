@@ -17,6 +17,7 @@ import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Conversations } from '~/components/Conversations';
 import SearchBar from './SearchBar';
 import NewChat from './NewChat';
+import NavToggle from './NavToggle';
 import { cn } from '~/utils';
 import store from '~/store';
 
@@ -60,7 +61,7 @@ const Nav = memo(
   }) => {
     const localize = useLocalize();
     const { isAuthenticated } = useAuthContext();
-
+    const [isHovering, setIsHovering] = useState(false);
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
     const [showLoading, setShowLoading] = useState(false);
@@ -127,18 +128,11 @@ const Nav = memo(
     const [navWidth, setNavWidth] = useState(isSmallScreen ? NAV_WIDTH_MOBILE : (isCollapsed ? NAV_WIDTH_COLLAPSED : NAV_WIDTH_DESKTOP));
 
     const toggleNavVisible = useCallback(() => {
-      if (isSmallScreen) {
-        setNavVisible((prev: boolean) => {
-          localStorage.setItem('navVisible', JSON.stringify(!prev));
-          return !prev;
-        });
-      } else {
-        setIsCollapsed((prev: boolean) => !prev);
-      }
+      setIsCollapsed((prev: boolean) => !prev);
       if (newUser) {
         setNewUser(false);
       }
-    }, [newUser, setNavVisible, setNewUser, isSmallScreen, setIsCollapsed]);
+    }, [newUser, setNewUser, setIsCollapsed]);
 
     const itemToggleNav = useCallback(() => {
       if (isSmallScreen) {
@@ -203,6 +197,8 @@ const Nav = memo(
       !!search.query && (search.isTyping || isLoading || isFetching),
     );
 
+    const isCollapsedState = navWidth === NAV_WIDTH_COLLAPSED;
+
     useEffect(() => {
       if (search.isTyping) {
         setIsSearchLoading(true);
@@ -218,7 +214,7 @@ const Nav = memo(
         <div
           data-testid="nav"
           className={cn(
-            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium',
+            'nav active flex-shrink-0 transition-all duration-300 ease-in-out border-r border-border-medium bg-white dark:bg-gray-900',
             navVisible ? 'overflow-visible' : 'overflow-hidden'
           )}
           style={{
@@ -226,10 +222,25 @@ const Nav = memo(
             width: navVisible ? navWidth : '0px',
             transform: navVisible ? 'translateX(0)' : 'translateX(-100%)',
           }}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
         >
+          <div className="relative flex w-px items-center justify-center float-right">
+             <NavToggle
+                navVisible={!isCollapsed}
+                isHovering={isHovering}
+                onToggle={toggleNavVisible}
+                setIsHovering={setIsHovering}
+                className={cn(
+                    'fixed top-1/2 -right-4',
+                )}
+                translateX={false}
+                side="left"
+             />
+          </div>
           <div className={cn(
             "h-full overflow-visible transition-all duration-300",
-            navWidth === NAV_WIDTH_COLLAPSED ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
+            isCollapsedState ? 'w-[56px]' : 'w-[320px] md:w-[260px]'
           )}>
             <div className="flex h-full flex-col overflow-visible">
               <div
@@ -241,18 +252,22 @@ const Nav = memo(
                     aria-label={localize('com_ui_chat_history')}
                     className={cn(
                         "flex h-full flex-col px-2 pb-3.5 md:px-3 transition-all duration-300",
-                        navWidth === NAV_WIDTH_COLLAPSED ? 'px-1 md:px-1' : ''
+                        isCollapsedState ? 'px-1 md:px-1' : ''
                     )}
                   >
                     <div className="flex flex-1 flex-col" ref={outerContainerRef}>
                       <MemoNewChat
-                        subHeaders={navWidth === NAV_WIDTH_COLLAPSED ? null : subHeaders}
                         toggleNav={toggleNavVisible}
-                        headerButtons={headerButtons}
                         isSmallScreen={isSmallScreen}
-                        isCollapsed={navWidth === NAV_WIDTH_COLLAPSED}
+                        isCollapsed={isCollapsedState}
                       />
-                      {navWidth !== NAV_WIDTH_COLLAPSED && (
+                      {!isCollapsedState && (
+                        <div className="flex flex-col gap-2 mt-2 mb-4">
+                           {subHeaders}
+                           {headerButtons}
+                        </div>
+                      )}
+                      {!isCollapsedState && (
                         <Conversations
                             conversations={conversations}
                             moveToTop={moveToTop}
@@ -265,7 +280,7 @@ const Nav = memo(
                       )}
                     </div>
                     <Suspense fallback={null}>
-                      <AccountSettings isCollapsed={navWidth === NAV_WIDTH_COLLAPSED} />
+                      <AccountSettings isCollapsed={isCollapsedState} />
                     </Suspense>
                   </nav>
                 </div>
@@ -273,7 +288,7 @@ const Nav = memo(
             </div>
           </div>
         </div>
-        {isSmallScreen && <NavMask navVisible={navVisible} toggleNavVisible={toggleNavVisible} />}
+        {isSmallScreen && <NavMask navVisible={navVisible} toggleNavVisible={() => setNavVisible(false)} />}
       </>
     );
   },

@@ -41,11 +41,11 @@
     right: 0;
     top: 0;
     bottom: 0;
-    background-color: rgba(7, 7, 7, 0.4);
+    background-color: rgb(255, 255, 255);
     padding-left: 420px;
     padding-top: 12px;
     opacity: 0;
-    transition: all 0.5s;
+    transition: all 0.3s;
     pointer-events: none;
   }
 
@@ -153,11 +153,11 @@
     right: 0;
     top: 0;
     bottom: 0;
-    background-color: rgba(86, 88, 105, 0.75);
+    background-color: rgb(255, 255, 255);
     padding-left: 420px;
     padding-top: 12px;
     opacity: 0;
-    transition: all 0.5s;
+    transition: all 0.3s;
     pointer-events: none;
   }
 
