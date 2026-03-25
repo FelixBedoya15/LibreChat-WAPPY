@@ -55,6 +55,7 @@ export default function AltaDireccionChecklist() {
     // QR Modal state
     const [showQrModal, setShowQrModal] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState('');
+    const [portalUrl, setPortalUrl] = useState('');
 
     // Inbox (public submissions) state
     const [showInbox, setShowInbox] = useState(false);
@@ -176,6 +177,7 @@ export default function AltaDireccionChecklist() {
             }
             const portalUrl = `${window.location.origin}/sgsst-public/alta-direccion/${userId}`;
             const dataUrl = await QRCode.toDataURL(portalUrl, { width: 280, margin: 2, color: { dark: '#0f172a', light: '#ffffff' } });
+            setPortalUrl(portalUrl);
             setQrDataUrl(dataUrl);
             setShowQrModal(true);
         } catch (e) {
@@ -530,13 +532,35 @@ export default function AltaDireccionChecklist() {
                                     <Loader2 className="w-10 h-10 animate-spin text-teal-600" />
                                 </div>
                             )}
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left mb-4">
-                                <p className="text-xs text-amber-800 flex items-start gap-2">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left mb-4 flex items-start gap-2">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
                                     Solo podrán acceder los trabajadores con cargo de <strong>Representante Legal</strong>, <strong>Gerente</strong>, <strong>Director</strong> o equivalente, registrados en el Perfil Sociodemográfico.
                                 </p>
                             </div>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-widest">
+
+                            {/* Public Link Section */}
+                            <div className="w-full space-y-2 mb-6 text-left">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Enlace de acceso público</p>
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        readOnly 
+                                        value={portalUrl}
+                                        className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(portalUrl);
+                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                        }}
+                                        className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                                    >
+                                        Copiar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p className="text-[10px] text-gray-400 uppercase tracking-widest text-center">
                                 Decreto 1072/2015 · Art. 2.2.4.6.31 · SG-SST
                             </p>
                         </div>

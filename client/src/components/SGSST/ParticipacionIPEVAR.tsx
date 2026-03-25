@@ -17,7 +17,8 @@ import {
     CheckCircle,
     Video,
     Film,
-    Download
+    Download,
+    QrCode
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
