@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { logger } = require('~/config');
 const CompanyInfo = require('~/models/CompanyInfo');
+const Notification = require('~/models/Notification');
 
 const router = express.Router();
 
@@ -150,6 +151,19 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
             { upsert: true, new: true }
         );
 
+        // ─── Crear notificación de sistema ───
+        try {
+            await Notification.create({
+                user: companyId,
+                type: 'sgsst_reporte_acto',
+                title: 'Nuevo Reporte de Acto Inseguro',
+                body: `${workerFound.nombre} ha reportado un acto o condición insegura desde el portal público.`,
+                metadata: { module: 'reporte_actos', reportId: newInboxItem.id }
+            });
+        } catch (notifErr) {
+            logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
+        }
+
         res.json({ success: true, message: 'Reporte radicado de forma exitosa y segura.' });
 
     } catch (error) {
@@ -228,6 +242,19 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
             { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
+
+        // ─── Crear notificación de sistema ───
+        try {
+            await Notification.create({
+                user: companyId,
+                type: 'sgsst_participacion_ipevar',
+                title: 'Nueva Participación IPEVAR Recibida',
+                body: `${workerFound.nombre} ha enviado su identificación de peligros y participación IPEVAR.`,
+                metadata: { module: 'participacion_ipevar', reportId: newInboxItem.id }
+            });
+        } catch (notifErr) {
+            logger.warn('[Public SGSST] Could not create notification:', notifErr.message);
+        }
 
         res.json({ success: true, message: 'Su participación ha sido enviada exitosamente al equipo SGSST.' });
 
@@ -341,7 +368,7 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
         if (!worker || !isGerenciaRole(worker.cargo)) return res.status(403).json({ error: 'No autorizado.' });
 
         const newReport = {
-            id: new mongoose.Types.ObjectId(),
+            id: new mongoose.Types.ObjectId().toString(), // always string
             trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion },
             data: data,
             status: 'pending',
@@ -353,6 +380,20 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
             { $push: { inboxPublico: newReport } },
             { upsert: true, new: true }
         );
+
+        // ─── Crear notificación de sistema ───
+        try {
+            await Notification.create({
+                user: companyId,
+                type: 'sgsst_alta_direccion',
+                title: 'Nueva Evaluación de Alta Dirección',
+                body: `${worker.nombre} (${worker.cargo}) ha enviado su revisión por la Alta Dirección desde el portal público.`,
+                metadata: { module: 'alta_direccion', reportId: newReport.id }
+            });
+        } catch (notifErr) {
+            logger.warn('[Public AltaDireccion] Could not create notification:', notifErr.message);
+        }
+
         res.json({ success: true });
     } catch (error) {
         logger.error('[Public AltaDireccion] Submission error:', error);

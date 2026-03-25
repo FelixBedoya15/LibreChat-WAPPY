@@ -2,16 +2,17 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
 import { useAuthContext } from '~/hooks';
-import { Bell, CheckCheck, Ticket, MessageSquare, X, ChevronRight } from 'lucide-react';
+import { Bell, CheckCheck, Ticket, MessageSquare, X, ChevronRight, Shield, Users, AlertTriangle } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded';
+    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion';
     title: string;
     body: string;
     read: boolean;
     ticketId?: string;
+    metadata?: { module?: string; reportId?: string };
     createdAt: string;
 }
 
@@ -93,7 +94,20 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
             await markOneRead(notification._id);
         }
 
-        // Navigation logic
+        // SGSST portal navigation
+        if (['sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion'].includes(notification.type)) {
+            const moduleMap: Record<string, string> = {
+                sgsst_reporte_acto: 'reporte_actos',
+                sgsst_participacion_ipevar: 'participacion_ipevar',
+                sgsst_alta_direccion: 'alta_direccion',
+            };
+            const module = notification.metadata?.module || moduleMap[notification.type];
+            window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module } }));
+            onClose();
+            return;
+        }
+
+        // Navigation logic for other types
         if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
             const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'tickets' } });
             window.dispatchEvent(event);
@@ -175,10 +189,22 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                 'mt-0.5 p-1.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-110',
                                 n.type === 'ticket_responded'
                                     ? 'bg-green-100 dark:bg-green-900/30 text-green-600'
+                                    : n.type === 'sgsst_alta_direccion'
+                                    ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700'
+                                    : n.type === 'sgsst_participacion_ipevar'
+                                    ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600'
+                                    : n.type === 'sgsst_reporte_acto'
+                                    ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                             )}>
                                 {n.type === 'ticket_responded'
                                     ? <MessageSquare className="w-3.5 h-3.5" />
+                                    : n.type === 'sgsst_alta_direccion'
+                                    ? <Shield className="w-3.5 h-3.5" />
+                                    : n.type === 'sgsst_participacion_ipevar'
+                                    ? <Users className="w-3.5 h-3.5" />
+                                    : n.type === 'sgsst_reporte_acto'
+                                    ? <AlertTriangle className="w-3.5 h-3.5" />
                                     : <Ticket className="w-3.5 h-3.5" />
                                 }
                             </div>

@@ -9,8 +9,15 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['ticket_created', 'ticket_responded', 'contact_request', 'payment_received'],
+        enum: [
+            'ticket_created', 'ticket_responded', 'contact_request', 'payment_received',
+            'sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion'
+        ],
         required: true,
+    },
+    metadata: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
     },
     title: {
         type: String,

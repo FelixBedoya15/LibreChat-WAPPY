@@ -131,6 +131,23 @@ export default function SGSSTDashboard() {
         hasCheckedRef.current = false;
     }, []);
 
+    // ─── handle navigate-sgsst event (from notification panel) ───
+    useEffect(() => {
+        const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
+            reporte_actos: 'do',
+            participacion_ipevar: 'do',
+            alta_direccion: 'check',
+        };
+        const handler = (e: Event) => {
+            const { module } = (e as CustomEvent).detail || {};
+            if (!module) return;
+            const phaseId = SGSST_MODULE_PHASE_MAP[module] || 'do';
+            setSearchParams({ phase: phaseId, module });
+        };
+        window.addEventListener('navigate-sgsst', handler);
+        return () => window.removeEventListener('navigate-sgsst', handler);
+    }, [setSearchParams]);
+
     // ─── URL Sync ──────────────────────────────────────────────────────────
     useEffect(() => {
         const phaseId = searchParams.get('phase');
@@ -151,12 +168,14 @@ export default function SGSSTDashboard() {
     };
 
     if (selectedPhase) {
+        const moduleParam = searchParams.get('module') || undefined;
         return (
             <PhaseDetail
                 phase={selectedPhase}
                 onBack={() => setSearchParams({})}
                 navVisible={navVisible}
                 setNavVisible={setNavVisible}
+                autoOpenModule={moduleParam}
             />
         );
     }

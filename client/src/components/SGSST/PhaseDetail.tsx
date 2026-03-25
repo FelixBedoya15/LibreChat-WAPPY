@@ -58,9 +58,10 @@ interface PhaseDetailProps {
     onBack: () => void;
     navVisible: boolean;
     setNavVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    autoOpenModule?: string;
 }
 
-const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailProps) => {
+const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule }: PhaseDetailProps) => {
     const localize = useLocalize();
     const navigate = useNavigate();
     const { showToast } = useToastContext();
@@ -84,6 +85,17 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                 }
             }).catch(console.error);
     }, [token]);
+
+    // Auto-open inbox when navigating from a notification
+    useEffect(() => {
+        if (autoOpenModule) {
+            // Dispatch after a short delay to let the component render
+            const timer = setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('sgsst-open-inbox', { detail: { module: autoOpenModule } }));
+            }, 400);
+            return () => clearTimeout(timer);
+        }
+    }, [autoOpenModule]);
 
     const handleToggleApp = async (categoryId: string, e: React.MouseEvent) => {
         e.stopPropagation();

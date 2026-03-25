@@ -157,6 +157,16 @@ const ParticipacionIPEVAR = () => {
     const [isInboxOpen, setIsInboxOpen] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
 
+    // Listen for cross-component inbox open requests (from notifications)
+    React.useEffect(() => {
+        const handleOpenInbox = (e: Event) => {
+            const { module } = (e as CustomEvent).detail || {};
+            if (module === 'participacion_ipevar') setIsInboxOpen(true);
+        };
+        window.addEventListener('sgsst-open-inbox', handleOpenInbox);
+        return () => window.removeEventListener('sgsst-open-inbox', handleOpenInbox);
+    }, []);
+
     // Load available workers from Perfil Sociodemográfico
     React.useEffect(() => {
         if (!token) return;

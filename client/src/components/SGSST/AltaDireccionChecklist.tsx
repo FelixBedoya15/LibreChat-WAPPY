@@ -94,6 +94,28 @@ export default function AltaDireccionChecklist() {
         [statuses]
     );
 
+    // Listen for cross-component inbox open requests (from notifications)
+    useEffect(() => {
+        const handleOpenInbox = (e: Event) => {
+            const { module } = (e as CustomEvent).detail || {};
+            if (module === 'alta_direccion') {
+                // Must mock the callback call here as handleShowInbox is defined below
+                // Actually, handleShowInbox just sets state and loads. We can just set state here and rely on the UI opening
+                setShowInbox(true);
+                setLoadingInbox(true);
+                axios.get('/api/sgsst/alta-direccion/data', {
+                    headers: { Authorization: `Bearer ${token}` },
+                }).then(res => {
+                    setInboxPublico(res.data.inboxPublico || []);
+                }).catch(() => {
+                    // silent
+                }).finally(() => setLoadingInbox(false));
+            }
+        };
+        window.addEventListener('sgsst-open-inbox', handleOpenInbox);
+        return () => window.removeEventListener('sgsst-open-inbox', handleOpenInbox);
+    }, [token]);
+
     // Load saved data on mount
     useEffect(() => {
         const loadData = async () => {
