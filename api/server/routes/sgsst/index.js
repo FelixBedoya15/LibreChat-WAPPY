@@ -19,6 +19,7 @@ const metodoOwas = require('./metodoOwas');
 const analisisVulnerabilidad = require('./analisisVulnerabilidad');
 const predictivo = require('./predictivo');
 const participacionIpevar = require('./participacionIpevar');
+const altaDireccion = require('./altaDireccion');
 
 
 
