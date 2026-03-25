@@ -6,7 +6,7 @@ import {
     ChevronDown, ChevronRight, FileText, Sparkles, History,
     Loader2, HelpCircle, QrCode, Inbox, CheckCheck, X,
     Info, Building2, Shield, User, AlertTriangle,
-    ClipboardCheck,
+    ClipboardCheck, Trash2, Plus,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -22,7 +22,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
-import SGSSTToolbar from './SGSSTToolbar';
+import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import QRCode from 'qrcode';
 
@@ -476,71 +476,68 @@ export default function AltaDireccionChecklist() {
                     hasContent={!!editorContent}
                     exportContent={editorContent || ''}
                     exportFileName="Revision_Alta_Direccion"
+                    customSections={[
+                        <div className="flex items-center gap-2" key="custom-buttons">
+                            <ToolbarButton
+                                id="inbox-public"
+                                onClick={handleShowInbox}
+                                label={`Reportes (${pendingInboxCount})`}
+                                icon="inbox"
+                                badge={pendingInboxCount || undefined}
+                                active={showInbox}
+                            />
+                            <ToolbarButton
+                                id="qr-portal"
+                                onClick={handleShowQR}
+                                label="Portal & Código QR"
+                                icon="qrcode"
+                            />
+                        </div>
+                    ]}
                 />
 
-                {/* ─── QR & Inbox Buttons ─── */}
-                <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                        onClick={handleShowQR}
-                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-semibold text-sm transition-all shadow-sm"
-                    >
-                        <QrCode className="w-4 h-4" />
-                        Portal &amp; Código QR
-                    </button>
-                    <button
-                        onClick={handleShowInbox}
-                        className="flex items-center gap-2 px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-xl font-semibold text-sm transition-all shadow-sm relative"
-                    >
-                        <Inbox className="w-4 h-4 text-text-secondary" />
-                        Evaluaciones Recibidas
-                        {pendingInboxCount > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                                {pendingInboxCount}
-                            </span>
-                        )}
-                    </button>
-                </div>
             </div>
 
             {/* ─── QR Modal ─────────────────────────────────────────────── */}
             {showQrModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-6 max-w-sm w-full mx-4 relative">
-                        <button
-                            onClick={() => setShowQrModal(false)}
-                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                        <div className="text-center">
-                            <div className="inline-flex items-center justify-center w-12 h-12 bg-teal-100 rounded-full mb-3">
-                                <Shield className="w-6 h-6 text-teal-700" />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
+                    <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
+                            <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
+                                <QrCode className="w-7 h-7 text-white" />
                             </div>
-                            <h3 className="text-lg font-black text-gray-900 mb-1">Portal Alta Dirección</h3>
-                            <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-                                Comparte este QR exclusivamente con el <strong>Representante Legal</strong> o personal de <strong>Gerencia</strong>.<br />
-                                El sistema validará automáticamente su cargo antes de permitirles calificar.
+                            <h3 className="font-bold text-xl uppercase tracking-wider">Portal Alta Dirección</h3>
+                        </div>
+
+                        {/* QR Code Body */}
+                        <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5">
+                            <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
+                                Comparte este QR exclusivamente con el <strong>Representante Legal</strong> o personal de <strong>Gerencia</strong>.
                             </p>
-                            {qrDataUrl ? (
-                                <div className="flex justify-center mb-4">
-                                    <div className="p-3 bg-gray-50 rounded-2xl border border-gray-200 inline-block shadow-sm">
-                                        <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-56 h-56" />
+                            
+                            <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
+                                {qrDataUrl ? (
+                                    <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-40 h-40 mx-auto" />
+                                ) : (
+                                    <div className="w-40 h-40 flex items-center justify-center bg-gray-50">
+                                        <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="flex justify-center mb-4">
-                                    <Loader2 className="w-10 h-10 animate-spin text-teal-600" />
-                                </div>
-                            )}
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left mb-4 flex items-start gap-2">
+                                )}
+                            </div>
+
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left w-full flex items-start gap-2">
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                                 <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
-                                    Solo podrán acceder los trabajadores con cargo de <strong>Representante Legal</strong>, <strong>Gerente</strong>, <strong>Director</strong> o equivalente, registrados en el Perfil Sociodemográfico.
+                                    Solo podrán acceder los trabajadores con cargo de <strong>Representante Legal</strong>, <strong>Gerente</strong> o <strong>Director</strong> registrados en el Perfil Sociodemográfico.
                                 </p>
                             </div>
 
                             {/* Public Link Section */}
-                            <div className="w-full space-y-2 mb-6 text-left">
+                            <div className="w-full space-y-2 text-left">
                                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Enlace de acceso público</p>
                                 <div className="flex items-center gap-2">
                                     <input 
@@ -560,9 +557,18 @@ export default function AltaDireccionChecklist() {
                                 </div>
                             </div>
 
-                            <p className="text-[10px] text-gray-400 uppercase tracking-widest text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-widest text-center mt-2">
                                 Decreto 1072/2015 · Art. 2.2.4.6.31 · SG-SST
                             </p>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 bg-gray-50 dark:bg-surface-secondary border-t border-gray-100 dark:border-border-medium flex justify-end">
+                            <button
+                                onClick={() => setShowQrModal(false)}
+                                className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                Cerrar
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -570,97 +576,78 @@ export default function AltaDireccionChecklist() {
 
             {/* ─── Inbox Panel ───────────────────────────────────────────── */}
             {showInbox && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-3xl shadow-2xl max-w-lg w-full mx-0 sm:mx-4 max-h-[85vh] flex flex-col overflow-hidden">
-                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-                            <div>
-                                <h3 className="font-black text-gray-900">Evaluaciones Recibidas</h3>
-                                <p className="text-xs text-gray-500">Enviadas por Alta Dirección vía QR</p>
-                            </div>
-                            <button onClick={() => setShowInbox(false)} className="text-gray-400 hover:text-gray-600">
-                                <X className="w-5 h-5" />
-                            </button>
+                <div className="rounded-xl border border-blue-200 bg-blue-50/30 dark:bg-blue-900/10 overflow-hidden shadow-inner p-4 animate-in fade-in slide-in-from-top-4 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
+                            <Inbox className="w-5 h-5" /> Evaluaciones Recibidas (Alta Dirección)
+                        </h3>
+                        <button onClick={() => setShowInbox(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    
+                    {loadingInbox ? (
+                        <div className="flex justify-center py-8">
+                            <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
                         </div>
-
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {loadingInbox && (
-                                <div className="flex justify-center py-8">
-                                    <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
-                                </div>
-                            )}
-                            {!loadingInbox && inboxPublico.length === 0 && (
-                                <div className="text-center py-12">
-                                    <Inbox className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                                    <p className="text-gray-500 text-sm font-medium">No hay evaluaciones pendientes</p>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Comparte el código QR con el Representante Legal o Gerencia para recibir evaluaciones.
-                                    </p>
-                                </div>
-                            )}
-                            {!loadingInbox && inboxPublico.map((item: any) => {
+                    ) : inboxPublico.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <CheckCircle2 className="w-12 h-12 mx-auto text-green-400 mb-3 opacity-50" />
+                            <p>No hay evaluaciones pendientes por revisar.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {inboxPublico.map((item: any) => {
                                 const statusCounts = item.data?.statusData || [];
                                 const cumple = statusCounts.filter((s: any) => s.status === 'cumple').length;
                                 const noCumple = statusCounts.filter((s: any) => s.status === 'no_cumple').length;
                                 const parcial = statusCounts.filter((s: any) => s.status === 'parcial').length;
-                                const approved = item.status === 'approved';
+                                const isApproved = item.status === 'approved';
 
                                 return (
-                                    <div key={item.id} className={cn(
-                                        'border rounded-2xl p-4',
-                                        approved ? 'border-green-200 bg-green-50/30' : 'border-gray-100 bg-white shadow-sm'
-                                    )}>
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <User className="w-4 h-4 text-teal-600" />
-                                                    <span className="font-bold text-gray-900 text-sm">{item.trabajador?.nombre || 'Desconocido'}</span>
-                                                    {approved && (
-                                                        <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">Aprobado</span>
-                                                    )}
-                                                </div>
-                                                <p className="text-xs text-gray-500">
-                                                    {item.trabajador?.cargo} · CC: {item.trabajador?.cedula}
-                                                </p>
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    {new Date(item.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleDismissInbox(item.id)}
-                                                className="text-gray-300 hover:text-red-400 transition-colors"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
+                                <div key={item.id} className={cn(
+                                    "rounded-xl border p-4 relative flex flex-col transition-colors shadow-sm",
+                                    isApproved ? 'bg-gray-100 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700 opacity-70' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-blue-300'
+                                )}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm truncate pr-6 flex items-center gap-2" title={item.trabajador?.nombre}>
+                                                {item.trabajador?.nombre || 'Desconocido'}
+                                                {isApproved && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                                            </h4>
+                                            <p className="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis w-[180px]">Cargo: {item.trabajador?.cargo}</p>
                                         </div>
-
-                                        {statusCounts.length > 0 && (
-                                            <div className="flex gap-2 mb-3 flex-wrap">
-                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">✅ {cumple} Cumplen</span>
-                                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">❌ {noCumple} No Cumplen</span>
-                                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-semibold">⚠️ {parcial} Parciales</span>
-                                            </div>
-                                        )}
-
-                                        {!approved && (
-                                            <button
-                                                onClick={() => handleApproveInbox(item.id)}
-                                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-teal-600 to-teal-800 hover:from-teal-700 hover:to-teal-900 text-white rounded-xl font-bold text-sm transition-all shadow-sm"
-                                            >
-                                                <CheckCheck className="w-4 h-4" />
-                                                Aprobar y Cargar al Formulario
-                                            </button>
-                                        )}
-                                        {approved && (
-                                            <div className="flex items-center gap-2 text-green-600 text-xs font-semibold">
-                                                <CheckCircle2 className="w-4 h-4" />
-                                                Esta evaluación ya fue aprobada y cargada al formulario.
-                                            </div>
-                                        )}
+                                        <button onClick={() => handleDismissInbox(item.id)} className="text-gray-300 hover:text-red-400 transition-colors shrink-0 ml-2">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                );
-                            })}
+                                    
+                                    <div className="flex gap-1.5 mb-3 flex-wrap">
+                                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">✅ {cumple}</span>
+                                        <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">❌ {noCumple}</span>
+                                        <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold">⚠️ {parcial}</span>
+                                    </div>
+
+                                    <div className="text-[10px] text-gray-400 mb-3 flex justify-between">
+                                        <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</span>
+                                        <span>📍 Oficina</span>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={() => !isApproved && handleApproveInbox(item.id)}
+                                        disabled={isApproved}
+                                        className={cn(
+                                            "w-full py-2 rounded font-semibold text-xs transition-colors flex items-center justify-center gap-2",
+                                            isApproved ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-800/50'
+                                        )}
+                                    >
+                                        {isApproved ? <CheckCircle2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />} 
+                                        {isApproved ? 'Ya cargado' : 'Cargar evaluación'}
+                                    </button>
+                                </div>
+                            )})}
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
