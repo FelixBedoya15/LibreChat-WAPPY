@@ -31,6 +31,7 @@ import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
 import ParticipacionIPEVAR from './ParticipacionIPEVAR';
 import PerfilesCargo from './PerfilesCargo';
 import DashboardPredictivo from './DashboardPredictivo';
+import AltaDireccionChecklist from './AltaDireccionChecklist';
 
 
 import ReglamentoHigiene from './ReglamentoHigiene';
@@ -448,6 +449,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible }: PhaseDetailPr
                                                 {category.id === 'rit' && (
                                                     <div className="mb-6">
                                                         <ReglamentoInterno />
+                                                    </div>
+                                                )}
+
+                                                {/* Show AltaDireccionChecklist for alta_direccion category */}
+                                                {category.id === 'alta_direccion' && (
+                                                    <div className="mb-6">
+                                                        <AltaDireccionChecklist />
                                                     </div>
                                                 )}
 

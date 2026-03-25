@@ -2,6 +2,7 @@ import SGSSTDashboard from '~/components/SGSST/Dashboard';
 import PublicReportView from '~/components/SGSST/PublicReportView';
 import PublicReporteActos from '~/components/SGSST/PublicReporteActos';
 import PublicParticipacionIPEVAR from '~/components/SGSST/PublicParticipacionIPEVAR';
+import PublicAltaDireccion from '~/components/SGSST/PublicAltaDireccion';
 import PublicAtelTestimonio from '~/components/SGSST/PublicAtelTestimonio';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
@@ -71,6 +72,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/ipevar/:companyId',
       element: <PublicParticipacionIPEVAR />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/alta-direccion/:companyId',
+      element: <PublicAltaDireccion />,
       errorElement: <RouteErrorBoundary />,
     },
     {

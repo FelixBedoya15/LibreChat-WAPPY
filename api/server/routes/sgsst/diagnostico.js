@@ -295,6 +295,69 @@ MUY IMPORTANTE: NO incluyas tablas de firmas, espacios de aceptación, ni nombre
 
 Genera SOLO el contenido del cuerpo (HTML body tags).`;
 
+        } else if (type === 'alta_direccion') {
+            const reportHeaderHTML = buildStandardHeader({
+                title: 'INFORME DE REVISIÓN POR LA ALTA DIRECCIÓN',
+                companyInfo: loadedCompanyInfo,
+                date: currentDate || new Date().toLocaleDateString('es-CO'),
+                norm: 'Decreto 1072 de 2015 (Art. 2.2.4.6.31)',
+                responsibleName: userName || 'Responsable SST',
+            });
+
+            promptText = `
+Eres un Consultor Senior en Sistemas de Gestión de Seguridad y Salud en el Trabajo (SST).
+Tu objetivo es generar un **INFORME DE REVISIÓN POR LA ALTA DIRECCIÓN** profesional, de alto nivel corporativo y técnicamente impecable, basado en los 24 aspectos que exige el **Decreto 1072 de 2015 (Artículo 2.2.4.6.31)**.
+
+**CONTEXTO ORGANIZACIONAL:**
+- Empresa: ${loadedCompanyInfo?.companyName || 'La Organización'}
+- Responsable SST: ${userName || 'No especificado'}
+- Fecha de Revisión: ${currentDate || 'Hoy'}
+- Puntaje de Cumplimiento: ${score} de ${totalPoints} aspectos (${complianceLevel.percentage}%)
+- Nivel de Desempeño: ${complianceLevel.level.toUpperCase()}
+
+**RESULTADOS DE LA EVALUACIÓN (Los 24 Aspectos):**
+${checklist.map((item, idx) => {
+                const obs = observations && observations[item.id] ? `\n  → COMENTARIO GERENCIAL: "${observations[item.id]}"` : '';
+                return `${idx + 1}. ${item.code} - ${item.name}: [${item.status.toUpperCase()}]${obs}`;
+            }).join('\n')}
+
+**INSTRUCCIONES DE ESTRUCTURA (Tu respuesta DEBE ser exclusivamente código HTML):**
+
+1. **ENCABEZADO TÉCNICO**:
+   Usa EXACTAMENTE este código HTML para el inicio:
+   ${reportHeaderHTML}
+
+2. **RESUMEN EJECUTIVO PARA LA GERENCIA**:
+   Redacta un párrafo formal y estratégico (mínimo 150 palabras) que resuma el compromiso de la alta dirección con el SGSST. Menciona la importancia de esta revisión anual como motor de la mejora continua.
+
+3. **ANÁLISIS POR GRUPOS TÉCNICOS**:
+   Divide el análisis en 3 bloques (I. Insumos de la Revisión, II. Revisión y Decisiones, III. Seguimiento y Vigilancia). 
+   - Genera una **BARRA DE PROGRESO** visual (CSS inline) para cada bloque basándote en los resultados.
+   - Explica detalladamente qué áreas están sólidas y cuáles requieren atención.
+
+4. **TABLA DE HALLAZGOS Y OBLIGACIONES PENDIENTES**:
+   Crea una tabla HTML con todos los ítems calificados como 'NO CUMPLE' o 'PARCIAL'.
+   - Columnas: Item ID, Aspecto Normativo, Hallazgo/Brecha Identificada, Impacto Legal/Operativo.
+   - Estilo: th con background-color #0f172a y color blanco.
+
+5. **DECISIONES Y COMPROMISOS GERENCIALES (PLAN DE MEJORA)**:
+   Genera una tabla de plan de acción para cerrar las brechas identificadas.
+   - Columnas: Acción de Mejora, Recurso Asignado (Humano/Técnico/Financiero), Responsable, Plazo Estimado.
+
+6. **RIESGOS DE INCUMPLIMIENTO**:
+   Enumera las posibles consecuencias (sanciones, accidentes, pérdida de continuidad) si no se atienden los hallazgos.
+
+7. **CONCLUSIÓN Y DECLARATORIA DE REVISIÓN**:
+   Un párrafo de cierre donde la alta dirección reafirma su compromiso con la seguridad de los trabajadores.
+
+**ESTILOS OBLIGATORIOS:**
+- Usa una paleta de colores corporativa (Azul Oscuro #0f172a, Marfil, Teal #0f766e).
+- Tablas con border-radius, sombreado suave y espaciado generoso.
+- Garantiza legibilidad en modo claro y oscuro (especifica color: #000; en fondos claros).
+- NO incluyas tablas de firmas al final.
+
+Genera SOLO el contenido del cuerpo HTML.`;
+
         } else {
             // Default Diagnostic Prompt (Resolución 0312)
             const diagnosticHeaderHTML = buildStandardHeader({

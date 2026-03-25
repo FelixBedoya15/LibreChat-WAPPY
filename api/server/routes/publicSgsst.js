@@ -289,4 +289,75 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
     }
 });
 
+// ─── ALTA DIRECCIÓN: HELPERS & ROUTES ───────────────────────────────────────
+
+const GERENCIA_KEYWORDS = [
+    'gerente', 'representante legal', 'director', 'presidente', 'ceo',
+    'vicepresidente', 'subgerente', 'directora', 'gerencia', 'junta directiva',
+    'copropietario', 'administrador', 'socios'
+];
+
+function isGerenciaRole(cargo) {
+    if (!cargo) return false;
+    const lc = cargo.toLowerCase().trim();
+    return GERENCIA_KEYWORDS.some(kw => lc.includes(kw));
+}
+
+// POST /api/public-sgsst/validate-alta-direccion/:companyId
+router.post('/validate-alta-direccion/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { cedula, nombre } = req.body;
+
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        if (!PerfilSociodemograficoData) return res.status(500).json({ error: 'Modelo no encontrado' });
+
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        if (!perfil || !perfil.trabajadores) return res.status(404).json({ error: 'Empresa sin trabajadores registrados.' });
+
+        const worker = perfil.trabajadores.find(t => String(t.identificacion).trim() === String(cedula).trim());
+        if (!worker) return res.status(403).json({ error: 'Cédula no encontrada en el sistema.' });
+
+        if (!isGerenciaRole(worker.cargo)) {
+            return res.status(403).json({ error: `Acceso denegado. Cargo: "${worker.cargo}". Solo para Gerencia.` });
+        }
+        res.json({ success: true, trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion } });
+    } catch (error) {
+        logger.error('[Public AltaDireccion] Validation error:', error);
+        res.status(500).json({ error: 'Error al validar' });
+    }
+});
+
+// POST /api/public-sgsst/alta-direccion/:companyId
+router.post('/alta-direccion/:companyId', async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { cedula, data } = req.body;
+        const AltaDireccionData = mongoose.models.AltaDireccionData;
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        const worker = perfil?.trabajadores?.find(t => String(t.identificacion).trim() === String(cedula).trim());
+        if (!worker || !isGerenciaRole(worker.cargo)) return res.status(403).json({ error: 'No autorizado.' });
+
+        const newReport = {
+            id: new mongoose.Types.ObjectId(),
+            trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion },
+            data: data,
+            status: 'pending',
+            createdAt: new Date()
+        };
+
+        await AltaDireccionData.findOneAndUpdate(
+            { user: companyId },
+            { $push: { inboxPublico: newReport } },
+            { upsert: true, new: true }
+        );
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('[Public AltaDireccion] Submission error:', error);
+        res.status(500).json({ error: 'Error al enviar' });
+    }
+});
+
 module.exports = router;
