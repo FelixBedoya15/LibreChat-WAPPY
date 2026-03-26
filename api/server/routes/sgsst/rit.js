@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');

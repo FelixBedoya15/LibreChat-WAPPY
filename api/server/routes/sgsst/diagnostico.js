@@ -1,5 +1,5 @@
 const express = require('express');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
 const crypto = require('crypto');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');

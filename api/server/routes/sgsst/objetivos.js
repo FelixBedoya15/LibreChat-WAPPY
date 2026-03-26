@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { generateWithKeyRotation } = require('./sgsstGemini');
+const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
