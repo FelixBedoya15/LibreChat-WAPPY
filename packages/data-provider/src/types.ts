@@ -206,6 +206,14 @@ export type TUser = {
   backupCodes?: TBackupCode[];
   personalization?: {
     memories?: boolean;
+    geminiModels?: {
+      generalChat?: string;
+      agents?: string;
+      sstManagement?: string;
+      liveAnalysis?: string;
+      textCorrection?: string;
+      reportGeneration?: string;
+    };
   };
   createdAt: string;
   updatedAt: string;

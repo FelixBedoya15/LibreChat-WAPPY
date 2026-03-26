@@ -26,7 +26,7 @@ import {
   getDefaultModelSpec,
   updateLastSelectedModel,
 } from '~/utils';
-import { useDeleteFilesMutation, useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
+import { useDeleteFilesMutation, useGetEndpointsQuery, useGetStartupConfig, useGetUserQuery } from '~/data-provider';
 import useAssistantListMap from './Assistants/useAssistantListMap';
 import { useResetChatBadges } from './useChatBadges';
 import { useApplyModelSpecEffects } from './Agents';
@@ -49,6 +49,7 @@ const useNewConvo = (index = 0) => {
   const clearAllLatestMessages = store.useClearLatestMessages(`useNewConvo ${index}`);
   const setSubmission = useSetRecoilState<TSubmission | null>(store.submissionByIndex(index));
   const { data: endpointsConfig = {} as TEndpointsConfig } = useGetEndpointsQuery();
+  const { data: user } = useGetUserQuery();
 
   const modelsQuery = useGetModelsQuery();
   const assistantsListMap = useAssistantListMap();
@@ -157,6 +158,16 @@ const useNewConvo = (index = 0) => {
             endpoint: defaultEndpoint,
             models,
           });
+
+          // FASE 6: Apply User Personalization for Gemini Models to defaults
+          if (user?.personalization?.geminiModels && conversation.conversationId === Constants.NEW_CONVO) {
+            const { geminiModels } = user.personalization;
+            if (defaultEndpoint === EModelEndpoint.google && geminiModels.generalChat && models.includes(geminiModels.generalChat)) {
+              conversation.model = geminiModels.generalChat;
+            } else if ((defaultEndpoint === EModelEndpoint.agents || defaultEndpoint === EModelEndpoint.assistants) && geminiModels.agents && models.includes(geminiModels.agents)) {
+              conversation.model = geminiModels.agents;
+            }
+          }
         }
 
         if (disableParams === true) {

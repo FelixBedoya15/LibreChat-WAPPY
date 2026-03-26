@@ -64,10 +64,17 @@ function setupLiveAnalysisWebSocket(server) {
             }
 
             const userId = decoded.id;
+            
+            // Fetch full user to get personalization settings
+            const { getUserById } = require('~/models');
+            const fullUser = await getUserById(userId);
+            const userSettings = fullUser?.personalization?.geminiModels || {};
+
             logger.info(`[LiveAnalysisWS] User authenticated: ${userId}`);
 
             // Force mode to 'live_analysis' for this endpoint
             const config = {
+                userSettings,
                 mode: 'live_analysis',
                 enableReportGenerator: true,
                 systemInstruction: `Eres "Wappy-Audit", un Consultor Senior Certificado en Seguridad, Salud y Ambiente (HSE/SST) con especialización en normas ISO 45001 y GTC 45. Tu capacidad de observación es detallada, crítica y técnica.

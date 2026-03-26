@@ -138,6 +138,17 @@ const userSchema = new Schema<IUser>(
           type: Boolean,
           default: true,
         },
+        geminiModels: {
+          type: {
+            generalChat: String,
+            agents: String,
+            sstManagement: String,
+            liveAnalysis: String,
+            textCorrection: String,
+            reportGeneration: String,
+          },
+          default: {},
+        },
       },
       default: {},
     },

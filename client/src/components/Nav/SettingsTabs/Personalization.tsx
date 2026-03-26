@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Switch, useToastContext } from '@librechat/client';
+import { useState, useEffect, useMemo } from 'react';
+import { Switch, useToastContext, Dropdown } from '@librechat/client';
 import { useGetUserQuery, useUpdateMemoryPreferencesMutation } from '~/data-provider';
+import { useGetModelsQuery } from 'librechat-data-provider/react-query';
+import { EModelEndpoint } from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
 
 interface PersonalizationProps {
@@ -15,22 +17,45 @@ export default function Personalization({
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const { data: user } = useGetUserQuery();
+  const modelsQuery = useGetModelsQuery();
   const [referenceSavedMemories, setReferenceSavedMemories] = useState(true);
+
+  // Estado para los modelos Gemini
+  const [geminiModels, setGeminiModels] = useState({
+    generalChat: '',
+    agents: '',
+    sstManagement: '',
+    liveAnalysis: '',
+    textCorrection: '',
+    reportGeneration: '',
+  });
 
   const updateMemoryPreferencesMutation = useUpdateMemoryPreferencesMutation({
     onSuccess: () => {
       showToast({
-        message: localize('com_ui_preferences_updated'),
+        message: localize('com_ui_preferences_updated', { defaultValue: 'Preferencias actualizadas' }),
         status: 'success',
       });
     },
     onError: () => {
       showToast({
-        message: localize('com_ui_error_updating_preferences'),
+        message: localize('com_ui_error_updating_preferences', { defaultValue: 'Error al actualizar preferencias' }),
         status: 'error',
       });
       // Revert the toggle on error
-      setReferenceSavedMemories((prev) => !prev);
+      if (user?.personalization?.memories !== undefined) {
+        setReferenceSavedMemories(user.personalization.memories);
+      }
+      if (user?.personalization?.geminiModels !== undefined) {
+        setGeminiModels({
+          generalChat: user.personalization.geminiModels.generalChat || '',
+          agents: user.personalization.geminiModels.agents || '',
+          sstManagement: user.personalization.geminiModels.sstManagement || '',
+          liveAnalysis: user.personalization.geminiModels.liveAnalysis || '',
+          textCorrection: user.personalization.geminiModels.textCorrection || '',
+          reportGeneration: user.personalization.geminiModels.reportGeneration || '',
+        });
+      }
     },
   });
 
@@ -41,10 +66,37 @@ export default function Personalization({
     }
   }, [user?.personalization?.memories]);
 
+  useEffect(() => {
+    if (user?.personalization?.geminiModels) {
+      setGeminiModels({
+        generalChat: user.personalization.geminiModels.generalChat || '',
+        agents: user.personalization.geminiModels.agents || '',
+        sstManagement: user.personalization.geminiModels.sstManagement || '',
+        liveAnalysis: user.personalization.geminiModels.liveAnalysis || '',
+        textCorrection: user.personalization.geminiModels.textCorrection || '',
+        reportGeneration: user.personalization.geminiModels.reportGeneration || '',
+      });
+    }
+  }, [user?.personalization?.geminiModels]);
+
   const handleMemoryToggle = (checked: boolean) => {
     setReferenceSavedMemories(checked);
-    updateMemoryPreferencesMutation.mutate({ memories: checked });
+    updateMemoryPreferencesMutation.mutate({ memories: checked, geminiModels });
   };
+
+  const handleModelChange = (key: string) => (value: string) => {
+    const newModels = { ...geminiModels, [key]: value };
+    setGeminiModels(newModels);
+    updateMemoryPreferencesMutation.mutate({ memories: referenceSavedMemories, geminiModels: newModels });
+  };
+
+  const modelOptions = useMemo(() => {
+    const gModels = modelsQuery.data?.[EModelEndpoint.google] || [];
+    return [
+      { value: '', label: 'Predeterminado del sistema' },
+      ...gModels.map((model) => ({ value: model, label: model })),
+    ];
+  }, [modelsQuery.data]);
 
   if (!hasAnyPersonalizationFeature) {
     return (
@@ -86,6 +138,102 @@ export default function Personalization({
           </div>
         </div>
       )}
+
+      {/* Tarjeta de Modelos Gemini IA */}
+      <div className="rounded-2xl border border-gray-200 bg-surface-primary px-6 py-5 shadow-sm dark:border-gray-700">
+        <h3 className="mb-2 text-lg font-medium text-text-primary">
+          {localize('com_ui_gemini_models_title', { defaultValue: 'Modelos Gemini IA' })}
+        </h3>
+        <p className="mb-6 text-xs text-text-secondary">
+          {localize('com_ui_gemini_models_desc', { defaultValue: 'Gestiona los modelos de Gemini predeterminados para cada aplicativo del sistema.' })}
+        </p>
+
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <div id="gemini-chat-label" className="font-medium">
+              {localize('com_ui_gemini_chat', { defaultValue: 'Chat General' })}
+            </div>
+            <Dropdown
+              value={geminiModels.generalChat || ''}
+              onChange={handleModelChange('generalChat')}
+              options={modelOptions}
+              sizeClasses="w-[280px]"
+              aria-labelledby="gemini-chat-label"
+            />
+          </div>
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+          
+          <div className="flex items-center justify-between">
+            <div id="gemini-agents-label" className="font-medium">
+              {localize('com_ui_gemini_agents', { defaultValue: 'Agentes' })}
+            </div>
+            <Dropdown
+              value={geminiModels.agents || ''}
+              onChange={handleModelChange('agents')}
+              options={modelOptions}
+              sizeClasses="w-[280px]"
+              aria-labelledby="gemini-agents-label"
+            />
+          </div>
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+          
+          <div className="flex items-center justify-between">
+            <div id="gemini-sst-label" className="font-medium">
+              {localize('com_ui_gemini_sst', { defaultValue: 'Gestor SG-SST' })}
+            </div>
+            <Dropdown
+              value={geminiModels.sstManagement || ''}
+              onChange={handleModelChange('sstManagement')}
+              options={modelOptions}
+              sizeClasses="w-[280px]"
+              aria-labelledby="gemini-sst-label"
+            />
+          </div>
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+
+          <div className="flex items-center justify-between">
+            <div id="gemini-live-label" className="font-medium">
+              {localize('com_ui_gemini_live', { defaultValue: 'Análisis y Chat en Vivo (Live)' })}
+            </div>
+            <Dropdown
+              value={geminiModels.liveAnalysis || ''}
+              onChange={handleModelChange('liveAnalysis')}
+              options={modelOptions}
+              sizeClasses="w-[280px]"
+              aria-labelledby="gemini-live-label"
+            />
+          </div>
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+
+          <div className="flex items-center justify-between">
+            <div id="gemini-correction-label" className="font-medium">
+              {localize('com_ui_gemini_correction', { defaultValue: 'Corrección de Texto (Voz)' })}
+            </div>
+            <Dropdown
+              value={geminiModels.textCorrection || ''}
+              onChange={handleModelChange('textCorrection')}
+              options={modelOptions}
+              sizeClasses="w-[280px]"
+              aria-labelledby="gemini-correction-label"
+            />
+          </div>
+          <div className="h-px bg-gray-200 dark:bg-gray-700" />
+
+          <div className="flex items-center justify-between">
+            <div id="gemini-report-label" className="font-medium">
+              {localize('com_ui_gemini_report', { defaultValue: 'Generación de Informe SST' })}
+            </div>
+            <Dropdown
+              value={geminiModels.reportGeneration || ''}
+              onChange={handleModelChange('reportGeneration')}
+              options={modelOptions}
+              sizeClasses="w-[280px]"
+              aria-labelledby="gemini-report-label"
+            />
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }

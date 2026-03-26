@@ -44,6 +44,12 @@ class VoiceSession {
             delete this.liveConfig.model;
         }
 
+        // FASE 6: Use customized Live Analysis model if configured by the user
+        if (this.config?.userSettings?.liveAnalysis) {
+            this.liveConfig.model = this.config.userSettings.liveAnalysis;
+            logger.info(`[VoiceSession] User customized live analysis model: ${this.liveConfig.model}`);
+        }
+
         this.conversationId = conversationId;
         this.geminiClient = null;
         this.isActive = false;
@@ -667,8 +673,15 @@ class VoiceSession {
     async correctTranscription(userText, aiResponseText) {
         try {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
-            const correctionModelName = 'gemini-2.5-flash-lite-preview-09-2025'; // Requested by user
-            logger.info(`[VoiceSession] Using correction model: ${correctionModelName}`);
+            
+            // Get user configured model or fallback
+            let correctionModelName = 'gemini-2.5-flash-lite-preview-09-2025';
+            if (this.config?.userSettings?.textCorrection) {
+                correctionModelName = this.config.userSettings.textCorrection;
+                logger.info(`[VoiceSession] User customized correction model: ${correctionModelName}`);
+            } else {
+                logger.info(`[VoiceSession] Using default correction model: ${correctionModelName}`);
+            }
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(this.apiKey);
@@ -758,8 +771,15 @@ class VoiceSession {
                 data: { status: 'generating_report', message: 'Generando informe técnico...' }
             });
 
-            // Use Gemini Flash for report generation
-            const modelName = 'gemini-2.5-flash-lite-preview-09-2025';
+            // Use Gemini Flash for report generation or user customized mode
+            let modelName = 'gemini-2.5-flash-lite-preview-09-2025';
+            if (this.config?.userSettings?.reportGeneration) {
+                modelName = this.config.userSettings.reportGeneration;
+                logger.info(`[VoiceSession] User customized report model: ${modelName}`);
+            } else {
+                logger.info(`[VoiceSession] Using default report model: ${modelName}`);
+            }
+            
             const key = this.apiKey;
 
             const { GoogleGenerativeAI } = require('@google/generative-ai');

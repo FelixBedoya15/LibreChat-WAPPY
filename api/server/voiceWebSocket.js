@@ -66,9 +66,17 @@ function setupVoiceWebSocket(server) {
             }
 
             const userId = decoded.id;
-            let user = { id: userId }; // Define user object here
-            logger.info('[WebSocket] Token verified for user:', user.id);
+            
+            // Fetch full user to get personalization settings
+            const { getUserById } = require('~/models');
+            const fullUser = await getUserById(userId);
+            
+            let user = { id: userId }; 
+            if (fullUser) {
+                user = fullUser;
+            }
 
+            logger.info('[WebSocket] Token verified for user:', user.id);
 
             if (!user || !user.id) {
                 logger.warn('[WebSocket] Invalid user from token');
@@ -79,8 +87,10 @@ function setupVoiceWebSocket(server) {
             logger.info(`[WebSocket] User authenticated: ${user.id}`);
 
             // Create voice session
-            // Pass config object containing voice and model/endpoint
-            const config = {};
+            // Pass config object containing voice, model/endpoint and personalization settings
+            const config = {
+                userSettings: user.personalization?.geminiModels || {}
+            };
             if (initialVoice) config.voice = initialVoice;
             if (model) config.model = model;
             if (endpoint) config.endpoint = endpoint;
