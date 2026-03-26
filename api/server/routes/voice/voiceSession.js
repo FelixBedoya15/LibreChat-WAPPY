@@ -156,9 +156,15 @@ class VoiceSession {
         // Listen for USER transcription (what the user says)
         this.geminiClient.on('userTranscription', (text) => {
             logger.info(`[VoiceSession] User transcription received: "${text}"`);
-            // Accumulate user text
+            // Accumulate user text for saving
             this.userTranscriptionText += text;
+            // ✅ FIX: Send user transcription to client in real-time for HUD display
+            this.sendToClient({
+                type: 'text',
+                data: { text, isUserTranscription: true }
+            });
         });
+
 
         // Listen for AI transcription (what the AI says)
         this.geminiClient.on('aiTranscription', (text) => {

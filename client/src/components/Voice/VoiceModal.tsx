@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
 import { useRecoilState } from 'recoil';
-import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff } from 'lucide-react';
-import { TooltipAnchor } from '@librechat/client'; // Assuming TooltipAnchor is available
+import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff } from 'lucide-react';
+import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from './VoiceOrb';
 import VoiceSelector from './VoiceSelector';
@@ -22,31 +22,21 @@ const playStartupSound = () => {
     try {
         const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
         if (!AudioContextClass) return;
-
         const ctx = new AudioContextClass();
-
-        // Play a soft, pleasant chord (C major 7th: C, E, G, B)
-        const frequencies = [523.25, 659.25, 783.99, 987.77]; // C5, E5, G5, B5
-
+        const frequencies = [523.25, 659.25, 783.99, 987.77];
         frequencies.forEach((freq, i) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-
             osc.type = 'sine';
             osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-            // Envelope
             gain.gain.setValueAtTime(0, ctx.currentTime);
             gain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.1 + (i * 0.05));
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-
             osc.connect(gain);
             gain.connect(ctx.destination);
-
             osc.start(ctx.currentTime + (i * 0.05));
             osc.stop(ctx.currentTime + 1.5);
         });
-
     } catch (e) {
         console.warn('Startup sound could not be played:', e);
     }
@@ -55,39 +45,54 @@ const playStartupSound = () => {
 const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onConversationUpdated, model, endpoint }) => {
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
-    // Initialize with global state, but ensure we listen to updates
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
-    const [isReady, setIsReady] = useState(false); // New state for connection delay
+    const [countdownValue, setCountdownValue] = useState(10);
+    const [isReady, setIsReady] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(false);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
     const [statusText, setStatusText] = useState('');
-
+    // Transcription state: last user speech shown on HUD
+    const [lastUserTranscript, setLastUserTranscript] = useState('');
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
-    // Memoize options to prevent infinite loop in useEffect
     const sessionOptions = useMemo(() => ({
         conversationId,
         onConversationIdUpdate,
         onConversationUpdated,
-        initialVoice: voiceChatGeneral, // Pass the persisted voice
-        model, // Pass selected model/agent
-        endpoint, // Pass selected endpoint
+        initialVoice: voiceChatGeneral,
+        model,
+        endpoint,
         onAudioReceived: (audioData: string) => {
             handleAudioReceived(audioData);
         },
-        onTextReceived: handleTextReceived,
-        onStatusChange: handleStatusChange,
-        onError: handleError,
+        onTextReceived: (text: string, isUserTranscription?: boolean) => {
+            if (isUserTranscription) {
+                // Show user's own speech transcription live in the HUD
+                console.log('[VoiceModal] User transcription:', text);
+                setLastUserTranscript(text);
+            }
+            // AI text responses are intentionally not displayed (audio-only UI)
+        },
+
+        onStatusChange: (newStatus: string) => {
+            console.log('[VoiceModal] Status changed:', newStatus);
+            if (newStatus === 'listening') {
+                setLastUserTranscript('');
+            }
+        },
+        onError: (error: string) => {
+            console.error('[VoiceModal] Error:', error);
+            setStatusText(`Error: ${error}`);
+        },
     }), [conversationId, onConversationIdUpdate, onConversationUpdated, voiceChatGeneral, model, endpoint]);
 
-    // Voice session WebSocket
     const {
         isConnected,
         isConnecting,
@@ -100,22 +105,16 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         setMuted,
     } = useVoiceSession(sessionOptions);
 
-    // Track previous isOpen state to detect reopening
     const prevIsOpenRef = useRef(isOpen);
 
-    // Connect on mount, disconnect on unmount
     useEffect(() => {
-        // Don't connect if modal is not open
         if (!isOpen) return;
-
-        // Initialize AudioContext on mount (user interaction likely triggered modal open)
         if (!audioContextRef.current) {
             audioContextRef.current = new AudioContext({ sampleRate: 24000 });
         }
-
         connect();
         return () => {
-            stopMediaTracks(); // Stop both camera and screen share
+            stopMediaTracks();
             disconnect();
             if (audioContextRef.current) {
                 audioContextRef.current.close();
@@ -124,106 +123,86 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Detect modal reopening (closed → open transition)
     useEffect(() => {
         const wasOpen = prevIsOpenRef.current;
         prevIsOpenRef.current = isOpen;
-
-        // Only reconnect if modal was closed and now is opening
         if (!wasOpen && isOpen && !isConnected && !isConnecting) {
-            console.log('[VoiceModal] Modal reopened, reconnecting...');
             playStartupSound();
             connect();
         }
-
-        // Ensure voice is updated when connected
         if (isOpen && isConnected && selectedVoice !== voiceChatGeneral) {
-            console.log('[VoiceModal] Syncing voice with global setting:', voiceChatGeneral);
             setSelectedVoice(voiceChatGeneral);
             changeVoice(voiceChatGeneral);
         }
     }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]);
 
-    // Connection Delay Logic
+    // Countdown logic (same as LiveAnalysisModal)
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
-            const timer = setTimeout(() => {
-                setIsReady(true);
-            }, 3000); // 3 seconds delay
-            return () => clearTimeout(timer);
+            setCountdownValue(10);
+
+            const countdownInterval = setInterval(() => {
+                setCountdownValue(prev => {
+                    if (prev <= 1) {
+                        clearInterval(countdownInterval);
+                        setIsReady(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+
+            return () => clearInterval(countdownInterval);
         } else {
             setIsReady(false);
         }
     }, [isOpen, isConnected]);
 
     const handleClose = () => {
-        console.log('[VoiceModal] Closing modal, clearing audio queue & updating chat.');
         clearAudioQueue();
         stopMediaTracks();
         disconnect();
-
-        // Notify chat form that the conversation has updated so we can immediately see the text/images
         if (onConversationUpdated && conversationId) {
             onConversationUpdated();
         }
-
         onClose();
     };
 
-    /**
-     * Stop all media tracks (Camera & Screen Share)
-     */
     const stopMediaTracks = () => {
         if (videoIntervalRef.current) {
             clearInterval(videoIntervalRef.current);
             videoIntervalRef.current = null;
         }
-
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
             videoRef.current.srcObject = null;
         }
-
         setIsCameraOn(false);
         setIsScreenSharing(false);
     };
 
     const [supportsScreenShare, setSupportsScreenShare] = useState(false);
-
     useEffect(() => {
-        // Check if getDisplayMedia is supported
         if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
             setSupportsScreenShare(true);
         }
     }, []);
 
-    /**
-     * Start Camera
-     */
     const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
         try {
-            stopMediaTracks(); // Ensure no other stream is running
-
+            stopMediaTracks();
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 320 },
-                    height: { ideal: 240 },
-                    frameRate: { ideal: 15 },
-                    facingMode: mode
-                },
+                video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15 }, facingMode: mode },
                 audio: false
             });
-
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 videoRef.current.play();
             }
-
             setIsCameraOn(true);
             startSendingFrames();
-
         } catch (error) {
             console.error('[VoiceModal] Error starting camera:', error);
             setStatusText('Error accessing camera');
@@ -231,157 +210,86 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
     };
 
-    /**
-     * Start Screen Share
-     */
     const startScreenShare = async () => {
         try {
-            stopMediaTracks(); // Ensure no other stream is running
-
+            stopMediaTracks();
             const stream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                    width: { ideal: 1280 }, // Higher res for text readability
-                    height: { ideal: 720 },
-                    frameRate: { ideal: 10 }
-                },
-                audio: false // We prioritize microphone audio for voice chat
+                video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 10 } },
+                audio: false
             });
-
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 videoRef.current.play();
             }
-
-            // Handle user clicking "Stop Sharing" in browser UI
-            stream.getVideoTracks()[0].onended = () => {
-                stopMediaTracks();
-            };
-
+            stream.getVideoTracks()[0].onended = () => stopMediaTracks();
             setIsScreenSharing(true);
             startSendingFrames();
-
         } catch (error) {
             console.error('[VoiceModal] Error starting screen share:', error);
-            // Don't set status text for cancellation
             setIsScreenSharing(false);
         }
     };
 
     const startSendingFrames = () => {
-        // Start sending frames
         videoIntervalRef.current = setInterval(() => {
-            if (videoRef.current) {
-                sendVideoFrame(videoRef.current);
-            }
-        }, 1000); // 1 FPS is usually enough for vision context and saves bandwidth
+            if (videoRef.current) { sendVideoFrame(videoRef.current); }
+        }, 1000);
     };
 
-    /**
-     * Toggle Camera
-     */
-    const toggleCamera = () => {
-        if (isCameraOn) {
-            stopMediaTracks();
-        } else {
-            startCamera();
-        }
-    };
-
-    /**
-     * Toggle Screen Share
-     */
-    const toggleScreenShare = () => {
-        if (isScreenSharing) {
-            stopMediaTracks();
-        } else {
-            startScreenShare();
-        }
-    };
-
-    /**
-     * Switch Camera (Front/Back)
-     */
+    const toggleCamera = () => { isCameraOn ? stopMediaTracks() : startCamera(); };
+    const toggleScreenShare = () => { isScreenSharing ? stopMediaTracks() : startScreenShare(); };
     const switchCamera = () => {
         const newMode = facingMode === 'user' ? 'environment' : 'user';
         setFacingMode(newMode);
-
-        if (isCameraOn) {
-            stopMediaTracks();
-            setTimeout(() => {
-                startCamera(newMode);
-            }, 200);
-        }
+        if (isCameraOn) { stopMediaTracks(); setTimeout(() => startCamera(newMode), 200); }
     };
 
-    const [audioQueue, setAudioQueue] = useState<AudioBuffer[]>([]);
     const [isPlaying, setIsPlaying] = useState(false);
     const outputAnalyserRef = useRef<AnalyserNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const nextStartTimeRef = useRef<number>(0);
 
-    // Unified Animation Loop
     useEffect(() => {
         const updateAmplitude = () => {
             let vol = 0;
-
             if (status === 'speaking' && isPlaying && outputAnalyserRef.current) {
-                // Visualize Output (Gemini)
                 const dataArray = new Uint8Array(outputAnalyserRef.current.frequencyBinCount);
                 outputAnalyserRef.current.getByteFrequencyData(dataArray);
                 const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                 vol = Math.min(1, (average / 255) * 2);
             } else if (status === 'listening' || status === 'ready') {
-                // Visualize Input (User)
                 vol = getInputVolume();
             }
-
             setAudioAmplitude(vol);
             animationFrameRef.current = requestAnimationFrame(updateAmplitude);
         };
-
         updateAmplitude();
-
         return () => {
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
-            }
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
     }, [status, isPlaying, getInputVolume]);
 
-    const nextStartTimeRef = useRef<number>(0);
-
-    /**
-     * Handle received audio from Gemini
-     */
     function handleAudioReceived(audioData: string) {
         try {
             if (!audioContextRef.current) {
                 audioContextRef.current = new AudioContext({ sampleRate: 24000 });
             }
-
             if (audioContextRef.current.state === 'suspended') {
                 audioContextRef.current.resume();
             }
-
             const binaryString = atob(audioData);
             const len = binaryString.length;
             const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-
+            for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
             const dataView = new DataView(bytes.buffer);
             const float32Data = new Float32Array(len / 2);
-
             for (let i = 0; i < len / 2; i++) {
                 const int16 = dataView.getInt16(i * 2, true);
                 float32Data[i] = int16 / 32768.0;
             }
-
             const audioBuffer = audioContextRef.current.createBuffer(1, float32Data.length, 24000);
             audioBuffer.getChannelData(0).set(float32Data);
-
             scheduleAudio(audioBuffer);
-
         } catch (error) {
             console.error('[VoiceModal] Error processing audio:', error);
         }
@@ -389,36 +297,25 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     function scheduleAudio(buffer: AudioBuffer) {
         if (!audioContextRef.current) return;
-
         const currentTime = audioContextRef.current.currentTime;
         if (nextStartTimeRef.current < currentTime) {
-            nextStartTimeRef.current = currentTime + 0.05; // 50ms jitter buffer
+            nextStartTimeRef.current = currentTime + 0.05;
         }
-
         const source = audioContextRef.current.createBufferSource();
         source.buffer = buffer;
-
         if (!outputAnalyserRef.current) {
             const analyser = audioContextRef.current.createAnalyser();
             analyser.fftSize = 256;
             outputAnalyserRef.current = analyser;
             analyser.connect(audioContextRef.current.destination);
         }
-
         source.connect(outputAnalyserRef.current);
-
-        source.onended = () => {
-            setIsPlaying(false);
-        };
-
+        source.onended = () => setIsPlaying(false);
         setIsPlaying(true);
         source.start(nextStartTimeRef.current);
         nextStartTimeRef.current += buffer.duration;
     }
 
-    /**
-     * Clear audio queue and stop playback
-     */
     const clearAudioQueue = () => {
         if (audioContextRef.current) {
             audioContextRef.current.suspend().then(() => {
@@ -428,191 +325,287 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
     };
 
-    /**
-     * Handle received text (transcription)
-     */
-    function handleTextReceived(text: string) {
-        console.log('[VoiceModal] Transcription:', text);
-    }
-
-    /**
-     * Handle status changes
-     */
-    function handleStatusChange(newStatus: string) {
-        console.log('[VoiceModal] Status changed:', newStatus);
-    }
-
-    /**
-     * Handle errors
-     */
-    function handleError(error: string) {
-        console.error('[VoiceModal] Error:', error);
-        setStatusText(`Error: ${error}`);
-    }
-
-    /**
-     * Toggle mute
-     */
     const toggleMute = () => {
         const newMuted = !isMuted;
         setIsMuted(newMuted);
         setMuted(newMuted);
     };
 
-    /**
-     * Handle voice change
-     */
     const handleVoiceChange = (voiceId: string) => {
         setSelectedVoice(voiceId);
-        setVoiceChatGeneral(voiceId); // Update global store
+        setVoiceChatGeneral(voiceId);
         clearAudioQueue();
         changeVoice(voiceId);
         setShowVoiceSelector(false);
     };
 
-    /**
-     * Handle orb click
-     */
     const handleOrbClick = () => {
         if (status === 'ready' || status === 'idle') {
             setShowVoiceSelector(!showVoiceSelector);
         }
     };
 
-    if (!isOpen) {
-        return null;
-    }
+    if (!isOpen) return null;
+
+    const countdown = countdownValue;
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-300">
-            {/* Main content - Fullscreen */}
             <div className="relative w-full h-full flex flex-col overflow-hidden">
 
-                {/* Loading Overlay */}
+                {/* ── Technical Loading Overlay ── */}
                 {(!isReady && isOpen) && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80">
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-                            <span className="text-white font-medium text-lg tracking-wide">{localize('com_ui_connecting')}</span>
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95">
+                        <div className="relative">
+                            <svg className="w-64 h-64 -rotate-90 transform">
+                                <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="2" fill="transparent" className="text-white/5" />
+                                <circle
+                                    cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="4" fill="transparent"
+                                    strokeDasharray={754}
+                                    strokeDashoffset={754 - (754 * (10 - countdown) / 10)}
+                                    className="text-teal-500 transition-all duration-1000 ease-linear"
+                                />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                <span className="text-7xl font-mono font-bold text-white tracking-tighter">
+                                    00:{countdown.toString().padStart(2, '0')}
+                                </span>
+                                <span className="text-[10px] text-teal-400 font-mono mt-2 tracking-[0.3em] uppercase opacity-80 animate-pulse">
+                                    Initializing Stream
+                                </span>
+                            </div>
+                        </div>
+                        <div className="mt-12 w-64 space-y-4">
+                            <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
+                                <span>Securing Channel</span>
+                                <span>{Math.round((10 - countdown) * 10)}%</span>
+                            </div>
+                            <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-teal-500 transition-all duration-1000 ease-linear" style={{ width: `${(10 - countdown) * 10}%` }} />
+                            </div>
+                            <div className="grid grid-cols-1 gap-1">
+                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} ACCESS_KEY: ENABLED</p>
+                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} VOICE_ENGINE: GEMINI_LIVE</p>
+                                <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} PROTOCOL: SST_v3.4</p>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* Header */}
-                <div className="absolute top-8 left-0 right-0 text-center z-20 pointer-events-none">
-                    <h2 className="text-2xl font-light text-white tracking-wider opacity-90">
-                        {statusText || (status === 'listening' ? localize('com_nav_voice_listening') :
-                            status === 'speaking' ? localize('com_nav_voice_speaking') :
-                                status === 'thinking' ? localize('com_nav_voice_thinking') :
-                                    localize('com_nav_voice_ready_label'))}
-                    </h2>
+                {/* ── HUD Top Bar ── */}
+                <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-40 pointer-events-none">
+                    {/* Left: LIVE indicator */}
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-xl">
+                            <div className="flex items-center gap-2">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                                </span>
+                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
+                            </div>
+                            <div className="w-[1px] h-3 bg-white/20"></div>
+                            <div className="text-[11px] font-mono text-white/70">
+                                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1 px-1">
+                            <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
+                                ASISTENTE SST EN VIVO
+                            </h2>
+                            <p className="text-white/40 text-[10px] font-mono tracking-tighter uppercase">
+                                MODO: CONVERSACIÓN INTELIGENTE
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Center: Status pill */}
+                    <div className="absolute left-1/2 -translate-x-1/2 top-8 flex flex-col items-center gap-2">
+                        <div className="bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border border-white/20 shadow-2xl flex items-center gap-3">
+                            {status === 'thinking' && <RefreshCcw className="w-4 h-4 text-teal-400 animate-spin" />}
+                            <h2 className="text-sm md:text-base font-medium text-white tracking-widest uppercase">
+                                {statusText || (status === 'listening' ? localize('com_nav_voice_listening') :
+                                    status === 'speaking' ? localize('com_nav_voice_speaking') :
+                                        status === 'thinking' ? localize('com_nav_voice_thinking') :
+                                            localize('com_nav_voice_ready_label'))}
+                            </h2>
+                        </div>
+                    </div>
+
+                    {/* Right: Model/Session info */}
+                    <div className="flex flex-col items-end gap-3 text-right">
+                        <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 shadow-xl flex flex-col items-end">
+                            <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Model: {model || 'Gemini Live'}</span>
+                            <span className="text-[10px] text-teal-500 font-mono uppercase tracking-widest">
+                                {isConnected ? 'CONNECTED' : isConnecting ? 'CONNECTING...' : 'OFFLINE'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-white/60">
+                            <Monitor className="w-3 h-3" />
+                            <span className="text-xs font-mono">VOICE / 16KHz</span>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Video Preview (Background) */}
-                <video
-                    ref={videoRef}
-                    className={`absolute inset-0 w-full h-full object-cover opacity-40 transition-opacity duration-500 ${isCameraOn || isScreenSharing ? 'block' : 'hidden'}`}
-                    muted
-                    playsInline
-                />
+                {/* ── Video Background ── */}
+                <div className="absolute inset-0 z-0 overflow-hidden bg-surface-primary">
+                    <video
+                        ref={videoRef}
+                        className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ${isCameraOn || isScreenSharing ? 'opacity-100 scale-100' : 'opacity-0 scale-110 blur-xl'}`}
+                        muted playsInline
+                    />
+                    {(isCameraOn || isScreenSharing) && (
+                        <>
+                            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%)] bg-[length:100%_2px] opacity-15"></div>
+                            <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,0,0,0.5)]"></div>
+                            <div className="absolute top-12 left-12 w-8 h-8 border-t-2 border-l-2 border-white/40 rounded-tl-sm pointer-events-none"></div>
+                            <div className="absolute top-12 right-12 w-8 h-8 border-t-2 border-r-2 border-white/40 rounded-tr-sm pointer-events-none"></div>
+                            <div className="absolute bottom-32 left-12 w-8 h-8 border-b-2 border-l-2 border-white/40 rounded-bl-sm pointer-events-none"></div>
+                            <div className="absolute bottom-32 right-12 w-8 h-8 border-b-2 border-r-2 border-white/40 rounded-br-sm pointer-events-none"></div>
+                            {status === 'thinking' && (
+                                <div className="absolute top-0 left-0 w-full h-1 bg-teal-400/50 shadow-[0_0_15px_rgba(45,212,191,0.8)] z-10 animate-[scan_2s_ease-in-out_infinite] pointer-events-none"></div>
+                            )}
+                        </>
+                    )}
+                </div>
 
-                {/* Voice Orb (Center) */}
-                <div className="flex-1 flex items-center justify-center z-10 relative">
-                    <div onClick={handleOrbClick} className="cursor-pointer transition-transform hover:scale-105 active:scale-95">
-                        <VoiceOrb
-                            status={status === 'ready' ? 'idle' : status}
-                            amplitude={audioAmplitude}
-                        />
+                {/* ── Center: Voice Orb ── */}
+                <div className="flex-1 flex flex-col items-center justify-center z-10 relative">
+                    <div
+                        onClick={handleOrbClick}
+                        className={`cursor-pointer transition-all duration-500 transform ${status === 'speaking' ? 'scale-110' : 'scale-100'}`}
+                    >
+                        <VoiceOrb status={status === 'ready' ? 'idle' : status} amplitude={audioAmplitude} className="drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]" />
                     </div>
+
+                    {/* ── USER TRANSCRIPTION DISPLAY ── */}
+                    {lastUserTranscript && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-lg px-4">
+                            <div className="bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-3 text-center shadow-2xl">
+                                <p className="text-[10px] text-teal-400 font-mono uppercase tracking-widest mb-1">Tu transcripción</p>
+                                <p className="text-white text-sm font-medium leading-snug">{lastUserTranscript}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <p className="mt-8 text-white/40 text-[10px] font-mono tracking-[0.5em] uppercase select-none">
+                        {status === 'speaking' ? 'AI Voice Active' : status === 'listening' ? 'Analyzing Audio' : 'Secure Channel Idle'}
+                    </p>
+
                     {showVoiceSelector && (
-                        <div className="absolute top-full mt-8 bg-surface-primary rounded-xl shadow-2xl p-2 min-w-[200px]">
-                            <VoiceSelector
-                                selectedVoice={selectedVoice}
-                                onVoiceChange={handleVoiceChange}
-                            />
+                        <div className="absolute top-full mt-8 bg-surface-primary border border-white/10 rounded-xl shadow-2xl p-2 min-w-[200px] z-50 overflow-hidden">
+                            <div className="px-3 py-2 border-b border-light/10 text-[10px] uppercase tracking-widest text-white/40 font-bold mb-1">
+                                Select System Voice
+                            </div>
+                            <VoiceSelector selectedVoice={selectedVoice} onVoiceChange={handleVoiceChange} />
                         </div>
                     )}
                 </div>
 
-                {/* Bottom Control Bar */}
-                <div className="absolute bottom-12 left-0 right-0 flex items-center justify-center gap-6 z-30">
+                {/* ── Bottom Control Bar (Glassmorphism) ── */}
+                <div className="absolute bottom-0 left-0 right-0 p-8 z-30 flex flex-col items-center gap-6">
+                    <div className="flex items-center justify-center gap-4 bg-black/60 backdrop-blur-2xl px-8 py-5 rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70">
 
-                    {/* Camera Toggle */}
-                    <TooltipAnchor
-                        description={isCameraOn ? localize('com_ui_voice_camera_off') : localize('com_ui_voice_camera_on')}
-                        render={
-                            <button
-                                onClick={toggleCamera}
-                                disabled={isScreenSharing}
-                                className={`p-4 rounded-full transition-all duration-300 ${isCameraOn
-                                    ? 'bg-white text-black shadow-lg shadow-white/20'
-                                    : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-md'
-                                    } ${isScreenSharing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {isCameraOn ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-                            </button>
-                        }
-                    />
-
-                    {/* Screen Share Toggle */}
-                    {supportsScreenShare && (
+                        {/* Camera */}
                         <TooltipAnchor
-                            description={isScreenSharing ? localize('com_ui_voice_screen_share_stop') : localize('com_ui_voice_screen_share_start')}
+                            description={isCameraOn ? localize('com_ui_voice_camera_off') : localize('com_ui_voice_camera_on')}
                             render={
                                 <button
-                                    onClick={toggleScreenShare}
-                                    disabled={isCameraOn}
-                                    className={`p-4 rounded-full transition-all duration-300 ${isScreenSharing
-                                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                                        : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-md'
-                                        } ${isCameraOn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={toggleCamera}
+                                    disabled={isScreenSharing}
+                                    className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isScreenSharing ? 'opacity-20 cursor-not-allowed' : ''}`}
                                 >
-                                    {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
+                                    {isCameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
                                 </button>
                             }
                         />
-                    )}
 
-                    {/* Microphone Toggle (Large Center) */}
-                    <TooltipAnchor
-                        description={isMuted ? localize('com_nav_voice_unmute') : localize('com_nav_voice_mute')}
-                        render={
-                            <button
-                                onClick={toggleMute}
-                                className={`p-6 rounded-full transition-all duration-300 mx-2 ${isMuted
-                                    ? 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-md border border-white/20'
-                                    : 'bg-white text-black shadow-xl shadow-white/10 scale-110'
-                                    }`}
-                            >
-                                {isMuted ? <MicOff className="w-8 h-8" /> : (
-                                    <div className="relative">
-                                        <Mic className="w-8 h-8" />
-                                        {status === 'listening' && (
-                                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </button>
-                        }
-                    />
+                        {/* Camera Switch */}
+                        {isCameraOn && (
+                            <TooltipAnchor
+                                description={localize('com_ui_switch_camera')}
+                                render={
+                                    <button onClick={switchCamera} className="p-4 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all transform active:rotate-180 duration-500">
+                                        <RefreshCcw className="w-5 h-5" />
+                                    </button>
+                                }
+                            />
+                        )}
 
-                    {/* End Call Button */}
-                    <TooltipAnchor
-                        description={localize('com_ui_voice_end_call')}
-                        render={
-                            <button
-                                onClick={handleClose}
-                                className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 transition-all duration-300 transform hover:scale-105"
-                            >
-                                <PhoneOff className="w-6 h-6" />
-                            </button>
-                        }
-                    />
+                        <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
 
+                        {/* Microphone (Center hero button) */}
+                        <TooltipAnchor
+                            description={isMuted ? localize('com_nav_voice_unmute') : localize('com_nav_voice_mute')}
+                            render={
+                                <button
+                                    onClick={toggleMute}
+                                    className={`p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted ? 'bg-red-500/20 text-red-500 border border-red-500/50 backdrop-blur-md' : 'bg-white text-black shadow-xl shadow-white/10 scale-110 border-4 border-white'}`}
+                                >
+                                    {isMuted ? <MicOff className="w-7 h-7" /> : (
+                                        <div className="relative">
+                                            <Mic className="w-7 h-7" />
+                                            {status === 'listening' && (
+                                                <span className="absolute -top-3 -right-3 flex h-4 w-4">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-teal-500"></span>
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </button>
+                            }
+                        />
+
+                        <div className="w-[1px] h-8 bg-white/10 mx-2"></div>
+
+                        {/* Screen Share */}
+                        {supportsScreenShare && (
+                            <TooltipAnchor
+                                description={isScreenSharing ? localize('com_ui_voice_screen_share_stop') : localize('com_ui_voice_screen_share_start')}
+                                render={
+                                    <button
+                                        onClick={toggleScreenShare}
+                                        disabled={isCameraOn}
+                                        className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isScreenSharing ? 'bg-blue-500 text-white shadow-lg' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isCameraOn ? 'opacity-20 cursor-not-allowed' : ''}`}
+                                    >
+                                        {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+                                    </button>
+                                }
+                            />
+                        )}
+
+                        {/* End Call */}
+                        <TooltipAnchor
+                            description={localize('com_ui_voice_end_call')}
+                            render={
+                                <button onClick={handleClose} className="p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all duration-300 transform hover:scale-110 active:scale-95 border border-red-400/20">
+                                    <PhoneOff className="w-5 h-5" />
+                                </button>
+                            }
+                        />
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center gap-6 text-[9px] font-mono text-white/30 uppercase tracking-[0.4em] pointer-events-none">
+                        <span>Encrypted Protocol SSL-V3</span>
+                        <span>•</span>
+                        <span>Voice Analysis Mode</span>
+                        <span>•</span>
+                        <span>Secure Channel Active</span>
+                    </div>
                 </div>
+
+                {/* Scan animation keyframe */}
+                <style dangerouslySetInnerHTML={{ __html: `
+                    @keyframes scan {
+                        0% { top: 0; opacity: 0; }
+                        5% { opacity: 1; }
+                        95% { opacity: 1; }
+                        100% { top: 100%; opacity: 0; }
+                    }
+                `}} />
             </div>
         </div>
     );

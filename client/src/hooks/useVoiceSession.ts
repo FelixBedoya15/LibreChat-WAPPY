@@ -8,19 +8,20 @@ interface VoiceMessage {
 
 interface UseVoiceSessionOptions {
     onAudioReceived?: (audioData: string) => void;
-    onTextReceived?: (text: string) => void;
+    onTextReceived?: (text: string, isUserTranscription?: boolean) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onConversationUpdated?: () => void;
     disableAudio?: boolean;
-    disableAudio?: boolean;
     mode?: 'chat' | 'live_analysis';
     initialVoice?: string;
     model?: string;
     endpoint?: string;
 }
+
+
 
 export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
     const { token } = useAuthContext();
@@ -339,9 +340,10 @@ export const useVoiceSession = (options: UseVoiceSessionOptions = {}) => {
 
             case 'text':
                 if (message.data.text) {
-                    optionsRef.current.onTextReceived?.(message.data.text);
+                    optionsRef.current.onTextReceived?.(message.data.text, message.data.isUserTranscription ?? false);
                 }
                 break;
+
 
             case 'status':
                 const newStatus = message.data.status;
