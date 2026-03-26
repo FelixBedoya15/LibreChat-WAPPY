@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
-import { useRecoilValue } from 'recoil';
-import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff } from 'lucide-react';
+import { useRecoilState, useSetRecoilState } from 'recoil';
+import { X, Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from '../Voice/VoiceOrb';
@@ -21,7 +21,8 @@ interface LiveAnalysisModalProps {
 
 const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conversationId, onConversationIdUpdate, onTextReceived, onReportReceived, onConversationUpdated, selectedModel }) => {
     const localize = useLocalize();
-    const voiceLiveAnalysis = useRecoilValue(store.voiceLiveAnalysis);
+    const [voiceLiveAnalysis, setVoiceLiveAnalysis] = useRecoilState(store.voiceLiveAnalysis);
+    const setShowModalState = useSetRecoilState(store.showLiveAnalysisModal);
     const [selectedVoice, setSelectedVoice] = useState(voiceLiveAnalysis);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true);
@@ -38,7 +39,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const snapshotRef = useRef<string | null>(null); // NEW: Ref to store captured image
 
     // NEW: Countdown state
-    const [countdown, setCountdown] = useState(10);
+    // UPDATED: Faster countdown for better UX
+    const [countdown, setCountdown] = useState(3);
 
     // NEW: Track if report has been received
     const [hasReceivedReport, setHasReceivedReport] = useState(false);
@@ -179,7 +181,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
-            setCountdown(10);
+            setCountdown(3); 
 
             const interval = setInterval(() => {
                 setCountdown((prev) => {
@@ -191,7 +193,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             const timer = setTimeout(() => {
                 setIsReady(true);
                 clearInterval(interval);
-            }, 10000); // 10 seconds delay
+            }, 3000); 
 
             return () => {
                 clearTimeout(timer);
@@ -199,9 +201,14 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             };
         } else {
             setIsReady(false);
-            setCountdown(10);
+            setCountdown(3);
         }
     }, [isOpen, isConnected]);
+
+    // NEW: Sync visible state with Recoil for Tenshi hiding
+    useEffect(() => {
+        setShowModalState(isOpen);
+    }, [isOpen, setShowModalState]);
 
     // Connect on mount if open
     useEffect(() => {
@@ -572,7 +579,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                     strokeWidth="4"
                                     fill="transparent"
                                     strokeDasharray={754}
-                                    strokeDashoffset={754 - (754 * (10 - countdown) / 10)}
+                                    strokeDashoffset={754 - (754 * (3 - countdown) / 3)}
                                     className="text-teal-500 transition-all duration-1000 ease-linear"
                                 />
                             </svg>
@@ -589,12 +596,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         <div className="mt-12 w-64 space-y-4">
                             <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
                                 <span>Securing Channel</span>
-                                <span>{Math.round((10 - countdown) * 10)}%</span>
+                                <span>{Math.round((3 - countdown) * 33.3)}%</span>
                             </div>
                             <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
                                 <div 
                                     className="h-full bg-teal-500 transition-all duration-1000 ease-linear"
-                                    style={{ width: `${(10 - countdown) * 10}%` }}
+                                    style={{ width: `${(3 - countdown) * 33.3}%` }}
                                 />
                             </div>
                             <div className="grid grid-cols-1 gap-1">
@@ -615,28 +622,28 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 {/* HUD Overlay - Top Elements */}
                 <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-40 pointer-events-none">
                     {/* Top Left: LIVE Indicator & Metadata */}
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-xl">
-                            <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-1 md:gap-3">
+                        <div className="flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-md px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10 shadow-xl">
+                            <div className="flex items-center gap-1.5 md:gap-2">
                                 <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
                                 </span>
-                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">LIVE STREAM</span>
+                                <span className="text-[9px] md:text-[11px] font-bold text-white uppercase tracking-wider">LIVE STREAM</span>
                             </div>
                             <div className="w-[1px] h-3 bg-white/20"></div>
-                            <div className="text-[11px] font-mono text-white/70">
+                            <div className="text-[9px] md:text-[11px] font-mono text-white/70">
                                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-1 px-1">
-                            <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
-                                AUDITORÍA SST EN VIVO
+                        <div className="flex flex-col gap-0.5 md:gap-1 px-1">
+                            <h2 className="text-white text-[11px] md:text-sm font-bold tracking-wide flex items-center gap-1.5 md:gap-2">
+                                <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-teal-500 rounded-full"></span>
+                                <span className="truncate max-w-[150px] md:max-w-none">AUDITORÍA SST EN VIVO</span>
                             </h2>
-                            <p className="text-white/40 text-[10px] font-mono tracking-tighter uppercase">
-                                PROCESO: IDENTIFICACIÓN DE PELIGROS
+                            <p className="text-white/40 text-[8px] md:text-[10px] font-mono tracking-tighter uppercase">
+                                PROCESO: PELIGROS
                             </p>
                         </div>
                     </div>
@@ -655,16 +662,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     </div>
 
                     {/* Top Right: Call Info / Timer */}
-                    <div className="flex flex-col items-end gap-3 text-right">
-                        <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 shadow-xl flex flex-col items-end">
-                            <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Model: {selectedModel || 'Gemini 2.0'}</span>
-                            <span className="text-[10px] text-teal-500 font-mono uppercase tracking-widest">Active Link: {conversationId?.slice(0, 8) || 'SESSION_NEW'}</span>
+                    <div className="flex flex-col items-end gap-1 md:gap-3 text-right">
+                        <div className="bg-black/40 backdrop-blur-md px-2 md:px-4 py-1 md:py-2 rounded-lg border border-white/10 shadow-xl flex flex-col items-end">
+                            <span className="text-[8px] md:text-[10px] text-white/40 font-mono uppercase tracking-widest">Model: {selectedModel?.split('-')[0] || 'Gemini'}</span>
+                            <span className="text-[8px] md:text-[10px] text-teal-500 font-mono uppercase tracking-widest hidden sm:inline">Active Link: {conversationId?.slice(0, 8) || 'SESSION_NEW'}</span>
                         </div>
                         
-                        {/* Session Timer (Simulated by component uptime) */}
                         <div className="flex items-center gap-2 text-white/60">
-                            <Monitor className="w-3 h-3" />
-                            <span className="text-xs font-mono">REC: 1080p / 15FPS</span>
+                            <Monitor className="w-2.5 md:w-3 h-2.5 md:h-3" />
+                            <span className="text-[9px] md:text-xs font-mono">1080p / 15FPS</span>
                         </div>
                     </div>
                 </div>
@@ -733,10 +739,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 </div>
 
                 {/* Bottom Main Interaction Bar */}
-                <div className="absolute bottom-0 left-0 right-0 p-8 z-30 flex flex-col items-center gap-6">
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 z-30 flex flex-col items-center gap-6">
                     
                     {/* Control Bar - Premium Glassmorphism */}
-                    <div className="flex items-center justify-center gap-4 bg-black/60 backdrop-blur-2xl px-8 py-5 rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70 group">
+                    <div className="flex items-center justify-center gap-2 md:gap-4 bg-black/60 backdrop-blur-2xl px-4 md:px-8 py-3 md:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70 group">
                         
                         {/* Camera Toggle */}
                         <TooltipAnchor

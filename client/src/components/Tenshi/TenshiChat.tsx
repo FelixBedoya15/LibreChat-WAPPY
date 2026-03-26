@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { X, MessageSquare, Send, Sparkles } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useRecoilValue } from 'recoil';
+import store from '~/store';
 import Markdown from '~/components/Chat/Messages/Content/Markdown';
 
 export default function TenshiChat() {
@@ -31,7 +33,10 @@ export default function TenshiChat() {
         }
     }, [messages, isOpen]);
 
-    if (!isAuthenticated || !config || !config.isActive) {
+    const showVoiceModal = useRecoilValue(store.showVoiceModal);
+    const showLiveAnalysisModal = useRecoilValue(store.showLiveAnalysisModal);
+
+    if (!isAuthenticated || !config || !config.isActive || showVoiceModal || showLiveAnalysisModal) {
         return null;
     }
 

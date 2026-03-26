@@ -5,4 +5,9 @@ const showVoiceModal = atom<boolean>({
     default: false,
 });
 
-export default { showVoiceModal };
+const showLiveAnalysisModal = atom<boolean>({
+    key: 'showLiveAnalysisModal',
+    default: false,
+});
+
+export default { showVoiceModal, showLiveAnalysisModal };

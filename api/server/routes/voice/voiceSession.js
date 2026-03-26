@@ -38,16 +38,35 @@ class VoiceSession {
 
         // CRITICAL: Ensure we don't pass an Agent ID or incompatible model to Gemini Live (WebSocket)
         // Gemini Live requires specific models (e.g. gemini-2.5-flash-native...).
-        // If the client sent a model (likely for chat context), we shouldn't blindly use it for the Voice connection.
-        // We delete it so GeminiLiveClient uses its internal default/env var.
-        if (this.liveConfig.model) {
-            delete this.liveConfig.model;
+        // Priority: 
+        // 1. Explicit model passed from client (e.g. dropdown in LivePage)
+        // 2. User personalization settings (Personalization panel)
+        // 3. System default (GEMINI_LIVE_MODEL env)
+
+        let candidateModel = config.model; // Dropdown priority
+        
+        // If no dropdown selection, check user personalization
+        if (!candidateModel && this.config?.userSettings?.liveAnalysis) {
+            candidateModel = this.config.userSettings.liveAnalysis;
         }
 
-        // FASE 6: Use customized Live Analysis model if configured by the user
-        if (this.config?.userSettings?.liveAnalysis) {
-            this.liveConfig.model = this.config.userSettings.liveAnalysis;
-            logger.info(`[VoiceSession] User customized live analysis model: ${this.liveConfig.model}`);
+        // Validate if the candidate model supports Native Audio (Gemini Live Bidi API)
+        // Models without 'audio', 'voice', or 'live' in the name usually cause the WebSocket to fail
+        if (candidateModel) {
+            const isAudioNative = candidateModel.toLowerCase().includes('audio') || 
+                                 candidateModel.toLowerCase().includes('voice') || 
+                                 candidateModel.toLowerCase().includes('live');
+            
+            if (isAudioNative) {
+                this.liveConfig.model = candidateModel;
+                logger.info(`[VoiceSession] Using validated live model: ${this.liveConfig.model}`);
+            } else {
+                logger.warn(`[VoiceSession] Model "${candidateModel}" is not audio-native. Falling back to default to prevent audio loss.`);
+                delete this.liveConfig.model; // Fallback to GeminiLiveClient's default (env var)
+            }
+        } else {
+            // No custom model specified, use GeminiLiveClient's default
+            delete this.liveConfig.model;
         }
 
         this.conversationId = conversationId;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type FC } from 'react';
-import { useRecoilState } from 'recoil';
-import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff } from 'lucide-react';
+import { useRecoilState, useSetRecoilState } from 'recoil';
+import { Mic, MicOff, Video, VideoOff, RefreshCcw, Monitor, MonitorOff, PhoneOff, Smartphone } from 'lucide-react';
 import { TooltipAnchor } from '@librechat/client';
 import store from '~/store';
 import VoiceOrb from './VoiceOrb';
@@ -46,11 +46,12 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
-    const [countdownValue, setCountdownValue] = useState(10);
+    const [countdownValue, setCountdownValue] = useState(3);
     const [isReady, setIsReady] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
-    const [isCameraOn, setIsCameraOn] = useState(false);
+    const [isCameraOn, setIsCameraOn] = useState(true); // START ON by default
     const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const setShowModalState = useSetRecoilState(store.showVoiceModal);
     const [showVoiceSelector, setShowVoiceSelector] = useState(false);
     const [audioAmplitude, setAudioAmplitude] = useState(0);
     const [statusText, setStatusText] = useState('');
@@ -109,10 +110,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
 
     useEffect(() => {
         if (!isOpen) return;
-        if (!audioContextRef.current) {
-            audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+            audioContextRef.current.resume();
         }
+        setShowModalState(true);
         connect();
+        // AUTO-START CAMERA
+        setTimeout(() => {
+            startCamera('environment');
+        }, 500);
         return () => {
             stopMediaTracks();
             disconnect();
@@ -140,7 +146,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
-            setCountdownValue(10);
+            setCountdownValue(3);
 
             const countdownInterval = setInterval(() => {
                 setCountdownValue(prev => {
@@ -163,6 +169,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         clearAudioQueue();
         stopMediaTracks();
         disconnect();
+        setShowModalState(false);
         if (onConversationUpdated && conversationId) {
             onConversationUpdated();
         }
@@ -359,29 +366,20 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         <div className="relative">
                             <svg className="w-64 h-64 -rotate-90 transform">
                                 <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="2" fill="transparent" className="text-white/5" />
-                                <circle
-                                    cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="4" fill="transparent"
-                                    strokeDasharray={754}
-                                    strokeDashoffset={754 - (754 * (10 - countdown) / 10)}
-                                    className="text-teal-500 transition-all duration-1000 ease-linear"
-                                />
+                                <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={754} strokeDashoffset={754 - (754 * (3 - countdownValue) / 3)} className="text-teal-500 transition-all duration-1000 ease-linear" />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-7xl font-mono font-bold text-white tracking-tighter">
-                                    00:{countdown.toString().padStart(2, '0')}
-                                </span>
-                                <span className="text-[10px] text-teal-400 font-mono mt-2 tracking-[0.3em] uppercase opacity-80 animate-pulse">
-                                    Initializing Stream
-                                </span>
+                                <span className="text-7xl font-mono font-bold text-white tracking-tighter">00:{countdownValue.toString().padStart(2, '0')}</span>
+                                <span className="text-[10px] text-teal-400 font-mono mt-2 tracking-[0.3em] uppercase opacity-80 animate-pulse">Initializing Stream</span>
                             </div>
                         </div>
                         <div className="mt-12 w-64 space-y-4">
                             <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
                                 <span>Securing Channel</span>
-                                <span>{Math.round((10 - countdown) * 10)}%</span>
+                                <span>{Math.round((3 - countdownValue) * 33.3)}%</span>
                             </div>
                             <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-teal-500 transition-all duration-1000 ease-linear" style={{ width: `${(10 - countdown) * 10}%` }} />
+                                <div className="h-full bg-teal-500 transition-all duration-1000 ease-linear" style={{ width: `${(3 - countdownValue) * 33.3}%` }} />
                             </div>
                             <div className="grid grid-cols-1 gap-1">
                                 <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} ACCESS_KEY: ENABLED</p>
@@ -393,29 +391,29 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 )}
 
                 {/* ── HUD Top Bar ── */}
-                <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-40 pointer-events-none">
+                <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-start z-40 pointer-events-none">
                     {/* Left: LIVE indicator */}
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 shadow-xl">
-                            <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-1 md:gap-3">
+                        <div className="flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-md px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10 shadow-xl">
+                            <div className="flex items-center gap-1.5 md:gap-2">
                                 <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
                                 </span>
-                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
+                                <span className="text-[9px] md:text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
                             </div>
                             <div className="w-[1px] h-3 bg-white/20"></div>
-                            <div className="text-[11px] font-mono text-white/70">
+                            <div className="text-[9px] md:text-[11px] font-mono text-white/70">
                                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </div>
                         </div>
-                        <div className="flex flex-col gap-1 px-1">
-                            <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
-                                ASISTENTE SST EN VIVO
+                        <div className="flex flex-col gap-0.5 md:gap-1 px-1">
+                            <h2 className="text-white text-[11px] md:text-sm font-bold tracking-wide flex items-center gap-1.5 md:gap-2">
+                                <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-teal-500 rounded-full"></span>
+                                <span className="truncate max-w-[120px] md:max-w-none">ASISTENTE SST</span>
                             </h2>
-                            <p className="text-white/40 text-[10px] font-mono tracking-tighter uppercase">
-                                MODO: CONVERSACIÓN INTELIGENTE
+                            <p className="text-white/40 text-[8px] md:text-[10px] font-mono tracking-tighter uppercase">
+                                PROCESO: CONVERSACIÓN
                             </p>
                         </div>
                     </div>
@@ -504,8 +502,8 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 </div>
 
                 {/* ── Bottom Control Bar (Glassmorphism) ── */}
-                <div className="absolute bottom-0 left-0 right-0 p-8 z-30 flex flex-col items-center gap-6">
-                    <div className="flex items-center justify-center gap-4 bg-black/60 backdrop-blur-2xl px-8 py-5 rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70">
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 z-30 flex flex-col items-center gap-6">
+                    <div className="flex items-center justify-center gap-2 md:gap-4 bg-black/60 backdrop-blur-2xl px-4 md:px-8 py-3 md:py-5 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 shadow-2xl transition-all hover:bg-black/70">
 
                         {/* Camera */}
                         <TooltipAnchor
@@ -514,9 +512,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                 <button
                                     onClick={toggleCamera}
                                     disabled={isScreenSharing}
-                                    className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isScreenSharing ? 'opacity-20 cursor-not-allowed' : ''}`}
+                                    className={`p-3 md:p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isCameraOn ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'} ${isScreenSharing ? 'opacity-20 cursor-not-allowed' : ''}`}
                                 >
-                                    {isCameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                                    {isCameraOn ? <Video className="w-4 h-4 md:w-5 md:h-5" /> : <VideoOff className="w-4 h-4 md:w-5 md:h-5" />}
                                 </button>
                             }
                         />
@@ -541,15 +539,15 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                             render={
                                 <button
                                     onClick={toggleMute}
-                                    className={`p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted ? 'bg-red-500/20 text-red-500 border border-red-500/50 backdrop-blur-md' : 'bg-white text-black shadow-xl shadow-white/10 scale-110 border-4 border-white'}`}
+                                    className={`p-3.5 md:p-5 rounded-full transition-all duration-500 transform active:scale-90 ${isMuted ? 'bg-red-500/20 text-red-500 border border-red-500/50 backdrop-blur-md' : 'bg-white text-black shadow-xl shadow-white/10 scale-105 md:scale-110 border-2 md:border-4 border-white'}`}
                                 >
-                                    {isMuted ? <MicOff className="w-7 h-7" /> : (
+                                    {isMuted ? <MicOff className="w-5 h-5 md:w-7 md:h-7" /> : (
                                         <div className="relative">
-                                            <Mic className="w-7 h-7" />
+                                            <Mic className="w-5 h-5 md:w-7 md:h-7" />
                                             {status === 'listening' && (
-                                                <span className="absolute -top-3 -right-3 flex h-4 w-4">
+                                                <span className="absolute -top-2 md:-top-3 -right-2 md:-right-3 flex h-3 w-3 md:h-4 md:w-4">
                                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-teal-500"></span>
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 md:h-4 md:w-4 bg-teal-500"></span>
                                                 </span>
                                             )}
                                         </div>
