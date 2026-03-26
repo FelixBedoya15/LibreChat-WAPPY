@@ -30,7 +30,8 @@ const AltaDireccionData = mongoose.models.AltaDireccionData
 // ─── GET /data — Load saved data and inbox ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
-        const data = await AltaDireccionData.findOne({ user: req.user.id });
+        const userId = new mongoose.Types.ObjectId(req.user.id);
+        const data = await AltaDireccionData.findOne({ user: userId }).lean();
         if (data) {
             return res.json({
                 statusData: data.statusData || [],
@@ -49,8 +50,9 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { statusData, reviewerInfo } = req.body;
+        const userId = new mongoose.Types.ObjectId(req.user.id);
         await AltaDireccionData.findOneAndUpdate(
-            { user: req.user.id },
+            { user: userId },
             { $set: { statusData: statusData || [], reviewerInfo: reviewerInfo || {}, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -65,7 +67,8 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body;
-        const doc = await AltaDireccionData.findOne({ user: req.user.id });
+        const userId = new mongoose.Types.ObjectId(req.user.id);
+        const doc = await AltaDireccionData.findOne({ user: userId });
         if (!doc) return res.status(404).json({ error: 'No se encontraron datos' });
 
         const item = (doc.inboxPublico || []).find(i => String(i.id) === String(reportId));
@@ -107,12 +110,14 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     }
 });
 
-// ─── POST /inbox/dismiss — Remove/archive an inbox item ──────────────────────
+// ─── POST /inbox/dismiss — Dismiss an inbox item ───────────────────────────
 router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body;
-        const doc = await AltaDireccionData.findOne({ user: req.user.id });
-        if (doc && doc.inboxPublico) {
+        const userId = new mongoose.Types.ObjectId(req.user.id);
+        const doc = await AltaDireccionData.findOne({ user: userId });
+        if (!doc) return res.status(404).json({ error: 'No se encontraron datos' });
+        if (doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));
             await doc.save();
         }

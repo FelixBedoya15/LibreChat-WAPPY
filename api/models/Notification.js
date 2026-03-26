@@ -11,7 +11,7 @@ const notificationSchema = new mongoose.Schema({
         type: String,
         enum: [
             'ticket_created', 'ticket_responded', 'contact_request', 'payment_received',
-            'sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion'
+            'sgsst_reporte_acto', 'sgsst_participacion_ipevar', 'sgsst_alta_direccion', 'sgsst_perfil_update'
         ],
         required: true,
     },

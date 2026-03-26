@@ -375,8 +375,10 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
             createdAt: new Date()
         };
 
+        const companyObjectId = new mongoose.Types.ObjectId(companyId);
+
         await AltaDireccionData.findOneAndUpdate(
-            { user: companyId },
+            { user: companyObjectId },
             { $push: { inboxPublico: newReport } },
             { upsert: true, new: true }
         );
@@ -401,4 +403,116 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
     }
 });
 
+// ─── GET /api/public-sgsst/perfil-update/:companyId/:workerId ──────────────
+// Fetch current worker profile data to pre-fill the self-update form
+router.get('/perfil-update/:companyId/:workerId', async (req, res) => {
+    try {
+        const { companyId, workerId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        if (!PerfilSociodemograficoData) {
+            return res.status(500).json({ error: 'Modelo no encontrado' });
+        }
+
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        if (!perfil || !perfil.trabajadores) {
+            return res.status(404).json({ error: 'Empresa sin trabajadores registrados.' });
+        }
+
+        const worker = perfil.trabajadores.find(t => String(t.id) === String(workerId));
+        if (!worker) {
+            return res.status(404).json({ error: 'Trabajador no encontrado' });
+        }
+
+        const company = await (require('~/models/CompanyInfo')).findOne({ user: companyId }).lean();
+
+        return res.json({
+            companyName: company?.companyName || 'Empresa',
+            logo: company?.logoBase64 || null,
+            worker: {
+                id: worker.id,
+                nombre: worker.nombre,
+                cargo: worker.cargo,
+                identificacion: worker.identificacion,
+                telefono: worker.telefono || '',
+                emergenciaContacto: worker.emergenciaContacto || '',
+                tipoSangre: worker.tipoSangre || '',
+                enfermedades: worker.enfermedades || '',
+                medicamentos: worker.medicamentos || '',
+                fuma: worker.fuma || '',
+                alcohol: worker.alcohol || '',
+                terapiaPsicologica: worker.terapiaPsicologica || '',
+                personasCargo: worker.personasCargo ?? '',
+                estrato: worker.estrato || '',
+                vivienda: worker.vivienda || '',
+                soatVencimiento: worker.soatVencimiento || '',
+                tecnicomecanicaVencimiento: worker.tecnicomecanicaVencimiento || '',
+                licenciaSST: worker.licenciaSST || '',
+                licenciaVencimiento: worker.licenciaVencimiento || '',
+                curso50h: worker.curso50h || '',
+                curso20h: worker.curso20h || '',
+            }
+        });
+    } catch (err) {
+        logger.error('[Public Perfil Update GET]', err);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// ─── POST /api/public-sgsst/perfil-update/:companyId/:workerId ─────────────
+// Worker self-submits profile data update; stored in pending inbox for admin approval
+router.post('/perfil-update/:companyId/:workerId', async (req, res) => {
+    try {
+        const { companyId, workerId } = req.params;
+        const updates = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        const perfil = await PerfilSociodemograficoData.findOne({ user: new mongoose.Types.ObjectId(companyId) });
+        if (!perfil) return res.status(404).json({ error: 'Empresa no encontrada' });
+
+        const worker = (perfil.trabajadores || []).find(t => String(t.id) === String(workerId));
+        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+        // Store in the pending inbox
+        if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
+        perfil.actualizacionesPendientes.push({
+            id: new mongoose.Types.ObjectId().toString(),
+            workerId,
+            workerNombre: worker.nombre,
+            workerCargo: worker.cargo,
+            updates,
+            status: 'pending',
+            createdAt: new Date()
+        });
+        await perfil.save();
+
+        // Notify admin
+        try {
+            const Notif = require('~/models/Notification');
+            await Notif.create({
+                user: new mongoose.Types.ObjectId(companyId),
+                type: 'sgsst_perfil_update',
+                title: 'Actualización de Perfil Recibida',
+                body: `${worker.nombre} ha solicitado actualizar su perfil sociodemográfico.`,
+                metadata: { module: 'perfil_sociodemografico', workerId }
+            });
+        } catch (notifErr) {
+            logger.warn('[Public Perfil Update] Could not create notification:', notifErr.message);
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        logger.error('[Public Perfil Update POST]', err);
+        res.status(500).json({ error: 'Error al enviar actualización' });
+    }
+});
+
 module.exports = router;
+

@@ -4,6 +4,7 @@ import PublicReporteActos from '~/components/SGSST/PublicReporteActos';
 import PublicParticipacionIPEVAR from '~/components/SGSST/PublicParticipacionIPEVAR';
 import PublicAltaDireccion from '~/components/SGSST/PublicAltaDireccion';
 import PublicAtelTestimonio from '~/components/SGSST/PublicAtelTestimonio';
+import PublicPerfilUpdate from '~/components/SGSST/PublicPerfilUpdate';
 import PrivacyPolicyPage from '~/components/Auth/PrivacyPolicyPage';
 import TermsOfServicePage from '~/components/Auth/TermsOfServicePage';
 import WappyAboutPage from '~/components/Auth/WappyAboutPage';
@@ -82,6 +83,11 @@ export const router = createBrowserRouter(
     {
       path: 'sgsst-public/atel-testimonio/:companyId',
       element: <PublicAtelTestimonio />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      path: 'sgsst-public/perfil-update/:companyId/:workerId',
+      element: <PublicPerfilUpdate />,
       errorElement: <RouteErrorBoundary />,
     },
     {

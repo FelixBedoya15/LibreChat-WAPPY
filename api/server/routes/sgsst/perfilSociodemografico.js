@@ -70,11 +70,29 @@ const WorkerEntrySchema = new mongoose.Schema({
   completedByAI: { type: Boolean, default: false },
   consentimientoFirmaDigital: { type: String, default: 'No' },
   firmaDigital: { type: String, default: null },
+  // New extended sociodemographic fields
+  emergenciaContacto: { type: String, default: '' },
+  tipoSangre: { type: String, default: '' },
+  enfermedades: { type: String, default: '' },
+  medicamentos: { type: String, default: '' },
+  fuma: { type: String, default: '' },
+  alcohol: { type: String, default: '' },
+  terapiaPsicologica: { type: String, default: '' },
+  personasCargo: { type: mongoose.Schema.Types.Mixed, default: '' },
+  estrato: { type: String, default: '' },
+  vivienda: { type: String, default: '' },
+  soatVencimiento: { type: String, default: '' },
+  tecnicomecanicaVencimiento: { type: String, default: '' },
+  licenciaSST: { type: String, default: '' },
+  licenciaVencimiento: { type: String, default: '' },
+  curso50h: { type: String, default: '' },
+  curso20h: { type: String, default: '' },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   trabajadores: [WorkerEntrySchema],
+  actualizacionesPendientes: { type: Array, default: [] },
   updatedAt: { type: Date, default: Date.now },
 });
 

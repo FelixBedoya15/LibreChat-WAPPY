@@ -4,6 +4,12 @@ export const generateDummyData = {
         const d = new Date();
         const past = (months: number) => new Date(d.setMonth(d.getMonth() - months)).toISOString().split('T')[0];
         
+        const newFields = {
+            emergenciaContacto: '', tipoSangre: '', enfermedades: '', medicamentos: '',
+            fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '' as const,
+            estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
+            licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
+        };
         return [
             {
                 id: crypto.randomUUID(),
@@ -19,12 +25,18 @@ export const generateDummyData = {
                 fechaExamenMedico: past(6),
                 fechaCursoAlturasAutorizado: past(12),
                 fechaCursoAlturasCoordinador: past(12),
-                diagnosticoMedico: 'Sano',
+                diagnosticoMedico: 'Apto / Sin Hallazgos',
                 recomendacionesMedicas: 'Pausas activas visuales cada 2 horas.',
-                fechaSeguimiento: past(-6), // in 6 months
+                fechaSeguimiento: past(-6),
                 completedByAI: false,
                 consentimientoFirmaDigital: 'Sí',
-                firmaDigital: null
+                firmaDigital: null,
+                ...newFields,
+                emergenciaContacto: 'Esposa - 3154567890',
+                tipoSangre: 'O+',
+                estrato: '4',
+                vivienda: 'Propia',
+                personasCargo: 3,
             },
             {
                 id: crypto.randomUUID(),
@@ -40,12 +52,22 @@ export const generateDummyData = {
                 fechaExamenMedico: past(2),
                 fechaCursoAlturasAutorizado: past(5),
                 fechaCursoAlturasCoordinador: '',
-                diagnosticoMedico: 'Miopía leve',
+                diagnosticoMedico: 'Visual - Vicios de refracción',
                 recomendacionesMedicas: 'Uso de lentes de descanso en pantalla.',
                 fechaSeguimiento: past(-10),
                 completedByAI: false,
                 consentimientoFirmaDigital: 'No',
-                firmaDigital: null
+                firmaDigital: null,
+                ...newFields,
+                emergenciaContacto: 'Mamá - 3011112222',
+                tipoSangre: 'A+',
+                estrato: '3',
+                vivienda: 'Arrendada',
+                personasCargo: 0,
+                licenciaSST: 'LIC-SST-12345',
+                licenciaVencimiento: past(-24),
+                curso50h: past(-18),
+                curso20h: past(-12),
             },
             {
                 id: crypto.randomUUID(),
@@ -61,12 +83,21 @@ export const generateDummyData = {
                 fechaExamenMedico: past(1),
                 fechaCursoAlturasAutorizado: past(1),
                 fechaCursoAlturasCoordinador: '',
-                diagnosticoMedico: 'Lumbalgia mecánica',
+                diagnosticoMedico: 'Osteomuscular - Espalda',
                 recomendacionesMedicas: 'Evitar levantamiento de cargas mayores a 15kg. Terapia física.',
                 fechaSeguimiento: past(-1),
                 completedByAI: false,
                 consentimientoFirmaDigital: 'Sí',
-                firmaDigital: null
+                firmaDigital: null,
+                ...newFields,
+                emergenciaContacto: 'Compañera - 3023334455',
+                tipoSangre: 'B+',
+                enfermedades: 'Lumbalgia crónica',
+                fuma: 'Sí, diario',
+                alcohol: 'Semanal',
+                estrato: '2',
+                vivienda: 'Arrendada',
+                personasCargo: 2,
             }
         ];
     },
