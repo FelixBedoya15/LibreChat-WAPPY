@@ -93,14 +93,19 @@ export default function PublicPerfilUpdate() {
         setVerifying(true);
         setVerifyError('');
         try {
-            const res = await axios.get(`/api/public-sgsst/perfil-update/${companyId}/${workerId}`);
+            // Include cedula as query param just in case workerId is undefined
+            const res = await axios.get(`/api/public-sgsst/perfil-update/${companyId}/${workerId}?cedula=${cedula}`);
             const w: WorkerData = res.data.worker;
-            if (String(w.identificacion).trim() !== String(cedula).trim()) {
+            
+            // If we have a specific workerId in URL, still cross-check for extra security
+            if (workerId && workerId !== 'undefined' && String(w.identificacion).trim() !== String(cedula).trim()) {
                 setVerifyError('La cédula ingresada no coincide con este perfil. Por favor verifica e intenta de nuevo.');
                 return;
             }
+            
             setWorkerData(w);
             setFormData({
+                id: w.id, // Store real ID
                 telefono: w.telefono, emergenciaContacto: w.emergenciaContacto,
                 tipoSangre: w.tipoSangre, enfermedades: w.enfermedades,
                 medicamentos: w.medicamentos, fuma: w.fuma, alcohol: w.alcohol,
@@ -121,7 +126,12 @@ export default function PublicPerfilUpdate() {
     const handleSubmit = async () => {
         setSubmitting(true);
         try {
-            await axios.post(`/api/public-sgsst/perfil-update/${companyId}/${workerId}`, formData);
+            // Use URL param if available, otherwise fallback to workerData.id found during verification
+            const targetWorkerId = (workerId && workerId !== 'undefined') ? workerId : workerData?.id;
+            await axios.post(`/api/public-sgsst/perfil-update/${companyId}/${targetWorkerId}`, {
+                updates: formData,
+                cedula: cedula // Fallback for backend finding logic
+            });
             setStep(3);
         } catch (err: any) {
             alert(err.response?.data?.error || 'Error al enviar. Intenta de nuevo.');

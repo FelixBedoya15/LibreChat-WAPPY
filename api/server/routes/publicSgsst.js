@@ -336,17 +336,23 @@ router.post('/validate-alta-direccion/:companyId', async (req, res) => {
         const { companyId } = req.params;
         const { cedula, nombre } = req.body;
 
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
         if (!PerfilSociodemograficoData) return res.status(500).json({ error: 'Modelo no encontrado' });
 
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
-        if (!perfil || !perfil.trabajadores) return res.status(404).json({ error: 'Empresa sin trabajadores registrados.' });
+        // IMPORTANT: Always cast to ObjectId to match how the document was stored
+        const companyObjectId = new mongoose.Types.ObjectId(companyId);
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyObjectId }).lean();
+        if (!perfil || !perfil.trabajadores) return res.status(404).json({ error: 'Empresa sin trabajadores registrados. Asegúrese de haber guardado el Perfil Sociodemográfico.' });
 
         const worker = perfil.trabajadores.find(t => String(t.identificacion).trim() === String(cedula).trim());
         if (!worker) return res.status(403).json({ error: 'Cédula no encontrada en el sistema.' });
 
         if (!isGerenciaRole(worker.cargo)) {
-            return res.status(403).json({ error: `Acceso denegado. Cargo: "${worker.cargo}". Solo para Gerencia.` });
+            return res.status(403).json({ error: `Acceso denegado. Cargo: "${worker.cargo}". Solo personal de Gerencia/Dirección puede acceder a este portal.` });
         }
         res.json({ success: true, trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion } });
     } catch (error) {
@@ -360,33 +366,43 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
     try {
         const { companyId } = req.params;
         const { cedula, data } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(companyId)) {
+            return res.status(400).json({ error: 'ID de empresa inválido' });
+        }
+
         const AltaDireccionData = mongoose.models.AltaDireccionData;
         const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
 
-        const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+        if (!AltaDireccionData || !PerfilSociodemograficoData) {
+            return res.status(500).json({ error: 'Modelos no encontrados. Asegúrese de que el sistema esté completamente cargado.' });
+        }
+
+        // Always cast to ObjectId for consistent findOne behavior
+        const companyObjectId = new mongoose.Types.ObjectId(companyId);
+
+        const perfil = await PerfilSociodemograficoData.findOne({ user: companyObjectId }).lean();
         const worker = perfil?.trabajadores?.find(t => String(t.identificacion).trim() === String(cedula).trim());
         if (!worker || !isGerenciaRole(worker.cargo)) return res.status(403).json({ error: 'No autorizado.' });
 
         const newReport = {
-            id: new mongoose.Types.ObjectId().toString(), // always string
+            id: new mongoose.Types.ObjectId().toString(),
             trabajador: { nombre: worker.nombre, cargo: worker.cargo, cedula: worker.identificacion },
             data: data,
             status: 'pending',
             createdAt: new Date()
         };
 
-        const companyObjectId = new mongoose.Types.ObjectId(companyId);
-
         await AltaDireccionData.findOneAndUpdate(
             { user: companyObjectId },
-            { $push: { inboxPublico: newReport } },
+            { $push: { inboxPublico: newReport }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
 
         // ─── Crear notificación de sistema ───
         try {
             await Notification.create({
-                user: companyId,
+                user: companyObjectId,  // Use ObjectId consistently
                 type: 'sgsst_alta_direccion',
                 title: 'Nueva Evaluación de Alta Dirección',
                 body: `${worker.nombre} (${worker.cargo}) ha enviado su revisión por la Alta Dirección desde el portal público.`,
@@ -396,7 +412,7 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
             logger.warn('[Public AltaDireccion] Could not create notification:', notifErr.message);
         }
 
-        res.json({ success: true });
+        res.json({ success: true, message: 'Evaluación enviada correctamente. El administrador SST recibirá una notificación.' });
     } catch (error) {
         logger.error('[Public AltaDireccion] Submission error:', error);
         res.status(500).json({ error: 'Error al enviar' });
@@ -405,9 +421,11 @@ router.post('/alta-direccion/:companyId', async (req, res) => {
 
 // ─── GET /api/public-sgsst/perfil-update/:companyId/:workerId ──────────────
 // Fetch current worker profile data to pre-fill the self-update form
-router.get('/perfil-update/:companyId/:workerId', async (req, res) => {
+router.get('/perfil-update/:companyId/:workerId?', async (req, res) => {
     try {
         const { companyId, workerId } = req.params;
+        const { cedula } = req.query;
+
         if (!mongoose.Types.ObjectId.isValid(companyId)) {
             return res.status(400).json({ error: 'ID de empresa inválido' });
         }
@@ -418,13 +436,19 @@ router.get('/perfil-update/:companyId/:workerId', async (req, res) => {
         }
 
         const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
-        if (!perfil || !perfil.trabajadores) {
-            return res.status(404).json({ error: 'Empresa sin trabajadores registrados.' });
+        if (!perfil || !perfil.trabajadores || perfil.trabajadores.length === 0) {
+            return res.status(404).json({ error: 'La empresa no cuenta con un Perfil Sociodemográfico registrado' });
         }
 
-        const worker = perfil.trabajadores.find(t => String(t.id) === String(workerId));
+        let worker;
+        if (workerId && workerId !== 'undefined') {
+            worker = perfil.trabajadores.find(t => String(t.id) === String(workerId));
+        } else if (cedula) {
+            worker = perfil.trabajadores.find(t => String(t.identificacion).trim() === String(cedula).trim());
+        }
+
         if (!worker) {
-            return res.status(404).json({ error: 'Trabajador no encontrado' });
+            return res.status(404).json({ error: 'Trabajador no encontrado o identificación incorrecta.' });
         }
 
         const company = await (require('~/models/CompanyInfo')).findOne({ user: companyId }).lean();
@@ -464,10 +488,10 @@ router.get('/perfil-update/:companyId/:workerId', async (req, res) => {
 
 // ─── POST /api/public-sgsst/perfil-update/:companyId/:workerId ─────────────
 // Worker self-submits profile data update; stored in pending inbox for admin approval
-router.post('/perfil-update/:companyId/:workerId', async (req, res) => {
+router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
     try {
-        const { companyId, workerId } = req.params;
-        const updates = req.body;
+        const { companyId, workerId: paramWorkerId } = req.params;
+        const { updates, cedula } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(companyId)) {
             return res.status(400).json({ error: 'ID de empresa inválido' });
@@ -477,17 +501,25 @@ router.post('/perfil-update/:companyId/:workerId', async (req, res) => {
         const perfil = await PerfilSociodemograficoData.findOne({ user: new mongoose.Types.ObjectId(companyId) });
         if (!perfil) return res.status(404).json({ error: 'Empresa no encontrada' });
 
-        const worker = (perfil.trabajadores || []).find(t => String(t.id) === String(workerId));
+        let worker;
+        if (paramWorkerId && paramWorkerId !== 'undefined') {
+            worker = (perfil.trabajadores || []).find(t => String(t.id) === String(paramWorkerId));
+        } else if (cedula) {
+            worker = (perfil.trabajadores || []).find(t => String(t.identificacion).trim() === String(cedula).trim());
+        }
+
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+        const workerId = worker.id; // Use the real ID found
 
         // Store in the pending inbox
         if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
         perfil.actualizacionesPendientes.push({
             id: new mongoose.Types.ObjectId().toString(),
             workerId,
-            workerNombre: worker.nombre,
+            workerName: worker.nombre, // Standardized key
             workerCargo: worker.cargo,
-            updates,
+            changes: updates,           // Standardized key
             status: 'pending',
             createdAt: new Date()
         });

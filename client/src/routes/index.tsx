@@ -86,7 +86,7 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
-      path: 'sgsst-public/perfil-update/:companyId/:workerId',
+      path: 'sgsst-public/perfil-update/:companyId/:workerId?',
       element: <PublicPerfilUpdate />,
       errorElement: <RouteErrorBoundary />,
     },

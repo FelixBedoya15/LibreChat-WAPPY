@@ -261,10 +261,13 @@ router.get('/profile/:workerId', async (req, res) => {
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const data = await PerfilSociodemograficoData.findOne({ user: req.user.id });
-    if (data && data.trabajadores?.length) {
-      return res.json({ trabajadores: data.trabajadores });
+    if (data) {
+      return res.json({ 
+        trabajadores: data.trabajadores || [],
+        actualizacionesPendientes: data.actualizacionesPendientes || []
+      });
     }
-    res.json({ trabajadores: [] });
+    res.json({ trabajadores: [], actualizacionesPendientes: [] });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos' });
