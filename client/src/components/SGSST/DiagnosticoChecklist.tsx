@@ -15,11 +15,7 @@ import {
     History,
     Save,
     Loader2,
-    HelpCircle,
-    Users,
-    AlertTriangle,
-    Building2,
-    Bot,
+    HelpCircle, Plus, Trash2, ShieldCheck, Bot, Video, Film
 } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -117,7 +113,16 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState<string>(() => {
+        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    });
+
+    // Initialize model from user preferences when user data loads
+    React.useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user?.personalization?.geminiModels?.sstManagement]);
 
     // Get applicable checklist
     const checklist = useMemo(() => {

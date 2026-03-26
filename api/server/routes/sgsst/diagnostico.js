@@ -494,7 +494,9 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
             temperature: 0.7,
         };
 
-        const selectedModel = req.body.modelName || 'gemini-3.1-flash-lite-preview';
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const selectedModel = req.body.modelName || preferredModel;
 
         // Helper: generate with timeout (90 seconds)
         const generateWithTimeout = async (model, prompt, timeoutMs = 180000) => {

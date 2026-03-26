@@ -1,13 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Brain, ChevronDown, Check } from 'lucide-react';
 import { cn } from '~/utils';
-
-export const AI_MODELS = [
-    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
-    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite Preview' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' }
-];
+import { useGetModelsQuery } from 'librechat-data-provider/react-query';
+import { EModelEndpoint } from 'librechat-data-provider';
 
 interface ModelSelectorProps {
     selectedModel: string;
@@ -19,6 +14,16 @@ interface ModelSelectorProps {
 const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectModel, disabled, hideTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const modelsQuery = useGetModelsQuery();
+
+    const AI_MODELS = useMemo(() => {
+        const googleModels = modelsQuery.data?.[EModelEndpoint.google] || [];
+        return googleModels.map((model) => {
+            const id = typeof model === 'string' ? model : (model as any).id || (model as any).value;
+            const name = typeof model === 'string' ? model : (model as any).name || (model as any).label || id;
+            return { id, name };
+        });
+    }, [modelsQuery.data]);
 
     const currentModelName = AI_MODELS.find(m => m.id === selectedModel)?.name || selectedModel;
 

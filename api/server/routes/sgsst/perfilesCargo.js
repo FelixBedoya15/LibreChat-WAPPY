@@ -124,9 +124,11 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
       });
     }
 
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    const finalModelName = modelName || preferredModel;
     const genAI = new GoogleGenerativeAI(resolvedApiKey);
-    const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
-    model.apiKey = resolvedApiKey;
+    const model = genAI.getGenerativeModel({ model: finalModelName });
 
     const currentDate = new Date().toLocaleDateString('es-CO', {
       year: 'numeric',

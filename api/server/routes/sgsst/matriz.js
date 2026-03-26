@@ -220,8 +220,10 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
 `;
 
         // 4. Generate Content
-        const selectedModel = modelName || 'gemini-3.1-flash-lite-preview';
-        const model = genAI.getGenerativeModel({ model: selectedModel });
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
+        const model = genAI.getGenerativeModel({ model: finalModelName });
 
         const result = await generateWithRetry(model, promptText);
         const response = await result.response;

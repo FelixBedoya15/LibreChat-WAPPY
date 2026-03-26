@@ -69,12 +69,22 @@ export default function Personalization({
   useEffect(() => {
     if (user?.personalization?.geminiModels) {
       setGeminiModels({
-        generalChat: user.personalization.geminiModels.generalChat || '',
-        agents: user.personalization.geminiModels.agents || '',
-        sstManagement: user.personalization.geminiModels.sstManagement || '',
-        liveAnalysis: user.personalization.geminiModels.liveAnalysis || '',
-        textCorrection: user.personalization.geminiModels.textCorrection || '',
-        reportGeneration: user.personalization.geminiModels.reportGeneration || '',
+        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.1-flash-lite-preview',
+        agents: user.personalization.geminiModels.agents || 'gemini-3.1-flash-lite-preview',
+        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.1-flash-lite-preview',
+        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-2.5-flash-lite-preview-09-2025',
+        textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-2.5-flash',
+        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.1-flash-lite-preview',
+      });
+    } else {
+      // Set defaults if no data exists
+      setGeminiModels({
+        generalChat: 'gemini-3.1-flash-lite-preview',
+        agents: 'gemini-3.1-flash-lite-preview',
+        sstManagement: 'gemini-3.1-flash-lite-preview',
+        liveAnalysis: 'gemini-2.5-flash-lite-preview-09-2025',
+        textCorrection: 'gemini-2.5-flash',
+        reportGeneration: 'gemini-3.1-flash-lite-preview',
       });
     }
   }, [user?.personalization?.geminiModels]);
@@ -91,11 +101,20 @@ export default function Personalization({
   };
 
   const modelOptions = useMemo(() => {
-    const gModels = modelsQuery.data?.[EModelEndpoint.google] || [];
-    return [
+    const googleModels = modelsQuery.data?.[EModelEndpoint.google] || [];
+    const options = [
       { value: '', label: 'Predeterminado del sistema' },
-      ...gModels.map((model) => ({ value: model, label: model })),
     ];
+
+    googleModels.forEach((model) => {
+      const modelId = typeof model === 'string' ? model : (model as any).id || (model as any).value;
+      const modelLabel = typeof model === 'string' ? model : (model as any).name || (model as any).label || modelId;
+      if (modelId) {
+        options.push({ value: modelId, label: modelLabel });
+      }
+    });
+
+    return options;
   }, [modelsQuery.data]);
 
   if (!hasAnyPersonalizationFeature) {

@@ -308,8 +308,11 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
       companyContext = `Empresa: ${ci.companyName || 'Empresa'}\\nActividad: ${ci.economicActivity || 'General'}`;
     }
 
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    const finalModelName = modelName || preferredModel;
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+    const model = genAI.getGenerativeModel({ model: finalModelName });
 
     const systemPrompt = `Eres un experto en Recursos Humanos y SST en Colombia.
 Tu tarea es generar la estructura inicial de un Perfil Sociodemográfico para la siguiente empresa:
@@ -471,7 +474,10 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
 - Tablas generadas por la IA DEBEN estar envueltas dentro de un < div style = "overflow-x: auto; width: 100%; margin-bottom: 20px;" >.La tabla debe tener los estilos: width: 100 %; min - width: 700px; border - collapse: separate; border - spacing: 0; border - radius: 12px; border: 1px solid #ddd;, th con background - color="#0f766e" y color = "white".
 - Celdas(td): padding = "10px", border - bottom="1px solid #ddd"(sin background - color predeterminado para que hereden el modo oscuro).`;
 
-    const model = genAI.getGenerativeModel({ model: modelName });
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    const finalModelName = modelName || preferredModel;
+    const model = genAI.getGenerativeModel({ model: finalModelName });
     const result = await generateWithRetry(model, promptText);
     let aiHtml = result.response.text().trim();
     aiHtml = aiHtml.replace(/```html\n?/gi, '').replace(/```\n?/gi, '').trim();

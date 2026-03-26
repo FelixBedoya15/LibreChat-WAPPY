@@ -164,8 +164,11 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
     }
 
+    const personalization = req.user?.personalization?.geminiModels;
+    const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    const finalModelName = modelName || preferredModel;
     const genAI = new GoogleGenerativeAI(resolvedApiKey);
-    const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+    const model = genAI.getGenerativeModel({ model: finalModelName });
 
     const currentDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 

@@ -86,7 +86,13 @@ const PerfilSociodemografico = () => {
     const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
 
-    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
+
+    useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user?.personalization?.geminiModels?.sstManagement]);
     const [expandedWorkers, setExpandedWorkers] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);

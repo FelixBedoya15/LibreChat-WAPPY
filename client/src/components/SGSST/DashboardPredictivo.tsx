@@ -146,7 +146,13 @@ const DashboardPredictivo = () => {
     const [editorContent, setEditorContent] = useState('');
 
     // UI State
-    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
+
+    useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [editorKey, setEditorKey] = useState(() => Date.now().toString());

@@ -146,8 +146,11 @@ Instrucciones Críticas de Contenido y Formato:
             });
         }
 
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+        const model = genAI.getGenerativeModel({ model: finalModelName });
 
         const result = await generateWithRetry(model, prompt);
         const response = await result.response;

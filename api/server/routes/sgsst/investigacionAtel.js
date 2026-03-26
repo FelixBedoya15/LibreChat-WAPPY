@@ -451,10 +451,12 @@ REGLAS DE DISEÑO OBLIGATORIAS:
 `;
 
         // ── Generate ──
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const selectedModelName = modelName || 'gemini-3.1-flash-lite-preview';
         const model = genAI.getGenerativeModel({
-            model: selectedModelName,
+            model: finalModelName,
             generationConfig: { maxOutputTokens: 65000, temperature: 0.65 },
         });
 

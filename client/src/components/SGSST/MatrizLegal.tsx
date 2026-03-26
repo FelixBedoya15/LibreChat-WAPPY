@@ -76,7 +76,13 @@ const MatrizLegal = () => {
     const [generatedMatrix, setGeneratedMatrix] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState('');
 
-    const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0].id);
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || AI_MODELS[0].id);
+
+    useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user]);
 
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);

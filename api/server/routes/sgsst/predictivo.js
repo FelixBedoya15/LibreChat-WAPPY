@@ -478,8 +478,11 @@ Tabla completa y detallada con columnas:
 - **Barras:** Un div externo \`background-color: #e2e8f0; border-radius: 8px; height: 28px;\` con un div interno \`background-color: #0f766e; color: white; border-radius: 8px; height: 100%; display: flex; align-items: center; padding-left: 10px; font-size: 13px; font-weight: bold;\` con \`width: XX%\`.
 - NO incluyas título H1 (ya está en el encabezado del sistema).`;
 
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+        const model = genAI.getGenerativeModel({ model: finalModelName });
 
         const result = await generateWithRetry(model, promptText);
         const text = result.response.text();

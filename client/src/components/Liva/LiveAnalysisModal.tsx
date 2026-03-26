@@ -40,7 +40,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     // NEW: Countdown state
     // UPDATED: Faster countdown for better UX
-    const [countdown, setCountdown] = useState(3);
+    const [countdown, setCountdown] = useState(10);
 
     // NEW: Track if report has been received
     const [hasReceivedReport, setHasReceivedReport] = useState(false);
@@ -579,7 +579,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                     strokeWidth="4"
                                     fill="transparent"
                                     strokeDasharray={754}
-                                    strokeDashoffset={754 - (754 * (3 - countdown) / 3)}
+                                    strokeDashoffset={754 - (754 * (10 - countdown) / 10)}
                                     className="text-teal-500 transition-all duration-1000 ease-linear"
                                 />
                             </svg>

@@ -358,7 +358,9 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const selectedModel = modelName || 'gemini-3.1-flash-lite-preview';
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const selectedModel = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
         // Build expanded SST context
@@ -569,7 +571,9 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
         if (ci) companyContext = buildCompanyContextString(ci);
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const model = genAI.getGenerativeModel({ model: modelName || preferredModel });
 
         // Build expanded SST context
         const integratedSSTContext = await getIntegratedSSTContext(req.user.id);
@@ -766,9 +770,12 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 });
 
 // ─── POST /analyze — Generate AI Exec Report for Matrix ─────────────────────────────
-router.post('/analyze', requireJwtAuth, async (req, res) => {
+    router.post('/analyze', requireJwtAuth, async (req, res) => {
     try {
-        const { procesos, currentDate, userName, modelName = 'gemini-3.1-flash-lite-preview' } = req.body;
+        const { procesos, currentDate, userName, modelName } = req.body;
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
 
         if (!procesos || !Array.isArray(procesos) || procesos.length === 0) {
             return res.status(400).json({ error: 'No hay procesos para analizar.' });
@@ -927,7 +934,7 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
 - **SECCIONES:** Usa cajas con \`border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.04);\`.
 - No incluyas título h1 (ya está en el encabezado).`;
 
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const model = genAI.getGenerativeModel({ model: finalModelName });
         const parts = [{ text: promptText }];
 
         // Collect all media from all processes for the AI context

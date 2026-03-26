@@ -39,7 +39,9 @@ const ResponsableSGSST = () => {
     const [licenseExpiry, setLicenseExpiry] = useState('');
     const [courseStatus, setCourseStatus] = useState('');
     const [additionalNorms, setAdditionalNorms] = useState('');
-    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState<string>(() => {
+        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    });
 
     // Generated document
     const [generatedDoc, setGeneratedDoc] = useState<string | null>(null);
@@ -55,6 +57,13 @@ const ResponsableSGSST = () => {
 
     // Expand/collapse form
     const [isFormExpanded, setIsFormExpanded] = useState(true);
+
+    // Initialize model from user preferences when user data loads
+    React.useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user?.personalization?.geminiModels?.sstManagement]);
 
     // Auto-fill from company info
     React.useEffect(() => {

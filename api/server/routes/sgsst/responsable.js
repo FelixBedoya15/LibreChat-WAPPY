@@ -115,8 +115,20 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
         const finalNorms = additionalNorms || 'Resolución 908 de 2025, Resolución 0312 de 2019';
 
         // 3. Initialize the Gemini SDK
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
+
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+        const model = genAI.getGenerativeModel({ 
+            model: finalModelName,
+            generationConfig: {
+                temperature: 0.7,
+                topP: 0.95,
+                topK: 40,
+                maxOutputTokens: 4096,
+            }
+        });
 
         const currentDate = new Date().toLocaleDateString('es-CO', {
             year: 'numeric',

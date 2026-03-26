@@ -32,7 +32,13 @@ const ReglamentoHigiene = () => {
     const [identifiedRisks, setIdentifiedRisks] = useState('');
     const [workShifts, setWorkShifts] = useState('');
     const [additionalRules, setAdditionalRules] = useState('');
-    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
+
+    React.useEffect(() => {
+        if (user?.personalization?.geminiModels?.sstManagement) {
+            setSelectedModel(user.personalization.geminiModels.sstManagement);
+        }
+    }, [user?.personalization?.geminiModels?.sstManagement]);
 
     // Generated content
     const [generatedDocument, setGeneratedDocument] = useState<string | null>(null);

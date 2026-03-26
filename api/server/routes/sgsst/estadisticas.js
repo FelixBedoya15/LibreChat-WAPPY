@@ -326,8 +326,11 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
 `;
 
         // ─── 5. Generation ─────────────────────────────────────────────
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(await getApiKey(req.user.id));
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3.1-flash-lite-preview' });
+        const model = genAI.getGenerativeModel({ model: finalModelName });
 
         const result = await generateWithRetry(model, promptText);
         const text = result.response.text();

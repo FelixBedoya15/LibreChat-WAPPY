@@ -144,7 +144,7 @@ const WorkerAutocomplete = ({
 
 const MetodoOwas = () => {
   const { showToast } = useToastContext();
-  const { token } = useAuthContext();
+  const { user, token } = useAuthContext();
 
   const [formData, setFormData] = useState({
     cargo: '',
@@ -169,15 +169,21 @@ const MetodoOwas = () => {
   const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+  const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const [editorContent, setEditorContent] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
+  const [editorKey, setEditorKey] = useState(() => Date.now().toString());
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  React.useEffect(() => {
+    if (user?.personalization?.geminiModels?.sstManagement) {
+      setSelectedModel(user.personalization.geminiModels.sstManagement);
+    }
+  }, [user?.personalization?.geminiModels?.sstManagement]);
   const [isFormExpanded, setIsFormExpanded] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');

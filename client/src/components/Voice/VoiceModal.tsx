@@ -46,7 +46,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const localize = useLocalize();
     const [voiceChatGeneral, setVoiceChatGeneral] = useRecoilState(store.voiceChatGeneral);
     const [selectedVoice, setSelectedVoice] = useState(voiceChatGeneral);
-    const [countdownValue, setCountdownValue] = useState(3);
+    const [countdownValue, setCountdownValue] = useState(10);
     const [isReady, setIsReady] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOn, setIsCameraOn] = useState(true); // START ON by default
@@ -366,7 +366,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         <div className="relative">
                             <svg className="w-64 h-64 -rotate-90 transform">
                                 <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="2" fill="transparent" className="text-white/5" />
-                                <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={754} strokeDashoffset={754 - (754 * (3 - countdownValue) / 3)} className="text-teal-500 transition-all duration-1000 ease-linear" />
+                                <circle cx="128" cy="128" r="120" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={754} strokeDashoffset={754 - (754 * (10 - countdownValue) / 10)} className="text-teal-500 transition-all duration-1000 ease-linear" />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-7xl font-mono font-bold text-white tracking-tighter">00:{countdownValue.toString().padStart(2, '0')}</span>
@@ -412,9 +412,9 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                                 <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-teal-500 rounded-full"></span>
                                 <span className="truncate max-w-[120px] md:max-w-none">ASISTENTE SST</span>
                             </h2>
-                            <p className="text-white/40 text-[8px] md:text-[10px] font-mono tracking-tighter uppercase">
-                                PROCESO: CONVERSACIÓN
-                            </p>
+                                <p className="text-xs text-text-secondary mt-1 tracking-widest uppercase opacity-70">
+                                    {(10 - countdownValue)} SECONDS REMAINING
+                                </p>
                         </div>
                     </div>
 
