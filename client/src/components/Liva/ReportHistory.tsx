@@ -4,7 +4,7 @@ import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner, OGDialog, OGDialogContent, Button } from '@librechat/client';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import { useQueryClient, type InfiniteQueryObserverResult } from '@tanstack/react-query';
-import { FileText, RefreshCw, X, MoreVertical, Edit, Trash } from 'lucide-react';
+import { FileText, RefreshCw, X, MoreVertical, Edit, Trash, History } from 'lucide-react';
 import { cn } from '~/utils';
 import axios from 'axios';
 
@@ -189,33 +189,49 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
         return data ? data.pages.flatMap((page) => page.conversations) : [];
     }, [data]);
 
-    return (
-        <div
-            className={cn(
-                "fixed inset-y-0 left-0 z-[200] w-72 bg-surface-primary border-r border-black/10 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl",
-                isOpen ? "translate-x-0" : "-translate-x-full"
-            )}
-        >
-            <div className="flex items-center justify-between p-4 border-b border-black/10">
-                <div className="flex items-center gap-2">
-                    <h2 className="font-semibold text-lg text-text-primary">{localize('com_ui_history')}</h2>
-                    <button
-                        onClick={handleManualRefresh}
-                        className="p-1 hover:bg-surface-hover rounded-full transition-colors text-text-secondary hover:text-text-primary"
-                        title={localize('com_ui_refresh_list')}
-                    >
-                        <RefreshCw className={cn("w-4 h-4", (isLoading || isFetchingNextPage) && "animate-spin")} />
-                    </button>
-                </div>
-                <button
-                    onClick={toggleOpen}
-                    className="p-1 hover:bg-surface-hover rounded-full transition-colors"
-                >
-                    <X className="w-5 h-5 text-text-secondary" />
-                </button>
-            </div>
+    if (!isOpen) return null;
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+            {/* Backdrop to handle click outside */}
+            <div 
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+                onClick={toggleOpen}
+            />
+
+            {/* Popup Card */}
+            <div className="relative w-full max-w-lg bg-surface-primary border border-border-light rounded-[24px] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-border-light bg-surface-secondary/30">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-[14px]">
+                            <History className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-xl text-text-primary tracking-tight">{localize('com_ui_history')}</h2>
+                            <p className="text-xs text-text-secondary mt-0.5 font-medium">Historial de reportes generados</p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                        <button
+                            onClick={toggleOpen}
+                            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors group"
+                        >
+                            <X className="w-5 h-5 text-text-secondary group-hover:text-text-primary transition-colors" />
+                        </button>
+                        <button
+                            onClick={handleManualRefresh}
+                            className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-text-secondary hover:text-blue-600 transition-colors tracking-wider"
+                            title={localize('com_ui_refresh_list')}
+                        >
+                            <RefreshCw className={cn("w-3.5 h-3.5", (isLoading || isFetchingNextPage) && "animate-spin")} />
+                            Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[60vh]">
                 {isLoading && (
                     <div className="flex justify-center p-4">
                         <Spinner />
@@ -232,20 +248,23 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                 {conversations.map((convo) => (
                     <div key={convo.conversationId} className="relative group">
                         <button
-                            onClick={() => onSelectReport(convo.conversationId ?? '')}
-                            className="w-full text-left p-3 rounded-lg hover:bg-surface-hover transition-colors border border-transparent hover:border-black/5 pr-8"
+                            onClick={() => {
+                                onSelectReport(convo.conversationId ?? '');
+                                toggleOpen(); // Close modal upon selection
+                            }}
+                            className="w-full text-left p-4 rounded-2xl hover:bg-surface-secondary transition-colors border border-transparent hover:border-black/5 pr-8 bg-surface-primary shadow-sm"
                         >
-                            <div className="flex items-start gap-3">
-                                <div className="mt-1 p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded text-blue-600 dark:text-blue-400">
-                                    <FileText className="w-4 h-4" />
+                            <div className="flex items-start gap-4">
+                                <div className="mt-0.5 p-2 bg-surface-tertiary rounded-xl text-[#0d9488] border border-border-light shadow-sm">
+                                    <FileText className="w-5 h-5" strokeWidth={1.5} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-medium text-sm text-text-primary truncate">
+                                    <h3 className="font-bold text-[15px] text-text-primary truncate tracking-tight">
                                         {convo.title || localize('com_ui_untitled_report')}
                                     </h3>
-                                    <p className="text-xs text-text-secondary mt-0.5 truncate">
+                                    <p className="text-[13px] font-medium text-text-secondary mt-1 max-w-[90%] truncate">
                                         {new Date(convo.updatedAt).toLocaleString(undefined, {
-                                            dateStyle: 'short',
+                                            dateStyle: 'medium',
                                             timeStyle: 'short',
                                         })}
                                     </p>
@@ -254,7 +273,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                         </button>
 
                         {/* Context Menu Trigger */}
-                        <div className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
                             <MenuDropdown
                                 conversationId={convo.conversationId}
                                 title={convo.title || localize('com_ui_report')}
@@ -290,11 +309,14 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                 ))}
 
                 {isFetchingNextPage && (
-                    <div className="flex justify-center p-2">
-                        <Spinner className="w-4 h-4" />
+                    <div className="flex justify-center p-4">
+                        <Spinner className="w-5 h-5 text-[#0d9488]" />
                     </div>
                 )}
             </div>
+            {/* Minimal footer line to round out the popup elegantly */}
+            <div className="h-2 bg-gradient-to-t from-surface-secondary/50 to-transparent" />
+        </div>
         </div>
     );
 };
