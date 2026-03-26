@@ -15,7 +15,7 @@ import {
     History,
     Save,
     Loader2,
-    HelpCircle, Plus, Trash2, ShieldCheck, Bot, Video, Film
+    HelpCircle, Plus, Trash2, ShieldCheck, Bot, Video, Film, Users, Building2
 } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
