@@ -14,44 +14,6 @@ const MONTHS = [
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const currentModelName = model.model.replace('models/', '');
-  
-  const fallbackOrder = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-pro-lite'
-  ];
-  
-  let modelsToTry = [currentModelName];
-  for (const m of fallbackOrder) {
-    if (m !== currentModelName) modelsToTry.push(m);
-  }
-  
-  let lastError;
-  for (const modelName of modelsToTry) {
-    if (!modelName) continue;
-    try {
-      if (modelName !== currentModelName) {
-         console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
-      }
-      const fallbackModel = genAI.getGenerativeModel({ 
-          model: modelName, 
-          generationConfig: model.generationConfig || {} 
-      });
-      return await fallbackModel.generateContent(promptText);
-    } catch (err) {
-      console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
-      lastError = err;
-    }
-  }
-  
-  throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 
 /**
  * POST /api/sgsst/estadisticas/generate
@@ -329,11 +291,8 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
         const personalization = req.user?.personalization?.geminiModels;
         const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const finalModelName = modelName || preferredModel;
-        const resolvedApiKey = await getApiKey(req.user.id);
-        const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: finalModelName });
-
-        const result = await generateWithRetry(model, resolvedApiKey, promptText);
+        const apiKeys = await getAllApiKeys(req.user.id);
+        let result = await generateWithKeyRotation(finalModelName, apiKeys, promptText);
         const text = result.response.text();
 
         let cleanedReport = cleanHtmlOutput(text);
@@ -351,27 +310,6 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
 });
 
 // Helpers
-async function getApiKey(userId) {
-    let key;
-    try {
-        const storedKey = await getUserKey({ userId, name: 'google' });
-        if (storedKey) {
-            try { key = JSON.parse(storedKey)[AuthKeys.GOOGLE_API_KEY] || JSON.parse(storedKey).GOOGLE_API_KEY; }
-            catch { key = storedKey; }
-        }
-    } catch { }
-
-    if (!key) {
-        key = process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY;
-    }
-
-    if (key && typeof key === 'string') {
-        key = key.split(',')[0].trim();
-    }
-
-    return key;
-}
-
 function cleanHtmlOutput(text) {
     return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')
         .replace(/<!DOCTYPE[^>]*>/gi, '')

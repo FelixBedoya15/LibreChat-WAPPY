@@ -9,30 +9,6 @@ const { logger } = require('~/config');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, apiKey, promptText) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const currentModelName = model.model.replace('models/', '');
-
-  const fallbackOrder = [
-    'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-pro-lite'
-  ];
-  let modelsToTry = [currentModelName];
-  for (const m of fallbackOrder) { if (m !== currentModelName) modelsToTry.push(m); }
-
-  let lastError;
-  for (const modelName of modelsToTry) {
-    if (!modelName) continue;
-    try {
-      if (modelName !== currentModelName) console.warn(`[Gemini SDK] Cambiando a: ${modelName}...`);
-      const fallbackModel = genAI.getGenerativeModel({ model: modelName, generationConfig: model.generationConfig || {} });
-      return await fallbackModel.generateContent(promptText);
-    } catch (err) { console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`); lastError = err; }
-  }
-  throw new Error(`Todos los modelos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 // ─── OWAS Risk Category Table (252 combinations) ────────────────────────
 // Returns category 1-4 based on back(1-4), arms(1-3), legs(1-7), load(1-3)
 // Based on official OWAS table published by Finnish Institute of Occupational Health
@@ -301,7 +277,7 @@ REGLA: EXTREMADAMENTE extenso, múltiples párrafos. Debe incluir:
       }
     }
 
-    const result = await generateWithRetry(model, resolvedApiKey, parts);
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
     const response = await result.response;
     const htmlBody = response.text().replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 

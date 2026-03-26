@@ -9,45 +9,6 @@ const { logger } = require('~/config');
 
 const router = express.Router();
 
-// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, apiKey, promptText, maxRetries = 3) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const currentModelName = model.model.replace('models/', '');
-  
-  const fallbackOrder = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-pro-lite'
-  ];
-  
-  let modelsToTry = [currentModelName];
-  for (const m of fallbackOrder) {
-    if (m !== currentModelName) modelsToTry.push(m);
-  }
-  
-  let lastError;
-  for (const modelName of modelsToTry) {
-    if (!modelName) continue;
-    try {
-      if (modelName !== currentModelName) {
-         console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
-      }
-      const fallbackModel = genAI.getGenerativeModel({ 
-          model: modelName, 
-          generationConfig: model.generationConfig || {} 
-      });
-      return await fallbackModel.generateContent(promptText);
-    } catch (err) {
-      console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
-      lastError = err;
-    }
-  }
-  
-  throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 // ─── Mongoose Schema for Participacion IPEVAR Trabajadores  ──────────────────
 const ParticipacionIpevarDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -264,7 +225,7 @@ Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si c
             }
         }
 
-        const result = await generateWithRetry(model, resolvedApiKey, parts);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
         const response = await result.response;
         const htmlBody = response.text().replace(/\`\`\`html\\n ?/g, '').replace(/\`\`\`/g, '').trim();
 

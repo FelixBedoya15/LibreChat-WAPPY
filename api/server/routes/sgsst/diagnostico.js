@@ -12,45 +12,6 @@ const { updateTagsForConversation } = require('~/models/ConversationTag');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
-// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const currentModelName = model.model.replace('models/', '');
-  
-  const fallbackOrder = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-pro-lite'
-  ];
-  
-  let modelsToTry = [currentModelName];
-  for (const m of fallbackOrder) {
-    if (m !== currentModelName) modelsToTry.push(m);
-  }
-  
-  let lastError;
-  for (const modelName of modelsToTry) {
-    if (!modelName) continue;
-    try {
-      if (modelName !== currentModelName) {
-         console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
-      }
-      const fallbackModel = genAI.getGenerativeModel({ 
-          model: modelName, 
-          generationConfig: model.generationConfig || {} 
-      });
-      return await fallbackModel.generateContent(promptText);
-    } catch (err) {
-      console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
-      lastError = err;
-    }
-  }
-  
-  throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 
 /**
  * POST /api/sgsst/diagnostico/analyze
@@ -504,7 +465,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
                 setTimeout(() => reject(new Error('TIMEOUT: La generación del informe excedió el tiempo límite. Intente de nuevo.')), timeoutMs)
             );
             const genPromise = (async () => {
-                const genResult = await generateWithRetry(model, resolvedApiKey, prompt);
+                const genResult = await generateWithKeyRotation(model, req.user?.id || req.user, prompt);
                 const genResponse = await genResult.response;
                 return genResponse.text();
             })();

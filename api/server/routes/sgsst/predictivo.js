@@ -31,45 +31,6 @@ async function getApiKey(userId) {
     return key;
 }
 
-// ─── HELPER: Google Gemini with Fallback (Same pattern as estadisticas.js) ───
-async function generateWithRetry(model, apiKey, promptText) {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const currentModelName = (model.model || 'gemini-2.0-flash').replace('models/', '');
-
-    const fallbackOrder = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-1.5-pro-lite'
-    ];
-
-    let modelsToTry = [currentModelName];
-    for (const m of fallbackOrder) {
-        if (m !== currentModelName) modelsToTry.push(m);
-    }
-
-    let lastError;
-    for (const modelName of modelsToTry) {
-        if (!modelName) continue;
-        try {
-            if (modelName !== currentModelName) {
-                console.warn(`[Predictivo] Cambiando a modelo de respaldo: ${modelName}...`);
-            }
-            const fallbackModel = genAI.getGenerativeModel({
-                model: modelName,
-                generationConfig: model.generationConfig || {}
-            });
-            return await fallbackModel.generateContent(promptText);
-        } catch (err) {
-            console.warn(`[Predictivo] Falló ${modelName}: ${err.message}`);
-            lastError = err;
-        }
-    }
-
-    throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 // ─── HELPER: Clean HTML Output (Same as estadisticas.js) ────────────────────
 function cleanHtmlOutput(text) {
     return text.replace(/```html\n?/g, '').replace(/```\n?/g, '')
@@ -484,7 +445,7 @@ Tabla completa y detallada con columnas:
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: finalModelName });
 
-        const result = await generateWithRetry(model, apiKey, promptText);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
         const text = result.response.text();
 
         let cleanedReport = cleanHtmlOutput(text);

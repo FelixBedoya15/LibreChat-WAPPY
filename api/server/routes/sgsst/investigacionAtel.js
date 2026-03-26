@@ -15,39 +15,6 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 // ─── DB Model Import ─────────────────────────────────────────────────────────
 const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
 
-// ─── HELPER: Gemini with model fallback ──────────────────────────────────────
-async function generateWithRetry(model, apiKey, promptParts) {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const currentModelName = model.model.replace('models/', '');
-    const fallbackOrder = [
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-1.5-pro-lite',
-    ];
-    let modelsToTry = [currentModelName];
-    for (const m of fallbackOrder) {
-        if (m !== currentModelName) modelsToTry.push(m);
-    }
-    let lastError;
-    for (const modelName of modelsToTry) {
-        try {
-            if (modelName !== currentModelName) {
-                console.warn(`[InvestigacionATEL] Usando modelo de respaldo: ${modelName}`);
-            }
-            const fallbackModel = genAI.getGenerativeModel({
-                model: modelName,
-                generationConfig: model.generationConfig || {},
-            });
-            return await fallbackModel.generateContent(promptParts);
-        } catch (err) {
-            console.warn(`[InvestigacionATEL] Falló ${modelName}: ${err.message}`);
-            lastError = err;
-        }
-    }
-    throw new Error(`Todos los modelos fallaron. Último error: ${lastError?.message}`);
-}
-
 // ─── GET /api/sgsst/investigacion-atel/data ───────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
@@ -469,11 +436,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
                 setTimeout(() => reject(new Error('TIMEOUT: La generación superó el tiempo límite.')), timeoutMs)
             );
             const genPromise = (async () => {
-                const genResult = await generateWithRetry(mod, prmpt);
-                const genResponse = await genResult.response;
-                return genResponse.text();
-            })();
-            return Promise.race([genPromise, timeoutPromise]);
+                const genResult = await generateWithKeyRotation(mod, req.user?.id || req.user, timeoutPromise]);
         };
 
         const resultText = await generateWithTimeout(model, parts);

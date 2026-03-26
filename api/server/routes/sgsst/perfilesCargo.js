@@ -9,45 +9,6 @@ const { logger } = require('~/config');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, apiKey, promptParts) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const currentModelName = model.model.replace('models/', '');
-
-  const fallbackOrder = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-pro-lite',
-  ];
-
-  let modelsToTry = [currentModelName];
-  for (const m of fallbackOrder) {
-    if (m !== currentModelName) modelsToTry.push(m);
-  }
-
-  let lastError;
-  for (const modelName of modelsToTry) {
-    if (!modelName) continue;
-    try {
-      if (modelName !== currentModelName) {
-        console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
-      }
-      const fallbackModel = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: model.generationConfig || {},
-      });
-      return await fallbackModel.generateContent(promptParts);
-    } catch (err) {
-      console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
-      lastError = err;
-    }
-  }
-
-  throw new Error(`Todos los modelos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 // ─── Mongoose Schema ──────────────────────────────────────────────────────
 const PerfilCargoDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -229,7 +190,7 @@ ${companyContext}
 - **NO** incluyas firmas.
 `;
 
-    const result = await generateWithRetry(model, resolvedApiKey, [{ text: promptText }]);
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, [{ text: promptText }]);
     const response = await result.response;
     const htmlBody = response
       .text()

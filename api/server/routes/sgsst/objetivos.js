@@ -11,45 +11,6 @@ const { Conversation, Message } = require('~/db/models');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 const auditoriaMap = require('./auditoriaMap');
 
-// ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const currentModelName = model.model.replace('models/', '');
-  
-  const fallbackOrder = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-pro-lite'
-  ];
-  
-  let modelsToTry = [currentModelName];
-  for (const m of fallbackOrder) {
-    if (m !== currentModelName) modelsToTry.push(m);
-  }
-  
-  let lastError;
-  for (const modelName of modelsToTry) {
-    if (!modelName) continue;
-    try {
-      if (modelName !== currentModelName) {
-         console.warn(`[Gemini SDK] Cambiando a modelo de respaldo: ${modelName}...`);
-      }
-      const fallbackModel = genAI.getGenerativeModel({ 
-          model: modelName, 
-          generationConfig: model.generationConfig || {} 
-      });
-      return await fallbackModel.generateContent(promptText);
-    } catch (err) {
-      console.warn(`[Gemini SDK] Falló ${modelName}: ${err.message}`);
-      lastError = err;
-    }
-  }
-  
-  throw new Error(`Todos los modelos generativos fallaron. Último error: ${lastError?.message || 'Desconocido'}`);
-}
-
 
 /**
  * Helper to fetch the latest saved report for a given user and tag.
@@ -254,7 +215,7 @@ El diseño debe ser elegante con acentos en azul oscuro (#0f766e). Tablas deben 
 Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\` y la etiqueta de la tabla debe tener \`min-width: 650px;\` para que desplace lateralmente en celulares.`;
 
         // 6. Generate the content
-        const result = await generateWithRetry(model, resolvedApiKey, promptText);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
         const response = await result.response;
         const objectivesHtml = response.text();
 
