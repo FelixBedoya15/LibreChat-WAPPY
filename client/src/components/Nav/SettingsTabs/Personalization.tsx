@@ -177,7 +177,7 @@ export default function Personalization({
               value={geminiModels.generalChat || ''}
               onChange={handleModelChange('generalChat')}
               options={modelOptions}
-              sizeClasses="w-[280px]"
+              sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-chat-label"
             />
           </div>
@@ -191,7 +191,7 @@ export default function Personalization({
               value={geminiModels.agents || ''}
               onChange={handleModelChange('agents')}
               options={modelOptions}
-              sizeClasses="w-[280px]"
+              sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-agents-label"
             />
           </div>
@@ -205,7 +205,7 @@ export default function Personalization({
               value={geminiModels.sstManagement || ''}
               onChange={handleModelChange('sstManagement')}
               options={modelOptions}
-              sizeClasses="w-[280px]"
+              sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-sst-label"
             />
           </div>
@@ -219,7 +219,7 @@ export default function Personalization({
               value={geminiModels.liveAnalysis || ''}
               onChange={handleModelChange('liveAnalysis')}
               options={modelOptions}
-              sizeClasses="w-[280px]"
+              sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-live-label"
             />
           </div>
@@ -233,7 +233,7 @@ export default function Personalization({
               value={geminiModels.textCorrection || ''}
               onChange={handleModelChange('textCorrection')}
               options={modelOptions}
-              sizeClasses="w-[280px]"
+              sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-correction-label"
             />
           </div>
@@ -247,7 +247,7 @@ export default function Personalization({
               value={geminiModels.reportGeneration || ''}
               onChange={handleModelChange('reportGeneration')}
               options={modelOptions}
-              sizeClasses="w-[280px]"
+              sizeClasses="w-[280px] z-[100]"
               aria-labelledby="gemini-report-label"
             />
           </div>
