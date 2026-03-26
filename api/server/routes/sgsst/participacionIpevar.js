@@ -1,4 +1,5 @@
 const express = require('express');
+const { generateWithKeyRotation } = require('./sgsstGemini');
 const mongoose = require('mongoose');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');

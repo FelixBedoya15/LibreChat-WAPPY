@@ -1,4 +1,5 @@
 const express = require('express');
+const { generateWithKeyRotation } = require('./sgsstGemini');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys } = require('librechat-data-provider');
@@ -291,8 +292,7 @@ Aplica \`font-family: inherit\` para que se mantenga el estilo del sistema. Sé 
         const personalization = req.user?.personalization?.geminiModels;
         const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const finalModelName = modelName || preferredModel;
-        const apiKeys = await getAllApiKeys(req.user.id);
-        let result = await generateWithKeyRotation(finalModelName, apiKeys, promptText);
+                let result = await generateWithKeyRotation({ model: finalModelName }, req.user?.id || req.user, promptText);
         const text = result.response.text();
 
         let cleanedReport = cleanHtmlOutput(text);

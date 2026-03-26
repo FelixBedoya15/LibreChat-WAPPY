@@ -58,7 +58,8 @@ class VoiceSession {
             const isAudioNative = candidateModel.toLowerCase().includes('audio') || 
                                  candidateModel.toLowerCase().includes('voice') || 
                                  candidateModel.toLowerCase().includes('live') ||
-                                 candidateModel.toLowerCase().includes('preview'); // Preview models are live-capable
+                                 candidateModel.toLowerCase().includes('exp') ||
+                                 candidateModel.toLowerCase().includes('native'); 
             
             if (isAudioNative) {
                 this.liveConfig.model = candidateModel;

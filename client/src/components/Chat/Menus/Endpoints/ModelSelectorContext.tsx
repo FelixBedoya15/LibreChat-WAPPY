@@ -115,8 +115,7 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
         return true;
       })
       .map((endpoint) => {
-        // For the Google endpoint, filter out models reserved for Live mode
-        if (endpoint.value === EModelEndpoint.google && endpoint.models) {
+        if (endpoint.models) {
           return {
             ...endpoint,
             models: endpoint.models.filter(

@@ -1,4 +1,5 @@
 const express = require('express');
+const { generateWithKeyRotation } = require('./sgsstGemini');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { getUserKey } = require('~/server/services/UserService');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
