@@ -64,44 +64,62 @@ async function generateWithKeyRotation(modelInstance, userId, promptText) {
     throw new Error('No hay claves API de Google configuradas. Configura tu clave en la opción de Google del chat o en el archivo .env.');
   }
 
+  const envModelsStr = process.env.GOOGLE_MODELS || 'gemini-1.5-pro,gemini-1.5-flash';
+  const fallbackModels = envModelsStr.split(',').map(m => m.trim()).filter(m => m && m !== modelName);
+  let modelsToTry = [modelName, ...fallbackModels];
+
+  let currentKeyIdx = 0;
+  let currentModelIdx = 0;
   let lastError;
 
-  for (let i = 0; i < apiKeys.length; i++) {
-    const apiKey = apiKeys[i];
-    try {
-      if (i > 0) {
-        logger.warn(`[SGSST Gemini] Rotando a clave alternativa #${i + 1} (modelo: ${modelName})...`);
+  while (currentModelIdx < modelsToTry.length) {
+    const currentModel = modelsToTry[currentModelIdx];
+    
+    while (currentKeyIdx < apiKeys.length) {
+      const apiKey = apiKeys[currentKeyIdx];
+      try {
+        if (currentKeyIdx > 0 || currentModelIdx > 0) {
+          logger.warn(`[SGSST Gemini] Recuperando... probando Modelo=${currentModel}, Clave=#${currentKeyIdx + 1}`);
+        }
+        
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const rotationModel = genAI.getGenerativeModel({ model: currentModel, generationConfig: genConfig });
+        
+        const result = await rotationModel.generateContent(promptText);
+        return result; // success
+      } catch (err) {
+        lastError = err;
+        const msg = (err.message || '').toLowerCase();
+        
+        const isRateLimit = msg.includes('429') || msg.includes('quota') || msg.includes('rate limit') || msg.includes('too many requests');
+        const is503 = msg.includes('503') || msg.includes('service unavailable') || msg.includes('overloaded');
+        
+        if (isRateLimit) {
+           logger.warn(`[SGSST Gemini] Clave #${currentKeyIdx + 1} agotada (429). Rotando API Key...`);
+           currentKeyIdx++;
+           continue; // Loop inner while
+        }
+        
+        if (is503) {
+           logger.warn(`[SGSST Gemini] Modelo ${currentModel} sobrecargado (503). Cambiando a modelo de respaldo...`);
+           currentModelIdx++;
+           break; // Breaks inner while, repeats outer while with next model (same key)
+        }
+        
+        // Any other error (400, 404, etc) should crash immediately to expose real issues
+        logger.error(`[SGSST Gemini] Error irrevocable con ${currentModel}: ${err.message}`);
+        throw err;
       }
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const rotationModel = genAI.getGenerativeModel({ model: modelName, generationConfig: genConfig });
-      
-      const result = await rotationModel.generateContent(promptText);
-      
-      if (i > 0) {
-        logger.info(`[SGSST Gemini] Éxito con clave alternativa #${i + 1}`);
-      }
-      return result;
-    } catch (err) {
-      const isRateLimit = err.message && (
-        err.message.includes('429') ||
-        err.message.toLowerCase().includes('quota') ||
-        err.message.toLowerCase().includes('rate limit') ||
-        err.message.toLowerCase().includes('too many requests')
-      );
-
-      lastError = err;
-
-      if (isRateLimit && i < apiKeys.length - 1) {
-        logger.warn(`[SGSST Gemini] Clave #${i + 1} agotó su cuota (429).`);
-        continue;
-      }
-
-      logger.error(`[SGSST Gemini] Error con modelo "${modelName}", clave #${i + 1}: ${err.message}`);
-      break;
+    }
+    
+    // If we exhausted all API keys (currentKeyIdx reached the end)
+    if (currentKeyIdx >= apiKeys.length) {
+      logger.error(`[SGSST Gemini] Todas las claves de API configuradas (${apiKeys.length}) se quedaron sin cuota.`);
+      throw lastError; 
     }
   }
 
-  throw lastError;
+  throw lastError; // E.g., if all models returned 503
 }
 
 module.exports = { getAllApiKeys, generateWithKeyRotation };
