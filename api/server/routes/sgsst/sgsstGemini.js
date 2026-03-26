@@ -1,32 +1,30 @@
 /**
  * sgsstGemini.js — Shared Gemini AI helpers for all SGSST routes
  *
- * API Key resolution mirrors EXACTLY how GoogleClient.js (the chat) does it:
- *   1. If GOOGLE_KEY === 'user_provided', load the user's stored key from DB.
- *      The stored value is a JSON string like: {"GOOGLE_API_KEY":"AIza...","GOOGLE_API_KEY_2":"AIza..."}
- *      We extract the value of AuthKeys.GOOGLE_API_KEY from that object.
- *   2. Otherwise use GOOGLE_KEY from .env (comma-separated list supported).
- *   3. The resulting comma-separated string is split exactly as GoogleClient does:
- *      apiKey.split(',').map(k => k.trim()).filter(k => k.length > 0)
+ * API Key resolution mirrors EXACTLY GoogleClient.js (lines 67-68 + initialize.js):
+ *   - If GOOGLE_KEY === 'user_provided', load user's DB key (JSON parsed with AuthKeys.GOOGLE_API_KEY)
+ *   - Otherwise use GOOGLE_KEY from .env
+ *   - Split by comma to get ALL keys, exactly like GoogleClient does
  *
- * Rotation rules:
- *   - 429 / quota / rate-limit → rotate to next API key (same model).
- *   - 503 / service unavailable / overloaded → rotate to next MODEL from
- *     SGSST_FALLBACK_MODELS (only non-live Gemini models), keeping same key index.
- *   - Any other error (400, 404…) → surface immediately, no retry.
+ * Error handling mirrors EXACTLY GoogleClient.js (lines 793-799):
+ *   - 429 (rate limit)   → rotate to next API key  (same model)
+ *   - 403 (quota/leaked) → rotate to next API key  (same model)   ← same as chat
+ *   - 400 API_KEY_INVALID→ rotate to next API key  (same model)   ← same as chat
+ *   - 503 / overloaded   → rotate to next MODEL from SGSST_FALLBACK_MODELS (reset key index)
+ *   - Other errors       → fail fast (surface real error)
  *
- * Live sessions rotate ONLY between live-capable models (gemini-2.5-flash-lite-preview-*).
+ * When ALL keys are exhausted for one model → try next model with all keys (don't throw yet)
+ * When ALL keys AND ALL models are exhausted → throw last error
  */
+
+'use strict';
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { AuthKeys, EModelEndpoint } = require('librechat-data-provider');
 const { getUserKey } = require('~/server/services/UserService');
 const { logger } = require('~/config');
 
-// ──────────────────────────────────────────────
-// Models available for 503 fallback rotation
-// (excludes live-only preview models)
-// ──────────────────────────────────────────────
+// Non-live Gemini models for 503 fallback rotation (matching .env GOOGLE_MODELS minus live ones)
 const SGSST_FALLBACK_MODELS = [
   'gemini-3.1-flash-lite-preview',
   'gemini-3-flash-preview',
@@ -41,10 +39,11 @@ const LIVE_FALLBACK_MODELS = [
 ];
 
 /**
- * Resolves the API key(s) for the given user — IDENTICAL logic to GoogleClient + initialize.js
+ * Resolves all API keys for a user.
+ * MIRRORS: GoogleClient.js constructor lines 67-70 + initialize.js lines 9-47
  *
- * @param {string} userId  MongoDB ObjectId of the authenticated user
- * @returns {Promise<string[]>}  Ordered list of API keys to try (at least one)
+ * @param {string} userId
+ * @returns {Promise<string[]>}
  */
 async function resolveApiKeys(userId) {
   const { GOOGLE_KEY, GEMINI_API_KEY } = process.env;
@@ -52,36 +51,34 @@ async function resolveApiKeys(userId) {
 
   let rawApiKey = '';
 
-  if (isUserProvided) {
-    // Mirror of initialize.js: load user's stored key from DB
+  if (isUserProvided && userId) {
     try {
-      const storedRaw = await getUserKey({ userId, name: EModelEndpoint.google });
-      // storedRaw is a decrypted JSON string like:
-      //   '{"GOOGLE_API_KEY":"AIzaSy...","GOOGLE_API_KEY_2":"AIzaSy..."}'
-      // OR a plain key string for legacy saves.
+      // getUserKey returns the decrypted value stored in DB.
+      // initialize.js passes this directly as `credentials = userKey`
+      // GoogleClient constructor (line 67) does: creds[AuthKeys.GOOGLE_API_KEY]
+      // where creds comes from JSON.parse(credentials) if it's a string
+      const stored = await getUserKey({ userId, name: EModelEndpoint.google });
       let parsed = null;
-      try { parsed = JSON.parse(storedRaw); } catch { /* not JSON */ }
+      try { parsed = JSON.parse(stored); } catch { /* plain string key */ }
 
       if (parsed && typeof parsed === 'object') {
-        // Extract the value under AuthKeys.GOOGLE_API_KEY — same as GoogleClient constructor
+        // Standard format: {"GOOGLE_API_KEY":"AIza...","GOOGLE_API_KEY_2":"AIza..."}
         rawApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || '';
-      } else if (typeof storedRaw === 'string' && storedRaw.length > 5) {
-        rawApiKey = storedRaw.trim();
+      } else if (typeof stored === 'string' && stored.length > 5) {
+        rawApiKey = stored.trim();
       }
-    } catch (err) {
-      // NO_USER_KEY → fall through to env key so we always have something
-      logger.debug(`[SGSST Gemini] No user key found for ${userId}: ${err.message}`);
+    } catch (e) {
+      logger.debug(`[SGSST Gemini] No user key in DB for ${userId}: ${e.message}`);
     }
   }
 
-  // If user key not found / not user_provided, fall back to env key
+  // Fall back to env (skip literal 'user_provided')
   if (!rawApiKey) {
-    rawApiKey = GOOGLE_KEY || GEMINI_API_KEY || '';
-    // 'user_provided' is not a real key
-    if (rawApiKey === 'user_provided') rawApiKey = '';
+    rawApiKey = (!isUserProvided && GOOGLE_KEY) ? GOOGLE_KEY : (GEMINI_API_KEY || '');
   }
 
-  // Split exactly as GoogleClient does
+  // Split exactly as GoogleClient does (line 68):
+  // apiKey.split(',').map(k => k.trim()).filter(k => k.length > 0)
   const keys = rawApiKey
     .split(',')
     .map(k => k.trim())
@@ -90,58 +87,66 @@ async function resolveApiKeys(userId) {
   if (keys.length === 0) {
     throw new Error(
       'No hay claves API de Google configuradas. ' +
-      'Configura tu clave en "Establecer clave API para Google" en el panel del chat o en el archivo .env.'
+      'Configura tu clave en "Establecer clave API para Google" en el panel del chat.'
     );
   }
 
-  logger.debug(`[SGSST Gemini] Resolved ${keys.length} API key(s) for user ${userId}.`);
+  logger.debug(`[SGSST Gemini] ${keys.length} clave(s) API para usuario ${userId}.`);
   return keys;
 }
 
 /**
- * Runs a Gemini generateContent request with:
- *   - API-key rotation on 429/quota errors  (same as AgentClient / GoogleClient)
- *   - Model rotation on 503/overloaded errors using SGSST_FALLBACK_MODELS
+ * Runs generateContent with key+model rotation.
  *
- * @param {object|string} modelInstance  Either { model, generationConfig } or a plain model name string
- * @param {string}        userId         Authenticated user's MongoDB ObjectId
- * @param {*}             promptText     Prompt string or parts array
- * @returns {Promise<*>}                 The Gemini GenerateContentResult
+ * Error classification MIRRORS GoogleClient.js lines 793-799:
+ *   isRateLimit    = status 429
+ *   isQuotaExceeded= status 403   (includes "API key was leaked" → rotate key)
+ *   isInvalidKey   = status 400 + message includes API_KEY_INVALID or "API key not valid"
+ *   → all three rotate the KEY  (same behavior as chat's this.rotateKey())
+ *
+ *   is503          = status 503 / message includes "overloaded"
+ *   → rotates the MODEL (unique to SGSST, not present in base chat)
+ *
+ * When all keys exhausted for a model → advance to next model (don't throw)
+ * When all models also exhausted    → throw last error
+ *
+ * @param {object|string} modelInstance  { model, generationConfig } or plain model name string
+ * @param {string}        userId
+ * @param {*}             promptText
+ * @returns {Promise<*>}
  */
 async function generateWithKeyRotation(modelInstance, userId, promptText) {
-  // Accept both object { model, generationConfig } and plain string
   const preferredModel = (
     typeof modelInstance === 'string'
       ? modelInstance
-      : (modelInstance.model || '')
+      : (modelInstance && modelInstance.model) || ''
   ).replace('models/', '').trim() || 'gemini-2.5-flash';
 
-  const genConfig = (typeof modelInstance === 'object' && modelInstance.generationConfig)
+  const genConfig = (modelInstance && typeof modelInstance === 'object' && modelInstance.generationConfig)
     ? modelInstance.generationConfig
     : {};
 
-  // Build ordered model list: preferred first, then fallbacks (excluding preferred to avoid dup)
   const fallbacks = SGSST_FALLBACK_MODELS.filter(m => m !== preferredModel);
   const modelsToTry = [preferredModel, ...fallbacks];
 
   const apiKeys = await resolveApiKeys(userId);
 
-  let currentModelIdx = 0;
-  let currentKeyIdx = 0;
   let lastError;
 
-  while (currentModelIdx < modelsToTry.length) {
-    const currentModel = modelsToTry[currentModelIdx];
-    // Reset key index when we switch models
-    currentKeyIdx = 0;
+  // Outer loop: iterate over models (move to next model on 503 or when all keys exhausted)
+  for (let modelIdx = 0; modelIdx < modelsToTry.length; modelIdx++) {
+    const currentModel = modelsToTry[modelIdx];
+    let allKeysExhaustedDueTo429 = false;
 
-    while (currentKeyIdx < apiKeys.length) {
-      const apiKey = apiKeys[currentKeyIdx];
+    // Inner loop: iterate over keys (mirrors chat's this.rotateKey() pattern)
+    for (let keyIdx = 0; keyIdx < apiKeys.length; keyIdx++) {
+      const apiKey = apiKeys[keyIdx];
+
       try {
-        if (currentKeyIdx > 0 || currentModelIdx > 0) {
+        if (keyIdx > 0 || modelIdx > 0) {
           logger.warn(
-            `[SGSST Gemini] Reintentando... Modelo=${currentModel}, ` +
-            `Clave=#${currentKeyIdx + 1}/${apiKeys.length}`
+            `[SGSST Gemini] Reintentando... Modelo="${currentModel}", ` +
+            `Clave #${keyIdx + 1}/${apiKeys.length}`
           );
         }
 
@@ -152,29 +157,34 @@ async function generateWithKeyRotation(modelInstance, userId, promptText) {
 
       } catch (err) {
         lastError = err;
-        const msg = (err.message || '').toLowerCase();
+
+        // ── Classify errors exactly as GoogleClient.js lines 793-797 ──────────
         const status = err.status || (err.response && err.response.status) || 0;
+        const msg = (err.message || '').toLowerCase();
 
-        const isRateLimit =
-          status === 429 ||
-          msg.includes('429') ||
-          msg.includes('quota') ||
-          msg.includes('rate limit') ||
-          msg.includes('too many requests');
+        // 429 rate-limit / quota
+        const isRateLimit = status === 429 || msg.includes('429') ||
+          msg.includes('quota') || msg.includes('rate limit') || msg.includes('too many requests');
 
-        const is503 =
-          status === 503 ||
-          msg.includes('503') ||
-          msg.includes('service unavailable') ||
-          msg.includes('overloaded');
+        // 403 quota exceeded OR leaked key — chat rotates the key, we do the same
+        const isQuotaExceeded = status === 403;
 
-        if (isRateLimit) {
+        // 400 invalid key — chat rotates the key, we do the same
+        const isInvalidKey = status === 400 &&
+          (msg.includes('api_key_invalid') || msg.includes('api key not valid'));
+
+        // 503 service unavailable — unique to SGSST: rotate model
+        const is503 = status === 503 || msg.includes('503') ||
+          msg.includes('service unavailable') || msg.includes('overloaded');
+
+        if (isRateLimit || isQuotaExceeded || isInvalidKey) {
           logger.warn(
-            `[SGSST Gemini] Clave #${currentKeyIdx + 1} agotada (429/quota). ` +
-            `Rotando a siguiente clave API...`
+            `[SGSST Gemini] Clave #${keyIdx + 1} rechazada ` +
+            `(${status || 'quota'} – ${isInvalidKey ? 'inválida' : isQuotaExceeded ? 'prohibida' : 'límite'}) ` +
+            `para modelo "${currentModel}". Rotando API key...`
           );
-          currentKeyIdx++;
-          continue; // try next key, same model
+          allKeysExhaustedDueTo429 = true; // mark; continues to next keyIdx automatically
+          continue; // next key, same model
         }
 
         if (is503) {
@@ -182,28 +192,30 @@ async function generateWithKeyRotation(modelInstance, userId, promptText) {
             `[SGSST Gemini] Modelo "${currentModel}" sobrecargado (503). ` +
             `Rotando a modelo de respaldo...`
           );
-          currentModelIdx++;
-          break; // break inner → outer while uses next model (key resets to 0)
+          break; // break inner for → outer for advances modelIdx
         }
 
-        // Any other error (400 bad key, 404 model not found, etc.) → fail fast
+        // Any other error: fail fast
         logger.error(`[SGSST Gemini] Error irrevocable con "${currentModel}": ${err.message}`);
         throw err;
       }
-    }
+    } // end inner for (keys)
 
-    // If we exhausted all keys for this model without a 503
-    if (currentKeyIdx >= apiKeys.length) {
-      logger.error(
-        `[SGSST Gemini] Todas las claves API (${apiKeys.length}) se agotaron ` +
-        `para el modelo "${modelsToTry[currentModelIdx - 1] || modelsToTry[0]}".`
+    // If we came out of the key loop because ALL keys returned 429/403/400
+    // → advance to the next model automatically (don't throw yet)
+    if (allKeysExhaustedDueTo429) {
+      logger.warn(
+        `[SGSST Gemini] Todas las claves API (${apiKeys.length}) agotadas para ` +
+        `"${currentModel}". Rotando al siguiente modelo de respaldo...`
       );
-      throw lastError;
+      // Continue outer for → modelIdx++ automatically
+      continue;
     }
-  }
+    // If we broke out due to 503 → outer for will also continue to next model
+  } // end outer for (models)
 
-  // All models returned 503
-  logger.error('[SGSST Gemini] Todos los modelos de respaldo están sobrecargados (503).');
+  // All keys AND all models exhausted
+  logger.error('[SGSST Gemini] Se agotaron todas las claves y modelos de respaldo.');
   throw lastError;
 }
 
