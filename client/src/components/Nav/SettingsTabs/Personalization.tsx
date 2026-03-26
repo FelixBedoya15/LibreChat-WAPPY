@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Switch, useToastContext, Dropdown } from '@librechat/client';
-import { useGetUserQuery, useUpdateMemoryPreferencesMutation } from '~/data-provider';
-import { useGetModelsQuery } from 'librechat-data-provider/react-query';
+import { useGetUserQuery, useUpdateMemoryPreferencesMutation, useGetEndpointsQuery } from '~/data-provider';
+// import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { EModelEndpoint } from 'librechat-data-provider';
 import { useLocalize } from '~/hooks';
 
@@ -17,7 +17,7 @@ export default function Personalization({
   const localize = useLocalize();
   const { showToast } = useToastContext();
   const { data: user } = useGetUserQuery();
-  const modelsQuery = useGetModelsQuery();
+  const { data: endpointsConfig } = useGetEndpointsQuery();
   const [referenceSavedMemories, setReferenceSavedMemories] = useState(true);
 
   // Estado para los modelos Gemini
@@ -101,7 +101,8 @@ export default function Personalization({
   };
 
   const modelOptions = useMemo(() => {
-    const googleModels = modelsQuery.data?.[EModelEndpoint.google] || [];
+    const googleEndpoint = endpointsConfig?.[EModelEndpoint.google];
+    const googleModels = googleEndpoint?.models || [];
     const options = [
       { value: '', label: 'Predeterminado del sistema' },
     ];
@@ -115,7 +116,7 @@ export default function Personalization({
     });
 
     return options;
-  }, [modelsQuery.data]);
+  }, [endpointsConfig]);
 
   if (!hasAnyPersonalizationFeature) {
     return (
