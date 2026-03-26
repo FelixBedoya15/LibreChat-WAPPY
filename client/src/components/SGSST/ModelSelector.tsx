@@ -4,6 +4,13 @@ import { cn } from '~/utils';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { EModelEndpoint } from 'librechat-data-provider';
 
+export const AI_MODELS = [
+    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro' },
+    { id: 'gemini-2.0-flash-thinking-exp-01-21', name: 'Gemini 2.0 Thinking' },
+];
+
 interface ModelSelectorProps {
     selectedModel: string;
     onSelectModel: (modelId: string) => void;
