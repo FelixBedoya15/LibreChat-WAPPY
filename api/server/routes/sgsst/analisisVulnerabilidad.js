@@ -10,13 +10,13 @@ const router = express.Router();
 const mongoose = require('mongoose');
 
 // ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, promptText) {
+async function generateWithRetry(model, apiKey, promptText) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(model.apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
   const currentModelName = model.model.replace('models/', '');
 
   const fallbackOrder = [
-    'gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'
+    'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.5-pro-lite'
   ];
   let modelsToTry = [currentModelName];
   for (const m of fallbackOrder) { if (m !== currentModelName) modelsToTry.push(m); }
@@ -129,7 +129,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
     }
 
     const personalization = req.user?.personalization?.geminiModels;
-    const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+    const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
     const finalModelName = modelName || preferredModel;
     const genAI = new GoogleGenerativeAI(resolvedApiKey);
     const model = genAI.getGenerativeModel({ model: finalModelName });
@@ -284,7 +284,7 @@ Cierra con una declaratoria estructurada y técnica. **Si se ha proporcionado un
       }
     }
 
-    const result = await generateWithRetry(model, parts);
+    const result = await generateWithRetry(model, resolvedApiKey, parts);
     const response = await result.response;
     const htmlBody = response.text().replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 

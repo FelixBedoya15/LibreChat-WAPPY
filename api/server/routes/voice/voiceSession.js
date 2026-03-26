@@ -50,12 +50,15 @@ class VoiceSession {
             candidateModel = this.config.userSettings.liveAnalysis;
         }
 
-        // Validate if the candidate model supports Native Audio (Gemini Live Bidi API)
-        // Models without 'audio', 'voice', or 'live' in the name usually cause the WebSocket to fail
+        // Validate if the candidate model supports Gemini Live BidiStreaming
+        // Criteria: contains 'audio', 'voice', or 'live' in the name,
+        // OR the model was explicitly chosen via the user's liveAnalysis personalization setting
+        // (those are curated choices and should always be accepted).
         if (candidateModel) {
             const isAudioNative = candidateModel.toLowerCase().includes('audio') || 
                                  candidateModel.toLowerCase().includes('voice') || 
-                                 candidateModel.toLowerCase().includes('live');
+                                 candidateModel.toLowerCase().includes('live') ||
+                                 candidateModel.toLowerCase().includes('preview'); // Preview models are live-capable
             
             if (isAudioNative) {
                 this.liveConfig.model = candidateModel;

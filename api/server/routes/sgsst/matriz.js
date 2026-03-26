@@ -11,16 +11,16 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 
 
 // ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
+async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(model.apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-pro-lite'
   ];
   
   let modelsToTry = [currentModelName];
@@ -221,11 +221,11 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
 
         // 4. Generate Content
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const finalModelName = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: finalModelName });
 
-        const result = await generateWithRetry(model, promptText);
+        const result = await generateWithRetry(model, resolvedApiKey, promptText);
         const response = await result.response;
         const text = response.text();
 

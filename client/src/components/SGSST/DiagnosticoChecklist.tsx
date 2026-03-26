@@ -114,7 +114,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [selectedModel, setSelectedModel] = useState<string>(() => {
-        return user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        return user?.personalization?.geminiModels?.sstManagement || 'gemini-2.0-flash';
     });
 
     // Initialize model from user preferences when user data loads

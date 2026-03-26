@@ -10,16 +10,16 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 // ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
+async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(model.apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-pro-lite'
   ];
   
   let modelsToTry = [currentModelName];
@@ -141,7 +141,7 @@ router.post('/generate', requireJwtAuth, async (req, res) => {
 
         // 3. Initialize the Gemini SDK
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const finalModelName = modelName || preferredModel;
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: finalModelName });
@@ -226,7 +226,7 @@ La política debe ser formal, profesional y cumplir con los requisitos del Decre
 El diseño debe ser elegante con colores institucionales (azul #0f766e para encabezados con \`color: #0f766e;\` explícito, bordes sutiles, tipografía profesional).`;
 
         // 4. Generate the policy
-        const result = await generateWithRetry(model, promptText);
+        const result = await generateWithRetry(model, resolvedApiKey, promptText);
         const response = await result.response;
         const policy = response.text();
 

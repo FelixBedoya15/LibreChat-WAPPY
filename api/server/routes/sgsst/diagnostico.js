@@ -13,16 +13,16 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 // ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
+async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(model.apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-pro-lite'
   ];
   
   let modelsToTry = [currentModelName];
@@ -495,7 +495,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
         };
 
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const selectedModel = req.body.modelName || preferredModel;
 
         // Helper: generate with timeout (90 seconds)
@@ -504,7 +504,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
                 setTimeout(() => reject(new Error('TIMEOUT: La generación del informe excedió el tiempo límite. Intente de nuevo.')), timeoutMs)
             );
             const genPromise = (async () => {
-                const genResult = await generateWithRetry(model, prompt);
+                const genResult = await generateWithRetry(model, resolvedApiKey, prompt);
                 const genResponse = await genResult.response;
                 return genResponse.text();
             })();
@@ -577,7 +577,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
                 checklistLength: checklist?.length,
                 score,
                 totalPoints,
-                modelName: 'gemini-3.1-flash-lite-preview (+fallback)'
+                modelName: 'gemini-2.0-flash (+fallback)'
             }
         });
         logger.error('[SGSST Diagnostico] Analysis error:', error);

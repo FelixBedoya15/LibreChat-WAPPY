@@ -234,7 +234,7 @@ const PerfilesCargo = () => {
     const [activePerfilId, setActivePerfilId] = useState<string | null>(null);
     const [formData, setFormData] = useState<PerfilCargoData>(createInitialPerfil());
     const [isFormExpanded, setIsFormExpanded] = useState(true);
-    const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
     const [editorContent, setEditorContent] = useState<string | null>(null);

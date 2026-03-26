@@ -11,16 +11,16 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 
 
 // ─── HELPER: Google Gemini Fallback ───────────────────────────────────────
-async function generateWithRetry(model, promptText, maxRetries = 3 /* fallback modes */) {
+async function generateWithRetry(model, apiKey, promptText, maxRetries = 3 /* fallback modes */) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(model.apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
   const currentModelName = model.model.replace('models/', '');
   
   const fallbackOrder = [
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-1.5-pro-lite'
   ];
   
   let modelsToTry = [currentModelName];
@@ -359,7 +359,7 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const selectedModel = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
@@ -465,7 +465,7 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
             }
         }
 
-        const result = await generateWithRetry(model, parts);
+        const result = await generateWithRetry(model, apiKey, parts);
         const response = await result.response;
         let text = response.text().trim();
 
@@ -572,7 +572,7 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const model = genAI.getGenerativeModel({ model: modelName || preferredModel });
 
         // Build expanded SST context
@@ -635,7 +635,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
   ]
 }`;
 
-        const result = await generateWithRetry(model, systemPrompt);
+        const result = await generateWithRetry(model, apiKey, systemPrompt);
         let text = result.response.text().trim();
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
@@ -774,7 +774,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { procesos, currentDate, userName, modelName } = req.body;
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-3.1-flash-lite-preview';
+        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
         const finalModelName = modelName || preferredModel;
 
         if (!procesos || !Array.isArray(procesos) || procesos.length === 0) {
@@ -960,7 +960,7 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
             }
         });
 
-        const result = await generateWithRetry(model, parts);
+        const result = await generateWithRetry(model, resolvedApiKey, parts);
         let aiHtml = result.response.text().trim();
         aiHtml = aiHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
 

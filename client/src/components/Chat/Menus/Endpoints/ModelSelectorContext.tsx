@@ -100,14 +100,32 @@ export function ModelSelectorProvider({ children, startupConfig }: ModelSelector
 
   const { hasEndpointPermission } = useRolePermissions();
 
+  // Models that are exclusively for Live (Voice/Analysis) mode — hide from regular Chat selector
+  const LIVE_ONLY_MODELS = [
+    'gemini-2.5-flash-lite-preview-12-2025',
+    'gemini-2.5-flash-lite-preview-09-2025',
+  ];
+
   const mappedEndpoints = useMemo(() => {
-    return allEndpoints.filter((endpoint) => {
-      // Check if it's a specific endpoint type that needs permission
-      if (endpoint.value) {
-        return hasEndpointPermission(endpoint.value);
-      }
-      return true;
-    });
+    return allEndpoints
+      .filter((endpoint) => {
+        if (endpoint.value) {
+          return hasEndpointPermission(endpoint.value);
+        }
+        return true;
+      })
+      .map((endpoint) => {
+        // For the Google endpoint, filter out models reserved for Live mode
+        if (endpoint.value === EModelEndpoint.google && endpoint.models) {
+          return {
+            ...endpoint,
+            models: endpoint.models.filter(
+              (m) => !LIVE_ONLY_MODELS.includes(typeof m === 'string' ? m : (m as any).name || ''),
+            ),
+          };
+        }
+        return endpoint;
+      });
   }, [allEndpoints, hasEndpointPermission]);
 
   const { onSelectEndpoint, onSelectSpec } = useSelectMention({
