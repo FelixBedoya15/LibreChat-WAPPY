@@ -162,8 +162,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         <div style="font-size:1.4em; font-weight:800; color:#bf360c;">ALTO ⚠</div>
       </div>
       <div style="flex:1; min-width:120px; background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#1b5e20; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Observaciones</div>
-        <div style="font-size:1.4em; font-weight:800; color:#1b5e20;">Ver ↓</div>
+        <div style="font-size:0.65em; color:#1b5e20; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Norma Aplicada</div>
+        <div style="font-size:1.1em; font-weight:800; color:#1b5e20;">GTC 45 ✔</div>
       </div>
       <div style="flex:1; min-width:120px; background:#e3f2fd; border-left:4px solid #1565c0; border-radius:8px; padding:12px 16px;">
         <div style="font-size:0.65em; color:#0d47a1; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Modalidad</div>
