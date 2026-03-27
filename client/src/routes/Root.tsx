@@ -63,6 +63,9 @@ export default function Root() {
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
   const [navVisible, setNavVisible] = useState(() => {
+    // On mobile (≤768px), always start with nav hidden so users see the chat
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) return false;
     const savedNavVisible = localStorage.getItem('navVisible');
     return savedNavVisible !== null ? JSON.parse(savedNavVisible) : true;
   });

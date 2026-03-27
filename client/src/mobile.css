@@ -41,11 +41,11 @@
     right: 0;
     top: 0;
     bottom: 0;
-    background-color: rgb(255, 255, 255);
-    padding-left: 420px;
-    padding-top: 12px;
+    background-color: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     opacity: 0;
-    transition: all 0.3s;
+    transition: opacity 0.3s;
     pointer-events: none;
   }
 
@@ -153,11 +153,11 @@
     right: 0;
     top: 0;
     bottom: 0;
-    background-color: rgb(255, 255, 255);
-    padding-left: 420px;
-    padding-top: 12px;
+    background-color: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     opacity: 0;
-    transition: all 0.3s;
+    transition: opacity 0.3s;
     pointer-events: none;
   }
 
