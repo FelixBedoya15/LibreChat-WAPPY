@@ -57,21 +57,30 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
     }, []);
 
-    // Helper to capture video frame
-    const captureSnapshot = useCallback(() => {
-        if (videoRef.current) {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = videoRef.current.videoWidth;
-                canvas.height = videoRef.current.videoHeight;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-                    return canvas.toDataURL('image/png');
-                }
-            } catch (e) {
-                console.error("Error capturing snapshot:", e);
+    // Helper to capture video frame — validates dimensions before saving
+    const captureSnapshot = useCallback((): string | null => {
+        const video = videoRef.current;
+        if (!video) return null;
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        // Only capture if video is actually streaming (non-zero dimensions)
+        if (!w || !h) {
+            console.warn('[LiveAnalysisModal] captureSnapshot: video not ready (0x0), skipping');
+            return null;
+        }
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(video, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                console.log(`[LiveAnalysisModal] Snapshot captured: ${w}x${h}`);
+                return dataUrl;
             }
+        } catch (e) {
+            console.error('Error capturing snapshot:', e);
         }
         return null;
     }, []);
@@ -355,27 +364,24 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
 
-                // Capture first snapshot immediately
-                const snap1 = captureSnapshot();
-                if (snap1) {
-                    snapshotsRef.current = [snap1];
-                    snapshotRef.current = snap1;
-                }
-
-                // Schedule 2 more snapshots over the next 6 seconds for the report
+                // Capture 3 snapshots with staggered timing so the video stream is ready
+                // Snapshot 1: after 2s (camera needs time to initialize)
+                // Snapshot 2: after 6s
+                // Snapshot 3: after 10s
+                snapshotsRef.current = [];
                 if (snapshotIntervalRef.current) clearInterval(snapshotIntervalRef.current);
-                let captureCount = 0;
-                snapshotIntervalRef.current = setInterval(() => {
-                    captureCount++;
-                    const snap = captureSnapshot();
-                    if (snap && snapshotsRef.current.length < 3) {
-                        snapshotsRef.current.push(snap);
-                    }
-                    if (captureCount >= 2 || snapshotsRef.current.length >= 3) {
-                        clearInterval(snapshotIntervalRef.current!);
-                        snapshotIntervalRef.current = null;
-                    }
-                }, 3000);
+
+                const snapDelays = [2000, 6000, 10000];
+                snapDelays.forEach((delay) => {
+                    setTimeout(() => {
+                        const snap = captureSnapshot();
+                        if (snap) {
+                            snapshotsRef.current.push(snap);
+                            snapshotRef.current = snap;
+                            console.log(`[LiveAnalysisModal] Snapshot ${snapshotsRef.current.length}/3 captured at ${delay}ms`);
+                        }
+                    }, delay);
+                });
 
                 const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 

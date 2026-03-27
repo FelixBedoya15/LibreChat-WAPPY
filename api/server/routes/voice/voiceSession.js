@@ -5,6 +5,7 @@ const { getUserKey } = require('~/server/services/UserService');
 const { EModelEndpoint } = require('librechat-data-provider');
 const { saveMessage, saveConvo, getMessages } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
+const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
 
 /**
  * Active voice sessions
@@ -723,19 +724,10 @@ class VoiceSession {
     async correctTranscription(userText, aiResponseText) {
         try {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
-            
-            // Get user configured model or fallback
-            let correctionModelName = 'gemini-2.5-flash-lite-preview-09-2025';
-            if (this.config?.userSettings?.textCorrection) {
-                correctionModelName = this.config.userSettings.textCorrection;
-                logger.info(`[VoiceSession] User customized correction model: ${correctionModelName}`);
-            } else {
-                logger.info(`[VoiceSession] Using default correction model: ${correctionModelName}`);
-            }
 
-            const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(this.apiKey);
-            const model = genAI.getGenerativeModel({ model: correctionModelName });
+            // Use the same first model as SGSST apps, with full key+model rotation
+            const correctionModelName = SGSST_FALLBACK_MODELS[0]; // gemini-3.1-flash-lite-preview
+            logger.info(`[VoiceSession] Correction model (with rotation): ${correctionModelName}`);
 
             const prompt = `
             Act as a spelling and grammar corrector for a voice transcription.
@@ -759,9 +751,8 @@ class VoiceSession {
             5. OUTPUT ONLY THE CORRECTED TEXT. NO EXPLANATIONS.
             `;
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const correctedText = response.text().trim();
+            const result = await generateWithKeyRotation(correctionModelName, this.userId, prompt);
+            const correctedText = result.response.text().trim();
 
             logger.info(`[VoiceSession] Transcription correction result: "${userText}" -> "${correctedText}"`);
             return correctedText;
@@ -821,20 +812,10 @@ class VoiceSession {
                 data: { status: 'generating_report', message: 'Generando informe técnico...' }
             });
 
-            // Use Gemini Flash for report generation or user customized mode
-            let modelName = 'gemini-2.5-flash-lite-preview-09-2025';
-            if (this.config?.userSettings?.reportGeneration) {
-                modelName = this.config.userSettings.reportGeneration;
-                logger.info(`[VoiceSession] User customized report model: ${modelName}`);
-            } else {
-                logger.info(`[VoiceSession] Using default report model: ${modelName}`);
-            }
-            
-            const key = this.apiKey;
-
-            const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(key);
-            const model = genAI.getGenerativeModel({ model: modelName });
+            // Use first SGSST model with full key+model rotation (matches sgsstGemini.js pattern)
+            // Priority: SGSST_FALLBACK_MODELS[0] = gemini-3.1-flash-lite-preview (per user's model list order)
+            const reportModelName = SGSST_FALLBACK_MODELS[0];
+            logger.info(`[VoiceSession] Report model (with key+model rotation): ${reportModelName}`);
 
             const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -881,11 +862,10 @@ class VoiceSession {
             </ul>
             `;
 
-            logger.info(`[VoiceSession] Sending prompt to model: ${modelName}`);
-            logger.debug(`[VoiceSession] API Key present: ${!!key}`);
+            logger.info(`[VoiceSession] Sending prompt to model: ${reportModelName} (via rotation)`);
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
+            const result = await generateWithKeyRotation(reportModelName, this.userId, prompt);
+            const response = result.response;
             const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
             logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
