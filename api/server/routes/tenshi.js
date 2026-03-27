@@ -234,9 +234,13 @@ Reglas de formato esenciales para tus respuestas:
             // Support comma-separated key rotation
             const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
-            const modelName = config.model || 'gemini-3-flash-preview';
+            // Dual-axis rotation: keys first, then model fallback (503 Service Unavailable)
+            const primaryModel = config.model || 'gemini-3-flash-preview';
+            const envModels = (process.env.GOOGLE_MODELS || primaryModel).split(',').map(m => m.trim()).filter(Boolean);
+            // Build ordered model list: primaryModel first, then remaining from env
+            const modelFallbacks = [primaryModel, ...envModels.filter(m => m !== primaryModel)];
 
-            // Build history once (reusable across key retries)
+            // Build history once (reusable across all retries)
             const rawHistory = messages.slice(0, -1);
             const history = [];
             let firstUserFound = false;
@@ -249,38 +253,48 @@ Reglas de formato esenciales para tus respuestas:
                 });
             }
 
-            // Rotation loop: try each key until one succeeds
+            // Rotation loop: outer = models, inner = api keys
             let lastError = null;
-            for (let i = 0; i < apiKeys.length; i++) {
-                const apiKey = apiKeys[i];
-                try {
-                    logger.debug(`[Tenshi] Trying Google API Key ${i + 1}/${apiKeys.length}`);
-                    const genAI = new GoogleGenerativeAI(apiKey);
-                    const geminiModel = genAI.getGenerativeModel({
-                        model: modelName,
-                        systemInstruction: systemMessage
-                    });
-                    const chat = geminiModel.startChat({ history });
-                    const result = await chat.sendMessage(messages[messages.length - 1].content);
-                    responseText = result.response.text();
-                    lastError = null;
-                    break; // Success — exit the retry loop
-                } catch (geminiError) {
-                    lastError = geminiError;
-                    const status = geminiError.status || geminiError.statusCode;
-                    const msg = geminiError.message || '';
-                    // Rotate on quota/forbidden errors
-                    if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
-                        logger.warn(`[Tenshi] Clave #${i + 1} rechazada (${status}). Rotando...`);
-                        continue;
+            let succeeded = false;
+            for (let mi = 0; mi < modelFallbacks.length && !succeeded; mi++) {
+                const currentModel = modelFallbacks[mi];
+                for (let i = 0; i < apiKeys.length; i++) {
+                    const apiKey = apiKeys[i];
+                    try {
+                        logger.debug(`[Tenshi] Trying Key ${i + 1}/${apiKeys.length} with model "${currentModel}"`);
+                        const genAI = new GoogleGenerativeAI(apiKey);
+                        const geminiModel = genAI.getGenerativeModel({
+                            model: currentModel,
+                            systemInstruction: systemMessage
+                        });
+                        const chat = geminiModel.startChat({ history });
+                        const result = await chat.sendMessage(messages[messages.length - 1].content);
+                        responseText = result.response.text();
+                        lastError = null;
+                        succeeded = true;
+                        break; // Key rotation done — success
+                    } catch (geminiError) {
+                        lastError = geminiError;
+                        const status = geminiError.status || geminiError.statusCode;
+                        const msg = geminiError.message || '';
+                        // Key rotation: 403/429/leaked → try next key same model
+                        if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
+                            logger.warn(`[Tenshi] Clave #${i + 1} rechazada (${status}). Rotando clave...`);
+                            continue;
+                        }
+                        // Model fallback: 503 → break inner loop to try next model
+                        if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
+                            logger.warn(`[Tenshi] Modelo "${currentModel}" no disponible (503). Cambiando modelo...`);
+                            break;
+                        }
+                        // For any other non-recoverable error, abort everything
+                        throw new Error(`Google AI Error: ${msg}`);
                     }
-                    // For non-recoverable errors, abort immediately
-                    throw new Error(`Google AI Error: ${msg}`);
                 }
             }
 
-            if (lastError) {
-                throw new Error(`Google AI Error (todas las claves fallaron): ${lastError.message}`);
+            if (!succeeded && lastError) {
+                throw new Error(`Google AI Error (todos los modelos y claves fallaron): ${lastError.message}`);
             }
 
         } else if (config.provider === 'groq') {

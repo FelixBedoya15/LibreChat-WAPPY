@@ -181,6 +181,11 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
 
         const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
+        // Dual-axis rotation: keys first, model fallback on 503
+        const primaryModel = modelName || 'gemini-3-flash-preview';
+        const envModels = (process.env.GOOGLE_MODELS || primaryModel).split(',').map(m => m.trim()).filter(Boolean);
+        const modelFallbacks = [primaryModel, ...envModels.filter(m => m !== primaryModel)];
+
         // ... (knowledge gathering stays unchanged)
         // 1. DYNAMIC KNOWLEDGE - Last 5 resolved tickets
         let recentTicketsContext = '';
@@ -276,31 +281,42 @@ INSTRUCCIONES:
 4. Mantén un tono empático.
 5. NO uses exceso de markdown, mantén el texto limpio.`;
 
-        // Rotation loop: try each key until one succeeds
+        // Rotation loop: outer = models, inner = api keys
         let suggestion = null;
         let lastSuggestError = null;
-        for (let i = 0; i < apiKeys.length; i++) {
-            try {
-                logger.debug(`[Tickets AI] Trying Google API Key ${i + 1}/${apiKeys.length}`);
-                const genAI = new GoogleGenerativeAI(apiKeys[i]);
-                const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
-                const result = await model.generateContent(prompt);
-                suggestion = result.response.text();
-                lastSuggestError = null;
-                break;
-            } catch (keyError) {
-                lastSuggestError = keyError;
-                const status = keyError.status || keyError.statusCode;
-                const msg = keyError.message || '';
-                if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
-                    logger.warn(`[Tickets AI] Clave #${i + 1} rechazada (${status}). Rotando...`);
-                    continue;
+        let suggestSucceeded = false;
+        for (let mi = 0; mi < modelFallbacks.length && !suggestSucceeded; mi++) {
+            const currentModel = modelFallbacks[mi];
+            for (let i = 0; i < apiKeys.length; i++) {
+                try {
+                    logger.debug(`[Tickets AI] Trying Key ${i + 1}/${apiKeys.length} with model "${currentModel}"`);
+                    const genAI = new GoogleGenerativeAI(apiKeys[i]);
+                    const model = genAI.getGenerativeModel({ model: currentModel });
+                    const result = await model.generateContent(prompt);
+                    suggestion = result.response.text();
+                    lastSuggestError = null;
+                    suggestSucceeded = true;
+                    break;
+                } catch (keyError) {
+                    lastSuggestError = keyError;
+                    const status = keyError.status || keyError.statusCode;
+                    const msg = keyError.message || '';
+                    // Key rotation on 403/429
+                    if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
+                        logger.warn(`[Tickets AI] Clave #${i + 1} rechazada (${status}). Rotando clave...`);
+                        continue;
+                    }
+                    // Model fallback on 503
+                    if (status === 503 || msg.includes('overloaded') || msg.includes('Service Unavailable')) {
+                        logger.warn(`[Tickets AI] Modelo "${currentModel}" no disponible (503). Cambiando modelo...`);
+                        break;
+                    }
+                    throw keyError;
                 }
-                throw keyError;
             }
         }
 
-        if (lastSuggestError) {
+        if (!suggestSucceeded && lastSuggestError) {
             throw lastSuggestError;
         }
 
