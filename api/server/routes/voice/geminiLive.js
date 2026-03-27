@@ -34,7 +34,7 @@ class GeminiLiveClient extends EventEmitter {
                 this.ws = new WebSocket(endpoint);
 
                 this.ws.on('open', () => {
-                    logger.info('[GeminiLive] WebSocket connected');
+                    logger.info('[GeminiLive] WebSocket connected, waiting for setupComplete...');
                     this.connected = true;
 
                     // Send initial setup message
@@ -42,19 +42,27 @@ class GeminiLiveClient extends EventEmitter {
 
                     // Flush any buffered messages (audio/video sent while connecting)
                     this.flushBuffer();
-
-                    resolve();
                 });
 
                 this.ws.on('error', (error) => {
                     logger.error('[GeminiLive] WebSocket error:', error);
                     this.connected = false;
-                    reject(error);
+                    if (!this.setupCompleted) {
+                        reject(error);
+                    }
                 });
 
                 this.ws.on('close', (code, reason) => {
                     logger.info(`[GeminiLive] WebSocket closed. Code: ${code}, Reason: ${reason}`);
                     this.connected = false;
+                    
+                    if (!this.setupCompleted) {
+                        // Socket closed BEFORE setup was completed (e.g. Quota Exceeded, Leaked Key, Invalid Model)
+                        reject(new Error(`WebSocket closed before setup. Code: ${code}, Reason: ${reason}`));
+                    } else {
+                        // Socket closed normally after being active
+                        this.emit('close', code, reason);
+                    }
                 });
 
                 this.ws.on('message', (data) => {
@@ -113,6 +121,8 @@ class GeminiLiveClient extends EventEmitter {
                         // Handle setup complete
                         if (response.setupComplete) {
                             logger.info('[GeminiLive] Setup complete');
+                            this.setupCompleted = true;
+                            resolve(); // Now the connection is TRULY established and approved by Google!
                         }
                     } catch (error) {
                         logger.error('[GeminiLive] Error parsing message:', error);
