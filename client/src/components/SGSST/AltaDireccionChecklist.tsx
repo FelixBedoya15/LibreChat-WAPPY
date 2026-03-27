@@ -73,7 +73,7 @@ export default function AltaDireccionChecklist() {
     const [editorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
 
     // Grouped items by category
     const groupedItems = useMemo(() => {

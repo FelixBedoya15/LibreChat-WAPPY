@@ -1,8 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Brain, ChevronDown, Check } from 'lucide-react';
 import { cn } from '~/utils';
-import { useGetModelsQuery } from 'librechat-data-provider/react-query';
-import { EModelEndpoint } from 'librechat-data-provider';
 
 // Fallback model list (used only when query hasn't loaded yet)
 export const AI_MODELS = [
@@ -10,6 +8,8 @@ export const AI_MODELS = [
     { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
     { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+    { id: 'gemini-2.5-flash-lite-preview-12-2025', name: 'Gemini 2.5 Flash Lite 12/25' },
+    { id: 'gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash Lite 09/25' },
 ];
 
 interface ModelSelectorProps {
@@ -22,19 +22,8 @@ interface ModelSelectorProps {
 const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectModel, disabled, hideTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-    const modelsQuery = useGetModelsQuery();
 
-    const availableModels = useMemo(() => {
-        const googleModels = modelsQuery.data?.[EModelEndpoint.google] || [];
-        if (googleModels.length > 0) {
-            return googleModels
-                .filter((m): m is string => typeof m === 'string') 
-                .filter(m => !m.includes('live') && !m.includes('Live'))
-                .map((model) => ({ id: model, name: model }));
-        }
-        // Fallback to static list while loading
-        return AI_MODELS;
-    }, [modelsQuery.data]);
+    const availableModels = AI_MODELS;
 
     const currentModelName = availableModels.find(m => m.id === selectedModel)?.name || selectedModel;
 
@@ -73,7 +62,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
             </button>
 
             {isOpen && (
-                <div className="fixed w-64 bg-surface-primary border border-border-medium rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: 9999, top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + 8 : 0, right: containerRef.current ? window.innerWidth - containerRef.current.getBoundingClientRect().right : 0 }}>
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-2 border-b border-border-light bg-surface-tertiary/30">
                         <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider px-2">
                             Modelo de Inteligencia Artificial
