@@ -101,7 +101,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
             style={{ zIndex: 100 }}
             className="flex h-full w-full items-center gap-3 bg-surface-secondary border border-border-medium group-hover:bg-surface-hover group-hover:border-teal-400 shadow-sm overflow-hidden rounded-xl p-2"
           >
-           <div className={cn("relative flex-shrink-0 flex items-center justify-center")}>
+             <div className={cn("relative flex-shrink-0 flex items-center justify-center")}>
              <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center relative">
                <button
                  onClick={(e) => {
@@ -119,7 +119,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
                      e.stopPropagation();
                      setShowNotifications(prev => !prev);
                    }}
-                   className="absolute -top-1 -right-1 z-10 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none shadow-lg ring-2 ring-white"
+                   className="absolute -top-1 -right-1 z-[200] min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none shadow-lg ring-2 ring-white"
                    title={`${unreadCount} notificaciones sin leer`}
                  >
                    {unreadCount > 9 ? '9+' : unreadCount}

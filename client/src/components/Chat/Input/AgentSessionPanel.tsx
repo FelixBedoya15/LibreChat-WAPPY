@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as Ariakit from '@ariakit/react';
-import { Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu } from 'lucide-react';
+import { Settings2, Globe, FolderSearch, TerminalSquare, Wrench, Cpu, Check, ChevronDown } from 'lucide-react';
 import type { TEphemeralAgent } from 'librechat-data-provider';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { TooltipAnchor } from '@librechat/client';
@@ -150,28 +150,71 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                         <Cpu className="h-3.5 w-3.5 text-text-secondary" />
                         <span className="text-xs font-medium text-text-secondary">Modelo IA</span>
                     </div>
-                    <select
+                    <Ariakit.SelectProvider
                         value={sessionModel}
-                        onChange={(e) => setSessionModel(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className={cn(
-                            'w-full rounded-lg border border-border-medium bg-surface-secondary px-2.5 py-1.5',
-                            'text-xs text-text-primary appearance-none cursor-pointer',
-                            'focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500',
-                        )}
+                        setValue={(val) => setSessionModel(val)}
                     >
-                        {modelList.length === 0 && (
-                            <option value={agentModel ?? ''}>{agentModel ?? 'Cargando...'}</option>
-                        )}
-                        {modelList.map((m) => (
-                            <option key={m} value={m}>{m}</option>
-                        ))}
-                    </select>
+                        <Ariakit.Select
+                            onClick={(e) => e.stopPropagation()}
+                            className={cn(
+                                'flex w-full items-center justify-between gap-2 rounded-lg',
+                                'border border-border-medium bg-surface-secondary px-2.5 py-1.5',
+                                'text-xs text-text-primary cursor-pointer',
+                                'hover:border-teal-500/60 hover:bg-surface-hover',
+                                'focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500/50',
+                                'transition-colors duration-150',
+                            )}
+                        >
+                            <span className="truncate">{sessionModel || 'Seleccionar modelo...'}</span>
+                            <ChevronDown className="h-3 w-3 flex-shrink-0 text-text-tertiary" />
+                        </Ariakit.Select>
+                        <Ariakit.SelectPopover
+                            portal
+                            gutter={4}
+                            sameWidth
+                            className={cn(
+                                'z-[9999] max-h-60 overflow-y-auto rounded-xl',
+                                'border border-border-medium/70 bg-surface-primary',
+                                'shadow-2xl shadow-black/30 backdrop-blur-sm',
+                                'animate-in fade-in-0 zoom-in-95',
+                                'py-1',
+                            )}
+                        >
+                            {modelList.length === 0 && (
+                                <Ariakit.SelectItem
+                                    value={agentModel ?? ''}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-tertiary"
+                                >
+                                    {agentModel ?? 'Cargando...'}
+                                </Ariakit.SelectItem>
+                            )}
+                            {modelList.map((m) => (
+                                <Ariakit.SelectItem
+                                    key={m}
+                                    value={m}
+                                    className={cn(
+                                        'flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer',
+                                        'text-text-primary hover:bg-teal-500/10 hover:text-teal-400',
+                                        'transition-colors duration-100 outline-none',
+                                        m === sessionModel && 'text-teal-400 bg-teal-500/10',
+                                    )}
+                                >
+                                    <Check
+                                        className={cn(
+                                            'h-3 w-3 flex-shrink-0',
+                                            m === sessionModel ? 'text-teal-400 opacity-100' : 'opacity-0',
+                                        )}
+                                    />
+                                    <span className="truncate">{m}</span>
+                                </Ariakit.SelectItem>
+                            ))}
+                        </Ariakit.SelectPopover>
+                    </Ariakit.SelectProvider>
                     {sessionModel !== agentModel && agentModel && (
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setSessionModel(agentModel); }}
-                            className="mt-1 text-[10px] text-text-tertiary hover:text-text-secondary underline"
+                            className="mt-1 text-[10px] text-text-tertiary hover:text-teal-400 underline transition-colors"
                         >
                             Restablecer a {agentModel}
                         </button>
