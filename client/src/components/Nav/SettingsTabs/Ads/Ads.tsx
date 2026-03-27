@@ -288,11 +288,47 @@ const Ads = () => {
                                     name="images"
                                     control={control}
                                     rules={{ required: true }}
-                                    render={({ field }) => (
-                                        <Input {...field} placeholder="URLs de imágenes (o sube una)" value={field.value || ''} />
-                                    )}
+                                    render={({ field }) => {
+                                        const imageUrls = typeof field.value === 'string' 
+                                            ? field.value.split(',').map(s => s.trim()).filter(Boolean)
+                                            : Array.isArray(field.value) ? field.value : [];
+                                            
+                                        return (
+                                            <div className="flex flex-col gap-3">
+                                                <Input {...field} placeholder="URLs de imágenes (o sube una)" value={field.value || ''} />
+                                                {imageUrls.length > 0 && (
+                                                    <div className="flex flex-wrap gap-3 p-3 bg-surface-secondary/50 rounded-xl border border-border-medium/30">
+                                                        {imageUrls.map((url, idx) => (
+                                                            <div key={idx} className="relative group overflow-hidden rounded-lg border border-border-medium bg-white shadow-sm transition-all hover:shadow-md">
+                                                                <img 
+                                                                    src={url} 
+                                                                    alt={`Preview ${idx}`} 
+                                                                    className="h-20 w-32 object-cover transition-transform group-hover:scale-105"
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLImageElement).src = 'https://placehold.co/128x80?text=Error';
+                                                                    }}
+                                                                />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="p-1 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors"
+                                                                        onClick={() => {
+                                                                            const newUrls = imageUrls.filter((_, i) => i !== idx);
+                                                                            field.onChange(newUrls.join(', '));
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    }}
                                 />
-                                {errors.images && <span className="text-red-500 text-xs">Requerido (al menos una URL)</span>}
+                                {errors.images && <span className="text-red-500 text-xs text-secondary">Requerido (al menos una URL)</span>}
                             </div>
                         </div>
                         <div>
