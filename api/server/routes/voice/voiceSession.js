@@ -838,6 +838,11 @@ class VoiceSession {
             4. **ACCURACY:** Do NOT invent facts. Use only what was discussed.
             
             OUTPUT STRUCTURE (HTML):
+            CRITICAL: Your VERY FIRST LINE must be this hidden metadata element with your assessed values:
+            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-accion="[Inmediata|Programada|Preventiva]" data-norma="[GTC 45|ISO 45001|Decreto 1072]" style="display:none"></div>
+            Replace the bracketed options with the SINGLE value that matches your analysis. This must come BEFORE any other HTML.
+
+            Then continue with the report:
             <h2>Informe Técnico de Evaluación de Riesgos</h2>
             <p><strong>Fecha de Generación:</strong> ${currentDate}</p>
             
@@ -861,6 +866,7 @@ class VoiceSession {
                 <li>[Recommendation 1]</li>
             </ul>
             `;
+
 
             logger.info(`[VoiceSession] Sending prompt to model: ${reportModelName} (via rotation)`);
 

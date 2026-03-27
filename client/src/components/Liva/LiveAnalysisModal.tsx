@@ -119,6 +119,61 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     </div>`;
             }
 
+            // ─── Parse KPI metadata embedded by the AI ─────────────────────────
+            // The AI is instructed to start with: <div id="wappy-kpi" data-riesgo="..." data-accion="..." data-norma="...">
+            const parseKpi = (rawHtml: string) => {
+                const defaults = { riesgo: 'INDETERMINADO', accion: 'Evaluar', norma: 'GTC 45' };
+                try {
+                    const match = rawHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
+                    if (!match) return defaults;
+                    const tag = match[0];
+                    const get = (attr: string) => {
+                        const m = tag.match(new RegExp(`${attr}=["']([^"']+)["']`, 'i'));
+                        return m ? m[1].trim() : '';
+                    };
+                    return {
+                        riesgo: get('data-riesgo') || defaults.riesgo,
+                        accion: get('data-accion') || defaults.accion,
+                        norma:  get('data-norma')  || defaults.norma,
+                    };
+                } catch { return defaults; }
+            };
+
+            const kpi = parseKpi(html);
+
+            // Color schemes per risk level
+            const riesgoStyle = kpi.riesgo === 'ALTO'
+                ? { bg: '#fff3e0', border: '#f57c00', labelColor: '#e65100', valColor: '#bf360c', icon: '⚠' }
+                : kpi.riesgo === 'MEDIO'
+                ? { bg: '#fffde7', border: '#f9a825', labelColor: '#f57f17', valColor: '#e65100', icon: '⚡' }
+                : kpi.riesgo === 'BAJO'
+                ? { bg: '#e8f5e9', border: '#2e7d32', labelColor: '#1b5e20', valColor: '#2e7d32', icon: '✔' }
+                : { bg: '#f5f5f5', border: '#9e9e9e', labelColor: '#616161', valColor: '#424242', icon: '?' };
+
+            const accionStyle = kpi.accion === 'Inmediata'
+                ? { bg: '#fce4ec', border: '#c62828', labelColor: '#b71c1c', valColor: '#b71c1c', icon: '🔴' }
+                : kpi.accion === 'Programada'
+                ? { bg: '#fff8e1', border: '#f57c00', labelColor: '#e65100', valColor: '#e65100', icon: '🟡' }
+                : { bg: '#e3f2fd', border: '#1565c0', labelColor: '#0d47a1', valColor: '#0d47a1', icon: '🟢' };
+
+            const kpiCards = `
+      <div style="flex:1; min-width:120px; background:${riesgoStyle.bg}; border-left:4px solid ${riesgoStyle.border}; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:${riesgoStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Riesgo Predominante</div>
+        <div style="font-size:1.3em; font-weight:800; color:${riesgoStyle.valColor};">${kpi.riesgo} ${riesgoStyle.icon}</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#1b5e20; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Norma Aplicada</div>
+        <div style="font-size:1.1em; font-weight:800; color:#1b5e20;">${kpi.norma} ✔</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#e3f2fd; border-left:4px solid #1565c0; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#0d47a1; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Modalidad</div>
+        <div style="font-size:1.1em; font-weight:800; color:#0d47a1;">Live AI 🎥</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:${accionStyle.bg}; border-left:4px solid ${accionStyle.border}; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:${accionStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Acción Requerida</div>
+        <div style="font-size:1.1em; font-weight:800; color:${accionStyle.valColor};">${kpi.accion} ${accionStyle.icon}</div>
+      </div>`;
+
             // SGSST-style full report HTML
             const finalHtml = `
 <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#222;">
@@ -129,7 +184,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
       <div>
         <div style="color:#64b5f6; font-size:0.7em; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">Sistema de Gestión de Seguridad y Salud en el Trabajo</div>
         <h1 style="color:#fff; font-size:1.6em; font-weight:800; margin:0 0 4px;">Informe de Análisis de Riesgos y Peligros</h1>
-        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis) · Norma GTC 45</div>
+        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis) · Norma ${kpi.norma}</div>
       </div>
       <div style="text-align:right;">
         <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:10px 16px; min-width:160px;">
@@ -146,33 +201,18 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     <div><strong>Fecha:</strong> ${dateStr}</div>
     <div><strong>Hora:</strong> ${timeStr}</div>
     <div><strong>Tipo:</strong> Inspección de Riesgos en Vivo</div>
-    <div><strong>Norma:</strong> GTC 45 / Decreto 1072</div>
+    <div><strong>Norma:</strong> ${kpi.norma} / Decreto 1072</div>
     <div><strong>Estado:</strong> <span style="color:#2e7d32; font-weight:700;">✔ Completado</span></div>
   </div>
 
   <!-- BODY -->
-  <div style="background:#fff; border:1px solid #e0e0e0; border-top:none; border-radius:0 0 0 0; padding:28px 32px 16px;">
+  <div style="background:#fff; border:1px solid #e0e0e0; border-top:none; padding:28px 32px 16px;">
 
     ${evidenceSection}
 
-    <!-- INNOVACIÓN: KPI Cards -->
+    <!-- KPI Cards (dynamic) -->
     <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
-      <div style="flex:1; min-width:120px; background:#fff3e0; border-left:4px solid #f57c00; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#e65100; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Riesgo Predominante</div>
-        <div style="font-size:1.4em; font-weight:800; color:#bf360c;">ALTO ⚠</div>
-      </div>
-      <div style="flex:1; min-width:120px; background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#1b5e20; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Norma Aplicada</div>
-        <div style="font-size:1.1em; font-weight:800; color:#1b5e20;">GTC 45 ✔</div>
-      </div>
-      <div style="flex:1; min-width:120px; background:#e3f2fd; border-left:4px solid #1565c0; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#0d47a1; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Modalidad</div>
-        <div style="font-size:1.1em; font-weight:800; color:#0d47a1;">Live AI 🎥</div>
-      </div>
-      <div style="flex:1; min-width:120px; background:#fce4ec; border-left:4px solid #c62828; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#b71c1c; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Acción Requerida</div>
-        <div style="font-size:1.1em; font-weight:800; color:#b71c1c;">Inmediata 🔴</div>
-      </div>
+      ${kpiCards}
     </div>
 
     <!-- AI GENERATED CONTENT -->
@@ -217,6 +257,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 </div>`;
 
             onReportReceived?.(finalHtml);
+
         },
         onStatusChange: (newStatus: string) => {
             console.log('[LiveAnalysisModal] Status:', newStatus);
