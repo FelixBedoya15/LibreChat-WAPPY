@@ -73,7 +73,7 @@ function setupVoiceWebSocket(server) {
             
             let user = { id: userId }; 
             if (fullUser) {
-                user = fullUser;
+                user = { ...fullUser, id: userId }; // Ensure id property is preserved
             }
 
             logger.info('[WebSocket] Token verified for user:', user.id);
