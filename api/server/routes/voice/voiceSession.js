@@ -17,10 +17,10 @@ const activeSessions = new Map();
  * Manages a voice conversation session between client and Gemini
  */
 class VoiceSession {
-    constructor(clientWs, userId, apiKey, config = {}, conversationId = null) {
+    constructor(clientWs, userId, apiKeys, config = {}, conversationId = null) {
         this.clientWs = clientWs;
         this.userId = userId;
-        this.apiKey = apiKey;
+        this.apiKeys = Array.isArray(apiKeys) ? apiKeys : [apiKeys];
         this.config = config;
 
         // Context persistence: Use model/endpoint from client (Chat/Agent)
@@ -51,22 +51,15 @@ class VoiceSession {
         }
 
         // Validate if the candidate model supports Gemini Live BidiStreaming
-        // Criteria: contains 'audio', 'voice', or 'live' in the name,
-        // OR the model was explicitly chosen via the user's liveAnalysis personalization setting
-        // (those are curated choices and should always be accepted).
+        // Remove the restrictive name checking since Gemini 2.5 and 3.0 support audio without "audio/live/native" in the name
+        // BUT MUST ensure it's a Gemini model, otherwise BidiStreaming will reject it (e.g. gpt-4o).
         if (candidateModel) {
-            const isAudioNative = candidateModel.toLowerCase().includes('audio') || 
-                                 candidateModel.toLowerCase().includes('voice') || 
-                                 candidateModel.toLowerCase().includes('live') ||
-                                 candidateModel.toLowerCase().includes('exp') ||
-                                 candidateModel.toLowerCase().includes('native'); 
-            
-            if (isAudioNative) {
+            if (candidateModel.toLowerCase().startsWith('gemini')) {
                 this.liveConfig.model = candidateModel;
-                logger.info(`[VoiceSession] Using validated live model: ${this.liveConfig.model}`);
+                logger.info(`[VoiceSession] Using live model: ${this.liveConfig.model}`);
             } else {
-                logger.warn(`[VoiceSession] Model "${candidateModel}" is not audio-native. Falling back to default to prevent audio loss.`);
-                delete this.liveConfig.model; // Fallback to GeminiLiveClient's default (env var)
+                logger.warn(`[VoiceSession] Model "${candidateModel}" is not compatible with Gemini Live BidiStreaming. Falling back to default.`);
+                delete this.liveConfig.model; // Fallback to GeminiLiveClient's default
             }
         } else {
             // No custom model specified, use GeminiLiveClient's default
@@ -129,11 +122,36 @@ class VoiceSession {
                 }
             }
 
-            // Create Gemini Live client
-            this.geminiClient = new GeminiLiveClient(this.apiKey, this.liveConfig);
+            // Try connecting with API key rotation
+            let success = false;
+            let lastError = null;
 
-            // Connect to Gemini
-            await this.geminiClient.connect();
+            for (let i = 0; i < this.apiKeys.length; i++) {
+                const key = this.apiKeys[i];
+                logger.info(`[VoiceSession] Attempting Gemini Live connection with API Key ${i + 1}/${this.apiKeys.length}`);
+                
+                try {
+                    // Create Gemini Live client
+                    this.geminiClient = new GeminiLiveClient(key, this.liveConfig);
+
+                    // Connect to Gemini
+                    await this.geminiClient.connect();
+                    
+                    success = true;
+                    break;
+                } catch (error) {
+                    logger.warn(`[VoiceSession] Connection failed with API key ${i + 1}: ${error.message}`);
+                    lastError = error;
+                    if (this.geminiClient && typeof this.geminiClient.disconnect === 'function') {
+                        this.geminiClient.disconnect();
+                    }
+                    this.geminiClient = null;
+                }
+            }
+
+            if (!success) {
+                throw new Error(lastError?.message || 'Failed to connect to Gemini Live with any available API key');
+            }
 
             // Setup message handlers for Gemini
             this.setupGeminiHandlers();
@@ -1067,8 +1085,15 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
             // Key is not JSON, use as-is
         }
 
-        if (parsedKey && typeof parsedKey === 'string') {
-            parsedKey = parsedKey.split(',')[0].trim();
+        if (!parsedKey) {
+            throw new Error('Google API Key not configured');
+        }
+
+        // Split by comma for rotation support
+        const apiKeys = typeof parsedKey === 'string' ? parsedKey.split(',').map(k => k.trim()).filter(Boolean) : [parsedKey];
+
+        if (apiKeys.length === 0) {
+            throw new Error('No valid Google API Keys found after parsing');
         }
 
         // Create session
@@ -1082,7 +1107,9 @@ async function createSession(clientWs, userId, conversationId, configOrVoice = n
                 logger.info(`[VoiceSession] Initializing with custom config`);
             }
         }
-        const session = new VoiceSession(clientWs, userId, parsedKey, config, conversationId);
+        
+        // Pass the array of keys to VoiceSession
+        const session = new VoiceSession(clientWs, userId, apiKeys, config, conversationId);
 
         // Start session
         const result = await session.start();
