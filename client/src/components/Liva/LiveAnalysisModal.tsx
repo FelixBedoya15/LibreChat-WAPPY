@@ -36,14 +36,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
-    const snapshotRef = useRef<string | null>(null); // NEW: Ref to store captured image
+    const snapshotRef = useRef<string | null>(null);
+    // Store multiple snapshots for the report (up to 3)
+    const snapshotsRef = useRef<string[]>([]);
+    const snapshotIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // NEW: Countdown state
-    // UPDATED: Faster countdown for better UX
+    // Countdown state - 10 seconds
     const [countdown, setCountdown] = useState(10);
 
-    // NEW: Track if report has been received
+    // Track if report has been received
     const [hasReceivedReport, setHasReceivedReport] = useState(false);
+    const [reportNotification, setReportNotification] = useState(false);
 
     const [supportsScreenShare, setSupportsScreenShare] = useState(false);
 
@@ -86,39 +89,125 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             onTextReceived?.(text);
         },
         onReportReceived: (html: string) => {
-            setHasReceivedReport(true); // Mark report as received
+            setHasReceivedReport(true);
+            setReportNotification(true);
+            setTimeout(() => setReportNotification(false), 8000);
 
-            // Construct the Final Report with Header, Date, and Image
             const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = new Date().toLocaleTimeString('es-ES');
+            const snapshots = snapshotsRef.current;
 
-            let finalHtml = `
-                <div style="font-family: sans-serif; max-width: 100%;">
-                    <h1 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Informe de Análisis de Riesgos y Peligros</h1>
-                    
-                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
-                        <p><strong>Fecha de Emisión:</strong> ${dateStr} a las ${timeStr}</p>
-                        <p><strong>Tipo de Actividad:</strong> Identificación de Riesgos en Vivo (Live Analysis)</p>
-                    </div>
-            `;
-
-            if (snapshotRef.current) {
-                finalHtml += `
-                    <div style="margin-bottom: 25px; text-align: center;">
-                        <h3 style="text-align: left; color: #7f8c8d;">1. Evidencia Visual Captada</h3>
-                        <img src="${snapshotRef.current}" alt="Evidencia del Entorno" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
-                        <p style="font-size: 0.9em; color: #7f8c8d; margin-top: 5px;">Figura 1: Captura del entorno analizado en tiempo real.</p>
-                    </div>
-                `;
+            // Build evidence gallery (up to 3 images)
+            let evidenceSection = '';
+            if (snapshots.length > 0) {
+                const imgItems = snapshots.map((src, idx) => `
+                    <div style="flex:1; min-width:200px; text-align:center;">
+                        <img src="${src}" alt="Evidencia ${idx+1}" style="width:100%; height:160px; object-fit:cover; border-radius:8px; border:1px solid #ddd; box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
+                        <p style="font-size:0.75em; color:#7f8c8d; margin-top:4px;">Figura ${idx+1}: Captura ${idx === 0 ? 'inicial' : idx === 1 ? 'intermedia' : 'final'} del entorno.</p>
+                    </div>`).join('');
+                evidenceSection = `
+                    <div style="margin-bottom:24px;">
+                        <h3 style="color:#1a3a5c; font-size:1em; text-transform:uppercase; letter-spacing:1px; border-left:4px solid #0066cc; padding-left:10px;">1. Evidencia Fotográfica del Entorno Analizado</h3>
+                        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">${imgItems}</div>
+                    </div>`;
             }
 
-            // Append the AI generated content (ensure it starts correctly)
-            finalHtml += `
-                <div class="ai-report-content">
-                    ${html}
-                </div>
-                </div>
-            `;
+            // SGSST-style full report HTML
+            const finalHtml = `
+<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#222;">
+
+  <!-- HEADER -->
+  <div style="background:linear-gradient(135deg,#0d2d5e 0%,#1565c0 100%); padding:28px 32px; border-radius:12px 12px 0 0; margin-bottom:0;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="color:#64b5f6; font-size:0.7em; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">Sistema de Gestión de Seguridad y Salud en el Trabajo</div>
+        <h1 style="color:#fff; font-size:1.6em; font-weight:800; margin:0 0 4px;">Informe de Análisis de Riesgos y Peligros</h1>
+        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis) · Norma GTC 45</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:10px 16px; min-width:160px;">
+          <div style="color:#64b5f6; font-size:0.65em; font-weight:700; letter-spacing:2px; text-transform:uppercase;">Radicado</div>
+          <div style="color:#fff; font-size:1.1em; font-weight:700;">LA-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}</div>
+          <div style="color:#90caf9; font-size:0.7em; margin-top:4px;">${dateStr}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO BAR -->
+  <div style="background:#e3f2fd; border:1px solid #90caf9; border-top:none; padding:12px 24px; display:flex; flex-wrap:wrap; gap:24px; font-size:0.8em; color:#1565c0;">
+    <div><strong>Fecha:</strong> ${dateStr}</div>
+    <div><strong>Hora:</strong> ${timeStr}</div>
+    <div><strong>Tipo:</strong> Inspección de Riesgos en Vivo</div>
+    <div><strong>Norma:</strong> GTC 45 / Decreto 1072</div>
+    <div><strong>Estado:</strong> <span style="color:#2e7d32; font-weight:700;">✔ Completado</span></div>
+  </div>
+
+  <!-- BODY -->
+  <div style="background:#fff; border:1px solid #e0e0e0; border-top:none; border-radius:0 0 0 0; padding:28px 32px 16px;">
+
+    ${evidenceSection}
+
+    <!-- INNOVACIÓN: KPI Cards -->
+    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px;">
+      <div style="flex:1; min-width:120px; background:#fff3e0; border-left:4px solid #f57c00; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#e65100; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Riesgo Predominante</div>
+        <div style="font-size:1.4em; font-weight:800; color:#bf360c;">ALTO ⚠</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#1b5e20; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Observaciones</div>
+        <div style="font-size:1.4em; font-weight:800; color:#1b5e20;">Ver ↓</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#e3f2fd; border-left:4px solid #1565c0; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#0d47a1; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Modalidad</div>
+        <div style="font-size:1.1em; font-weight:800; color:#0d47a1;">Live AI 🎥</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#fce4ec; border-left:4px solid #c62828; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#b71c1c; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Acción Requerida</div>
+        <div style="font-size:1.1em; font-weight:800; color:#b71c1c;">Inmediata 🔴</div>
+      </div>
+    </div>
+
+    <!-- AI GENERATED CONTENT -->
+    <div class="ai-report-content" style="line-height:1.7;">
+      ${html}
+    </div>
+
+  </div>
+
+  <!-- SIGNATURE BLOCK -->
+  <div style="background:#f5f5f5; border:1px solid #e0e0e0; border-top:none; padding:24px 32px; border-radius:0 0 12px 12px;">
+    <div style="font-size:0.75em; color:#666; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:2px; font-weight:600;">Firmas de Aprobación y Responsabilidad</div>
+    <div style="display:flex; justify-content:space-around; flex-wrap:wrap; gap:24px;">
+      <div style="text-align:center; flex:1; min-width:180px;">
+        <div style="border-top:2px solid #333; margin-bottom:8px; padding-top:8px;">
+          <div style="font-weight:700; font-size:0.85em; color:#1a1a1a;">_________________________________</div>
+          <div style="font-weight:700; font-size:0.9em; color:#1565c0; margin-top:6px;">Responsable SST</div>
+          <div style="font-size:0.75em; color:#666;">Auditor Líder Certificado</div>
+          <div style="font-size:0.7em; color:#888; margin-top:4px;">Firma y sello</div>
+        </div>
+      </div>
+      <div style="text-align:center; flex:1; min-width:180px;">
+        <div style="border-top:2px solid #333; margin-bottom:8px; padding-top:8px;">
+          <div style="font-weight:700; font-size:0.85em; color:#1a1a1a;">_________________________________</div>
+          <div style="font-weight:700; font-size:0.9em; color:#1565c0; margin-top:6px;">Representante Legal</div>
+          <div style="font-size:0.75em; color:#666;">Alta Dirección / Empleador</div>
+          <div style="font-size:0.7em; color:#888; margin-top:4px;">Firma y sello</div>
+        </div>
+      </div>
+      <div style="text-align:center; flex:1; min-width:180px;">
+        <div style="border-top:2px solid #333; margin-bottom:8px; padding-top:8px;">
+          <div style="font-weight:700; font-size:0.85em; color:#1a1a1a;">_________________________________</div>
+          <div style="font-weight:700; font-size:0.9em; color:#1565c0; margin-top:6px;">Trabajador / Testigo</div>
+          <div style="font-size:0.75em; color:#666;">Representante de los trabajadores</div>
+          <div style="font-size:0.7em; color:#888; margin-top:4px;">Firma y sello</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:16px; font-size:0.65em; color:#aaa;">Documento generado automáticamente por WAPPY IA · Sistema de Gestión SST · ${new Date().toISOString()}</div>
+  </div>
+
+</div>`;
 
             onReportReceived?.(finalHtml);
         },
@@ -177,11 +266,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         getInputVolume,
     } = useLiveAnalysisSession(sessionOptions);
 
-    // Connection Delay Logic with Countdown
+    // Connection Delay Logic with 10-second Countdown
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
-            setCountdown(3); 
+            setCountdown(10);
+            snapshotsRef.current = [];
 
             const interval = setInterval(() => {
                 setCountdown((prev) => {
@@ -193,7 +283,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             const timer = setTimeout(() => {
                 setIsReady(true);
                 clearInterval(interval);
-            }, 3000); 
+            }, 10000);
 
             return () => {
                 clearTimeout(timer);
@@ -201,7 +291,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             };
         } else {
             setIsReady(false);
-            setCountdown(3);
+            setCountdown(10);
         }
     }, [isOpen, isConnected]);
 
@@ -241,15 +331,34 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
     // Auto-start camera and send initial prompt when READY (after countdown)
     useEffect(() => {
-        if (isConnected && isOpen && isReady) { // Wait for isReady (countdown finished)
-            // Default to camera on start
+        if (isConnected && isOpen && isReady) {
             startCamera();
 
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
 
-                // DATA CAPTURE
-                snapshotRef.current = captureSnapshot(); // Capture image NOW
+                // Capture first snapshot immediately
+                const snap1 = captureSnapshot();
+                if (snap1) {
+                    snapshotsRef.current = [snap1];
+                    snapshotRef.current = snap1;
+                }
+
+                // Schedule 2 more snapshots over the next 6 seconds for the report
+                if (snapshotIntervalRef.current) clearInterval(snapshotIntervalRef.current);
+                let captureCount = 0;
+                snapshotIntervalRef.current = setInterval(() => {
+                    captureCount++;
+                    const snap = captureSnapshot();
+                    if (snap && snapshotsRef.current.length < 3) {
+                        snapshotsRef.current.push(snap);
+                    }
+                    if (captureCount >= 2 || snapshotsRef.current.length >= 3) {
+                        clearInterval(snapshotIntervalRef.current!);
+                        snapshotIntervalRef.current = null;
+                    }
+                }, 3000);
+
                 const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
                 sendTextMessage(`
@@ -596,12 +705,12 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         <div className="mt-12 w-64 space-y-4">
                             <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
                                 <span>Securing Channel</span>
-                                <span>{Math.round((3 - countdown) * 33.3)}%</span>
+                                <span>{Math.round((10 - countdown) * 10)}%</span>
                             </div>
                             <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
                                 <div 
                                     className="h-full bg-teal-500 transition-all duration-1000 ease-linear"
-                                    style={{ width: `${(3 - countdown) * 33.3}%` }}
+                                    style={{ width: `${(10 - countdown) * 10}%` }}
                                 />
                             </div>
                             <div className="grid grid-cols-1 gap-1">
@@ -768,7 +877,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                 render={
                                     <button
                                         onClick={switchCamera}
-                                        className="p-4 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all transform active:rotate-180 duration-500"
+                                        className="p-4 rounded-full bg-amber-500/20 hover:bg-amber-500/40 text-amber-400 border border-amber-500/30 transition-all transform active:rotate-180 duration-500 shadow-md shadow-amber-900/20"
                                     >
                                         <RefreshCcw className="w-5 h-5" />
                                     </button>
@@ -815,8 +924,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                                         onClick={toggleScreenShare}
                                         disabled={isCameraOn}
                                         className={`p-4 rounded-full transition-all duration-300 transform active:scale-95 ${isScreenSharing
-                                            ? 'bg-blue-500 text-white shadow-lg'
-                                            : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
+                                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 border border-blue-400/30'
+                                            : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20'
                                             } ${isCameraOn ? 'opacity-20 cursor-not-allowed' : ''}`}
                                     >
                                         {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
@@ -847,6 +956,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         <span>•</span>
                         <span>Biometric Link Active</span>
                     </div>
+
+                    {/* Report Completion Toast */}
+                    {reportNotification && (
+                        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-emerald-900/40 border border-emerald-400/30 animate-in slide-in-from-bottom-4 fade-in duration-500">
+                            <span className="text-xl">✅</span>
+                            <div>
+                                <div className="font-bold text-sm">¡Informe Generado!</div>
+                                <div className="text-xs text-emerald-100">El informe técnico ha sido enviado al editor.</div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Additional CSS Animations */}

@@ -138,11 +138,11 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
     }, [isOpen, isConnected, isConnecting, connect, changeVoice, voiceChatGeneral]);
 
-    // Countdown logic (same as LiveAnalysisModal)
+    // Countdown logic - 10 seconds
     useEffect(() => {
         if (isOpen && isConnected) {
             setIsReady(false);
-            setCountdownValue(3);
+            setCountdownValue(10);
 
             const countdownInterval = setInterval(() => {
                 setCountdownValue(prev => {
@@ -379,10 +379,10 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                         <div className="mt-12 w-64 space-y-4">
                             <div className="flex justify-between text-[10px] text-white/40 font-mono uppercase tracking-widest">
                                 <span>Securing Channel</span>
-                                <span>{Math.round((3 - countdownValue) * 33.3)}%</span>
+                                <span>{Math.round((10 - countdownValue) * 10)}%</span>
                             </div>
                             <div className="h-0.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-teal-500 transition-all duration-1000 ease-linear" style={{ width: `${(3 - countdownValue) * 33.3}%` }} />
+                                <div className="h-full bg-teal-500 transition-all duration-1000 ease-linear" style={{ width: `${(10 - countdownValue) * 10}%` }} />
                             </div>
                             <div className="grid grid-cols-1 gap-1">
                                 <p className="text-[9px] text-teal-500/60 font-mono truncate animate-pulse">{'>'} ACCESS_KEY: ENABLED</p>
