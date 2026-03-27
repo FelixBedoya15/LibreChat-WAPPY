@@ -159,31 +159,29 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
 
         const { modelName } = req.body;
 
-        // AI Logic (Retrieving API Key)
-        let resolvedApiKey;
+        // AI Logic - Support comma-separated key rotation
+        let rawKey;
         try {
             const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
             try {
                 const parsed = JSON.parse(storedKey);
-                resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                rawKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
             } catch (e) {
-                resolvedApiKey = storedKey;
+                rawKey = storedKey;
             }
         } catch (e) { }
 
-        if (!resolvedApiKey) {
-            resolvedApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+        if (!rawKey) {
+            rawKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
         }
 
-        // Cleanup key if it has commas
-        if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-            resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-        }
-
-        if (!resolvedApiKey) {
+        if (!rawKey) {
             return res.status(400).json({ error: 'No se ha configurado la clave API de Google.' });
         }
 
+        const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
+
+        // ... (knowledge gathering stays unchanged)
         // 1. DYNAMIC KNOWLEDGE - Last 5 resolved tickets
         let recentTicketsContext = '';
         try {
@@ -205,24 +203,19 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
             const searchQuery = `"${ticket.type}" ${ticket.description.substring(0, 80)} normatividad SST Colombia`;
 
             const searchResponse = await axios.get(searxngUrl, {
-                params: {
-                    q: searchQuery,
-                    format: 'json',
-                    language: 'es'
-                },
+                params: { q: searchQuery, format: 'json', language: 'es' },
                 timeout: 5000
             });
 
             if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
                 const topResults = searchResponse.data.results.slice(0, 3);
                 webContext = topResults.map(r => `- ${r.title}: ${r.content}`).join('\n');
-                logger.debug(`[Tickets AI] Added web search results`);
             }
         } catch (searchError) {
             logger.warn(`[Tickets AI] SearXNG Web Search failed: ${searchError.message}`);
         }
 
-        // 3. RAG KNOWLEDGE - App Knowledge Base
+        // 3. RAG KNOWLEDGE
         let ragContext = '';
         if (process.env.RAG_API_URL) {
             try {
@@ -235,7 +228,6 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
                     headers: { Authorization: `Bearer ${jwtToken}`, 'Content-Type': 'application/json' },
                     timeout: 5000
                 });
-
                 if (ragRes.data && ragRes.data.length > 0) {
                     ragContext = ragRes.data.map(m => `[CONOCIMIENTO RAG] ${(m[0]?.page_content || m.text || '').substring(0, 300)}`).join('\n');
                 }
@@ -247,7 +239,6 @@ router.post('/:id/ai-suggest', requireJwtAuth, async (req, res) => {
         const tenshiConfig = await TenshiConfig.findOne();
         const systemPrompt = tenshiConfig ? tenshiConfig.systemPrompt : 'Actúa como Tenshi, el asistente IA experto de WAPPY IA.';
 
-        // Fetch the platform manual
         let manualContent = '';
         try {
             const fs = require('fs');
@@ -285,11 +276,33 @@ INSTRUCCIONES:
 4. Mantén un tono empático.
 5. NO uses exceso de markdown, mantén el texto limpio.`;
 
-        const genAI = new GoogleGenerativeAI(resolvedApiKey);
-        const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+        // Rotation loop: try each key until one succeeds
+        let suggestion = null;
+        let lastSuggestError = null;
+        for (let i = 0; i < apiKeys.length; i++) {
+            try {
+                logger.debug(`[Tickets AI] Trying Google API Key ${i + 1}/${apiKeys.length}`);
+                const genAI = new GoogleGenerativeAI(apiKeys[i]);
+                const model = genAI.getGenerativeModel({ model: modelName || 'gemini-3-flash-preview' });
+                const result = await model.generateContent(prompt);
+                suggestion = result.response.text();
+                lastSuggestError = null;
+                break;
+            } catch (keyError) {
+                lastSuggestError = keyError;
+                const status = keyError.status || keyError.statusCode;
+                const msg = keyError.message || '';
+                if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
+                    logger.warn(`[Tickets AI] Clave #${i + 1} rechazada (${status}). Rotando...`);
+                    continue;
+                }
+                throw keyError;
+            }
+        }
 
-        const result = await model.generateContent(prompt);
-        const suggestion = result.response.text();
+        if (lastSuggestError) {
+            throw lastSuggestError;
+        }
 
         res.json({ suggestion });
     } catch (error) {

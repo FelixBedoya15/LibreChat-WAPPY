@@ -209,49 +209,36 @@ Reglas de formato esenciales para tus respuestas:
         if (config.provider === 'google') {
             const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-            // 1. Retrieve the user's Google API key using the official LibreChat service
-            let resolvedApiKey;
+            // 1. Retrieve ALL user Google API keys (supports comma-separated for rotation)
+            let rawKey;
             try {
                 const storedKey = await getUserKey({ userId: req.user.id, name: 'google' });
                 try {
                     const parsed = JSON.parse(storedKey);
-                    resolvedApiKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
+                    rawKey = parsed[AuthKeys.GOOGLE_API_KEY] || parsed.GOOGLE_API_KEY;
                 } catch (parseErr) {
-                    resolvedApiKey = storedKey;
+                    rawKey = storedKey;
                 }
             } catch (err) {
                 logger.debug('[Tenshi] No user Google key found, trying env vars:', err.message);
             }
 
-            if (!resolvedApiKey) {
-                resolvedApiKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+            if (!rawKey) {
+                rawKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
             }
 
-            // Cleanup key if it has commas
-            if (resolvedApiKey && typeof resolvedApiKey === 'string') {
-                resolvedApiKey = resolvedApiKey.split(',')[0].trim();
-            }
-
-            if (!resolvedApiKey) {
-                console.error('SERVER: Missing Google API Key. Checked: UserKey, GOOGLE_AI_API_KEY, GOOGLE_KEY, GEMINI_API_KEY, GOOGLE_API_KEY');
+            if (!rawKey) {
                 throw new Error('No se ha configurado la clave API de Google. Por favor, configúrala en la opción de Google del chat.');
             }
 
-            const genAI = new GoogleGenerativeAI(resolvedApiKey);
+            // Support comma-separated key rotation
+            const apiKeys = rawKey.split(',').map(k => k.trim()).filter(Boolean);
 
-            // Format for gemini (systemInstruction)
-            // Use config.model, but fallback to gemini-3-flash-preview which is standard in this app's .env
             const modelName = config.model || 'gemini-3-flash-preview';
-            const geminiModel = genAI.getGenerativeModel({
-                model: modelName,
-                systemInstruction: systemMessage
-            });
 
-            // Gemini history MUST start with 'user' role. 
-            // We filter messages to ensure it starts with user and alternates correctly.
+            // Build history once (reusable across key retries)
             const rawHistory = messages.slice(0, -1);
             const history = [];
-
             let firstUserFound = false;
             for (const m of rawHistory) {
                 if (!firstUserFound && m.role !== 'user') continue;
@@ -262,17 +249,38 @@ Reglas de formato esenciales para tus respuestas:
                 });
             }
 
-            // Ensure we don't end with a 'model' role if it's the last in history (Gemini is picky)
-            // though usually history is [user, model, user, model] and current message is user.
+            // Rotation loop: try each key until one succeeds
+            let lastError = null;
+            for (let i = 0; i < apiKeys.length; i++) {
+                const apiKey = apiKeys[i];
+                try {
+                    logger.debug(`[Tenshi] Trying Google API Key ${i + 1}/${apiKeys.length}`);
+                    const genAI = new GoogleGenerativeAI(apiKey);
+                    const geminiModel = genAI.getGenerativeModel({
+                        model: modelName,
+                        systemInstruction: systemMessage
+                    });
+                    const chat = geminiModel.startChat({ history });
+                    const result = await chat.sendMessage(messages[messages.length - 1].content);
+                    responseText = result.response.text();
+                    lastError = null;
+                    break; // Success — exit the retry loop
+                } catch (geminiError) {
+                    lastError = geminiError;
+                    const status = geminiError.status || geminiError.statusCode;
+                    const msg = geminiError.message || '';
+                    // Rotate on quota/forbidden errors
+                    if (status === 429 || status === 403 || msg.includes('leaked') || msg.includes('quota') || msg.includes('Forbidden')) {
+                        logger.warn(`[Tenshi] Clave #${i + 1} rechazada (${status}). Rotando...`);
+                        continue;
+                    }
+                    // For non-recoverable errors, abort immediately
+                    throw new Error(`Google AI Error: ${msg}`);
+                }
+            }
 
-            const chat = geminiModel.startChat({ history });
-
-            try {
-                const result = await chat.sendMessage(messages[messages.length - 1].content);
-                responseText = result.response.text();
-            } catch (geminiError) {
-                console.error('Gemini SDK Error:', geminiError);
-                throw new Error(`Google AI Error: ${geminiError.message || 'Unknown Gemini Error'}`);
+            if (lastError) {
+                throw new Error(`Google AI Error (todas las claves fallaron): ${lastError.message}`);
             }
 
         } else if (config.provider === 'groq') {
