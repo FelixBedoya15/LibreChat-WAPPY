@@ -238,6 +238,19 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     break;
                 case 'generating_report':
                     setStatusText('Generando Reporte...');
+                    // 📸 Capture 3 snapshots NOW — at the exact moment the report is being generated
+                    // This freezes the relevant frames for the evidence gallery
+                    snapshotsRef.current = [];
+                    [0, 500, 1000].forEach((delay) => {
+                        setTimeout(() => {
+                            const snap = captureSnapshot();
+                            if (snap) {
+                                snapshotsRef.current.push(snap);
+                                snapshotRef.current = snap;
+                                console.log(`[LiveAnalysisModal] 📸 Report snapshot ${snapshotsRef.current.length}/3 at generating_report`);
+                            }
+                        }, delay);
+                    });
                     break;
                 case 'ready':
                     setStatusText('Listo');
@@ -364,24 +377,8 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             const timer = setTimeout(() => {
                 console.log("[LiveAnalysisModal] Sending initial analysis prompt");
 
-                // Capture 3 snapshots with staggered timing so the video stream is ready
-                // Snapshot 1: after 2s (camera needs time to initialize)
-                // Snapshot 2: after 6s
-                // Snapshot 3: after 10s
-                snapshotsRef.current = [];
-                if (snapshotIntervalRef.current) clearInterval(snapshotIntervalRef.current);
-
-                const snapDelays = [2000, 6000, 10000];
-                snapDelays.forEach((delay) => {
-                    setTimeout(() => {
-                        const snap = captureSnapshot();
-                        if (snap) {
-                            snapshotsRef.current.push(snap);
-                            snapshotRef.current = snap;
-                            console.log(`[LiveAnalysisModal] Snapshot ${snapshotsRef.current.length}/3 captured at ${delay}ms`);
-                        }
-                    }, delay);
-                });
+                // Snapshots are captured at 'generating_report' status — not at startup
+                // This ensures evidence photos match the actual report moment
 
                 const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
