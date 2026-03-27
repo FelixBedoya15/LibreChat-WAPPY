@@ -915,7 +915,7 @@ class AgentClient extends BaseClient {
 
       memoryPromise = this.runMemory(initialMessages);
 
-      // Native Key Rotation for Agents
+      // Dual-axis rotation: outer = model fallbacks (503), inner = API keys (429/403)
       let keys = [this.options.agent?.model_parameters?.apiKey];
       if (typeof keys[0] === 'string' && keys[0].includes(',')) {
         keys = keys[0].split(',').map((k) => k.trim()).filter(Boolean);
@@ -924,43 +924,64 @@ class AgentClient extends BaseClient {
         keys = [null];
       }
 
+      // Build model fallback list from GOOGLE_MODELS env for 503 rotation
+      const primaryAgentModel = this.options.agent?.model_parameters?.model || '';
+      const envAgentModels = (process.env.GOOGLE_MODELS || '')
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
+      const agentModelFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)];
+
       let attemptErrors = [];
       let success = false;
       let lastErr = null;
       const initialContentPartsLength = this.contentParts.length;
 
-      for (let i = 0; i < keys.length; i++) {
-        try {
-          if (keys[i]) {
-            this.options.agent.model_parameters.apiKey = keys[i];
-            if (config?.configurable?.endpointOption?.model_parameters) {
-              config.configurable.endpointOption.model_parameters.apiKey = keys[i];
-            }
+      for (let mi = 0; mi < agentModelFallbacks.length && !success; mi++) {
+        const currentModel = agentModelFallbacks[mi];
+        if (mi > 0) {
+          // Apply the fallback model before retrying
+          logger.warn(`[AgentClient] 503 / overloaded — rotating agent model to "${currentModel}" (fallback ${mi}/${agentModelFallbacks.length - 1})`);
+          this.options.agent.model_parameters.model = currentModel;
+          if (config?.configurable?.endpointOption?.model_parameters) {
+            config.configurable.endpointOption.model_parameters.model = currentModel;
           }
-          /** 
-           * Re-build the messages array from the raw payload on every retry 
-           * to prevent LangGraph's in-place mutations from bleeding partial 
-           * generations into the next API key's context history. 
-           */
-          const { messages: pristineMessages } = formatAgentMessages(
-            payload,
-            this.indexTokenCountMap,
-            toolSet,
-          );
-          await runAgents(pristineMessages);
-          success = true;
-          break; // Exit loop on success
-        } catch (err) {
-          lastErr = err;
-          const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
-          const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
-          const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+          // Reset attempt errors for new model
+          attemptErrors = [];
+        }
 
-          attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
+        for (let i = 0; i < keys.length; i++) {
+          try {
+            if (keys[i]) {
+              this.options.agent.model_parameters.apiKey = keys[i];
+              if (config?.configurable?.endpointOption?.model_parameters) {
+                config.configurable.endpointOption.model_parameters.apiKey = keys[i];
+              }
+            }
+            /**
+             * Re-build the messages array from the raw payload on every retry
+             * to prevent LangGraph's in-place mutations from bleeding partial
+             * generations into the next API key's context history.
+             */
+            const { messages: pristineMessages } = formatAgentMessages(
+              payload,
+              this.indexTokenCountMap,
+              toolSet,
+            );
+            await runAgents(pristineMessages);
+            success = true;
+            break; // Exit key loop on success
+          } catch (err) {
+            lastErr = err;
+            const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
+            const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
+            const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+            const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
+              err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') || err?.message?.includes('UNAVAILABLE');
 
-          if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
-            logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
-            // Clean up any artifacts from the failed run in-place to preserve closure reference
+            attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
+
+            // Clean up partial output from failed run
             this.contentParts.splice(initialContentPartsLength);
 
             try {
@@ -973,9 +994,15 @@ class AgentClient extends BaseClient {
               logger.error('Failed to send clear_step_maps event', e);
             }
 
-            continue;
-          } else {
-            break;
+            if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
+              logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
+              continue; // Try next key, same model
+            } else if (isServiceUnavailable) {
+              logger.warn(`[AgentClient] Model "${currentModel}" unavailable (503). Will try next model fallback...`);
+              break; // Break key loop to trigger model fallback
+            } else {
+              break; // Non-recoverable error, stop all retries
+            }
           }
         }
       }
