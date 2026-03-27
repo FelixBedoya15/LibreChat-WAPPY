@@ -15,7 +15,7 @@ import {
     History,
     Save,
     Loader2,
-    HelpCircle, Plus, Trash2, ShieldCheck, Bot, Video, Film, Users, Building2
+    HelpCircle, Plus, Trash2, ShieldCheck, Bot, Video, Film, Users, Building2, AlertTriangle
 } from 'lucide-react';
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
@@ -114,7 +114,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [selectedModel, setSelectedModel] = useState<string>(() => {
-        return user?.personalization?.geminiModels?.sstManagement || 'gemini-2.0-flash';
+        return user?.personalization?.geminiModels?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
     });
 
     // Initialize model from user preferences when user data loads

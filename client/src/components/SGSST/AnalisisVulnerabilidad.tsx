@@ -174,7 +174,7 @@ const emptyAmenaza = (): AmenazaNode => ({
 
 const AnalisisVulnerabilidad = () => {
   const { showToast } = useToastContext();
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
 
   const [amenazasList, setAmenazasList] = useState<AmenazaNode[]>([emptyAmenaza()]);
   const [activeAmenazaId, setActiveAmenazaId] = useState<string | null>(null);
@@ -185,7 +185,10 @@ const AnalisisVulnerabilidad = () => {
   const [evaluadoresList, setEvaluadoresList] = useState([{ nombre: '', cedula: '', rol: '' }]);
   const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
-  const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = React.useState(
+    user?.personalization?.geminiModels?.sstManagement ||
+    (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim()
+  );
 
   React.useEffect(() => {
     if (user?.personalization?.geminiModels?.sstManagement) {

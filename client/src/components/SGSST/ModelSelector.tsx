@@ -4,11 +4,12 @@ import { cn } from '~/utils';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import { EModelEndpoint } from 'librechat-data-provider';
 
+// Fallback model list (used only when query hasn't loaded yet)
 export const AI_MODELS = [
     { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro' },
-    { id: 'gemini-2.0-flash-thinking-exp-01-21', name: 'Gemini 2.0 Thinking' },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
 ];
 
 interface ModelSelectorProps {
@@ -23,16 +24,19 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
     const containerRef = useRef<HTMLDivElement>(null);
     const modelsQuery = useGetModelsQuery();
 
-    const AI_MODELS = useMemo(() => {
+    const availableModels = useMemo(() => {
         const googleModels = modelsQuery.data?.[EModelEndpoint.google] || [];
-        return googleModels.map((model) => {
-            const id = typeof model === 'string' ? model : (model as any).id || (model as any).value;
-            const name = typeof model === 'string' ? model : (model as any).name || (model as any).label || id;
-            return { id, name };
-        });
+        if (googleModels.length > 0) {
+            return googleModels
+                .filter((m): m is string => typeof m === 'string') 
+                .filter(m => !m.includes('live') && !m.includes('Live'))
+                .map((model) => ({ id: model, name: model }));
+        }
+        // Fallback to static list while loading
+        return AI_MODELS;
     }, [modelsQuery.data]);
 
-    const currentModelName = AI_MODELS.find(m => m.id === selectedModel)?.name || selectedModel;
+    const currentModelName = availableModels.find(m => m.id === selectedModel)?.name || selectedModel;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -69,14 +73,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
             </button>
 
             {isOpen && (
-                <div className="absolute top-full mt-2 right-0 w-64 bg-surface-primary border border-border-medium rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="fixed w-64 bg-surface-primary border border-border-medium rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" style={{ zIndex: 9999, top: containerRef.current ? containerRef.current.getBoundingClientRect().bottom + 8 : 0, right: containerRef.current ? window.innerWidth - containerRef.current.getBoundingClientRect().right : 0 }}>
                     <div className="p-2 border-b border-border-light bg-surface-tertiary/30">
                         <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider px-2">
                             Modelo de Inteligencia Artificial
                         </span>
                     </div>
                     <div className="p-1 max-h-60 overflow-y-auto">
-                        {AI_MODELS.map((model) => (
+                        {availableModels.map((model) => (
                             <button
                                 key={model.id}
                                 onClick={() => {
