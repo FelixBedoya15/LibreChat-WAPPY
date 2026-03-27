@@ -51,10 +51,14 @@ class VoiceSession {
         }
 
         // Validate if the candidate model supports Gemini Live BidiStreaming
-        // Remove the restrictive name checking since Gemini 2.5 and 3.0 support audio without "audio/live/native" in the name
-        // BUT MUST ensure it's a Gemini model, otherwise BidiStreaming will reject it (e.g. gpt-4o).
+        // BidiStreaming ONLY supports specific models (e.g. gemini-2.5-flash, gemini-2.0-flash-exp, native-audio-preview)
+        // If we pass an unsupported model (like gpt-4o or gemini-3.0-flash), Google immediately drops the WS connection.
         if (candidateModel) {
-            if (candidateModel.toLowerCase().startsWith('gemini')) {
+            const isSupportedLiveModel = ['gemini-2.5-flash', 'gemini-2.0-flash-exp', 'native-audio'].some(
+                validModel => candidateModel.toLowerCase().includes(validModel)
+            );
+            
+            if (isSupportedLiveModel) {
                 this.liveConfig.model = candidateModel;
                 logger.info(`[VoiceSession] Using live model: ${this.liveConfig.model}`);
             } else {

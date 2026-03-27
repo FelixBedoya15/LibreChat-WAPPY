@@ -72,7 +72,7 @@ export default function Personalization({
         generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.1-flash-lite-preview',
         agents: user.personalization.geminiModels.agents || 'gemini-3.1-flash-lite-preview',
         sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.1-flash-lite-preview',
-        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-2.5-flash-lite-preview-09-2025',
+        liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-2.5-flash-native-audio-preview-09-2025',
         textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-2.5-flash',
         reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.1-flash-lite-preview',
       });
@@ -82,7 +82,7 @@ export default function Personalization({
         generalChat: 'gemini-3.1-flash-lite-preview',
         agents: 'gemini-3.1-flash-lite-preview',
         sstManagement: 'gemini-3.1-flash-lite-preview',
-        liveAnalysis: 'gemini-2.5-flash-lite-preview-09-2025',
+        liveAnalysis: 'gemini-2.5-flash-native-audio-preview-09-2025',
         textCorrection: 'gemini-2.5-flash',
         reportGeneration: 'gemini-3.1-flash-lite-preview',
       });
@@ -111,8 +111,8 @@ export default function Personalization({
         'gemini-3-flash-preview',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
-        'gemini-2.5-flash-lite-preview-12-2025',
-        'gemini-2.5-flash-lite-preview-09-2025'
+        'gemini-2.5-flash-native-audio-preview-12-2025',
+        'gemini-2.5-flash-native-audio-preview-09-2025'
       ];
     }
 
