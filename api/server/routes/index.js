@@ -40,6 +40,7 @@ const notifications = require('./notifications');
 const contact = require('./contact');
 const publicReports = require('./publicReports');
 const publicSgsst = require('./publicSgsst');
+const liveAiEdit = require('./liveAiEdit');
 
 module.exports = {
   auth,
@@ -84,4 +85,5 @@ module.exports = {
   contact,
   publicReports,
   publicSgsst,
+  liveAiEdit,
 };

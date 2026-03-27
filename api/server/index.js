@@ -243,6 +243,7 @@ const startServer = async () => {
   app.use('/api/contact', routes.contact);
   app.use('/api/public-report', routes.publicReports);
   app.use('/api/public-sgsst', routes.publicSgsst);
+  app.use('/api/live', routes.liveAiEdit);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {
