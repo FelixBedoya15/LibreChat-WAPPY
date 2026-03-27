@@ -44,29 +44,34 @@ class VoiceSession {
         // 3. System default (GEMINI_LIVE_MODEL env)
 
         let candidateModel = config.model; // Dropdown priority
+        let finalModel = null;
         
-        // If no dropdown selection, check user personalization
-        if (!candidateModel && this.config?.userSettings?.liveAnalysis) {
-            candidateModel = this.config.userSettings.liveAnalysis;
+        const isSupported = (name) => {
+            if (!name) return false;
+            return ['gemini-2.0-flash-exp', 'native-audio', 'gemini-exp-1206'].some(
+                validModel => name.toLowerCase().includes(validModel)
+            );
+        };
+
+        // Try candidate (dropdown)
+        if (isSupported(candidateModel)) {
+            finalModel = candidateModel;
+        } 
+        // If dropdown was invalid/missing, try User Personalization fallback
+        else if (isSupported(this.config?.userSettings?.liveAnalysis)) {
+            logger.warn(`[VoiceSession] Model "${candidateModel}" invalid. Falling back to personal settings: ${this.config.userSettings.liveAnalysis}`);
+            finalModel = this.config.userSettings.liveAnalysis;
+        } 
+        // Neither are valid, completely delete to use GeminiLiveClient fallback
+        else {
+            logger.warn(`[VoiceSession] Neither requested model nor personalization are compatible for Live. Using system default.`);
+            finalModel = null;
         }
 
-        // Validate if the candidate model supports Gemini Live BidiStreaming
-        // BidiStreaming ONLY supports specific models (e.g. gemini-2.5-flash, gemini-2.0-flash-exp, native-audio-preview)
-        // If we pass an unsupported model (like gpt-4o or gemini-3.0-flash), Google immediately drops the WS connection.
-        if (candidateModel) {
-            const isSupportedLiveModel = ['gemini-2.5-flash', 'gemini-2.0-flash-exp', 'native-audio'].some(
-                validModel => candidateModel.toLowerCase().includes(validModel)
-            );
-            
-            if (isSupportedLiveModel) {
-                this.liveConfig.model = candidateModel;
-                logger.info(`[VoiceSession] Using live model: ${this.liveConfig.model}`);
-            } else {
-                logger.warn(`[VoiceSession] Model "${candidateModel}" is not compatible with Gemini Live BidiStreaming. Falling back to default.`);
-                delete this.liveConfig.model; // Fallback to GeminiLiveClient's default
-            }
+        if (finalModel) {
+            this.liveConfig.model = finalModel;
+            logger.info(`[VoiceSession] Using live model: ${this.liveConfig.model}`);
         } else {
-            // No custom model specified, use GeminiLiveClient's default
             delete this.liveConfig.model;
         }
 
