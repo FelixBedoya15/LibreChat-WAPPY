@@ -6,6 +6,9 @@ const { EModelEndpoint } = require('librechat-data-provider');
 const { saveMessage, saveConvo, getMessages } = require('~/models');
 const { v4: uuidv4 } = require('uuid');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('../sgsst/sgsstGemini');
+const mongoose = require('mongoose');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildSignatureSection } = require('../sgsst/reportHeader');
 
 /**
  * Active voice sessions
@@ -872,7 +875,40 @@ class VoiceSession {
 
             const result = await generateWithKeyRotation(reportModelName, this.userId, prompt);
             const response = result.response;
-            const reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+            let reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
+
+            // ─── DYNAMIC SIGNATURE AND WORKER DETECTION ──────────────────────
+            let finalSignatureHtml = '';
+            try {
+                const companyInfo = await CompanyInfo.findOne({ user: this.userId }).lean();
+                let matchedWorker = null;
+
+                if (mongoose.models.PerfilSociodemograficoData) {
+                    const profileData = await mongoose.models.PerfilSociodemograficoData.findOne({ user: this.userId }).lean();
+                    if (profileData && profileData.trabajadores) {
+                        // Find the first worker whose name or identification is explicitly mentioned in the generated HTML
+                        matchedWorker = profileData.trabajadores.find(w => {
+                            if (w.nombre && reportHtml.includes(w.nombre)) return true;
+                            if (w.identificacion && reportHtml.includes(w.identificacion)) return true;
+                            return false;
+                        });
+                        if (matchedWorker) {
+                            logger.info(`[VoiceSession] Worker matched in report: ${matchedWorker.nombre}`);
+                        }
+                    }
+                }
+
+                if (companyInfo) {
+                    finalSignatureHtml = buildSignatureSection(companyInfo, matchedWorker);
+                }
+            } catch (err) {
+                logger.warn('[VoiceSession] Error generating signatures for LiveAnalysis:', err.message);
+            }
+
+            if (finalSignatureHtml) {
+                reportHtml += `\n\n${finalSignatureHtml}`;
+            }
+            // ──────────────────────────────────────────────────────────────────
 
             logger.info(`[VoiceSession] Report generated successfully (${reportHtml.length} chars)`);
 

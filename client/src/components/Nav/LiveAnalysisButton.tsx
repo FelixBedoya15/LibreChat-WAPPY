@@ -28,7 +28,7 @@ export default function LiveAnalysisButton({
     if (isCollapsed) {
         return (
             <TooltipAnchor
-              description="Cámara de Riesgo"
+              description="Análisis en Vivo"
               side="right"
               render={
                 <motion.button
@@ -50,7 +50,7 @@ export default function LiveAnalysisButton({
             className="group flex w-full items-center gap-2.5 rounded-xl border border-border-medium/30 bg-white dark:bg-surface-primary px-3 py-2.5 text-sm text-text-secondary transition-all duration-200 shadow-sm hover:bg-surface-hover hover:border-teal-400 hover:text-teal-600"
         >
             <Camera className="h-4 w-4 shrink-0" />
-            <span className="font-semibold text-text-primary text-[13px]">Cámara de Riesgo</span>
+            <span className="font-semibold text-text-primary text-[13px]">Análisis en Vivo</span>
         </motion.button>
     );
 }

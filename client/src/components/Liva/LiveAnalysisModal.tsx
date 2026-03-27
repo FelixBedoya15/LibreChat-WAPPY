@@ -221,37 +221,6 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     </div>
 
   </div>
-
-  <!-- SIGNATURE BLOCK -->
-  <div style="background:#f5f5f5; border:1px solid #e0e0e0; border-top:none; padding:24px 32px; border-radius:0 0 12px 12px;">
-    <div style="font-size:0.75em; color:#666; text-align:center; margin-bottom:20px; text-transform:uppercase; letter-spacing:2px; font-weight:600;">Firmas de Aprobación y Responsabilidad</div>
-    <div style="display:flex; justify-content:space-around; flex-wrap:wrap; gap:24px;">
-      <div style="text-align:center; flex:1; min-width:180px;">
-        <div style="border-top:2px solid #333; margin-bottom:8px; padding-top:8px;">
-          <div style="font-weight:700; font-size:0.85em; color:#1a1a1a;">_________________________________</div>
-          <div style="font-weight:700; font-size:0.9em; color:#1565c0; margin-top:6px;">Responsable SST</div>
-          <div style="font-size:0.75em; color:#666;">Auditor Líder Certificado</div>
-          <div style="font-size:0.7em; color:#888; margin-top:4px;">Firma y sello</div>
-        </div>
-      </div>
-      <div style="text-align:center; flex:1; min-width:180px;">
-        <div style="border-top:2px solid #333; margin-bottom:8px; padding-top:8px;">
-          <div style="font-weight:700; font-size:0.85em; color:#1a1a1a;">_________________________________</div>
-          <div style="font-weight:700; font-size:0.9em; color:#1565c0; margin-top:6px;">Representante Legal</div>
-          <div style="font-size:0.75em; color:#666;">Alta Dirección / Empleador</div>
-          <div style="font-size:0.7em; color:#888; margin-top:4px;">Firma y sello</div>
-        </div>
-      </div>
-      <div style="text-align:center; flex:1; min-width:180px;">
-        <div style="border-top:2px solid #333; margin-bottom:8px; padding-top:8px;">
-          <div style="font-weight:700; font-size:0.85em; color:#1a1a1a;">_________________________________</div>
-          <div style="font-weight:700; font-size:0.9em; color:#1565c0; margin-top:6px;">Trabajador / Testigo</div>
-          <div style="font-size:0.75em; color:#666;">Representante de los trabajadores</div>
-          <div style="font-size:0.7em; color:#888; margin-top:4px;">Firma y sello</div>
-        </div>
-      </div>
-    </div>
-    <div style="text-align:center; margin-top:16px; font-size:0.65em; color:#aaa;">Documento generado automáticamente por WAPPY IA · Sistema de Gestión SST · ${new Date().toISOString()}</div>
   </div>
 
 </div>`;
