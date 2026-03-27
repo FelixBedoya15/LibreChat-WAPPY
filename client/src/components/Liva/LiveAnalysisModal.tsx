@@ -89,9 +89,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             onTextReceived?.(text);
         },
         onReportReceived: (html: string) => {
-            setHasReceivedReport(true);
-            setReportNotification(true);
-            setTimeout(() => setReportNotification(false), 8000);
+            setHasReceivedReport(true); // Toast is triggered by useEffect watching this
 
             const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = new Date().toLocaleTimeString('es-ES');
@@ -253,6 +251,17 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         },
     }), [conversationId, onConversationIdUpdate, voiceLiveAnalysis, onTextReceived, onReportReceived, hasReceivedReport, selectedModel]);
 
+    // Trigger toast ONLY when hasReceivedReport flips to true (not on every render)
+    const prevHasReport = useRef(false);
+    useEffect(() => {
+        if (hasReceivedReport && !prevHasReport.current) {
+            prevHasReport.current = true;
+            setReportNotification(true);
+            const timer = setTimeout(() => setReportNotification(false), 8000);
+            return () => clearTimeout(timer);
+        }
+    }, [hasReceivedReport]);
+
     const {
         isConnected,
         isConnecting,
@@ -295,7 +304,16 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         }
     }, [isOpen, isConnected]);
 
-    // NEW: Sync visible state with Recoil for Tenshi hiding
+    // Reset report state when modal is closed (to allow next session to show toast again)
+    useEffect(() => {
+        if (!isOpen) {
+            prevHasReport.current = false;
+            setHasReceivedReport(false);
+            setReportNotification(false);
+        }
+    }, [isOpen]);
+
+    // Sync visible state with Recoil for Tenshi hiding
     useEffect(() => {
         setShowModalState(isOpen);
     }, [isOpen, setShowModalState]);

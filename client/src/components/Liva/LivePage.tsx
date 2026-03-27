@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import LiveEditor from './Editor/LiveEditor';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import LiveEditor, { type LiveEditorHandle } from './Editor/LiveEditor';
 import LiveAnalysisModal from './LiveAnalysisModal';
 import ReportHistory from './ReportHistory';
 import { Video, Save, History } from 'lucide-react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import { useLocalize, useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -21,6 +21,8 @@ const LivePage = () => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    // Imperative ref to push HTML content into the editor directly
+    const editorRef = useRef<LiveEditorHandle>(null);
 
     // REMOVED useNewConvo because it forces a redirect to /c/new.
     // We handle "new" state locally.
@@ -46,6 +48,8 @@ const LivePage = () => {
 
     const handleReportReceived = useCallback((html: string, messageId?: string) => {
         console.log("LivePage: Full Report received", messageId);
+        // Push content imperatively into the editor (it only reads initialContent once on mount)
+        editorRef.current?.setHTML(html);
         setEditorContent(html);
         setLastUpdated(new Date());
         if (messageId) {
@@ -199,6 +203,7 @@ const LivePage = () => {
                 }
 
                 // Set content and update state
+                editorRef.current?.setHTML(html);
                 setEditorContent(html);
                 setReportMessageId(lastMsg.messageId);
                 setLastUpdated(new Date(lastMsg.createdAt));
@@ -558,6 +563,7 @@ const LivePage = () => {
             <div className="flex-1 overflow-hidden p-4 bg-surface-secondary">
                 <div className="h-full max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg overflow-hidden border border-light">
                     <LiveEditor
+                        ref={editorRef}
                         initialContent={editorContent || initialReportContent}
                         onUpdate={(html) => {
                             setEditorContent(html);
