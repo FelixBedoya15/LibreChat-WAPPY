@@ -321,7 +321,7 @@ router.post('/complete', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
         const selectedModel = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: selectedModel });
 
@@ -534,7 +534,7 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
         const model = genAI.getGenerativeModel({ model: modelName || preferredModel });
 
         // Build expanded SST context
@@ -736,7 +736,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { procesos, currentDate, userName, modelName } = req.body;
         const personalization = req.user?.personalization?.geminiModels;
-        const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
         const finalModelName = modelName || preferredModel;
 
         if (!procesos || !Array.isArray(procesos) || procesos.length === 0) {

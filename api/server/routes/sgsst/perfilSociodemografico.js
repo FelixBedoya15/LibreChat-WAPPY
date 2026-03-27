@@ -271,7 +271,7 @@ router.post('/generate-full', requireJwtAuth, async (req, res) => {
     }
 
     const personalization = req.user?.personalization?.geminiModels;
-    const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
     const finalModelName = modelName || preferredModel;
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: finalModelName });
@@ -324,7 +324,7 @@ Esquema JSON Requerido (DEBES responder solo json, sin markdown):
 // ─── POST /analyze — Generate AI Exec Report for Sociodemographic ─────────────────────────────
 router.post('/analyze', requireJwtAuth, async (req, res) => {
   try {
-    const { trabajadores, currentDate, userName, modelName = 'gemini-2.0-flash' } = req.body;
+    const { trabajadores, currentDate, userName, modelName = (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim() } = req.body;
 
     if (!trabajadores || !Array.isArray(trabajadores) || trabajadores.length === 0) {
       return res.status(400).json({ error: 'No hay trabajadores para analizar.' });
@@ -437,7 +437,7 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
 - Celdas(td): padding = "10px", border - bottom="1px solid #ddd"(sin background - color predeterminado para que hereden el modo oscuro).`;
 
     const personalization = req.user?.personalization?.geminiModels;
-    const preferredModel = personalization?.sstManagement || 'gemini-2.0-flash';
+    const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
     const finalModelName = modelName || preferredModel;
     const model = genAI.getGenerativeModel({ model: finalModelName });
     const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
