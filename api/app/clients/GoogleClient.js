@@ -222,6 +222,42 @@ class GoogleClient extends BaseClient {
   }
 
   /**
+   * Rotate to the next available fallback model on 503 / overloaded errors.
+   * Uses GOOGLE_MODELS env var as the ordered fallback list.
+   * Resets key index so all keys are retried with the new model.
+   * @returns {boolean} true if a fallback model was found and applied.
+   */
+  rotateModel() {
+    if (!this._modelFallbacks) {
+      const currentModel = this.modelOptions.modelName ?? this.modelOptions.model ?? '';
+      const envModels = (process.env.GOOGLE_MODELS || '')
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
+      // Put current model first, then the rest as fallbacks (excluding current)
+      this._modelFallbacks = [currentModel, ...envModels.filter((m) => m !== currentModel)];
+      this._modelFallbackIndex = 0;
+    }
+
+    if (this._modelFallbackIndex >= this._modelFallbacks.length - 1) {
+      logger.warn('[GoogleClient] All model fallbacks exhausted.');
+      return false;
+    }
+
+    this._modelFallbackIndex++;
+    const nextModel = this._modelFallbacks[this._modelFallbackIndex];
+    logger.warn(`[GoogleClient] 503 / overloaded — rotating model to "${nextModel}" (fallback ${this._modelFallbackIndex}/${this._modelFallbacks.length - 1})`);
+
+    // Apply new model and reset key rotation to retry all keys
+    this.modelOptions.model = nextModel;
+    this.modelOptions.modelName = nextModel;
+    this.currentKeyIndex = 0;
+    this.apiKey = this.apiKeys[this.currentKeyIndex];
+    this.initializeClient();
+    return true;
+  }
+
+  /**
    *
    * Checks if the model is a vision model based on request attachments and sets the appropriate options:
    * @param {MongoFile[]} attachments
@@ -795,9 +831,23 @@ class GoogleClient extends BaseClient {
       const isQuotaExceeded = e.status === 403 || (e.response && e.response.status === 403);
       const isInvalidKey = (e.status === 400 || (e.response && e.response.status === 400)) &&
         e.message && (e.message.includes('API_KEY_INVALID') || e.message.includes('API key not valid'));
+      const isServiceUnavailable = e.status === 503 || (e.response && e.response.status === 503) ||
+        (e.message && (e.message.includes('overloaded') || e.message.includes('Service Unavailable') || e.message.includes('UNAVAILABLE')));
 
       if ((isRateLimit || isQuotaExceeded || isInvalidKey) && this.rotateKey()) {
         logger.warn(`[GoogleClient] Encountered ${e.status || (e.response && e.response.status)} error (${isInvalidKey ? 'Invalid Key' : 'Rate Limit/Quota'}). Retrying with next API key...`);
+        const { sendEvent } = require('@librechat/api');
+        await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
+
+        if (options.onProgress) {
+          options.onProgress({ clear_step_maps: true });
+        }
+
+        return this.getCompletion(_payload, options);
+      }
+
+      if (isServiceUnavailable && this.rotateModel()) {
+        logger.warn(`[GoogleClient] Model overloaded/unavailable (503). Switching to fallback model and retrying...`);
         const { sendEvent } = require('@librechat/api');
         await sendEvent(options.res, { event: 'clear_step_maps', data: { messageId: this.responseMessageId } });
 
