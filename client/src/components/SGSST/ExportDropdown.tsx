@@ -289,7 +289,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-[9999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-1">
                         {exportOptions.map((option) => {
                             const Icon = option.icon;

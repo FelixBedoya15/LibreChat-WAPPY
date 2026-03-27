@@ -8,8 +8,6 @@ export const AI_MODELS = [
     { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
     { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
-    { id: 'gemini-2.5-flash-lite-preview-12-2025', name: 'Gemini 2.5 Flash Lite 12/25' },
-    { id: 'gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash Lite 09/25' },
 ];
 
 interface ModelSelectorProps {
@@ -62,7 +60,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-[9999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-2 border-b border-border-light bg-surface-tertiary/30">
                         <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider px-2">
                             Modelo de Inteligencia Artificial
