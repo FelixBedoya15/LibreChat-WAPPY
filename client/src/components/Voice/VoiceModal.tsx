@@ -115,10 +115,6 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         }
         setShowModalState(true);
         connect();
-        // AUTO-START CAMERA
-        setTimeout(() => {
-            startCamera('environment');
-        }, 500);
         return () => {
             stopMediaTracks();
             disconnect();
@@ -164,6 +160,13 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
             setIsReady(false);
         }
     }, [isOpen, isConnected]);
+
+    // Auto-start camera when READY (after countdown)
+    useEffect(() => {
+        if (isConnected && isOpen && isReady) {
+            startCamera(facingMode);
+        }
+    }, [isConnected, isOpen, isReady]);
 
     const handleClose = () => {
         clearAudioQueue();
