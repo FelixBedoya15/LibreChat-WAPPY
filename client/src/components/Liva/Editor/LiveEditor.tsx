@@ -976,7 +976,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 )}
                 <div
                     ref={editorRef}
-                    className={`flex-1 p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
+                    className={`flex-1 p-3 sm:p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
                     contentEditable
                     onInput={handleInput}
                     suppressContentEditableWarning={true}
@@ -1133,6 +1133,21 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 .live-editor-fullscreen .live-editor-content {
                     flex: 1;
                     height: calc(100vh - 80px) !important;
+                    padding: 12px 16px !important;
+                }
+                .live-editor-fullscreen .live-editor-content > div {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                }
+                @media (min-width: 640px) {
+                    .live-editor-fullscreen .live-editor-content {
+                        padding: 24px 40px !important;
+                    }
+                    .live-editor-fullscreen .live-editor-content > div {
+                        max-width: 1000px !important;
+                        margin: 0 auto !important;
+                    }
                 }
             `}</style>
 
