@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
     Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered,
@@ -129,32 +130,27 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     savedRangeRef.current = range.cloneRange();
                     setAiEditSelectedText(selectedText);
                     
-                    const wrapperRect = editorNode!.parentElement!.getBoundingClientRect();
+                    // CRITICAL FIX: The wrapper context is clipping the bubble using CSS overflow when deep inside reports.
+                    // We will use React Portal to render the bubble outside the DOM hierarchy. 
+                    // So we must calculate coordinates relative to the VIEWPORT, not the wrapper.
+                    const rect = range.getBoundingClientRect();
                     
-                    let pointerX = e.clientX;
-                    let pointerY = e.clientY;
+                    let fixedX = rect.left + (rect.width / 2);
+                    let fixedY = rect.bottom + 12; // place just below selection
                     
-                    if (!pointerX && !pointerY) {
-                         const rect = range.getBoundingClientRect();
-                         pointerX = rect.left + (rect.width / 2);
-                         pointerY = rect.bottom;
-                    }
-
-                    const finalX = Math.max(0, pointerX - wrapperRect.left);
-                    const finalY = Math.max(0, pointerY - wrapperRect.top + 12);
+                    // Constrain to viewport safely
+                    fixedX = Math.max(80, Math.min(fixedX, window.innerWidth - 80));
+                    fixedY = Math.max(20, Math.min(fixedY, window.innerHeight - 80));
 
                     setBubbleDebug({ 
                         status: 'success', 
-                        pointerX, pointerY, 
-                        wrapperTop: Math.round(wrapperRect.top), 
-                        wrapperLeft: Math.round(wrapperRect.left),
-                        finalX: Math.round(finalX), finalY: Math.round(finalY),
+                        fixedX: Math.round(fixedX), fixedY: Math.round(fixedY),
                         textLen: selectedText.length
                     });
 
                     setAiEditBubble({
-                        x: finalX,
-                        y: finalY, 
+                        x: fixedX,
+                        y: fixedY, 
                     });
 
                     setShowAiInput(false); // reset to initial bubble state
@@ -1077,11 +1073,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 }
                 /* AI Edit Bubble */
                 .ai-edit-bubble {
-                    position: absolute;
-                    z-index: 9999;
-                    transform: translateX(-50%);
-                    animation: aiBubblePop 0.15s ease-out;
-                    filter: drop-shadow(0 4px 12px rgba(99,102,241,0.35));
+                    position: fixed;
+                    z-index: 9999999;
                 }
                 @keyframes aiBubblePop {
                     from { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(4px); }
@@ -1089,15 +1082,15 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 }
             `}</style>
 
-            {/* ✨ AI Inline Edit Bubble */}
-            {aiEditBubble && (
+            {/* ✨ AI Bubble (Portaled to body to avoid overflow clipping) */}
+            {aiEditBubble && createPortal(
                 <div
                     data-ai-bubble="true"
                     className="ai-edit-bubble"
-                    style={{ left: aiEditBubble.x, top: aiEditBubble.y }}
+                    style={{ position: 'fixed', left: aiEditBubble.x, top: aiEditBubble.y, zIndex: 9999999 }}
                 >
                     {!showAiInput ? (
-                        /* Pill button */
+                        /* Simple pill button */
                         <button
                             data-ai-bubble="true"
                             onClick={() => setShowAiInput(true)}
@@ -1107,55 +1100,48 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 color: '#fff', border: 'none', borderRadius: '20px',
                                 padding: '6px 14px', fontSize: '0.78em', fontWeight: 700,
                                 cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.3px',
+                                boxShadow: '0 4px 12px rgba(99,102,241,0.35)',
                             }}
                         >
-                            ✨ Editar con IA (v2)
+                            ✨ Editar con IA (v3)
                         </button>
                     ) : (
                         /* Expanded input panel */
                         <div
                             data-ai-bubble="true"
                             style={{
-                                background: '#fff', border: '1.5px solid #6366f1',
-                                borderRadius: '12px', padding: '10px 12px',
-                                width: '300px', boxShadow: '0 8px 24px rgba(99,102,241,0.2)',
+                                background: '#ffffff', borderRadius: '12px', padding: '12px',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)',
+                                display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '260px',
                             }}
                         >
-                            <div style={{ fontSize: '0.72em', fontWeight: 700, color: '#6366f1', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                ✨ ¿Qué deseas hacer con este texto?
-                            </div>
                             <textarea
                                 ref={aiInputRef}
                                 data-ai-bubble="true"
                                 value={aiEditInstruction}
-                                onChange={e => setAiEditInstruction(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiEdit(); }
+                                onChange={(e) => setAiEditInstruction(e.target.value)}
+                                placeholder="¿Qué deseas cambiar o agregar?"
+                                style={{
+                                    width: '100%', minHeight: '60px', border: '1px solid #e2e8f0',
+                                    borderRadius: '8px', padding: '8px', fontSize: '0.85em',
+                                    resize: 'none', outline: 'none', color: '#1e293b'
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiEditSubmit(); }
                                     if (e.key === 'Escape') { setAiEditBubble(null); setShowAiInput(false); }
                                 }}
-                                placeholder="Ej: Hazlo más formal, traduce al inglés, agrega más detalle técnico..."
-                                style={{
-                                    width: '100%', border: '1px solid #e0e0e0', borderRadius: '8px',
-                                    padding: '8px', fontSize: '0.8em', resize: 'none', outline: 'none',
-                                    minHeight: '64px', fontFamily: 'inherit', color: '#1a1a1a',
-                                }}
-                                rows={3}
                             />
-                            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                                 <button
                                     data-ai-bubble="true"
                                     onClick={() => { setAiEditBubble(null); setShowAiInput(false); }}
-                                    style={{ background: '#f5f5f5', border: '1px solid #ddd', borderRadius: '8px', padding: '5px 12px', fontSize: '0.78em', cursor: 'pointer', color: '#666' }}
-                                >
-                                    Cancelar
-                                </button>
+                                    style={{ background: 'transparent', border: 'none', fontSize: '0.8em', color: '#64748b', cursor: 'pointer' }}
+                                > Cancelar </button>
                                 <button
                                     data-ai-bubble="true"
-                                    onClick={handleAiEdit}
+                                    onClick={handleAiEditSubmit}
                                     disabled={isAiEditing || !aiEditInstruction.trim()}
                                     style={{
-                                        background: isAiEditing ? '#a5b4fc' : 'linear-gradient(135deg,#4f46e5,#7c3aed)',
-                                        color: '#fff', border: 'none', borderRadius: '8px',
                                         padding: '5px 14px', fontSize: '0.78em', fontWeight: 700,
                                         cursor: isAiEditing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
                                     }}
