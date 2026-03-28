@@ -1157,7 +1157,21 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                             </div>
                         </div>
                     )}
-                </div>
+                </div>,
+                portalNode
+            )}
+
+            {/* 🐛 DEBUG OVERLAY (V2 DIAGNOSTICS) */}
+            {Object.keys(bubbleDebug).length > 0 && portalNode && createPortal(
+                <div style={{
+                    position: 'fixed', bottom: '8px', right: '8px', pointerEvents: 'none',
+                    background: 'rgba(0,0,0,0.8)', color: '#0f0', padding: '6px', borderRadius: '4px',
+                    fontFamily: 'monospace', fontSize: '10px', zIndex: 9999999, maxWidth: '240px',
+                    wordBreak: 'break-all'
+                }}>
+                    v3.2-DB: {JSON.stringify(bubbleDebug)}
+                </div>,
+                portalNode
             )}
         </div>
 
