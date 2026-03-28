@@ -123,7 +123,7 @@ El gestor está dividido por colores y fases metodológicas:
 
 ## 💳 4. Planes y Facturación (Sistema Integrado Wompi)
 
-WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Semestral o Anual. Pagar periodos largos suele aplicar un descuento automático. Tenemos 4 niveles ([ver /planes](https://ia.wappy-ia.com/planes)):
+WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Semestral o Anual. Pagar periodos largos suele aplicar un descuento automático. Tenemos 4 niveles ([ver /planes](https://wappy-ia.com/planes)):
 
 ### 1. Plan Gratis ($0)
 *   **Propósito:** Para explorar la IA.

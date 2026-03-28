@@ -157,7 +157,7 @@ export default function TermsOfServicePage() {
                         <strong>WAPPY LTDA</strong> — NIT 901437310-3 · Medellín, Colombia
                     </p>
                     <p className="mt-1 text-xs text-text-tertiary">
-                        Al acceder o utilizar <strong>ia.wappy-ia.com</strong>, usted acepta estos términos.
+                        Al acceder o utilizar <strong>wappy-ia.com</strong>, usted acepta estos términos.
                     </p>
                 </div>
 
