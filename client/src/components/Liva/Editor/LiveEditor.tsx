@@ -103,37 +103,42 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 const selectedText = sel.toString().trim();
                 const range = sel.getRangeAt(0);
 
-                // Robust check to ensure selection is inside or around the editor
-                const inEditor = editorRef.current?.contains(sel.anchorNode) 
-                              || editorRef.current?.contains(sel.focusNode)
-                              || editorRef.current?.contains(range.commonAncestorContainer)
-                              || range.commonAncestorContainer?.contains(editorRef.current);
-                
-                if (!inEditor) {
-                    if (!showAiInput) setAiEditBubble(null);
-                    return;
+                try {
+                    // Robust check to ensure selection is inside or around the editor
+                    const editorNode = editorRef.current;
+                    const commonAncestor = range.commonAncestorContainer;
+                    
+                    const inEditor = editorNode?.contains(sel.anchorNode) 
+                                  || editorNode?.contains(sel.focusNode)
+                                  || editorNode?.contains(commonAncestor)
+                                  || (commonAncestor && commonAncestor.contains && commonAncestor.contains(editorNode));
+                    
+                    if (!inEditor) {
+                        if (!showAiInput) setAiEditBubble(null);
+                        return;
+                    }
+
+                    // Get the unified bounding box of the entire selection
+                    const rect = range.getBoundingClientRect();
+                    if (!rect || rect.width === 0 || rect.height === 0) return;
+
+                    // Calculate relative to the direct parent wrapper to avoid padding offsets
+                    const wrapperRect = editorNode!.parentElement!.getBoundingClientRect();
+                    
+                    savedRangeRef.current = range.cloneRange();
+                    setAiEditSelectedText(selectedText);
+                    
+                    // Place it reliably below the entire selection, accounting for scroll and wrapper position
+                    setAiEditBubble({
+                        x: rect.left + (rect.width / 2) - wrapperRect.left,
+                        y: rect.bottom - wrapperRect.top + 16, 
+                    });
+
+                    setShowAiInput(false); // reset to initial bubble state
+                    setAiEditInstruction('');
+                } catch (err) {
+                    console.error("[LiveEditor] Selection error:", err);
                 }
-
-                // Get physical screen coordinates
-                const rects = range.getClientRects();
-                if (rects.length === 0) return;
-
-                // Place bubble near the last line of the selection (where the user's mouse usually ends up)
-                const targetRect = rects[rects.length - 1]; 
-                const editorRect = editorRef.current!.getBoundingClientRect();
-                
-                savedRangeRef.current = range.cloneRange();
-                setAiEditSelectedText(selectedText);
-                
-                // Calculate position relative to editor's top-left
-                // Place it below the last selected line, towards the right of the line
-                setAiEditBubble({
-                    x: targetRect.left + (targetRect.width / 2) - editorRect.left,
-                    y: targetRect.bottom - editorRect.top + 12, // 12px below the last line
-                });
-
-                setShowAiInput(false); // reset to initial bubble state
-                setAiEditInstruction('');
             }, 50); // slight debounce
         };
 
