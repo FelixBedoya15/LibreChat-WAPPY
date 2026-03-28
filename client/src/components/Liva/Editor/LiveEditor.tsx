@@ -1093,7 +1093,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.3px',
                             }}
                         >
-                            ✨ Editar con IA
+                            ✨ Editar con IA (v2)
                         </button>
                     ) : (
                         /* Expanded input panel */
