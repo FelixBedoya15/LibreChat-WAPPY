@@ -46,6 +46,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [aiEditSelectedText, setAiEditSelectedText] = useState('');
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [showAiInput, setShowAiInput] = useState(false);
+    const [bubbleDebug, setBubbleDebug] = useState<any>({}); // CRITICAL FIX: debug state
     const savedRangeRef = useRef<Range | null>(null);
     const aiInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,9 +59,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             const oldSigsStr = localStorage.getItem('sgsst_signatures');
             if (oldSigsStr) {
                 try {
-                    const arr = JSON.parse(oldSigsStr);
-                    if (Array.isArray(arr)) {
-                        arr.forEach((url, i) => { initialNamed[`Firma Antigua ${i + 1}`] = url; });
+                    const parsed = JSON.parse(oldSigsStr);
+                    if (parsed && typeof parsed === 'object') {
+                        Object.keys(parsed).forEach((k) => {
+                            if (parsed[k]?.url) initialNamed[k] = parsed[k].url;
+                        });
                     }
                 } catch (e) { }
             }
@@ -86,7 +89,9 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     }, [token]);
 
-    // Detect text selection → show AI edit bubble
+    // ────────────────────────────────────────────────────────────────────────
+    // EVENT LISTENERS FOR SELECTION AND CLICKS
+    // ────────────────────────────────────────────────────────────────────────
     useEffect(() => {
         const handleMouseUp = (e: MouseEvent) => {
             // Ignore if clicking inside the AI bubble itself
@@ -96,10 +101,11 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             setTimeout(() => {
                 const sel = window.getSelection();
                 if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-                    // No selection — hide bubble only if not in input mode
                     if (!showAiInput) setAiEditBubble(null);
+                    setBubbleDebug({ status: 'collapsed_or_empty' }); // debug
                     return;
                 }
+
                 const selectedText = sel.toString().trim();
                 const range = sel.getRangeAt(0);
 
@@ -115,6 +121,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     
                     if (!inEditor) {
                         if (!showAiInput) setAiEditBubble(null);
+                        setBubbleDebug({ status: 'not_in_editor', focusNode: sel.focusNode?.nodeName }); // debug
                         return;
                     }
 
@@ -122,12 +129,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     savedRangeRef.current = range.cloneRange();
                     setAiEditSelectedText(selectedText);
                     
-                    // CRITICAL FIX: To avoid browser bugs calculating complex bounding rects over tables,
-                    // we directly use the MouseEvent's clientX and clientY to position the bubble 
-                    // exactly where the user released the mouse!
                     const wrapperRect = editorNode!.parentElement!.getBoundingClientRect();
                     
-                    // fallback to rect if mouse event properties are strangely missing
                     let pointerX = e.clientX;
                     let pointerY = e.clientY;
                     
@@ -137,14 +140,27 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                          pointerY = rect.bottom;
                     }
 
+                    const finalX = Math.max(0, pointerX - wrapperRect.left);
+                    const finalY = Math.max(0, pointerY - wrapperRect.top + 12);
+
+                    setBubbleDebug({ 
+                        status: 'success', 
+                        pointerX, pointerY, 
+                        wrapperTop: Math.round(wrapperRect.top), 
+                        wrapperLeft: Math.round(wrapperRect.left),
+                        finalX: Math.round(finalX), finalY: Math.round(finalY),
+                        textLen: selectedText.length
+                    });
+
                     setAiEditBubble({
-                        x: Math.max(0, pointerX - wrapperRect.left),
-                        y: Math.max(0, pointerY - wrapperRect.top + 12), // 12px below mouse cursor
+                        x: finalX,
+                        y: finalY, 
                     });
 
                     setShowAiInput(false); // reset to initial bubble state
                     setAiEditInstruction('');
-                } catch (err) {
+                } catch (err: any) {
+                    setBubbleDebug({ status: 'error', msg: err?.message });
                     console.error("[LiveEditor] Selection error:", err);
                 }
             }, 50); // slight debounce
