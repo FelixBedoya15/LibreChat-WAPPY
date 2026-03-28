@@ -140,7 +140,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
           )}
         </Select.Select>
         <Select.SelectPopover
-          className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white dark:bg-surface-primary p-1.5 shadow-2xl outline-none transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"
+          className="z-[1000] -ml-2 min-w-[250px] rounded-2xl border border-border-medium/50 bg-white dark:bg-surface-primary text-text-primary p-1.5 shadow-2xl outline-none transition-all duration-300 animate-in fade-in zoom-in-95 pointer-events-auto overflow-hidden"
           style={{
             boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
           }}

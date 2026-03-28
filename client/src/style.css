@@ -3000,6 +3000,7 @@ html {
   border-radius: 0.5rem;
   padding: 0.5rem;
   outline: none !important;
+  color: var(--text-primary);
 }
 
 .select-item[aria-disabled='true'] {

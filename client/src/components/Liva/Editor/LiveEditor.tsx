@@ -1108,7 +1108,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 boxShadow: '0 4px 12px rgba(99,102,241,0.35)',
                             }}
                         >
-                            ✨ Editar con IA (v3.1)
+                            ✨ Editar con IA
                         </button>
                     ) : (
                         /* Expanded input panel */
@@ -1132,7 +1132,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                     resize: 'none', outline: 'none', color: '#1e293b'
                                 }}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiEditSubmit(); }
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiEdit(); }
                                     if (e.key === 'Escape') { setAiEditBubble(null); setShowAiInput(false); }
                                 }}
                             />
@@ -1144,7 +1144,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 > Cancelar </button>
                                 <button
                                     data-ai-bubble="true"
-                                    onClick={handleAiEditSubmit}
+                                    onClick={handleAiEdit}
                                     disabled={isAiEditing || !aiEditInstruction.trim()}
                                     style={{
                                         background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px',
@@ -1161,18 +1161,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 portalNode
             )}
 
-            {/* 🐛 DEBUG OVERLAY (V2 DIAGNOSTICS) */}
-            {Object.keys(bubbleDebug).length > 0 && portalNode && createPortal(
-                <div style={{
-                    position: 'fixed', bottom: '8px', right: '8px', pointerEvents: 'none',
-                    background: 'rgba(0,0,0,0.8)', color: '#0f0', padding: '6px', borderRadius: '4px',
-                    fontFamily: 'monospace', fontSize: '10px', zIndex: 9999999, maxWidth: '240px',
-                    wordBreak: 'break-all'
-                }}>
-                    v3.2-DB: {JSON.stringify(bubbleDebug)}
-                </div>,
-                portalNode
-            )}
         </div>
 
     );
