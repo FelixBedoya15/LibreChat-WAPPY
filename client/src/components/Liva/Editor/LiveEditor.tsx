@@ -101,21 +101,40 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     return;
                 }
                 const selectedText = sel.toString().trim();
-                // Only trigger inside the editor
                 const range = sel.getRangeAt(0);
-                if (!editorRef.current?.contains(range.commonAncestorContainer)) return;
 
-                const rect = range.getBoundingClientRect();
+                // Robust check to ensure selection is inside or around the editor
+                const inEditor = editorRef.current?.contains(sel.anchorNode) 
+                              || editorRef.current?.contains(sel.focusNode)
+                              || editorRef.current?.contains(range.commonAncestorContainer)
+                              || range.commonAncestorContainer?.contains(editorRef.current);
+                
+                if (!inEditor) {
+                    if (!showAiInput) setAiEditBubble(null);
+                    return;
+                }
+
+                // Get physical screen coordinates
+                const rects = range.getClientRects();
+                if (rects.length === 0) return;
+
+                // Place bubble near the last line of the selection (where the user's mouse usually ends up)
+                const targetRect = rects[rects.length - 1]; 
                 const editorRect = editorRef.current!.getBoundingClientRect();
+                
                 savedRangeRef.current = range.cloneRange();
                 setAiEditSelectedText(selectedText);
+                
+                // Calculate position relative to editor's top-left
+                // Place it below the last selected line, towards the right of the line
                 setAiEditBubble({
-                    x: rect.left + rect.width / 2 - editorRect.left,
-                    y: rect.top - editorRect.top - 44, // above the selection
+                    x: targetRect.left + (targetRect.width / 2) - editorRect.left,
+                    y: targetRect.bottom - editorRect.top + 12, // 12px below the last line
                 });
+
                 setShowAiInput(false); // reset to initial bubble state
                 setAiEditInstruction('');
-            }, 10);
+            }, 50); // slight debounce
         };
 
         const el = editorRef.current;
