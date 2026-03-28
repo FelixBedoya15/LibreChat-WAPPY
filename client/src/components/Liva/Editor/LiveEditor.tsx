@@ -118,20 +118,28 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                         return;
                     }
 
-                    // Get the unified bounding box of the entire selection
-                    const rect = range.getBoundingClientRect();
-                    if (!rect || rect.width === 0 || rect.height === 0) return;
-
-                    // Calculate relative to the direct parent wrapper to avoid padding offsets
-                    const wrapperRect = editorNode!.parentElement!.getBoundingClientRect();
-                    
+                    // Save the selection range so we can edit it later
                     savedRangeRef.current = range.cloneRange();
                     setAiEditSelectedText(selectedText);
                     
-                    // Place it reliably below the entire selection, accounting for scroll and wrapper position
+                    // CRITICAL FIX: To avoid browser bugs calculating complex bounding rects over tables,
+                    // we directly use the MouseEvent's clientX and clientY to position the bubble 
+                    // exactly where the user released the mouse!
+                    const wrapperRect = editorNode!.parentElement!.getBoundingClientRect();
+                    
+                    // fallback to rect if mouse event properties are strangely missing
+                    let pointerX = e.clientX;
+                    let pointerY = e.clientY;
+                    
+                    if (!pointerX && !pointerY) {
+                         const rect = range.getBoundingClientRect();
+                         pointerX = rect.left + (rect.width / 2);
+                         pointerY = rect.bottom;
+                    }
+
                     setAiEditBubble({
-                        x: rect.left + (rect.width / 2) - wrapperRect.left,
-                        y: rect.bottom - wrapperRect.top + 16, 
+                        x: Math.max(0, pointerX - wrapperRect.left),
+                        y: Math.max(0, pointerY - wrapperRect.top + 12), // 12px below mouse cursor
                     });
 
                     setShowAiInput(false); // reset to initial bubble state
