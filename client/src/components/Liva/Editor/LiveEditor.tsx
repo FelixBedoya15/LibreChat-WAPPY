@@ -48,8 +48,13 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [showAiInput, setShowAiInput] = useState(false);
     const [bubbleDebug, setBubbleDebug] = useState<any>({}); // CRITICAL FIX: debug state
+    const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
     const savedRangeRef = useRef<Range | null>(null);
     const aiInputRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        setPortalNode(document.getElementById('root') || document.body);
+    }, []);
 
     useEffect(() => {
         const namedSigsStr = localStorage.getItem('wappy_signatures');
@@ -1082,8 +1087,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 }
             `}</style>
 
-            {/* ✨ AI Bubble (Portaled to body to avoid overflow clipping) */}
-            {aiEditBubble && createPortal(
+            {/* ✨ AI Bubble (Portaled to avoid overflow clipping) */}
+            {aiEditBubble && portalNode && createPortal(
                 <div
                     data-ai-bubble="true"
                     className="ai-edit-bubble"
@@ -1103,7 +1108,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 boxShadow: '0 4px 12px rgba(99,102,241,0.35)',
                             }}
                         >
-                            ✨ Editar con IA (v3)
+                            ✨ Editar con IA (v3.1)
                         </button>
                     ) : (
                         /* Expanded input panel */
@@ -1142,13 +1147,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                     onClick={handleAiEditSubmit}
                                     disabled={isAiEditing || !aiEditInstruction.trim()}
                                     style={{
-                                        padding: '5px 14px', fontSize: '0.78em', fontWeight: 700,
-                                        cursor: isAiEditing ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                                        background: '#4f46e5', color: '#fff', border: 'none', borderRadius: '6px',
+                                        padding: '4px 12px', fontSize: '0.8em', fontWeight: 600, cursor: 'pointer',
+                                        opacity: (isAiEditing || !aiEditInstruction.trim()) ? 0.5 : 1
                                     }}
                                 >
-                                    {isAiEditing ? (
-                                        <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span> Editando...</>
-                                    ) : '✨ Aplicar'}
+                                    {isAiEditing ? 'Procesando...' : '✨ Aplicar'}
                                 </button>
                             </div>
                         </div>
