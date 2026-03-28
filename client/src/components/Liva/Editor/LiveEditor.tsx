@@ -48,6 +48,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [aiEditInstruction, setAiEditInstruction] = useState('');
     const [aiEditSelectedText, setAiEditSelectedText] = useState('');
     const [isAiEditing, setIsAiEditing] = useState(false);
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const [showAiInput, setShowAiInput] = useState(false);
     const [bubbleDebug, setBubbleDebug] = useState<any>({}); // CRITICAL FIX: debug state
     const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
@@ -223,6 +224,24 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             setIsAiEditing(false);
         }
     };
+
+    const toggleFullScreen = () => setIsFullScreen(!isFullScreen);
+
+    // Handle Esc key and overflow
+    useEffect(() => {
+        if (isFullScreen) {
+            document.body.style.overflow = 'hidden';
+            const handleEsc = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') setIsFullScreen(false);
+            };
+            window.addEventListener('keydown', handleEsc);
+            return () => {
+                document.body.style.overflow = 'auto';
+                window.removeEventListener('keydown', handleEsc);
+            };
+        }
+        document.body.style.overflow = 'auto';
+    }, [isFullScreen]);
     // ────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -682,9 +701,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             { icon: ImageIcon, label: "Imagen", onClick: () => fileInputRef.current?.click() },
             { icon: PenTool, label: "Firma", onClick: () => setIsSignatureModalOpen(true) }
         ]},
-        { id: 'save', buttons: onSave ? [
-            { icon: Save, label: localize('com_ui_save_report') || "Guardar", onClick: onSave }
-        ] : []}
+        { id: 'save', buttons: [
+            ...(onSave ? [{ icon: Save, label: localize('com_ui_save_report') || "Guardar", onClick: onSave }] : []),
+            { icon: isFullScreen ? Minimize : Maximize, label: isFullScreen ? "Salir Pantalla Completa" : "Pantalla Completa", onClick: toggleFullScreen }
+        ]}
     ].filter(g => g.buttons.length > 0);
 
     const editorRows = React.useMemo(() => {
@@ -708,7 +728,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
 
     return (
-        <div className="w-full h-full flex flex-col bg-white dark:bg-zinc-900">
+        <div className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
             {/* Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
                 {/* Desktop View */}
@@ -1092,6 +1112,27 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 @keyframes aiBubblePop {
                     from { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(4px); }
                     to   { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+                }
+
+                .live-editor-fullscreen {
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    bottom: 0 !important;
+                    right: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    z-index: 999999 !important;
+                    background: #fff !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                .dark .live-editor-fullscreen {
+                    background: #18181b !important;
+                }
+                .live-editor-fullscreen .live-editor-content {
+                    flex: 1;
+                    height: calc(100vh - 80px) !important;
                 }
             `}</style>
 
