@@ -670,6 +670,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
                                 onSave={handleSave}
+                                reportSourceData={{ statuses: validStatuses, observations, weightedScore, weightedPercentage, complianceLevel }}
                             />
                         </div>
                     </div>

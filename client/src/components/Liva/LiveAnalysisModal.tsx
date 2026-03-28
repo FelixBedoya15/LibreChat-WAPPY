@@ -14,7 +14,7 @@ interface LiveAnalysisModalProps {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onTextReceived?: (text: string) => void;
-    onReportReceived?: (html: string) => void;
+    onReportReceived?: (html: string, kpi?: any) => void;
     onConversationUpdated?: () => void;
     selectedModel?: string;
 }
@@ -225,7 +225,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
 </div>`;
 
-            onReportReceived?.(finalHtml);
+            onReportReceived?.(finalHtml, kpi);
 
         },
         onStatusChange: (newStatus: string) => {

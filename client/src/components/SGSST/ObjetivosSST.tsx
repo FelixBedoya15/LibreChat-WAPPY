@@ -371,6 +371,7 @@ const ObjetivosSST = () => {
                                     initialContent={generatedObjectives}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}
+                                    reportSourceData={{ policySummary, diagnosticSummary, additionalNorms, previousObjectives, yearPlan }}
                                 />
                             </div>
                         </div>

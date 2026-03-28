@@ -3,7 +3,7 @@
 /**
  * liveAiEdit.js — Inline AI text editing for the Live Analysis Editor
  * POST /api/live/ai-edit-text
- * Body: { selectedText, instruction, surroundingContext? }
+ * Body: { selectedText, instruction, surroundingContext?, fullReportText?, reportSourceData? }
  * Response: { editedText }
  */
 
@@ -14,21 +14,43 @@ const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsst/sgss
 const { logger } = require('~/config');
 
 router.post('/ai-edit-text', requireJwtAuth, async (req, res) => {
-  const { selectedText, instruction, surroundingContext } = req.body;
+  const { selectedText, instruction, surroundingContext, fullReportText, reportSourceData } = req.body;
   const userId = req.user?.id;
 
   if (!selectedText || !instruction) {
     return res.status(400).json({ error: 'selectedText e instruction son requeridos.' });
   }
 
+  // Build the source data context block if provided
+  let sourceDataBlock = '';
+  if (reportSourceData) {
+    try {
+      const dataStr = typeof reportSourceData === 'string'
+        ? reportSourceData
+        : JSON.stringify(reportSourceData, null, 2);
+      // Limit to 4000 chars to avoid token overflow
+      sourceDataBlock = `
+DATOS DE ORIGEN DEL INFORME (base de datos utilizada para generar el informe):
+\`\`\`json
+${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
+\`\`\`
+`;
+    } catch (e) {
+      // ignore serialization errors
+    }
+  }
+
+  // Use the entire report text if available, otherwise fall back to surroundingContext
+  const reportContext = fullReportText || surroundingContext || '';
+
   const prompt = `
 Eres un asistente experto en redacción de informes técnicos de Seguridad y Salud en el Trabajo (SST/HSE).
 
-TAREA: Editar el fragmento de texto indicado según la instrucción del usuario.
-
-CONTEXTO DEL DOCUMENTO (opcional, para coherencia):
+TAREA: Editar el fragmento de texto indicado según la instrucción del usuario, usando como contexto el informe completo y los datos de origen.
+${sourceDataBlock}
+INFORME COMPLETO (para coherencia y contexto):
 """
-${surroundingContext ? surroundingContext.slice(0, 1500) : '(No provisto)'}
+${reportContext.slice(0, 6000)}${reportContext.length > 6000 ? '\n...(fragmento truncado)' : ''}
 """
 
 TEXTO SELECCIONADO A EDITAR:
@@ -43,15 +65,16 @@ ${instruction}
 
 REGLAS CRÍTICAS:
 1. Devuelve ÚNICAMENTE el texto editado, sin explicaciones, sin comillas envolventes, sin prefijos.
-2. Mantén el mismo formato HTML de los elementos editados (si el original era <p>, <li>, <h3>, etc.).
-3. Mantén coherencia con el contexto del documento.
+2. Mantén el mismo formato HTML si el texto lo tiene (p, li, h3, strong, etc.).
+3. Mantén coherencia con el informe completo y con los datos de origen.
 4. Escribe en el mismo idioma del texto original (normalmente español).
-5. NO inventes datos que no existan en el contexto.
+5. NO inventes datos que no existan en el contexto o en la base de datos.
+6. Si la instrucción pide datos específicos (nombres, cifras), búscalos en DATOS DE ORIGEN o en el INFORME COMPLETO.
 `;
 
   try {
     const modelName = SGSST_FALLBACK_MODELS[0];
-    logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}`);
+    logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}, reportLen: ${reportContext.length}, hasSourceData: ${!!reportSourceData}`);
 
     const result = await generateWithKeyRotation(modelName, userId, prompt);
     const editedText = result.response.text().trim();

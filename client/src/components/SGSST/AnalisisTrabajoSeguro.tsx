@@ -791,6 +791,7 @@ const AnalisisTrabajoSeguro = () => {
                                     initialContent={generatedReport}
                                     onUpdate={setEditorContent}
                                     onSave={handleSave}
+                                    reportSourceData={{ formData, trabajadoresList, responsablesList }}
                                 />
                             </div>
                         </div>

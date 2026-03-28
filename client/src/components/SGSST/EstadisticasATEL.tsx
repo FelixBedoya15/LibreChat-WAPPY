@@ -564,6 +564,7 @@ const EstadisticasATEL = () => {
                                     initialContent={generatedReport}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSaveReport}
+                                    reportSourceData={annualData}
                                 />
                             </div>
                         </div>

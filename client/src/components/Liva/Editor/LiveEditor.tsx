@@ -15,13 +15,15 @@ interface LiveEditorProps {
     onUpdate: (content: string) => void;
     onSave?: () => void;
     reportType?: 'checklist' | 'general';
+    /** Raw source data (DB) used to generate the report. Passed to AI for richer context. */
+    reportSourceData?: any;
 }
 
 export interface LiveEditorHandle {
     setHTML: (html: string) => void;
 }
 
-const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general' }, ref) => {
+const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general', reportSourceData }, ref) => {
     const localize = useLocalize();
     const { token } = useAuthContext();
     const editorRef = useRef<HTMLDivElement>(null);
@@ -186,11 +188,17 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         if (!aiEditInstruction.trim() || !savedRangeRef.current || !aiEditSelectedText) return;
         setIsAiEditing(true);
         try {
-            const surroundingContext = editorRef.current?.innerText?.slice(0, 1500) || '';
+            // Send the full report text for richer AI context (no char limit)
+            const fullReportText = editorRef.current?.innerText || '';
             const res = await fetch('/api/live/ai-edit-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ selectedText: aiEditSelectedText, instruction: aiEditInstruction, surroundingContext }),
+                body: JSON.stringify({
+                    selectedText: aiEditSelectedText,
+                    instruction: aiEditInstruction,
+                    fullReportText,
+                    reportSourceData: reportSourceData ?? null,
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Error al editar');

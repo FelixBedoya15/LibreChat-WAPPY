@@ -776,6 +776,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
                                 onSave={handleSave}
+                                reportSourceData={{ statuses, observations, companySize, riskLevel, currentScore, totalPoints, complianceLevel }}
                             />
                         </div>
                     </div>

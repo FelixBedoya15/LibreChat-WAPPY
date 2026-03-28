@@ -759,7 +759,7 @@ const MetodoOwas = () => {
           <div className="p-1 overflow-hidden">
             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
               <div style={{ minWidth: '900px', padding: '16px' }}>
-                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} />
+                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={{ formData, observaciones }} />
               </div>
             </div>
           </div>

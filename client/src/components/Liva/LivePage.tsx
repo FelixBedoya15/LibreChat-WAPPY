@@ -21,6 +21,7 @@ const LivePage = () => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [reportSourceData, setReportSourceData] = useState<any>(null);
     // Imperative ref to push HTML content into the editor directly
     const editorRef = useRef<LiveEditorHandle>(null);
 
@@ -46,11 +47,12 @@ const LivePage = () => {
     // State to trigger history refresh
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    const handleReportReceived = useCallback((html: string, messageId?: string) => {
-        console.log("LivePage: Full Report received", messageId);
+    const handleReportReceived = useCallback((html: string, kpi?: any, messageId?: string) => {
+        console.log("LivePage: Full Report received", kpi?.riesgo);
         // Push content imperatively into the editor (it only reads initialContent once on mount)
         editorRef.current?.setHTML(html);
         setEditorContent(html);
+        setReportSourceData(kpi);
         setLastUpdated(new Date());
         if (messageId) {
             setReportMessageId(messageId);
@@ -569,6 +571,7 @@ const LivePage = () => {
                             setEditorContent(html);
                         }}
                         onSave={handleSave}
+                        reportSourceData={reportSourceData}
                     />
                 </div>
             </div>

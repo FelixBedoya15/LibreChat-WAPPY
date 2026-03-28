@@ -589,6 +589,7 @@ const DashboardPredictivo = () => {
                                         initialContent={generatedReport}
                                         onUpdate={setEditorContent}
                                         onSave={handleSaveReport}
+                                        reportSourceData={forecast}
                                     />
                                 </div>
                             </div>

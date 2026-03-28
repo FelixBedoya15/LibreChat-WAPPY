@@ -1318,6 +1318,7 @@ const InvestigacionATEL = () => {
                                     initialContent={generatedObjectives}
                                     onUpdate={setEditorContent}
                                     onSave={handleSave}
+                                    reportSourceData={{ formData, testigosList, equipoList }}
                                 />
                             </div>
                         </div>

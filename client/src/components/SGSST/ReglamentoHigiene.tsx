@@ -336,6 +336,7 @@ const ReglamentoHigiene = () => {
                                     initialContent={generatedDocument}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}
+                                    reportSourceData={{ identifiedRisks, workShifts, additionalRules }}
                                 />
                             </div>
                         </div>

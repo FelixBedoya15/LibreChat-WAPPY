@@ -396,6 +396,7 @@ const PoliticaSST = () => {
                                     initialContent={generatedPolicy}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}
+                                    reportSourceData={{ hazards, scope, commitments, objectives, additionalNorms }}
                                 />
                             </div>
                         </div>

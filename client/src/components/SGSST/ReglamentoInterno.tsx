@@ -442,6 +442,7 @@ const ReglamentoInterno = () => {
                                     initialContent={generatedDocument}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}
+                                    reportSourceData={chapters}
                                 />
                             </div>
                         </div>

@@ -857,6 +857,7 @@ export default function AltaDireccionChecklist() {
                                 initialContent={analysisReport}
                                 onUpdate={(content) => setEditorContent(content)}
                                 onSave={handleSave}
+                                reportSourceData={{ statuses, observations }}
                             />
                         </div>
                     </div>

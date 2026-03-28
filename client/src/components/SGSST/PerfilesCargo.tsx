@@ -725,6 +725,7 @@ const PerfilesCargo = () => {
                                     initialContent={generatedReport}
                                     onUpdate={setEditorContent}
                                     onSave={handleSaveReport}
+                                    reportSourceData={{ formData, perfiles }}
                                 />
                             </div>
                         </div>

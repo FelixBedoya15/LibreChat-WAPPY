@@ -433,6 +433,7 @@ const ResponsableSGSST = () => {
                                     initialContent={generatedDoc}
                                     onUpdate={(html) => setEditorContent(html)}
                                     onSave={handleSave}
+                                    reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
                                 />
                             </div>
                         </div>

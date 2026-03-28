@@ -594,6 +594,7 @@ const MatrizLegal = () => {
                                         initialContent={generatedMatrix || ''}
                                         onUpdate={(html) => setEditorContent(html)}
                                         onSave={handleSaveReport}
+                                        reportSourceData={{ statuses: validStatuses, seguimientos, activity, location, entityType, compliancePercentage }}
                                     />
                                 </div>
                             </div>
