@@ -1133,12 +1133,13 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 .live-editor-fullscreen .live-editor-content {
                     flex: 1;
                     height: calc(100vh - 80px) !important;
-                    padding: 12px 16px !important;
+                    padding: 8px 12px !important;
                 }
-                .live-editor-fullscreen .live-editor-content > div {
+                .live-editor-fullscreen .live-editor-content * {
                     max-width: 100% !important;
                     width: 100% !important;
-                    margin: 0 !important;
+                    margin-left: 0 !important;
+                    margin-right: 0 !important;
                 }
                 @media (min-width: 640px) {
                     .live-editor-fullscreen .live-editor-content {
