@@ -77,6 +77,8 @@ const PLANS = [
         iconBg: 'bg-amber-500/10',
         features: [
             'Todo lo del plan Plus',
+            'Análisis en Vivo (Cámaras)',
+            'Centro de Inteligencia Predictiva',
             'Crea tus propios Agentes de IA',
             'Personalización avanzada de agentes',
             'Acceso anticipado a nuevas funciones',

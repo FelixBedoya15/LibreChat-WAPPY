@@ -69,7 +69,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Conversaciones Ilimitadas',
             'Podrá ingresar 10 claves API de Gemini',
         ],
-        excluded: ['Agentes personalizados'],
+        excluded: ['Agentes personalizados', 'Análisis en Vivo (Cámaras)', 'Inteligencia Predictiva'],
     },
 };
 

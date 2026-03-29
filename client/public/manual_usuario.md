@@ -169,7 +169,7 @@ WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Sem
 ### 4. Plan Pro - ⭐ EL MÁS POPULAR
 *   **Valores Base SIN Descuento (COP):** Mensual ($66.300), Trimestral ($199.000), Semestral ($399.000), Anual ($796.000).
 *   **Propósito:** El poder máximo de WAPPY IA.
-*   **Incluye:** Todo lo de Plus + **Creación de Agentes con IA personalizados**. ¿Quieres crear un asistente IA que solo responda de contabilidad de tu empresa? En este plan puedes configurar tu propio Marketplace de agentes.
+*   **Incluye:** Todo lo de Plus + **Centro de Inteligencia Predictiva**, **Análisis en Vivo (Cámaras)** y **Creación de Agentes con IA personalizados**. ¿Quieres un tablero con alertas tempranas y un experto que te hable por cámara, o crear un asistente que solo responda de contabilidad? En este plan tienes todo el poder IA.
 
 **Manejo de pagos y códigos Promocionales:**
 La caja registradora de pagos conectada con **Bancolombia Wompi**. Soporta todo medio: Botón PSE, Tarjetas Débito/Crédito y Nequi. En la pasarela de compra siempre verás "Ingresar Cupón o Promo"; digítalo ahí antes de facturar.

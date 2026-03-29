@@ -9,11 +9,13 @@ import { useToastContext } from '@librechat/client';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import ModelSelector from '~/components/SGSST/ModelSelector';
 import ExportDropdown from '~/components/SGSST/ExportDropdown';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import type { ContextType } from '~/common';
 
 const LivePage = () => {
     const localize = useLocalize();
-    const { token } = useAuthContext();
+    const { token, user } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
     const { showToast } = useToastContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [editorContent, setEditorContent] = useState('');
@@ -500,9 +502,19 @@ const LivePage = () => {
                 refreshTrigger={refreshTrigger}
             />
 
-            {/* Toolbar / Header Actions */}
-            <div className="w-full p-4 pb-0">
-                <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-4 flex items-center justify-between">
+            {!isPro ? (
+                <div className="flex-1 flex flex-col justify-center items-center p-8 h-full bg-surface-secondary">
+                    <UpgradeWall
+                        title="Plan Premium Exclusivo"
+                        description="Esta sección requiere un plan PRO. El módulo de Análisis en Vivo te permite realizar inspecciones y auditorías en tiempo real con IA de forma predictiva a través de la cámara de tu dispositivo."
+                        plan="USER_PLUS"
+                    />
+                </div>
+            ) : (
+                <>
+                    {/* Toolbar / Header Actions */}
+                    <div className="w-full p-4 pb-0">
+                        <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-4 flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         {!navVisible && (
                             <OpenSidebar setNavVisible={setNavVisible} className="mr-2 hidden md:flex" />
@@ -586,6 +598,8 @@ const LivePage = () => {
                 onReportReceived={handleReportReceived}
                 selectedModel={selectedModel}
             />
+                </>
+            )}
         </div>
     );
 };
