@@ -8,7 +8,12 @@ Bienvenido al manual oficial y exhaustivo de **WAPPY IA**. Esta guía contiene t
 
 La plataforma está diseñada para ser intuitiva. Desde la barra lateral izquierda tienes acceso rápido a:
 
-*   **💬 Chat Principal** (`/c/new`): Aquí hablas con la Inteligencia Artificial de forma general. Puedes hacer consultas de SST, leyes, pedir redacción de correos o análisis de datos rápidos.
+*   **💬 Chat Principal** (`/c/new`): Es el núcleo de interacción conversacional avanzado. No es solo un chat genérico, sino un ecosistema donde puedes hacer consultas profundas de SST, solicitar interpretaciones de leyes, pedir redacción de correos gerenciales o análisis de datos. 
+    *   **👥 Agentes Especializados (Expertos IA en Vivo):** Al iniciar un nuevo chat, en la interfaz podrás seleccionar entre múltiples asistentes preconfigurados para actuar como auténticos especialistas. En lugar de explicarle el contexto a la IA desde cero, simplemente seleccionas al agente deseado y este adoptará inmediatamente ese rol y su conocimiento técnico. Entre los agentes destacan:
+        *   **Expertos Clínicos y Psicosociales:** Medic@ Laboral, Psicólog@ Especialista SST, Asistente de Salud Mental, Fisioterapeuta Laboral, Asistente en Nutrición, Asistente en Primeros Auxilios.
+        *   **Expertos Técnicos y Tareas Críticas:** Expert@ en Riesgo Eléctrico, Expert@ en Riesgo Biológico, Expert@ en Riesgo Químico, Expert@ en Riesgo Vial, Expert@ en Emergencias, Expert@ en Tareas de Alto Riesgo, Asistente Permiso TSA.
+        *   **Gestión Documental y Legal:** Abogad@ Laboral, Profesional SST, Auditor SG-SST, Asistente ATS, Asistente Inv AT, Asistente Inv EL, Asistente Método ROSA, Asistente en Capacitaciones, Asistente de ACI.
+    *   **Funcionalidades:** Puedes interactuar enviando texto, subiendo archivos y documentos (PDFs, Word) para que los lea, o enviando imágenes para que los agentes extraigan información. Todo guarda un historial organizado.
 *   **🏢 Gestor SG-SST** (`/sgsst`): El módulo estrella. Automatiza todo el ciclo PHVA (Planear, Hacer, Verificar, Actuar) exigido por la normativa colombiana (Resolución 0312 y Decreto 1072).
 *   **🎓 Aula de estudio** (`/training`): Zona de capacitación donde los usuarios pueden encontrar cursos y material de SST.
 *   **📰 Blog** (`/blog`): Artículos y actualizaciones. La IA (Tenshi) lee automáticamente estos artículos para estar siempre al día.
@@ -125,6 +130,16 @@ El gestor está dividido por colores y fases metodológicas:
     *   **¿Para qué sirve?**: (Acciones Correctivas, Preventivas y de Mejora) Hace el trackeo y cierre de hallazgos detectados o accidentes que sucedieron.
     *   **Cómo interactuar**: Al registrar la no conformidad o problema particular, la IA despliega métodos de corrección, determina causas estructurales (Espina Pescado o Por Qués) y establece responsables/fecha.
 
+### 🔮 E. FASE INTELIGENCIA Y PREVENCIÓN AVANZADA (Exclusivo Plan Pro)
+*Herramientas predictivas de alto nivel impulsadas por visión y correlación de IA.*
+
+1.  **Centro de Inteligencia Predictiva** (`/sgsst/dashboard-predictivo`)
+    *   **¿Para qué sirve?**: Analiza en tiempo real de forma predictiva el ecosistema de más de 8 módulos interconectados del SGSST.
+    *   **Cómo interactuar**: El sistema agrupa automáticamente métricas de módulos como el "Perfil Sociodemográfico", "Estadísticas ATEL", "Matriz GTC 45", "Vulnerabilidad", entre otros, y genera una tasa porcentual general de "Probabilidad de Siniestro". Al presionar el botón de generación IA, la pantalla despliega un análisis de correlación cruzado e indica puntos ciegos, brindando acciones preventivas prioritarias.
+2.  **Análisis en Vivo - Cámaras** (`/liva`)
+    *   **¿Para qué sirve?**: Permite realizar auditorías e inspecciones en tiempo real mediante el lente de tu PC o Celular usando Inteligencia Artificial de Visión (Computer Vision).
+    *   **Cómo interactuar**: Concédele permisos de cámara al aplicativo. Enfoca la cámara hacia el entorno de trabajo: operarios cargando cajas, pasillos, extintores o puestos de trabajo. Al oprimir grabar, la IA "observará" el video en vivo, evaluará la escena al instante y te dictará/escribirá de inmediato un reporte exhaustivo mostrando los factores de riesgo o condiciones subestándar encontradas en la imagen, y lo insertará en el editor.
+
 ---
 
 ## 👼 3. Tenshi: El Asistente IA (Tu Guía Permanente)
@@ -153,6 +168,13 @@ WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Sem
 *   **Propósito:** Para explorar la IA.
 *   **Incluye:** Chat básico de IA, Aula de estudio, máx 10 conversaciones, permite ingresar 1 clave API propia de Google Gemini.
 *   **NO incluye:** Gestor SG-SST, Blog ni Agentes.
+
+> 🎁 **NUEVA INSTRUCCIÓN COMERCIAL (Solo para usuarios Gratis):**
+> Actúa como una Asesora Comercial Estratégica. Si notas que un usuario del Plan Gratis tiene interés en automatizar su trabajo o pregunta por los **planes Plus o Pro**, tienes autorización para gestionar ofertas flash:
+> 1. Háblales maravillas de todo lo que podrían lograr con el Gestor SST completo o la Inteligencia Predictiva.
+> 2. **Hazles una oferta irrechazable:** *"Como eres uno de nuestros exploradores de WAPPY IA, tengo una sorpresa especial para ti. Si adquieres el plan Plus o Pro **hoy mismo**, gestionaré de inmediato un descuento exclusivo del **10%** sobre tu factura. ¿Te animas a aprovecharlo ahora mismo? (Responde Sí o No)"*
+> 3. **Si te dicen que "Sí":** Felicítalos efusivamente: *"¡Excelente decisión estratégica! 🎉 He enviado la notificación al sistema de facturación. Muy pronto te llegará el código de descuento del 10%. Importante: este cupón será válido por una única vez y caducará irremediablemente en 24 horas. ¡Prepárate para llevar tu gestión SST al Olimpo digital!"*
+> 4. **Si te dicen que "No":** Agradéceles sin presionar: *"¡Entiendo perfectamente! Estaré aquí por si cambias de opinión o necesitas ayuda para seguir descubriendo el Plan Gratis. ¡Cuándo te sientas preparado, avísame y validamos si la oferta sigue en pie!"*
 
 ### 2. Plan Go
 *   **Valores Base SIN Descuento (COP):** Mensual ($49.200), Trimestral ($147.500), Semestral ($295.000), Anual ($590.000).
