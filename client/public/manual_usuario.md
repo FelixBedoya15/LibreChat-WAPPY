@@ -30,6 +30,8 @@ Para que los documentos se generen correctamente, el primer paso SIEMPRE es hace
 >
 > **Edición HTML y Exportación:** Una vez la IA responde, su texto aparecerá en la parte final de la página dentro del **Editor de Texto enriquecido (LiveEditor)**. 
 > *   Este editor es donde "visualizas" el resultado en formato HTML interactivo. Puedes borrar texto, añadir párrafos y manipular tablas libremente antes de finalizar el trabajo.
+> *   **Novedad - Edición con IA Avanzada:** Si deseas modificar un bloque de texto que la IA ya escribió, simplemente selecciona la sección de texto específica dentro del LiveEditor y aparecerá una burbuja emergente **"✨ Editar con IA"**. Al darle clic, podrás pedirle a la IA que modifique, ajuste el tono, o expanda esa pequeña sección seleccionada sin alterar todo el resto del informe.
+> *   **Novedad - Modo Pantalla Completa:** Para una experiencia de edición más cómoda, limpia y sin distracciones, puedes usar el ícono de las cuatro flechas ubicado en la esquina superior derecha del menú del LiveEditor para expandirlo y que ocupe el 100% de la pantalla (ideal para Tablets o Celulares).
 > *   Acompañando al editor y a la botonera superior (luego del flujo de generación) aparecerán nuevos botones: **"Guardar Informe"** (asegura el documento final), y el selector **"📤 Exportar"** el cual se despliega y permite descargar de inmediato tu informe directamente como **archivo PDF nativo**, o documento de texto compatible con **Microsoft Word (.docx)** para que lo archiven tus clientes.
 >
 > ✍️ **Sobre las Firmas en los Informes:**
@@ -74,6 +76,7 @@ El gestor está dividido por colores y fases metodológicas:
     *   **LA JOYA DE LA CORONA:** Es el aplicativo más robusto y potente. 
     *   **Cómo interactuar**: Añades filas a tu tabla. describes el cargo, la tarea, clasificas el Peligro, e indicas los controles de barrera (Fuente, Medio, Individuo).
     *   **Cálculo Automático**: Al seleccionar la escala del Nivel de Deficiencia (ND) (Ej. 10 - Muy grave) y la Exposición (NE) (Ej. 4 - Continua). El software y el navegador calcularán al instante la matemática de (ND x NE), pintando tu tabla con alertas rojas (No Aceptable) o Verdes automáticas. El botón secundario de Varita IA reacciona fila por fila si le pides evaluar un factor.
+    *   **Inteligencia y Participación IPEVAR:** Durante el análisis automático, la IA cruza transparentemente la información de tu Base de Datos con todos los formularios públicos recopilados de los trabajadores (módulo de "Participación IPEVAR") ayudándote a identificar peligros ocultos que los operarios ven en el terreno y vinculándolos al análisis de cada puesto.
 3.  **Análisis de Trabajo Seguro (ATS)** (`/sgsst/ats`)
     *   **¿Para qué sirve?**: Checklist antes de acometer trabajos no recurrentes / peligrosos.
     *   **Cómo interactuar**: Puedes autocompletar nombres ingresando letras en la barra de "Trabajadores involucrados" ya que la barra está linkeada a tu listado sociodemográfico. Estableces los "pasos", llenas los EPP obligatorios activando checkboxes (Ej. usar arnés y gafas) y generas el reporte corporativo de ATS preparado para que lo exportes a PDF e imprimas y la gente firme a mano en terreno.
@@ -95,6 +98,15 @@ El gestor está dividido por colores y fases metodológicas:
 9.  **Reporte de Actos y Condiciones Inseguras** (`/sgsst/reporte-actos`)
     *   **¿Para qué sirve?**: Tickets de seguridad generados por observadores u obreros.
     *   **Cómo interactuar**: Diligencias ubicación de riesgo inminente (ej. piso mojado constante sin cinta), adjuntas hasta 3 Fotografías y la IA elaborará una acción preventiva rápida estilo memo corporativo.
+10. **Perfiles de Cargo** (`/sgsst/perfiles-cargo`)
+    *   **¿Para qué sirve?**: Definir requerimientos de EPPs, responsabilidades médicas de riesgo y aptitudes por cada rol.
+    *   **Cómo interactuar**: Módulo para la creación rápida de documentos técnicos que trazan el perfil de cada rol.
+11. **Participación IPEVAR Trabajadores** (`/sgsst/participacion-ipevar`)
+    *   **¿Para qué sirve?**: Promover el buzón público (Reporte formal ciudadano/empleado) donde el operario señala riesgos desde sus experiencias reales.
+    *   **Cómo interactuar**: Cuenta con un portal (QR o link externo) sin necesidad de clave para que las personas registren los peligros del lugar; estos se conectan finalmente a la Matriz GTC-45.
+12. **Informe Condiciones de Salud** (`/sgsst/condiciones-salud`)
+    *   **¿Para qué sirve?**: Diagnóstico general resumiendo casos de ausentismo, restricciones y capacidad laboral.
+
 
 ### 🔍 C. FASE VERIFICAR (Color Rojo)
 *Auditoría y control de cumplimiento.*
@@ -102,6 +114,16 @@ El gestor está dividido por colores y fases metodológicas:
 1.  **Auditoría SG-SST** (`/sgsst/auditoria`)
     *   **¿Para qué sirve?**: Checklist anual de escrutinio interno del sistema por la gerencia.
     *   **Cómo interactuar**: Similar al Diagnóstico, es un gran cuestionario. Pero aquí el poder yace en escribir en la caja de texto "Hallazgo/Evidencia". Si marcas "No cumple", debes anexar un texto (Ej. Falta política publicada). La IA auditará de manera "dura" tu texto y creará planes estructurados.
+2.  **Informe Revisión Alta Dirección** (`/sgsst/alta-direccion`)
+    *   **¿Para qué sirve?**: Rendición de cuentas gerencial, mostrando estado de avances técnicos, capacitación y financieros del sistema.
+    *   **Cómo interactuar**: El encargado completa el informe técnico mediante el chat bot interno, y usa la URL/QR para que el gran jefe apruebe o evalúe la gestión en tiempo real.
+
+### 📈 D. FASE ACTUAR (Color Verde Claro)
+*Mejora continua y corrección de desviaciones.*
+
+1.  **Matriz ACPM** (`/sgsst/acpm`)
+    *   **¿Para qué sirve?**: (Acciones Correctivas, Preventivas y de Mejora) Hace el trackeo y cierre de hallazgos detectados o accidentes que sucedieron.
+    *   **Cómo interactuar**: Al registrar la no conformidad o problema particular, la IA despliega métodos de corrección, determina causas estructurales (Espina Pescado o Por Qués) y establece responsables/fecha.
 
 ---
 
@@ -125,22 +147,27 @@ El gestor está dividido por colores y fases metodológicas:
 
 WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Semestral o Anual. Pagar periodos largos suele aplicar un descuento automático. Tenemos 4 niveles ([ver /planes](https://wappy-ia.com/planes)):
 
+> **🚨 IMPORTANTE SOBRE PRECIOS:** Los valores listados a continuación son **PRECIOS BASE SIN DESCUENTOS**. Al hablar con los usuarios, debes poner una alerta indicándoles que **SIEMPRE verifiquen los descuentos activos a la fecha aplicados automáticamente en el link `/planes`**, ya que frecuentemente hay ofertas temporales (ej. -20% o cupones especiales) que reducen drásticamente estos montos.
+
 ### 1. Plan Gratis ($0)
 *   **Propósito:** Para explorar la IA.
 *   **Incluye:** Chat básico de IA, Aula de estudio, máx 10 conversaciones, permite ingresar 1 clave API propia de Google Gemini.
 *   **NO incluye:** Gestor SG-SST, Blog ni Agentes.
 
-### 2. Plan Go ($29.500 COP)
+### 2. Plan Go
+*   **Valores Base SIN Descuento (COP):** Mensual ($29.500), Trimestral ($88.500), Semestral ($177.000), Anual ($354.000).
 *   **Propósito:** Para productividad personal aumentada.
 *   **Incluye:** Todo lo del gratis + Acceso al Blog WAPPY, hasta 30 conversaciones abiertas, y permite 4 claves API de Gemini.
 *   **NO incluye:** Gestor SG-SST ni Agentes.
 
-### 3. Plan Plus ($34.700 COP) - ⭐ EL MÁS POPULAR
+### 3. Plan Plus
+*   **Valores Base SIN Descuento (COP):** Mensual ($34.700), Trimestral ($104.100), Semestral ($208.200), Anual ($416.400).
 *   **Propósito:** Acceso completo para prevencionistas y empresas.
 *   **Incluye:** **¡El Gestor SG-SST completo!** Todo el ciclo PHVA, conversaciones ilimitadas con la IA y 10 claves API de Gemini.
 *   **¿Por qué elegirlo?:** Es el ecosistema total para automatizar la Resolución 0312 a un precio imbatible.
 
-### 4. Plan Pro ($39.800 COP)
+### 4. Plan Pro - ⭐ EL MÁS POPULAR
+*   **Valores Base SIN Descuento (COP):** Mensual ($39.800), Trimestral ($119.400), Semestral ($238.800), Anual ($477.600).
 *   **Propósito:** El poder máximo de WAPPY IA.
 *   **Incluye:** Todo lo de Plus + **Creación de Agentes con IA personalizados**. ¿Quieres crear un asistente IA que solo responda de contabilidad de tu empresa? En este plan puedes configurar tu propio Marketplace de agentes.
 

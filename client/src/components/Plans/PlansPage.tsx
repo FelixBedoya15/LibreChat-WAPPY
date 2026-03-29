@@ -63,7 +63,7 @@ const PLANS = [
             'Gestor SGSST completo',
         ],
         notIncluded: ['Agentes personalizados'],
-        popular: true,
+        popular: false,
     },
     {
         key: 'pro',
@@ -82,7 +82,7 @@ const PLANS = [
             'Acceso anticipado a nuevas funciones',
         ],
         notIncluded: [],
-        popular: false,
+        popular: true,
     },
 ];
 
