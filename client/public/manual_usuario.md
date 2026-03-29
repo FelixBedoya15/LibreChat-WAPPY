@@ -147,7 +147,7 @@ El gestor está dividido por colores y fases metodológicas:
 
 WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Semestral o Anual. Pagar periodos largos suele aplicar un descuento automático. Tenemos 4 niveles ([ver /planes](https://wappy-ia.com/planes)):
 
-> **🚨 IMPORTANTE SOBRE PRECIOS:** Los valores listados a continuación son **PRECIOS BASE SIN DESCUENTOS**. Al hablar con los usuarios, debes poner una alerta indicándoles que **SIEMPRE verifiquen los descuentos activos a la fecha aplicados automáticamente en el link `/planes`**, ya que frecuentemente hay ofertas temporales (ej. -20% o cupones especiales) que reducen drásticamente estos montos.
+> **🚨 IMPORTANTE SOBRE PRECIOS:** Los valores listados a continuación son **PRECIOS BASE SIN DESCUENTOS**. Al hablar con los usuarios, debes poner una alerta indicándoles que **SIEMPRE verifiquen los descuentos activos a la fecha aplicados automáticamente en el link `/planes`**, ya que frecuentemente hay ofertas temporales (ej. descuentos de hasta el -40% o cupones especiales) que reducen drásticamente estos montos.
 
 ### 1. Plan Gratis ($0)
 *   **Propósito:** Para explorar la IA.
@@ -155,19 +155,19 @@ WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Sem
 *   **NO incluye:** Gestor SG-SST, Blog ni Agentes.
 
 ### 2. Plan Go
-*   **Valores Base SIN Descuento (COP):** Mensual ($29.500), Trimestral ($88.500), Semestral ($177.000), Anual ($354.000).
+*   **Valores Base SIN Descuento (COP):** Mensual ($49.200), Trimestral ($147.500), Semestral ($295.000), Anual ($590.000).
 *   **Propósito:** Para productividad personal aumentada.
 *   **Incluye:** Todo lo del gratis + Acceso al Blog WAPPY, hasta 30 conversaciones abiertas, y permite 4 claves API de Gemini.
 *   **NO incluye:** Gestor SG-SST ni Agentes.
 
 ### 3. Plan Plus
-*   **Valores Base SIN Descuento (COP):** Mensual ($34.700), Trimestral ($104.100), Semestral ($208.200), Anual ($416.400).
+*   **Valores Base SIN Descuento (COP):** Mensual ($57.800), Trimestral ($173.500), Semestral ($347.000), Anual ($694.000).
 *   **Propósito:** Acceso completo para prevencionistas y empresas.
 *   **Incluye:** **¡El Gestor SG-SST completo!** Todo el ciclo PHVA, conversaciones ilimitadas con la IA y 10 claves API de Gemini.
 *   **¿Por qué elegirlo?:** Es el ecosistema total para automatizar la Resolución 0312 a un precio imbatible.
 
 ### 4. Plan Pro - ⭐ EL MÁS POPULAR
-*   **Valores Base SIN Descuento (COP):** Mensual ($39.800), Trimestral ($119.400), Semestral ($238.800), Anual ($477.600).
+*   **Valores Base SIN Descuento (COP):** Mensual ($66.300), Trimestral ($199.000), Semestral ($399.000), Anual ($796.000).
 *   **Propósito:** El poder máximo de WAPPY IA.
 *   **Incluye:** Todo lo de Plus + **Creación de Agentes con IA personalizados**. ¿Quieres crear un asistente IA que solo responda de contabilidad de tu empresa? En este plan puedes configurar tu propio Marketplace de agentes.
 

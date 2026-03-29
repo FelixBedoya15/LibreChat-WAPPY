@@ -7,9 +7,9 @@ const getPlans = async (req, res) => {
         // Si no existen, podríamos inicializarlos
         if (!plans || plans.length === 0) {
             const defaultPlans = [
-                { planId: 'go', name: 'Go', prices: { monthly: 29500, quarterly: 88500, semiannual: 177000, annual: 354000 } },
-                { planId: 'plus', name: 'Plus', prices: { monthly: 34700, quarterly: 104100, semiannual: 208200, annual: 416400 } },
-                { planId: 'pro', name: 'Pro', prices: { monthly: 39800, quarterly: 119400, semiannual: 238800, annual: 477600 } },
+                { planId: 'go', name: 'Go', prices: { monthly: 49200, quarterly: 147500, semiannual: 295000, annual: 590000 } },
+                { planId: 'plus', name: 'Plus', prices: { monthly: 57800, quarterly: 173500, semiannual: 347000, annual: 694000 } },
+                { planId: 'pro', name: 'Pro', prices: { monthly: 66300, quarterly: 199000, semiannual: 399000, annual: 796000 } },
             ];
             await Plan.insertMany(defaultPlans);
             const newPlans = await Plan.find().lean();

@@ -30,7 +30,7 @@ const PLANS = [
     {
         key: 'go',
         name: 'Go',
-        price: '$29.500',
+        price: '$49.200',
         tagline: 'Más acceso, más productividad',
         accentColor: 'text-blue-500',
         iconColor: 'text-blue-500',
@@ -49,7 +49,7 @@ const PLANS = [
     {
         key: 'plus',
         name: 'Plus',
-        price: '$34.700',
+        price: '$57.800',
         tagline: 'Acceso completo para profesionales',
         accentColor: 'text-green-500',
         iconColor: 'text-green-500',
@@ -68,7 +68,7 @@ const PLANS = [
     {
         key: 'pro',
         name: 'Pro',
-        price: '$39.800',
+        price: '$66.300',
         tagline: 'El poder total de WAPPY IA',
         accentColor: 'text-amber-500',
         iconColor: 'text-amber-500',
