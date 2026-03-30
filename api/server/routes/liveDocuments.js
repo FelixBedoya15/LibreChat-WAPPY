@@ -2,16 +2,28 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const mammoth = require('mammoth');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const { requireJwtAuth } = require('../middleware');
 const LiveDocument = require('../../models/LiveDocument');
 const { logger } = require('@librechat/data-schemas');
 
-// Configuración de multer en memoria
+// Validación de Tamaño (Máximo 15MB para prevenir DDoS y problemas de Memoria)
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB Limit
+});
 
 router.use(requireJwtAuth);
+
+// Middleware para restringir endpoints a planes PRO o ADMIN
+const requireProAuth = (req, res, next) => {
+  if (req.user?.role !== 'ADMIN' && req.user?.role !== 'USER_PRO') {
+    return res.status(403).json({ error: 'Esta funcionalidad es exclusiva para cuentas Premium.' });
+  }
+  next();
+};
+router.use(requireProAuth);
 
 // GET: Obtener historial de documentos del usuario
 router.get('/', async (req, res) => {
@@ -90,7 +102,8 @@ router.delete('/:id', async (req, res) => {
 router.post('/extract', upload.single('file'), async (req, res) => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: 'No se ha subido ningún archivo' });
+    if (!file) return res.status(400).json({ error: 'No se ha subido ningún archivo o excede el límite (15MB).' });
+    if (!file.originalname) return res.status(400).json({ error: 'Archivo inválido.' });
 
     const originalName = file.originalname.toLowerCase();
     
@@ -113,18 +126,21 @@ router.post('/extract', upload.single('file'), async (req, res) => {
       return res.json({ fileName: file.originalname, html, type: 'docx' });
     }
     
-    // PDF Handling via pdf-parse
+    // PDF Handling via pdf-parse v2
     if (originalName.endsWith('.pdf')) {
-      const data = await pdfParse(file.buffer);
-      // Format text basic: encode HTML to avoid XSS, break lines into paragraphs
-      let text = data.text;
-      
-      return res.json({ 
-        fileName: file.originalname, 
-        text: text, 
-        type: 'pdf', 
-        needsAiFormatting: true 
-      });
+      const parser = new PDFParse({ data: file.buffer });
+      try {
+        const data = await parser.getText();
+        
+        return res.json({ 
+          fileName: file.originalname, 
+          text: data.text, 
+          type: 'pdf', 
+          needsAiFormatting: true 
+        });
+      } finally {
+        await parser.destroy();
+      }
     }
 
     return res.status(400).json({ error: 'Formato de archivo no soportado. Debe ser .docx o .pdf' });

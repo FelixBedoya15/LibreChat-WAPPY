@@ -49,7 +49,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Máximo 10 conversaciones abiertas',
             'Podrá ingresar 1 clave API de Gemini',
         ],
-        excluded: ['Blog WAPPY', 'Gestor SGSST', 'Agentes personalizados'],
+        excluded: ['Blog WAPPY', 'Gestor SGSST', 'Editor de Archivos con IA'],
     },
     USER_GO: {
         badge: 'Actualiza al Plan Plus o Pro',
@@ -59,7 +59,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Hasta 30 conversaciones abiertas',
             'Podrá ingresar 4 claves API de Gemini',
         ],
-        excluded: ['Gestor SGSST', 'Agentes personalizados'],
+        excluded: ['Gestor SGSST', 'Editor de Archivos con IA'],
     },
     USER_PLUS: {
         badge: 'Actualiza al Plan Pro',
@@ -69,7 +69,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Conversaciones Ilimitadas',
             'Podrá ingresar 10 claves API de Gemini',
         ],
-        excluded: ['Agentes personalizados', 'Análisis en Vivo (Cámaras)', 'Inteligencia Predictiva'],
+        excluded: ['Editor de Archivos con IA', 'Análisis en Vivo', 'Inteligencia Predictiva'],
     },
 };
 

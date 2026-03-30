@@ -67,7 +67,16 @@ const EditorArchivosDashboard = () => {
 
       // 2. Save extracted content as a new document
       // If PDF, we pass the text as content but wrap it in basic HTML if it comes raw.
-      let finalContent = extractData.html || `<div class="pdf-text-container">${extractData.text?.replace(/\n/g, '<br/>')}</div>`;
+      const escapeHtml = (unsafeText: string) => {
+          return unsafeText
+               .replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
+      };
+      
+      let finalContent = extractData.html || `<div class="pdf-text-container">${escapeHtml(extractData.text || '').replace(/\n/g, '<br/>')}</div>`;
       
       const saveRes = await fetch('/api/live/documents', {
         method: 'POST',
