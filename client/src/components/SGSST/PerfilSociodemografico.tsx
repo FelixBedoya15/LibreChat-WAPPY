@@ -975,43 +975,24 @@ const PerfilSociodemografico = () => {
                 )}
             </div>
 
-            {/* ═══ Report Viewer (inline, igual que MatrizPeligros) ═══ */}
+            {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
             {generatedReport && (
-                <div className="mt-8 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm mt-8">
+                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
+                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
                             <AnimatedIcon name="file-text" size={20} className="text-indigo-500" />
-                            Vista Previa del Informe Sociodemográfico
+                            Documento de Perfil Sociodemográfico Generado
                         </h3>
+                        <span className="text-xs text-text-secondary">Edita si es necesario</span>
                     </div>
-                    <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1 overflow-hidden">
-                        <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} reportSourceData={trabajadores} />
-                            </div>
-                        </div>
-                        <style>{`
-                            [contenteditable] table {
-                                width: 100%;
-                                min-width: 650px;
-                                border-collapse: separate;
-                                border-spacing: 0;
-                                table-layout: auto;
-                                border-radius: 12px;
-                                overflow: hidden;
-                                border: 1px solid var(--border-medium, #ddd);
-                            }
-                            [contenteditable] table td,
-                            [contenteditable] table th {
-                                padding: 8px 12px;
-                                border-bottom: 1px solid var(--border-medium, #ddd);
-                                border-right: 1px solid var(--border-medium, #eee);
-                                word-wrap: break-word;
-                            }
-                            [contenteditable] table td:last-child,
-                            [contenteditable] table th:last-child { border-right: none; }
-                            [contenteditable] table tr:last-child td { border-bottom: none; }
-                        `}</style>
+                    <div className="rounded-xl p-1 overflow-hidden">
+                        <LiveEditor 
+                            key={editorKey} 
+                            initialContent={generatedReport} 
+                            onUpdate={setEditorContent} 
+                            onSave={handleSaveReport} 
+                            reportSourceData={trabajadores} 
+                        />
                     </div>
                 </div>
             )}

@@ -1135,19 +1135,17 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     height: calc(100vh - 80px) !important;
                     padding: 8px 12px !important;
                 }
-                .live-editor-fullscreen .live-editor-content * {
+                .live-editor-fullscreen .live-editor-content > * {
                     max-width: 100% !important;
-                    width: 100% !important;
-                    margin-left: 0 !important;
-                    margin-right: 0 !important;
                 }
                 @media (min-width: 640px) {
                     .live-editor-fullscreen .live-editor-content {
                         padding: 24px 40px !important;
                     }
-                    .live-editor-fullscreen .live-editor-content > div {
+                    .live-editor-fullscreen .live-editor-content > * {
                         max-width: 1000px !important;
-                        margin: 0 auto !important;
+                        margin-left: auto !important;
+                        margin-right: auto !important;
                     }
                 }
             `}</style>

@@ -426,17 +426,13 @@ const ResponsableSGSST = () => {
                         <span className="text-xs text-text-secondary">Edita si es necesario</span>
                     </div>
                     <div className="rounded-xl p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor
-                                    key={editorKey}
-                                    initialContent={generatedDoc}
-                                    onUpdate={(html) => setEditorContent(html)}
-                                    onSave={handleSave}
-                                    reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
-                                />
-                            </div>
-                        </div>
+                        <LiveEditor
+                            key={editorKey}
+                            initialContent={generatedDoc}
+                            onUpdate={(html) => setEditorContent(html)}
+                            onSave={handleSave}
+                            reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
+                        />
                     </div>
                 </div>
             )}
