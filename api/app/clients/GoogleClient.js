@@ -675,7 +675,7 @@ class GoogleClient extends BaseClient {
       return client;
     } else if (!EXCLUDED_GENAI_MODELS.test(model)) {
       logger.debug('Creating GenAI client');
-      return new GenAI(this.apiKey).getGenerativeModel({ model, tools: [{ googleSearch: {} }] }, requestOptions);
+      return new GenAI(this.apiKey).getGenerativeModel({ model, tools: [{ googleSearchRetrieval: { dynamicRetrievalConfig: { mode: "MODE_DYNAMIC", dynamicThreshold: 0.3 } } }] }, requestOptions);
     }
 
     logger.debug('Creating Chat Google Generative AI client');
