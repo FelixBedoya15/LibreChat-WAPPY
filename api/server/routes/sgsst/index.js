@@ -20,6 +20,7 @@ const analisisVulnerabilidad = require('./analisisVulnerabilidad');
 const predictivo = require('./predictivo');
 const participacionIpevar = require('./participacionIpevar');
 const altaDireccion = require('./altaDireccion');
+const gtc45Workspace = require('./gtc45Workspace');
 
 
 
@@ -47,5 +48,6 @@ module.exports = {
     predictivo,
     participacionIpevar,
     signatures: require('./signatures'),
+    gtc45Workspace,
 };
 
