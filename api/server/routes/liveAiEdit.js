@@ -12,6 +12,7 @@ const router = express.Router();
 const { requireJwtAuth } = require('~/server/middleware');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsst/sgsstGemini');
 const { logger } = require('~/config');
+const axios = require('axios');
 
 router.post('/ai-edit-text', requireJwtAuth, async (req, res) => {
   const { selectedText, instruction, surroundingContext, fullReportText, reportSourceData } = req.body;
@@ -43,6 +44,26 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
   // Use the entire report text if available, otherwise fall back to surroundingContext
   const reportContext = fullReportText || surroundingContext || '';
 
+  // 1. WEB SEARCH (SearXNG) Integration
+  let webContext = '';
+  try {
+      const searxngUrl = process.env.SEARXNG_INSTANCE_URL || 'https://searxng.wappy-ia.com/search';
+      
+      // Perform a search based on the instruction provided by the user
+      const searchResponse = await axios.get(searxngUrl, {
+          params: { q: instruction, format: 'json', language: 'es' },
+          timeout: 5000
+      });
+
+      if (searchResponse.data && searchResponse.data.results && searchResponse.data.results.length > 0) {
+          const topResults = searchResponse.data.results.slice(0, 3);
+          const formattedResults = topResults.map(r => `- ${r.title}: ${r.content}`).join('\n');
+          webContext = `\nCONTEXTO ENCONTRADO EN INTERNET (SearXNG):\n${formattedResults}\n`;
+      }
+  } catch (searchError) {
+      logger.warn(`[LiveAiEdit] SearXNG Web Search failed: ${searchError.message}`);
+  }
+
   const prompt = `
 Eres un asistente experto en redacción de informes técnicos de Seguridad y Salud en el Trabajo (SST/HSE).
 
@@ -62,21 +83,21 @@ INSTRUCCIÓN DEL USUARIO:
 """
 ${instruction}
 """
-
+${webContext}
 REGLAS CRÍTICAS:
-1. Si la instrucción requiere de datos actuales, normativa reciente, artículos o investigaciones, UTILIZA TU HERRAMIENTA DE BÚSQUEDA WEB para fundamentarte antes de responder.
+1. Si se te provee el "CONTEXTO ENCONTRADO EN INTERNET (SearXNG)", utilízalo para fundamentar tu respuesta aportando datos precisos y actualizados.
 2. Devuelve ÚNICAMENTE el texto editado, sin explicaciones, sin comillas envolventes, sin prefijos.
 3. Mantén el mismo formato HTML si el texto lo tiene (p, li, h3, strong, etc.).
 4. Mantén coherencia con el informe completo y con los datos de origen.
 5. Escribe en el mismo idioma del texto original (normalmente español).
-6. NO inventes datos; básate fuertemente en tu BÚSQUEDA WEB si no conoces la información, o en los DATOS DE ORIGEN provistos.
+6. NO inventes datos; básate fuertemente en el CONTEXTO ENCONTRADO EN INTERNET o en los DATOS DE ORIGEN provistos.
 `;
 
   try {
     const modelName = SGSST_FALLBACK_MODELS[0];
-    logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}, reportLen: ${reportContext.length}, hasSourceData: ${!!reportSourceData}, usingWebSearch: true`);
+    logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}, reportLen: ${reportContext.length}, hasSourceData: ${!!reportSourceData}, usingSearXNG: ${webContext.length > 0}`);
 
-    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: true });
+    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
     let editedText = result.response.text().trim();
 
     logger.info(`[LiveAiEdit] Done — original: ${selectedText.length} chars → edited: ${editedText.length} chars`);
