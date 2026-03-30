@@ -205,3 +205,7 @@ Si encuentras fallas o algo en pantalla produce error (Ej: un cartel rojo):
 2. Selecciona **Notificaciones** o ve a la pestaña **Cuenta > Zona de Peligro**.
 3. Da clic en **Crear un nuevo Ticket PQRS**.
 4. Detalla profundamente y relata la ruta (dónde estabas presionando cuando te salió). ¡El staff tecnológico WAPPY responderá y tu "Campanita 🔔" de notificaciones en el tope de pantalla brillará alertándote el cierre del asunto!
+
+**📞 Canales de Atención Adicionales:**
+*   **Correo Electrónico:** Si requieres información comercial, envíanos un mail a `info@wappy-ia.com`.
+*   **WhatsApp de Soporte/Ventas:** Escríbenos directamente al [3021268625](https://wa.me/573021268625) para recibir atención personalizada rápida.
