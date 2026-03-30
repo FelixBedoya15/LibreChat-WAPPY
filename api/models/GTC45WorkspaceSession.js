@@ -1,11 +1,5 @@
 const mongoose = require('mongoose');
 
-const messageSchema = new mongoose.Schema({
-  role: { type: String, enum: ['system', 'user', 'assistant'], required: true },
-  text: { type: String, required: true },
-  timestamp: { type: Date, default: Date.now }
-});
-
 const gtc45WorkspaceSessionSchema = new mongoose.Schema(
   {
     user: {
@@ -13,11 +7,12 @@ const gtc45WorkspaceSessionSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    title: {
+    conversationId: {
       type: String,
-      default: 'Nueva Matriz GTC-45',
+      required: true,
+      unique: true,
+      index: true,
     },
-    messages: [messageSchema],
     matrixRows: {
       type: Array,
       default: [],

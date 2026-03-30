@@ -231,7 +231,7 @@ export const router = createBrowserRouter(
               element: <SGSSTDashboard />,
             },
             {
-              path: 'sgsst/agente-gtc45',
+              path: 'sgsst/agente-gtc45/:conversationId?',
               element: <AgenteGTC45Workspace />,
             },
             {

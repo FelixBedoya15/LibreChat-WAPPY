@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useGetModelsQuery } from 'librechat-data-provider/react-query';
 import {
   Constants,
@@ -39,6 +39,7 @@ const useNewConvo = (index = 0) => {
   const navigate = useNavigate();
   const localize = useLocalize();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { data: startupConfig } = useGetStartupConfig();
   const applyModelSpecEffects = useApplyModelSpecEffects();
   const clearAllConversations = store.useClearConvoState();
@@ -204,17 +205,21 @@ const useNewConvo = (index = 0) => {
         const searchParamsString = searchParams?.toString();
         const getParams = () => (searchParamsString ? `?${searchParamsString}` : '');
 
+        // Determine correct base path to avoid kicking users out of the workspace
+        const isGtcWorkspace = location.pathname.includes('/sgsst/agente-gtc45');
+        const basePath = isGtcWorkspace ? '/sgsst/agente-gtc45' : '/c';
+
         if (conversation.conversationId === Constants.NEW_CONVO && !modelsData) {
           const appTitle = localStorage.getItem(LocalStorageKeys.APP_TITLE) ?? '';
           if (appTitle) {
             document.title = appTitle;
           }
-          const path = `/c/${Constants.NEW_CONVO}${getParams()}`;
+          const path = `${basePath}/${Constants.NEW_CONVO}${getParams()}`;
           navigate(path, { state: { focusChat: true } });
           return;
         }
 
-        const path = `/c/${conversation.conversationId}${getParams()}`;
+        const path = `${basePath}/${conversation.conversationId}${getParams()}`;
         navigate(path, {
           replace: true,
           state: disableFocus ? {} : { focusChat: true },
