@@ -26,6 +26,7 @@ const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
 const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
 const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
+const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
 
 const NAV_WIDTH_DESKTOP = '260px';
@@ -186,6 +187,9 @@ const Nav = memo(
               <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
+          <Suspense fallback={null}>
+            <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
+          </Suspense>
           {hasAccessToSGSST && (
             <Suspense fallback={null}>
               <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
@@ -283,6 +287,9 @@ const Nav = memo(
                             <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        <Suspense fallback={null}>
+                          <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         {/* SG-SST icon */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
@@ -331,6 +338,9 @@ const Nav = memo(
                                     <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
+                                <Suspense fallback={null}>
+                                  <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />

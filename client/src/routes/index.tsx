@@ -38,6 +38,8 @@ import BlogAdminDashboard from '~/components/Blog/BlogAdminDashboard';
 import BlogPostEditor from '~/components/Blog/BlogPostEditor';
 import BlogPostViewer from '~/components/Blog/BlogPostViewer';
 import TenshiAdminPanel from '~/components/Tenshi/TenshiAdminPanel';
+import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosDashboard';
+import DocumentEditorView from '~/components/EditorArchivos/DocumentEditorView';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
 import Search from './Search';
@@ -247,6 +249,14 @@ export const router = createBrowserRouter(
             {
               path: 'blog/:postId',
               element: <BlogPostViewer />,
+            },
+            {
+              path: 'editor-archivos',
+              element: <EditorArchivosDashboard />,
+            },
+            {
+              path: 'editor-archivos/:id',
+              element: <DocumentEditorView />,
             },
             {
               path: 'agents',
