@@ -42,6 +42,7 @@ const publicReports = require('./publicReports');
 const publicSgsst = require('./publicSgsst');
 const liveAiEdit = require('./liveAiEdit');
 const liveDocuments = require('./liveDocuments');
+const roadmap = require('./roadmap');
 
 module.exports = {
   auth,
@@ -88,4 +89,5 @@ module.exports = {
   publicSgsst,
   liveAiEdit,
   liveDocuments,
+  roadmap,
 };

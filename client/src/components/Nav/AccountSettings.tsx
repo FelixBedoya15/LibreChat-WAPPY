@@ -4,7 +4,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { useNavigate } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import * as Select from '@ariakit/react/select';
-import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot, Bell } from 'lucide-react';
+import { FileText, LogOut, BookOpen, Shield, Newspaper, CreditCard, UserCircle, Bot, Bell, Map } from 'lucide-react';
 import { GearIcon, DropdownMenuSeparator, Avatar } from '@librechat/client';
 import { useGetStartupConfig, useGetUserBalance } from '~/data-provider';
 import FilesView from '~/components/Chat/Input/Files/FilesView';
@@ -226,6 +226,14 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
           >
             <CreditCard className="icon-md" aria-hidden="true" />
             Planes
+          </Select.SelectItem>
+          <Select.SelectItem
+            value=""
+            onClick={() => navigate('/hoja-de-ruta')}
+            className="select-item text-sm mb-0.5 rounded-lg px-2 py-1.5 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-400 transition-all duration-200"
+          >
+            <Map className="icon-md" aria-hidden="true" />
+            Hoja de Ruta
           </Select.SelectItem>
           <Select.SelectItem
             value=""

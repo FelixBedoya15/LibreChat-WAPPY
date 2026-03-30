@@ -42,13 +42,16 @@ import EditorArchivosDashboard from '~/components/EditorArchivos/EditorArchivosD
 import DocumentEditorView from '~/components/EditorArchivos/DocumentEditorView';
 import PlansPage from '~/components/Plans/PlansPage';
 import ContactPage from '~/components/Plans/ContactPage';
+import RoadmapPage from '~/components/Roadmap/RoadmapPage';
 import Search from './Search';
 import Root from './Root';
+import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
 
 const AuthLayout = () => (
   <AuthContextProvider>
     <Outlet />
     <ApiErrorWatcher />
+    <RoadmapNotifier />
   </AuthContextProvider>
 );
 
@@ -157,11 +160,23 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'hoja-de-ruta',
+      element: (
+        <AuthContextProvider>
+          <RoadmapPage />
+          <ApiErrorWatcher />
+          <RoadmapNotifier />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'contactanos',
       element: (
         <AuthContextProvider>
           <ContactPage />
           <ApiErrorWatcher />
+          <RoadmapNotifier />
         </AuthContextProvider>
       ),
       errorElement: <RouteErrorBoundary />,
