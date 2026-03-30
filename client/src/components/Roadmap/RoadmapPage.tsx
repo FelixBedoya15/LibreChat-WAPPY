@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Plus, Lightbulb, Map, Milestone, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import RoadmapAdminModal from './RoadmapAdminModal';
+import Settings from '~/components/Nav/Settings';
 
 type RoadmapType = 'Nuevo' | 'Mejora' | 'Corrección' | 'Anuncio';
 
@@ -81,6 +82,8 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState<string | undefined>('tickets');
 
   useEffect(() => {
     fetchRoadmap();
@@ -101,9 +104,10 @@ export default function RoadmapPage() {
           setItems(defaultSeedItems);
         } else {
           setItems(data);
-          // Set latest roadmap ID in client so they don't get popups instantly
           localStorage.setItem('lastRoadmapSeenId', data[0]?._id);
         }
+      } else {
+        setItems(defaultSeedItems);
       }
     } catch (e) {
       console.error(e);
@@ -137,7 +141,7 @@ export default function RoadmapPage() {
     new Date(d).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div className="min-h-[100dvh] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 md:p-12 pb-32 font-sans relative" style={{ overflowX: 'clip' }}>
+    <div className="relative min-h-[100dvh] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 md:p-12 pb-32 font-sans">
       <div className="max-w-4xl mx-auto">
         
         {/* Header Section */}
@@ -158,8 +162,8 @@ export default function RoadmapPage() {
           <div className="flex flex-wrap justify-center gap-4 mt-8">
             <button 
               onClick={() => {
-                window.dispatchEvent(new CustomEvent('switch-settings-tab', { detail: { mainTab: 'tickets' } }));
-                window.dispatchEvent(new CustomEvent('open-settings'));
+                setActiveSettingsTab('tickets');
+                setShowSettings(true);
               }}
               className="px-6 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition font-medium flex items-center gap-2"
             >
@@ -263,6 +267,9 @@ export default function RoadmapPage() {
           }} 
         />
       )}
+
+      {showSettings && <Settings open={showSettings} onOpenChange={setShowSettings} activeTab={activeSettingsTab} />}
+
     </div>
   );
 }
