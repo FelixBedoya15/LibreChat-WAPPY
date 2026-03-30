@@ -261,7 +261,7 @@ Cierra con una declaratoria estructurada y técnica. **Si se ha proporcionado un
       }
     }
 
-    const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts, { useWebSearch: true });
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
     const response = await result.response;
     const htmlBody = response.text().replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 

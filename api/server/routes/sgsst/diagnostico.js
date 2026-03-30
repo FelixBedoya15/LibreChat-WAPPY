@@ -466,7 +466,7 @@ Genera SOLO el contenido del cuerpo (HTML body tags).`;
                 setTimeout(() => reject(new Error('TIMEOUT: La generación del informe excedió el tiempo límite. Intente de nuevo.')), timeoutMs)
             );
             const genPromise = (async () => {
-                const genResult = await generateWithKeyRotation(model, req.user?.id || req.user, prompt, { useWebSearch: true });
+                const genResult = await generateWithKeyRotation(model, req.user?.id || req.user, prompt);
                 const genResponse = await genResult.response;
                 return genResponse.text();
             })();

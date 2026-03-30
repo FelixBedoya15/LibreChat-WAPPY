@@ -83,9 +83,6 @@ const initializeClient = async ({ req, res, endpointOption, overrideModel, optio
     if (overrideModel) {
       clientOptions.modelOptions.model = overrideModel;
     }
-    if (googleConfig?.addParams?.web_search !== undefined) {
-      clientOptions.modelOptions.web_search = googleConfig.addParams.web_search;
-    }
     return getGoogleConfig(credentials, clientOptions);
   }
 

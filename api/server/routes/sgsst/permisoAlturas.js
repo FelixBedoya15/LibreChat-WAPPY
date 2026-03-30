@@ -233,7 +233,7 @@ Crea un cajón visual elegante usando un \`<div style="border: 2px solid #0f766e
             }
         }
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts, { useWebSearch: true });
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
         const response = await result.response;
         const htmlBody = response.text().replace(/```html\n ? /g, '').replace(/```\n?/g, '').trim();
 

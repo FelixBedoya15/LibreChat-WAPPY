@@ -187,7 +187,7 @@ Después del encabezado, el resumen ejecutivo, el Indicador de Cumplimiento (${c
         const finalModelName = modelName || preferredModel;
         const model = genAI.getGenerativeModel({ model: finalModelName });
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText, { useWebSearch: true });
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
         const response = await result.response;
         const text = response.text();
 

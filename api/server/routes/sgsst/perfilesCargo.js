@@ -191,7 +191,7 @@ ${companyContext}
 - **NO** incluyas firmas.
 `;
 
-    const result = await generateWithKeyRotation(model, req.user?.id || req.user, [{ text: promptText }], { useWebSearch: true });
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, [{ text: promptText }]);
     const response = await result.response;
     const htmlBody = response
       .text()

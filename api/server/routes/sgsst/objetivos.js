@@ -216,7 +216,7 @@ El diseño debe ser elegante con acentos en azul oscuro (#0f766e). Tablas deben 
 Las tablas DEBEN estar envueltas dentro de un \`<div style="overflow-x: auto; width: 100%; margin-bottom: 20px;">\` y la etiqueta de la tabla debe tener \`min-width: 650px;\` para que desplace lateralmente en celulares.`;
 
         // 6. Generate the content
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText, { useWebSearch: true });
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
         const response = await result.response;
         const objectivesHtml = response.text();
 

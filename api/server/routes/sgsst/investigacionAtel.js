@@ -437,7 +437,7 @@ REGLAS DE DISEÑO OBLIGATORIAS:
                 setTimeout(() => reject(new Error('TIMEOUT: La generación superó el tiempo límite.')), timeoutMs)
             );
             const genPromise = (async () => {
-                const genResult = await generateWithKeyRotation(mod, req.user?.id || req.user, prmpt, { useWebSearch: true });
+                const genResult = await generateWithKeyRotation(mod, req.user?.id || req.user, prmpt);
                 return genResult.response.text();
             })();
             return Promise.race([genPromise, timeoutPromise]);

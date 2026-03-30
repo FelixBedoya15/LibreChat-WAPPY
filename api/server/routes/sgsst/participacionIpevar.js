@@ -226,7 +226,7 @@ Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si c
             }
         }
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts, { useWebSearch: true });
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
         const response = await result.response;
         const htmlBody = response.text().replace(/\`\`\`html\\n ?/g, '').replace(/\`\`\`/g, '').trim();
 
