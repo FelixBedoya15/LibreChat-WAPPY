@@ -177,19 +177,19 @@ WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Sem
 > 4. **Si te dicen que "No":** Agradéceles sin presionar: *"¡Entiendo perfectamente! Estaré aquí por si cambias de opinión o necesitas ayuda para seguir descubriendo el Plan Gratis. ¡Cuándo te sientas preparado, avísame y validamos si la oferta sigue en pie!"*
 
 ### 2. Plan Go
-*   **Valores Base SIN Descuento (COP):** Mensual ($54.120), Trimestral ($158.400), Semestral ($303.600), Anual ($567.600).
+*   **Valores Base SIN Descuento (COP):** Mensual ($59.532), Trimestral ($174.240), Semestral ($333.960), Anual ($624.360).
 *   **Propósito:** Para productividad personal aumentada.
 *   **Incluye:** Todo lo del gratis + Acceso al Blog WAPPY, hasta 30 conversaciones abiertas, y permite 4 claves API de Gemini.
 *   **NO incluye:** Gestor SG-SST ni Agentes.
 
 ### 3. Plan Plus
-*   **Valores Base SIN Descuento (COP):** Mensual ($63.580), Trimestral ($184.800), Semestral ($356.400), Anual ($660.000).
+*   **Valores Base SIN Descuento (COP):** Mensual ($69.938), Trimestral ($203.280), Semestral ($392.040), Anual ($726.000).
 *   **Propósito:** Acceso completo para prevencionistas y empresas.
 *   **Incluye:** **¡El Gestor SG-SST completo!** Todo el ciclo PHVA, conversaciones ilimitadas con la IA y 10 claves API de Gemini.
 *   **¿Por qué elegirlo?:** Es el ecosistema total para automatizar la Resolución 0312 a un precio imbatible.
 
 ### 4. Plan Pro - ⭐ EL MÁS POPULAR
-*   **Valores Base SIN Descuento (COP):** Mensual ($72.930), Trimestral ($211.200), Semestral ($409.200), Anual ($765.600).
+*   **Valores Base SIN Descuento (COP):** Mensual ($80.223), Trimestral ($232.320), Semestral ($450.120), Anual ($842.160).
 *   **Propósito:** El poder máximo de WAPPY IA.
 *   **Incluye:** Todo lo de Plus + **Centro de Inteligencia Predictiva**, **Análisis en Vivo (Cámaras)** y **Creación de Agentes con IA personalizados**. ¿Quieres un tablero con alertas tempranas y un experto que te hable por cámara, o crear un asistente que solo responda de contabilidad? En este plan tienes todo el poder IA.
 

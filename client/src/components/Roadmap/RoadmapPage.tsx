@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Lightbulb, Map, Milestone, Zap, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { Plus, Lightbulb, Map, Milestone, Zap, AlertTriangle, CheckCircle, X, ArrowLeft } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import RoadmapAdminModal from './RoadmapAdminModal';
 import TicketForm from '~/components/Tickets/TicketForm';
@@ -76,6 +77,7 @@ const defaultSeedItems: RoadmapItem[] = [
 
 
 export default function RoadmapPage() {
+  const navigate = useNavigate();
   const { user } = useAuthContext();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -145,6 +147,15 @@ export default function RoadmapPage() {
     <div className="relative min-h-[100dvh] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 md:p-12 pb-32 font-sans">
       <div className="max-w-4xl mx-auto">
         
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 mb-8 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors w-max"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Volver
+        </button>
+
         {/* Header Section */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
