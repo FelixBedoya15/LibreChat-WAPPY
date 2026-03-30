@@ -675,7 +675,7 @@ class GoogleClient extends BaseClient {
       return client;
     } else if (!EXCLUDED_GENAI_MODELS.test(model)) {
       logger.debug('Creating GenAI client');
-      return new GenAI(this.apiKey).getGenerativeModel({ model }, requestOptions);
+      return new GenAI(this.apiKey).getGenerativeModel({ model, tools: [{ googleSearch: {} }] }, requestOptions);
     }
 
     logger.debug('Creating Chat Google Generative AI client');
@@ -721,7 +721,6 @@ class GoogleClient extends BaseClient {
           safetySettings,
           contents: _payload,
           generationConfig: googleGenConfigSchema.parse(this.modelOptions),
-          tools: [{ googleSearch: {} }],
         };
 
         const promptPrefix = (this.systemMessage ?? '').trim();

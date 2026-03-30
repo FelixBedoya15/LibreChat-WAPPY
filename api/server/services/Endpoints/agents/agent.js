@@ -164,7 +164,7 @@ const initializeAgent = async ({
     options.tools?.length &&
     structuredTools?.length
   ) {
-    throw new Error(`{ "type": "${ErrorTypes.GOOGLE_TOOL_CONFLICT}"}`);
+    tools = structuredTools.concat(options.tools);
   } else if (
     (agent.provider === Providers.OPENAI ||
       agent.provider === Providers.AZURE ||
