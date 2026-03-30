@@ -64,20 +64,20 @@ ${instruction}
 """
 
 REGLAS CRÍTICAS:
-1. Devuelve ÚNICAMENTE el texto editado, sin explicaciones, sin comillas envolventes, sin prefijos.
-2. Mantén el mismo formato HTML si el texto lo tiene (p, li, h3, strong, etc.).
-3. Mantén coherencia con el informe completo y con los datos de origen.
-4. Escribe en el mismo idioma del texto original (normalmente español).
-5. NO inventes datos que no existan en el contexto o en la base de datos.
-6. Si la instrucción pide datos específicos (nombres, cifras), búscalos en DATOS DE ORIGEN o en el INFORME COMPLETO.
+1. Si la instrucción requiere de datos actuales, normativa reciente, artículos o investigaciones, UTILIZA TU HERRAMIENTA DE BÚSQUEDA WEB para fundamentarte antes de responder.
+2. Devuelve ÚNICAMENTE el texto editado, sin explicaciones, sin comillas envolventes, sin prefijos.
+3. Mantén el mismo formato HTML si el texto lo tiene (p, li, h3, strong, etc.).
+4. Mantén coherencia con el informe completo y con los datos de origen.
+5. Escribe en el mismo idioma del texto original (normalmente español).
+6. NO inventes datos; básate fuertemente en tu BÚSQUEDA WEB si no conoces la información, o en los DATOS DE ORIGEN provistos.
 `;
 
   try {
     const modelName = SGSST_FALLBACK_MODELS[0];
-    logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}, reportLen: ${reportContext.length}, hasSourceData: ${!!reportSourceData}`);
+    logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}, reportLen: ${reportContext.length}, hasSourceData: ${!!reportSourceData}, usingWebSearch: true`);
 
-    const result = await generateWithKeyRotation(modelName, userId, prompt);
-    const editedText = result.response.text().trim();
+    const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: true });
+    let editedText = result.response.text().trim();
 
     logger.info(`[LiveAiEdit] Done — original: ${selectedText.length} chars → edited: ${editedText.length} chars`);
     return res.json({ editedText });

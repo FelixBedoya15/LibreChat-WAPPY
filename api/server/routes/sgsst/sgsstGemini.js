@@ -113,9 +113,10 @@ async function resolveApiKeys(userId) {
  * @param {object|string} modelInstance  { model, generationConfig } or plain model name string
  * @param {string}        userId
  * @param {*}             promptText
+ * @param {object}        options        Additional options (e.g. { useWebSearch: true })
  * @returns {Promise<*>}
  */
-async function generateWithKeyRotation(modelInstance, userId, promptText) {
+async function generateWithKeyRotation(modelInstance, userId, promptText, options = {}) {
   const preferredModel = (
     typeof modelInstance === 'string'
       ? modelInstance
@@ -151,7 +152,13 @@ async function generateWithKeyRotation(modelInstance, userId, promptText) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: currentModel, generationConfig: genConfig });
+        const modelParams = { model: currentModel, generationConfig: genConfig };
+        
+        if (options.useWebSearch) {
+          modelParams.tools = [{ googleSearch: {} }];
+        }
+        
+        const model = genAI.getGenerativeModel(modelParams);
         const result = await model.generateContent(promptText);
         return result; // ✅ success
 
