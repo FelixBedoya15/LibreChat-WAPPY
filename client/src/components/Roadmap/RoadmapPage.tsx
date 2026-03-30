@@ -137,7 +137,7 @@ export default function RoadmapPage() {
     new Date(d).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 md:p-12 overflow-x-hidden font-sans">
+    <div className="min-h-[100dvh] bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-6 md:p-12 pb-32 font-sans relative" style={{ overflowX: 'clip' }}>
       <div className="max-w-4xl mx-auto">
         
         {/* Header Section */}
@@ -156,12 +156,15 @@ export default function RoadmapPage() {
           </p>
           
           <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <a 
-              href="mailto:info@wappy-ia.com?subject=Sugerencia%20de%20Mejora%20Plataforma"
+            <button 
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('switch-settings-tab', { detail: { mainTab: 'tickets' } }));
+                window.dispatchEvent(new CustomEvent('open-settings'));
+              }}
               className="px-6 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition font-medium flex items-center gap-2"
             >
               <Lightbulb className="w-4 h-4" /> Sugerir Mejoras
-            </a>
+            </button>
             
             {isAdmin && (
               <button 

@@ -1,6 +1,8 @@
 const express = require('express');
 const { requireJwtAuth } = require('../middleware');
 const Roadmap = require('../../models/Roadmap');
+const Notification = require('../../models/Notification');
+const User = require('../../models/User');
 
 const router = express.Router();
 
@@ -49,6 +51,28 @@ router.post('/', requireJwtAuth, async (req, res) => {
     });
 
     const savedItem = await newItem.save();
+
+    // Broadcast notification to all active users seamlessly in the background
+    (async () => {
+      try {
+        const users = await User.find({}).select('_id');
+        if (users && users.length > 0) {
+          const bulkNotifications = users.map((u) => ({
+            user: u._id,
+            type: 'system_update',
+            title: `🌟 ¡Nueva Actualización: ${savedItem.version || 'WAPPY'}!`,
+            body: savedItem.title,
+            read: false,
+            metadata: { roadmapId: savedItem._id }
+          }));
+          await Notification.insertMany(bulkNotifications);
+          console.log(`[Roadmap] Broadcasted update notification to ${users.length} users.`);
+        }
+      } catch (err) {
+        console.error('[Roadmap] Error broadcasting notifications:', err);
+      }
+    })();
+
     res.status(201).json(savedItem);
   } catch (error) {
     console.error('Error creating roadmap item:', error);

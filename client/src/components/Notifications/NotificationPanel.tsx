@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
 import { useAuthContext } from '~/hooks';
-import { Bell, CheckCheck, Ticket, MessageSquare, X, ChevronRight, Shield, Users, AlertTriangle } from 'lucide-react';
+import { Bell, CheckCheck, Ticket, MessageSquare, X, ChevronRight, Shield, Users, AlertTriangle, Map } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion';
+    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'system_update';
     title: string;
     body: string;
     read: boolean;
@@ -24,6 +25,7 @@ interface NotificationPanelProps {
 
 export default function NotificationPanel({ isOpen, onClose, onCountChange }: NotificationPanelProps) {
     const { token, user } = useAuthContext();
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -103,6 +105,12 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
             };
             const module = notification.metadata?.module || moduleMap[notification.type];
             window.dispatchEvent(new CustomEvent('navigate-sgsst', { detail: { module } }));
+            onClose();
+            return;
+        }
+
+        if (notification.type === 'system_update') {
+            navigate('/hoja-de-ruta');
             onClose();
             return;
         }
@@ -195,6 +203,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                     ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600'
                                     : n.type === 'sgsst_reporte_acto'
                                     ? 'bg-red-100 dark:bg-red-900/30 text-red-600'
+                                    : n.type === 'system_update'
+                                    ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-500'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'
                             )}>
                                 {n.type === 'ticket_responded'
@@ -205,6 +215,8 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
                                     ? <Users className="w-3.5 h-3.5" />
                                     : n.type === 'sgsst_reporte_acto'
                                     ? <AlertTriangle className="w-3.5 h-3.5" />
+                                    : n.type === 'system_update'
+                                    ? <Map className="w-3.5 h-3.5" />
                                     : <Ticket className="w-3.5 h-3.5" />
                                 }
                             </div>
