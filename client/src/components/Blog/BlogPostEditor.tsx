@@ -393,6 +393,7 @@ export default function BlogPostEditor() {
                                 ref={liveEditorRef}
                                 initialContent={generatedContent}
                                 onUpdate={handleEditorUpdate}
+                                paperMode={false}
                             />
                         </div>
                     </div>

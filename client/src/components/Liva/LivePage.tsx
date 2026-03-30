@@ -583,6 +583,7 @@ const LivePage = () => {
                             setEditorContent(html);
                         }}
                         onSave={handleSave}
+                        paperMode={false}
                         reportSourceData={reportSourceData}
                     />
                 </div>

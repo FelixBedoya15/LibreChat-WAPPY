@@ -124,6 +124,7 @@ const DocumentEditorView = () => {
           onUpdate={handleUpdate}
           onSave={handleSave}
           reportType="general"
+          paperMode={false}
         />
       </div>
     </div>

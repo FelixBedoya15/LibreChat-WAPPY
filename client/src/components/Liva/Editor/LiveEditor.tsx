@@ -15,15 +15,15 @@ interface LiveEditorProps {
     onUpdate: (content: string) => void;
     onSave?: () => void;
     reportType?: 'checklist' | 'general';
-    /** Raw source data (DB) used to generate the report. Passed to AI for richer context. */
-    reportSourceData?: any;
+    /** Determines if the editor forces a classic "white paper" look regardless of dark mode */
+    paperMode?: boolean;
 }
 
 export interface LiveEditorHandle {
     setHTML: (html: string) => void;
 }
 
-const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general', reportSourceData }, ref) => {
+const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general', reportSourceData, paperMode = true }, ref) => {
     const localize = useLocalize();
     const { token } = useAuthContext();
     const editorRef = useRef<HTMLDivElement>(null);
@@ -976,7 +976,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 )}
                 <div
                     ref={editorRef}
-                    className={`flex-1 p-3 sm:p-8 outline-none overflow-y-auto prose dark:prose-invert max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''}`}
+                    className={`flex-1 p-3 sm:p-8 outline-none overflow-y-auto prose ${!paperMode ? 'dark:prose-invert' : ''} max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''} ${paperMode ? 'paper-mode' : ''}`}
                     contentEditable
                     onInput={handleInput}
                     suppressContentEditableWarning={true}
@@ -1104,6 +1104,21 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     transform: scale(1.02);
                     box-shadow: 0 4px 12px rgba(0,77,153,0.15);
                 }
+                
+                /* Paper Mode specific */
+                .live-editor-content.paper-mode {
+                    background-color: #ffffff !important;
+                    color: #1e293b !important;
+                    padding: 40px !important;
+                    min-height: 800px;
+                    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+                    border-radius: 8px;
+                }
+                .dark .live-editor-content.paper-mode {
+                    background-color: #ffffff !important;
+                    color: #1e293b !important;
+                }
+                
                 /* AI Edit Bubble */
                 .ai-edit-bubble {
                     position: fixed;
