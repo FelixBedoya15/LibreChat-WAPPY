@@ -92,7 +92,7 @@ ${headerHTML}
         const genAI = new GoogleGenerativeAI(resolvedApiKey);
         const model = genAI.getGenerativeModel({ model: finalModelName });
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, prompt);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, prompt, { useWebSearch: true });
         const response = await result.response;
         const generatedHtml = response.text();
 

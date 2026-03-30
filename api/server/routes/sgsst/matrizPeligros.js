@@ -427,7 +427,7 @@ Sé técnico, preciso y realista. Basa tu análisis en la actividad descrita.`;
             }
         }
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts, { useWebSearch: true });
         const response = await result.response;
         let text = response.text().trim();
 
@@ -597,7 +597,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
   ]
 }`;
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, systemPrompt);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, systemPrompt, { useWebSearch: true });
         let text = result.response.text().trim();
         text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
@@ -922,7 +922,7 @@ Finalmente, incluye una NOTA FINAL DEL CONSULTOR (1-2 párrafos) con una reflexi
             }
         });
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts, { useWebSearch: true });
         let aiHtml = result.response.text().trim();
         aiHtml = aiHtml.replace(/```html\n?/g, '').replace(/```\n?/g, '').trim();
 

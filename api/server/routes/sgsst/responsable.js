@@ -159,7 +159,7 @@ Asegúrate de que el documento se vea como una carta formal de asignación corpo
 
 
         // 4. Generate the document
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText, { useWebSearch: true });
         const response = await result.response;
         const document = response.text();
 

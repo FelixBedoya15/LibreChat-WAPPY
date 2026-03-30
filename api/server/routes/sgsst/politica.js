@@ -188,7 +188,7 @@ La política debe ser formal, profesional y cumplir con los requisitos del Decre
 El diseño debe ser elegante con colores institucionales (azul #0f766e para encabezados con \`color: #0f766e;\` explícito, bordes sutiles, tipografía profesional).`;
 
         // 4. Generate the policy
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText, { useWebSearch: true });
         const response = await result.response;
         const policy = response.text();
 

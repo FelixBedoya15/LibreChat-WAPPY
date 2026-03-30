@@ -302,7 +302,7 @@ Esquema JSON Requerido (DEBES responder solo json, sin markdown):
   ]
 }`;
 
-    const result = await generateWithKeyRotation(model, req.user?.id || req.user, systemPrompt);
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, systemPrompt, { useWebSearch: true });
     let text = result.response.text().trim();
     text = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();
 
@@ -440,7 +440,7 @@ Usa un tono corporativo.Retorna SOLAMENTE CÓDIGO HTML VÁLIDO SIN etiquetas mar
     const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
     const finalModelName = modelName || preferredModel;
     const model = genAI.getGenerativeModel({ model: finalModelName });
-    const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
+    const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText, { useWebSearch: true });
     let aiHtml = result.response.text().trim();
     aiHtml = aiHtml.replace(/```html\n?/gi, '').replace(/```\n?/gi, '').trim();
 

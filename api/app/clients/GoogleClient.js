@@ -721,6 +721,7 @@ class GoogleClient extends BaseClient {
           safetySettings,
           contents: _payload,
           generationConfig: googleGenConfigSchema.parse(this.modelOptions),
+          tools: [{ googleSearch: {} }],
         };
 
         const promptPrefix = (this.systemMessage ?? '').trim();

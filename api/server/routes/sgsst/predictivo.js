@@ -1,12 +1,9 @@
 const express = require('express');
-const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { generateWithKeyRotation } = require('./sgsstGemini');
 const router = express.Router();
 const mongoose = require('mongoose');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { AuthKeys } = require('librechat-data-provider');
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
-const { getUserKey } = require('~/server/services/UserService');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
@@ -443,10 +440,13 @@ Tabla completa y detallada con columnas:
         const personalization = req.user?.personalization?.geminiModels;
         const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
         const finalModelName = modelName || preferredModel;
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: finalModelName });
 
-        const result = await generateWithKeyRotation(model, req.user?.id || req.user, promptText);
+        const result = await generateWithKeyRotation(
+          { model: finalModelName },
+          req.user?.id || req.user,
+          promptText,
+          { useWebSearch: true }
+        );
         const text = result.response.text();
 
         let cleanedReport = cleanHtmlOutput(text);

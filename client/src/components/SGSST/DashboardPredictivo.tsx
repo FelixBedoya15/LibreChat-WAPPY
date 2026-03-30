@@ -582,13 +582,16 @@ const DashboardPredictivo = () => {
                         </div>
                     </div>
                     {!isReportCollapsed && (
-                        <div className="rounded-xl p-1 overflow-hidden bg-white dark:bg-[#1a1a1a]">
-                            <LiveEditor
-                                initialContent={generatedReport}
-                                onUpdate={setEditorContent}
-                                onSave={handleSaveReport}
-                                reportSourceData={forecast}
-                            />
+                        <div className="rounded-xl p-1 bg-white dark:bg-[#1a1a1a]" style={{ overflowX: 'auto' }}>
+                            <div style={{ minWidth: '900px' }}>
+                                <LiveEditor
+                                    initialContent={generatedReport}
+                                    onUpdate={setEditorContent}
+                                    onSave={handleSaveReport}
+                                    reportSourceData={forecast}
+                                    paperMode={true}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
