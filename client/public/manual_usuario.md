@@ -209,3 +209,47 @@ Si encuentras fallas o algo en pantalla produce error (Ej: un cartel rojo):
 **📞 Canales de Atención Adicionales:**
 *   **Correo Electrónico:** Si requieres información comercial, envíanos un mail a `info@wappy-ia.com`.
 *   **WhatsApp de Soporte/Ventas:** Escríbenos directamente al [3021268625](https://wa.me/573021268625) para recibir atención personalizada rápida.
+
+links de acceso:
+
+1. Aplicación y Funciones de IA
+
+Nuevo Chat: https://wappy-ia.com/c/new
+
+Análisis en Vivo: https://wappy-ia.com/live
+
+Búsqueda Global: https://wappy-ia.com/search
+
+Mercado de Agentes: https://wappy-ia.com/agents
+
+Prompts de Usuario: https://wappy-ia.com/d/prompts
+
+2. Gestión Estratégica SGSST (Interno)
+
+Dashboard Principal: https://wappy-ia.com/sgsst
+
+Fase 1: Planear: https://wappy-ia.com/sgsst?phase=plan
+
+Fase 2: Hacer: https://wappy-ia.com/sgsst?phase=do
+
+Fase 3: Verificar: https://wappy-ia.com/sgsst?phase=check
+
+Fase 4: Actuar: https://wappy-ia.com/sgsst?phase=act
+
+4. Educación y Contenidos
+
+Aula Virtual (Cursos): https://wappy-ia.com/training
+
+Blog de Noticias: https://wappy-ia.com/blog
+
+6. Informativas y Legales
+
+Planes y Precios: https://wappy-ia.com/planes
+
+Contacto: https://wappy-ia.com/contactanos
+
+Acerca de Wappy: https://wappy-ia.com/about
+
+Política de Privacidad: https://wappy-ia.com/privacy
+
+Términos de Servicio: https://wappy-ia.com/terms
