@@ -23,6 +23,57 @@ const typeConfig: Record<RoadmapType, { color: string; bg: string; icon: React.R
   Anuncio: { color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/30', icon: <Milestone className="w-5 h-5 text-purple-500" /> },
 };
 
+const defaultSeedItems: RoadmapItem[] = [
+  {
+    _id: 'seed-6',
+    title: 'Editor de Archivos e IA Web',
+    description: 'Se introdujo el nuevo "Editor de Archivos" con soporte para importación y conversión visual enriquecida de PDFs y Words. Además, la burbuja de "Edición con IA" ahora cuenta con acceso a la web en vivo mediante Google Search Grounding permitiéndole verificar fuentes.',
+    version: 'V2.5.0',
+    date: new Date().toISOString(),
+    type: 'Nuevo',
+  },
+  {
+    _id: 'seed-5',
+    title: 'Análisis en Vivo (SGSST Visión)',
+    description: 'Uso de las cámaras de celulares y computadores para Visión Artificial integrada al sistema corporativo (incorporación de cámaras de seguridad como mejora futura). Ahora Tenshi puede observar a través del lente, detectar actos o condiciones inseguras y autoredactarte inspecciones o reportes estructurados.',
+    version: 'V2.2.0',
+    date: new Date(Date.now() - 86400000 * 5).toISOString(),
+    type: 'Nuevo',
+  },
+  {
+    _id: 'seed-4',
+    title: 'Gestor SG-SST: Participación e Informes',
+    description: 'El núcleo de operaciones preventivas de WAPPY IA cobró vida permitiendo completar el ciclo PHVA total con generadores automatizados como Política, Matriz Legal, Dashboard Predictivo e integración de Buzón de Empleados IPEVAR.',
+    version: 'V2.0.0',
+    date: new Date(Date.now() - 86400000 * 15).toISOString(),
+    type: 'Nuevo',
+  },
+  {
+    _id: 'seed-3',
+    title: 'Aula Mágica Estudiantil',
+    description: 'Lanzamiento de las herramientas de formación contínua, permitiéndo centralizar material SST y adoctrinamiento para coordinadores en vivo.',
+    version: 'V1.5.0',
+    date: new Date(Date.now() - 86400000 * 30).toISOString(),
+    type: 'Mejora',
+  },
+  {
+    _id: 'seed-2',
+    title: 'Blog Normativo Integrado',
+    description: 'Incorporación de Blog de noticias institucionales leídas transversalmente por nuestro Agente IA central.',
+    version: 'V1.1.0',
+    date: new Date(Date.now() - 86400000 * 60).toISOString(),
+    type: 'Nuevo',
+  },
+  {
+    _id: 'seed-1',
+    title: 'Sistema Fundacional: Chat Inteligente',
+    description: 'Lanzamiento original de WAPPY IA (Tenshi). Motores conversacionales LLM adaptados al contexto corporativo como núcleo base de operaciones.',
+    version: 'V1.0.0',
+    date: new Date(Date.now() - 86400000 * 100).toISOString(),
+    type: 'Anuncio',
+  },
+];
+
 
 export default function RoadmapPage() {
   const { user } = useAuthContext();
@@ -48,16 +99,20 @@ export default function RoadmapPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        setItems(data);
+        // Siempre anexamos la historia fundacional (imutables) al final
+        setItems([...data, ...defaultSeedItems]);
+        
         if (data.length > 0) {
           localStorage.setItem('lastRoadmapSeenId', data[0]?._id);
+        } else {
+          localStorage.setItem('lastRoadmapSeenId', defaultSeedItems[0]?._id);
         }
       } else {
-        setItems([]);
+        setItems(defaultSeedItems);
       }
     } catch (e) {
       console.error(e);
-      setItems([]);
+      setItems(defaultSeedItems);
     } finally {
       setLoading(false);
     }
@@ -182,7 +237,7 @@ export default function RoadmapPage() {
                             <CheckCircle className="w-3 h-3" /> {formattedDate(item.date)}
                           </span>
                           
-                          {isAdmin && (
+                          {isAdmin && !item._id.startsWith('seed-') && (
                             <div className="flex gap-2">
                               <button onClick={() => handleOpenModal(item)} className="hover:text-blue-500">Editar</button>
                               <button onClick={() => handleDelete(item._id)} className="hover:text-red-500">Eliminar</button>
