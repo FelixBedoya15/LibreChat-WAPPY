@@ -9,7 +9,60 @@ const router = express.Router();
 // GET all roadmap updates (public for logged in users)
 router.get('/', requireJwtAuth, async (req, res) => {
   try {
-    const items = await Roadmap.find({}).sort({ date: -1 });
+    let items = await Roadmap.find({}).sort({ date: -1 });
+
+    // Auto-seed real documents if empty
+    if (items.length === 0) {
+      const defaultSeedItems = [
+        {
+          title: 'Editor de Archivos e IA Web',
+          description: 'Se introdujo el nuevo "Editor de Archivos" con soporte para importación y conversión visual enriquecida de PDFs y Words. Además, la burbuja de "Edición con IA" ahora cuenta con acceso a la web en vivo mediante Google Search Grounding permitiéndole verificar fuentes.',
+          version: 'V2.5.0',
+          date: new Date(),
+          type: 'Nuevo',
+        },
+        {
+          title: 'Análisis en Vivo (SGSST Visión)',
+          description: 'Uso de las cámaras de celulares y computadores para Visión Artificial integrada al sistema corporativo (incorporación de cámaras de seguridad como mejora futura). Ahora Tenshi puede observar a través del lente, detectar actos o condiciones inseguras y autoredactarte inspecciones o reportes estructurados.',
+          version: 'V2.2.0',
+          date: new Date(Date.now() - 86400000 * 5),
+          type: 'Nuevo',
+        },
+        {
+          title: 'Gestor SG-SST: Participación e Informes',
+          description: 'El núcleo de operaciones preventivas de WAPPY IA cobró vida permitiendo completar el ciclo PHVA total con generadores automatizados como Política, Matriz Legal, Dashboard Predictivo e integración de Buzón de Empleados IPEVAR.',
+          version: 'V2.0.0',
+          date: new Date(Date.now() - 86400000 * 15),
+          type: 'Nuevo',
+        },
+        {
+          title: 'Aula Mágica Estudiantil',
+          description: 'Lanzamiento de las herramientas de formación contínua, permitiéndo centralizar material SST y adoctrinamiento para coordinadores en vivo.',
+          version: 'V1.5.0',
+          date: new Date(Date.now() - 86400000 * 30),
+          type: 'Mejora',
+        },
+        {
+          title: 'Blog Normativo Integrado',
+          description: 'Incorporación de Blog de noticias institucionales leídas transversalmente por nuestro Agente IA central.',
+          version: 'V1.1.0',
+          date: new Date(Date.now() - 86400000 * 60),
+          type: 'Nuevo',
+        },
+        {
+          title: 'Sistema Fundacional: Chat Inteligente',
+          description: 'Lanzamiento original de WAPPY IA (Tenshi). Motores conversacionales LLM adaptados al contexto corporativo como núcleo base de operaciones.',
+          version: 'V1.0.0',
+          date: new Date(Date.now() - 86400000 * 100),
+          type: 'Anuncio',
+        },
+      ];
+      await Roadmap.insertMany(defaultSeedItems);
+      // Fetch again to get the real ObjectIds and sorted output
+      items = await Roadmap.find({}).sort({ date: -1 });
+      console.log(`[Roadmap] Auto-seeded database with ${items.length} historical updates.`);
+    }
+
     res.status(200).json(items);
   } catch (error) {
     console.error('Error fetching roadmap:', error);

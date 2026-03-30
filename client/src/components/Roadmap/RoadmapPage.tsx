@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Lightbulb, Map, Milestone, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, Lightbulb, Map, Milestone, Zap, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import RoadmapAdminModal from './RoadmapAdminModal';
-import Settings from '~/components/Nav/Settings';
+import TicketForm from '~/components/Tickets/TicketForm';
 
 type RoadmapType = 'Nuevo' | 'Mejora' | 'Corrección' | 'Anuncio';
 
@@ -23,56 +23,6 @@ const typeConfig: Record<RoadmapType, { color: string; bg: string; icon: React.R
   Anuncio: { color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/30', icon: <Milestone className="w-5 h-5 text-purple-500" /> },
 };
 
-const defaultSeedItems: RoadmapItem[] = [
-  {
-    _id: 'seed-6',
-    title: 'Editor de Archivos e IA Web',
-    description: 'Se introdujo el nuevo "Editor de Archivos" con soporte para importación y conversión visual enriquecida de PDFs y Words. Además, la burbuja de "Edición con IA" ahora cuenta con acceso a la web en vivo mediante Google Search Grounding permitiéndole verificar fuentes.',
-    version: 'V2.5.0',
-    date: new Date().toISOString(),
-    type: 'Nuevo',
-  },
-  {
-    _id: 'seed-5',
-    title: 'Análisis en Vivo (SGSST Visión)',
-    description: 'Cámaras y Visión Artificial integradas al sistema corporativo. Ahora Tenshi puede observar a través del lente, detectar actos o condiciones inseguras y autoredactarte inspecciones o reportes estructurados.',
-    version: 'V2.2.0',
-    date: new Date(Date.now() - 86400000 * 5).toISOString(),
-    type: 'Nuevo',
-  },
-  {
-    _id: 'seed-4',
-    title: 'Gestor SG-SST: Participación e Informes',
-    description: 'El núcleo de operaciones preventivas de LibreChat-WAPPY cobró vida permitiendo completar el ciclo PHVA total con generadores automatizados como Política, Matriz Legal, Dashboard Predictivo e integración de Buzón de Empleados IPEVAR.',
-    version: 'V2.0.0',
-    date: new Date(Date.now() - 86400000 * 15).toISOString(),
-    type: 'Nuevo',
-  },
-  {
-    _id: 'seed-3',
-    title: 'Aula Mágica Estudiantil',
-    description: 'Lanzamiento de las herramientas de formación contínua, permitiéndo centralizar material SST y adoctrinamiento para coordinadores en vivo.',
-    version: 'V1.5.0',
-    date: new Date(Date.now() - 86400000 * 30).toISOString(),
-    type: 'Mejora',
-  },
-  {
-    _id: 'seed-2',
-    title: 'Blog Normativo Integrado',
-    description: 'Incorporación de Blog de noticias institucionales leídas transversalmente por nuestro Agente IA central.',
-    version: 'V1.1.0',
-    date: new Date(Date.now() - 86400000 * 60).toISOString(),
-    type: 'Nuevo',
-  },
-  {
-    _id: 'seed-1',
-    title: 'Sistema Fundacional: Chat Inteligente',
-    description: 'Lanzamiento original de LibreChat-WAPPY (Tenshi). Motores conversacionales LLM adaptados al contexto corporativo como núcleo base de operaciones.',
-    version: 'V1.0.0',
-    date: new Date(Date.now() - 86400000 * 100).toISOString(),
-    type: 'Anuncio',
-  },
-];
 
 export default function RoadmapPage() {
   const { user } = useAuthContext();
@@ -82,8 +32,7 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<string | undefined>('tickets');
+  const [showUserTicketModal, setShowUserTicketModal] = useState(false);
 
   useEffect(() => {
     fetchRoadmap();
@@ -99,19 +48,16 @@ export default function RoadmapPage() {
       });
       if (response.ok) {
         const data = await response.json();
-        // Fallback to static seed if completely empty
-        if (data.length === 0) {
-          setItems(defaultSeedItems);
-        } else {
-          setItems(data);
+        setItems(data);
+        if (data.length > 0) {
           localStorage.setItem('lastRoadmapSeenId', data[0]?._id);
         }
       } else {
-        setItems(defaultSeedItems);
+        setItems([]);
       }
     } catch (e) {
       console.error(e);
-      setItems(defaultSeedItems);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -161,10 +107,7 @@ export default function RoadmapPage() {
           
           <div className="flex flex-wrap justify-center gap-4 mt-8">
             <button 
-              onClick={() => {
-                setActiveSettingsTab('tickets');
-                setShowSettings(true);
-              }}
+              onClick={() => setShowUserTicketModal(true)}
               className="px-6 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition font-medium flex items-center gap-2"
             >
               <Lightbulb className="w-4 h-4" /> Sugerir Mejoras
@@ -268,7 +211,21 @@ export default function RoadmapPage() {
         />
       )}
 
-      {showSettings && <Settings open={showSettings} onOpenChange={setShowSettings} activeTab={activeSettingsTab} />}
+      {showUserTicketModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-3xl bg-white dark:bg-gray-900 rounded-3xl p-6 relative shadow-2xl">
+            <button 
+              onClick={() => setShowUserTicketModal(false)} 
+              className="absolute top-4 right-4 p-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-full z-10"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+            <div className="max-h-[85vh] overflow-y-auto pr-2">
+               <TicketForm />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
