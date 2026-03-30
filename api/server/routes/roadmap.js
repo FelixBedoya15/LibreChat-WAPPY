@@ -2,7 +2,7 @@ const express = require('express');
 const { requireJwtAuth } = require('../middleware');
 const Roadmap = require('../../models/Roadmap');
 const Notification = require('../../models/Notification');
-const User = require('../../models/User');
+const mongoose = require('mongoose');
 
 const router = express.Router();
 
@@ -55,6 +55,7 @@ router.post('/', requireJwtAuth, async (req, res) => {
     // Broadcast notification to all active users seamlessly in the background
     (async () => {
       try {
+        const User = mongoose.model('User');
         const users = await User.find({}).select('_id');
         if (users && users.length > 0) {
           const bulkNotifications = users.map((u) => ({
