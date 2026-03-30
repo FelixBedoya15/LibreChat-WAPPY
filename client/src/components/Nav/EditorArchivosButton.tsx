@@ -1,7 +1,9 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { FileEdit } from 'lucide-react';
-import { useLocalize } from '~/hooks';
+import { TooltipAnchor } from '@librechat/client';
+import { cn } from '~/utils';
 
 interface Props {
   isSmallScreen?: boolean;
@@ -14,41 +16,54 @@ const EditorArchivosButton = ({
   isCollapsed = false,
   toggleNav,
 }: Props) => {
-  const localize = useLocalize();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isActive = location.pathname.startsWith('/editor-archivos');
 
-  const clickHandler = () => {
+  const handleClick = () => {
+    navigate('/editor-archivos');
     if (isSmallScreen && toggleNav) {
       toggleNav();
     }
   };
 
-  return (
-    <NavLink
-      to="/editor-archivos"
-      onClick={clickHandler}
-      className={({ isActive }) =>
-        `group relative flex w-full items-center gap-2 rounded-xl border border-transparent p-2.5 text-sm transition-all duration-300 ease-in-out hover:bg-surface-hover ${
-          isActive
-            ? 'active-nav-link bg-surface-secondary shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-[#10b981]/30 before:absolute before:left-0 before:top-[10%] before:h-[80%] before:w-1 before:rounded-r-md before:bg-[#10b981]'
-            : 'text-text-secondary hover:text-text-primary'
-        } ${isCollapsed ? 'justify-center border-border-medium/50 hover:border-[#10b981]/50' : ''}`
-      }
-    >
-      <div className={`relative flex items-center justify-center ${isCollapsed ? '' : 'p-1 rounded-lg group-hover:bg-[#10b981]/10 transition-colors'}`}>
-        <FileEdit className={`h-5 w-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 ${!isCollapsed ? 'group-hover:text-[#10b981]' : ''}`} />
-      </div>
+  if (isCollapsed) {
+    return (
+      <TooltipAnchor
+        description="Editor de Archivos"
+        side="right"
+        render={
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleClick}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-200 shadow-sm",
+              isActive
+                ? "bg-teal-100/50 border-teal-400 text-teal-600"
+                : "bg-surface-primary border-border-medium/50 hover:bg-surface-hover hover:border-teal-400 text-text-primary"
+            )}
+          >
+            <FileEdit className="h-5 w-5" />
+          </motion.button>
+        }
+      />
+    );
+  }
 
-      {!isCollapsed && (
-        <div className="flex w-full min-w-0 flex-col gap-0.5">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-text-primary text-[13px]">Editor de Archivos</span>
-          </div>
-          <span className="truncate text-[11px] font-medium text-text-secondary/70">
-            Convierte y Edita Documentos
-          </span>
-        </div>
+  return (
+    <motion.button
+      whileTap={{ scale: 0.98 }}
+      onClick={handleClick}
+      className={cn(
+        "group flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200 shadow-sm",
+        isActive
+          ? "bg-teal-50/50 border-teal-400/50 text-teal-700 dark:text-teal-400 dark:bg-teal-900/40"
+          : "bg-white dark:bg-surface-primary border-border-medium/30 hover:bg-surface-hover hover:border-teal-400 text-text-secondary hover:text-teal-600"
       )}
-    </NavLink>
+    >
+      <FileEdit className="h-4 w-4 shrink-0" />
+      <span className="font-semibold text-text-primary text-[13px]">Editor de Archivos</span>
+    </motion.button>
   );
 };
 
