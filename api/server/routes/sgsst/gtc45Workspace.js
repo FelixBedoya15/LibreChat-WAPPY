@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const { requireJwtAuth } = require('~/server/middleware');
+const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
 const { logger } = require('~/config');
