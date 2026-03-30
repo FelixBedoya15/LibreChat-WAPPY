@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUp, FileText, Plus, Trash2, Calendar, FileType } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 interface LiveDocument {
   _id: string;
@@ -16,7 +17,8 @@ const EditorArchivosDashboard = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
 
   const fetchDocuments = async () => {
     try {
@@ -113,7 +115,16 @@ const EditorArchivosDashboard = () => {
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary dark:bg-gray-900">
-      <div className="mx-auto w-full max-w-6xl p-4 md:p-8">
+      {!isPro ? (
+        <div className="flex-1 flex flex-col justify-center items-center p-8 h-full bg-surface-secondary">
+          <UpgradeWall
+            title="Plan Premium Exclusivo"
+            description="El Editor de Archivos es una poderosa herramienta exclusiva para planes PREMIUM. Permite importar documentos Word y PDF extrayendo todo el texto y formato para ser editado con nuestra IA predictiva."
+            plan="USER_PLUS"
+          />
+        </div>
+      ) : (
+        <div className="mx-auto w-full max-w-6xl p-4 md:p-8">
         
         <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -191,7 +202,8 @@ const EditorArchivosDashboard = () => {
           </div>
         )}
 
-      </div>
+        </div>
+      )}
     </div>
   );
 };

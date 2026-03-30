@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Save } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import LiveEditor, { LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
+import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 const DocumentEditorView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token } = useAuthContext();
+  const { token, user } = useAuthContext();
+  const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   
   const [docTitle, setDocTitle] = useState('Cargando documento...');
   const [content, setContent] = useState('');
@@ -65,6 +67,20 @@ const DocumentEditorView = () => {
 
   if (isLoading) {
     return <div className="flex h-full w-full items-center justify-center p-8 bg-surface-primary"><span className="animate-spin text-3xl">⏳</span></div>;
+  }
+
+  if (!isPro) {
+    return (
+      <div className="flex h-full w-full flex-col bg-surface-secondary">
+        <div className="flex-1 flex flex-col justify-center items-center p-8 h-full bg-surface-secondary">
+          <UpgradeWall
+            title="Plan Premium Exclusivo"
+            description="El Editor de Archivos enriquecido es una herramienta exclusiva para planes PREMIUM. Aprovecha todo su potencial al ascender tu plan."
+            plan="USER_PLUS"
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
