@@ -213,8 +213,8 @@ export default function AgenteGTC45Workspace() {
   };
 
   const currentRole = user?.role || 'USER';
-  if (['USER', 'USER_GO', 'USER_PLUS'].includes(currentRole)) {
-    return <UpgradeWall title="Espacio de Trabajo Agente GTC-45" description="El agente interactivo para creación de matrices GTC-45 es una herramienta de uso intensivo exclusiva para el Plan PRO." plan={currentRole} />;
+  if (currentRole !== 'ADMIN') {
+    return <UpgradeWall title="Acceso Restringido (Fase Beta)" description="El agente interactivo para creación de matrices GTC-45 se encuentra actualmente en fase de pruebas cerrada y es un módulo con acceso provisional únicamente para Administradores del sistema." plan="USER_PRO" />;
   }
 
   return (

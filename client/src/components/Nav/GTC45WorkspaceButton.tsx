@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Network } from 'lucide-react';
 import { useMediaQuery, TooltipAnchor } from '@librechat/client';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 export default function GTC45WorkspaceButton({
   isSmallScreen,
@@ -12,9 +13,14 @@ export default function GTC45WorkspaceButton({
   toggleNav: () => void;
   isCollapsed: boolean;
 }) {
+  const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   const isAgentGTC45Path = location.pathname.startsWith('/sgsst/agente-gtc45');
+
+  if (user?.role !== 'ADMIN') {
+    return null;
+  }
 
   const clickHandler = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -56,9 +62,6 @@ export default function GTC45WorkspaceButton({
         <Network className="w-4 h-4" />
       </div>
       <span className="truncate">Agente GTC-45</span>
-      <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300 shadow-sm ring-1 ring-inset ring-teal-500/20">
-        PRO
-      </span>
     </a>
   );
 }
