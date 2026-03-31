@@ -39,15 +39,24 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [isMaximized, setIsMaximized] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Real-time conversation state (updates before the URL changes from 'new')
+  const conversation = useRecoilValue(store.conversationByIndex(0));
+  const actualConvoId = conversation?.conversationId && conversation.conversationId !== 'new' 
+    ? conversation.conversationId 
+    : conversationId;
+
   // Refetch when AI finishes submitting
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
-  // When isSubmitting goes false while conversationId is still 'new', we need to
-  // remember to fetch as soon as the URL updates to the real conversationId.
   const pendingFetchRef = React.useRef(false);
 
   const fetchMatrix = async (id?: string | null) => {
-    const targetId = id ?? conversationId;
-    if (!targetId || targetId === 'new') return;
+    const targetId = id ?? actualConvoId;
+    if (!targetId || targetId === 'new') {
+      console.warn('[MatrizIPEVARTable] Fetch aborted: ID is missing or "new"', { id, actualConvoId });
+      return;
+    }
+    
+    console.log(`[MatrizIPEVARTable] Fetching matrix for conversation: ${targetId}`);
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
@@ -56,10 +65,13 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       });
       const data = await res.json();
       if (data && data.matrixRows) {
+        console.log(`[MatrizIPEVARTable] Loaded ${data.matrixRows.length} rows`);
         setMatrixRows(data.matrixRows);
+      } else {
+        console.log('[MatrizIPEVARTable] No rows returned or empty array');
       }
     } catch (e) {
-      console.error("Error fetching matrix data", e);
+      console.error("[MatrizIPEVARTable] Error fetching matrix data:", e);
     } finally {
       setIsLoading(false);
     }
@@ -67,43 +79,41 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
   // Fetch when conversationId changes (e.g. URL goes from /c/new → /c/<uuid>)
   useEffect(() => {
-    if (!conversationId || conversationId === 'new') return;
-    fetchMatrix(conversationId);
+    if (!actualConvoId || actualConvoId === 'new') return;
+    fetchMatrix(actualConvoId);
     pendingFetchRef.current = false; // clear any pending flag
-  }, [conversationId]);
+  }, [actualConvoId]);
 
   // Refetch when AI is done streaming.
-  // If conversationId is still 'new', set a pending flag so the effect above
-  // will fetch when the URL finally updates to the real conversationId.
   useEffect(() => {
     if (!isSubmitting) {
-      if (!conversationId || conversationId === 'new') {
+      if (!actualConvoId || actualConvoId === 'new') {
         // The URL hasn't updated yet — mark that we need to fetch when it does
         pendingFetchRef.current = true;
       } else {
-        fetchMatrix(conversationId);
+        fetchMatrix(actualConvoId);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitting]);
 
-  // When conversationId finally transitions from 'new' → real UUID after streaming,
+  // When actualConvoId finally transitions from 'new' → real UUID after streaming,
   // execute the pending fetch.
   useEffect(() => {
-    if (conversationId && conversationId !== 'new' && pendingFetchRef.current) {
+    if (actualConvoId && actualConvoId !== 'new' && pendingFetchRef.current) {
       pendingFetchRef.current = false;
-      fetchMatrix(conversationId);
+      fetchMatrix(actualConvoId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+  }, [actualConvoId]);
 
 
   const saveMatrixData = async (rows: MatrixRow[]) => {
-    if (!conversationId || conversationId === 'new') return;
+    if (!actualConvoId || actualConvoId === 'new') return;
     try {
       setIsSaving(true);
       const token = localStorage.getItem('token');
-      await fetch(`/api/sgsst/gtc45-workspace/matrix/${conversationId}`, {
+      await fetch(`/api/sgsst/gtc45-workspace/matrix/${actualConvoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ matrixRows: rows })
@@ -156,7 +166,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     saveMatrixData(newRows);
   };
 
-  if (!conversationId || conversationId === 'new') {
+  if (!actualConvoId || actualConvoId === 'new') {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center text-text-primary bg-surface-primary border-l border-border-light">
         <div className="mb-4 rounded-full bg-surface-tertiary p-4 border border-border-medium shadow-sm">
