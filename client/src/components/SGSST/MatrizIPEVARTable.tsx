@@ -205,17 +205,22 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           
           <button
             onClick={() => saveMatrixData(matrixRows)}
-            className="flex items-center justify-center gap-2 px-6 h-[42px] bg-[#f2f4f2] border-2 border-[#129A61] rounded-[24px] text-[#129A61] font-bold text-[15px] transition-all hover:bg-white hover:scale-[1.02] active:scale-[0.98]"
+            className="group flex items-center justify-center p-2 h-[42px] bg-[#f8f9f8] border-2 border-[#129A61] rounded-[20px] text-[#129A61] transition-all duration-300 shadow-sm hover:bg-[#f0f9f3] cursor-pointer"
           >
-            <Save className="h-5 w-5 stroke-[2.5]" />
-            Guardar
+            <Save className="h-5 w-5 stroke-[2.5] shrink-0" />
+            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-bold text-[15px]">
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </span>
           </button>
           
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="flex items-center justify-center h-[42px] w-[42px] bg-[#f8f9f8] border-2 border-border-medium/80 rounded-[14px] text-text-secondary transition-all hover:bg-white hover:text-text-primary hover:border-border-heavy hover:scale-[1.02] active:scale-[0.98]"
+            className="group flex items-center justify-center p-2 h-[42px] bg-[#f8f9f8] border-2 border-border-medium/80 rounded-[20px] text-text-secondary transition-all duration-300 shadow-sm hover:bg-white hover:text-text-primary hover:border-border-heavy cursor-pointer"
           >
-            {isMaximized ? <Minimize2 className="h-5 w-5 stroke-[2.5]" /> : <Maximize2 className="h-5 w-5 stroke-[2.5]" />}
+            {isMaximized ? <Minimize2 className="h-5 w-5 shrink-0 stroke-[2.5]" /> : <Maximize2 className="h-5 w-5 shrink-0 stroke-[2.5]" />}
+            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-bold text-[15px]">
+              {isMaximized ? 'Restaurar' : 'Expandir'}
+            </span>
           </button>
         </div>
       </div>
