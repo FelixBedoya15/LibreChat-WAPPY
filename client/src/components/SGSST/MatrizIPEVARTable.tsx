@@ -11,6 +11,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
+import { useAuthContext } from '~/hooks';
 
 interface MatrixRow {
   proceso: string;
@@ -39,6 +40,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [isMaximized, setIsMaximized] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
+  const { token } = useAuthContext();
+
   // Real-time conversation state (updates before the URL changes from 'new')
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const actualConvoId = conversation?.conversationId && conversation.conversationId !== 'new' 
@@ -59,7 +62,6 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     console.log(`[MatrizIPEVARTable] Fetching matrix for conversation: ${targetId}`);
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('token');
       const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -105,7 +107,6 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     if (!actualConvoId || actualConvoId === 'new') return;
     try {
       setIsSaving(true);
-      const token = localStorage.getItem('token');
       await fetch(`/api/sgsst/gtc45-workspace/matrix/${actualConvoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
