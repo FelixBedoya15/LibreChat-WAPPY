@@ -1,8 +1,8 @@
 const { z } = require('zod');
-const { StructuredTool } = require('@langchain/core/tools');
+const { Tool } = require('@langchain/core/tools');
 const GTC45Matrix = require('~/models/GTC45WorkspaceSession');
 
-class MatrizIPEVAR extends StructuredTool {
+class MatrizIPEVAR extends Tool {
   constructor(fields = {}) {
     super();
     this.name = 'matriz_ipevar';
