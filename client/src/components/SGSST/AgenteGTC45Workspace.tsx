@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Maximize2, Minimize2, Save, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { UpgradeWall } from './UpgradeWall';
@@ -32,6 +32,14 @@ export default function AgenteGTC45Workspace() {
   const { conversationId } = useParams();
   const currentConvoId = conversationId && conversationId !== 'new' ? conversationId : null;
   const { showToast } = useToastContext();
+  const navigate = useNavigate();
+
+  // Redirect to /new if no conversationId is present, so ChatRoute can mount properly
+  useEffect(() => {
+    if (!conversationId) {
+      navigate('/sgsst/agente-gtc45/new', { replace: true });
+    }
+  }, [conversationId, navigate]);
 
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [isTableMaximized, setIsTableMaximized] = useState(false);

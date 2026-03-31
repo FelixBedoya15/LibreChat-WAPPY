@@ -24,7 +24,7 @@ export default function GTC45WorkspaceButton({
 
   const clickHandler = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    navigate('/sgsst/agente-gtc45');
+    navigate('/sgsst/agente-gtc45/new');
     if (isSmallScreen) {
       toggleNav();
     }
@@ -38,7 +38,7 @@ export default function GTC45WorkspaceButton({
         render={
           <a
             className="group flex h-10 w-10 items-center justify-center rounded-xl bg-surface-primary hover:bg-surface-hover text-text-primary transition-all duration-300 shadow-sm mb-1 sm:hover:scale-105"
-            href="/sgsst/agente-gtc45"
+            href="/sgsst/agente-gtc45/new"
             onClick={clickHandler}
           >
             <Network className="w-5 h-5 text-teal-600" />
@@ -55,7 +55,7 @@ export default function GTC45WorkspaceButton({
           ? 'bg-teal-500/10 text-teal-700 dark:text-teal-400 font-semibold' 
           : 'bg-transparent hover:bg-surface-hover text-text-secondary hover:text-text-primary font-medium'
       }`}
-      href="/sgsst/agente-gtc45"
+      href="/sgsst/agente-gtc45/new"
       onClick={clickHandler}
     >
       <div className={`flex items-center justify-center p-1.5 rounded-lg shadow-sm ${isAgentGTC45Path ? 'bg-teal-500 text-white' : 'bg-surface-primary border border-border-light text-teal-600 dark:text-teal-400 group-hover:border-teal-400 transition-colors'}`}>
