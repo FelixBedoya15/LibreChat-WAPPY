@@ -9,7 +9,7 @@ import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
 import { useChatHelpers, useAddedResponse, useSSE } from '~/hooks';
 import ConversationStarters from './Input/ConversationStarters';
-import { useGetMessagesByConvoId } from '~/data-provider';
+import { useGetMessagesByConvoId, useGetAgentByIdQuery } from '~/data-provider';
 import MessagesView from './Messages/MessagesView';
 import Presentation from './Presentation';
 import ChatForm from './Input/ChatForm';
@@ -61,8 +61,12 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   const conversation = useRecoilValue(store.conversationByIndex(index));
 
+  const { data: agent } = useGetAgentByIdQuery(conversation?.agent_id as string | undefined, {
+    enabled: !!conversation?.agent_id && conversation?.endpoint === 'agents',
+  });
+
   const isIPEVARActive = React.useMemo(() => {
-    // Check if the tool is assigned to the current agent/conversation
+    // Check if the tool is assigned to the current plugin/conversation
     // tools can be TPlugin[] or string[]
     const tools = conversation?.tools ?? [];
     const hasToolByKey = tools.some((t) =>
@@ -70,8 +74,15 @@ function ChatView({ index = 0 }: { index?: number }) {
     );
     if (hasToolByKey) return true;
 
+    // Check if tool is assigned to the current Agent
+    const agentTools = agent?.tools ?? [];
+    const hasAgentToolByKey = agentTools.some(
+      (t: string | { pluginKey?: string }) =>
+        typeof t === 'string' ? t === 'matriz_ipevar' : t.pluginKey === 'matriz_ipevar',
+    );
+    if (hasAgentToolByKey) return true;
+
     // Fallback: detect from message history if the tool was actually called
-    // TResPlugin has a `plugin` string field with the pluginKey
     if (
       messagesTree?.some(
         (msg) =>
@@ -81,7 +92,7 @@ function ChatView({ index = 0 }: { index?: number }) {
     ) return true;
 
     return false;
-  }, [conversation?.tools, messagesTree]);
+  }, [conversation?.tools, messagesTree, agent?.tools]);
 
   let content: JSX.Element | null | undefined;
   const isLandingPage =
