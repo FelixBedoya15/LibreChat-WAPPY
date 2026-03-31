@@ -8,7 +8,10 @@ import {
   RefreshCw,
   Plus,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Activity,
+  ShieldAlert,
+  BarChart2
 } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { useAuthContext } from '~/hooks';
@@ -181,15 +184,41 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     );
   }
 
+  // Derived Stats for UI Analytics Dashboard
+  const stats = React.useMemo(() => {
+    let critico = 0, alto = 0, medio = 0, bajo = 0;
+    const classifications: Record<string, number> = {};
+
+    matrixRows.forEach(row => {
+      // Risk Levels based on NR
+      const nr = Number(row.nr) || 0;
+      if (nr >= 150) critico++;
+      else if (nr >= 50) alto++;
+      else if (nr >= 20) medio++;
+      else bajo++;
+
+      // Top Hazard Classifications
+      const clas = row.peligro_clasificacion?.trim() || 'No Clasificado';
+      if (clas) {
+        classifications[clas] = (classifications[clas] || 0) + 1;
+      }
+    });
+
+    const total = matrixRows.length || 1;
+    const sortedClas = Object.entries(classifications)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 5);
+
+    return { critico, alto, medio, bajo, total, sortedClas };
+  }, [matrixRows]);
+
   return (
     <div className={`flex flex-col h-full bg-surface-primary transition-all duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] p-4 sm:p-8 backdrop-blur-xl' : 'w-full'}`}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 text-green-500 border border-green-500/20">
-            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm">
+            <ShieldAlert className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-text-primary">Matriz IPEVAR Live</h2>
@@ -323,6 +352,70 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
               <button onClick={addRow} className="flex items-center gap-2 text-xs font-medium text-text-secondary hover:text-text-primary transition-colors">
                 <Plus className="h-3 w-3" /> Añadir Fila
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ ANALYTICS / SEO DASHBOARD BOTTOM ═══ */}
+        {matrixRows.length > 0 && (
+          <div className="mt-8 border border-border-medium bg-surface-secondary p-6 rounded-2xl shadow-sm mb-6 max-w-5xl mx-auto">
+            <h3 className="text-sm font-bold text-text-primary mb-6 flex items-center gap-2">
+              <BarChart2 className="h-5 w-5 text-teal-500" />
+              ANALÍTICA IPEVAR: RESUMEN DE RIESGOS EN TIEMPO REAL (SEO)
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              
+              {/* Gráfico 1: Nivel de Riesgo Global */}
+              <div className="space-y-4">
+                <span className="block text-xs font-bold text-text-secondary uppercase tracking-widest mb-4">Nivel de Riesgo (NR)</span>
+                {[
+                  { label: "Crítico / No Aceptable", value: stats.critico, bg: "bg-red-500", text: "text-red-500", shadow: "shadow-red-500/30" },
+                  { label: "Alto", value: stats.alto, bg: "bg-orange-500", text: "text-orange-500", shadow: "shadow-orange-500/30" },
+                  { label: "Medio / Mejorable", value: stats.medio, bg: "bg-yellow-500", text: "text-yellow-500", shadow: "shadow-yellow-500/30" },
+                  { label: "Bajo / Aceptable", value: stats.bajo, bg: "bg-green-500", text: "text-green-500", shadow: "shadow-green-500/30" },
+                ].map(item => {
+                  const percent = Math.max(0, (item.value / stats.total) * 100);
+                  return (
+                    <div key={item.label} className="flex items-center gap-3 group">
+                      <span className={`text-[11px] font-bold ${item.text} w-36 shrink-0 text-right`}>{item.label}</span>
+                      <div className="flex-1 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
+                        <div 
+                          className={`absolute top-0 left-0 h-full ${item.bg} rounded-full shadow-md ${item.shadow} flex items-center justify-end pr-2 transition-all duration-1000 ease-out`} 
+                          style={{ width: `${percent > 0 ? Math.max(6, percent) : 0}%` }}
+                        >
+                          <span className="text-[9px] font-black text-white">{item.value > 0 ? item.value : ''}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Gráfico 2: Top Peligros */}
+              <div className="space-y-4">
+                <span className="block text-xs font-bold text-text-secondary uppercase tracking-widest mb-4">Top Factores de Peligro</span>
+                {stats.sortedClas.length > 0 ? stats.sortedClas.map(([clas, count], i) => {
+                  const percent = (count / stats.total) * 100;
+                  return (
+                    <div key={clas} className="flex items-center gap-3 group">
+                      <span className="text-[11px] font-bold text-text-secondary w-36 shrink-0 text-right truncate" title={clas}>
+                        {clas.length > 22 ? clas.slice(0, 22) + '...' : clas}
+                      </span>
+                      <div className="flex-1 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
+                        <div 
+                          className="absolute top-0 left-0 h-full bg-teal-500 rounded-full shadow-md shadow-teal-500/30 flex items-center justify-end pr-2 transition-all duration-1000 ease-out" 
+                          style={{ width: `${percent > 0 ? Math.max(6, percent) : 0}%` }}
+                        >
+                          <span className="text-[9px] font-black text-white">{count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <div className="text-xs text-text-secondary italic">No se han clasificado peligros aún.</div>
+                )}
+              </div>
             </div>
           </div>
         )}
