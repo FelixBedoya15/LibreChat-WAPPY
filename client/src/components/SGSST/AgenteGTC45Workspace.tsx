@@ -67,9 +67,11 @@ export default function AgenteGTC45Workspace() {
   }, [currentConvoId]);
 
   // Hook into Native LibreChat Messages
-  const { data: messages } = useGetMessagesByConvoId(currentConvoId ?? '', {
-    enabled: !!currentConvoId,
-    refetchInterval: 2000, // Poll every 2s for streaming updates if needed, though SSE usually handles it in ChatView
+  // Notice we use conversationId (which can be 'new') instead of currentConvoId
+  // so we can intercept streaming messages BEFORE the URL officially redirects to the generated UUID
+  const { data: messages } = useGetMessagesByConvoId(conversationId ?? 'new', {
+    enabled: !!conversationId,
+    refetchInterval: 2000, 
   });
 
   // Extract JSON from AI's latest message
@@ -80,10 +82,24 @@ export default function AgenteGTC45Workspace() {
     const latestAsstMsg = [...messages].reverse().find(m => m.isCreatedByUser === false && m.sender !== 'User');
     
     if (latestAsstMsg && latestAsstMsg.text) {
-      const jsonMatch = latestAsstMsg.text.match(/```json\s*(\{[\s\S]*?"action":\s*"update_matrix"[\s\S]*?\})\s*```/);
-      if (jsonMatch) {
+      // Robust JSON extraction:
+      // Try to find the JSON block either inside markdown or raw in the text, ensuring it contains our action keyword.
+      let jsonStr: string | null = null;
+      const blockMatch = latestAsstMsg.text.match(/```[a-z]*\s*(\{[\s\S]*?"action"\s*:\s*"update_matrix"[\s\S]*?\})\s*```/i);
+      if (blockMatch) {
+         jsonStr = blockMatch[1];
+      } else {
+         const rawMatch = latestAsstMsg.text.match(/(\{[\s\S]*?"action"\s*:\s*"update_matrix"[\s\S]*\})/i);
+         if (rawMatch) {
+            const content = rawMatch[1];
+            // Strip trailing junk after the last brace
+            jsonStr = content.substring(0, content.lastIndexOf('}') + 1);
+         }
+      }
+
+      if (jsonStr) {
         try {
-          const parsed = JSON.parse(jsonMatch[1]);
+          const parsed = JSON.parse(jsonStr);
           if (parsed.rows && Array.isArray(parsed.rows) && parsed.rows.length > 0) {
             // Check if these rows are already in the table to avoid infinite state updates
             // A simple check is comparing lengths or a deep compare text
