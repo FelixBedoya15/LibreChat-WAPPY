@@ -77,37 +77,30 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     }
   };
 
-  // Fetch when conversationId changes (e.g. URL goes from /c/new → /c/<uuid>)
+  // Fetch when conversationId changes (e.g. URL goes from /c/new → /c/<uuid>),
+  // or just immediately pull on mount if a valid ID exists.
   useEffect(() => {
     if (!actualConvoId || actualConvoId === 'new') return;
     fetchMatrix(actualConvoId);
-    pendingFetchRef.current = false; // clear any pending flag
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actualConvoId]);
 
-  // Refetch when AI is done streaming.
+  // Active Live Polling: While the AI is responding, query the DB every 3 seconds to pull UI updates.
+  // This allows the matrix to appear the instant LangGraph's tool writes to MongoDB.
   useEffect(() => {
-    if (!isSubmitting) {
-      if (!actualConvoId || actualConvoId === 'new') {
-        // The URL hasn't updated yet — mark that we need to fetch when it does
-        pendingFetchRef.current = true;
-      } else {
+    let interval: NodeJS.Timeout;
+    if (isSubmitting && actualConvoId && actualConvoId !== 'new') {
+      interval = setInterval(() => {
         fetchMatrix(actualConvoId);
-      }
+      }, 3000);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubmitting]);
-
-  // When actualConvoId finally transitions from 'new' → real UUID after streaming,
-  // execute the pending fetch.
-  useEffect(() => {
-    if (actualConvoId && actualConvoId !== 'new' && pendingFetchRef.current) {
-      pendingFetchRef.current = false;
-      fetchMatrix(actualConvoId);
+    // Final fetch when submission completes
+    if (!isSubmitting && actualConvoId && actualConvoId !== 'new') {
+       fetchMatrix(actualConvoId);
     }
+    return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actualConvoId]);
-
-
+  }, [isSubmitting, actualConvoId]);
   const saveMatrixData = async (rows: MatrixRow[]) => {
     if (!actualConvoId || actualConvoId === 'new') return;
     try {
