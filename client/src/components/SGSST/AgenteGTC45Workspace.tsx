@@ -173,10 +173,41 @@ export default function AgenteGTC45Workspace() {
   }
 
   return (
-    <div className="flex w-full h-full bg-surface-primary overflow-hidden font-sans">
+    <div className="flex w-full h-full bg-surface-primary overflow-hidden font-sans relative gtc-workspace">
+      {/* CSS Overrides to push the LibreChat SidePanel completely to the right of the screen */}
+      <style>{`
+        /* Dock the SidePanel (controls-nav) to the far right of the app */
+        .gtc-workspace #controls-nav {
+          position: fixed !important;
+          right: 0 !important;
+          top: 0 !important;
+          bottom: 0 !important;
+          height: 100dvh !important;
+          z-index: 1000 !important;
+          background-color: var(--surface-primary) !important;
+          border-left: 1px solid var(--border-light) !important;
+          box-shadow: -2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Hide the resizable drag handle for the SidePanel since we moved it out of flow */
+        .gtc-workspace .bg-presentation > [data-panel-resize-handle] {
+          display: none !important;
+        }
+
+        /* Prevent messages-view from leaving empty flex gaps by forcing it to fill the left pane */
+        .gtc-workspace #messages-view {
+          flex: 1 1 100% !important;
+          max-width: 100% !important;
+        }
+        
+        /* Give matrix padding on the right to avoid content hiding permanently under the collapsed 50px side panel */
+        .gtc-matrix-container {
+          padding-right: 50px;
+        }
+      `}</style>
       
       {/* LEFT PANE: Native ChatRoute */}
-      <div className={`transition-all duration-300 border-r border-border-medium ${isTableMaximized ? 'w-0 overflow-hidden border-none opacity-0' : 'w-1/2 min-w-[350px] max-w-2xl opacity-100 flex-shrink-0'}`}>
+      <div className={`transition-all duration-300 border-r border-border-medium ${isTableMaximized ? 'w-0 overflow-hidden border-none opacity-0' : 'w-1/2 min-w-[350px] max-w-2xl opacity-100 flex-shrink-0'} gtc-chat-wrapper`}>
          {/* By embedding ChatRoute here, it automatically picks up the :conversationId from the URL and connects to Redux */}
          <div className="h-full w-full relative">
             <ChatRoute />
@@ -184,7 +215,7 @@ export default function AgenteGTC45Workspace() {
       </div>
 
       {/* RIGHT PANE: Spreadsheet Table */}
-      <div className={`flex flex-col h-full bg-[#f8f9fa] dark:bg-[#121212] transition-all duration-300 flex-1 min-w-0`}>
+      <div className={`flex flex-col h-full bg-[#f8f9fa] dark:bg-[#121212] transition-all duration-300 flex-1 min-w-0 gtc-matrix-container`}>
         <div className="flex-shrink-0 h-[3.5rem] border-b border-border-medium bg-surface-primary flex items-center justify-between px-4">
           <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-green-600 dark:text-green-500" />
