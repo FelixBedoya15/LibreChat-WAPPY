@@ -229,6 +229,15 @@ export const router = createBrowserRouter(
               path: 'sgsst',
               element: <SGSSTDashboard />,
             },
+            {
+              /* Redirect old GTC-45 workspace URLs to the equivalent native chat */
+              path: 'sgsst/agente-gtc45/:conversationId',
+              element: <Navigate to="/c/new" replace={true} />,
+            },
+            {
+              path: 'sgsst/agente-gtc45',
+              element: <Navigate to="/c/new" replace={true} />,
+            },
 
             {
               path: 'training',
