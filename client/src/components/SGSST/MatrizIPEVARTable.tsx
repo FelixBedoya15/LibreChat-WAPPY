@@ -41,13 +41,17 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   
   // Refetch when AI finishes submitting
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
+  // When isSubmitting goes false while conversationId is still 'new', we need to
+  // remember to fetch as soon as the URL updates to the real conversationId.
+  const pendingFetchRef = React.useRef(false);
 
-  const fetchMatrix = async () => {
-    if (!conversationId || conversationId === 'new') return;
+  const fetchMatrix = async (id?: string | null) => {
+    const targetId = id ?? conversationId;
+    if (!targetId || targetId === 'new') return;
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${conversationId}`, {
+      const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -61,16 +65,38 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     }
   };
 
+  // Fetch when conversationId changes (e.g. URL goes from /c/new → /c/<uuid>)
   useEffect(() => {
-    fetchMatrix();
+    if (!conversationId || conversationId === 'new') return;
+    fetchMatrix(conversationId);
+    pendingFetchRef.current = false; // clear any pending flag
   }, [conversationId]);
 
-  // Refetch when AI is done streaming
+  // Refetch when AI is done streaming.
+  // If conversationId is still 'new', set a pending flag so the effect above
+  // will fetch when the URL finally updates to the real conversationId.
   useEffect(() => {
     if (!isSubmitting) {
-      fetchMatrix();
+      if (!conversationId || conversationId === 'new') {
+        // The URL hasn't updated yet — mark that we need to fetch when it does
+        pendingFetchRef.current = true;
+      } else {
+        fetchMatrix(conversationId);
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitting]);
+
+  // When conversationId finally transitions from 'new' → real UUID after streaming,
+  // execute the pending fetch.
+  useEffect(() => {
+    if (conversationId && conversationId !== 'new' && pendingFetchRef.current) {
+      pendingFetchRef.current = false;
+      fetchMatrix(conversationId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
 
   const saveMatrixData = async (rows: MatrixRow[]) => {
     if (!conversationId || conversationId === 'new') return;
