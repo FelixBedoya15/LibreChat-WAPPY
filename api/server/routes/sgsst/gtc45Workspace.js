@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 // GET matrix for a conversation

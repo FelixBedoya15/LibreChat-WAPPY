@@ -46,7 +46,6 @@ import RoadmapPage from '~/components/Roadmap/RoadmapPage';
 import Search from './Search';
 import Root from './Root';
 import RoadmapNotifier from '~/components/Roadmap/RoadmapNotifier';
-import AgenteGTC45Workspace from '~/components/SGSST/AgenteGTC45Workspace';
 
 const AuthLayout = () => (
   <AuthContextProvider>
@@ -230,10 +229,7 @@ export const router = createBrowserRouter(
               path: 'sgsst',
               element: <SGSSTDashboard />,
             },
-            {
-              path: 'sgsst/agente-gtc45/:conversationId?',
-              element: <AgenteGTC45Workspace />,
-            },
+
             {
               path: 'training',
               element: <TrainingDashboard />,

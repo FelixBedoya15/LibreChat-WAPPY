@@ -37,6 +37,7 @@ const {
   createOpenAIImageTools,
   GoogleImageTools,
   n8nWebhook,
+  MatrizIPEVAR,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -223,6 +224,10 @@ const loadTools = async ({
         fileStrategy,
         imageFiles,
       });
+    },
+    matriz_ipevar: async (_toolContextMap) => {
+      // Passes `req` so the tool can read conversationId from req.body
+      return new MatrizIPEVAR({ req: options.req });
     },
   };
 

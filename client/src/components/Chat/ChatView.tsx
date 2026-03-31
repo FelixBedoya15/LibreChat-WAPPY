@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import React, { memo, useCallback } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
@@ -18,6 +18,7 @@ import Header from './Header';
 import Footer from './Footer';
 import { cn } from '~/utils';
 import store from '~/store';
+import MatrizIPEVARTable from '../SGSST/MatrizIPEVARTable';
 
 function LoadingSpinner() {
   return (
@@ -58,6 +59,30 @@ function ChatView({ index = 0 }: { index?: number }) {
     defaultValues: { text: '' },
   });
 
+  const conversation = useRecoilValue(store.conversationByIndex(index));
+
+  const isIPEVARActive = React.useMemo(() => {
+    // Check if the tool is assigned to the current agent/conversation
+    // tools can be TPlugin[] or string[]
+    const tools = conversation?.tools ?? [];
+    const hasToolByKey = tools.some((t) =>
+      typeof t === 'string' ? t === 'matriz_ipevar' : t.pluginKey === 'matriz_ipevar',
+    );
+    if (hasToolByKey) return true;
+
+    // Fallback: detect from message history if the tool was actually called
+    // TResPlugin has a `plugin` string field with the pluginKey
+    if (
+      messagesTree?.some(
+        (msg) =>
+          msg.plugin?.plugin === 'matriz_ipevar' ||
+          msg.plugins?.some((p) => p.plugin === 'matriz_ipevar'),
+      )
+    ) return true;
+
+    return false;
+  }, [conversation?.tools, messagesTree]);
+
   let content: JSX.Element | null | undefined;
   const isLandingPage =
     (!messagesTree || messagesTree.length === 0) &&
@@ -82,24 +107,31 @@ function ChatView({ index = 0 }: { index?: number }) {
             <div className="flex h-full w-full flex-col">
               {!isLoading && <Header />}
               <>
-                <div
-                  className={cn(
-                    'flex flex-col',
-                    isLandingPage
-                      ? 'flex-1 items-center justify-end sm:justify-center'
-                      : 'h-full overflow-y-auto',
-                  )}
-                >
-                  {content}
+                <div className="flex h-full w-full overflow-hidden">
                   <div
                     className={cn(
-                      'w-full',
-                      isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
+                      'flex flex-col flex-1',
+                      isLandingPage
+                        ? 'items-center justify-end sm:justify-center'
+                        : 'h-full overflow-y-auto',
                     )}
                   >
-                    <ChatForm index={index} />
-                    {isLandingPage ? <ConversationStarters /> : <Footer />}
+                    {content}
+                    <div
+                      className={cn(
+                        'w-full',
+                        isLandingPage && 'max-w-3xl transition-all duration-200 xl:max-w-4xl',
+                      )}
+                    >
+                      <ChatForm index={index} />
+                      {isLandingPage ? <ConversationStarters /> : <Footer />}
+                    </div>
                   </div>
+                  {isIPEVARActive && (
+                    <div className="w-1/2 h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary gt45-matrix-panel">
+                      <MatrizIPEVARTable conversationId={conversationId ?? null} />
+                    </div>
+                  )}
                 </div>
                 {isLandingPage && <Footer />}
               </>

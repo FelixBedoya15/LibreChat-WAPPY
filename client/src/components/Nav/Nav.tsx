@@ -28,7 +28,6 @@ const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
 const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
-const GTC45WorkspaceButton = lazy(() => import('./GTC45WorkspaceButton'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -297,9 +296,6 @@ const Nav = memo(
                             <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        <Suspense fallback={null}>
-                          <GTC45WorkspaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -350,9 +346,6 @@ const Nav = memo(
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
-                                <Suspense fallback={null}>
-                                  <GTC45WorkspaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
                               </div>
                             </>
                           }
