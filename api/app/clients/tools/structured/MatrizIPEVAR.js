@@ -68,9 +68,15 @@ class MatrizIPEVAR extends Tool {
         aceptabilidad,
       };
 
+      const userId = this.req?.user?.id;
+      const query = { conversationId };
+      if (userId) {
+        query.user = userId;
+      }
+
       // Single atomic upsert — append row to matrixRows array
       await GTC45Matrix.findOneAndUpdate(
-        { conversationId },
+        query,
         { $push: { matrixRows: row } },
         { upsert: true, new: true },
       );
