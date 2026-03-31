@@ -27,9 +27,12 @@ class MatrizIPEVAR extends Tool {
     });
   }
 
-  async _call(input) {
+  async _call(input, runManager, config) {
     try {
-      const conversationId = this.req?.body?.conversationId;
+      // En Agentes de LangGraph, el ID real de la conversación (thread) reside en la metadata 
+      // cuando el `req.body` todavía trae "new" durante el primer mensaje de la sesión.
+      let conversationId = config?.metadata?.thread_id || this.req?.body?.conversationId;
+      
       if (!conversationId || conversationId === 'new') {
         const errorMsg = 'No se encontró un ID de conversación válido para guardar la matriz.';
         console.error(`[MatrizIPEVAR Tool] ${errorMsg}`);
