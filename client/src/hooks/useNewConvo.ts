@@ -205,22 +205,16 @@ const useNewConvo = (index = 0) => {
         const searchParamsString = searchParams?.toString();
         const getParams = () => (searchParamsString ? `?${searchParamsString}` : '');
 
-        // Determine correct base path to avoid kicking users out of the workspace
-        const isGtcWorkspace = location.pathname.includes('/sgsst/agente-gtc45');
-        const basePath = isGtcWorkspace ? '/sgsst/agente-gtc45' : '/c';
-
         if (conversation.conversationId === Constants.NEW_CONVO && !modelsData) {
           const appTitle = localStorage.getItem(LocalStorageKeys.APP_TITLE) ?? '';
           if (appTitle) {
             document.title = appTitle;
           }
-          const path = `${basePath}/${Constants.NEW_CONVO}${getParams()}`;
-          navigate(path, { state: { focusChat: true } });
+          navigate(`/c/${Constants.NEW_CONVO}${getParams()}`, { state: { focusChat: true } });
           return;
         }
 
-        const path = `${basePath}/${conversation.conversationId}${getParams()}`;
-        navigate(path, {
+        navigate(`/c/${conversation.conversationId}${getParams()}`, {
           replace: true,
           state: disableFocus ? {} : { focusChat: true },
         });

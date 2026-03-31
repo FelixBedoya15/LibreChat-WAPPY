@@ -504,23 +504,15 @@ export default function useEventHandlers({
           removeConvoFromAllQueries(queryClient, submissionConvo.conversationId);
         }
 
-        const isGTC45NewChat = 
-          location.pathname === `/sgsst/agente-gtc45/${Constants.NEW_CONVO}` &&
-          currentConvoId === Constants.NEW_CONVO;
-
         const isNewChat =
-          (location.pathname === `/c/${Constants.NEW_CONVO}` || isGTC45NewChat) &&
+          location.pathname === `/c/${Constants.NEW_CONVO}` &&
           currentConvoId === Constants.NEW_CONVO;
 
         setFinalMessages(currentConvoId, isNewChat ? [] : [...messages]);
         setDraft({ id: currentConvoId, value: requestMessage?.text });
         setIsSubmitting(false);
         if (isNewChat) {
-          if (isGTC45NewChat) {
-            navigate(`/sgsst/agente-gtc45/${Constants.NEW_CONVO}`, { replace: true, state: { focusChat: true } });
-          } else {
-            navigate(`/c/${Constants.NEW_CONVO}`, { replace: true, state: { focusChat: true } });
-          }
+          navigate(`/c/${Constants.NEW_CONVO}`, { replace: true, state: { focusChat: true } });
         }
         return;
       }
@@ -594,8 +586,6 @@ export default function useEventHandlers({
 
         if (location.pathname === `/c/${Constants.NEW_CONVO}`) {
           navigate(`/c/${conversation.conversationId}`, { replace: true });
-        } else if (location.pathname === `/sgsst/agente-gtc45/${Constants.NEW_CONVO}`) {
-          navigate(`/sgsst/agente-gtc45/${conversation.conversationId}`, { replace: true });
         }
       }
 
