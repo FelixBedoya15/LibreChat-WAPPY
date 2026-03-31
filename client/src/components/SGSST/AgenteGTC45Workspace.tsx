@@ -172,67 +172,65 @@ export default function AgenteGTC45Workspace() {
     return <UpgradeWall title="Acceso Restringido (Fase Beta)" description="El agente interactivo para creación de matrices GTC-45 se encuentra actualmente en fase de pruebas cerrada y es un módulo con acceso provisional únicamente para Administradores del sistema." plan="USER_PRO" />;
   }
 
-  return (
-    <div className="flex w-full h-full bg-surface-primary overflow-hidden font-sans relative gtc-workspace">
-      {/* CSS Overrides to gracefully push the LibreChat SidePanel and its toggle button completely to the right */}
-      <style>{`
-        /* Force ChatRoute wrapper to span the full screen width */
-        .gtc-chat-wrapper {
-          width: 100vw !important;
-          flex: 0 0 100vw !important;
-          max-width: 100vw !important;
+  // Robust DOM Observer to teleport the SidePanel and its Toggle Button to the far right screen edge
+  useEffect(() => {
+    // This runs periodically until it finds the ChatRoute elements
+    const interval = setInterval(() => {
+      const controlsNav = document.getElementById('controls-nav');
+      const toggleBtn = document.getElementById('toggle-right-nav');
+      
+      if (controlsNav && toggleBtn) {
+        clearInterval(interval);
+        
+        const toggleWrapper = toggleBtn.closest('.w-px') as HTMLElement;
+        const handle = document.querySelector('.gtc-workspace .bg-presentation > [data-panel-resize-handle]') as HTMLElement;
+        
+        // 1. Teleport controls-nav to the far right
+        controlsNav.style.setProperty('position', 'fixed', 'important');
+        controlsNav.style.setProperty('right', '0', 'important');
+        controlsNav.style.setProperty('top', '0', 'important');
+        controlsNav.style.setProperty('bottom', '0', 'important');
+        controlsNav.style.setProperty('height', '100dvh', 'important');
+        controlsNav.style.setProperty('z-index', '1000', 'important');
+        controlsNav.style.setProperty('border-left', '1px solid var(--border-light)', 'important');
+        
+        // 2. Hide the drag handle
+        if (handle) {
+          handle.style.setProperty('display', 'none', 'important');
         }
 
-        /* Clamp the Chat messages view to 50% of the screen so it stays on the left */
-        .gtc-workspace #messages-view {
-          flex: 0 0 50vw !important;
-          max-width: 50vw !important;
+        // 3. Teleport Toggle Button
+        if (toggleWrapper) {
+          toggleWrapper.style.setProperty('position', 'fixed', 'important');
+          toggleWrapper.style.setProperty('top', '50%', 'important');
+          toggleWrapper.style.setProperty('z-index', '1010', 'important');
         }
+
+        // 4. Sycn Toggle Button position with SidePanel width
+        const resizeObserver = new ResizeObserver((entries) => {
+          for (let entry of entries) {
+             const width = entry.contentRect.width;
+             if (toggleWrapper) toggleWrapper.style.setProperty('right', `${width}px`, 'important');
+          }
+        });
+        resizeObserver.observe(controlsNav);
         
-        /* Push the Toggle Button, Resize Handle, and SidePanel to the far right! */
-        /* This absorbs all the empty flex space in the middle to seamlessly position the UI on the edges */
-        .gtc-workspace .bg-presentation > div:has(#toggle-right-nav) {
-          margin-left: auto !important;
-        }
-        
-        /* Fallback if Toggle Button is absent on some devices, push the handle or the panel directly */
-        .gtc-workspace .bg-presentation > [data-panel-resize-handle] {
-          margin-left: auto !important;
-        }
-        .gtc-workspace .bg-presentation > div:has(#toggle-right-nav) ~ [data-panel-resize-handle] {
-          margin-left: 0 !important; /* Reset fallback */
-        }
-        
-        /* Position the Matrix absolutely in the exact 50vw gap that we just created in the middle */
-        .gtc-matrix-container {
-          position: absolute !important;
-          left: 50vw !important;
-          top: 0 !important;
-          bottom: 0 !important;
-          /* The absolute matrix spans up to 50px from the right edge to avoid hiding under the collapsed panel */
-          right: 50px !important;
-          z-index: 10 !important;
-        }
-        
-        /* When the SidePanel is expanded, it will naturally slide OVER the Matrix (like a drawer) because native z-index on panels is low */
-        .gtc-workspace #controls-nav {
-           z-index: 20 !important; /* Assure side panel goes above matrix when manually opened */
-           background: var(--surface-primary) !important;
-           border-left: 1px solid var(--border-light);
-        }
-        .gtc-workspace [data-panel-resize-handle] {
-           z-index: 21 !important;
-        }
-        .gtc-workspace .bg-presentation > div:has(#toggle-right-nav) {
-           z-index: 22 !important;
-        }
-      `}</style>
+        // Clean up
+        return () => resizeObserver.disconnect();
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [currentConvoId]);
+
+  return (
+    <div className="flex w-full h-full bg-surface-primary overflow-hidden font-sans relative gtc-workspace">
       
       {/* 
         LEFT PANE: Native ChatRoute 
-        (Rendered at 100vw width to let its flex children span the whole screen) 
+        (Chat occupies the exact left half. SidePanel is DOM-yanked to the right browser edge) 
       */}
-      <div className={`transition-all duration-300 ${isTableMaximized ? 'w-0 overflow-hidden border-none opacity-0' : 'opacity-100'} gtc-chat-wrapper`}>
+      <div className={`transition-all duration-300 border-r border-border-medium ${isTableMaximized ? 'w-0 overflow-hidden border-none opacity-0' : 'w-1/2 min-w-[350px] max-w-2xl opacity-100 flex-shrink-0'} gtc-chat-wrapper`}>
          <div className="h-full w-full relative">
             <ChatRoute />
          </div>
@@ -240,9 +238,9 @@ export default function AgenteGTC45Workspace() {
 
       {/* 
         RIGHT PANE: Spreadsheet Table 
-        (It is absolutely positioned to exist entirely within the flex gap created in the ChatRoute wrapper) 
+        (It returns to simple Flex layout, and gets slightly padded to avoid the fixed SidePanel) 
       */}
-      <div className={`flex flex-col bg-[#f8f9fa] dark:bg-[#121212] transition-all duration-300 gtc-matrix-container border-l border-border-medium shadow-2xl overflow-hidden`}>
+      <div className={`flex flex-col bg-[#f8f9fa] dark:bg-[#121212] transition-all duration-300 flex-1 min-w-0 gtc-matrix-container`} style={{ paddingRight: '50px' }}>
         <div className="flex-shrink-0 h-[3.5rem] border-b border-border-medium bg-surface-primary flex items-center justify-between px-4">
           <h3 className="font-bold text-sm text-text-primary flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-green-600 dark:text-green-500" />
