@@ -194,6 +194,9 @@ export default function AgenteGTC45Workspace() {
         controlsNav.style.setProperty('z-index', '1000', 'important');
         controlsNav.style.setProperty('border-left', '1px solid var(--border-light)', 'important');
         
+        // Force max-width so the sidepanel doesn't stretch out of control like 50vw when fixed
+        controlsNav.style.setProperty('max-width', '352px', 'important');
+        
         // 2. Hide the drag handle
         if (handle) {
           handle.style.setProperty('display', 'none', 'important');
