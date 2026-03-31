@@ -205,17 +205,17 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           
           <button
             onClick={() => saveMatrixData(matrixRows)}
-            className="flex items-center gap-2 px-4 py-1.5 bg-[#f0f2f0] dark:bg-green-900/20 border-2 border-[#129A61] rounded-xl text-[#129A61] dark:text-green-400 font-extrabold text-sm shadow-sm transition-all hover:bg-white dark:hover:bg-green-900/40 hover:shadow-md hover:-translate-y-0.5"
+            className="flex items-center justify-center gap-2 px-6 h-[42px] bg-[#f2f4f2] border-2 border-[#129A61] rounded-[24px] text-[#129A61] font-bold text-[15px] transition-all hover:bg-white hover:scale-[1.02] active:scale-[0.98]"
           >
-            <Save className="h-4 w-4 stroke-[2.5]" />
-            {isSaving ? 'Guardando...' : 'Guardar'}
+            <Save className="h-5 w-5 stroke-[2.5]" />
+            Guardar
           </button>
           
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="flex items-center justify-center p-1.5 bg-transparent border-2 border-border-medium rounded-xl text-text-secondary transition-all hover:bg-surface-hover hover:text-text-primary hover:shadow-sm"
+            className="flex items-center justify-center h-[42px] w-[42px] bg-[#f8f9f8] border-2 border-border-medium/80 rounded-[14px] text-text-secondary transition-all hover:bg-white hover:text-text-primary hover:border-border-heavy hover:scale-[1.02] active:scale-[0.98]"
           >
-            {isMaximized ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            {isMaximized ? <Minimize2 className="h-5 w-5 stroke-[2.5]" /> : <Maximize2 className="h-5 w-5 stroke-[2.5]" />}
           </button>
         </div>
       </div>
@@ -273,20 +273,18 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                       <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.zona} onChange={e => handleCellChange(index, 'zona', e.target.value)} /></td>
                       <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[180px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.actividad} onChange={e => handleCellChange(index, 'actividad', e.target.value)} /></td>
                       <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[250px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.tareas} onChange={e => handleCellChange(index, 'tareas', e.target.value)} /></td>
-                      <td className="px-4 py-3">
-                        <div className="relative inline-flex items-center mt-1">
-                          <select 
-                            className="appearance-none bg-surface-tertiary border-2 border-border-medium rounded-xl pl-3 pr-8 py-1.5 text-xs font-bold text-text-primary outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all cursor-pointer shadow-sm hover:bg-surface-hover dark:bg-gray-800 dark:border-gray-600" 
-                            value={row.rutinaria} 
-                            onChange={e => handleCellChange(index, 'rutinaria', e.target.value as any)}
-                          >
-                            <option value="Sí" className="font-semibold">Sí</option>
-                            <option value="No" className="font-semibold">No</option>
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-text-secondary">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          </div>
-                        </div>
+                      <td className="px-4 py-3 align-middle text-center">
+                        <button
+                          className={`inline-flex items-center justify-center h-8 w-16 rounded-[12px] font-bold text-xs transition-colors border-2 ${
+                            row.rutinaria === 'Sí' 
+                              ? 'bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20' 
+                              : 'bg-zinc-100 text-zinc-500 border-zinc-300 hover:bg-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400'
+                          }`}
+                          onClick={() => handleCellChange(index, 'rutinaria', row.rutinaria === 'Sí' ? 'No' : 'Sí')}
+                          title="Clic para alternar"
+                        >
+                          {row.rutinaria || 'Sí'}
+                        </button>
                       </td>
                       <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[300px] bg-transparent outline-none font-medium text-text-primary resize-y" value={row.peligro_descripcion || ''} onChange={e => handleCellChange(index, 'peligro_descripcion', e.target.value)} /></td>
                       <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(index, 'peligro_clasificacion', e.target.value)} /></td>
