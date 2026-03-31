@@ -20,15 +20,20 @@ class MatrizIPEVAR extends Tool {
         .describe('Descripción del peligro identificado (qué lo causa, cómo se manifiesta).'),
       peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico).'),
       efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador.'),
-      controles_fuente: z.string().default('Ninguno').describe('Controles en la fuente.'),
-      controles_medio: z.string().default('Ninguno').describe('Controles en el medio.'),
+      controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente.'),
+      controles_medio: z.string().default('Ninguno').describe('Controles existentes en el medio.'),
       controles_individuo: z
         .string()
         .default('Ninguno')
-        .describe('Controles en el individuo (epp, dotación).'),
+        .describe('Controles existentes en el individuo (epp, dotación).'),
       nd: z.number().describe('Nivel de Deficiencia (ND). Valores numéricos según la GTC-45.'),
       ne: z.number().describe('Nivel de Exposición (NE). Valores numéricos según la GTC-45.'),
       nc: z.number().describe('Nivel de Consecuencia (NC). Valores numéricos según la GTC-45.'),
+      medida_eliminacion: z.string().default('Ninguno').describe('Medidas de intervención: Eliminación del peligro.'),
+      medida_sustitucion: z.string().default('Ninguno').describe('Medidas de intervención: Sustitución del peligro.'),
+      medida_ingenieria: z.string().default('Ninguno').describe('Medidas de intervención: Controles de ingeniería propuestos.'),
+      medida_administrativa: z.string().default('Ninguno').describe('Medidas de intervención: Controles administrativos propuestos (capacitación, pausas).'),
+      medida_eppu: z.string().default('Ninguno').describe('Medidas de intervención: Equipos de protección personal (EPP) propuestos.'),
     });
   }
 
@@ -61,7 +66,7 @@ class MatrizIPEVAR extends Tool {
         return JSON.stringify({ error: errorMsg });
       }
 
-      console.log(`[MatrizIPEVAR Tool] Guardando datos en DB para convo: ${conversationId}`);
+      console.log(`[MatrizIPEVAR Tool] Guardando/Actualizando datos en DB para convo: ${conversationId}`);
 
       // Autocalculate levels per GTC-45
       const nd = Number(input.nd) || 0;
@@ -84,7 +89,6 @@ class MatrizIPEVAR extends Tool {
             : 'Aceptable';
 
       const row = {
-        id: Date.now().toString(),
         ...input,
         np,
         nc,
@@ -95,23 +99,54 @@ class MatrizIPEVAR extends Tool {
 
       const userId = this.req?.user?.id;
 
-      // Upsert: find by conversationId (no user filter to avoid mismatch on first-time save).
-      // Use $setOnInsert to stamp user on document CREATION only.
-      await GTC45Matrix.findOneAndUpdate(
-        { conversationId },
-        {
-          $push: { matrixRows: row },
-          ...(userId ? { $setOnInsert: { user: userId } } : {}),
-        },
-        { upsert: true, new: true },
-      );
+      // Logica de Actualización Inteligente (Smart Upsert por proceso, actividad y tareas)
+      let session = await GTC45Matrix.findOne({ conversationId });
+      
+      let isUpdate = false;
+      if (!session) {
+        // Create new session
+        row.id = Date.now().toString();
+        session = new GTC45Matrix({
+          conversationId,
+          user: userId || undefined,
+          matrixRows: [row]
+        });
+      } else {
+        // Find existing row using a composite key: proceso + actividad + tareas
+        const targetIndex = session.matrixRows.findIndex(r => 
+          r.proceso?.toLowerCase() === input.proceso?.toLowerCase() &&
+          r.actividad?.toLowerCase() === input.actividad?.toLowerCase() &&
+          r.tareas?.toLowerCase() === input.tareas?.toLowerCase()
+        );
 
-      console.log('[MatrizIPEVAR Tool] Guardado exitoso.');
+        if (targetIndex !== -1) {
+          // UPDATE
+          isUpdate = true;
+          // Merge old row with new data, keeping original ID
+          session.matrixRows[targetIndex] = { ...session.matrixRows[targetIndex], ...row };
+        } else {
+          // INSERT NEW
+          row.id = Date.now().toString();
+          session.matrixRows.push(row);
+        }
+        
+        // Ensure user inheritance for orphaned sessions during upsert
+        if (!session.user && userId) {
+          session.user = userId;
+        }
+        
+        // Mongoose needs this flag if we modify mixed Arrays manually
+        session.markModified('matrixRows');
+      }
+
+      await session.save();
+
+      console.log(`[MatrizIPEVAR Tool] ${isUpdate ? 'Actualización' : 'Guardado nuevo'} exitoso.`);
 
       return JSON.stringify({
         success: true,
-        message: 'Riesgo agregado correctamente a la Matriz GTC-45.',
-        saved_data: row,
+        message: isUpdate ? 'Riesgo actualizado correctamente en la Matriz GTC-45.' : 'Riesgo agregado correctamente a la Matriz GTC-45.',
+        saved_data: isUpdate ? session.matrixRows.find(r => r.proceso === input.proceso && r.actividad === input.actividad && r.tareas === input.tareas) : row,
       });
     } catch (error) {
       console.error('[MatrizIPEVAR Tool] Error:', error);

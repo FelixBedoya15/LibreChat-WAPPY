@@ -32,6 +32,11 @@ interface MatrixRow {
   nr: number;
   interpretacion_nr: string;
   aceptabilidad: string;
+  medida_eliminacion: string;
+  medida_sustitucion: string;
+  medida_ingenieria: string;
+  medida_administrativa: string;
+  medida_eppu: string;
 }
 
 export default function MatrizIPEVARTable({ conversationId }: { conversationId: string | null }) {
@@ -149,7 +154,9 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       proceso: '', zona: '', actividad: '', tareas: '', rutinaria: 'Sí',
       peligro_descripcion: '', peligro_clasificacion: '', efectos_posibles: '',
       controles_fuente: 'Ninguno', controles_medio: 'Ninguno', controles_individuo: 'Ninguno',
-      nd: 0, ne: 0, np: 0, nc: 0, nr: 0, interpretacion_nr: '', aceptabilidad: ''
+      nd: 0, ne: 0, np: 0, nc: 0, nr: 0, interpretacion_nr: '', aceptabilidad: '',
+      medida_eliminacion: 'Ninguno', medida_sustitucion: 'Ninguno', medida_ingenieria: 'Ninguno',
+      medida_administrativa: 'Ninguno', medida_eppu: 'Ninguno'
     };
     setMatrixRows([...matrixRows, newRow]);
   };
@@ -242,11 +249,20 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <th className="px-4 py-3 whitespace-nowrap">Peligro</th>
                     <th className="px-4 py-3 whitespace-nowrap">Clasificación</th>
                     <th className="px-4 py-3 whitespace-nowrap">Efectos</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-zinc-500/5 text-zinc-600 dark:text-zinc-400">Ctrl. Fuente</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-zinc-500/5 text-zinc-600 dark:text-zinc-400">Ctrl. Medio</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-zinc-500/5 text-zinc-600 dark:text-zinc-400">Ctrl. Individuo</th>
+
                     <th className="px-4 py-3 whitespace-nowrap text-center text-blue-500 bg-blue-500/5">ND</th>
                     <th className="px-4 py-3 whitespace-nowrap text-center text-blue-500 bg-blue-500/5">NE</th>
                     <th className="px-4 py-3 whitespace-nowrap text-center text-purple-500 bg-purple-500/5">NP</th>
                     <th className="px-4 py-3 whitespace-nowrap text-center text-blue-500 bg-blue-500/5">NC</th>
                     <th className="px-4 py-3 whitespace-nowrap text-center text-orange-500 bg-orange-500/5 hover:bg-orange-500/10 transition-colors">NR</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">Eliminación</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">Sustitución</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">Ingeniería</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">Adminstrativos</th>
+                    <th className="px-4 py-3 whitespace-nowrap bg-emerald-500/5 text-emerald-600 dark:text-emerald-400">EPP</th>
                     <th className="px-4 py-3 whitespace-nowrap">Acciones</th>
                   </tr>
                 </thead>
@@ -263,9 +279,12 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                           <option value="No" className="bg-surface-primary">No</option>
                         </select>
                       </td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[200px] bg-transparent outline-none font-medium text-text-primary" value={row.peligro_descripcion} onChange={e => handleCellChange(index, 'peligro_descripcion', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.peligro_clasificacion} onChange={e => handleCellChange(index, 'peligro_clasificacion', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200" value={row.efectos_posibles} onChange={e => handleCellChange(index, 'efectos_posibles', e.target.value)} /></td>
+                      <td className="px-4 py-2"><input className="w-full min-w-[200px] bg-transparent outline-none font-medium text-text-primary" value={row.peligro_descripcion || ''} onChange={e => handleCellChange(index, 'peligro_descripcion', e.target.value)} /></td>
+                      <td className="px-4 py-2"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(index, 'peligro_clasificacion', e.target.value)} /></td>
+                      <td className="px-4 py-2"><input className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200" value={row.efectos_posibles || ''} onChange={e => handleCellChange(index, 'efectos_posibles', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-zinc-500/5 border-l border-border-light"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.controles_fuente || ''} onChange={e => handleCellChange(index, 'controles_fuente', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-zinc-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.controles_medio || ''} onChange={e => handleCellChange(index, 'controles_medio', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-zinc-500/5 border-r border-border-light"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.controles_individuo || ''} onChange={e => handleCellChange(index, 'controles_individuo', e.target.value)} /></td>
                       <td className="px-4 py-2 border-l border-border-light bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.nd} onChange={e => handleCellChange(index, 'nd', e.target.value)} /></td>
                       <td className="px-4 py-2 bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.ne} onChange={e => handleCellChange(index, 'ne', e.target.value)} /></td>
                       <td className="px-4 py-2 font-bold text-center text-purple-600 dark:text-purple-400 bg-purple-500/5" title="Nivel Probabilidad (ND x NE)">{row.np}</td>
@@ -273,6 +292,11 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                       <td className="px-4 py-2 text-center border-l-2 border-orange-500/20 bg-orange-500/5 font-black text-orange-600 dark:text-orange-400" title={`Interpretación: ${row.interpretacion_nr}\nAceptabilidad: ${row.aceptabilidad}`}>
                         {row.nr}
                       </td>
+                      <td className="px-4 py-2 bg-emerald-500/5 border-l-2 border-emerald-500/20"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_eliminacion || ''} onChange={e => handleCellChange(index, 'medida_eliminacion', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-emerald-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_sustitucion || ''} onChange={e => handleCellChange(index, 'medida_sustitucion', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-emerald-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_ingenieria || ''} onChange={e => handleCellChange(index, 'medida_ingenieria', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-emerald-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_administrativa || ''} onChange={e => handleCellChange(index, 'medida_administrativa', e.target.value)} /></td>
+                      <td className="px-4 py-2 bg-emerald-500/5 border-r border-emerald-500/20"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_eppu || ''} onChange={e => handleCellChange(index, 'medida_eppu', e.target.value)} /></td>
                       <td className="px-4 py-2 text-center">
                         <button onClick={() => removeRow(index)} className="p-1.5 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 rounded-md">
                           <Trash2 className="h-4 w-4" />
