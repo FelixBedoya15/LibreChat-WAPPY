@@ -112,11 +112,11 @@ class MatrizIPEVAR extends Tool {
           matrixRows: [row]
         });
       } else {
-        // Find existing row using a composite key: proceso + actividad + tareas
+        // Find existing row using a composite key: proceso + actividad + peligro_clasificacion
         const targetIndex = session.matrixRows.findIndex(r => 
           r.proceso?.toLowerCase() === input.proceso?.toLowerCase() &&
           r.actividad?.toLowerCase() === input.actividad?.toLowerCase() &&
-          r.tareas?.toLowerCase() === input.tareas?.toLowerCase()
+          r.peligro_clasificacion?.toLowerCase() === input.peligro_clasificacion?.toLowerCase()
         );
 
         if (targetIndex !== -1) {
@@ -146,7 +146,7 @@ class MatrizIPEVAR extends Tool {
       return JSON.stringify({
         success: true,
         message: isUpdate ? 'Riesgo actualizado correctamente en la Matriz GTC-45.' : 'Riesgo agregado correctamente a la Matriz GTC-45.',
-        saved_data: isUpdate ? session.matrixRows.find(r => r.proceso === input.proceso && r.actividad === input.actividad && r.tareas === input.tareas) : row,
+        saved_data: isUpdate ? session.matrixRows.find(r => r.proceso === input.proceso && r.actividad === input.actividad && r.peligro_clasificacion === input.peligro_clasificacion) : row,
       });
     } catch (error) {
       console.error('[MatrizIPEVAR Tool] Error:', error);
