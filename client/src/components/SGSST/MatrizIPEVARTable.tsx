@@ -182,7 +182,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   }
 
   return (
-    <div className={`flex flex-col h-full bg-surface-primary transition-all duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-50 p-6' : 'w-full'}`}>
+    <div className={`flex flex-col h-full bg-surface-primary transition-all duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] p-4 sm:p-8 backdrop-blur-xl' : 'w-full'}`}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3">
         <div className="flex items-center gap-3">
@@ -268,36 +268,36 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                 </thead>
                 <tbody className="divide-y divide-border-light bg-surface-primary">
                   {matrixRows.map((row, index) => (
-                    <tr key={index} className="hover:bg-surface-secondary/50 transition-colors group">
-                      <td className="px-4 py-2"><input className="w-full bg-transparent outline-none dark:text-gray-200" value={row.proceso} onChange={e => handleCellChange(index, 'proceso', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full bg-transparent outline-none dark:text-gray-200" value={row.zona} onChange={e => handleCellChange(index, 'zona', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full bg-transparent outline-none dark:text-gray-200" value={row.actividad} onChange={e => handleCellChange(index, 'actividad', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200" value={row.tareas} onChange={e => handleCellChange(index, 'tareas', e.target.value)} /></td>
-                      <td className="px-4 py-2">
-                        <select className="bg-transparent outline-none cursor-pointer dark:text-gray-200" value={row.rutinaria} onChange={e => handleCellChange(index, 'rutinaria', e.target.value as any)}>
+                    <tr key={index} className="hover:bg-surface-secondary/50 transition-colors group align-top">
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.proceso} onChange={e => handleCellChange(index, 'proceso', e.target.value)} /></td>
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.zona} onChange={e => handleCellChange(index, 'zona', e.target.value)} /></td>
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[180px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.actividad} onChange={e => handleCellChange(index, 'actividad', e.target.value)} /></td>
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[250px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.tareas} onChange={e => handleCellChange(index, 'tareas', e.target.value)} /></td>
+                      <td className="px-4 py-3">
+                        <select className="bg-transparent outline-none cursor-pointer dark:text-gray-200 mt-1" value={row.rutinaria} onChange={e => handleCellChange(index, 'rutinaria', e.target.value as any)}>
                           <option value="Sí" className="bg-surface-primary">Sí</option>
                           <option value="No" className="bg-surface-primary">No</option>
                         </select>
                       </td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[200px] bg-transparent outline-none font-medium text-text-primary" value={row.peligro_descripcion || ''} onChange={e => handleCellChange(index, 'peligro_descripcion', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(index, 'peligro_clasificacion', e.target.value)} /></td>
-                      <td className="px-4 py-2"><input className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200" value={row.efectos_posibles || ''} onChange={e => handleCellChange(index, 'efectos_posibles', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-zinc-500/5 border-l border-border-light"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.controles_fuente || ''} onChange={e => handleCellChange(index, 'controles_fuente', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-zinc-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.controles_medio || ''} onChange={e => handleCellChange(index, 'controles_medio', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-zinc-500/5 border-r border-border-light"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.controles_individuo || ''} onChange={e => handleCellChange(index, 'controles_individuo', e.target.value)} /></td>
-                      <td className="px-4 py-2 border-l border-border-light bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.nd} onChange={e => handleCellChange(index, 'nd', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.ne} onChange={e => handleCellChange(index, 'ne', e.target.value)} /></td>
-                      <td className="px-4 py-2 font-bold text-center text-purple-600 dark:text-purple-400 bg-purple-500/5" title="Nivel Probabilidad (ND x NE)">{row.np}</td>
-                      <td className="px-4 py-2 bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.nc} onChange={e => handleCellChange(index, 'nc', e.target.value)} /></td>
-                      <td className="px-4 py-2 text-center border-l-2 border-orange-500/20 bg-orange-500/5 font-black text-orange-600 dark:text-orange-400" title={`Interpretación: ${row.interpretacion_nr}\nAceptabilidad: ${row.aceptabilidad}`}>
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[300px] bg-transparent outline-none font-medium text-text-primary resize-y" value={row.peligro_descripcion || ''} onChange={e => handleCellChange(index, 'peligro_descripcion', e.target.value)} /></td>
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(index, 'peligro_clasificacion', e.target.value)} /></td>
+                      <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[250px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.efectos_posibles || ''} onChange={e => handleCellChange(index, 'efectos_posibles', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-zinc-500/5 border-l border-border-light"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.controles_fuente || ''} onChange={e => handleCellChange(index, 'controles_fuente', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-zinc-500/5"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.controles_medio || ''} onChange={e => handleCellChange(index, 'controles_medio', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-zinc-500/5 border-r border-border-light"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.controles_individuo || ''} onChange={e => handleCellChange(index, 'controles_individuo', e.target.value)} /></td>
+                      <td className="px-4 py-3 border-l border-border-light bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono mt-1" value={row.nd} onChange={e => handleCellChange(index, 'nd', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono mt-1" value={row.ne} onChange={e => handleCellChange(index, 'ne', e.target.value)} /></td>
+                      <td className="px-4 py-3 font-bold text-center text-purple-600 dark:text-purple-400 bg-purple-500/5 align-middle" title="Nivel Probabilidad (ND x NE)">{row.np}</td>
+                      <td className="px-4 py-3 bg-blue-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono mt-1" value={row.nc} onChange={e => handleCellChange(index, 'nc', e.target.value)} /></td>
+                      <td className="px-4 py-3 text-center border-l-2 border-orange-500/20 bg-orange-500/5 font-black text-orange-600 dark:text-orange-400 align-middle" title={`Interpretación: ${row.interpretacion_nr}\nAceptabilidad: ${row.aceptabilidad}`}>
                         {row.nr}
                       </td>
-                      <td className="px-4 py-2 bg-emerald-500/5 border-l-2 border-emerald-500/20"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_eliminacion || ''} onChange={e => handleCellChange(index, 'medida_eliminacion', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-emerald-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_sustitucion || ''} onChange={e => handleCellChange(index, 'medida_sustitucion', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-emerald-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_ingenieria || ''} onChange={e => handleCellChange(index, 'medida_ingenieria', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-emerald-500/5"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_administrativa || ''} onChange={e => handleCellChange(index, 'medida_administrativa', e.target.value)} /></td>
-                      <td className="px-4 py-2 bg-emerald-500/5 border-r border-emerald-500/20"><input className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200" value={row.medida_eppu || ''} onChange={e => handleCellChange(index, 'medida_eppu', e.target.value)} /></td>
-                      <td className="px-4 py-2 text-center">
+                      <td className="px-4 py-3 bg-emerald-500/5 border-l-2 border-emerald-500/20"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.medida_eliminacion || ''} onChange={e => handleCellChange(index, 'medida_eliminacion', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-emerald-500/5"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.medida_sustitucion || ''} onChange={e => handleCellChange(index, 'medida_sustitucion', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-emerald-500/5"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.medida_ingenieria || ''} onChange={e => handleCellChange(index, 'medida_ingenieria', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-emerald-500/5"><textarea rows={2} className="w-full min-w-[280px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.medida_administrativa || ''} onChange={e => handleCellChange(index, 'medida_administrativa', e.target.value)} /></td>
+                      <td className="px-4 py-3 bg-emerald-500/5 border-r border-emerald-500/20"><textarea rows={2} className="w-full min-w-[200px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.medida_eppu || ''} onChange={e => handleCellChange(index, 'medida_eppu', e.target.value)} /></td>
+                      <td className="px-4 py-3 text-center align-middle">
                         <button onClick={() => removeRow(index)} className="p-1.5 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 rounded-md">
                           <Trash2 className="h-4 w-4" />
                         </button>
