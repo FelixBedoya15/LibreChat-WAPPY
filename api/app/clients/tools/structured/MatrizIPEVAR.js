@@ -9,8 +9,6 @@ class MatrizIPEVAR extends Tool {
     this.description =
       'Añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta cuando el usuario pida documentar o evaluar un peligro en la matriz IPEVAR/GTC-45.';
     this.req = fields.req;
-    // Cache conversationId at construction time; may be "new" initially
-    this._cachedConversationId = fields.req?.body?.conversationId;
     this.schema = z.object({
       proceso: z.string().describe('El proceso o área general.'),
       zona: z.string().describe('Lugar o zona de trabajo.'),
@@ -35,34 +33,27 @@ class MatrizIPEVAR extends Tool {
   }
 
   /**
-   * Override invoke() to intercept the LangGraph RunnableConfig BEFORE _call is invoked.
-   * LangGraph passes config via invoke(input, options) where options.configurable.thread_id
-   * holds the real conversation (thread) ID. This is the ONLY reliable way to capture it
-   * because _call() only receives (input, runManager) — the config never reaches it.
+   * _call receives (input, runManager) where runManager carries LangGraph metadata.
+   * FORENSIC FINDING (2026-03-31):
+   *   - LangGraph always injects thread_id into runManager.metadata.thread_id
+   *   - runManager.configurable also contains thread_id
+   *   - config/3rd arg is NEVER passed by LangChain's DynamicStructuredTool wrapper
+   *   - This is the only reliable way to get conversationId inside a tool _call
    */
-  async invoke(input, options) {
-    // Extract the real thread_id from LangGraph configurable metadata
-    const threadId =
-      options?.configurable?.thread_id ||
-      options?.metadata?.thread_id ||
-      options?.runId; // last-resort fallback
-
-    if (threadId && threadId !== 'new') {
-      this._cachedConversationId = threadId;
-      console.log(`[MatrizIPEVAR Tool] invoke() capturó thread_id: ${threadId}`);
-    }
-
-    return super.invoke(input, options);
-  }
-
-  async _call(input) {
+  async _call(input, runManager) {
     try {
-      // By the time _call runs, invoke() has already cached the conversationId.
-      // Also try req.body as a final fallback (works for non-"new" conversations).
+      // ✅ PRIMARY: LangGraph thread_id via runManager (PROVEN to work via test)
       const conversationId =
-        this._cachedConversationId && this._cachedConversationId !== 'new'
-          ? this._cachedConversationId
-          : this.req?.body?.conversationId;
+        runManager?.configurable?.thread_id ||
+        runManager?.metadata?.thread_id ||
+        this.req?.body?.conversationId;
+
+      console.log('[MatrizIPEVAR Tool] Debug conversationId sources:', {
+        'runManager.configurable.thread_id': runManager?.configurable?.thread_id,
+        'runManager.metadata.thread_id': runManager?.metadata?.thread_id,
+        'req.body.conversationId': this.req?.body?.conversationId,
+        resolved: conversationId,
+      });
 
       if (!conversationId || conversationId === 'new') {
         const errorMsg = 'No se encontró un ID de conversación válido para guardar la matriz.';
@@ -104,14 +95,12 @@ class MatrizIPEVAR extends Tool {
 
       const userId = this.req?.user?.id;
 
-      // findOneAndUpdate uses conversationId as the unique key.
-      // On insert (upsert), we also set the userId so the frontend GET route can find it.
+      // Upsert: find by conversationId (no user filter to avoid mismatch on first-time save).
+      // Use $setOnInsert to stamp user on document CREATION only.
       await GTC45Matrix.findOneAndUpdate(
         { conversationId },
         {
           $push: { matrixRows: row },
-          // $setOnInsert only runs when the document is CREATED (first upsert).
-          // This guarantees the user field is set correctly on creation.
           ...(userId ? { $setOnInsert: { user: userId } } : {}),
         },
         { upsert: true, new: true },
