@@ -131,8 +131,8 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
     ],
   },
   biomecanico: {
-    label: 'Biomécanico',
-    keywords: ['biomécan', 'biomecan', 'ergonom', 'postura forzada', 'movimiento repetitivo', 'levantamiento', 'manipulación de carga'],
+    label: 'Biomecánico',
+    keywords: ['biomecan', 'biomécan', 'ergon', 'postura', 'repetitiv', 'levantamiento', 'carga', 'escritorio', 'computador', 'digitaci', 'sedentari', 'monitor', 'teclado', 'mouse', 'pantalla', 'puesto de trabajo'],
     note: 'NOTA GTC-45 §Anexo C: Para calificar los peligros biomecánicos de forma más detallada puede tomarse como base las NTC relacionadas con ergonomía: NTC 5693-1, NTC 5693-2, NTC 5693-3, NTC 5723, NTC 5748, entre otras.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Alta carga física, movimiento repetitivo extremo y/o postura forzada mantenida toda la jornada sin pausas ni controles. Aplique NTC 5693-1/2/3, 5723, 5748.' },
@@ -161,36 +161,83 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
  *   2° — Búsqueda por keywords en la descripción del peligro (fallback)
  * Esto evita que 'carga mental' (psicosocial) se detecte como 'Biomécanico' por la keyword 'carga'.
  */
-export function detectAnnexCType(clasificacion: string, descripcion?: string): string | null {
-  const clas = (clasificacion || '').toLowerCase().trim();
-  const desc = (descripcion || '').toLowerCase();
+/** Normaliza texto quitando tildes y convirtiendo a minúsculas para comparaciones más robustas */
+function normalize(text: string): string {
+  return (text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
 
-  // ── PRIORIDAD 1: coincidencia exacta en clasificación ─────────────────────
+export function detectAnnexCType(clasificacion: string, descripcion?: string): string | null {
+  const clas = normalize(clasificacion);
+  const desc = normalize(descripcion || '');
+  const combined = `${clas} ${desc}`;
+
+  // ── PRIORIDAD 1: coincidencia en clasificación (normalizada, sin tildes) ────
   if (clas.includes('psicosocial')) return 'psicosocial';
-  if (clas.includes('biom') && (clas.includes('can') || clas.includes('mécan'))) return 'biomecanico';
+
+  // Biomecánico — detecta todas las variantes: Biomecánico, Biomecanico, BIOMECÁNICO, ergonomico, etc.
+  if (
+    clas.includes('biomecan') ||
+    clas.includes('biomecan') ||
+    clas.includes('ergon') ||
+    (clas.includes('bio') && clas.includes('mec'))
+  ) return 'biomecanico';
+
   if (clas.includes('biol')) return 'biologico';
-  if (clas.includes('químic') || clas.includes('quimic')) return 'quimico';
-  if (clas.includes('físic') || clas.includes('fisic')) {
-    // Subrefinamiento del peligro físico por descripción
-    if (desc.includes('ruido') || desc.includes('acústico') || desc.includes('decibel')) return 'ruido';
-    if (desc.includes('iluminac') || desc.includes('luminanc') || desc.includes(' lux') || desc.includes('brillo')) return 'iluminacion';
-    if (desc.includes('temperatura') || desc.includes('estrés térmico') || desc.includes('calor extremo') || desc.includes('frío extremo')) return 'temperatura';
+  if (clas.includes('quimic') || clas.includes('qca')) return 'quimico';
+  if (clas.includes('locativ')) return 'biomecanico'; // Locativo usa escala de deficiencias físicas genérica
+
+  if (clas.includes('fisic') || clas.includes('fisic')) {
+    // Subrefinamiento físico por descripción
+    if (desc.includes('ruido') || desc.includes('acustic') || desc.includes('decibel')) return 'ruido';
+    if (desc.includes('iluminac') || desc.includes('luminanc') || desc.includes('lux') || desc.includes('brillo')) return 'iluminacion';
+    if (desc.includes('temperatura') || desc.includes('termico') || desc.includes('calor') || desc.includes('frio')) return 'temperatura';
     if (desc.includes('vibrac')) return 'vibraciones';
     if (desc.includes('ionizante') || desc.includes('rayos x') || desc.includes('gamma') || desc.includes('radiactiv')) return 'rad_ionizante';
-    if (desc.includes('no ionizante') || desc.includes('ultravioleta') || desc.includes('láser') || desc.includes('laser') || desc.includes('infrarrojo')) return 'rad_no_ionizante';
-    return 'iluminacion'; // fallback genérico para peligros Físicos sin sub-tipo identificado
+    if (desc.includes('no ionizante') || desc.includes('ultravioleta') || desc.includes('laser') || desc.includes('infrarrojo')) return 'rad_no_ionizante';
+    return 'iluminacion'; // fallback genérico físico
   }
 
-  // ── PRIORIDAD 2: keyword en descripción (solo para clasificaciones no identificadas arriba) ──
-  const descOnly = desc;
-  if (descOnly.includes('psicosocial') || descOnly.includes('estrés laboral') || descOnly.includes('burnout') || descOnly.includes('acoso') ||
-      descOnly.includes('carga mental') || descOnly.includes('riesgo psicosocial')) return 'psicosocial';
-  if (descOnly.includes('bacteria') || descOnly.includes('virus') || descOnly.includes('biológico') || descOnly.includes('hongos') || descOnly.includes('parásito')) return 'biologico';
-  if (descOnly.includes('polvo') || descOnly.includes('vapores') || descOnly.includes('gases') || descOnly.includes('solvente') || descOnly.includes('aerósol')) return 'quimico';
-  if (descOnly.includes('postura forzada') || descOnly.includes('movimiento repetitivo') || descOnly.includes('levantamiento de carga') || descOnly.includes('carga postural')) return 'biomecanico';
-  if (descOnly.includes('ruido')) return 'ruido';
-  if (descOnly.includes('temperatura') || descOnly.includes('estrés térmico')) return 'temperatura';
-  if (descOnly.includes('vibrac')) return 'vibraciones';
+  // ── PRIORIDAD 2: keywords en descripción del peligro ─────────────────────
+  // Psicosocial
+  if (combined.includes('psicosocial') || combined.includes('estres laboral') ||
+      combined.includes('burnout') || combined.includes('acoso') ||
+      combined.includes('carga mental') || combined.includes('fatiga mental') ||
+      combined.includes('ansiedad') || combined.includes('turno nocturno')) return 'psicosocial';
+
+  // Biológico
+  if (combined.includes('bacteria') || combined.includes('virus') ||
+      combined.includes('biologico') || combined.includes('hongo') || combined.includes('parasito')) return 'biologico';
+
+  // Químico
+  if (combined.includes('polvo') || combined.includes('vapor') || combined.includes('gas') ||
+      combined.includes('solvente') || combined.includes('aerosol') || combined.includes('quimico') ||
+      combined.includes('sustancia')) return 'quimico';
+
+  // Biomecánico — keywords ampliadas para capturar descripciones reales de la IA
+  if (
+    combined.includes('postura') || combined.includes('repetitiv') ||
+    combined.includes('levantamiento') || combined.includes('carga postural') ||
+    combined.includes('musculoesquelet') || combined.includes('lumbar') ||
+    combined.includes('espalda') || combined.includes('escritorio') ||
+    combined.includes('computador') || combined.includes('teclado') ||
+    combined.includes('mouse') || combined.includes('digitac') ||
+    combined.includes('sedentari') || combined.includes('pantalla') ||
+    combined.includes('monitor') || combined.includes('puesto') ||
+    combined.includes('ergon') || combined.includes('articulac') ||
+    combined.includes('muñeca') || combined.includes('columna') ||
+    combined.includes('cuello') || combined.includes('hombro') ||
+    combined.includes('tension muscular') || combined.includes('movimiento')
+  ) return 'biomecanico';
+
+  // Físico genérico
+  if (combined.includes('ruido')) return 'ruido';
+  if (combined.includes('temperatura') || combined.includes('termico')) return 'temperatura';
+  if (combined.includes('vibrac')) return 'vibraciones';
+  if (combined.includes('iluminac') || combined.includes('luz artificial')) return 'iluminacion';
 
   return null;
 }
