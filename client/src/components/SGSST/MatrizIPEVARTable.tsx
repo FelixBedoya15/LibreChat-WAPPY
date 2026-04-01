@@ -555,7 +555,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
 
       {/* ── Tabla ──────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto min-h-[350px]">
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <ShieldAlert className="h-10 w-10 opacity-20" />
@@ -708,7 +708,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       </div>
 
       {/* ── Dashboard analítico ─────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-border-light bg-surface-primary px-4 py-2 overflow-y-auto max-h-[60vh]">
+      <div className="shrink-0 border-t border-border-light bg-surface-primary px-4 py-2 overflow-y-auto max-h-[40vh]">
         <MatrizIPEVARDashboard
           matrixRows={matrixRows}
           conversationId={actualConvoId}
