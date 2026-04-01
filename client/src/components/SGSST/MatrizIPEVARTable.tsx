@@ -4,33 +4,150 @@ import store from '~/store';
 import {
   Save, Maximize2, Minimize2, RefreshCw, Plus, Trash2,
   AlertTriangle, ShieldAlert, Zap, ScanSearch, Loader2, Sparkles,
+  ChevronDown, Check,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { MatrixRow, ANNEX_C_CRITERIA, detectAnnexCType } from './MatrizIPEVARConstants';
 import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
 
-// ── Selector Anexo C: ND Cualitativo ─────────────────────────────────────────
+// ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
+const FilterSelect = ({
+  value, onChange, options, placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selected = value ? options.find(o => o.value === value) : null;
+
+  return (
+    <div ref={ref} className="relative z-20">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 h-8 pl-3 pr-2 rounded-xl border border-border-medium bg-surface-primary text-xs text-text-primary hover:border-teal-400 hover:bg-surface-secondary transition-all cursor-pointer min-w-[160px] max-w-[220px]"
+      >
+        {selected ? (
+          <span className="flex-1 text-left truncate text-teal-600 dark:text-teal-400 font-semibold">{selected.label}</span>
+        ) : (
+          <span className="flex-1 text-left truncate text-text-secondary">{placeholder}</span>
+        )}
+        <ChevronDown className={`h-3.5 w-3.5 text-text-secondary shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-1.5 left-0 min-w-full w-max max-w-[280px] bg-surface-primary dark:bg-surface-secondary border border-border-medium rounded-xl shadow-2xl overflow-hidden py-1 z-50">
+          {/* Opción "Todos" */}
+          <button
+            type="button"
+            onClick={() => { onChange(''); setOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors ${
+              !value
+                ? 'text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-900/20'
+                : 'text-text-primary hover:bg-surface-secondary hover:text-teal-600 dark:hover:text-teal-400'
+            }`}
+          >
+            <span className="w-3.5 shrink-0 flex items-center justify-center">
+              {!value && <Check className="h-3 w-3" />}
+            </span>
+            {placeholder}
+          </button>
+          <div className="my-1 border-t border-border-light" />
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 transition-colors ${
+                value === opt.value
+                  ? 'text-teal-600 dark:text-teal-400 font-bold bg-teal-50 dark:bg-teal-900/20'
+                  : 'text-text-primary hover:bg-surface-secondary hover:text-teal-600 dark:hover:text-teal-400'
+              }`}
+            >
+              <span className="w-3.5 shrink-0 flex items-center justify-center">
+                {value === opt.value && <Check className="h-3 w-3" />}
+              </span>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Selector Anexo C: ND Cualitativo (con estilo del sistema) ─────────────────
 const AnnexCSelector = ({ row, onSelect }: { row: MatrixRow; onSelect: (val: number) => void }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const typeKey = detectAnnexCType(row.peligro_clasificacion, row.peligro_descripcion);
   if (!typeKey) return null;
   const entry = ANNEX_C_CRITERIA[typeKey];
+  const selected = entry.criteria.find(c => c.value === row.nd_cualitativo);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   return (
-    <div className="mt-1 w-full">
-      <select
-        value={row.nd_cualitativo ?? ''}
-        onChange={e => e.target.value !== '' && onSelect(Number(e.target.value))}
-        className="w-full text-[10px] bg-surface-secondary border border-teal-400/40 rounded-lg px-1 py-0.5 text-text-primary outline-none cursor-pointer"
-        title={entry.note}
+    <div ref={ref} className="mt-1 w-full relative z-30">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-1 text-[10px] bg-surface-secondary border border-teal-400/40 rounded-lg px-2 py-1 text-text-primary hover:border-teal-500 transition-all cursor-pointer"
       >
-        <option value="">Anexo C — {entry.label}</option>
-        {entry.criteria.map(c => (
-          <option key={c.value} value={c.value} title={c.description}>
-            {c.label}: {c.description.slice(0, 50)}…
-          </option>
-        ))}
-      </select>
-      {entry.note && (
-        <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-0.5 leading-tight">ℹ {entry.note.slice(0, 100)}…</p>
+        <span className={`flex-1 text-left truncate ${selected ? 'text-teal-600 dark:text-teal-400 font-semibold' : 'text-text-secondary'}`}>
+          {selected ? `${selected.label}` : `Anexo C — ${entry.label}`}
+        </span>
+        <ChevronDown className={`h-3 w-3 text-text-secondary shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-1 left-0 w-72 bg-surface-primary dark:bg-surface-secondary border border-border-medium rounded-xl shadow-2xl overflow-hidden py-1 z-50">
+          <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-text-secondary border-b border-border-light">{entry.label}</p>
+          {entry.note && (
+            <p className="px-3 py-1.5 text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200/40 leading-tight">
+              ⓘ {entry.note.slice(0, 150)}{entry.note.length > 150 ? '…' : ''}
+            </p>
+          )}
+          {entry.criteria.map(c => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => { onSelect(c.value); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 transition-colors ${
+                row.nd_cualitativo === c.value
+                  ? 'bg-teal-50 dark:bg-teal-900/20'
+                  : 'hover:bg-surface-secondary'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-3.5 shrink-0">{row.nd_cualitativo === c.value && <Check className="h-3 w-3 text-teal-500" />}</span>
+                <span className={`text-[10px] font-bold ${
+                  c.value === 10 ? 'text-red-600' : c.value === 6 ? 'text-orange-500' :
+                  c.value === 2 ? 'text-yellow-600' : 'text-green-600'
+                }`}>{c.label}</span>
+              </div>
+              <p className="text-[9px] text-text-secondary mt-0.5 pl-5 leading-tight">{c.description}</p>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -38,7 +155,7 @@ const AnnexCSelector = ({ row, onSelect }: { row: MatrixRow; onSelect: (val: num
 
 // ── Mini AI Bubble para Textareas ────────────────────────────────────────────
 const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
-  fieldLabel: string; currentValue: string; row: MatrixRow; token: string; onResult: (v: string) => void;
+  fieldLabel: string; currentValue: string; row: MatrixRow; token?: string; onResult: (v: string) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
@@ -68,7 +185,6 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
       <button
         onClick={() => setOpen(o => !o)}
         className="absolute -bottom-1 right-0 flex items-center gap-1 text-[9px] text-teal-500 hover:text-teal-700 font-bold opacity-0 group-hover/cell:opacity-100 transition-opacity"
-        title="Editar con IA"
         type="button"
       >
         <Sparkles className="h-3 w-3" /> IA
@@ -100,7 +216,7 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
 // ── Celda Textarea con AI Bubble ──────────────────────────────────────────────
 const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '', fieldLabel, row, token }: {
   value: string; onChange: (v: string) => void; rows?: number; minW?: string;
-  placeholder?: string; fieldLabel: string; row: MatrixRow; token: string;
+  placeholder?: string; fieldLabel: string; row: MatrixRow; token?: string;
 }) => (
   <div className="relative group/cell w-full">
     <textarea
@@ -129,6 +245,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [filterText, setFilterText] = useState('');
   const [filterProceso, setFilterProceso] = useState('');
   const [filterNivel, setFilterNivel] = useState('');
+  const [filterCalificacion, setFilterCalificacion] = useState('');
   const [sortField, setSortField] = useState<'proceso' | 'nr' | 'peligro_clasificacion' | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -265,6 +382,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     }
     if (filterProceso) rows = rows.filter(({ row }) => row.proceso === filterProceso);
     if (filterNivel) rows = rows.filter(({ row }) => getNivel(Number(row.nr) || 0) === filterNivel);
+    if (filterCalificacion) rows = rows.filter(({ row }) => row.interpretacion_nr === filterCalificacion);
 
     if (sortField) {
       rows.sort((a, b) => {
@@ -275,7 +393,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       });
     }
     return rows;
-  }, [matrixRows, filterText, filterProceso, filterNivel, sortField, sortDir]);
+  }, [matrixRows, filterText, filterProceso, filterNivel, filterCalificacion, sortField, sortDir]);
 
   const procesosUnicos = useMemo(() => [...new Set(matrixRows.map(r => r.proceso).filter(Boolean))], [matrixRows]);
 
@@ -369,36 +487,72 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         </div>
       )}
 
-      {/* ── Barra de Filtros ──────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2 bg-surface-secondary border-b border-border-light">
-        <input
-          type="search"
-          placeholder="🔍 Buscar en la matriz…"
-          value={filterText}
-          onChange={e => setFilterText(e.target.value)}
-          className="text-xs h-8 px-3 rounded-lg border border-border-medium bg-surface-primary outline-none focus:border-teal-400 transition-colors min-w-[160px]"
+
+      {/* ── Barra de Filtros ──────────────────────────────────────────────── */}
+      <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2.5 bg-surface-secondary border-b border-border-light">
+        {/* Búsqueda libre */}
+        <div className="relative">
+          <input
+            type="search"
+            placeholder="Buscar en la matriz…"
+            value={filterText}
+            onChange={e => setFilterText(e.target.value)}
+            className="text-xs h-8 pl-7 pr-3 rounded-xl border border-border-medium bg-surface-primary outline-none focus:border-teal-400 transition-colors min-w-[170px] placeholder:text-text-secondary"
+          />
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">🔍</span>
+        </div>
+
+        {/* Filtro Proceso */}
+        <FilterSelect
+          value={filterProceso}
+          onChange={setFilterProceso}
+          placeholder="Todos los procesos"
+          options={procesosUnicos.map(p => ({ value: p, label: p }))}
         />
-        <select value={filterProceso} onChange={e => setFilterProceso(e.target.value)}
-          className="text-xs h-8 px-2 rounded-lg border border-border-medium bg-surface-primary outline-none cursor-pointer">
-          <option value="">Todos los procesos</option>
-          {procesosUnicos.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={filterNivel} onChange={e => setFilterNivel(e.target.value)}
-          className="text-xs h-8 px-2 rounded-lg border border-border-medium bg-surface-primary outline-none cursor-pointer">
-          <option value="">Todos los niveles</option>
-          <option value="critico">🔴 Crítico (NR≥150)</option>
-          <option value="alto">🟠 Alto (NR≥50)</option>
-          <option value="medio">🟡 Mejorable (NR≥20)</option>
-          <option value="bajo">🟢 Aceptable</option>
-        </select>
-        {(filterText || filterProceso || filterNivel) && (
-          <button onClick={() => { setFilterText(''); setFilterProceso(''); setFilterNivel(''); }}
-            className="text-xs h-8 px-3 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors cursor-pointer">
-            ✕ Limpiar filtros
+
+        {/* Filtro Nivel NR */}
+        <FilterSelect
+          value={filterNivel}
+          onChange={setFilterNivel}
+          placeholder="Todos los niveles"
+          options={[
+            { value: 'critico', label: '🔴 Crítico (NR ≥ 150)' },
+            { value: 'alto',    label: '🟠 Alto (NR ≥ 50)' },
+            { value: 'medio',   label: '🟡 Mejorable (NR ≥ 20)' },
+            { value: 'bajo',    label: '🟢 Aceptable (NR < 20)' },
+          ]}
+        />
+
+        {/* Filtro Calificación */}
+        <FilterSelect
+          value={filterCalificacion}
+          onChange={setFilterCalificacion}
+          placeholder="Todas las calificaciones"
+          options={[
+            { value: 'I',   label: '🔴 Nivel I — No Aceptable' },
+            { value: 'II',  label: '🟠 Nivel II — Aceptable con control' },
+            { value: 'III', label: '🟡 Nivel III — Mejorable' },
+            { value: 'IV',  label: '🟢 Nivel IV — Aceptable' },
+          ]}
+        />
+
+        {/* Limpiar filtros */}
+        {(filterText || filterProceso || filterNivel || filterCalificacion) && (
+          <button
+            onClick={() => { setFilterText(''); setFilterProceso(''); setFilterNivel(''); setFilterCalificacion(''); }}
+            className="flex items-center gap-1 text-xs h-8 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 transition-colors cursor-pointer font-medium"
+          >
+            ✕ Limpiar
+            <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black">
+              {[filterText, filterProceso, filterNivel, filterCalificacion].filter(Boolean).length}
+            </span>
           </button>
         )}
-        <span className="ml-auto text-xs text-text-secondary">{displayRows.length} / {matrixRows.length} riesgos</span>
+        <span className="ml-auto text-xs text-text-secondary font-medium tabular-nums">
+          {displayRows.length} / {matrixRows.length} riesgos
+        </span>
       </div>
+
 
       {/* ── Tabla ──────────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">
@@ -497,8 +651,9 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.ne} onChange={e => handleCellChange(idx, 'ne', e.target.value)} /></td>
                     <td className="px-4 py-3 font-bold text-center text-purple-600 dark:text-purple-400 bg-purple-500/5">{row.np}</td>
                     <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.nc} onChange={e => handleCellChange(idx, 'nc', e.target.value)} /></td>
-                    <td className={`px-4 py-3 text-center font-black border-l-2 border-orange-500/20 bg-orange-500/5 align-middle ${nrColorClass(Number(row.nr))}`} title={`${row.interpretacion_nr} — ${row.aceptabilidad}`}>
-                      {row.nr}
+                    <td className={`px-4 py-3 text-center font-black border-l-2 border-orange-500/20 bg-orange-500/5 align-middle ${nrColorClass(Number(row.nr))}`}>
+                      <div className="text-base">{row.nr}</div>
+                      <div className="text-[9px] font-normal text-current opacity-70">{row.interpretacion_nr}</div>
                     </td>
 
                     {/* Medidas propuestas */}
@@ -527,7 +682,6 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <td className="px-4 py-3 text-center align-middle sticky right-0 bg-surface-primary border-l border-border-light">
                       <div className="flex flex-col items-center gap-2">
                         <button onClick={() => handleAiUpdateRow(idx)} disabled={aiRowLoading === idx}
-                          title="Actualizar fila con IA"
                           className="group/btn flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 text-yellow-600 text-[10px] font-bold hover:bg-yellow-100 transition-all disabled:opacity-50">
                           {aiRowLoading === idx
                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -558,7 +712,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         <MatrizIPEVARDashboard
           matrixRows={matrixRows}
           conversationId={actualConvoId}
-          token={token}
+          token={token || ''}
           savedConclusions={chartConclusions}
           onConclusionSaved={(type, text) => setChartConclusions(prev => ({ ...prev, [type]: text }))}
         />

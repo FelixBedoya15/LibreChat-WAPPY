@@ -131,8 +131,8 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
     ],
   },
   biomecanico: {
-    label: 'Biomecánico',
-    keywords: ['biomecánic', 'ergonom', 'postura', 'carga', 'repetitiv', 'manual'],
+    label: 'Biomécanico',
+    keywords: ['biomécan', 'biomecan', 'ergonom', 'postura forzada', 'movimiento repetitivo', 'levantamiento', 'manipulación de carga'],
     note: 'NOTA GTC-45 §Anexo C: Para calificar los peligros biomecánicos de forma más detallada puede tomarse como base las NTC relacionadas con ergonomía: NTC 5693-1, NTC 5693-2, NTC 5693-3, NTC 5723, NTC 5748, entre otras.',
     criteria: [
       { value: 10, label: 'MA (Muy Alto)', description: 'Alta carga física, movimiento repetitivo extremo y/o postura forzada mantenida toda la jornada sin pausas ni controles. Aplique NTC 5693-1/2/3, 5723, 5748.' },
@@ -154,12 +154,44 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   },
 };
 
-/** Detecta qué entrada del Anexo C aplica a partir del texto de clasificación/descripción */
+/**
+ * Detecta qué entrada del Anexo C aplica para una fila de la matriz GTC-45.
+ * PRIORIDAD:
+ *   1° — Coincidencia exacta del campo `peligro_clasificacion` (más confiable)
+ *   2° — Búsqueda por keywords en la descripción del peligro (fallback)
+ * Esto evita que 'carga mental' (psicosocial) se detecte como 'Biomécanico' por la keyword 'carga'.
+ */
 export function detectAnnexCType(clasificacion: string, descripcion?: string): string | null {
-  const text = `${clasificacion} ${descripcion || ''}`.toLowerCase();
-  for (const [key, entry] of Object.entries(ANNEX_C_CRITERIA)) {
-    if (entry.keywords.some(kw => text.includes(kw.toLowerCase()))) return key;
+  const clas = (clasificacion || '').toLowerCase().trim();
+  const desc = (descripcion || '').toLowerCase();
+
+  // ── PRIORIDAD 1: coincidencia exacta en clasificación ─────────────────────
+  if (clas.includes('psicosocial')) return 'psicosocial';
+  if (clas.includes('biom') && (clas.includes('can') || clas.includes('mécan'))) return 'biomecanico';
+  if (clas.includes('biol')) return 'biologico';
+  if (clas.includes('químic') || clas.includes('quimic')) return 'quimico';
+  if (clas.includes('físic') || clas.includes('fisic')) {
+    // Subrefinamiento del peligro físico por descripción
+    if (desc.includes('ruido') || desc.includes('acústico') || desc.includes('decibel')) return 'ruido';
+    if (desc.includes('iluminac') || desc.includes('luminanc') || desc.includes(' lux') || desc.includes('brillo')) return 'iluminacion';
+    if (desc.includes('temperatura') || desc.includes('estrés térmico') || desc.includes('calor extremo') || desc.includes('frío extremo')) return 'temperatura';
+    if (desc.includes('vibrac')) return 'vibraciones';
+    if (desc.includes('ionizante') || desc.includes('rayos x') || desc.includes('gamma') || desc.includes('radiactiv')) return 'rad_ionizante';
+    if (desc.includes('no ionizante') || desc.includes('ultravioleta') || desc.includes('láser') || desc.includes('laser') || desc.includes('infrarrojo')) return 'rad_no_ionizante';
+    return 'iluminacion'; // fallback genérico para peligros Físicos sin sub-tipo identificado
   }
+
+  // ── PRIORIDAD 2: keyword en descripción (solo para clasificaciones no identificadas arriba) ──
+  const descOnly = desc;
+  if (descOnly.includes('psicosocial') || descOnly.includes('estrés laboral') || descOnly.includes('burnout') || descOnly.includes('acoso') ||
+      descOnly.includes('carga mental') || descOnly.includes('riesgo psicosocial')) return 'psicosocial';
+  if (descOnly.includes('bacteria') || descOnly.includes('virus') || descOnly.includes('biológico') || descOnly.includes('hongos') || descOnly.includes('parásito')) return 'biologico';
+  if (descOnly.includes('polvo') || descOnly.includes('vapores') || descOnly.includes('gases') || descOnly.includes('solvente') || descOnly.includes('aerósol')) return 'quimico';
+  if (descOnly.includes('postura forzada') || descOnly.includes('movimiento repetitivo') || descOnly.includes('levantamiento de carga') || descOnly.includes('carga postural')) return 'biomecanico';
+  if (descOnly.includes('ruido')) return 'ruido';
+  if (descOnly.includes('temperatura') || descOnly.includes('estrés térmico')) return 'temperatura';
+  if (descOnly.includes('vibrac')) return 'vibraciones';
+
   return null;
 }
 
