@@ -249,6 +249,29 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [sortField, setSortField] = useState<'proceso' | 'nr' | 'peligro_clasificacion' | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
+  // ── Drag & Resize Drawer ────────────────────────────────────────────────
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dashboardHeight, setDashboardHeight] = useState<number>(45); // 45% por defecto
+
+  const startDrag = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const newH = rect.bottom - moveEvent.clientY;
+      const rawPct = (newH / rect.height) * 100;
+      setDashboardHeight(Math.max(10, Math.min(rawPct, 90))); // Restringe entre 10% y 90%
+    };
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'row-resize';
+  }, []);
+
   const { token } = useAuthContext();
   const conversation = useRecoilValue(store.conversationByIndex(0));
   const actualConvoId = conversation?.conversationId && conversation.conversationId !== 'new'
@@ -429,7 +452,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   };
 
   return (
-    <div className={`flex flex-col h-full bg-surface-primary transition-all duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
+    <div ref={containerRef} className={`flex flex-col h-full bg-surface-primary transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3 shrink-0">
@@ -555,7 +578,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
 
       {/* ── Tabla ──────────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto min-h-[350px]">
+      <div className="flex-1 overflow-auto">
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <ShieldAlert className="h-10 w-10 opacity-20" />
@@ -707,8 +730,18 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         </div>
       </div>
 
-      {/* ── Dashboard analítico ─────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-border-light bg-surface-primary px-4 py-2 overflow-y-auto max-h-[40vh]">
+      {/* ── Dashboard analítico y Resizer ───────────────────────────────────── */}
+      <div 
+        onMouseDown={startDrag}
+        className="shrink-0 h-2 bg-surface-tertiary border-y border-border-light hover:bg-teal-500/20 cursor-row-resize flex items-center justify-center transition-colors group/resizer relative z-20"
+      >
+        <div className="w-12 h-1 bg-border-heavy rounded-full group-hover/resizer:bg-teal-500/50" />
+      </div>
+
+      <div 
+        className="shrink-0 bg-surface-primary px-4 py-2 overflow-y-auto"
+        style={{ height: `${dashboardHeight}%` }}
+      >
         <MatrizIPEVARDashboard
           matrixRows={matrixRows}
           conversationId={actualConvoId}
