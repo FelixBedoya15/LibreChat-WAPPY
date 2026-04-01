@@ -35,6 +35,8 @@ class MatrizIPEVAR extends Tool {
         medida_ingenieria: z.string().default('Ninguno').describe('Medidas de intervención: Controles de ingeniería propuestos.'),
         medida_administrativa: z.string().default('Ninguno').describe('Medidas de intervención: Controles administrativos.'),
         medida_eppu: z.string().default('Ninguno').describe('Medidas de intervención: Equipos de protección personal (EPP).'),
+        factores_reduccion: z.string().default('No aplica').describe('Anexo E GTC-45:2012 — Factores de reducción y justificación. Documenta medidas verificables que reducen el riesgo residual: capacitaciones, inspecciones, señalizaciones, procedimientos. Incluye frecuencia y responsable.'),
+        nd_cualitativo: z.number().optional().describe('Anexo C GTC-45:2012 — Nivel de Deficiencia cualitativo para peligros higiénicos. MA=10, A=6, M=2, B=0. Se usa cuando no hay medición instrumental disponible.'),
       })).describe('Lista masiva de riesgos. Si el contexto incluye múltiples procesos o peligros, debes insertarlos todos de una sola vez en este array. Procesa hasta 20 riesgos por llamado.')
     });
   }

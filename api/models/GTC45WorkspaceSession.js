@@ -17,6 +17,14 @@ const gtc45WorkspaceSessionSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
+    /**
+     * chartConclusions: conclusiones generadas por IA para cada gráfico del dashboard.
+     * Keys: 'clasificacion' | 'controles' | 'enfermedades' | 'procesos'
+     */
+    chartConclusions: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );
