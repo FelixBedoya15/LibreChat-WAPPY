@@ -651,7 +651,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     FACTORES REDUCCIÓN (Anexo E)
                   </th>
                   {/* Acciones */}
-                  <th className="px-4 py-3 text-center min-w-[100px] sticky right-0 z-[100] bg-surface-secondary">ACCIONES</th>
+                  <th className="px-4 py-3 text-center min-w-[100px] sticky right-0 z-[100] bg-surface-secondary shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)] border-l border-border-light">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
@@ -730,7 +730,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     </td>
 
                     {/* Acciones */}
-                    <td className="px-4 py-3 text-center align-middle sticky right-0 bg-surface-primary border-l border-border-light">
+                    <td className="px-4 py-3 text-center align-middle sticky right-0 bg-surface-primary border-l border-border-light shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">
                       <div className="flex flex-col items-center gap-2">
                         <button onClick={() => handleAiUpdateRow(idx)} disabled={aiRowLoading === idx}
                           className="group/btn flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 text-yellow-600 text-[10px] font-bold hover:bg-yellow-100 transition-all disabled:opacity-50">
