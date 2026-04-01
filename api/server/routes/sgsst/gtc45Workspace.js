@@ -5,6 +5,8 @@ const router = express.Router();
 const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
+const CompanyInfo = require('~/models/CompanyInfo');
+const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
 
 // GET matrix for a conversation
@@ -148,29 +150,63 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
 
     if (!matrixRows || !matrixRows.length) return res.status(400).json({ error: 'La matriz está vacía.' });
 
+    let loadedCompanyInfo = null;
+    try {
+      loadedCompanyInfo = await CompanyInfo.findOne({ user: userId }).lean();
+    } catch (e) {
+      logger.warn('[GTC45] Could not load CompanyInfo', e);
+    }
+
+    const currentDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const headerHTML = buildStandardHeader({
+      title: 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45',
+      companyInfo: loadedCompanyInfo,
+      date: currentDate,
+      norm: 'GTC-45:2012 / Decreto 1072 de 2015',
+      responsibleName: req.user?.name,
+    });
+
     const matrixSummary = matrixRows.map((r, i) =>
-      `[${i+1}] ${r.proceso} | ${r.actividad} | ${r.peligro_clasificacion} | Peligro: ${r.peligro_descripcion} | NR: ${r.nr}`
+      `[${i+1}] Proceso: ${r.proceso} | Actividad: ${r.actividad} | Clasificación: ${r.peligro_clasificacion} | Peligro: ${r.peligro_descripcion} | NR: ${r.nr} (${r.interpretacion_nr}) | Exp: ${r.efectos_posibles}`
     ).join('\n');
 
-    const prompt = `Eres un experto en GTC-45:2012. Analiza esta Matriz IPEVAR completa y responde a la instrucción del auditor.
+    const prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
+Analiza esta Matriz IPEVAR completa y emite un Informe Ejecutivo integral.
 
-MATRIZ COMPLETA (${matrixRows.length} riesgos):
+**INSTRUCCIONES DE FORMATO HTML:**
+- Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.
+- TODAS las tablas deben llevar: \`<table style="width:100%;table-layout:fixed;word-wrap:break-word;border-collapse:separate;border-spacing:0;border:1px solid #ccfbf1;border-radius:8px;margin-bottom:25px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">\`
+- Headers de tablas (<th>): \`<th style="background-color:#0f766e;color:#fff;padding:12px 14px;font-size:13px;font-weight:700;text-transform:uppercase;text-align:left;">\`
+- Celdas (<td>): \`<td style="padding:10px 14px;border-bottom:1px solid #f0fdfa;font-size:13px;color:#334155;vertical-align:top;background-color:#fff;">\`
+- Headers de sección (H3): \`<h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:5px;">\`
+
+**ESTRUCTURA DEL INFORME EXIGIDA (en HTML):**
+1. **Introducción:** Breve contexto gerencial (1 párrafo).
+2. **Hallazgos Críticos:** Menciona los riesgos con Mayor NR (Rojos / No Aceptables) y sus consecuencias (efectos posibles). Crea una tabla resumen con: Proceso, Actividad, Peligro y NR.
+3. **Brechas en Controles:** Evalúa la jerarquía de controles actual de la matriz suministrada.
+4. **Plan de Acción Gerencial:** Propuesta de controles de ingeniería y administrativos recomendados (Tabla de 3 columnas: Proceso, Recomendaciones, Tipo de Control recomendado).
+5. NO incluyas título principal ni encabezado corporativo (el sistema los inyectará antes).
+6. NO incluyas bloque de firmas en tu respuesta de HTML (el sistema las inyectará debajo).
+
+**MATRIZ COMPLETA (${matrixRows.length} riesgos evaluados):**
 ${matrixSummary}
 
-DATOS DETALLADOS (JSON):
-${JSON.stringify(matrixRows, null, 2).slice(0, 6000)}
-
-INSTRUCCIÓN DEL AUDITOR:
-${instruction || 'Proporciona un análisis ejecutivo de los principales hallazgos de riesgo, identifica los procesos más críticos y las brechas en los controles existentes.'}
-
-Responde en español, de forma técnica y estructurada, máximo 500 palabras. Sin bloques de código.`;
+**INSTRUCCIÓN ESPECÍFICA (opcional):**
+${instruction || 'Generar informe ejecutivo de alto nivel priorizando los procesos más peligrosos de acuerdo a los resultados.'}
+`;
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
-    const analysis = result.response.text().trim();
+    const analysisRaw = result.response.text();
+    const htmlBody = analysisRaw.replace(/```html\n ?/g, '').replace(/```\n?/g, '').trim();
 
-    logger.info(`[GTC45/ai-analyze-matrix] Analysis generated for user ${userId}, ${matrixRows.length} rows`);
-    return res.json({ analysis });
+    let fullReport = headerHTML + '<div style="margin-top:20px;">' + htmlBody + '</div>';
+    if (loadedCompanyInfo) {
+      fullReport += buildSignatureSection(loadedCompanyInfo);
+    }
+
+    logger.info(`[GTC45/ai-analyze-matrix] HTML Analysis generated for user ${userId}, ${matrixRows.length} rows`);
+    return res.json({ analysis: fullReport });
 
   } catch (error) {
     logger.error('[GTC45/ai-analyze-matrix] Error:', error.message);

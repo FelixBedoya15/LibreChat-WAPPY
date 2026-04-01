@@ -8,6 +8,7 @@ interface ExportDropdownProps {
     content: string;
     fileName: string;
     reportType?: 'checklist' | 'general';
+    onExportExcel?: () => void;
 }
 
 /**
@@ -15,7 +16,7 @@ interface ExportDropdownProps {
  * Provides HTML, Word, and PDF export options in a single dropdown button.
  * Preserves full HTML styling (tables, colors, formatting) in all formats.
  */
-const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general' }) => {
+const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general', onExportExcel }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -270,6 +271,18 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             description: 'Imprimir / guardar como PDF',
         },
     ];
+
+    if (onExportExcel) {
+        exportOptions.unshift({
+            label: 'Exportar Matriz a Excel (.xlsx)',
+            icon: FileText,
+            handler: () => {
+                onExportExcel();
+                setIsOpen(false);
+            },
+            description: 'Datos crudos de la tabla en Excel',
+        });
+    }
 
     return (
         <div ref={dropdownRef} className="relative">

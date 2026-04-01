@@ -520,7 +520,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl bg-surface-primary border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:-rotate-3 hover:scale-105">
             {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <FileTextIcon className="h-4 w-4 shrink-0" />}
             <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
-              {isAnalyzing ? 'Generando…' : 'Crear Informe'}
+              {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
             </span>
           </button>
 
@@ -529,20 +529,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             content={reportContent || ''}
             fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0,10)}`}
             reportType="general"
+            onExportExcel={handleExportExcel}
           />
-
-          {/* Botón Excel independiente */}
-          <button
-            onClick={handleExportExcel}
-            disabled={matrixRows.length === 0}
-            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 border outline-none rounded-xl bg-surface-primary border-emerald-400/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:-rotate-3 hover:scale-105"
-            title="Exportar Matriz a Excel (.xlsx)"
-          >
-            <FileTextIcon className="h-4 w-4 shrink-0" />
-            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
-              Excel
-            </span>
-          </button>
 
           {/* Guardar */}
           <button onClick={() => saveMatrixData(matrixRows)}
@@ -882,7 +870,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <FileTextIcon className="h-12 w-12 opacity-20" />
                     <p className="text-sm text-center max-w-sm">
                       Presiona{' '}
-                      <span className="font-bold text-purple-600">“Crear Informe”</span>
+                      <span className="font-bold text-purple-600">“Análisis IPEVAR”</span>
                       {' '}en la barra superior para que la IA genere el Informe Ejecutivo GTC-45 con análisis de riesgos, controles y recomendaciones.
                     </p>
                     <button
