@@ -246,6 +246,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [filterProceso, setFilterProceso] = useState('');
   const [filterNivel, setFilterNivel] = useState('');
   const [filterCalificacion, setFilterCalificacion] = useState('');
+  const [filterClasificacion, setFilterClasificacion] = useState('');
   const [sortField, setSortField] = useState<'proceso' | 'nr' | 'peligro_clasificacion' | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -406,6 +407,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     if (filterProceso) rows = rows.filter(({ row }) => row.proceso === filterProceso);
     if (filterNivel) rows = rows.filter(({ row }) => getNivel(Number(row.nr) || 0) === filterNivel);
     if (filterCalificacion) rows = rows.filter(({ row }) => row.interpretacion_nr === filterCalificacion);
+    if (filterClasificacion) rows = rows.filter(({ row }) => row.peligro_clasificacion === filterClasificacion);
 
     if (sortField) {
       rows.sort((a, b) => {
@@ -416,9 +418,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       });
     }
     return rows;
-  }, [matrixRows, filterText, filterProceso, filterNivel, filterCalificacion, sortField, sortDir]);
+  }, [matrixRows, filterText, filterProceso, filterNivel, filterCalificacion, filterClasificacion, sortField, sortDir]);
 
   const procesosUnicos = useMemo(() => [...new Set(matrixRows.map(r => r.proceso).filter(Boolean))], [matrixRows]);
+  const clasificacionesUnicas = useMemo(() => [...new Set(matrixRows.map(r => r.peligro_clasificacion).filter(Boolean))], [matrixRows]);
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -512,7 +515,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
 
       {/* ── Barra de Filtros ──────────────────────────────────────────────── */}
-      <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2.5 bg-surface-secondary border-b border-border-light">
+      <div className="shrink-0 flex flex-wrap items-center gap-2 px-4 py-2.5 bg-surface-secondary border-b border-border-light relative z-[200]">
         {/* Búsqueda libre */}
         <div className="relative">
           <input
@@ -559,15 +562,23 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           ]}
         />
 
+        {/* Filtro Clasificación */}
+        <FilterSelect
+          value={filterClasificacion}
+          onChange={setFilterClasificacion}
+          placeholder="Todos los peligros"
+          options={clasificacionesUnicas.map(c => ({ value: c, label: c }))}
+        />
+
         {/* Limpiar filtros */}
-        {(filterText || filterProceso || filterNivel || filterCalificacion) && (
+        {(filterText || filterProceso || filterNivel || filterCalificacion || filterClasificacion) && (
           <button
-            onClick={() => { setFilterText(''); setFilterProceso(''); setFilterNivel(''); setFilterCalificacion(''); }}
+            onClick={() => { setFilterText(''); setFilterProceso(''); setFilterNivel(''); setFilterCalificacion(''); setFilterClasificacion(''); }}
             className="flex items-center gap-1 text-xs h-8 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 transition-colors cursor-pointer font-medium"
           >
             ✕ Limpiar
             <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black">
-              {[filterText, filterProceso, filterNivel, filterCalificacion].filter(Boolean).length}
+              {[filterText, filterProceso, filterNivel, filterCalificacion, filterClasificacion].filter(Boolean).length}
             </span>
           </button>
         )}
@@ -633,8 +644,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                 {displayRows.map(({ row, idx }) => (
                   <tr 
                     key={idx} 
-                    className="group border-b border-border-light hover:bg-surface-secondary/50 transition-colors relative"
-                    style={{ zIndex: 90 - idx }}
+                    className="group border-b border-border-light hover:bg-surface-secondary/50 transition-colors"
                   >
                     {/* Proceso */}
                     <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.proceso || ''} onChange={e => handleCellChange(idx, 'proceso', e.target.value)} /></td>
@@ -671,7 +681,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     </td>
 
                     {/* Evaluación cuantitativa — ND con Anexo C inline */}
-                    <td className="px-4 py-3 border-l border-border-light bg-purple-500/5 align-top">
+                    <td className="px-4 py-3 border-l border-border-light bg-purple-500/5 align-top relative" style={{ zIndex: 90 - idx }}>
                       <input type="number" className="w-14 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.nd} onChange={e => handleCellChange(idx, 'nd', e.target.value)} />
                       <AnnexCSelector row={row} onSelect={v => { handleCellChange(idx, 'nd_cualitativo', v); handleCellChange(idx, 'nd', v); }} />
                     </td>
