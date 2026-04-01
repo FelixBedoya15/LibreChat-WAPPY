@@ -87,7 +87,7 @@ CONTROLES EXISTENTES — Fuente: ${row.controles_fuente || 'Ninguno'} | Medio: $
 ND actual: ${row.nd || 'No definido'} | NE actual: ${row.ne || 'No definido'} | NC actual: ${row.nc || 'No definido'}
 
 INSTRUCCION: Completa y optimiza esta fila según GTC-45:2012. Para peligros higiénicos (Físico, Químico, Biológico, Psicosocial, Biomecánico) usa el Anexo C para determinar el ND cualitativo.
-REGLA CRÍTICA: NUNCA dejes las medidas propuestas en "Ninguno" si el Riesgo actual requiere intervención. Propón intervenciones viables (Ingeniería, Administrativas o EPP) y SIEMPRE redacta su justificación de costo-beneficio obligatoria en "factores_reduccion".
+REGLA CRÍTICA ABSOLUTA: PROHIBIDO dejar campos vacíos o usar "Ninguno" en "factores_reduccion". Aún si el riesgo es Aceptable, DEBES proponer controles de Mejora Continua (capacitaciones, pausas) y redactar en "factores_reduccion" la justificación costo-beneficio según el Anexo E.
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envolventes) con estos campos exactos:
 {

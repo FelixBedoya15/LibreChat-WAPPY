@@ -491,27 +491,27 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
           {/* Analizar Matriz Completa */}
           <button onClick={handleAnalyzeMatrix} disabled={isAnalyzing || matrixRows.length === 0}
-            className="group flex items-center justify-center p-2 h-[38px] bg-surface-primary border-2 border-purple-500/60 rounded-[18px] text-purple-600 dark:text-purple-400 transition-all duration-300 shadow-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer disabled:opacity-50">
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl bg-surface-primary border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:-rotate-3 hover:scale-105">
             {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <ScanSearch className="h-4 w-4 shrink-0" />}
-            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-bold text-[13px]">
-              {isAnalyzing ? 'Analizando…' : 'Analizar Matriz con IA'}
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
+              {isAnalyzing ? 'Analizando…' : 'Analizar Matriz'}
             </span>
           </button>
 
           {/* Guardar */}
           <button onClick={() => saveMatrixData(matrixRows)}
-            className="group flex items-center justify-center p-2 h-[38px] bg-[#f8f9f8] border-2 border-[#129A61] rounded-[18px] text-[#129A61] transition-all duration-300 shadow-sm hover:bg-[#f0f9f3] cursor-pointer">
-            <Save className="h-4 w-4 stroke-[2.5] shrink-0" />
-            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-bold text-[14px]">
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 border outline-none rounded-xl bg-surface-primary border-green-500/40 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 hover:-rotate-3 hover:scale-105">
+            <Save className="h-4 w-4 shrink-0" />
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
               {isSaving ? 'Guardando…' : 'Guardar'}
             </span>
           </button>
 
           {/* Maximizar */}
           <button onClick={() => setIsMaximized(m => !m)}
-            className="group flex items-center justify-center p-2 h-[38px] bg-[#f8f9f8] border-2 border-border-medium/80 rounded-[18px] text-text-secondary transition-all duration-300 shadow-sm hover:bg-white hover:text-text-primary hover:border-border-heavy cursor-pointer">
-            {isMaximized ? <Minimize2 className="h-4 w-4 shrink-0 stroke-[2.5]" /> : <Maximize2 className="h-4 w-4 shrink-0 stroke-[2.5]" />}
-            <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2 font-bold text-[14px]">
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105">
+            {isMaximized ? <Minimize2 className="h-4 w-4 shrink-0" /> : <Maximize2 className="h-4 w-4 shrink-0" />}
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
               {isMaximized ? 'Restaurar' : 'Expandir'}
             </span>
           </button>
@@ -776,6 +776,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           token={token || ''}
           savedConclusions={chartConclusions}
           onConclusionSaved={(type, text) => setChartConclusions(prev => ({ ...prev, [type]: text }))}
+          isMaximized={isMaximized}
         />
       </div>
 

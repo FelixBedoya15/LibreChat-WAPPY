@@ -12,6 +12,7 @@ interface DashboardProps {
   token: string;
   savedConclusions: Record<string, string>;
   onConclusionSaved: (chartType: string, text: string) => void;
+  isMaximized?: boolean;
 }
 
 // ── Barra animada reutilizable ────────────────────────────────────────────────
@@ -90,7 +91,7 @@ const ConclusionField = ({ chartType, chartStats, matrixRows, conversationId, to
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclusions, onConclusionSaved }: DashboardProps) => {
+const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclusions, onConclusionSaved, isMaximized }: DashboardProps) => {
 
   // ── Chart A: NR por Clasificación ────────────────────────────────────────
   const chartA = useMemo(() => {
@@ -173,7 +174,7 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
         <span className="text-xs text-text-secondary">({matrixRows.length} riesgos)</span>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      <div className={`grid gap-5 ${isMaximized ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
 
         {/* ── Gráfico A: NR por Clasificación ── */}
         <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
