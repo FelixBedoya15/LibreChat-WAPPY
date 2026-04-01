@@ -4,12 +4,16 @@ import store from '~/store';
 import {
   Save, Maximize2, Minimize2, RefreshCw, Plus, Trash2,
   AlertTriangle, ShieldAlert, Zap, ScanSearch, Loader2, Sparkles,
-  ChevronDown, Check,
+  ChevronDown, Check, FileText as FileTextIcon,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
 import { MatrixRow, ANNEX_C_CRITERIA, detectAnnexCType } from './MatrizIPEVARConstants';
 import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
+import ExportDropdown from './ExportDropdown';
+import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -249,18 +253,20 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [isLoading, setIsLoading] = useState(false);
   const [aiRowLoading, setAiRowLoading] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState('');
+  const [reportContent, setReportContent] = useState<string | null>(null);
+  const [editorKey, setEditorKey] = useState(() => Date.now().toString());
+  const [isReportExpanded, setIsReportExpanded] = useState(true);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [chartConclusions, setChartConclusions] = useState<Record<string, string>>({});
 
   // ── Filters & Sort ──────────────────────────────────────────────────────
   const [filterText, setFilterText] = useState('');
   const [filterProceso, setFilterProceso] = useState('');
-  const [filterNivel, setFilterNivel] = useState('');
   const [filterCalificacion, setFilterCalificacion] = useState('');
   const [filterClasificacion, setFilterClasificacion] = useState('');
   const [sortField, setSortField] = useState<'proceso' | 'nr' | 'peligro_clasificacion' | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
 
   // ── Drag & Resize Drawer ────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
@@ -387,11 +393,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     finally { setAiRowLoading(null); }
   };
 
-  // ── AI: Analizar toda la matriz ───────────────────────────────────────────
+  // ── AI: Crear Informe Ejecutivo (inyecta en LiveEditor) ──────────────────
   const handleAnalyzeMatrix = async () => {
     if (!matrixRows.length) return;
     setIsAnalyzing(true);
-    setAnalysisResult('');
     try {
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-analyze-matrix', {
         method: 'POST',
@@ -399,14 +404,36 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         body: JSON.stringify({ matrixRows, modelName: selectedModel }),
       });
       const data = await res.json();
-      if (data.analysis) setAnalysisResult(data.analysis);
+      if (data.analysis) {
+        setReportContent(data.analysis);
+        setEditorKey(Date.now().toString());
+        setIsReportExpanded(true);
+        setTimeout(() => document.getElementById('ipevar-report-editor')?.scrollIntoView({ behavior: 'smooth' }), 300);
+      }
     } catch (e) { console.error('[Matriz] AI analyze error:', e); }
     finally { setIsAnalyzing(false); }
   };
 
+  // ── Excel export ─────────────────────────────────────────────────────────
+  const handleExportExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(matrixRows.map(r => ({
+      'Proceso': r.proceso, 'Zona': r.zona, 'Actividad': r.actividad, 'Tareas': r.tareas,
+      'Rutinaria': r.rutinaria, 'Descripción del Peligro': r.peligro_descripcion,
+      'Clasificación': r.peligro_clasificacion, 'Efectos Posibles': r.efectos_posibles,
+      'Ctrl. Fuente': r.controles_fuente, 'Ctrl. Medio': r.controles_medio, 'Ctrl. Individuo': r.controles_individuo,
+      'ND': r.nd, 'NE': r.ne, 'NP': r.np, 'NC': r.nc, 'NR': r.nr,
+      'Interpretación NR': r.interpretacion_nr, 'Aceptabilidad': r.aceptabilidad,
+      'Eliminación': r.medida_eliminacion, 'Sustitución': r.medida_sustitucion,
+      'Ingeniería': r.medida_ingenieria, 'Administrativos': r.medida_administrativa, 'EPP': r.medida_eppu,
+      'Factores Reducción (Anexo E)': r.factores_reduccion,
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Matriz IPEVAR');
+    XLSX.writeFile(wb, `Matriz_IPEVAR_GTC45_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   // ── Filtered + Sorted display rows ───────────────────────────────────────
   const displayRows = useMemo(() => {
-    const getNivel = (nr: number) => nr >= 150 ? 'critico' : nr >= 50 ? 'alto' : nr >= 20 ? 'medio' : 'bajo';
     let rows = matrixRows.map((row, idx) => ({ row, idx }));
 
     if (filterText) {
@@ -417,7 +444,6 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       );
     }
     if (filterProceso) rows = rows.filter(({ row }) => row.proceso === filterProceso);
-    if (filterNivel) rows = rows.filter(({ row }) => getNivel(Number(row.nr) || 0) === filterNivel);
     if (filterCalificacion) rows = rows.filter(({ row }) => row.interpretacion_nr === filterCalificacion);
     if (filterClasificacion) rows = rows.filter(({ row }) => row.peligro_clasificacion === filterClasificacion);
 
@@ -430,7 +456,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       });
     }
     return rows;
-  }, [matrixRows, filterText, filterProceso, filterNivel, filterCalificacion, filterClasificacion, sortField, sortDir]);
+  }, [matrixRows, filterText, filterProceso, filterCalificacion, filterClasificacion, sortField, sortDir]);
 
   const procesosUnicos = useMemo(() => [...new Set(matrixRows.map(r => r.proceso).filter(Boolean))], [matrixRows]);
   const clasificacionesUnicas = useMemo(() => [...new Set(matrixRows.map(r => r.peligro_clasificacion).filter(Boolean))], [matrixRows]);
@@ -492,9 +518,29 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           {/* Analizar Matriz Completa */}
           <button onClick={handleAnalyzeMatrix} disabled={isAnalyzing || matrixRows.length === 0}
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl bg-surface-primary border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:-rotate-3 hover:scale-105">
-            {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <ScanSearch className="h-4 w-4 shrink-0" />}
+            {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <FileTextIcon className="h-4 w-4 shrink-0" />}
             <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
-              {isAnalyzing ? 'Analizando…' : 'Analizar Matriz'}
+              {isAnalyzing ? 'Generando…' : 'Crear Informe'}
+            </span>
+          </button>
+
+          {/* Exportar — informe (HTML/Word/PDF) + Matriz (Excel) */}
+          <ExportDropdown
+            content={reportContent || ''}
+            fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0,10)}`}
+            reportType="general"
+          />
+
+          {/* Botón Excel independiente */}
+          <button
+            onClick={handleExportExcel}
+            disabled={matrixRows.length === 0}
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 border outline-none rounded-xl bg-surface-primary border-emerald-400/40 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:-rotate-3 hover:scale-105"
+            title="Exportar Matriz a Excel (.xlsx)"
+          >
+            <FileTextIcon className="h-4 w-4 shrink-0" />
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
+              Excel
             </span>
           </button>
 
@@ -518,14 +564,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         </div>
       </div>
 
-      {/* ── Panel: resultado de análisis IA de toda la matriz ────────────────── */}
-      {analysisResult && (
-        <div className="shrink-0 mx-4 mt-3 p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-300/40 rounded-xl text-sm text-text-primary leading-relaxed">
-          <p className="text-[10px] font-bold text-purple-600 uppercase tracking-wider mb-1">Análisis IA — Matriz Completa</p>
-          {analysisResult}
-          <button onClick={() => setAnalysisResult('')} className="mt-2 text-[10px] text-text-secondary hover:text-text-primary">Cerrar ✕</button>
-        </div>
-      )}
+      {/* Informe ahora va en el LiveEditor de abajo — panel antiguo eliminado */}
 
 
       {/* ── Barra de Filtros ──────────────────────────────────────────────── */}
@@ -550,20 +589,15 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           options={procesosUnicos.map(p => ({ value: p, label: p }))}
         />
 
-        {/* Filtro Nivel NR */}
+        {/* Filtro Clasificación (Peligros) — 2do lugar después de Procesos */}
         <FilterSelect
-          value={filterNivel}
-          onChange={setFilterNivel}
-          placeholder="Todos los niveles"
-          options={[
-            { value: 'critico', label: '🔴 Crítico (NR ≥ 150)' },
-            { value: 'alto',    label: '🟠 Alto (NR ≥ 50)' },
-            { value: 'medio',   label: '🟡 Mejorable (NR ≥ 20)' },
-            { value: 'bajo',    label: '🟢 Aceptable (NR < 20)' },
-          ]}
+          value={filterClasificacion}
+          onChange={setFilterClasificacion}
+          placeholder="Todos los peligros"
+          options={clasificacionesUnicas.map(c => ({ value: c, label: c }))}
         />
 
-        {/* Filtro Calificación */}
+        {/* Filtro Calificación (NR) */}
         <FilterSelect
           value={filterCalificacion}
           onChange={setFilterCalificacion}
@@ -576,23 +610,15 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           ]}
         />
 
-        {/* Filtro Clasificación */}
-        <FilterSelect
-          value={filterClasificacion}
-          onChange={setFilterClasificacion}
-          placeholder="Todos los peligros"
-          options={clasificacionesUnicas.map(c => ({ value: c, label: c }))}
-        />
-
         {/* Limpiar filtros */}
-        {(filterText || filterProceso || filterNivel || filterCalificacion || filterClasificacion) && (
+        {(filterText || filterProceso || filterCalificacion || filterClasificacion) && (
           <button
-            onClick={() => { setFilterText(''); setFilterProceso(''); setFilterNivel(''); setFilterCalificacion(''); setFilterClasificacion(''); }}
+            onClick={() => { setFilterText(''); setFilterProceso(''); setFilterCalificacion(''); setFilterClasificacion(''); }}
             className="flex items-center gap-1 text-xs h-8 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 transition-colors cursor-pointer font-medium"
           >
             ✕ Limpiar
             <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black">
-              {[filterText, filterProceso, filterNivel, filterCalificacion, filterClasificacion].filter(Boolean).length}
+              {[filterText, filterProceso, filterCalificacion, filterClasificacion].filter(Boolean).length}
             </span>
           </button>
         )}
@@ -639,6 +665,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                   <th className="px-4 py-3 text-center min-w-[60px] text-purple-700 dark:text-purple-400">NC</th>
                   <th className="px-4 py-3 text-center min-w-[70px] border-l-2 border-orange-500/20 text-orange-700 dark:text-orange-400 cursor-pointer hover:text-orange-500" onClick={() => toggleSort('nr')}>
                     NR <SortIcon field="nr" />
+                  </th>
+                  {/* Clasificación visible entre NR y Eliminación */}
+                  <th className="px-4 py-3 text-left min-w-[140px] border-l-2 border-teal-500/20 text-teal-700 dark:text-teal-400 cursor-pointer hover:text-teal-500" onClick={() => toggleSort('peligro_clasificacion')}>
+                    CLASIFICACIÓN <SortIcon field="peligro_clasificacion" />
                   </th>
                   {/* Medidas */}
                   <th className="px-4 py-3 text-left min-w-[200px] border-l-2 border-emerald-500/20 text-emerald-700 dark:text-emerald-400">ELIMINACIÓN</th>
@@ -705,6 +735,31 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <td className={`px-4 py-3 text-center font-black border-l-2 border-orange-500/20 bg-orange-500/5 align-middle ${nrColorClass(Number(row.nr))}`}>
                       <div className="text-base">{row.nr}</div>
                       <div className="text-[9px] font-normal text-current opacity-70">{row.interpretacion_nr}</div>
+                    </td>
+
+                    {/* Clasificación visible con badge de color */}
+                    <td className="px-4 py-3 border-l border-border-light align-middle">
+                      {(() => {
+                        const c = (row.peligro_clasificacion || '').toLowerCase();
+                        const color = c.includes('biome') || c.includes('ergon')
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                          : c.includes('psico')
+                          ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/20 dark:text-violet-300'
+                          : c.includes('fisic')
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+                          : c.includes('quim')
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300'
+                          : c.includes('biol')
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                          : c.includes('locati')
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                          : 'bg-surface-tertiary text-text-secondary';
+                        return (
+                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${color}`}>
+                            {row.peligro_clasificacion || '—'}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     {/* Medidas propuestas */}
@@ -778,6 +833,72 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           onConclusionSaved={(type, text) => setChartConclusions(prev => ({ ...prev, [type]: text }))}
           isMaximized={isMaximized}
         />
+
+        {/* ── Informe Ejecutivo GTC-45 (LiveEditor) ────────────────────────
+          El contenido se genera presionando 'Crear Informe' en el toolbar
+        */}
+        <div id="ipevar-report-editor" className="mt-6 mb-4">
+          <div className="rounded-2xl border border-border-medium bg-surface-secondary overflow-hidden shadow-sm">
+            {/* Cabecera del Editor */}
+            <button
+              onClick={() => setIsReportExpanded(e => !e)}
+              className="w-full flex items-center justify-between px-5 py-3 bg-surface-tertiary hover:bg-surface-hover transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <span className="font-bold text-sm text-text-primary">Informe Ejecutivo IPEVAR — GTC-45</span>
+                {reportContent && (
+                  <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold ml-2">Generado</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {reportContent && (
+                  <div onClick={e => e.stopPropagation()}>
+                    <ExportDropdown
+                      content={reportContent}
+                      fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0,10)}`}
+                      reportType="general"
+                    />
+                  </div>
+                )}
+                <ChevronDown className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${isReportExpanded ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+
+            {/* Editor colapsable */}
+            {isReportExpanded && (
+              <div className="p-2">
+                {reportContent ? (
+                  <div style={{ minHeight: '500px', width: '100%' }}>
+                    <LiveEditor
+                      key={editorKey}
+                      initialContent={reportContent}
+                      onUpdate={(content: string) => setReportContent(content)}
+                      reportSourceData={{ matrixRows, chartConclusions }}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4 text-text-secondary">
+                    <FileTextIcon className="h-12 w-12 opacity-20" />
+                    <p className="text-sm text-center max-w-sm">
+                      Presiona{' '}
+                      <span className="font-bold text-purple-600">“Crear Informe”</span>
+                      {' '}en la barra superior para que la IA genere el Informe Ejecutivo GTC-45 con análisis de riesgos, controles y recomendaciones.
+                    </p>
+                    <button
+                      onClick={handleAnalyzeMatrix}
+                      disabled={isAnalyzing || matrixRows.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-purple-400 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-bold hover:bg-purple-100 transition-colors disabled:opacity-50"
+                    >
+                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileTextIcon className="h-4 w-4" />}
+                      {isAnalyzing ? 'Generando informe…' : 'Generar Informe Ahora'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
     </div>

@@ -17,7 +17,10 @@ interface LiveEditorProps {
     reportType?: 'checklist' | 'general';
     /** Determines if the editor forces a classic "white paper" look regardless of dark mode */
     paperMode?: boolean;
+    /** Optional source data for AI context (passed to backend for AI inline editing) */
+    reportSourceData?: any;
 }
+
 
 export interface LiveEditorHandle {
     setHTML: (html: string) => void;
