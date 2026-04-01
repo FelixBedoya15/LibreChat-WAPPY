@@ -11,6 +11,14 @@ const BookmarkNavItems: FC<{
   const { bookmarks } = useBookmarkContext();
   const localize = useLocalize();
 
+  const filteredBookmarks = bookmarks.filter((tag) => {
+    if (!tag.tag) {
+      return false;
+    }
+    // Filter out system/SGSST bookmarks
+    return !tag.tag.startsWith('sgsst-') && tag.tag !== 'report';
+  });
+
   const getUpdatedSelected = (tag: string) => {
     if (tags.some((selectedTag) => selectedTag === tag)) {
       return tags.filter((selectedTag) => selectedTag !== tag);
@@ -33,7 +41,7 @@ const BookmarkNavItems: FC<{
     return;
   };
 
-  if (bookmarks.length === 0) {
+  if (filteredBookmarks.length === 0) {
     return (
       <div className="flex flex-col">
         <BookmarkItem
@@ -56,19 +64,21 @@ const BookmarkNavItems: FC<{
 
   return (
     <div className="flex flex-col">
-      <BookmarkItems
-        tags={tags}
-        handleSubmit={handleSubmit}
-        header={
-          <BookmarkItem
-            tag={localize('com_ui_clear_all')}
-            data-testid="bookmark-item-clear"
-            handleSubmit={clear}
-            selected={false}
-            icon={<CrossCircledIcon className="size-4" />}
-          />
-        }
-      />
+      <BookmarkContext.Provider value={{ bookmarks: filteredBookmarks }}>
+        <BookmarkItems
+          tags={tags}
+          handleSubmit={handleSubmit}
+          header={
+            <BookmarkItem
+              tag={localize('com_ui_clear_all')}
+              data-testid="bookmark-item-clear"
+              handleSubmit={clear}
+              selected={false}
+              icon={<CrossCircledIcon className="size-4" />}
+            />
+          }
+        />
+      </BookmarkContext.Provider>
     </div>
   );
 };

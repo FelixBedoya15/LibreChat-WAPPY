@@ -10,11 +10,19 @@ interface BookmarkItemsProps {
 const BookmarkItems: FC<BookmarkItemsProps> = ({ tags, handleSubmit, header }) => {
   const { bookmarks } = useBookmarkContext();
 
+  const filteredBookmarks = bookmarks.filter((tag) => {
+    if (!tag.tag) {
+      return false;
+    }
+    // Filter out system/SGSST bookmarks
+    return !tag.tag.startsWith('sgsst-') && tag.tag !== 'report';
+  });
+
   return (
     <>
       {header}
-      {bookmarks.length > 0 && <div className="my-1.5 h-px" role="none" />}
-      {bookmarks.map((bookmark, i) => (
+      {filteredBookmarks.length > 0 && <div className="my-1.5 h-px" role="none" />}
+      {filteredBookmarks.map((bookmark, i) => (
         <BookmarkItem
           key={`${bookmark._id ?? bookmark.tag}-${i}`}
           tag={bookmark.tag}
