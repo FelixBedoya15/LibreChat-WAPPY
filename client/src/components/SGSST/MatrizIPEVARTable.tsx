@@ -221,7 +221,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
   <div className="relative group/cell w-full">
     <textarea
       rows={rows}
-      className={`w-full min-w-[${minW}] bg-transparent outline-none dark:text-gray-200 resize-y text-sm`}
+      className={`w-full min-w-[${minW}] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y text-sm`}
       value={value || ''}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
@@ -587,7 +587,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         ) : (
           <div className="min-w-max">
             <table className="w-full text-sm border-collapse">
-              <thead className="sticky top-0 z-10 bg-surface-secondary text-xs font-bold text-text-secondary uppercase tracking-wide">
+              <thead className="sticky top-0 z-[100] bg-surface-secondary text-xs font-bold text-text-secondary uppercase tracking-wide">
                 <tr>
                   {/* Identificación */}
                   <th className="px-4 py-3 text-left cursor-pointer hover:text-teal-600 min-w-[150px]" onClick={() => toggleSort('proceso')}>
@@ -626,17 +626,21 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     FACTORES REDUCCIÓN (Anexo E)
                   </th>
                   {/* Acciones */}
-                  <th className="px-4 py-3 text-center min-w-[100px] sticky right-0 bg-surface-secondary">ACCIONES</th>
+                  <th className="px-4 py-3 text-center min-w-[100px] sticky right-0 z-[100] bg-surface-secondary">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
                 {displayRows.map(({ row, idx }) => (
-                  <tr key={idx} className="group border-b border-border-light hover:bg-surface-secondary/50 transition-colors">
+                  <tr 
+                    key={idx} 
+                    className="group border-b border-border-light hover:bg-surface-secondary/50 transition-colors relative"
+                    style={{ zIndex: 90 - idx }}
+                  >
                     {/* Proceso */}
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.proceso || ''} onChange={e => handleCellChange(idx, 'proceso', e.target.value)} /></td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[120px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.zona || ''} onChange={e => handleCellChange(idx, 'zona', e.target.value)} /></td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.actividad || ''} onChange={e => handleCellChange(idx, 'actividad', e.target.value)} /></td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[190px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.tareas || ''} onChange={e => handleCellChange(idx, 'tareas', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.proceso || ''} onChange={e => handleCellChange(idx, 'proceso', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[120px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.zona || ''} onChange={e => handleCellChange(idx, 'zona', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.actividad || ''} onChange={e => handleCellChange(idx, 'actividad', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[190px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.tareas || ''} onChange={e => handleCellChange(idx, 'tareas', e.target.value)} /></td>
 
                     {/* Rutinaria toggle */}
                     <td className="px-4 py-3 text-center align-middle">
@@ -650,7 +654,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <td className="px-4 py-3 border-l border-border-light">
                       <AITextarea value={row.peligro_descripcion || ''} onChange={v => handleCellChange(idx, 'peligro_descripcion', v)} minW="210px" fieldLabel="Descripción del Peligro" row={row} token={token} />
                     </td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none dark:text-gray-200 resize-y" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(idx, 'peligro_clasificacion', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(idx, 'peligro_clasificacion', e.target.value)} /></td>
                     <td className="px-4 py-3">
                       <AITextarea value={row.efectos_posibles || ''} onChange={v => handleCellChange(idx, 'efectos_posibles', v)} minW="210px" fieldLabel="Efectos Posibles" row={row} token={token} />
                     </td>
@@ -668,12 +672,12 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
                     {/* Evaluación cuantitativa — ND con Anexo C inline */}
                     <td className="px-4 py-3 border-l border-border-light bg-purple-500/5 align-top">
-                      <input type="number" className="w-14 text-center bg-transparent outline-none font-mono" value={row.nd} onChange={e => handleCellChange(idx, 'nd', e.target.value)} />
+                      <input type="number" className="w-14 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.nd} onChange={e => handleCellChange(idx, 'nd', e.target.value)} />
                       <AnnexCSelector row={row} onSelect={v => { handleCellChange(idx, 'nd_cualitativo', v); handleCellChange(idx, 'nd', v); }} />
                     </td>
-                    <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.ne} onChange={e => handleCellChange(idx, 'ne', e.target.value)} /></td>
+                    <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.ne} onChange={e => handleCellChange(idx, 'ne', e.target.value)} /></td>
                     <td className="px-4 py-3 font-bold text-center text-purple-600 dark:text-purple-400 bg-purple-500/5">{row.np}</td>
-                    <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none font-mono" value={row.nc} onChange={e => handleCellChange(idx, 'nc', e.target.value)} /></td>
+                    <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.nc} onChange={e => handleCellChange(idx, 'nc', e.target.value)} /></td>
                     <td className={`px-4 py-3 text-center font-black border-l-2 border-orange-500/20 bg-orange-500/5 align-middle ${nrColorClass(Number(row.nr))}`}>
                       <div className="text-base">{row.nr}</div>
                       <div className="text-[9px] font-normal text-current opacity-70">{row.interpretacion_nr}</div>
