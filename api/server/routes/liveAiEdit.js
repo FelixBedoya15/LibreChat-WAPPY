@@ -104,7 +104,7 @@ REGLAS CRÍTICAS:
 `;
 
   try {
-    const modelName = SGSST_FALLBACK_MODELS[0];
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     logger.info(`[LiveAiEdit] Editing text for user ${userId}, model: ${modelName}, reportLen: ${reportContext.length}, hasSourceData: ${!!reportSourceData}, usingSearXNG: ${webContext.length > 0}`);
 
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });

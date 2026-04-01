@@ -111,7 +111,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envo
   "nd_cualitativo": <10|6|2|0 si aplica Anexo C, null si no>
 }`;
 
-    const modelName = SGSST_FALLBACK_MODELS[0];
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
     let text = result.response.text().trim();
 
@@ -165,7 +165,7 @@ ${instruction || 'Proporciona un análisis ejecutivo de los principales hallazgo
 
 Responde en español, de forma técnica y estructurada, máximo 500 palabras. Sin bloques de código.`;
 
-    const modelName = SGSST_FALLBACK_MODELS[0];
+    const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
     const analysis = result.response.text().trim();
 

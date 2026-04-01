@@ -9,6 +9,7 @@ import {
 import { useAuthContext } from '~/hooks';
 import { MatrixRow, ANNEX_C_CRITERIA, detectAnnexCType } from './MatrizIPEVARConstants';
 import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
+import ModelSelector, { AI_MODELS } from './ModelSelector';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -154,8 +155,8 @@ const AnnexCSelector = ({ row, onSelect }: { row: MatrixRow; onSelect: (val: num
 };
 
 // ── Mini AI Bubble para Textareas ────────────────────────────────────────────
-const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
-  fieldLabel: string; currentValue: string; row: MatrixRow; token?: string; onResult: (v: string) => void;
+const CellAIBubble = ({ fieldLabel, currentValue, row, token, selectedModel, onResult }: {
+  fieldLabel: string; currentValue: string; row: MatrixRow; token?: string; selectedModel?: string; onResult: (v: string) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
@@ -181,6 +182,7 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
           selectedText: currentValue || `[Campo vacío: ${fieldLabel}]`,
           instruction,
           reportSourceData: { currentRow: row, field: fieldLabel },
+          modelName: selectedModel,
         }),
       });
       const data = await res.json();
@@ -223,9 +225,9 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
 };
 
 // ── Celda Textarea con AI Bubble ──────────────────────────────────────────────
-const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '', fieldLabel, row, token }: {
+const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '', fieldLabel, row, token, selectedModel }: {
   value: string; onChange: (v: string) => void; rows?: number; minW?: string;
-  placeholder?: string; fieldLabel: string; row: MatrixRow; token?: string;
+  placeholder?: string; fieldLabel: string; row: MatrixRow; token?: string; selectedModel?: string;
 }) => (
   <div className="relative group/cell w-full focus-within:z-[100] hover:z-[90] transition-all">
     <textarea
@@ -235,7 +237,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
     />
-    <CellAIBubble fieldLabel={fieldLabel} currentValue={value} row={row} token={token} onResult={onChange} />
+    <CellAIBubble fieldLabel={fieldLabel} currentValue={value} row={row} token={token} selectedModel={selectedModel} onResult={onChange} />
   </div>
 );
 
@@ -248,6 +250,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [aiRowLoading, setAiRowLoading] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState('');
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [chartConclusions, setChartConclusions] = useState<Record<string, string>>({});
 
   // ── Filters & Sort ──────────────────────────────────────────────────────
@@ -372,7 +375,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-update-row', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ row: matrixRows[index] }),
+        body: JSON.stringify({ row: matrixRows[index], modelName: selectedModel }),
       });
       const data = await res.json();
       if (data.updatedFields) {
@@ -393,7 +396,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-analyze-matrix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ matrixRows }),
+        body: JSON.stringify({ matrixRows, modelName: selectedModel }),
       });
       const data = await res.json();
       if (data.analysis) setAnalysisResult(data.analysis);
@@ -483,6 +486,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
         <div className="flex items-center gap-2">
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
+
+          <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} hideTooltip={true} />
 
           {/* Analizar Matriz Completa */}
           <button onClick={handleAnalyzeMatrix} disabled={isAnalyzing || matrixRows.length === 0}
@@ -671,22 +676,22 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
                     {/* Peligro */}
                     <td className="px-4 py-3 border-l border-border-light">
-                      <AITextarea value={row.peligro_descripcion || ''} onChange={v => handleCellChange(idx, 'peligro_descripcion', v)} minW="210px" fieldLabel="Descripción del Peligro" row={row} token={token} />
+                      <AITextarea value={row.peligro_descripcion || ''} onChange={v => handleCellChange(idx, 'peligro_descripcion', v)} minW="210px" fieldLabel="Descripción del Peligro" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(idx, 'peligro_clasificacion', e.target.value)} /></td>
                     <td className="px-4 py-3">
-                      <AITextarea value={row.efectos_posibles || ''} onChange={v => handleCellChange(idx, 'efectos_posibles', v)} minW="210px" fieldLabel="Efectos Posibles" row={row} token={token} />
+                      <AITextarea value={row.efectos_posibles || ''} onChange={v => handleCellChange(idx, 'efectos_posibles', v)} minW="210px" fieldLabel="Efectos Posibles" row={row} token={token} selectedModel={selectedModel} />
                     </td>
 
                     {/* Controles existentes */}
                     <td className="px-4 py-3 border-l border-border-light bg-blue-500/5">
-                      <AITextarea value={row.controles_fuente || ''} onChange={v => handleCellChange(idx, 'controles_fuente', v)} minW="170px" fieldLabel="Controles en la Fuente" row={row} token={token} />
+                      <AITextarea value={row.controles_fuente || ''} onChange={v => handleCellChange(idx, 'controles_fuente', v)} minW="170px" fieldLabel="Controles en la Fuente" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3 bg-blue-500/5">
-                      <AITextarea value={row.controles_medio || ''} onChange={v => handleCellChange(idx, 'controles_medio', v)} minW="170px" fieldLabel="Controles en el Medio" row={row} token={token} />
+                      <AITextarea value={row.controles_medio || ''} onChange={v => handleCellChange(idx, 'controles_medio', v)} minW="170px" fieldLabel="Controles en el Medio" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3 bg-blue-500/5">
-                      <AITextarea value={row.controles_individuo || ''} onChange={v => handleCellChange(idx, 'controles_individuo', v)} minW="170px" fieldLabel="Controles en el Individuo" row={row} token={token} />
+                      <AITextarea value={row.controles_individuo || ''} onChange={v => handleCellChange(idx, 'controles_individuo', v)} minW="170px" fieldLabel="Controles en el Individuo" row={row} token={token} selectedModel={selectedModel} />
                     </td>
 
                     {/* Evaluación cuantitativa — ND con Anexo C inline */}
@@ -704,24 +709,24 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
                     {/* Medidas propuestas */}
                     <td className="px-4 py-3 bg-emerald-500/5 border-l-2 border-emerald-500/20">
-                      <AITextarea value={row.medida_eliminacion || ''} onChange={v => handleCellChange(idx, 'medida_eliminacion', v)} minW="190px" fieldLabel="Medida: Eliminación" row={row} token={token} />
+                      <AITextarea value={row.medida_eliminacion || ''} onChange={v => handleCellChange(idx, 'medida_eliminacion', v)} minW="190px" fieldLabel="Medida: Eliminación" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3 bg-emerald-500/5">
-                      <AITextarea value={row.medida_sustitucion || ''} onChange={v => handleCellChange(idx, 'medida_sustitucion', v)} minW="190px" fieldLabel="Medida: Sustitución" row={row} token={token} />
+                      <AITextarea value={row.medida_sustitucion || ''} onChange={v => handleCellChange(idx, 'medida_sustitucion', v)} minW="190px" fieldLabel="Medida: Sustitución" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3 bg-emerald-500/5">
-                      <AITextarea value={row.medida_ingenieria || ''} onChange={v => handleCellChange(idx, 'medida_ingenieria', v)} minW="190px" fieldLabel="Medida: Ingeniería" row={row} token={token} />
+                      <AITextarea value={row.medida_ingenieria || ''} onChange={v => handleCellChange(idx, 'medida_ingenieria', v)} minW="190px" fieldLabel="Medida: Ingeniería" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3 bg-emerald-500/5">
-                      <AITextarea value={row.medida_administrativa || ''} onChange={v => handleCellChange(idx, 'medida_administrativa', v)} minW="210px" fieldLabel="Medida: Administrativos" row={row} token={token} />
+                      <AITextarea value={row.medida_administrativa || ''} onChange={v => handleCellChange(idx, 'medida_administrativa', v)} minW="210px" fieldLabel="Medida: Administrativos" row={row} token={token} selectedModel={selectedModel} />
                     </td>
                     <td className="px-4 py-3 bg-emerald-500/5">
-                      <AITextarea value={row.medida_eppu || ''} onChange={v => handleCellChange(idx, 'medida_eppu', v)} minW="170px" fieldLabel="Medida: EPP" row={row} token={token} />
+                      <AITextarea value={row.medida_eppu || ''} onChange={v => handleCellChange(idx, 'medida_eppu', v)} minW="170px" fieldLabel="Medida: EPP" row={row} token={token} selectedModel={selectedModel} />
                     </td>
 
                     {/* Anexo E — Factores de Reducción */}
                     <td className="px-4 py-3 bg-purple-50/50 dark:bg-purple-900/10 border-l-2 border-purple-400/30">
-                      <AITextarea value={row.factores_reduccion || ''} onChange={v => handleCellChange(idx, 'factores_reduccion', v)} minW="210px" fieldLabel="Factores de Reducción (Anexo E)" row={row} token={token} />
+                      <AITextarea value={row.factores_reduccion || ''} onChange={v => handleCellChange(idx, 'factores_reduccion', v)} minW="210px" fieldLabel="Factores de Reducción (Anexo E)" row={row} token={token} selectedModel={selectedModel} />
                     </td>
 
                     {/* Acciones */}
