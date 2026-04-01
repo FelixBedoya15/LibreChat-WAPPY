@@ -64,10 +64,20 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
       logger.warn(`[LiveAiEdit] SearXNG Web Search failed: ${searchError.message}`);
   }
 
+  let fieldSpecificPrompt = '';
+  if (reportSourceData && reportSourceData.field) {
+    if (reportSourceData.field.includes('Anexo E') || reportSourceData.field.includes('Reducción')) {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo de 'Factores de Reducción (Anexo E)' de la matriz GTC-45.
+CRÍTICO: Según el Anexo E de la GTC 45, tu análisis DEBE enfocarse en JUSTIFICAR EL CONTROL PROPUESTO evaluando el COSTO-BENEFICIO. 
+NO recites fórmulas matemáticas ni expliques cómo se calculó el Nivel de Riesgo. Analiza si el control planteado tiene un impacto real (Factor de Reducción) y si su implementación es lógica, viable y económicamente justificada dada la magnitud del riesgo.`;
+    }
+  }
+
   const prompt = `
 Eres un asistente experto en redacción de informes técnicos de Seguridad y Salud en el Trabajo (SST/HSE).
 
 TAREA: Editar el fragmento de texto indicado según la instrucción del usuario, usando como contexto el informe completo y los datos de origen.
+${fieldSpecificPrompt}
 ${sourceDataBlock}
 INFORME COMPLETO (para coherencia y contexto):
 """

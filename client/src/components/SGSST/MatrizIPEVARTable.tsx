@@ -218,7 +218,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
   value: string; onChange: (v: string) => void; rows?: number; minW?: string;
   placeholder?: string; fieldLabel: string; row: MatrixRow; token?: string;
 }) => (
-  <div className="relative group/cell w-full">
+  <div className="relative group/cell w-full focus-within:z-[100] hover:z-[90] transition-all">
     <textarea
       rows={rows}
       className={`w-full min-w-[${minW}] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y text-sm`}
