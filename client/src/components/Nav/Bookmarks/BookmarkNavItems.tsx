@@ -1,6 +1,6 @@
 import { type FC } from 'react';
 import { CrossCircledIcon } from '@radix-ui/react-icons';
-import { useBookmarkContext } from '~/Providers/BookmarkContext';
+import { BookmarkContext, useBookmarkContext } from '~/Providers/BookmarkContext';
 import { BookmarkItems, BookmarkItem } from '~/components/Bookmarks';
 import { useLocalize } from '~/hooks';
 
