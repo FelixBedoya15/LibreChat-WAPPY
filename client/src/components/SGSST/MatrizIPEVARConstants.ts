@@ -111,12 +111,12 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
   },
   quimico: {
     label: 'Químico — Polvos, Gases, Vapores, Aerosoles',
-    keywords: ['químico', 'polvo', 'gas', 'vapor', 'aerosol', 'niebla', 'humo', 'solvente', 'sustancia'],
+    keywords: ['químico', 'polvo', 'gas', 'vapor', 'aerosol', 'niebla', 'humo', 'solvente', 'sustancia', 'inflamabil', 'reactivid', 'salud'],
     criteria: [
-      { value: 10, label: 'MA (Muy Alto)', description: 'Concentración visiblemente alta o sustancia altamente tóxica/inflamable sin controles ni EPP.' },
-      { value: 6, label: 'A (Alto)', description: 'Concentración moderada-alta, controles insuficientes (ventilación parcial, sin EPP).' },
-      { value: 2, label: 'M (Medio)', description: 'Concentración moderada con algunos controles implementados pero no completamente efectivos.' },
-      { value: 0, label: 'B (Bajo)', description: 'Concentración mínima. Extracción apropiada, EPP y procedimientos de manejo adecuados.' },
+      { value: 10, label: 'MA (Muy Alto)', description: 'Salud(4): Exposición corta causa muerte o daño grave (ej. Ácido Fluorhídrico). / Inflamabilidad(4): Se vaporiza rápido a presión atmosférica o se dispersa y quema en aire (< 23°C). / Reactividad(4): Fácilmente capaz de detonar explosivamente a temp. ambiente.' },
+      { value: 6, label: 'A (Alto)', description: 'Salud(3): Daños permanentes o severos (ej. Hidróxido de potasio). / Inflamabilidad(3): Líquidos/sólidos que encienden casi bajo cualquier condición (23°C - 38°C). / Reactividad(3): Capaz de detonar, pero requiere fuerte iniciador o calentamiento.' },
+      { value: 2, label: 'M (Medio)', description: 'Salud(2): Incapacidad temporal o daño permanente posible (ej. Trietanolamina). / Inflamabilidad(2): Debe calentarse moderadamente antes de ignición (38°C - 93°C). / Reactividad(2): Cambio biológico o químico violento a temp/presión elevada.' },
+      { value: 0, label: 'B (Bajo)', description: 'Salud(1-0): Solo irritación menor, sin daño residual (ej. Glicerina, Hidrógeno). / Inflamabilidad(1-0): Precalentarse mucho antes de ignición (> 93°C) o no se quema. / Reactividad(1-0): Normalmente estable, no reacciona violento con agua (ej. Helio).' },
     ],
   },
   biologico: {

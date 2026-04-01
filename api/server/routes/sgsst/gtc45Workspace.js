@@ -87,6 +87,7 @@ CONTROLES EXISTENTES — Fuente: ${row.controles_fuente || 'Ninguno'} | Medio: $
 ND actual: ${row.nd || 'No definido'} | NE actual: ${row.ne || 'No definido'} | NC actual: ${row.nc || 'No definido'}
 
 INSTRUCCION: Completa y optimiza esta fila según GTC-45:2012. Para peligros higiénicos (Físico, Químico, Biológico, Psicosocial, Biomecánico) usa el Anexo C para determinar el ND cualitativo.
+REGLA CRÍTICA: NUNCA dejes las medidas propuestas en "Ninguno" si el Riesgo actual requiere intervención. Propón intervenciones viables (Ingeniería, Administrativas o EPP) y SIEMPRE redacta su justificación de costo-beneficio obligatoria en "factores_reduccion".
 
 Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envolventes) con estos campos exactos:
 {
@@ -103,10 +104,10 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envo
   "controles_individuo": "<EPP o Ninguno>",
   "medida_eliminacion": "<medida o Ninguno>",
   "medida_sustitucion": "<medida o Ninguno>",
-  "medida_ingenieria": "<control de ingeniería propuesto>",
-  "medida_administrativa": "<control administrativo>",
-  "medida_eppu": "<EPP recomendado específico>",
-  "factores_reduccion": "<Anexo E: Justifica técnica y financieramente (costo-beneficio) por qué recomiendas este control en específico frente a los controles existentes, evaluando si el factor de reducción justifica el impacto>",
+  "medida_ingenieria": "<control de ingeniería propuesto o Ninguno>",
+  "medida_administrativa": "<control administrativo propuesto o Ninguno>",
+  "medida_eppu": "<EPP recomendado específico o Ninguno>",
+  "factores_reduccion": "<Anexo E OBLIGATORIO: Justificación técnica y financiera (costo-beneficio) de los controles propuestos. NUNCA DEJAR VACÍO.>",
   "nd_cualitativo": <10|6|2|0 si aplica Anexo C, null si no>
 }`;
 
