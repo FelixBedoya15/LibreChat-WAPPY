@@ -106,7 +106,7 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envo
   "medida_ingenieria": "<control de ingeniería propuesto>",
   "medida_administrativa": "<control administrativo>",
   "medida_eppu": "<EPP recomendado específico>",
-  "factores_reduccion": "<Anexo E: factores de reducción justificados>",
+  "factores_reduccion": "<Anexo E: Justifica técnica y financieramente (costo-beneficio) por qué recomiendas este control en específico frente a los controles existentes, evaluando si el factor de reducción justifica el impacto>",
   "nd_cualitativo": <10|6|2|0 si aplica Anexo C, null si no>
 }`;
 

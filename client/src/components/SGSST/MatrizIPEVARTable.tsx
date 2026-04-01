@@ -160,6 +160,15 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [open]);
 
   const apply = async () => {
     if (!instruction.trim()) return;
@@ -181,7 +190,7 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
         className="absolute -bottom-1 right-0 flex items-center gap-1 text-[9px] text-teal-500 hover:text-teal-700 font-bold opacity-0 group-hover/cell:opacity-100 transition-opacity"
@@ -190,7 +199,7 @@ const CellAIBubble = ({ fieldLabel, currentValue, row, token, onResult }: {
         <Sparkles className="h-3 w-3" /> IA
       </button>
       {open && (
-        <div className="absolute bottom-6 right-0 z-50 w-64 bg-surface-primary border border-border-medium rounded-xl shadow-2xl p-3 space-y-2">
+        <div className="absolute top-full right-0 mt-1 z-[150] w-64 bg-surface-primary border border-border-medium rounded-xl shadow-2xl p-3 space-y-2">
           <p className="text-[10px] font-bold text-text-secondary uppercase">{fieldLabel}</p>
           <input
             autoFocus
@@ -221,7 +230,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
   <div className="relative group/cell w-full focus-within:z-[100] hover:z-[90] transition-all">
     <textarea
       rows={rows}
-      className={`w-full min-w-[${minW}] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y text-sm`}
+      className={`w-full min-w-[${minW}] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize text-sm`}
       value={value || ''}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
@@ -647,10 +656,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     className="group border-b border-border-light hover:bg-surface-secondary/50 transition-colors"
                   >
                     {/* Proceso */}
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.proceso || ''} onChange={e => handleCellChange(idx, 'proceso', e.target.value)} /></td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[120px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.zona || ''} onChange={e => handleCellChange(idx, 'zona', e.target.value)} /></td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.actividad || ''} onChange={e => handleCellChange(idx, 'actividad', e.target.value)} /></td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[190px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.tareas || ''} onChange={e => handleCellChange(idx, 'tareas', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize" value={row.proceso || ''} onChange={e => handleCellChange(idx, 'proceso', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[120px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize" value={row.zona || ''} onChange={e => handleCellChange(idx, 'zona', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[150px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize" value={row.actividad || ''} onChange={e => handleCellChange(idx, 'actividad', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[190px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize" value={row.tareas || ''} onChange={e => handleCellChange(idx, 'tareas', e.target.value)} /></td>
 
                     {/* Rutinaria toggle */}
                     <td className="px-4 py-3 text-center align-middle">
@@ -664,7 +673,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <td className="px-4 py-3 border-l border-border-light">
                       <AITextarea value={row.peligro_descripcion || ''} onChange={v => handleCellChange(idx, 'peligro_descripcion', v)} minW="210px" fieldLabel="Descripción del Peligro" row={row} token={token} />
                     </td>
-                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize-y" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(idx, 'peligro_clasificacion', e.target.value)} /></td>
+                    <td className="px-4 py-3"><textarea rows={2} className="w-full min-w-[140px] bg-transparent outline-none focus:outline-none focus:ring-0 focus:border-transparent border-transparent dark:text-gray-200 resize" value={row.peligro_clasificacion || ''} onChange={e => handleCellChange(idx, 'peligro_clasificacion', e.target.value)} /></td>
                     <td className="px-4 py-3">
                       <AITextarea value={row.efectos_posibles || ''} onChange={v => handleCellChange(idx, 'efectos_posibles', v)} minW="210px" fieldLabel="Efectos Posibles" row={row} token={token} />
                     </td>
