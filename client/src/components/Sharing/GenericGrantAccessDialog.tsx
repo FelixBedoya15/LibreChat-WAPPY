@@ -49,7 +49,7 @@ export default function GenericGrantAccessDialog({
   const [isCopying, setIsCopying] = useState(false);
 
   // Use shared hooks
-  const { hasPeoplePickerAccess, peoplePickerTypeFilter } = usePeoplePickerPermissions();
+  const { hasPeoplePickerAccess, peoplePickerTypeFilter, canViewRoles } = usePeoplePickerPermissions();
   const {
     config,
     permissionsData,
@@ -276,7 +276,11 @@ export default function GenericGrantAccessDialog({
 
                 <UnifiedPeopleSearch
                   onAddPeople={handleAddFromSearch}
-                  placeholder={localize('com_ui_search_people_placeholder')}
+                  placeholder={
+                    canViewRoles
+                      ? localize('com_ui_search_above_to_add_all')
+                      : localize('com_ui_search_people_placeholder')
+                  }
                   typeFilter={peoplePickerTypeFilter}
                   excludeIds={allShares.map((s) => s.idOnTheSource)}
                 />
@@ -300,7 +304,9 @@ export default function GenericGrantAccessDialog({
                           {localize('com_ui_no_individual_access')}
                         </p>
                         <p className="mt-1 text-xs text-text-primary">
-                          {localize('com_ui_search_above_to_add_people')}
+                          {canViewRoles
+                            ? localize('com_ui_search_above_to_add_all')
+                            : localize('com_ui_search_above_to_add_people')}
                         </p>
                       </div>
                     );

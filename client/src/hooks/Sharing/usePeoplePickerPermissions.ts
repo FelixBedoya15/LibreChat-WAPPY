@@ -1,12 +1,16 @@
 import { useMemo } from 'react';
-import { PermissionTypes, PrincipalType, Permissions } from 'librechat-data-provider';
+import { PermissionTypes, PrincipalType, Permissions, SystemRoles } from 'librechat-data-provider';
 import { useHasAccess } from '~/hooks';
+import { useAuthContext } from '~/hooks/AuthContext';
 
 /**
  * Hook to check people picker permissions and return the appropriate type filter
  * @returns Object with permission states and type filter
  */
 export const usePeoplePickerPermissions = () => {
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === SystemRoles.ADMIN;
+
   const canViewUsers = useHasAccess({
     permissionType: PermissionTypes.PEOPLE_PICKER,
     permission: Permissions.VIEW_USERS,
@@ -20,7 +24,7 @@ export const usePeoplePickerPermissions = () => {
   const canViewRoles = useHasAccess({
     permissionType: PermissionTypes.PEOPLE_PICKER,
     permission: Permissions.VIEW_ROLES,
-  });
+  }) || isAdmin;
 
   const hasPeoplePickerAccess = canViewUsers || canViewGroups || canViewRoles;
 

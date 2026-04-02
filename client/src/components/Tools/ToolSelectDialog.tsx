@@ -16,6 +16,8 @@ import { PluginPagination, PluginAuthForm } from '~/components/Plugins/Store';
 import { useAgentPanelContext } from '~/Providers/AgentPanelContext';
 import { useLocalize, usePluginDialogHelpers } from '~/hooks';
 import ToolItem from './ToolItem';
+import { useAuthContext } from '~/hooks/AuthContext';
+import { SystemRoles } from 'librechat-data-provider';
 
 function ToolSelectDialog({
   isOpen,
@@ -29,6 +31,8 @@ function ToolSelectDialog({
   const { getValues, setValue } = useFormContext<AgentForm>();
   // Only use regular tools, not MCP tools
   const { regularTools } = useAgentPanelContext();
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === SystemRoles.ADMIN;
 
   const {
     maxPage,
@@ -119,6 +123,9 @@ function ToolSelectDialog({
   };
 
   const filteredTools = (regularTools || []).filter((tool: TPlugin) => {
+    if (tool.pluginKey === 'matriz_ipevar' && !isAdmin) {
+      return false;
+    }
     return tool.name?.toLowerCase().includes(searchValue.toLowerCase());
   });
 
