@@ -142,6 +142,96 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envo
 });
 
 
+// ─── HELPER: Generar HTML de gráficas IPEVAR ────────────────────────────────
+function getHexNRColor(nr) {
+  if (nr >= 600) return '#dc2626'; // rojo oscuro
+  if (nr >= 150) return '#ef4444'; // rojo
+  if (nr >= 50) return '#f97316'; // naranjo
+  if (nr >= 20) return '#eab308'; // amarillo
+  return '#22c55e'; // verde
+}
+
+function buildIpevarChartsHtml(matrixRows) {
+  if (!matrixRows || matrixRows.length === 0) return '';
+  
+  const mapA = {};
+  matrixRows.forEach(r => {
+    const k = (r.peligro_clasificacion || 'Sin clasificar').trim();
+    if (!mapA[k]) mapA[k] = { count: 0, totalNR: 0 };
+    mapA[k].count++;
+    mapA[k].totalNR += Number(r.nr) || 0;
+  });
+  const chartA = Object.entries(mapA).map(([clas, d]) => ({ clas, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 8);
+  const maxA = Math.max(...chartA.map(d => d.avg), 1);
+
+  const mapD = {};
+  matrixRows.forEach(r => {
+    const k = (r.proceso || 'Sin proceso').trim();
+    if (!mapD[k]) mapD[k] = { count: 0, totalNR: 0 };
+    mapD[k].count++;
+    mapD[k].totalNR += Number(r.nr) || 0;
+  });
+  const chartD = Object.entries(mapD).map(([proc, d]) => ({ proc, count: d.count, avg: Math.round(d.totalNR / d.count) })).sort((a,b) => b.avg - a.avg).slice(0, 8);
+  const maxD = Math.max(...chartD.map(d => d.avg), 1);
+
+  const empty = (v) => !v || ['ninguno', 'ninguna', 'none', 'no aplica', ''].includes(String(v).toLowerCase().trim());
+  let fuente = 0, medio = 0, individuo = 0;
+  matrixRows.forEach(r => {
+    if (!empty(r.controles_fuente)) fuente++;
+    if (!empty(r.controles_medio)) medio++;
+    if (!empty(r.controles_individuo)) individuo++;
+  });
+  const total = matrixRows.length || 1;
+  const chartB = [
+    { label: 'En la Fuente', value: fuente, pct: Math.round((fuente/total)*100) },
+    { label: 'En el Medio', value: medio, pct: Math.round((medio/total)*100) },
+    { label: 'En el Individuo', value: individuo, pct: Math.round((individuo/total)*100) },
+  ];
+
+  function renderBar(label, value, max, color) {
+    const pct = Math.max(0, Math.min(100, (value / max) * 100));
+    return `
+      <div style="display:flex; align-items:center; margin-bottom:8px;">
+        <div style="width:140px; font-size:11px; color:#475569; font-weight:600; text-align:right; padding-right:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${label}">${label}</div>
+        <div style="flex:1; background-color:#f1f5f9; border-radius:10px; height:16px; position:relative; overflow:hidden;">
+          <div style="background-color:${color}; width:${Math.max(5, pct)}%; height:100%; border-radius:10px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; color:white; font-size:10px; font-weight:bold;">
+            ${value}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  let html = `
+    <div style="margin: 25px 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; background-color: #f8fafc; page-break-inside: avoid;">
+      <h3 style="color:#0f766e; font-size:16px; margin-top:0; border-bottom:2px solid #0f766e; padding-bottom:8px; margin-bottom:20px; text-transform:uppercase;">
+          ANALÍTICA IPEVAR — RESUMEN EJECUTIVO (Gráficas)
+      </h3>
+      <table style="width:100%; border:none; border-collapse: collapse;">
+        <tr style="background:transparent;">
+          <td style="width:50%; vertical-align:top; border:none; padding-right:15px; background:transparent;">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Riesgos por Clasificación (NR Promedio)</h4>
+              ${chartA.map(d => renderBar(d.clas.length > 20 ? d.clas.substring(0,18)+'...' : d.clas, d.avg, maxA, getHexNRColor(d.avg))).join('')}
+            </div>
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Jerarquía de Controles</h4>
+              ${chartB.map(d => renderBar(d.label, d.pct, 100, '#0ea5e9') + `<div style="font-size:9px; color:#64748b; text-align:right; margin-bottom:5px; margin-top:-3px;">Cobertura: ${d.pct}% riesgos</div>`).join('')}
+            </div>
+          </td>
+          <td style="width:50%; vertical-align:top; border:none; padding-left:15px; background:transparent;">
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05); height:100%;">
+              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Criticidad por Proceso (NR Promedio)</h4>
+              ${chartD.map(d => renderBar(d.proc.length > 20 ? d.proc.substring(0,18)+'...' : d.proc, d.avg, maxD, getHexNRColor(d.avg))).join('')}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+  return html;
+}
+
 // ─── IA: Analizar toda la matriz (contexto completo) ──────────────────────────
 router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
   try {
@@ -199,8 +289,10 @@ ${instruction || 'Generar informe ejecutivo de alto nivel priorizando los proces
     const result = await generateWithKeyRotation(modelName, userId, prompt, { useWebSearch: false });
     const analysisRaw = result.response.text();
     const htmlBody = analysisRaw.replace(/```html\n ?/g, '').replace(/```\n?/g, '').trim();
+    
+    const chartsHTML = buildIpevarChartsHtml(matrixRows);
 
-    let fullReport = headerHTML + '<div style="margin-top:20px;">' + htmlBody + '</div>';
+    let fullReport = headerHTML + chartsHTML + '<div style="margin-top:20px;">' + htmlBody + '</div>';
     if (loadedCompanyInfo) {
       fullReport += buildSignatureSection(loadedCompanyInfo);
     }
