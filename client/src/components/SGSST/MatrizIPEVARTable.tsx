@@ -264,7 +264,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [filterProceso, setFilterProceso] = useState('');
   const [filterCalificacion, setFilterCalificacion] = useState('');
   const [filterClasificacion, setFilterClasificacion] = useState('');
-  const [sortField, setSortField] = useState<'proceso' | 'nr' | 'peligro_clasificacion' | ''>('');
+  const [sortField, setSortField] = useState<'proceso' | 'nr' | 'peligro_clasificacion' | 'interpretacion_nr' | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
 
@@ -654,6 +654,9 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                   <th className="px-4 py-3 text-center min-w-[70px] border-l-2 border-orange-500/20 text-orange-700 dark:text-orange-400 cursor-pointer hover:text-orange-500" onClick={() => toggleSort('nr')}>
                     NR <SortIcon field="nr" />
                   </th>
+                  <th className="px-4 py-3 text-left min-w-[170px] border-l border-border-light text-slate-700 dark:text-slate-400 cursor-pointer hover:text-slate-900" onClick={() => toggleSort('interpretacion_nr')}>
+                    SIGNIFICADO EXPLICACIÓN <SortIcon field="interpretacion_nr" />
+                  </th>
                   {/* Clasificación visible entre NR y Eliminación */}
                   <th className="px-4 py-3 text-left min-w-[140px] border-l-2 border-teal-500/20 text-teal-700 dark:text-teal-400 cursor-pointer hover:text-teal-500" onClick={() => toggleSort('peligro_clasificacion')}>
                     CLASIFICACIÓN <SortIcon field="peligro_clasificacion" />
@@ -722,7 +725,13 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.nc} onChange={e => handleCellChange(idx, 'nc', e.target.value)} /></td>
                     <td className={`px-4 py-3 text-center font-black border-l-2 border-orange-500/20 bg-orange-500/5 align-middle ${nrColorClass(Number(row.nr))}`}>
                       <div className="text-base">{row.nr}</div>
-                      <div className="text-[9px] font-normal text-current opacity-70">{row.interpretacion_nr}</div>
+                    </td>
+                    <td className="px-4 py-3 border-l border-border-light align-middle text-[11px] font-medium text-text-secondary whitespace-nowrap">
+                      {row.interpretacion_nr === 'I' ? '🔴 Nivel I — No Aceptable' :
+                       row.interpretacion_nr === 'II' ? '🟠 Nivel II — Aceptable con control' :
+                       row.interpretacion_nr === 'III' ? '🟡 Nivel III — Mejorable' :
+                       row.interpretacion_nr === 'IV' ? '🟢 Nivel IV — Aceptable' :
+                       row.interpretacion_nr || '—'}
                     </td>
 
                     {/* Clasificación visible con badge de color */}

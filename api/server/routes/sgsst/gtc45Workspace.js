@@ -188,6 +188,35 @@ function buildIpevarChartsHtml(matrixRows) {
     { label: 'En el Individuo', value: individuo, pct: Math.round((individuo/total)*100) },
   ];
 
+  const DISEASE_KEYWORDS = [
+    { name: 'Lumbalgia/Dorsopatía', keywords: ['lumbalgia', 'lumbar', 'dorsopatía', 'espalda'] },
+    { name: 'S. Túnel Carpiano', keywords: ['túnel carpiano', 'stc', 'muñeca', 'nervio mediano'] },
+    { name: 'Estrés/Burnout', keywords: ['estrés', 'burnout', 'agotamiento', 'ansiedad', 'sobrecarga'] },
+    { name: 'Hipoacusia', keywords: ['hipoacusia', 'pérdida auditiva', 'sordera'] },
+    { name: 'Dermatitis', keywords: ['dermatitis', 'irritación piel', 'alergia dérmica'] },
+    { name: 'Epicondilitis', keywords: ['epicondilitis', 'codo', 'tendinitis'] },
+    { name: 'Fatiga Visual', keywords: ['fatiga visual', 'ojo seco', 'trastorno visual'] },
+    { name: 'Enf. Respiratorias', keywords: ['neumoconiosis', 'asma', 'epoc', 'polvo', 'bronquitis'] },
+    { name: 'Enf. Infecciosas', keywords: ['infección', 'virus', 'bacteria', 'contagio'] },
+    { name: 'VBM/Raynaud', keywords: ['vibración', 'vbm', 'raynaud', 'mano-brazo'] }
+  ];
+
+  let chartC = DISEASE_KEYWORDS.map(d => {
+    const matches = matrixRows.filter(r => {
+      const haystack = `${r.efectos_posibles || ''} ${r.peligro_descripcion || ''}`.toLowerCase();
+      return d.keywords.some(kw => haystack.includes(kw));
+    });
+    if (matches.length === 0) return null;
+    const noControl = matches.filter(r =>
+      empty(r.medida_eliminacion) && empty(r.medida_sustitucion) &&
+      empty(r.medida_ingenieria) && empty(r.medida_administrativa) && empty(r.medida_eppu)
+    ).length;
+    let nivel = 'Bajo'; let col = '#22c55e';
+    if (noControl === matches.length) { nivel = 'Alto'; col = '#dc2626'; }
+    else if (noControl > 0) { nivel = 'Medio'; col = '#f97316'; }
+    return { name: d.name, count: matches.length, nivel, col };
+  }).filter(Boolean);
+
   function renderBar(label, value, max, color) {
     const pct = Math.max(0, Math.min(100, (value / max) * 100));
     return `
@@ -220,8 +249,19 @@ function buildIpevarChartsHtml(matrixRows) {
             </div>
           </td>
           <td style="width:50%; vertical-align:top; border:none; padding-left:15px; background:transparent;">
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05); height:100%;">
-              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Criticidad por Proceso (NR Promedio)</h4>
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Enfermedades Potenciales Detectadas</h4>
+              ${chartC.length === 0 ? '<p style="font-size:11px; color:#94a3b8; font-style:italic;">No se identificaron enfermedades según los efectos documentados.</p>' : 
+                chartC.map(d => `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #f1f5f9; padding:6px 10px; border-radius:6px; margin-bottom:6px;">
+                  <span style="font-size:11px; font-weight:600; color:#475569;">${d.name} (${d.count})</span>
+                  <span style="font-size:10px; font-weight:700; color:${d.col};">${d.nivel === 'Alto' ? 'Sin control' : d.nivel === 'Medio' ? 'Control Parcial' : 'Controlada'}</span>
+                </div>
+                `).join('')
+              }
+            </div>
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Promedio de Nivel de Riesgo (NR) x Proceso</h4>
               ${chartD.map(d => renderBar(d.proc.length > 20 ? d.proc.substring(0,18)+'...' : d.proc, d.avg, maxD, getHexNRColor(d.avg))).join('')}
             </div>
           </td>

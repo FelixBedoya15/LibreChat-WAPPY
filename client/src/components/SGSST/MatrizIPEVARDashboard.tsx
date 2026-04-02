@@ -23,7 +23,7 @@ const Bar = ({ label, value, max, color, labelWidth = 'w-36' }: {
   return (
     <div className="flex items-center gap-3">
       <span className={`text-[11px] font-semibold text-text-secondary shrink-0 text-right ${labelWidth}`}
-        title={label}>{label.length > 24 ? label.slice(0, 24) + '…' : label}</span>
+        >{label.length > 24 ? label.slice(0, 24) + '…' : label}</span>
       <div className="flex-1 bg-surface-tertiary border border-border-light rounded-full h-4 overflow-hidden relative">
         <div className={`absolute inset-y-0 left-0 ${color} rounded-full flex items-center justify-end pr-2 transition-all duration-700 ease-out`}
           style={{ width: `${pct > 0 ? Math.max(6, pct) : 0}%` }}>
@@ -209,7 +209,7 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
           </div>
           <div className="mt-3 p-3 rounded-xl bg-surface-primary border border-border-light text-xs text-text-secondary">
             {chartB[0]?.pct < chartB[2]?.pct
-              ? '⚠️ La jerarquía está invertida: más controles en el individuo (EPP) que en la fuente. Revisar GTC-45 §5.3.'
+              ? '⚠️ La jerarquía está invertida: más controles en el individuo (EPP) que en la fuente. Se recomienda revisar los controles preventivos.'
               : '✅ La intervención prioriza los controles en la fuente según la jerarquía GTC-45.'}
           </div>
           <ConclusionField chartType="controles" chartStats={chartB} matrixRows={matrixRows}
@@ -253,7 +253,7 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
         <div className="p-5 bg-surface-secondary rounded-2xl border border-border-medium shadow-sm">
           <h4 className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-purple-500" />
-            Nivel de Riesgo por Proceso / Área
+            Promedio Nivel de Riesgo (NR) x Proceso
           </h4>
           <div className="space-y-3">
             {chartD.slice(0, 8).map(d => {
