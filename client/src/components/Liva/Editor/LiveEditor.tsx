@@ -5,7 +5,8 @@ import {
     Bold, Italic, Underline, Heading1, Heading2, List, ListOrdered,
     AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon,
     PenTool, Trash2, Maximize, Minimize, Move, Layers, ArrowUp, ArrowDown, X,
-    Plus, Minus, Table as TableIcon, Layout, ChevronRight, ChevronDown, Palette
+    Plus, Minus, Table as TableIcon, Layout, ChevronRight, ChevronDown, Palette,
+    History
 } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -19,6 +20,7 @@ interface LiveEditorProps {
     paperMode?: boolean;
     /** Optional source data for AI context (passed to backend for AI inline editing) */
     reportSourceData?: any;
+    onHistory?: () => void;
 }
 
 
@@ -26,7 +28,7 @@ export interface LiveEditorHandle {
     setHTML: (html: string) => void;
 }
 
-const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, reportType = 'general', reportSourceData, paperMode = true }, ref) => {
+const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, onHistory, reportType = 'general', reportSourceData, paperMode = true }, ref) => {
     const localize = useLocalize();
     const { token } = useAuthContext();
     const editorRef = useRef<HTMLDivElement>(null);
@@ -705,7 +707,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             { icon: PenTool, label: "Firma", onClick: () => setIsSignatureModalOpen(true) }
         ]},
         { id: 'save', buttons: [
-            ...(onSave ? [{ icon: Save, label: localize('com_ui_save_report') || "Guardar", onClick: onSave }] : []),
+            ...(onHistory ? [{ icon: History, label: localize('com_ui_history') || "Historial", onClick: onHistory }] : []),
+            ...(onSave ? [{ icon: Save, label: localize('com_ui_save_report') || "Guardar Informe", onClick: onSave }] : []),
             { icon: isFullScreen ? Minimize : Maximize, label: isFullScreen ? "Salir Pantalla Completa" : "Pantalla Completa", onClick: toggleFullScreen }
         ]}
     ].filter(g => g.buttons.length > 0);

@@ -236,37 +236,31 @@ function buildIpevarChartsHtml(matrixRows) {
       <h3 style="color:#0f766e; font-size:16px; margin-top:0; border-bottom:2px solid #0f766e; padding-bottom:8px; margin-bottom:20px; text-transform:uppercase;">
           ANALÍTICA IPEVAR — RESUMEN EJECUTIVO (Gráficas)
       </h3>
-      <table style="width:100%; border:none; border-collapse: collapse;">
-        <tr style="background:transparent;">
-          <td style="width:50%; vertical-align:top; border:none; padding-right:15px; background:transparent;">
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Riesgos por Clasificación (NR Promedio)</h4>
-              ${chartA.map(d => renderBar(d.clas.length > 20 ? d.clas.substring(0,18)+'...' : d.clas, d.avg, maxA, getHexNRColor(d.avg))).join('')}
+      <div style="display:flex; flex-direction:column; gap:20px;">
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Riesgos por Clasificación (NR Promedio)</h4>
+          ${chartA.map(d => renderBar(d.clas.length > 20 ? d.clas.substring(0,18)+'...' : d.clas, d.avg, maxA, getHexNRColor(d.avg))).join('')}
+        </div>
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Jerarquía de Controles</h4>
+          ${chartB.map(d => renderBar(d.label, d.pct, 100, '#0ea5e9') + `<div style="font-size:9px; color:#64748b; text-align:right; margin-bottom:5px; margin-top:-3px;">Cobertura: ${d.pct}% riesgos</div>`).join('')}
+        </div>
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Enfermedades Potenciales Detectadas</h4>
+          ${chartC.length === 0 ? '<p style="font-size:11px; color:#94a3b8; font-style:italic;">No se identificaron enfermedades según los efectos documentados.</p>' : 
+            chartC.map(d => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #f1f5f9; padding:6px 10px; border-radius:6px; margin-bottom:6px;">
+              <span style="font-size:11px; font-weight:600; color:#475569;">${d.name} (${d.count})</span>
+              <span style="font-size:10px; font-weight:700; color:${d.col};">${d.nivel === 'Alto' ? 'Sin control' : d.nivel === 'Medio' ? 'Control Parcial' : 'Controlada'}</span>
             </div>
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Jerarquía de Controles</h4>
-              ${chartB.map(d => renderBar(d.label, d.pct, 100, '#0ea5e9') + `<div style="font-size:9px; color:#64748b; text-align:right; margin-bottom:5px; margin-top:-3px;">Cobertura: ${d.pct}% riesgos</div>`).join('')}
-            </div>
-          </td>
-          <td style="width:50%; vertical-align:top; border:none; padding-left:15px; background:transparent;">
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; margin-bottom:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Enfermedades Potenciales Detectadas</h4>
-              ${chartC.length === 0 ? '<p style="font-size:11px; color:#94a3b8; font-style:italic;">No se identificaron enfermedades según los efectos documentados.</p>' : 
-                chartC.map(d => `
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #f1f5f9; padding:6px 10px; border-radius:6px; margin-bottom:6px;">
-                  <span style="font-size:11px; font-weight:600; color:#475569;">${d.name} (${d.count})</span>
-                  <span style="font-size:10px; font-weight:700; color:${d.col};">${d.nivel === 'Alto' ? 'Sin control' : d.nivel === 'Medio' ? 'Control Parcial' : 'Controlada'}</span>
-                </div>
-                `).join('')
-              }
-            </div>
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-              <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Promedio de Nivel de Riesgo (NR) x Proceso</h4>
-              ${chartD.map(d => renderBar(d.proc.length > 20 ? d.proc.substring(0,18)+'...' : d.proc, d.avg, maxD, getHexNRColor(d.avg))).join('')}
-            </div>
-          </td>
-        </tr>
-      </table>
+            `).join('')
+          }
+        </div>
+        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:15px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+          <h4 style="margin-top:0; color:#334155; font-size:12px; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:5px;">Promedio de Nivel de Riesgo (NR) x Proceso</h4>
+          ${chartD.map(d => renderBar(d.proc.length > 20 ? d.proc.substring(0,18)+'...' : d.proc, d.avg, maxD, getHexNRColor(d.avg))).join('')}
+        </div>
+      </div>
     </div>
   `;
   return html;
@@ -300,29 +294,37 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
       `[${i+1}] Proceso: ${r.proceso} | Actividad: ${r.actividad} | Clasificación: ${r.peligro_clasificacion} | Peligro: ${r.peligro_descripcion} | NR: ${r.nr} (${r.interpretacion_nr}) | Exp: ${r.efectos_posibles}`
     ).join('\n');
 
-    const prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
-Analiza esta Matriz IPEVAR completa y emite un Informe Ejecutivo integral.
+    const prompt = \`Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
+Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
 
 **INSTRUCCIONES DE FORMATO HTML:**
-- Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.
+- Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \\\`\\\`\\\`html.
 - TODAS las tablas deben llevar: \`<table style="width:100%;table-layout:fixed;word-wrap:break-word;border-collapse:separate;border-spacing:0;border:1px solid #ccfbf1;border-radius:8px;margin-bottom:25px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">\`
 - Headers de tablas (<th>): \`<th style="background-color:#0f766e;color:#fff;padding:12px 14px;font-size:13px;font-weight:700;text-transform:uppercase;text-align:left;">\`
 - Celdas (<td>): \`<td style="padding:10px 14px;border-bottom:1px solid #f0fdfa;font-size:13px;color:#334155;vertical-align:top;background-color:#fff;">\`
 - Headers de sección (H3): \`<h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:5px;">\`
 
-**ESTRUCTURA DEL INFORME EXIGIDA (en HTML):**
-1. **Introducción:** Breve contexto gerencial (1 párrafo).
-2. **Hallazgos Críticos:** Menciona los riesgos con Mayor NR (Rojos / No Aceptables) y sus consecuencias (efectos posibles). Crea una tabla resumen con: Proceso, Actividad, Peligro y NR.
-3. **Brechas en Controles:** Evalúa la jerarquía de controles actual de la matriz suministrada.
-4. **Plan de Acción Gerencial:** Propuesta de controles de ingeniería y administrativos recomendados (Tabla de 3 columnas: Proceso, Recomendaciones, Tipo de Control recomendado).
-5. NO incluyas título principal ni encabezado corporativo (el sistema los inyectará antes).
-6. NO incluyas bloque de firmas en tu respuesta de HTML (el sistema las inyectará debajo).
+**ESTRUCTURA DEL INFORME EXIGIDA (en HTML) - ESTE INFORME DEBE SER EXTREMADAMENTE EXTENSO:**
+1. **Introducción y Contexto General:** Un análisis profundo y muy extenso de la situación actual según la matriz. Incluye interpretaciones sobre cultura de seguridad y asunciones metodológicas.
+2. **Análisis Individual de Indicadores Visados (Gráficas):** Dedica una subtrama muy extensa y detallada a analizar teóricamente y de cara al negocio cada uno de estos 4 apartados representados en los dashboards:
+    - a. Análisis exhaustivo de los Riesgos por Clasificación (Biomécanico, Psicosocial, Físico, etc.) y su impacto promedio (NR).
+    - b. Evaluación profunda de la Jerarquía de Controles aplicada (desproporción entre medidas en la Fuente, el Medio y el Individuo).
+    - c. Pronóstico sumamente detallado sobre Enfermedades Laborales Potenciales Detectadas y cómo mitigarlas desde ya clínicamente.
+    - d. Desglose detallado del Promedio de NR por cada área y Proceso evaluado, buscando responsabilidades orgánicas en las áreas críticas.
+3. **Hallazgos Críticos Detallados:** Menciona los riesgos con Mayor NR (Rojos / No Aceptables) y sus consecuencias a nivel de la salud, lo financiero, legal y productivo. Crea una tabla resumen detallada con: Proceso, Actividad, Peligro y NR.
+4. **Brechas en Controles Evaluadas:** Un diagnóstico minucioso y extenso que argumente científicamente la debilidad de las medidas de intervención presentes.
+5. **Plan de Acción Gerencial y Operativo:** Propuesta super extensa de controles de eliminación, sustitución, ingeniería y administrativos recomendados (Tabla de 3 columnas: Proceso, Recomendaciones de clase mundial, Tipo de Control recomendado) abarcando la mejora continua.
+6. **Conclusión y Recomendaciones de Alta Gerencia:** Un texto robusto y extenso sobre la integración de la GTC-45 con sistemas ISO o estándares internacionales de clase mundial.
+7. NO incluyas título principal ni encabezado corporativo (el sistema los inyectará antes).
+8. NO incluyas bloque de firmas en tu respuesta de HTML (el sistema las inyectará debajo).
 
-**MATRIZ COMPLETA (${matrixRows.length} riesgos evaluados):**
-${matrixSummary}
+Asegurate de que cada uno de los puntos anteriores de la estructura genere párrafos MUY robustos y abundantes (múltiples párrafos grandes por viñeta del esquema de análisis). ¡Debe ser una respuesta en formato HTML extremo en longitud y supremamente elaborada a nivel técnico!
+
+**MATRIZ COMPLETA (\${matrixRows.length} riesgos evaluados):**
+\${matrixSummary}
 
 **INSTRUCCIÓN ESPECÍFICA (opcional):**
-${instruction || 'Generar informe ejecutivo de alto nivel priorizando los procesos más peligrosos de acuerdo a los resultados.'}
+\${instruction || 'Generar informe ejecutivo de altísimo nivel técnico priorizando muy extensamente cada acápite del análisis de procesos y peligros.'}
 `;
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];

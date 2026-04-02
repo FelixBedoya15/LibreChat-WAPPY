@@ -13,7 +13,7 @@ import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
-
+import ReportHistory from '~/components/Liva/ReportHistory';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -258,6 +258,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [isReportExpanded, setIsReportExpanded] = useState(true);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [chartConclusions, setChartConclusions] = useState<Record<string, string>>({});
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [reportConversationId, setReportConversationId] = useState<string | null>(null);
+  const [reportMessageId, setReportMessageId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // ── Filters & Sort ──────────────────────────────────────────────────────
   const [filterText, setFilterText] = useState('');
@@ -412,6 +416,54 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       }
     } catch (e) { console.error('[Matriz] AI analyze error:', e); }
     finally { setIsAnalyzing(false); }
+  };
+
+  const handleSaveReport = useCallback(async () => {
+    if (!reportContent || !token) return;
+    try {
+      const isNew = !reportConversationId || reportConversationId === 'new';
+      const res = await fetch('/api/sgsst/diagnostico/save-report', {
+        method: isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(isNew ? {
+          content: reportContent,
+          title: `Informe IPEVAR GTC-45 - ${new Date().toLocaleDateString('es-CO')}`,
+          tags: ['sgsst-matriz-ipevar'],
+        } : { conversationId: reportConversationId, messageId: reportMessageId, content: reportContent }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (isNew) { setReportConversationId(data.conversationId); setReportMessageId(data.messageId); }
+        setRefreshTrigger(prev => prev + 1);
+        setIsHistoryOpen(false);
+        alert('Informe guardado en el historial de SGSST.');
+      }
+    } catch (e) { console.error('Error saving report', e); }
+  }, [reportContent, token, reportConversationId, reportMessageId]);
+
+  const handleSelectReport = async (reportOrId: any) => {
+      let content = '', convId = '', msgId = '';
+      if (typeof reportOrId === 'string') {
+          convId = reportOrId;
+          try {
+              const res = await fetch(`/api/messages/${convId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+              if (res.ok) {
+                  const messages = await res.json();
+                  const reportMsg = messages.reverse().find((m: any) =>
+                      m.sender === 'SGSST Diagnóstico' || (m.isCreatedByUser === false && m.text?.length > 100)
+                  );
+                  if (reportMsg) { content = reportMsg.text; msgId = reportMsg.messageId; }
+              }
+          } catch { /* ignore */ }
+      } else if (reportOrId?.content) {
+          content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
+      }
+      if (content) {
+          setReportContent(content);
+          setReportConversationId(convId); setReportMessageId(msgId);
+          setIsHistoryOpen(false);
+          setIsReportExpanded(true);
+      }
   };
 
   // ── Excel export ─────────────────────────────────────────────────────────
@@ -862,6 +914,14 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
               </div>
             </button>
 
+            {isHistoryOpen && (
+                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden mb-4 mx-2">
+                    <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
+                        toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger}
+                        tags={['sgsst-matriz-ipevar']} />
+                </div>
+            )}
+
             {/* Editor colapsable */}
             {isReportExpanded && (
               <div className="p-2">
@@ -872,6 +932,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                       initialContent={reportContent}
                       onUpdate={(content: string) => setReportContent(content)}
                       reportSourceData={{ matrixRows, chartConclusions }}
+                      onSave={handleSaveReport}
+                      onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                     />
                   </div>
                 ) : (
