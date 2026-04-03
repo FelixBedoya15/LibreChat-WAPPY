@@ -106,8 +106,8 @@ function ChatView({ index = 0 }: { index?: number }) {
     const handler = (e: Event) => {
       setMobileExpanded((e as CustomEvent).detail?.isMaximized ?? false);
     };
-    window.addEventListener('ipevar:toggle', handler);
-    return () => window.removeEventListener('ipevar:toggle', handler);
+    window.addEventListener('ipevar:maximized', handler);
+    return () => window.removeEventListener('ipevar:maximized', handler);
   }, []);
 
   let content: JSX.Element | null | undefined;

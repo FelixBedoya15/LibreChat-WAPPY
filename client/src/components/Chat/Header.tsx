@@ -89,12 +89,12 @@ export default function Header() {
                  {isIPEVARActive && (
                    <button
                      onClick={toggleIpevar}
-                     className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-transparent border border-border-medium text-text-primary h-9 w-9 hover:bg-surface-hover"
+                     className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
                      aria-label={ipevarMaximized ? 'Minimizar Matriz IPEVAR' : 'Expandir Matriz IPEVAR'}
                    >
                      {ipevarMaximized
-                       ? <Minimize2 className="h-4 w-4" />
-                       : <Maximize2 className="h-4 w-4" />}
+                       ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
+                       : <Maximize2 className="h-5 w-5 md:h-4 md:w-4" />}
                    </button>
                  )}
                  <HeaderNewChat />
