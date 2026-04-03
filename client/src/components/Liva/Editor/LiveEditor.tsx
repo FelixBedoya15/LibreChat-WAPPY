@@ -849,7 +849,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 </div>
             )}
 
-            <div className="relative flex-1 overflow-hidden flex flex-col">
+            <div className="relative flex-1 overflow-x-auto overflow-y-hidden flex flex-col">
                 {/* Floating Image Toolbar */}
                 {selectedImage && (
                     <div
@@ -982,7 +982,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 )}
                 <div
                     ref={editorRef}
-                    className={`flex-1 p-3 sm:p-8 outline-none overflow-y-auto prose ${!paperMode ? 'dark:prose-invert' : ''} max-w-none w-full live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''} ${paperMode ? 'paper-mode' : ''}`}
+                    className={`flex-1 p-3 sm:p-8 outline-none overflow-y-auto prose ${!paperMode ? 'dark:prose-invert' : ''} max-w-none w-full min-w-[900px] live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''} ${paperMode ? 'paper-mode' : ''}`}
                     contentEditable
                     onInput={handleInput}
                     suppressContentEditableWarning={true}
