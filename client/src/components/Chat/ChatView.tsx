@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
@@ -19,6 +19,7 @@ import Footer from './Footer';
 import { cn } from '~/utils';
 import store from '~/store';
 import MatrizIPEVARTable from '../SGSST/MatrizIPEVARTable';
+const isMobileScreen = () => window.innerWidth <= 768;
 
 function LoadingSpinner() {
   return (
@@ -94,6 +95,21 @@ function ChatView({ index = 0 }: { index?: number }) {
     return false;
   }, [conversation?.tools, messagesTree, agent?.tools]);
 
+  // ── Emit active state to Header mobile button ─────────────────────────────
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('ipevar:active', { detail: { active: isIPEVARActive } }));
+  }, [isIPEVARActive]);
+
+  // ── Mobile: track whether IPEVAR panel is expanded ────────────────────────
+  const [mobileExpanded, setMobileExpanded] = useState(false);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setMobileExpanded((e as CustomEvent).detail?.isMaximized ?? false);
+    };
+    window.addEventListener('ipevar:toggle', handler);
+    return () => window.removeEventListener('ipevar:toggle', handler);
+  }, []);
+
   let content: JSX.Element | null | undefined;
   const isLandingPage =
     (!messagesTree || messagesTree.length === 0) &&
@@ -139,7 +155,16 @@ function ChatView({ index = 0 }: { index?: number }) {
                     </div>
                   </div>
                   {isIPEVARActive && (
-                    <div className="w-1/2 h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary gt45-matrix-panel">
+                    <div className={cn(
+                      'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary gt45-matrix-panel',
+                      // Desktop: always visible at half width
+                      // Mobile: hidden by default, only shown when mobileExpanded
+                      isMobileScreen()
+                        ? mobileExpanded
+                          ? 'fixed inset-0 z-[9990] w-full'
+                          : 'hidden'
+                        : 'w-1/2',
+                    )}>
                       <MatrizIPEVARTable conversationId={conversationId ?? null} />
                     </div>
                   )}

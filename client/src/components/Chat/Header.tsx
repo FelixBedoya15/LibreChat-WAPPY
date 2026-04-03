@@ -38,13 +38,21 @@ export default function Header() {
 
   // ── IPEVAR Matrix expand state (synced via CustomEvent) ──────────────────
   const [ipevarMaximized, setIpevarMaximized] = useState(false);
+  const [isIPEVARActive, setIsIPEVARActive] = useState(false);
 
   useEffect(() => {
-    const handler = (e: Event) => {
+    const onMaximized = (e: Event) => {
       setIpevarMaximized((e as CustomEvent).detail?.isMaximized ?? false);
     };
-    window.addEventListener('ipevar:maximized', handler);
-    return () => window.removeEventListener('ipevar:maximized', handler);
+    const onActive = (e: Event) => {
+      setIsIPEVARActive((e as CustomEvent).detail?.active ?? false);
+    };
+    window.addEventListener('ipevar:maximized', onMaximized);
+    window.addEventListener('ipevar:active', onActive);
+    return () => {
+      window.removeEventListener('ipevar:maximized', onMaximized);
+      window.removeEventListener('ipevar:active', onActive);
+    };
   }, []);
 
   const toggleIpevar = () => {
@@ -77,17 +85,18 @@ export default function Header() {
             {hasAccessToMultiConvo === true && <AddMultiConvo />}
              {isSmallScreen && (
                <>
-                 {/* Botón expandir Matriz IPEVAR — solo mobile */}
-                 <button
-                   onClick={toggleIpevar}
-                   className="flex items-center justify-center h-9 w-9 rounded-xl border border-border-medium bg-surface-secondary hover:border-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-text-secondary hover:text-teal-600 transition-all shadow-sm"
-                   aria-label={ipevarMaximized ? 'Minimizar Matriz IPEVAR' : 'Expandir Matriz IPEVAR'}
-                   title={ipevarMaximized ? 'Minimizar Matriz IPEVAR' : 'Expandir Matriz IPEVAR'}
-                 >
-                   {ipevarMaximized
-                     ? <Minimize2 className="h-4 w-4" />
-                     : <Maximize2 className="h-4 w-4" />}
-                 </button>
+                 {/* Botón expandir Matriz IPEVAR — solo mobile y solo cuando la herramienta está activa */}
+                 {isIPEVARActive && (
+                   <button
+                     onClick={toggleIpevar}
+                     className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-transparent border border-border-medium text-text-primary h-9 w-9 hover:bg-surface-hover"
+                     aria-label={ipevarMaximized ? 'Minimizar Matriz IPEVAR' : 'Expandir Matriz IPEVAR'}
+                   >
+                     {ipevarMaximized
+                       ? <Minimize2 className="h-4 w-4" />
+                       : <Maximize2 className="h-4 w-4" />}
+                   </button>
+                 )}
                  <HeaderNewChat />
                  <ExportAndShareMenu
                    isSharedButtonEnabled={startupConfig?.sharedLinksEnabled ?? false}
