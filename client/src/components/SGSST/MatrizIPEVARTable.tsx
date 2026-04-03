@@ -390,7 +390,22 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       const data = await res.json();
       if (data.updatedFields) {
         const newRows = [...matrixRows];
-        newRows[index] = { ...newRows[index], ...data.updatedFields };
+        const original = newRows[index];
+
+        // ─── Campos que el usuario definió desde el chat → NUNCA sobreescribir ───
+        const PROTECTED_FIELDS = [
+          'proceso', 'zona', 'actividad', 'tareas', 'rutinaria',
+          'peligro_descripcion', 'peligro_clasificacion', 'efectos_posibles',
+          'controles_fuente', 'controles_medio', 'controles_individuo',
+        ] as const;
+
+        const safeUpdate = { ...data.updatedFields };
+        for (const field of PROTECTED_FIELDS) {
+          // If the original already had a value, restore it — AI cannot change it
+          if (original[field]) safeUpdate[field] = original[field];
+        }
+
+        newRows[index] = { ...original, ...safeUpdate };
         setMatrixRows(newRows);
       }
     } catch (e) { console.error('[Matriz] AI row update error:', e); }

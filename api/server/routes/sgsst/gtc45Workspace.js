@@ -78,20 +78,31 @@ router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
 
     const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
 
-Tienes la siguiente fila de una Matriz IPEVAR que necesita ser completada o actualizada:
+Tienes esta fila de Matriz IPEVAR con datos YA fijados por el usuario que JAMÁS debes modificar:
 
-PELIGRO: ${row.peligro_descripcion || 'No especificado'}
-CLASIFICACIÓN: ${row.peligro_clasificacion || 'No especificada'}
-PROCESO: ${row.proceso || ''} | ZONA: ${row.zona || ''} | ACTIVIDAD: ${row.actividad || ''}
+═══ DATOS FIJOS (NO MODIFICAR) ═══
+PROCESO: ${row.proceso || ''}
+ZONA: ${row.zona || ''}
+ACTIVIDAD: ${row.actividad || ''}
 TAREAS: ${row.tareas || ''}
+PELIGRO描述: ${row.peligro_descripcion || 'No especificado'}
+CLASIFICACIÓN: ${row.peligro_clasificacion || 'No especificada'}
 EFECTOS POSIBLES: ${row.efectos_posibles || 'No definidos'}
-CONTROLES EXISTENTES — Fuente: ${row.controles_fuente || 'Ninguno'} | Medio: ${row.controles_medio || 'Ninguno'} | Individuo: ${row.controles_individuo || 'Ninguno'}
+CONTROLES EXISTENTES (YA REGISTRADOS POR EL USUARIO — NO INVENTAR NI MODIFICAR):
+  - Fuente: ${row.controles_fuente || 'Ninguno'}
+  - Medio: ${row.controles_medio || 'Ninguno'}
+  - Individuo: ${row.controles_individuo || 'Ninguno'}
 ND actual: ${row.nd || 'No definido'} | NE actual: ${row.ne || 'No definido'} | NC actual: ${row.nc || 'No definido'}
 
-INSTRUCCION: Completa y optimiza esta fila según GTC-45:2012. Para peligros higiénicos (Físico, Químico, Biológico, Psicosocial, Biomecánico) usa el Anexo C para determinar el ND cualitativo.
-REGLA CRÍTICA ABSOLUTA: PROHIBIDO dejar campos vacíos o usar "Ninguno" en "factores_reduccion". Aún si el riesgo es Aceptable, DEBES proponer controles de Mejora Continua (capacitaciones, pausas) y redactar en "factores_reduccion" la justificación costo-beneficio según el Anexo E.
+═══ TU ÚNICA TAREA ═══
+Basándote EXCLUSIVAMENTE en los datos fijos de arriba (no los modifiques ni inventes nada nuevo sobre ellos):
+1. Determina ND, NE, NC correctos según GTC-45:2012 (Anexo C para ND cualitativo si aplica).
+2. Propón medidas de ELIMINACIÓN, SUSTITUCIÓN, INGENIERÍA, ADMINISTRATIVAS y EPP adecuadas.
+3. Completa factores_reduccion con justificación técnica y costo-beneficio (Anexo E). NUNCA dejar vacío.
 
-Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envolventes) con estos campos exactos:
+REGLA ABSOLUTA: Los campos "controles_fuente", "controles_medio" y "controles_individuo" en tu respuesta JSON DEBEN ser exactamente iguales a los valores de los controles existentes mostrados arriba. NO los cambies. NO inventes controles nuevos en esas celdas.
+
+Responde ÚNICAMENTE con un objeto JSON válido (sin markdown) con estos campos exactos:
 {
   "nd": <número 1-10>,
   "ne": <número 1-4>,
@@ -100,16 +111,15 @@ Responde ÚNICAMENTE con un objeto JSON válido (sin markdown, sin comillas envo
   "nr": <np * nc>,
   "interpretacion_nr": <"I"|"II"|"III"|"IV">,
   "aceptabilidad": <"No Aceptable"|"No Aceptable o Aceptable con control específico"|"Aceptable"|"Mejorable">,
-  "efectos_posibles": "<efectos técnicos específicos>",
-  "controles_fuente": "<control en la fuente o Ninguno>",
-  "controles_medio": "<control en el medio o Ninguno>",
-  "controles_individuo": "<EPP o Ninguno>",
-  "medida_eliminacion": "<medida o Ninguno>",
-  "medida_sustitucion": "<medida o Ninguno>",
+  "controles_fuente": "${(row.controles_fuente || 'Ninguno').replace(/"/g, '\\"')}",
+  "controles_medio": "${(row.controles_medio || 'Ninguno').replace(/"/g, '\\"')}",
+  "controles_individuo": "${(row.controles_individuo || 'Ninguno').replace(/"/g, '\\"')}",
+  "medida_eliminacion": "<medida propuesta o Ninguno>",
+  "medida_sustitucion": "<medida propuesta o Ninguno>",
   "medida_ingenieria": "<control de ingeniería propuesto o Ninguno>",
   "medida_administrativa": "<control administrativo propuesto o Ninguno>",
   "medida_eppu": "<EPP recomendado específico o Ninguno>",
-  "factores_reduccion": "<Anexo E OBLIGATORIO: Justificación técnica y financiera (costo-beneficio) de los controles propuestos. NUNCA DEJAR VACÍO.>",
+  "factores_reduccion": "<Anexo E OBLIGATORIO: Justificación técnica y financiera. NUNCA VACÍO.>",
   "nd_cualitativo": <10|6|2|0 si aplica Anexo C, null si no>
 }`;
 
