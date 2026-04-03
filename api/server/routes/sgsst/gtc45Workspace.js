@@ -294,15 +294,15 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
       `[${i+1}] Proceso: ${r.proceso} | Actividad: ${r.actividad} | Clasificación: ${r.peligro_clasificacion} | Peligro: ${r.peligro_descripcion} | NR: ${r.nr} (${r.interpretacion_nr}) | Exp: ${r.efectos_posibles}`
     ).join('\n');
 
-    const prompt = \`Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
+    const prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
 Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
 
 **INSTRUCCIONES DE FORMATO HTML:**
-- Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \\\`\\\`\\\`html.
-- TODAS las tablas deben llevar: \`<table style="width:100%;table-layout:fixed;word-wrap:break-word;border-collapse:separate;border-spacing:0;border:1px solid #ccfbf1;border-radius:8px;margin-bottom:25px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">\`
-- Headers de tablas (<th>): \`<th style="background-color:#0f766e;color:#fff;padding:12px 14px;font-size:13px;font-weight:700;text-transform:uppercase;text-align:left;">\`
-- Celdas (<td>): \`<td style="padding:10px 14px;border-bottom:1px solid #f0fdfa;font-size:13px;color:#334155;vertical-align:top;background-color:#fff;">\`
-- Headers de sección (H3): \`<h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:5px;">\`
+- Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.
+- TODAS las tablas deben llevar: <table style="width:100%;table-layout:fixed;word-wrap:break-word;border-collapse:separate;border-spacing:0;border:1px solid #ccfbf1;border-radius:8px;margin-bottom:25px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+- Headers de tablas (<th>): <th style="background-color:#0f766e;color:#fff;padding:12px 14px;font-size:13px;font-weight:700;text-transform:uppercase;text-align:left;">
+- Celdas (<td>): <td style="padding:10px 14px;border-bottom:1px solid #f0fdfa;font-size:13px;color:#334155;vertical-align:top;background-color:#fff;">
+- Headers de sección (H3): <h3 style="color:#0f766e; margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:5px;">
 
 **ESTRUCTURA DEL INFORME EXIGIDA (en HTML) - ESTE INFORME DEBE SER EXTREMADAMENTE EXTENSO:**
 1. **Introducción y Contexto General:** Un análisis profundo y muy extenso de la situación actual según la matriz. Incluye interpretaciones sobre cultura de seguridad y asunciones metodológicas.
@@ -320,11 +320,11 @@ Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo inte
 
 Asegurate de que cada uno de los puntos anteriores de la estructura genere párrafos MUY robustos y abundantes (múltiples párrafos grandes por viñeta del esquema de análisis). ¡Debe ser una respuesta en formato HTML extremo en longitud y supremamente elaborada a nivel técnico!
 
-**MATRIZ COMPLETA (\${matrixRows.length} riesgos evaluados):**
-\${matrixSummary}
+**MATRIZ COMPLETA (${matrixRows.length} riesgos evaluados):**
+${matrixSummary}
 
 **INSTRUCCIÓN ESPECÍFICA (opcional):**
-\${instruction || 'Generar informe ejecutivo de altísimo nivel técnico priorizando muy extensamente cada acápite del análisis de procesos y peligros.'}
+${instruction || 'Generar informe ejecutivo de altísimo nivel técnico priorizando muy extensamente cada acápite del análisis de procesos y peligros.'}
 `;
 
     const modelName = req.body.modelName || SGSST_FALLBACK_MODELS[0];
