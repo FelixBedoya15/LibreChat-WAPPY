@@ -66,7 +66,13 @@ function ChatView({ index = 0 }: { index?: number }) {
     enabled: !!conversation?.agent_id && conversation?.endpoint === 'agents',
   });
 
-  const isIPEVARActive = React.useMemo(() => {
+  // ── IPEVAR Persistence Hack para Multi-Agentes (@) ───────────────────────
+  // Si inicias con un Agente que tiene la herramienta, y luego usas `@` para
+  // llamar a un psicólogo, el `agent` activo cambia y pierdes sus tools. Esto
+  // memoriza que en ESTA conversación la matriz estaba activa, y no la oculta.
+  const activeConvosRef = React.useRef<Set<string>>(new Set());
+
+  const currentIsIPEVARActive = React.useMemo(() => {
     // Check if the tool is assigned to the current plugin/conversation
     // tools can be TPlugin[] or string[]
     const tools = conversation?.tools ?? [];
@@ -94,6 +100,18 @@ function ChatView({ index = 0 }: { index?: number }) {
 
     return false;
   }, [conversation?.tools, messagesTree, agent?.tools]);
+
+  const isIPEVARActive = React.useMemo(() => {
+    if (currentIsIPEVARActive) return true;
+    if (conversationId && activeConvosRef.current.has(conversationId)) return true;
+    return false;
+  }, [currentIsIPEVARActive, conversationId]);
+
+  useEffect(() => {
+    if (currentIsIPEVARActive && conversationId) {
+      activeConvosRef.current.add(conversationId);
+    }
+  }, [currentIsIPEVARActive, conversationId]);
 
   // ── Emit active state to Header mobile button ─────────────────────────────
   useEffect(() => {
