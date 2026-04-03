@@ -26,7 +26,7 @@ export default function NavToggle({
     <div
       className={cn(
         className,
-        '-translate-y-1/2 transition-all duration-300 z-50',
+        '-translate-y-1/2 transition-all duration-300 z-[9999]',
         navVisible && translateX ? (side === 'left' ? 'translate-x-[260px]' : '-translate-x-[260px]') : 'translate-x-0',
       )}
       onMouseEnter={() => setIsHovering(true)}

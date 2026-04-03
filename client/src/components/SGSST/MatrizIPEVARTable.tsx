@@ -263,6 +263,21 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // ── Sync with mobile Header toggle button via CustomEvents ────────────────
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const next = (e as CustomEvent).detail?.isMaximized ?? false;
+      setIsMaximized(next);
+    };
+    window.addEventListener('ipevar:toggle', handler);
+    return () => window.removeEventListener('ipevar:toggle', handler);
+  }, []);
+
+  useEffect(() => {
+    // Notify Header button to keep its icon in sync
+    window.dispatchEvent(new CustomEvent('ipevar:maximized', { detail: { isMaximized } }));
+  }, [isMaximized]);
+
   // ── Filters & Sort ──────────────────────────────────────────────────────
   const [filterText, setFilterText] = useState('');
   const [filterProceso, setFilterProceso] = useState('');
@@ -739,7 +754,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     FACTORES REDUCCIÓN (Anexo E)
                   </th>
                   {/* Acciones */}
-                  <th className="px-4 py-3 text-center min-w-[100px] sticky right-0 z-[100] bg-surface-secondary shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)] border-l border-border-light">ACCIONES</th>
+                  <th className="px-4 py-3 text-center min-w-[100px] sticky right-0 z-[200] bg-surface-secondary shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)] border-l border-border-light">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
@@ -783,7 +798,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     </td>
 
                     {/* Evaluación cuantitativa — ND con Anexo C inline */}
-                    <td className="px-4 py-3 border-l border-border-light bg-purple-500/5 align-top relative" style={{ zIndex: 90 - idx }}>
+                    <td className="px-4 py-3 border-l border-border-light bg-purple-500/5 align-top relative" style={{ zIndex: Math.min(90 - idx, 100) }}>
                       <input type="number" className="w-14 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.nd} onChange={e => handleCellChange(idx, 'nd', e.target.value)} />
                       <AnnexCSelector row={row} onSelect={v => { handleCellChange(idx, 'nd_cualitativo', v); handleCellChange(idx, 'nd', v); }} />
                     </td>
@@ -849,7 +864,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     </td>
 
                     {/* Acciones */}
-                    <td className="px-4 py-3 text-center align-middle sticky right-0 bg-surface-primary border-l border-border-light shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">
+                    <td className="px-4 py-3 text-center align-middle sticky right-0 z-[150] bg-surface-primary border-l border-border-light shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.06)]">
                       <div className="flex flex-col items-center gap-2">
                         <button onClick={() => handleAiUpdateRow(idx)} disabled={aiRowLoading === idx}
                           className="group/btn flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 text-yellow-600 text-[10px] font-bold hover:bg-yellow-100 transition-all disabled:opacity-50">
