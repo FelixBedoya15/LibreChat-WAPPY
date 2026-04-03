@@ -115,8 +115,9 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   // ── Emit active state to Header mobile button ─────────────────────────────
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent('ipevar:active', { detail: { active: isIPEVARActive } }));
-  }, [isIPEVARActive]);
+    const isMatrixRealized = isIPEVARActive && !!conversationId && conversationId !== Constants.NEW_CONVO;
+    window.dispatchEvent(new CustomEvent('ipevar:active', { detail: { active: isMatrixRealized } }));
+  }, [isIPEVARActive, conversationId]);
 
   // ── Mobile: track whether IPEVAR panel is expanded ────────────────────────
   const [mobileExpanded, setMobileExpanded] = useState(false);
