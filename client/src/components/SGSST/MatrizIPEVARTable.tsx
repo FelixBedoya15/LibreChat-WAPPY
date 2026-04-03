@@ -4,7 +4,7 @@ import store from '~/store';
 import {
   Save, Maximize2, Minimize2, RefreshCw, Plus, Trash2,
   AlertTriangle, ShieldAlert, Zap, ScanSearch, Loader2, Sparkles,
-  ChevronDown, Check, FileText as FileTextIcon,
+  ChevronDown, Check, FileText as FileTextIcon, History,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -944,14 +944,23 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                       <span className="font-bold text-purple-600">“Análisis IPEVAR”</span>
                       {' '}en la barra superior para que la IA genere el Informe Ejecutivo GTC-45 con análisis de riesgos, controles y recomendaciones.
                     </p>
-                    <button
-                      onClick={handleAnalyzeMatrix}
-                      disabled={isAnalyzing || matrixRows.length === 0}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-purple-400 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-bold hover:bg-purple-100 transition-colors disabled:opacity-50"
-                    >
-                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileTextIcon className="h-4 w-4" />}
-                      {isAnalyzing ? 'Generando informe…' : 'Generar Informe Ahora'}
-                    </button>
+                    <div className="flex gap-4 mt-2">
+                      <button
+                        onClick={handleAnalyzeMatrix}
+                        disabled={isAnalyzing || matrixRows.length === 0}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-purple-400 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-bold hover:bg-purple-100 transition-colors disabled:opacity-50"
+                      >
+                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileTextIcon className="h-4 w-4" />}
+                        {isAnalyzing ? 'Generando informe…' : 'Generar Informe Ahora'}
+                      </button>
+                      <button
+                        onClick={() => setIsHistoryOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-teal-400 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-sm font-bold hover:bg-teal-100 transition-colors shadow-sm"
+                      >
+                        <History className="h-4 w-4" />
+                        Cargar desde Historial
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
