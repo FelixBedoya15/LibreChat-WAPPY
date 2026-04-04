@@ -343,11 +343,13 @@ export default function MemoryViewer() {
                     className="border-b border-border-light hover:bg-surface-secondary"
                   >
                     <TableCell className={`${hasUpdateAccess ? 'w-[75%]' : 'w-[100%]'} px-4 py-4`}>
-                      <div
-                        className="overflow-hidden text-ellipsis whitespace-nowrap text-sm text-text-primary"
-                        title={memory.value}
-                      >
-                        {memory.value}
+                      <div title={memory.value}>
+                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium text-text-primary">
+                          {memory.key}
+                        </div>
+                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-text-secondary mt-0.5">
+                          {memory.value}
+                        </div>
                       </div>
                     </TableCell>
                     {hasUpdateAccess && (

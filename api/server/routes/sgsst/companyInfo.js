@@ -3,7 +3,7 @@ const router = express.Router();
 const { logger } = require('~/config');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
-const { getAllUserMemories, createMemory, setMemory } = require('~/models');
+const { getAllUserMemories, createMemory, setMemory, deleteMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
 
 /**
@@ -51,8 +51,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
 
         try {
             // Generar contenido para la memoria de IA automatizada
-            const memoryContent = `--- DATOS OFICIALES DE LA EMPRESA ACTUAL DEL USUARIO (SG-SST) ---
-Razón Social: ${companyName || 'N/A'}
+            const memoryContent = `Razón Social: ${companyName || 'N/A'}
 NIT: ${nit || 'N/A'}
 Representante Legal: ${legalRepresentative || 'N/A'}
 Número de Trabajadores: ${workerCount || 'N/A'}
@@ -67,10 +66,9 @@ Nivel de Formación SST: ${formationLevel || 'N/A'}
 Número de Licencia SST: ${licenseNumber || 'N/A'}
 Vigencia de Licencia: ${licenseExpiry || 'N/A'}
 Actualización Curso 50/20H: ${courseStatus || 'N/A'}
-Descripción General de Actividades: ${generalActivities || 'N/A'}
---------------------------------------------------------------`;
+Descripción General de Actividades: ${generalActivities || 'N/A'}`;
             
-            const memoryKey = 'empresa_sgsst';
+            const memoryKey = 'Info. Empresa';
             const tokenCount = Tokenizer.getTokenCount(memoryContent, 'o200k_base') || 0;
             
             const memories = await getAllUserMemories(req.user.id);
@@ -90,6 +88,14 @@ Descripción General de Actividades: ${generalActivities || 'N/A'}
                     value: memoryContent,
                     tokenCount,
                 });
+            }
+
+            // Migrar: eliminar key antigua si existe
+            const legacyKey = 'empresa_sgsst';
+            const legacyMemory = memories.find((m) => m.key === legacyKey);
+            if (legacyMemory) {
+                await deleteMemory({ userId: req.user.id, key: legacyKey });
+                logger.info('[SGSST CompanyInfo] Migrated legacy key empresa_sgsst -> Info. Empresa');
             }
         } catch (memError) {
             logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
