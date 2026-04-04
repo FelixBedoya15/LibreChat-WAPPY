@@ -952,6 +952,7 @@ class AgentClient extends BaseClient {
           attemptErrors = [];
         }
 
+        let rotateToNextModel = false;
         for (let i = 0; i < keys.length; i++) {
           try {
             if (keys[i]) {
@@ -1002,15 +1003,20 @@ class AgentClient extends BaseClient {
             } else if (isQuotaEvent || isGenericQuota || isInvalidKey) {
               // Last key also failed with quota/rate-limit → rotate to next model
               logger.warn(`[AgentClient] All ${keys.length} API keys exhausted (quota/rate-limit) for model "${currentModel}". Rotating to next model...`);
-              allKeysExhaustedDueTo429 = true;
+              rotateToNextModel = true;
               break; // Break key loop → outer loop advances to next model
             } else if (isServiceUnavailable) {
               logger.warn(`[AgentClient] Model "${currentModel}" unavailable (503). Will try next model fallback...`);
+              rotateToNextModel = true;
               break; // Break key loop to trigger model fallback
             } else {
               break; // Non-recoverable error, stop all retries
             }
           }
+        }
+        if (rotateToNextModel && !success) {
+          attemptErrors = [];
+          continue; // Advance outer loop to next model
         }
       }
 
