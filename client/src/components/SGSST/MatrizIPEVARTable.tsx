@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
-import { MatrixRow, ANNEX_C_CRITERIA, detectAnnexCType } from './MatrizIPEVARConstants';
+import { MatrixRow, ANNEX_C_CRITERIA, detectAnnexCType, PSICOSOCIAL_BATTERY } from './MatrizIPEVARConstants';
 import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -94,21 +94,49 @@ const FilterSelect = ({
 };
 
 // ── Selector Anexo C: ND Cualitativo (con estilo del sistema) ─────────────────
-const AnnexCSelector = ({ row, onSelect }: { row: MatrixRow; onSelect: (val: number) => void }) => {
+const AnnexCSelector = ({
+  row, onSelect, onPsicosocialChange,
+}: {
+  row: MatrixRow;
+  onSelect: (val: number) => void;
+  onPsicosocialChange?: (dominio: string, dimension: string, desc: string) => void;
+}) => {
   const [open, setOpen] = useState(false);
+  const [psiStep, setPsiStep] = useState<'dominio' | 'dimension'>('dominio');
+  const [psiDominio, setPsiDominio] = useState<string>(row.psicosocial_dominio || '');
   const ref = useRef<HTMLDivElement>(null);
   const typeKey = detectAnnexCType(row.peligro_clasificacion, row.peligro_descripcion);
   if (!typeKey) return null;
   const entry = ANNEX_C_CRITERIA[typeKey];
   const selected = entry.criteria.find(c => c.value === row.nd_cualitativo);
+  const isPsicosocial = typeKey === 'psicosocial';
+
+  const selectedDominioObj = PSICOSOCIAL_BATTERY.find(d => d.id === (psiDominio || row.psicosocial_dominio));
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setPsiStep('dominio');
+      }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  const handleSelectDimension = (dim: { id: string; label: string; description: string }) => {
+    const domObj = selectedDominioObj;
+    if (!domObj) return;
+    // Build prefix tag
+    const prefix = `[Dominio: ${domObj.label} — Dimensión: ${dim.label}]`;
+    // Strip old prefix if already present
+    const currentDesc = row.peligro_descripcion || '';
+    const withoutPrefix = currentDesc.replace(/^\[Dominio:.*?\]\s*/i, '').trim();
+    const newDesc = `${prefix} ${withoutPrefix || 'Descrié la causa o expresión del riesgo...'}`;
+    if (onPsicosocialChange) onPsicosocialChange(domObj.id, dim.id, newDesc);
+    setOpen(false);
+    setPsiStep('dominio');
+  };
 
   return (
     <div ref={ref} className="mt-1 w-full relative z-30">
@@ -117,41 +145,118 @@ const AnnexCSelector = ({ row, onSelect }: { row: MatrixRow; onSelect: (val: num
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-1 text-[10px] bg-surface-secondary border border-teal-400/40 rounded-lg px-2 py-1 text-text-primary hover:border-teal-500 transition-all cursor-pointer"
       >
-        <span className={`flex-1 text-left truncate ${selected ? 'text-teal-600 dark:text-teal-400 font-semibold' : 'text-text-secondary'}`}>
-          {selected ? `${selected.label}` : `Anexo C — ${entry.label}`}
+        <span className={`flex-1 text-left truncate ${
+          selected ? 'text-teal-600 dark:text-teal-400 font-semibold' : 'text-text-secondary'
+        }`}>
+          {isPsicosocial
+            ? (row.psicosocial_dominio && row.psicosocial_dimension
+                ? `${selectedDominioObj?.label || row.psicosocial_dominio}: ${row.psicosocial_dimension}`
+                : (selected ? selected.label : `Anexo C — Psicosocial`))
+            : (selected ? `${selected.label}` : `Anexo C — ${entry.label}`)}
         </span>
         <ChevronDown className={`h-3 w-3 text-text-secondary shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 left-0 w-72 bg-surface-primary dark:bg-surface-secondary border border-border-medium rounded-xl shadow-2xl overflow-hidden py-1 z-50">
-          <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-text-secondary border-b border-border-light">{entry.label}</p>
-          {entry.note && (
-            <p className="px-3 py-1.5 text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200/40 leading-tight">
-              ⓘ {entry.note.slice(0, 150)}{entry.note.length > 150 ? '…' : ''}
-            </p>
-          )}
-          {entry.criteria.map(c => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => { onSelect(c.value); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 transition-colors ${
-                row.nd_cualitativo === c.value
-                  ? 'bg-teal-50 dark:bg-teal-900/20'
-                  : 'hover:bg-surface-secondary'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-3.5 shrink-0">{row.nd_cualitativo === c.value && <Check className="h-3 w-3 text-teal-500" />}</span>
-                <span className={`text-[10px] font-bold ${
-                  c.value === 10 ? 'text-red-600' : c.value === 6 ? 'text-orange-500' :
-                  c.value === 2 ? 'text-yellow-600' : 'text-green-600'
-                }`}>{c.label}</span>
+        <div className="absolute top-full mt-1 left-0 w-80 bg-surface-primary dark:bg-surface-secondary border border-border-medium rounded-xl shadow-2xl overflow-hidden py-1 z-50">
+          {/* ── PSICOSOCIAL: panel de 2 niveles ── */}
+          {isPsicosocial ? (
+            <>
+              <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400 border-b border-border-light">
+                Batería MPS 2010 — {psiStep === 'dominio' ? 'Selecciona el Dominio' : `Dimensiones de ${selectedDominioObj?.label}`}
+              </p>
+              {entry.note && (
+                <p className="px-3 py-1.5 text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200/40 leading-tight">
+                  ⓘ {entry.note.slice(0, 150)}{entry.note.length > 150 ? '…' : ''}
+                </p>
+              )}
+              {/* Nivel de riesgo ND siempre accesible en psicosocial */}
+              <div className="px-3 py-2 border-b border-border-light">
+                <p className="text-[9px] font-bold text-text-secondary uppercase mb-1">Nivel ND (Calificación)</p>
+                <div className="flex gap-1 flex-wrap">
+                  {entry.criteria.map(c => (
+                    <button key={c.value} type="button"
+                      onClick={() => onSelect(c.value)}
+                      className={`text-[9px] px-2 py-0.5 rounded-full font-bold border transition-colors ${
+                        row.nd_cualitativo === c.value
+                          ? 'bg-teal-500 text-white border-teal-600'
+                          : 'bg-surface-secondary border-border-medium text-text-primary hover:border-teal-400'
+                      }`
+                      }>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <p className="text-[9px] text-text-secondary mt-0.5 pl-5 leading-tight">{c.description}</p>
-            </button>
-          ))}
+              {/* Dominios */}
+              {psiStep === 'dominio' && PSICOSOCIAL_BATTERY.map(dom => (
+                <button key={dom.id} type="button"
+                  onClick={() => { setPsiDominio(dom.id); setPsiStep('dimension'); }}
+                  className={`w-full text-left px-3 py-2 transition-colors hover:bg-surface-secondary flex items-center gap-2 ${
+                    row.psicosocial_dominio === dom.id ? 'bg-violet-50 dark:bg-violet-900/20' : ''
+                  }`}>
+                  <span className="w-3 shrink-0">{row.psicosocial_dominio === dom.id && <Check className="h-3 w-3 text-violet-500" />}</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-violet-700 dark:text-violet-300">{dom.label}</p>
+                    <p className="text-[9px] text-text-secondary leading-tight mt-0.5">{dom.description.slice(0, 80)}…</p>
+                  </div>
+                </button>
+              ))}
+              {/* Dimensiones */}
+              {psiStep === 'dimension' && selectedDominioObj && (
+                <>
+                  <button type="button" onClick={() => setPsiStep('dominio')}
+                    className="w-full text-left px-3 py-1.5 text-[9px] text-text-secondary hover:text-teal-600 flex items-center gap-1">
+                    ← Volver a Dominios
+                  </button>
+                  {selectedDominioObj.dimensions.map(dim => (
+                    <button key={dim.id} type="button"
+                      onClick={() => handleSelectDimension(dim)}
+                      className={`w-full text-left px-3 py-2 transition-colors hover:bg-surface-secondary flex items-center gap-2 ${
+                        row.psicosocial_dimension === dim.id ? 'bg-teal-50 dark:bg-teal-900/20' : ''
+                      }`}>
+                      <span className="w-3 shrink-0">{row.psicosocial_dimension === dim.id && <Check className="h-3 w-3 text-teal-500" />}</span>
+                      <div>
+                        <p className="text-[10px] font-bold text-teal-700 dark:text-teal-300">{dim.label}</p>
+                        <p className="text-[9px] text-text-secondary leading-tight mt-0.5">{dim.description.slice(0, 90)}…</p>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
+          ) : (
+            /* ── Modo genérico para el resto de tipos ── */
+            <>
+              <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-text-secondary border-b border-border-light">{entry.label}</p>
+              {entry.note && (
+                <p className="px-3 py-1.5 text-[9px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200/40 leading-tight">
+                  ⓘ {entry.note.slice(0, 150)}{entry.note.length > 150 ? '…' : ''}
+                </p>
+              )}
+              {entry.criteria.map(c => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => { onSelect(c.value); setOpen(false); }}
+                  className={`w-full text-left px-3 py-2 transition-colors ${
+                    row.nd_cualitativo === c.value
+                      ? 'bg-teal-50 dark:bg-teal-900/20'
+                      : 'hover:bg-surface-secondary'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 shrink-0">{row.nd_cualitativo === c.value && <Check className="h-3 w-3 text-teal-500" />}</span>
+                    <span className={`text-[10px] font-bold ${
+                      c.value === 10 ? 'text-red-600' : c.value === 6 ? 'text-orange-500' :
+                      c.value === 2 ? 'text-yellow-600' : 'text-green-600'
+                    }`}>{c.label}</span>
+                  </div>
+                  <p className="text-[9px] text-text-secondary mt-0.5 pl-5 leading-tight">{c.description}</p>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -800,7 +905,14 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                     {/* Evaluación cuantitativa — ND con Anexo C inline */}
                     <td className="px-4 py-3 border-l border-border-light bg-purple-500/5 align-top relative" style={{ zIndex: Math.min(90 - idx, 100) }}>
                       <input type="number" className="w-14 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.nd} onChange={e => handleCellChange(idx, 'nd', e.target.value)} />
-                      <AnnexCSelector row={row} onSelect={v => { handleCellChange(idx, 'nd_cualitativo', v); handleCellChange(idx, 'nd', v); }} />
+                      <AnnexCSelector row={row}
+                        onSelect={v => { handleCellChange(idx, 'nd_cualitativo', v); handleCellChange(idx, 'nd', v); }}
+                        onPsicosocialChange={(dominio, dimension, desc) => {
+                          handleCellChange(idx, 'psicosocial_dominio', dominio);
+                          handleCellChange(idx, 'psicosocial_dimension', dimension);
+                          handleCellChange(idx, 'peligro_descripcion', desc);
+                        }}
+                      />
                     </td>
                     <td className="px-4 py-3 bg-purple-500/5"><input type="number" className="w-12 text-center bg-transparent outline-none focus:outline-none focus:ring-0 border-transparent focus:border-transparent font-mono" value={row.ne} onChange={e => handleCellChange(idx, 'ne', e.target.value)} /></td>
                     <td className="px-4 py-3 font-bold text-center text-purple-600 dark:text-purple-400 bg-purple-500/5">{row.np}</td>

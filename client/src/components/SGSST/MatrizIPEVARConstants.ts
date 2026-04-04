@@ -31,6 +31,8 @@ export interface MatrixRow {
   // Nuevos campos
   factores_reduccion?: string;  // Anexo E GTC-45
   nd_cualitativo?: number | null; // Anexo C GTC-45 (10|6|2|0)
+  psicosocial_dominio?: string; // Batería Riesgo Psicosocial MPS 2010 — Dominio
+  psicosocial_dimension?: string; // Batería Riesgo Psicosocial MPS 2010 — Dimensión
 }
 
 export interface AnnexCOption {
@@ -197,6 +199,72 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
     ],
   },
 };
+
+// ═══════════════════════════════════════════════════════════════════════
+// Batería de Riesgo Psicosocial — Ministerio de la Protección Social 2010
+// 4 Dominios / 19 Dimensiones intralaborales
+// ═══════════════════════════════════════════════════════════════════════
+export interface PsicosocialDimension {
+  id: string;
+  label: string;
+  description: string;
+}
+export interface PsicosocialDominio {
+  id: string;
+  label: string;
+  description: string;
+  dimensions: PsicosocialDimension[];
+}
+
+export const PSICOSOCIAL_BATTERY: PsicosocialDominio[] = [
+  {
+    id: 'demandas',
+    label: 'Demandas del trabajo',
+    description: 'Las exigencias que el trabajo impone al individuo.',
+    dimensions: [
+      { id: 'demandas_cuantitativas', label: 'Demandas cuantitativas', description: 'Exigencias relativas a la cantidad de trabajo que se debe ejecutar en relación con el tiempo disponible.' },
+      { id: 'demandas_carga_mental', label: 'Carga mental', description: 'Demandas de procesamiento cognitivo (atención, memoria, análisis) para generar una respuesta.' },
+      { id: 'demandas_emocionales', label: 'Demandas emocionales', description: 'Situaciones afectivas y emocionales del contenido de la tarea que interfieren con los sentimientos del trabajador.' },
+      { id: 'responsabilidad_cargo', label: 'Exigencias de responsabilidad del cargo', description: 'Obligaciones del cargo cuyos resultados no pueden ser transferidos a otras personas (resultados, dirección, bienes, información, seguridad).' },
+      { id: 'demandas_ambientales', label: 'Demandas ambientales y de esfuerzo físico', description: 'Condiciones del lugar de trabajo y carga física (ruido, temperatura, diseño del puesto) que exigen adaptación.' },
+      { id: 'jornada_trabajo', label: 'Demandas de la jornada de trabajo', description: 'Exigencias de tiempo laboral (duración, horario, pausas y descansos).' },
+      { id: 'consistencia_rol', label: 'Consistencia del rol', description: 'Compatibilidad entre las exigencias de eficiencia, calidad técnica y ética del cargo.' },
+      { id: 'influencia_extralaboral', label: 'Influencia del trabajo sobre el entorno extralaboral', description: 'Condiciones en que las exigencias del trabajo impactan la vida personal y familiar del trabajador.' },
+    ],
+  },
+  {
+    id: 'control',
+    label: 'Control sobre el trabajo',
+    description: 'La posibilidad que el trabajo ofrece para influir y tomar decisiones sobre los aspectos de su realización.',
+    dimensions: [
+      { id: 'control_autonomia', label: 'Control y autonomía sobre el trabajo', description: 'Margen de decisión sobre el orden, cantidad, ritmo, forma de trabajar, pausas y descansos.' },
+      { id: 'oportunidades_desarrollo', label: 'Oportunidades de desarrollo y uso de habilidades', description: 'Posibilidad de aplicar, aprender y desarrollar habilidades y conocimientos en el trabajo.' },
+      { id: 'participacion_cambio', label: 'Participación y manejo del cambio', description: 'Mecanismos organizacionales para adaptar a los trabajadores a transformaciones (información y participación).' },
+      { id: 'claridad_rol', label: 'Claridad del rol', description: 'Definición y comunicación del papel esperado del trabajador (objetivos, funciones, resultados, autonomía).' },
+      { id: 'capacitacion', label: 'Capacitación', description: 'Actividades de inducción, entrenamiento y formación para desarrollar conocimientos y habilidades.' },
+    ],
+  },
+  {
+    id: 'liderazgo',
+    label: 'Liderazgo y relaciones sociales',
+    description: 'El tipo particular de relación social entre superiores y colaboradores, y la interacción con otras personas en el contexto laboral.',
+    dimensions: [
+      { id: 'caract_liderazgo', label: 'Características del liderazgo', description: 'Atributos de la gestión del jefe inmediato: planificación, resultados, conflictos, motivación y comunicación.' },
+      { id: 'relacion_colaboradores', label: 'Relación con colaboradores (subordinados)', description: 'Atributos de la gestión de subordinados: ejecución del trabajo, resultados, conflictos, interacción y comunicación.' },
+      { id: 'retroalimentacion', label: 'Retroalimentación del desempeño', description: 'Información recibida sobre la forma de realizar el trabajo, para identificar fortalezas y debilidades.' },
+      { id: 'relaciones_sociales', label: 'Relaciones sociales en el trabajo', description: 'Interacciones laborales: contacto con otros, calidad de la interacción, apoyo social, trabajo en equipo y cohesión.' },
+    ],
+  },
+  {
+    id: 'recompensa',
+    label: 'Recompensa',
+    description: 'La retribución financiera, de estima y de posibilidades de promoción que el trabajador obtiene por su contribución.',
+    dimensions: [
+      { id: 'reconocimiento_compensacion', label: 'Reconocimiento y compensación', description: 'Retribuciones de la organización: reconocimiento, remuneración, bienestar y posibilidades de desarrollo.' },
+      { id: 'recompensas_pertenencia', label: 'Recompensas por pertenencia a la organización', description: 'Sentimiento de orgullo, percepción de estabilidad laboral y autorrealización por efectuar el trabajo.' },
+    ],
+  },
+];
 
 /**
  * Detecta qué entrada del Anexo C aplica para una fila de la matriz GTC-45.
