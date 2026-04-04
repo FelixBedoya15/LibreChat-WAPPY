@@ -925,11 +925,13 @@ class AgentClient extends BaseClient {
       }
 
       // Build model fallback list from GOOGLE_MODELS env for 503 rotation
+      // Exclude audio/live-only models: they return 404 for streamGenerateContent
       const primaryAgentModel = this.options.agent?.model_parameters?.model || '';
       const envAgentModels = (process.env.GOOGLE_MODELS || '')
         .split(',')
         .map((m) => m.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .filter((m) => !m.includes('native-audio') && !m.includes('-live-'));
       const agentModelFallbacks = [primaryAgentModel, ...envAgentModels.filter((m) => m !== primaryAgentModel)];
 
       let attemptErrors = [];
