@@ -883,8 +883,14 @@ class AgentClient extends BaseClient {
 
         // memoryPromise generation is extracted out of runAgents to prevent duplicate memory evaluations on key retry
 
+        // Copy tools arrays to prevent mutation by MultiAgentGraph.createHandoffTools() across retries
+        const agentsForRun = agents.map((agent) => ({
+          ...agent,
+          tools: agent.tools ? [...agent.tools] : agent.tools,
+        }));
+
         run = await createRun({
-          agents,
+          agents: agentsForRun,
           indexTokenCountMap,
           runId: this.responseMessageId,
           signal: abortController.signal,
@@ -978,7 +984,9 @@ class AgentClient extends BaseClient {
             lastErr = err;
             const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
-            const isInvalidKey = err?.status === 400 || err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+            // NOTE: Do NOT include `err?.status === 400` here — a 400 can mean many things
+            // (e.g., "Duplicate function declaration") and should NOT be retried as a key error.
+            const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
               err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') || err?.message?.includes('UNAVAILABLE');
 
