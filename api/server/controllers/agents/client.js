@@ -999,6 +999,11 @@ class AgentClient extends BaseClient {
             if ((isQuotaEvent || isGenericQuota || isInvalidKey) && i < keys.length - 1) {
               logger.warn(`[AgentClient] Error (${isInvalidKey ? 'Invalid key' : 'Rate limit / Quota'}). Retrying with next API key ${i + 1}...`);
               continue; // Try next key, same model
+            } else if (isQuotaEvent || isGenericQuota || isInvalidKey) {
+              // Last key also failed with quota/rate-limit → rotate to next model
+              logger.warn(`[AgentClient] All ${keys.length} API keys exhausted (quota/rate-limit) for model "${currentModel}". Rotating to next model...`);
+              allKeysExhaustedDueTo429 = true;
+              break; // Break key loop → outer loop advances to next model
             } else if (isServiceUnavailable) {
               logger.warn(`[AgentClient] Model "${currentModel}" unavailable (503). Will try next model fallback...`);
               break; // Break key loop to trigger model fallback
