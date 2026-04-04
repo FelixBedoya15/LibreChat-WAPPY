@@ -130,15 +130,59 @@ export const ANNEX_C_CRITERIA: Record<string, AnnexCEntry> = {
       { value: 0, label: 'B (Bajo)', description: 'Control de exposición efectivo: vacunación, EPP apropiado, protocolos y vigilancia sanitaria.' },
     ],
   },
-  biomecanico: {
-    label: 'Biomecánico',
-    keywords: ['biomecan', 'biomécan', 'ergon', 'postura', 'repetitiv', 'levantamiento', 'carga', 'escritorio', 'computador', 'digitaci', 'sedentari', 'monitor', 'teclado', 'mouse', 'pantalla', 'puesto de trabajo'],
-    note: 'NOTA GTC-45 §Anexo C: Para calificar los peligros biomecánicos de forma más detallada puede tomarse como base las NTC relacionadas con ergonomía: NTC 5693-1, NTC 5693-2, NTC 5693-3, NTC 5723, NTC 5748, entre otras.',
+  biomecanico_postura: {
+    label: 'Biomecánico — Postura',
+    keywords: ['postura', 'sedentari', 'sentado', 'espalda', 'computador', 'digitaci', 'cuello'],
+    note: 'NOTA GTC-45 §Anexo C: Postura (prolongada mantenida, forzada, antigravitacional).',
     criteria: [
-      { value: 10, label: 'MA (Muy Alto)', description: 'Alta carga física, movimiento repetitivo extremo y/o postura forzada mantenida toda la jornada sin pausas ni controles. Aplique NTC 5693-1/2/3, 5723, 5748.' },
+      { value: 10, label: 'MA (Muy Alto)', description: 'Posturas con un riesgo extremo de lesión musculoesquelética. Deben tomarse medidas correctivas inmediatamente.' },
+      { value: 6, label: 'A (Alto)', description: 'Posturas de trabajo con riesgo significativo de lesión. Se deben modificar las condiciones de trabajo tan pronto como sea posible.' },
+      { value: 2, label: 'M (Medio)', description: 'Posturas con riesgo moderado de lesión musculoesquelética sobre las que se precisa una modificación, aunque no inmediata.' },
+      { value: 0, label: 'B (Bajo)', description: 'Posturas que se consideran normales, con riesgo leve de lesiones musculoesqueléticas, y en las que puede ser necesaria alguna acción.' },
+    ],
+  },
+  biomecanico_repetitivo: {
+    label: 'Biomecánico — Movimiento Repetitivo',
+    keywords: ['repetitiv', 'movimiento', 'digitaci', 'teclado', 'mouse', 'mano'],
+    note: 'NOTA GTC-45 §Anexo C: Movimientos repetitivos.',
+    criteria: [
+      { value: 10, label: 'MA (Muy Alto)', description: 'Actividad que exige movimientos rápidos y continuos, a un ritmo difícil de mantener (ciclos de trabajo < 30s ó 1 min, o concentración de movimientos usando pocos músculos > 50% del tiempo).' },
+      { value: 6, label: 'A (Alto)', description: 'Actividad que exige movimientos rápidos y continuos, con la posibilidad de realizar pausas ocasionales (ciclos < 30s ó 1 min, o > 50% del tiempo).' },
+      { value: 2, label: 'M (Medio)', description: 'Actividad que exige movimientos lentos y continuos de cualquier segmento corporal, con la posibilidad de realizar pausas cortas.' },
+      { value: 0, label: 'B (Bajo)', description: 'Actividad que involucra cualquier segmento corporal con exposición inferior al 50 % del tiempo de trabajo, en el cual hay pausas programadas.' },
+    ],
+  },
+  biomecanico_esfuerzo: {
+    label: 'Biomecánico — Esfuerzo',
+    keywords: ['esfuerzo', 'fuerza', 'tension'],
+    note: 'NOTA GTC-45 §Anexo C: Esfuerzo.',
+    criteria: [
+      { value: 10, label: 'MA (Muy Alto)', description: 'Actividad intensa en donde el esfuerzo es visible en la expresión facial del trabajador y/o la contracción muscular es visible.' },
+      { value: 6, label: 'A (Alto)', description: 'Actividad pesada, con resistencia.' },
+      { value: 2, label: 'M (Medio)', description: 'Actividad con esfuerzo moderado.' },
+      { value: 0, label: 'B (Bajo)', description: 'No hay esfuerzo aparente, ni resistencia, y existe libertad de movimientos.' },
+    ],
+  },
+  biomecanico_cargas: {
+    label: 'Biomecánico — Manipulación de Cargas',
+    keywords: ['carga', 'levantamiento', 'peso', 'manipulacion', 'caja', 'empuje', 'traccion'],
+    note: 'NOTA GTC-45 §Anexo C: Manipulación manual de cargas.',
+    criteria: [
+      { value: 10, label: 'MA (Muy Alto)', description: 'Manipulación manual de cargas con un riesgo extremo de lesión musculoesquelética. Deben tomarse medidas correctivas inmediatamente.' },
+      { value: 6, label: 'A (Alto)', description: 'Manipulación manual de cargas con riesgo significativo de lesión. Se deben modificar las condiciones de trabajo tan pronto como sea posible.' },
+      { value: 2, label: 'M (Medio)', description: 'Manipulación manual de cargas con riesgo moderado de lesión musculoesquelética sobre las que se precisa una modificación, aunque no inmediata.' },
+      { value: 0, label: 'B (Bajo)', description: 'Manipulación manual de cargas con riesgo leve de lesiones musculoesqueléticas, puede ser necesaria alguna acción.' },
+    ],
+  },
+  biomecanico: {
+    label: 'Biomecánico (Genérico)',
+    keywords: ['biomecan', 'ergon'],
+    note: 'NOTA GTC-45 §Anexo C: Riesgo biomecánico genérico. Utilice clasificación por tipos (postura, repetición, etc.) si es posible.',
+    criteria: [
+      { value: 10, label: 'MA (Muy Alto)', description: 'Alta carga física, movimiento repetitivo extremo y/o postura forzada mantenida toda la jornada sin pausas ni controles.' },
       { value: 6, label: 'A (Alto)', description: 'Carga moderada-alta, posturas forzadas frecuentes, controles insuficientes.' },
-      { value: 2, label: 'M (Medio)', description: 'Factores ergonómicos presentes con controles parciales (pausas activas, ajuste parcial del puesto).' },
-      { value: 0, label: 'B (Bajo)', description: 'Ergonomía adecuada: puesto ajustado, pausas activas, rotación de tareas y formación.' },
+      { value: 2, label: 'M (Medio)', description: 'Factores ergonómicos presentes con controles parciales.' },
+      { value: 0, label: 'B (Bajo)', description: 'Ergonomía adecuada.' },
     ],
   },
   psicosocial: {
@@ -178,17 +222,18 @@ export function detectAnnexCType(clasificacion: string, descripcion?: string): s
   // ── PRIORIDAD 1: coincidencia en clasificación (normalizada, sin tildes) ────
   if (clas.includes('psicosocial')) return 'psicosocial';
 
-  // Biomecánico — detecta todas las variantes: Biomecánico, Biomecanico, BIOMECÁNICO, ergonomico, etc.
-  if (
-    clas.includes('biomecan') ||
-    clas.includes('biomecan') ||
-    clas.includes('ergon') ||
-    (clas.includes('bio') && clas.includes('mec'))
-  ) return 'biomecanico';
+  // Biomecánico estructurado
+  if (clas.includes('biomecan') || clas.includes('biomecan') || clas.includes('ergon') || (clas.includes('bio') && clas.includes('mec'))) {
+    if (combined.includes('postura') || combined.includes('sedentari') || combined.includes('sentado') || combined.includes('escritorio') || combined.includes('computador')) return 'biomecanico_postura';
+    if (combined.includes('repetitiv') || combined.includes('digitaci') || combined.includes('teclado')) return 'biomecanico_repetitivo';
+    if (combined.includes('esfuerzo')) return 'biomecanico_esfuerzo';
+    if (combined.includes('carga') || combined.includes('levantamiento') || combined.includes('peso') || combined.includes('manipulacion')) return 'biomecanico_cargas';
+    return 'biomecanico_postura'; // default biomecánico if nothing specifically matches
+  }
 
   if (clas.includes('biol')) return 'biologico';
   if (clas.includes('quimic') || clas.includes('qca')) return 'quimico';
-  if (clas.includes('locativ')) return 'biomecanico'; // Locativo usa escala de deficiencias físicas genérica
+  if (clas.includes('locativ')) return 'biomecanico_postura'; // fallback genérico
 
   if (clas.includes('fisic') || clas.includes('fisic')) {
     // Subrefinamiento físico por descripción
@@ -217,21 +262,12 @@ export function detectAnnexCType(clasificacion: string, descripcion?: string): s
       combined.includes('solvente') || combined.includes('aerosol') || combined.includes('quimico') ||
       combined.includes('sustancia')) return 'quimico';
 
-  // Biomecánico — keywords ampliadas para capturar descripciones reales de la IA
-  if (
-    combined.includes('postura') || combined.includes('repetitiv') ||
-    combined.includes('levantamiento') || combined.includes('carga postural') ||
-    combined.includes('musculoesquelet') || combined.includes('lumbar') ||
-    combined.includes('espalda') || combined.includes('escritorio') ||
-    combined.includes('computador') || combined.includes('teclado') ||
-    combined.includes('mouse') || combined.includes('digitac') ||
-    combined.includes('sedentari') || combined.includes('pantalla') ||
-    combined.includes('monitor') || combined.includes('puesto') ||
-    combined.includes('ergon') || combined.includes('articulac') ||
-    combined.includes('muñeca') || combined.includes('columna') ||
-    combined.includes('cuello') || combined.includes('hombro') ||
-    combined.includes('tension muscular') || combined.includes('movimiento')
-  ) return 'biomecanico';
+  // Biomecánico detallado
+  if (combined.includes('postura') || combined.includes('sedentari') || combined.includes('escritorio') || combined.includes('computador')) return 'biomecanico_postura';
+  if (combined.includes('repetitiv') || combined.includes('digitaci') || combined.includes('teclado') || combined.includes('mouse')) return 'biomecanico_repetitivo';
+  if (combined.includes('esfuerzo') || combined.includes('tension muscular')) return 'biomecanico_esfuerzo';
+  if (combined.includes('carga') || combined.includes('levantamiento') || combined.includes('manipulacion')) return 'biomecanico_cargas';
+  if (combined.includes('biomecan') || combined.includes('ergon') || combined.includes('musculoesquelet') || combined.includes('lumbar') || combined.includes('espalda')) return 'biomecanico_postura';
 
   // Físico genérico
   if (combined.includes('ruido')) return 'ruido';

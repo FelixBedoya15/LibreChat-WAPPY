@@ -18,7 +18,7 @@ class MatrizIPEVAR extends Tool {
         rutinaria: z.enum(['Sí', 'No']).describe('¿Es una tarea rutinaria?'),
         peligro_descripcion: z
           .string()
-          .describe('Descripción del peligro identificado (qué lo causa, cómo se manifiesta).'),
+          .describe('Descripción del riesgo. CRÍTICO: Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" (1 de 4: Demandas del trabajo, Control sobre el trabajo, Liderazgo/relaciones, Recompensa) y la "Dimensión" de la Batería Riesgo Psicosocial MinProtección Social 2010. Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción de la causa...". Para otros peligros, describe normalmente.'),
         peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico).'),
         efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador.'),
         controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente.'),
