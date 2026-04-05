@@ -927,7 +927,7 @@ class AgentClient extends BaseClient {
         // After execution, inspect graph messages for handoff tool calls.
         // Every transfer creates a ToolMessage named "lc_transfer_to_agent_<destId>".
         try {
-          const graphMessages = run.graph?.messages ?? [];
+          const graphMessages = typeof run.getRunMessages === 'function' ? run.getRunMessages() : [];
           const TRANSFER_PREFIX = 'lc_transfer_to_agent_';
           const transfers = graphMessages.filter(
             (m) => m?.name?.startsWith?.(TRANSFER_PREFIX),
