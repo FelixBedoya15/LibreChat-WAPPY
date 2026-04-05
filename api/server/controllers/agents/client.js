@@ -889,35 +889,19 @@ class AgentClient extends BaseClient {
           tools: agent.tools ? [...agent.tools] : agent.tools,
         }));
 
-        // Build agentId → agentName map for transfer tracking logs
+        // Build agentId → name map for transfer tracking (safe: only used after execution)
         const agentIdNameMap = {};
-        for (const agent of agents) {
-          if (agent.id) {
-            agentIdNameMap[agent.id] = agent.name || agent.id;
-          }
+        for (const ag of agents) {
+          if (ag.id) agentIdNameMap[ag.id] = ag.name || ag.id;
         }
-
-        // Inject ON_RUN_STEP handler to log which agent is actively generating a response
-        const baseHandlers = this.options.eventHandlers ?? {};
-        const trackingHandlers = {
-          ...baseHandlers,
-          'on_run_step': (event) => {
-            if (event?.type === 'message_creation' && event?.runId) {
-              const agentName = agentIdNameMap[event.runId] || event.runId;
-              logger.info(`[AgentGraph] 🤖 Agente activo: "${agentName}" (id: ${event.runId}) — generando respuesta`);
-            }
-            if (baseHandlers['on_run_step']) {
-              baseHandlers['on_run_step'](event);
-            }
-          },
-        };
+        const mainAgentName = agents[0]?.name || agents[0]?.id || 'Principal';
 
         run = await createRun({
           agents: agentsForRun,
           indexTokenCountMap,
           runId: this.responseMessageId,
           signal: abortController.signal,
-          customHandlers: trackingHandlers,
+          customHandlers: this.options.eventHandlers,
           requestBody: config.configurable.requestBody,
           tokenCounter: createTokenCounter(this.getEncoding()),
         });
@@ -938,6 +922,33 @@ class AgentClient extends BaseClient {
             [Callback.TOOL_ERROR]: logToolError,
           },
         });
+
+        // ─── Agent Transfer Audit Log ─────────────────────────────────
+        // After execution, inspect graph messages for handoff tool calls.
+        // Every transfer creates a ToolMessage named "lc_transfer_to_agent_<destId>".
+        try {
+          const graphMessages = run.graph?.messages ?? [];
+          const TRANSFER_PREFIX = 'lc_transfer_to_agent_';
+          const transfers = graphMessages.filter(
+            (m) => m?.name?.startsWith?.(TRANSFER_PREFIX),
+          );
+          if (transfers.length > 0) {
+            for (const t of transfers) {
+              const destId = t.name.replace(TRANSFER_PREFIX, '');
+              const destName = agentIdNameMap[destId] || destId;
+              logger.info(
+                `[AgentGraph] 🔄 Transferencia confirmada: "${mainAgentName}" → "${destName}" (id: ${destId})`,
+              );
+            }
+          } else {
+            logger.info(
+              `[AgentGraph] ✅ Sin transferencia — respondió directamente: "${mainAgentName}"`,
+            );
+          }
+        } catch (auditErr) {
+          logger.warn('[AgentGraph] No se pudo auditar transferencias:', auditErr?.message);
+        }
+        // ─────────────────────────────────────────────────────────────
 
         config.signal = null;
       };
