@@ -910,7 +910,9 @@ class AgentClient extends BaseClient {
           thread_id: this.conversationId,
           last_agent_index: this.agentConfigs?.size ?? 0,
           user_id: this.user ?? this.options.req.user?.id,
-          hide_sequential_outputs: false, // TEMPORARY DEBUGGING
+          hide_sequential_outputs: false, // FIX: Specialist agents called via dynamic handoff don't pass
+          // checkIfLastAgent() because their langgraph_node name doesn't end with the statically-assigned
+          // last_agent_id. Token deduplication (messageDeltaDedupeSet) already prevents 3x repetition.
           requestBody: {
             messageId: this.responseMessageId,
             conversationId: this.conversationId,
