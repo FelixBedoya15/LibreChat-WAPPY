@@ -928,7 +928,7 @@ class AgentClient extends BaseClient {
         // Every transfer creates a ToolMessage named "lc_transfer_to_agent_<destId>".
         try {
           const graphMessages = typeof run.getRunMessages === 'function' ? run.getRunMessages() : [];
-          const TRANSFER_PREFIX = 'lc_transfer_to_agent_';
+          const TRANSFER_PREFIX = 'lc_transfer_to_';
           const transfers = graphMessages.filter(
             (m) => m?.name?.startsWith?.(TRANSFER_PREFIX),
           );
