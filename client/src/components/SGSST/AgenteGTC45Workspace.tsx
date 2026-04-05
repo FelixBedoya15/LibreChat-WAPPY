@@ -184,12 +184,11 @@ export default function AgenteGTC45Workspace() {
   };
 
   const currentRole = user?.role || 'USER';
-  if (currentRole !== 'ADMIN') {
-    return <UpgradeWall title="Acceso Restringido (Fase Beta)" description="El agente interactivo para creación de matrices GTC-45 se encuentra actualmente en fase de pruebas cerrada y es un módulo con acceso provisional únicamente para Administradores del sistema." plan="USER_PRO" />;
-  }
 
   // Robust DOM Observer to teleport the SidePanel and its Toggle Button to the far right screen edge
   useEffect(() => {
+    if (currentRole !== 'ADMIN') return;
+    
     // This runs periodically until it finds the ChatRoute elements
     const interval = setInterval(() => {
       const controlsNav = document.getElementById('controls-nav');
@@ -240,7 +239,11 @@ export default function AgenteGTC45Workspace() {
     }, 500);
 
     return () => clearInterval(interval);
-  }, [currentConvoId]);
+  }, [currentConvoId, currentRole]);
+
+  if (currentRole !== 'ADMIN') {
+    return <UpgradeWall title="Acceso Restringido (Fase Beta)" description="El agente interactivo para creación de matrices GTC-45 se encuentra actualmente en fase de pruebas cerrada y es un módulo con acceso provisional únicamente para Administradores del sistema." plan="USER_PRO" />;
+  }
 
   return (
     <div className="flex w-full h-full bg-surface-primary overflow-hidden font-sans relative gtc-workspace">
