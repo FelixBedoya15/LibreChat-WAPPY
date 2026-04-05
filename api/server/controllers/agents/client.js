@@ -889,12 +889,35 @@ class AgentClient extends BaseClient {
           tools: agent.tools ? [...agent.tools] : agent.tools,
         }));
 
+        // Build agentId → agentName map for transfer tracking logs
+        const agentIdNameMap = {};
+        for (const agent of agents) {
+          if (agent.id) {
+            agentIdNameMap[agent.id] = agent.name || agent.id;
+          }
+        }
+
+        // Inject ON_RUN_STEP handler to log which agent is actively generating a response
+        const baseHandlers = this.options.eventHandlers ?? {};
+        const trackingHandlers = {
+          ...baseHandlers,
+          'on_run_step': (event) => {
+            if (event?.type === 'message_creation' && event?.runId) {
+              const agentName = agentIdNameMap[event.runId] || event.runId;
+              logger.info(`[AgentGraph] 🤖 Agente activo: "${agentName}" (id: ${event.runId}) — generando respuesta`);
+            }
+            if (baseHandlers['on_run_step']) {
+              baseHandlers['on_run_step'](event);
+            }
+          },
+        };
+
         run = await createRun({
           agents: agentsForRun,
           indexTokenCountMap,
           runId: this.responseMessageId,
           signal: abortController.signal,
-          customHandlers: this.options.eventHandlers,
+          customHandlers: trackingHandlers,
           requestBody: config.configurable.requestBody,
           tokenCounter: createTokenCounter(this.getEncoding()),
         });
