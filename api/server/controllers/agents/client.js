@@ -1075,9 +1075,22 @@ class AgentClient extends BaseClient {
         for (let i = 0; i < keys.length; i++) {
           try {
             if (keys[i]) {
+              // Inject rotated key into the primary agent
               this.options.agent.model_parameters.apiKey = keys[i];
               if (config?.configurable?.endpointOption?.model_parameters) {
                 config.configurable.endpointOption.model_parameters.apiKey = keys[i];
+              }
+              
+              // CRITICAL BUGFIX: Also inject the rotated key into ALL secondary agents
+              // participating in the Multi-Agent Handoff Graph! Otherwise the specialists
+              // will get stuck infinitely using a broken/leaked key causing the 9-key exhaust bug.
+              if (this.agentConfigs && this.agentConfigs.size > 0) {
+                for (const secondaryAg of this.agentConfigs.values()) {
+                  if (!secondaryAg.model_parameters) {
+                    secondaryAg.model_parameters = {};
+                  }
+                  secondaryAg.model_parameters.apiKey = keys[i];
+                }
               }
             }
             /**
@@ -1095,6 +1108,10 @@ class AgentClient extends BaseClient {
             break; // Exit key loop on success
           } catch (err) {
             lastErr = err;
+            logger.error(`[AgentClient ERROR DUMP] [Key ${i}] Name: ${err?.name}, Status: ${err?.status}, Message: ${err?.message}`);
+            // If the error has a stack or raw response, print it to debug this
+            if (err?.response) logger.error(`[AgentClient RESPONSE DUMP]: ${JSON.stringify(err.response.data || err.response)}`);
+
             const isQuotaEvent = err?.status === 429 || err?.message?.includes('429');
             const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
             // NOTE: Do NOT include `err?.status === 400` here — a 400 can mean many things
@@ -1102,6 +1119,7 @@ class AgentClient extends BaseClient {
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
               err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') || err?.message?.includes('UNAVAILABLE');
+
 
             attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));
 
