@@ -883,11 +883,46 @@ class AgentClient extends BaseClient {
 
         // memoryPromise generation is extracted out of runAgents to prevent duplicate memory evaluations on key retry
 
-        // Copy tools arrays to prevent mutation by MultiAgentGraph.createHandoffTools() across retries
-        const agentsForRun = agents.map((agent) => ({
-          ...agent,
-          tools: agent.tools ? [...agent.tools] : agent.tools,
-        }));
+        // Copy tools arrays to prevent mutation by MultiAgentGraph.createHandoffTools() across retries.
+        // ARCHITECTURE FIX:
+        //   - The coordinator has handoff edges → it must DELEGATE, never call matriz_ipevar itself.
+        //   - But the specialists don't have matriz_ipevar configured → they can't close the record.
+        //   Fix: propagate matriz_ipevar from coordinator to all specialists, remove it from coordinator.
+        const coordinatorHasEdges = (agents[0]?.edges?.length ?? 0) > 0;
+        // Find the matriz_ipevar tool in the coordinator's toolset to propagate it
+        const matrizTool = coordinatorHasEdges
+          ? (agents[0]?.tools ?? []).find((t) => {
+              const name = typeof t === 'string' ? t : t?.name;
+              return name === 'matriz_ipevar';
+            })
+          : null;
+
+        const agentsForRun = agents.map((agent, index) => {
+          let tools = agent.tools ? [...agent.tools] : agent.tools;
+          if (index === 0 && coordinatorHasEdges && tools) {
+            // Remove matriz_ipevar from coordinator — forces it to use handoff tools (delegate)
+            tools = tools.filter((t) => {
+              const name = typeof t === 'string' ? t : t?.name;
+              return name !== 'matriz_ipevar';
+            });
+            logger.info(
+              `[AgentGraph] Coordinador multi-agente (${agents[0].edges.length} edges): "matriz_ipevar" removida — delegación obligatoria a especialistas`,
+            );
+          } else if (index > 0 && matrizTool && tools) {
+            // Propagate matriz_ipevar to specialists who don't have it
+            const hasMatriz = tools.some((t) => {
+              const name = typeof t === 'string' ? t : t?.name;
+              return name === 'matriz_ipevar';
+            });
+            if (!hasMatriz) {
+              tools.push(matrizTool);
+              logger.info(
+                `[AgentGraph] "matriz_ipevar" propagada al especialista: "${agent.name || agent.id}"`,
+              );
+            }
+          }
+          return { ...agent, tools };
+        });
 
         // Build agentId → name map for transfer tracking (safe: only used after execution)
         const agentIdNameMap = {};
