@@ -896,18 +896,7 @@ class AgentClient extends BaseClient {
         }
         const mainAgentName = agents[0]?.name || agents[0]?.id || 'Principal';
 
-        // ─── FORENSIC DEBUG ──────────────────────────────────────────
-        const coordinatorEdges = agents[0]?.edges ?? [];
-        const coordinatorTools = (agents[0]?.tools ?? []).map((t) => (typeof t === 'string' ? t : t?.name));
-        logger.info(
-          `[AgentGraph FORENSIC] agentes=${agents.length} | tipo=${agents.length > 1 || coordinatorEdges.length > 0 ? 'MULTI-AGENT' : 'STANDARD'} | edges=${coordinatorEdges.length} | herramientas_coordinador=${JSON.stringify(coordinatorTools)}`,
-        );
-        if (coordinatorEdges.length > 0) {
-          logger.info(
-            `[AgentGraph FORENSIC] edges del coordinador: ${JSON.stringify(coordinatorEdges.map((e) => ({ target: e.target, type: e.edgeType })))}`,
-          );
-        }
-        // ─────────────────────────────────────────────────────────────
+
 
         run = await createRun({
           agents: agentsForRun,
@@ -936,32 +925,7 @@ class AgentClient extends BaseClient {
           },
         });
 
-        // ─── Agent Transfer Audit Log ─────────────────────────────────
-        // After execution, inspect graph messages for handoff tool calls.
-        // Every transfer creates a ToolMessage named "lc_transfer_to_agent_<destId>".
-        try {
-          const graphMessages = typeof run.getRunMessages === 'function' ? run.getRunMessages() : [];
-          const TRANSFER_PREFIX = 'lc_transfer_to_';
-          const transfers = graphMessages.filter(
-            (m) => m?.name?.startsWith?.(TRANSFER_PREFIX),
-          );
-          if (transfers.length > 0) {
-            for (const t of transfers) {
-              const destId = t.name.replace(TRANSFER_PREFIX, '');
-              const destName = agentIdNameMap[destId] || destId;
-              logger.info(
-                `[AgentGraph] 🔄 Transferencia confirmada: "${mainAgentName}" → "${destName}" (id: ${destId})`,
-              );
-            }
-          } else {
-            logger.info(
-              `[AgentGraph] ✅ Sin transferencia — respondió directamente: "${mainAgentName}"`,
-            );
-          }
-        } catch (auditErr) {
-          logger.warn('[AgentGraph] No se pudo auditar transferencias:', auditErr?.message);
-        }
-        // ─────────────────────────────────────────────────────────────
+
 
         config.signal = null;
       };
