@@ -590,6 +590,17 @@ class AgentClient extends BaseClient {
     if (this.processMemory == null) {
       return;
     }
+    
+    // Optimización: Desactivar Fase 2 (Escritura) si el agente usa matriz_ipevar
+    // Esto ahorra llamadas a la API durante las transferencias del flujo GTC-45.
+    const tools = this.options.agent?.tools || [];
+    const hasIpevarTool = tools.some(t => 
+      typeof t === 'string' ? t === 'matriz_ipevar' : t?.pluginKey === 'matriz_ipevar' || t?.name === 'matriz_ipevar'
+    );
+    if (hasIpevarTool) {
+      return;
+    }
+
     try {
       const appConfig = this.options.req.config;
       const memoryConfig = appConfig.memory;
