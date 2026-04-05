@@ -587,10 +587,10 @@ class AgentClient extends BaseClient {
    * @returns {Promise<void | (TAttachment | null)[]>}
    */
   async runMemory(messages) {
+    if (this.processMemory == null) {
+      return;
+    }
     try {
-      if (this.processMemory == null) {
-        return;
-      }
       const appConfig = this.options.req.config;
       const memoryConfig = appConfig.memory;
       const messageWindowSize = memoryConfig?.messageWindowSize ?? 5;
@@ -604,7 +604,6 @@ class AgentClient extends BaseClient {
             break;
           }
         }
-
         if (messagesToProcess.length === messages.length) {
           messagesToProcess = [...messages.slice(-messageWindowSize)];
         }
@@ -613,11 +612,103 @@ class AgentClient extends BaseClient {
       const filteredMessages = messagesToProcess.map((msg) => this.filterImageUrls(msg));
       const bufferString = getBufferString(filteredMessages);
       const bufferMessage = new HumanMessage(`# Current Chat:\n\n${bufferString}`);
-      return await this.processMemory([bufferMessage]);
+
+      // ─── Dual-axis rotation for Memory Agent (same as main agent) ───────────
+      // Read keys from memory agent's apiKey (comma-separated like main agent)
+      const rawApiKey = this.options.req.config?.memory?.agent?.model_parameters?.apiKey
+        ?? this.options.agent?.model_parameters?.apiKey
+        ?? null;
+      let memKeys = rawApiKey && typeof rawApiKey === 'string' && rawApiKey.includes(',')
+        ? rawApiKey.split(',').map((k) => k.trim()).filter(Boolean)
+        : [rawApiKey];
+      if (!memKeys.length) memKeys = [null];
+
+      // Model fallback list from GOOGLE_MODELS env (same exclusions as main agent)
+      const primaryMemModel = this.options.req.config?.memory?.agent?.model
+        ?? this.options.req.config?.memory?.agent?.model_parameters?.model
+        ?? '';
+      const envMemModels = (process.env.GOOGLE_MODELS || '')
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean)
+        .filter((m) => !m.includes('native-audio') && !m.includes('-live-'));
+      const memModelFallbacks = [
+        primaryMemModel,
+        ...envMemModels.filter((m) => m !== primaryMemModel),
+      ].filter(Boolean);
+      if (!memModelFallbacks.length) {
+        // No model configured — skip rotation, attempt once directly
+        return await this.processMemory([bufferMessage]);
+      }
+
+      let success = false;
+      let lastErr = null;
+
+      for (let mi = 0; mi < memModelFallbacks.length && !success; mi++) {
+        const currentMemModel = memModelFallbacks[mi];
+        if (mi > 0) {
+          logger.warn(
+            `[MemoryAgent] Modelo agotado — rotando a "${currentMemModel}" (fallback ${mi}/${memModelFallbacks.length - 1})`,
+          );
+        }
+
+        let rotateToNextModel = false;
+        for (let ki = 0; ki < memKeys.length; ki++) {
+          try {
+            // Inject current key + model into memory agent config before each attempt
+            if (memKeys[ki] && appConfig?.memory?.agent) {
+              if (!appConfig.memory.agent.model_parameters) {
+                appConfig.memory.agent.model_parameters = {};
+              }
+              appConfig.memory.agent.model_parameters.apiKey = memKeys[ki];
+              appConfig.memory.agent.model_parameters.model = currentMemModel;
+            }
+            // Re-create the processor with the updated key & model
+            await this.useMemory();
+            const result = await this.processMemory([bufferMessage]);
+            success = true;
+            return result;
+          } catch (err) {
+            lastErr = err;
+            const isQuota = err?.status === 429 || err?.message?.includes('429');
+            const isGenericQuota = err?.status === 403 || err?.message?.includes('403');
+            const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
+            const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
+              err?.message?.includes('overloaded') || err?.message?.includes('UNAVAILABLE');
+
+            if ((isQuota || isGenericQuota || isInvalidKey) && ki < memKeys.length - 1) {
+              logger.warn(
+                `[MemoryAgent] Error (${isInvalidKey ? 'Clave inválida' : 'Rate limit'}). Rotando a clave ${ki + 2}...`,
+              );
+              continue; // Next key, same model
+            } else if (isQuota || isGenericQuota || isInvalidKey) {
+              logger.warn(
+                `[MemoryAgent] Todas las claves agotadas para "${currentMemModel}". Rotando al siguiente modelo...`,
+              );
+              rotateToNextModel = true;
+              break;
+            } else if (isServiceUnavailable) {
+              logger.warn(`[MemoryAgent] Modelo "${currentMemModel}" no disponible (503). Intentando siguiente modelo...`);
+              rotateToNextModel = true;
+              break;
+            } else {
+              // Non-recoverable — log and exit quietly (memory is non-critical)
+              logger.error('[MemoryAgent] Error no recuperable al procesar memoria:', err?.message);
+              return;
+            }
+          }
+        }
+        if (rotateToNextModel && !success) continue;
+      }
+
+      if (!success && lastErr) {
+        logger.error('[MemoryAgent] Todos los modelos y claves agotados. Omitiendo memoria.', lastErr?.message);
+      }
     } catch (error) {
       logger.error('Memory Agent failed to process memory', error);
     }
   }
+
 
   /** @type {sendCompletion} */
   async sendCompletion(payload, opts = {}) {
