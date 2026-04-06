@@ -470,23 +470,40 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const containerRef = useRef<HTMLDivElement>(null);
   const [dashboardHeight, setDashboardHeight] = useState<number>(45); // 45% por defecto
 
-  const startDrag = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const onMouseMove = (moveEvent: MouseEvent) => {
+  const startDrag = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    let isTouch = 'touches' in e;
+    if (!isTouch) {
+      e.preventDefault();
+    }
+
+    const onMove = (moveEvent: MouseEvent | TouchEvent) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const newH = rect.bottom - moveEvent.clientY;
+      const clientY = 'touches' in moveEvent ? moveEvent.touches[0].clientY : moveEvent.clientY;
+      const newH = rect.bottom - clientY;
       const rawPct = (newH / rect.height) * 100;
       setDashboardHeight(Math.max(10, Math.min(rawPct, 90))); // Restringe entre 10% y 90%
     };
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.body.style.cursor = '';
+
+    const onUp = () => {
+      if (isTouch) {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+      } else {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.cursor = '';
+      }
     };
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-    document.body.style.cursor = 'row-resize';
+
+    if (isTouch) {
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+    } else {
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.body.style.cursor = 'row-resize';
+    }
   }, []);
 
   const { token } = useAuthContext();
@@ -1107,7 +1124,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       {/* ── Dashboard analítico y Resizer ───────────────────────────────────── */}
       <div 
         onMouseDown={startDrag}
-        className="shrink-0 h-2 bg-surface-tertiary border-y border-border-light hover:bg-teal-500/20 cursor-row-resize flex items-center justify-center transition-colors group/resizer relative z-20"
+        onTouchStart={startDrag}
+        className="shrink-0 h-4 bg-surface-tertiary border-y border-border-light hover:bg-teal-500/20 cursor-row-resize flex items-center justify-center transition-colors group/resizer relative z-20 touch-none"
       >
         <div className="w-12 h-1 bg-border-heavy rounded-full group-hover/resizer:bg-teal-500/50" />
       </div>
