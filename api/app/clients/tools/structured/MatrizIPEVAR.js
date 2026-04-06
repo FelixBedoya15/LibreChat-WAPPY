@@ -7,9 +7,13 @@ class MatrizIPEVAR extends Tool {
     super();
     this.name = 'matriz_ipevar';
     this.description =
-      'Añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta cuando el usuario pida documentar o evaluar un peligro en la matriz IPEVAR/GTC-45.';
+      'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar un peligro en la matriz IPEVAR/GTC-45.';
     this.req = fields.req;
     this.schema = z.object({
+      accion: z.enum(['leer', 'escribir']).describe('Selecciona "leer" si solo necesitas consultar la matriz. Selecciona "escribir" si vas a guardar o actualizar riesgos.'),
+      filtro_proceso: z.string().optional().describe('Si accion es "leer", puedes filtrar por proceso o área general.'),
+      filtro_actividad: z.string().optional().describe('Si accion es "leer", puedes filtrar por actividad.'),
+      filtro_peligro: z.string().optional().describe('Si accion es "leer", puedes filtrar por clasificación de peligro.'),
       riesgos: z.array(z.object({
         proceso: z.string().describe('El proceso o área general.'),
         zona: z.string().describe('Lugar o zona de trabajo.'),
@@ -18,26 +22,23 @@ class MatrizIPEVAR extends Tool {
         rutinaria: z.enum(['Sí', 'No']).describe('¿Es una tarea rutinaria?'),
         peligro_descripcion: z
           .string()
-          .describe('Descripción del riesgo. CRÍTICO: Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" (1 de 4: Demandas del trabajo, Control sobre el trabajo, Liderazgo/relaciones, Recompensa) y la "Dimensión" de la Batería Riesgo Psicosocial MinProtección Social 2010. Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción de la causa...". Para otros peligros, describe normalmente.'),
+          .describe('Descripción del riesgo. CRÍTICO: Si el peligro_clasificacion es "Psicosocial", DEBES extraer y prefijar estrictamente el "Dominio" y la "Dimensión". Ej: "[Dominio: Demandas del trabajo - Dimensión: Carga mental] Descripción...". Para otros peligros, describe normalmente.'),
         peligro_clasificacion: z.string().describe('Clasificación (ej. Biomecánico, Físico, Químico).'),
         efectos_posibles: z.string().describe('Posibles efectos en la salud del trabajador.'),
-        controles_fuente: z.string().default('Ninguno').describe('Controles existentes en la fuente.'),
-        controles_medio: z.string().default('Ninguno').describe('Controles existentes en el medio.'),
-        controles_individuo: z
-          .string()
-          .default('Ninguno')
-          .describe('Controles existentes en el individuo (epp, dotación).'),
-        nd: z.number().describe('Nivel de Deficiencia (ND) numérico según GTC-45.'),
-        ne: z.number().describe('Nivel de Exposición (NE) numérico según GTC-45.'),
-        nc: z.number().describe('Nivel de Consecuencia (NC) numérico según GTC-45.'),
-        medida_eliminacion: z.string().default('Ninguno').describe('Medidas de intervención: Eliminación del peligro.'),
-        medida_sustitucion: z.string().default('Ninguno').describe('Medidas de intervención: Sustitución del peligro.'),
-        medida_ingenieria: z.string().default('Ninguno').describe('Medidas de intervención: Controles de ingeniería propuestos.'),
-        medida_administrativa: z.string().default('Ninguno').describe('Medidas de intervención: Controles administrativos.'),
-        medida_eppu: z.string().default('Ninguno').describe('Medidas de intervención: Equipos de protección personal (EPP).'),
-        factores_reduccion: z.string().default('No aplica').describe('Anexo E GTC-45:2012 — Factores de reducción y justificación. Documenta medidas verificables que reducen el riesgo residual: capacitaciones, inspecciones, señalizaciones, procedimientos. Incluye frecuencia y responsable.'),
-        nd_cualitativo: z.number().optional().describe('Anexo C GTC-45:2012 — Nivel de Deficiencia cualitativo para peligros higiénicos. MA=10, A=6, M=2, B=0. Se usa cuando no hay medición instrumental disponible.'),
-      })).describe('Lista masiva de riesgos. Si el contexto incluye múltiples procesos o peligros, debes insertarlos todos de una sola vez en este array. Procesa hasta 20 riesgos por llamado.')
+        controles_fuente: z.string().default('Ninguno').describe('Controles en la fuente.'),
+        controles_medio: z.string().default('Ninguno').describe('Controles en el medio.'),
+        controles_individuo: z.string().default('Ninguno').describe('Controles en el individuo.'),
+        nd: z.number().describe('Nivel de Deficiencia (ND).'),
+        ne: z.number().describe('Nivel de Exposición (NE).'),
+        nc: z.number().describe('Nivel de Consecuencia (NC).'),
+        medida_eliminacion: z.string().default('Ninguno').describe('Medidas: Eliminación.'),
+        medida_sustitucion: z.string().default('Ninguno').describe('Medidas: Sustitución.'),
+        medida_ingenieria: z.string().default('Ninguno').describe('Medidas: Controles de ingeniería.'),
+        medida_administrativa: z.string().default('Ninguno').describe('Medidas: Administrativos.'),
+        medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP.'),
+        factores_reduccion: z.string().default('No aplica').describe('Factores de reducción.'),
+        nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
+      })).optional().describe('Lista de riesgos. OBLIGATORIO si accion="escribir". Vacío si accion="leer".')
     });
   }
 
@@ -63,17 +64,44 @@ class MatrizIPEVAR extends Tool {
         return JSON.stringify({ error: errorMsg });
       }
 
-      const { riesgos } = input;
+      const { accion, riesgos, filtro_proceso, filtro_actividad, filtro_peligro } = input;
+
+      // Obtener sesión
+      let session = await GTC45Matrix.findOne({ conversationId });
+      
+      // LOGICA DE LECTURA
+      if (accion === 'leer') {
+        console.log(`[MatrizIPEVAR Tool] LECTURA para convo: ${conversationId}`);
+        if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+          return JSON.stringify({ mensaje: 'La matriz está vacía. No hay riesgos registrados aún.', resultados: [] });
+        }
+        
+        let rows = session.matrixRows;
+        if (filtro_proceso) {
+          rows = rows.filter(r => r.proceso && r.proceso.toLowerCase().includes(filtro_proceso.toLowerCase()));
+        }
+        if (filtro_actividad) {
+          rows = rows.filter(r => r.actividad && r.actividad.toLowerCase().includes(filtro_actividad.toLowerCase()));
+        }
+        if (filtro_peligro) {
+          rows = rows.filter(r => r.peligro_clasificacion && r.peligro_clasificacion.toLowerCase().includes(filtro_peligro.toLowerCase()));
+        }
+        
+        return JSON.stringify({
+          mensaje: `Se encontraron ${rows.length} riesgos.`,
+          totalRegistros: session.matrixRows.length,
+          resultados: rows
+        });
+      }
+
+      // LOGICA DE ESCRITURA
       if (!riesgos || !Array.isArray(riesgos)) {
-        return JSON.stringify({ error: "El objeto debe contener un array 'riesgos'." });
+        return JSON.stringify({ error: "El objeto debe contener un array 'riesgos' para escribir." });
       }
 
       console.log(`[MatrizIPEVAR Tool] Procesando ${riesgos.length} riesgos para convo: ${conversationId}`);
 
       const userId = this.req?.user?.id;
-      
-      // Obtener sesión única antes de iterar para evitar condiciones de carrera DB
-      let session = await GTC45Matrix.findOne({ conversationId });
       
       if (!session) {
         session = new GTC45Matrix({
