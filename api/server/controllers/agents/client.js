@@ -906,13 +906,18 @@ class AgentClient extends BaseClient {
 
       config = {
         runName: 'AgentRun',
+        metadata: {
+          // CRITICAL FIX: callbacks.js reads hide_sequential_outputs from metadata (NOT configurable).
+          // In LangGraph, configurable and metadata are DIFFERENT objects on RunnableConfig.
+          // Without this, specialist agent text responses are silently suppressed even though
+          // the tool (matriz_ipevar) executes correctly. Setting false ensures all agent tokens reach the client.
+          hide_sequential_outputs: false,
+        },
         configurable: {
           thread_id: this.conversationId,
           last_agent_index: this.agentConfigs?.size ?? 0,
           user_id: this.user ?? this.options.req.user?.id,
-          hide_sequential_outputs: false, // FIX: Specialist agents called via dynamic handoff don't pass
-          // checkIfLastAgent() because their langgraph_node name doesn't end with the statically-assigned
-          // last_agent_id. Token deduplication (messageDeltaDedupeSet) already prevents 3x repetition.
+          hide_sequential_outputs: false,
           requestBody: {
             messageId: this.responseMessageId,
             conversationId: this.conversationId,
