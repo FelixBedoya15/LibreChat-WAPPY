@@ -189,6 +189,11 @@ export default function AgenteGTC45Workspace() {
   useEffect(() => {
     if (currentRole !== 'ADMIN') return;
     
+    let resizeObserver: ResizeObserver | null = null;
+    let controlsNavRef: HTMLElement | null = null;
+    let toggleWrapperRef: HTMLElement | null = null;
+    let handleRef: HTMLElement | null = null;
+
     // This runs periodically until it finds the ChatRoute elements
     const interval = setInterval(() => {
       const controlsNav = document.getElementById('controls-nav');
@@ -197,8 +202,9 @@ export default function AgenteGTC45Workspace() {
       if (controlsNav && toggleBtn) {
         clearInterval(interval);
         
-        const toggleWrapper = toggleBtn.closest('.w-px') as HTMLElement;
-        const handle = document.querySelector('.gtc-workspace .bg-presentation > [data-panel-resize-handle]') as HTMLElement;
+        controlsNavRef = controlsNav;
+        toggleWrapperRef = toggleBtn.closest('.w-px') as HTMLElement;
+        handleRef = document.querySelector('.gtc-workspace .bg-presentation > [data-panel-resize-handle]') as HTMLElement;
         
         // 1. Teleport controls-nav to the far right
         controlsNav.style.setProperty('position', 'fixed', 'important');
@@ -213,32 +219,54 @@ export default function AgenteGTC45Workspace() {
         controlsNav.style.setProperty('max-width', '352px', 'important');
         
         // 2. Hide the drag handle
-        if (handle) {
-          handle.style.setProperty('display', 'none', 'important');
+        if (handleRef) {
+          handleRef.style.setProperty('display', 'none', 'important');
         }
 
         // 3. Teleport Toggle Button
-        if (toggleWrapper) {
-          toggleWrapper.style.setProperty('position', 'fixed', 'important');
-          toggleWrapper.style.setProperty('top', '50%', 'important');
-          toggleWrapper.style.setProperty('z-index', '1010', 'important');
+        if (toggleWrapperRef) {
+          toggleWrapperRef.style.setProperty('position', 'fixed', 'important');
+          toggleWrapperRef.style.setProperty('top', '50%', 'important');
+          toggleWrapperRef.style.setProperty('z-index', '1010', 'important');
         }
 
         // 4. Sycn Toggle Button position with SidePanel width
-        const resizeObserver = new ResizeObserver((entries) => {
+        resizeObserver = new ResizeObserver((entries) => {
           for (let entry of entries) {
              const width = entry.contentRect.width;
-             if (toggleWrapper) toggleWrapper.style.setProperty('right', `${width}px`, 'important');
+             if (toggleWrapperRef) toggleWrapperRef.style.setProperty('right', `${width}px`, 'important');
           }
         });
         resizeObserver.observe(controlsNav);
-        
-        // Clean up
-        return () => resizeObserver.disconnect();
       }
     }, 500);
 
-    return () => clearInterval(interval);
+    // Clean up function on unmount
+    return () => {
+      clearInterval(interval);
+      if (resizeObserver) resizeObserver.disconnect();
+      
+      // Cleanup CSS pollution when leaving workspace
+      if (controlsNavRef) {
+        controlsNavRef.style.removeProperty('position');
+        controlsNavRef.style.removeProperty('right');
+        controlsNavRef.style.removeProperty('top');
+        controlsNavRef.style.removeProperty('bottom');
+        controlsNavRef.style.removeProperty('height');
+        controlsNavRef.style.removeProperty('z-index');
+        controlsNavRef.style.removeProperty('border-left');
+        controlsNavRef.style.removeProperty('max-width');
+      }
+      if (toggleWrapperRef) {
+        toggleWrapperRef.style.removeProperty('position');
+        toggleWrapperRef.style.removeProperty('top');
+        toggleWrapperRef.style.removeProperty('z-index');
+        toggleWrapperRef.style.removeProperty('right');
+      }
+      if (handleRef) {
+        handleRef.style.removeProperty('display');
+      }
+    };
   }, [currentConvoId, currentRole]);
 
   if (currentRole !== 'ADMIN') {

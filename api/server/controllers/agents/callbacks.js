@@ -181,6 +181,14 @@ function getDefaultHandlers({ res, aggregateContent, toolEndCallback, collectedU
        * @param {GraphRunnableConfig['configurable']} [metadata] The runnable metadata.
        */
       handle: (event, data, metadata) => {
+        // [DEBUG] Logging to catch specialist agent output natively
+        if (data?.delta && typeof data.delta === 'object') {
+           const logName = metadata?.langgraph_node || metadata?.name || 'unknown_node';
+           if (logName !== 'agent_router' && logName !== 'RunnableLambda') {
+              console.log(`[STREAM DELTA] node: ${logName}, hide_seq: ${metadata?.hide_sequential_outputs}, type: ${data.delta.type}`);
+           }
+        }
+        
         if (data?.delta.type === StepTypes.TOOL_CALLS) {
           sendEvent(res, { event, data });
         } else if (checkIfLastAgent(metadata?.last_agent_id, metadata?.langgraph_node)) {
