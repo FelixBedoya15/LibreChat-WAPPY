@@ -4,7 +4,7 @@ import store from '~/store';
 import {
   Save, Maximize2, Minimize2, RefreshCw, Plus, Trash2,
   AlertTriangle, ShieldAlert, Zap, ScanSearch, Loader2, Sparkles,
-  ChevronDown, Check, FileText as FileTextIcon, History,
+  ChevronDown, Check, FileText as FileTextIcon, History, Upload,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '~/hooks';
@@ -368,6 +368,80 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isPendingImport = useRef(false);
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = evt.target?.result;
+        let newRows: MatrixRow[] = [];
+        
+        if (file.name.endsWith('.json')) {
+          newRows = JSON.parse(data as string);
+        } else if (file.name.endsWith('.xlsx')) {
+          const wb = XLSX.read(data, { type: 'binary' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(ws);
+          
+          newRows = json.map((r: any) => ({
+            proceso: r['Proceso'] || '',
+            zona: r['Zona'] || '',
+            actividad: r['Actividad'] || '',
+            tareas: r['Tareas'] || '',
+            rutinaria: r['Rutinaria'] || 'Sí',
+            peligro_descripcion: r['Descripción del Peligro'] || '',
+            peligro_clasificacion: r['Clasificación'] || '',
+            efectos_posibles: r['Efectos Posibles'] || '',
+            controles_fuente: r['Ctrl. Fuente'] || 'Ninguno',
+            controles_medio: r['Ctrl. Medio'] || 'Ninguno',
+            controles_individuo: r['Ctrl. Individuo'] || 'Ninguno',
+            nd: Number(r['ND']) || 0,
+            ne: Number(r['NE']) || 0,
+            np: Number(r['NP']) || 0,
+            nc: Number(r['NC']) || 0,
+            nr: Number(r['NR']) || 0,
+            interpretacion_nr: r['Interpretación NR'] || '',
+            aceptabilidad: r['Aceptabilidad'] || '',
+            medida_eliminacion: r['Eliminación'] || 'Ninguno',
+            medida_sustitucion: r['Sustitución'] || 'Ninguno',
+            medida_ingenieria: r['Ingeniería'] || 'Ninguno',
+            medida_administrativa: r['Administrativos'] || 'Ninguno',
+            medida_eppu: r['EPP'] || 'Ninguno',
+            factores_reduccion: r['Factores Reducción (Anexo E)'] || 'No aplica',
+            nd_cualitativo: null,
+            id: Date.now().toString() + Math.random().toString(36).substring(7)
+          }));
+        }
+        
+        if (newRows.length > 0) {
+           const combined = [...matrixRows, ...newRows];
+           setMatrixRows(combined);
+           if (actualConvoId && actualConvoId !== 'new') {
+              saveMatrixData(combined);
+           } else {
+              isPendingImport.current = true;
+           }
+           alert(`Importados ${newRows.length} riesgos exitosamente. ${(!actualConvoId || actualConvoId === 'new') ? '\\nImportante: Empieza a chatear (envía un mensaje) para crear el chat y auto-guardar tu matriz instanciada.' : ''}`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error al leer el archivo de importación. Verifique el formato.');
+      }
+      e.target.value = '';
+    };
+    
+    if (file.name.endsWith('.xlsx')) {
+      reader.readAsBinaryString(file);
+    } else {
+       reader.readAsText(file);
+    }
+  };
+
   // ── Sync with mobile Header toggle button via CustomEvents ────────────────
   useEffect(() => {
     const handler = (e: Event) => {
@@ -438,7 +512,12 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
   useEffect(() => {
     if (!actualConvoId || actualConvoId === 'new') return;
-    fetchMatrix(actualConvoId);
+    if (isPendingImport.current && matrixRows.length > 0) {
+      saveMatrixData(matrixRows);
+      isPendingImport.current = false;
+    } else {
+      fetchMatrix(actualConvoId);
+    }
   }, [actualConvoId]);
 
   useEffect(() => {
@@ -657,16 +736,26 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     sortField === field ? <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span> : <span className="ml-1 opacity-30">↕</span>;
 
   // ── Guard: no convo ───────────────────────────────────────────────────────
-  if (!actualConvoId || actualConvoId === 'new') {
+  if ((!actualConvoId || actualConvoId === 'new') && matrixRows.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-surface-primary border-l border-border-light">
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-surface-primary border-l border-border-light relative">
         <div className="mb-4 rounded-full bg-surface-tertiary p-4 border border-border-medium shadow-sm">
           <AlertTriangle className="h-8 w-8 text-yellow-500" />
         </div>
         <h3 className="mb-2 text-lg font-semibold text-text-primary">Matriz Inactiva</h3>
-        <p className="text-sm text-text-secondary max-w-sm">
+        <p className="text-sm text-text-secondary max-w-sm mb-6">
           Envía el primer mensaje en el chat para instanciar la matriz IPEVAR. Los riesgos se guardarán automáticamente aquí.
         </p>
+        
+        <button
+           onClick={() => fileInputRef.current?.click()}
+           className="flex items-center gap-2 px-6 py-2.5 bg-teal-500/10 text-teal-600 border border-teal-500/20 rounded-xl font-bold shadow-sm hover:bg-teal-500 hover:text-white transition-all transform hover:-translate-y-0.5"
+        >
+          <Upload className="h-4 w-4" />
+          Importar Matriz Existente / Exportada
+        </button>
+        <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.json" onChange={handleImportFile} />
+
       </div>
     );
   }
@@ -710,6 +799,17 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
               {isAnalyzing ? 'Generando…' : 'Análisis IPEVAR'}
             </span>
           </button>
+
+          {/* Importar */}
+          <button onClick={() => fileInputRef.current?.click()}
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105">
+            <Upload className="h-4 w-4 shrink-0" />
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
+              Importar
+            </span>
+          </button>
+          
+          <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.json" onChange={handleImportFile} />
 
           {/* Exportar — informe (HTML/Word/PDF) + Matriz (Excel) */}
           <ExportDropdown
