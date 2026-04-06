@@ -184,7 +184,7 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <MatrizIPEVARTable conversationId={conversationId ?? null} />
+                      <MatrizIPEVARTable key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
                     </div>
                   )}
                 </div>
