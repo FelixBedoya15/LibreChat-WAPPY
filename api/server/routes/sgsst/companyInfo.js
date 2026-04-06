@@ -68,7 +68,7 @@ Vigencia de Licencia: ${licenseExpiry || 'N/A'}
 Actualización Curso 50/20H: ${courseStatus || 'N/A'}
 Descripción General de Actividades: ${generalActivities || 'N/A'}`;
             
-            const memoryKey = 'Info. Empresa';
+            const memoryKey = 'empresa_sgsst';
             const tokenCount = Tokenizer.getTokenCount(memoryContent, 'o200k_base') || 0;
             
             const memories = await getAllUserMemories(req.user.id);
@@ -88,14 +88,6 @@ Descripción General de Actividades: ${generalActivities || 'N/A'}`;
                     value: memoryContent,
                     tokenCount,
                 });
-            }
-
-            // Migrar: eliminar key antigua si existe
-            const legacyKey = 'empresa_sgsst';
-            const legacyMemory = memories.find((m) => m.key === legacyKey);
-            if (legacyMemory) {
-                await deleteMemory({ userId: req.user.id, key: legacyKey });
-                logger.info('[SGSST CompanyInfo] Migrated legacy key empresa_sgsst -> Info. Empresa');
             }
         } catch (memError) {
             logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
