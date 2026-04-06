@@ -150,6 +150,18 @@ export async function createRun({
       llmConfig.usage = true;
     }
 
+    /** 
+     * WORKAROUND FOR GOOGLE GEMINI PARSER BUG
+     * GoogleGenerativeAI Error: Failed to parse stream (#303) occurs when Gemini
+     * tries to stream large tool schemas (like transfers or big matrices).
+     * Disabling streaming forces the SDK to await the full tool call payload,
+     * bypassing the brittle stream-chunk parser and preventing agent aborts.
+     */
+    if (provider === Providers.GOOGLE) {
+      llmConfig.disableStreaming = true;
+      llmConfig.streaming = false;
+    }
+
     const reasoningKey = getReasoningKey(provider, llmConfig, agent.endpoint);
     const agentInput: AgentInputs = {
       provider,
