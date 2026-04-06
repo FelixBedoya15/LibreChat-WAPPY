@@ -10,10 +10,11 @@ class MatrizIPEVAR extends Tool {
       'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar un peligro en la matriz IPEVAR/GTC-45.';
     this.req = fields.req;
     this.schema = z.object({
-      accion: z.enum(['leer', 'escribir']).describe('Selecciona "leer" si solo necesitas consultar la matriz. Selecciona "escribir" si vas a guardar o actualizar riesgos.'),
-      filtro_proceso: z.string().optional().describe('Si accion es "leer", puedes filtrar por proceso o área general.'),
-      filtro_actividad: z.string().optional().describe('Si accion es "leer", puedes filtrar por actividad.'),
-      filtro_peligro: z.string().optional().describe('Si accion es "leer", puedes filtrar por clasificación de peligro.'),
+      accion: z.enum(['leer', 'escribir', 'borrar']).describe('Selecciona "leer" si solo necesitas consultar. Selecciona "escribir" para guardar/actualizar. Selecciona "borrar" para eliminar riesgos por sus IDs.'),
+      filtro_proceso: z.string().optional().describe('Filtro para leer.'),
+      filtro_actividad: z.string().optional().describe('Filtro para leer.'),
+      filtro_peligro: z.string().optional().describe('Filtro para leer.'),
+      ids_a_borrar: z.array(z.string()).optional().describe('Arreglo de IDs de los riesgos que deseas eliminar. Solamente usado cuando accion="borrar".'),
       riesgos: z.array(z.object({
         proceso: z.string().describe('El proceso o área general.'),
         zona: z.string().describe('Lugar o zona de trabajo.'),
@@ -38,7 +39,7 @@ class MatrizIPEVAR extends Tool {
         medida_eppu: z.string().default('Ninguno').describe('Medidas: EPP.'),
         factores_reduccion: z.string().default('No aplica').describe('Factores de reducción.'),
         nd_cualitativo: z.number().optional().describe('ND cualitativo (MA=10, A=6, M=2, B=0).'),
-      })).optional().describe('Lista de riesgos. OBLIGATORIO si accion="escribir". Vacío si accion="leer".')
+      })).optional().describe('Lista de riesgos. OBLIGATORIO si accion="escribir". Vacío en otros casos.')
     });
   }
 
@@ -64,7 +65,7 @@ class MatrizIPEVAR extends Tool {
         return JSON.stringify({ error: errorMsg });
       }
 
-      const { accion, riesgos, filtro_proceso, filtro_actividad, filtro_peligro } = input;
+      const { accion, riesgos, filtro_proceso, filtro_actividad, filtro_peligro, ids_a_borrar } = input;
 
       // Obtener sesión
       let session = await GTC45Matrix.findOne({ conversationId });
@@ -91,6 +92,27 @@ class MatrizIPEVAR extends Tool {
           mensaje: `Se encontraron ${rows.length} riesgos.`,
           totalRegistros: session.matrixRows.length,
           resultados: rows
+        });
+      }
+
+      // LOGICA DE BORRADO
+      if (accion === 'borrar') {
+        if (!session || !session.matrixRows || session.matrixRows.length === 0) {
+          return JSON.stringify({ error: 'La matriz está vacía. No hay riesgos para borrar.' });
+        }
+        if (!ids_a_borrar || !Array.isArray(ids_a_borrar) || ids_a_borrar.length === 0) {
+          return JSON.stringify({ error: 'Debe proveer un arreglo "ids_a_borrar" con los IDs de los riesgos a eliminar.' });
+        }
+        const initialCount = session.matrixRows.length;
+        session.matrixRows = session.matrixRows.filter(r => !ids_a_borrar.includes(r.id));
+        const deletedCount = initialCount - session.matrixRows.length;
+        
+        session.markModified('matrixRows');
+        await session.save();
+        
+        return JSON.stringify({
+          mensaje: `Se eliminaron exitosamente ${deletedCount} riesgos de la base de datos.`,
+          totalRegistrosRestantes: session.matrixRows.length
         });
       }
 
