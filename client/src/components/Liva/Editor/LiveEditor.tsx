@@ -576,7 +576,18 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const removeImage = () => {
         if (!selectedImage) return;
-        selectedImage.remove();
+
+        // If the image is a signature, restore the placeholder instead of just deleting it
+        if (selectedImage.alt && selectedImage.alt.startsWith('Firma')) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'signature-placeholder';
+            placeholder.style.cssText = 'border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;';
+            placeholder.innerHTML = '<span style="font-size: 11px; opacity: 0.6;">Clic para firmar</span>';
+            selectedImage.replaceWith(placeholder);
+        } else {
+            selectedImage.remove();
+        }
+        
         setSelectedImage(null);
         onUpdate(editorRef.current?.innerHTML || '');
     };
