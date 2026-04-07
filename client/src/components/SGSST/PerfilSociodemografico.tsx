@@ -7,10 +7,12 @@ import {
     Download,
     X,
     Inbox,
-    CheckCircle
+    CheckCircle,
+    PenTool
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import SignaturePad from '~/components/SGSST/SignaturePad';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
@@ -85,6 +87,7 @@ const PerfilSociodemografico = () => {
 
     const [trabajadores, setTrabajadores] = useState<WorkerEntry[]>([]);
     const [workerTabs, setWorkerTabs] = useState<Record<string, string>>({});
+    const [activeSignatureWorkerId, setActiveSignatureWorkerId] = useState<string | null>(null);
 
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
 
@@ -948,11 +951,20 @@ const PerfilSociodemografico = () => {
                                                                         </button>
                                                                     </div>
                                                                 ) : (
-                                                                    <label className="cursor-pointer text-center flex flex-col items-center text-text-secondary w-full">
-                                                                        <ImageIcon size={24} className="mb-2 text-indigo-400" />
-                                                                        <span className="text-xs font-semibold uppercase">Cargar Firma</span>
-                                                                        <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload(w.id, e)} className="hidden" />
-                                                                    </label>
+                                                                    <div className="flex flex-col gap-2 w-full">
+                                                                        <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
+                                                                            <ImageIcon size={16} className="text-indigo-400" />
+                                                                            <span className="text-xs uppercase">Cargar Archivo</span>
+                                                                            <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload(w.id, e)} className="hidden" />
+                                                                        </label>
+                                                                        <button 
+                                                                            onClick={(e) => { e.preventDefault(); setActiveSignatureWorkerId(w.id); }}
+                                                                            className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+                                                                        >
+                                                                            <PenTool size={16} />
+                                                                            <span className="text-xs uppercase">Dibujar en Pantalla</span>
+                                                                        </button>
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1160,6 +1172,17 @@ const PerfilSociodemografico = () => {
                 onChange={handleImportExcel}
                 accept=".xlsx, .xls"
                 className="hidden"
+            />
+
+            <SignaturePad
+                isOpen={!!activeSignatureWorkerId}
+                onClose={() => setActiveSignatureWorkerId(null)}
+                title={`Firma digital del trabajador`}
+                onSave={(base64) => {
+                    if (activeSignatureWorkerId) {
+                        updateWorkerField(activeSignatureWorkerId, 'firmaDigital', base64);
+                    }
+                }}
             />
         </div>
     );

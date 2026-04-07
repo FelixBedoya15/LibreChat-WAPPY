@@ -10,6 +10,8 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import SignaturePad from './SignaturePad';
+import { PenTool } from 'lucide-react';
 
 interface CompanyInfoData {
     companyName: string;
@@ -92,6 +94,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const [data, setData] = useState<CompanyInfoData>(INITIAL_DATA);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [activeSignatureField, setActiveSignatureField] = useState<'legalRepSignature' | 'sstRespSignature' | null>(null);
 
     // Load data on open
     useEffect(() => {
@@ -362,12 +365,20 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <label className="cursor-pointer text-center flex flex-col items-center text-text-secondary w-full">
-                                                        <ImageIcon size={24} className="mb-2 text-indigo-400" />
-                                                        <span className="text-xs font-semibold uppercase">Cargar Firma</span>
-                                                        <span className="text-[10px] opacity-70 mt-1">Representante Legal</span>
-                                                        <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('legalRepSignature', e)} className="hidden" />
-                                                    </label>
+                                                    <div className="flex flex-col gap-2 w-full">
+                                                        <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
+                                                            <ImageIcon size={16} className="text-indigo-400" />
+                                                            <span className="text-xs uppercase">Cargar Archivo</span>
+                                                            <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('legalRepSignature', e)} className="hidden" />
+                                                        </label>
+                                                        <button 
+                                                            onClick={() => setActiveSignatureField('legalRepSignature')}
+                                                            className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+                                                        >
+                                                            <PenTool size={16} />
+                                                            <span className="text-xs uppercase">Dibujar en Pantalla</span>
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -396,12 +407,20 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <label className="cursor-pointer text-center flex flex-col items-center text-text-secondary w-full">
-                                                        <ImageIcon size={24} className="mb-2 text-indigo-400" />
-                                                        <span className="text-xs font-semibold uppercase">Cargar Firma</span>
-                                                        <span className="text-[10px] opacity-70 mt-1">Responsable SG-SST</span>
-                                                        <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('sstRespSignature', e)} className="hidden" />
-                                                    </label>
+                                                    <div className="flex flex-col gap-2 w-full">
+                                                        <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
+                                                            <ImageIcon size={16} className="text-indigo-400" />
+                                                            <span className="text-xs uppercase">Cargar Archivo</span>
+                                                            <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload('sstRespSignature', e)} className="hidden" />
+                                                        </label>
+                                                        <button 
+                                                            onClick={() => setActiveSignatureField('sstRespSignature')}
+                                                            className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
+                                                        >
+                                                            <PenTool size={16} />
+                                                            <span className="text-xs uppercase">Dibujar en Pantalla</span>
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -476,6 +495,17 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     </button>
                 </div>
             </div>
+
+            <SignaturePad
+                isOpen={!!activeSignatureField}
+                onClose={() => setActiveSignatureField(null)}
+                title={activeSignatureField === 'legalRepSignature' ? 'Firma: Representante Legal' : 'Firma: Responsable SG-SST'}
+                onSave={(base64) => {
+                    if (activeSignatureField) {
+                        handleChange(activeSignatureField, base64);
+                    }
+                }}
+            />
         </div>
     );
 };

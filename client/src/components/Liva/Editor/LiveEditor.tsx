@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 import { useAuthContext } from '~/hooks/AuthContext';
+import SignaturePad from '~/components/SGSST/SignaturePad';
 
 interface LiveEditorProps {
     initialContent: string;
@@ -37,6 +38,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [content, setContent] = useState(initialContent);
     const [namedSignatures, setNamedSignatures] = useState<Record<string, string>>({});
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+    const [isDrawingPadOpen, setIsDrawingPadOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
     const [imageToolbarPos, setImageToolbarPos] = useState({ top: 0, left: 0 });
     const [selectedTableCell, setSelectedTableCell] = useState<HTMLTableCellElement | null>(null);
@@ -418,6 +420,20 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma" />`;
             document.execCommand('insertHTML', false, img);
             onUpdate(editorRef.current?.innerHTML || '');
+        }
+        setIsSignatureModalOpen(false);
+    };
+
+    const saveDrawnSignature = (base64: string) => {
+        let nameToUse = activeSignatureName;
+        if (!nameToUse || nameToUse === 'DESCONOCIDO') {
+            nameToUse = prompt("¿A qué nombre o rol pertenece esta firma?")?.trim().toUpperCase() || `Firma ${Object.keys(namedSignatures).length + 1}`;
+        }
+        setNamedSignatures(prev => ({ ...prev, [nameToUse]: base64 }));
+        
+        if (!activeSignaturePlaceholder) {
+            const img = `<img src="${base64}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma ${nameToUse}" />`;
+            document.execCommand('insertHTML', false, img);
         }
         setIsSignatureModalOpen(false);
     };
@@ -831,16 +847,22 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 </div>
                             )}
                         </div>
-                        <div className="p-4 bg-surface-secondary border-t border-border-light flex gap-2">
+                        <div className="p-4 bg-surface-secondary border-t border-border-light flex flex-col sm:flex-row gap-2">
                             <button
                                 onClick={() => signatureInputRef.current?.click()}
-                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
+                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
                             >
-                                Cargar nueva firma
+                                <ImageIcon size={16} /> Cargar Archivo
+                            </button>
+                            <button
+                                onClick={() => setIsDrawingPadOpen(true)}
+                                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                            >
+                                <PenTool size={16} /> Dibujar en Pantalla
                             </button>
                             <button
                                 onClick={() => setIsSignatureModalOpen(false)}
-                                className="px-4 py-2 bg-border-light hover:bg-border-medium text-text-primary rounded-lg transition-colors font-medium text-sm"
+                                className="px-4 py-2 bg-border-light hover:bg-border-medium text-text-primary rounded-lg transition-colors font-medium text-sm sm:flex-none"
                             >
                                 Cerrar
                             </button>
@@ -848,6 +870,13 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     </div>
                 </div>
             )}
+            
+            <SignaturePad 
+                isOpen={isDrawingPadOpen} 
+                onClose={() => setIsDrawingPadOpen(false)} 
+                onSave={saveDrawnSignature} 
+                title={activeSignatureName && activeSignatureName !== 'DESCONOCIDO' ? `Firma: ${activeSignatureName}` : "Dibujar Nueva Firma"}
+            />
 
             <div className="relative flex-1 overflow-x-auto overflow-y-hidden flex flex-col">
                 {/* Floating Image Toolbar */}
