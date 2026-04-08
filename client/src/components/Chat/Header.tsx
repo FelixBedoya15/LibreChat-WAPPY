@@ -1,4 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
+import { useRecoilValue, useRecoilState } from 'recoil';
+import store from '~/store';
 import { useMediaQuery } from '@librechat/client';
 import { useOutletContext } from 'react-router-dom';
 import { getConfigDefaults, PermissionTypes, Permissions } from 'librechat-data-provider';
@@ -36,29 +38,12 @@ export default function Header() {
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
-  // ── IPEVAR Matrix expand state (synced via CustomEvent) ──────────────────
-  const [ipevarMaximized, setIpevarMaximized] = useState(false);
-  const [isIPEVARActive, setIsIPEVARActive] = useState(false);
-
-  useEffect(() => {
-    const onMaximized = (e: Event) => {
-      setIpevarMaximized((e as CustomEvent).detail?.isMaximized ?? false);
-    };
-    const onActive = (e: Event) => {
-      setIsIPEVARActive((e as CustomEvent).detail?.active ?? false);
-    };
-    window.addEventListener('ipevar:maximized', onMaximized);
-    window.addEventListener('ipevar:active', onActive);
-    return () => {
-      window.removeEventListener('ipevar:maximized', onMaximized);
-      window.removeEventListener('ipevar:active', onActive);
-    };
-  }, []);
+  // ── IPEVAR Matrix expand state (synced via Recoil) ───────────────────────
+  const isIPEVARActive = useRecoilValue(store.isIPEVARActive);
+  const [ipevarMaximized, setIpevarMaximized] = useRecoilState(store.ipevarMaximized);
 
   const toggleIpevar = () => {
-    const next = !ipevarMaximized;
-    setIpevarMaximized(next);
-    window.dispatchEvent(new CustomEvent('ipevar:toggle', { detail: { isMaximized: next } }));
+    setIpevarMaximized((prev) => !prev);
   };
 
   return (

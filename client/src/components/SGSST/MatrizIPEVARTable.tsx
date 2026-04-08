@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useRecoilValue } from 'recoil';
+import { useRecoilValue, useRecoilState } from 'recoil';
 import store from '~/store';
 import {
   Save, Maximize2, Minimize2, RefreshCw, Plus, Trash2,
@@ -354,7 +354,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
 export default function MatrizIPEVARTable({ conversationId }: { conversationId: string | null }) {
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
   const [isLoading, setIsLoading] = useState(false);
   const [aiRowLoading, setAiRowLoading] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -442,20 +442,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     }
   };
 
-  // ── Sync with mobile Header toggle button via CustomEvents ────────────────
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const next = (e as CustomEvent).detail?.isMaximized ?? false;
-      setIsMaximized(next);
-    };
-    window.addEventListener('ipevar:toggle', handler);
-    return () => window.removeEventListener('ipevar:toggle', handler);
-  }, []);
-
-  useEffect(() => {
-    // Notify Header button to keep its icon in sync
-    window.dispatchEvent(new CustomEvent('ipevar:maximized', { detail: { isMaximized } }));
-  }, [isMaximized]);
+  // ── Sync with mobile Header toggle button via Recoil ───────────────
+  // Note: custom events removed in favor of store.ipevarMaximized state sharing
 
   // ── Filters & Sort ──────────────────────────────────────────────────────
   const [filterText, setFilterText] = useState('');

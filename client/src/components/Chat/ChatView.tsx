@@ -1,5 +1,5 @@
-import React, { memo, useCallback, useEffect, useState } from 'react';
-import { useRecoilValue } from 'recoil';
+import React, { memo, useCallback, useEffect } from 'react';
+import { useRecoilValue, useSetRecoilState, useRecoilState } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
 import { useParams } from 'react-router-dom';
@@ -113,21 +113,17 @@ function ChatView({ index = 0 }: { index?: number }) {
     }
   }, [currentIsIPEVARActive, conversationId]);
 
-  // ── Emit active state to Header mobile button ─────────────────────────────
+  // ── Sync active state to global Recoil atom (used by Header) ──────────────
+  const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
   useEffect(() => {
     const isMatrixRealized = isIPEVARActive && !!conversationId && conversationId !== Constants.NEW_CONVO;
-    window.dispatchEvent(new CustomEvent('ipevar:active', { detail: { active: isMatrixRealized } }));
-  }, [isIPEVARActive, conversationId]);
+    setIsIPEVARActive(isMatrixRealized);
+    // Cleanup: reset active state if it's not a valid convo or on unmount
+    return () => setIsIPEVARActive(false);
+  }, [isIPEVARActive, conversationId, setIsIPEVARActive]);
 
-  // ── Mobile: track whether IPEVAR panel is expanded ────────────────────────
-  const [mobileExpanded, setMobileExpanded] = useState(false);
-  useEffect(() => {
-    const handler = (e: Event) => {
-      setMobileExpanded((e as CustomEvent).detail?.isMaximized ?? false);
-    };
-    window.addEventListener('ipevar:maximized', handler);
-    return () => window.removeEventListener('ipevar:maximized', handler);
-  }, []);
+  // ── Mobile: track whether IPEVAR panel is expanded via global state ──────
+  const [mobileExpanded] = useRecoilState(store.ipevarMaximized);
 
   let content: JSX.Element | null | undefined;
   const isLandingPage =

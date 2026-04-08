@@ -27,10 +27,22 @@ const chatBadges = atomWithLocalStorage<Pick<BadgeItem, 'id'>[]>('chatBadges', [
   // { id: '2' },
 ]);
 
+const ipevarMaximized = atom<boolean>({
+  key: 'ipevarMaximized',
+  default: false,
+});
+
+const isIPEVARActive = atom<boolean>({
+  key: 'isIPEVARActive',
+  default: false,
+});
+
 export default {
   hideBannerHint,
   messageAttachmentsMap,
   queriesEnabled,
   isEditingBadges,
   chatBadges,
+  ipevarMaximized,
+  isIPEVARActive,
 };
