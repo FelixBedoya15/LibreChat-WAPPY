@@ -33,6 +33,17 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
+import './sst-bit.css';
+
+// ─── 8-Bit Helpers ────────────────────────────────────────────────────────────
+const PixelAvatar = ({ level }: { level: string }) => (
+    <div className="flex flex-col items-center justify-center p-4 border-4 border-white bg-[#000] w-32 h-32 ml-4 mb-4">
+        <div className="w-16 h-16 bg-green-500 rounded-sm mb-2 shadow-[inset_-4px_-4px_0_rgba(0,0,0,0.5)] flex items-center justify-center">
+            <span className="font-pixel text-white text-3xl">P</span>
+        </div>
+        <span className="font-pixel text-[8px] text-green-400 uppercase">LVL 99</span>
+    </div>
+);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
@@ -185,10 +196,10 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
 
     return (
         <div className="space-y-1 relative" ref={containerRef}>
-            <label className="text-xs font-semibold text-text-secondary uppercase tracking-tight">{label}</label>
+            <label className="text-[10px] text-green-400 font-pixel uppercase tracking-tight mb-2 block">{label}</label>
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="min-h-[42px] w-full rounded-xl border border-border-medium px-3 py-1.5 text-sm bg-surface-primary text-text-primary flex flex-wrap gap-1.5 cursor-pointer hover:border-teal-400 transition-all shadow-sm"
+                className="min-h-[42px] w-full border-4 border-white px-3 py-2 text-[10px] font-pixel bg-black text-green-400 flex flex-wrap gap-2 cursor-pointer hover:border-green-400 transition-all"
             >
                 {selected.length === 0 && <span className="text-text-tertiary">{placeholder}</span>}
                 {selected.map(val => (
@@ -498,7 +509,7 @@ const PerfilesCargo = () => {
     // ─── Render Field helper ──────────────────────────────────────────────────
     const renderField = (field: any) => {
         const baseClass =
-            'w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm';
+            'w-full border-4 border-white px-3 py-2 text-[10px] bg-black text-green-400 focus:outline-none focus:border-green-400 font-pixel uppercase';
         if (field.type === 'select') {
             return (
                 <select
@@ -569,18 +580,18 @@ const PerfilesCargo = () => {
                 </div>
             )}
 
-            {/* ── Profiles Quick Access ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3 px-1">
+            {/* ── Profiles Quick Access (Save Slots) ── */}
+            <div className="pixel-box">
+                <div className="flex items-center justify-between mb-4 px-1">
                     <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-teal-600" />
-                        <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Perfiles</span>
+                        <Database className="h-5 w-5 text-white" />
+                        <span className="text-[10px] font-pixel text-white uppercase tracking-widest">Select Save Slot</span>
                     </div>
                     <button
                         onClick={handleAddPerfil}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                        className="pixel-btn bg-blue-600 border-white text-[10px] flex items-center gap-2"
                     >
-                        <Plus className="h-3.5 w-3.5" /> Nuevo Cargo
+                        <Plus className="h-3.5 w-3.5" /> NEW CHARACTER
                     </button>
                 </div>
                 <div className="flex flex-wrap gap-2.5">
@@ -589,10 +600,10 @@ const PerfilesCargo = () => {
                             <button
                                 onClick={() => handleSelectPerfil(p.id)}
                                 className={cn(
-                                    "px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[200px]",
+                                    "px-4 py-3 text-[10px] font-pixel transition-all border-4 uppercase truncate max-w-[250px]",
                                     activePerfilId === p.id 
-                                        ? "bg-teal-600 text-white border-teal-600 ring-2 ring-teal-100 dark:ring-teal-900/40" 
-                                        : "bg-surface-primary text-text-primary border-border-medium hover:border-teal-400"
+                                        ? "bg-green-600 text-white border-white scale-105" 
+                                        : "bg-black text-green-400 border-green-600 hover:border-white"
                                 )}
                             >
                                 {p.nombreCargo || 'Cargo sin nombre'}
@@ -608,19 +619,32 @@ const PerfilesCargo = () => {
                 </div>
             </div>
 
-            {/* ── Core Form ── */}
-            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-xl overflow-hidden">
-                <div className="p-6 space-y-8">
+            {/* ── Core Form (Character Sheet) ── */}
+            <div className="pixel-box-dark mt-8 p-6">
+                <div className="flex flex-col md:flex-row gap-6 border-b-4 border-white pb-6 mb-6">
+                     <PixelAvatar level={formData.nivelCargo} />
+                     <div className="flex-1 space-y-4">
+                         <h2 className="font-pixel text-2xl text-green-400 uppercase">Character Sheet</h2>
+                         <div className="space-y-2">
+                             <div className="flex justify-between font-pixel text-[10px] text-white">
+                                 <span>HP (Health Status)</span>
+                                 <span>100/100</span>
+                             </div>
+                             <div className="pixel-progress-bg"><div className="pixel-progress-fill" style={{width: '100%'}}></div></div>
+                         </div>
+                     </div>
+                </div>
+
+                <div className="space-y-10">
                     {FIELD_SECTIONS.map(section => (
-                        <div key={section.title} className="space-y-4">
-                            <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
-                                <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-xl">{section.icon}</div>
-                                <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">{section.title}</h4>
+                        <div key={section.title} className="space-y-6">
+                            <div className="flex items-center gap-3">
+                                <h4 className="font-pixel text-[12px] text-white uppercase tracking-wider">{section.title}</h4>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                                 {section.fields.map(field => (
-                                    <div key={field.key} className="space-y-1.5">
-                                        <label className="text-[11px] font-bold text-text-secondary uppercase tracking-tighter">
+                                    <div key={field.key} className="space-y-2">
+                                        <label className="text-[10px] font-pixel text-green-400 uppercase tracking-tighter">
                                             {field.label}
                                         </label>
                                         {renderField(field)}
@@ -630,12 +654,11 @@ const PerfilesCargo = () => {
                         </div>
                     ))}
 
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2 pb-2 border-b-2 border-border-light">
-                            <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-xl"><Shield className="h-4 w-4 text-teal-600" /></div>
-                            <h4 className="font-black text-[13px] text-text-primary uppercase tracking-wider">Equipos y Entrenamiento Especializado</h4>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 border-b-4 border-green-800 pb-2">
+                            <h4 className="font-pixel text-[12px] text-white uppercase tracking-wider">SKILL TREE & INVENTORY</h4>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <MultiSelect
                                 label="EPP Requeridos (GTC 45 / Res. 4272)"
                                 placeholder="Seleccionar EPP..."
@@ -653,26 +676,20 @@ const PerfilesCargo = () => {
                         </div>
                     </div>
 
-                    {/* Microphone Interface (Matching Alturas Permit) */}
-                    <div className="space-y-4 pt-4 border-t border-border-medium">
+                    {/* Microphone Interface */}
+                    <div className="space-y-4 pt-8 border-t-4 border-white mt-8">
                         <div className="flex items-center justify-between">
-                            <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 text-teal-600" /> Descripción Detallada (Dictado o Texto)
+                            <h4 className="font-pixel text-white text-[10px]">
+                                CHARACTER LORE (Context)
                             </h4>
                             <button
                                 onClick={handleVoiceInput}
                                 className={cn(
-                                    "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all shadow-md border flex items-center gap-2.5 hover:scale-105 active:scale-95 transform",
-                                    isListening 
-                                        ? "bg-red-50 text-red-600 border-red-200 animate-pulse" 
-                                        : "bg-surface-secondary hover:bg-surface-hover text-text-primary border-border-light"
+                                    "pixel-btn",
+                                    isListening ? "bg-red-600" : "bg-blue-600"
                                 )}
                             >
-                                <span className="relative flex h-3 w-3">
-                                    {isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>}
-                                    <span className={cn("relative inline-flex rounded-full h-3 w-3", isListening ? "bg-red-500" : "bg-teal-500")}></span>
-                                </span>
-                                {isListening ? 'Escuchando...' : 'Activar Micrófono'}
+                                {isListening ? 'RECORDING...' : 'VOICE RECORD'}
                             </button>
                         </div>
                         <div className="relative group">
@@ -686,10 +703,10 @@ const PerfilesCargo = () => {
                                 readOnly={isListening}
                                 placeholder="Ej: Describe aquí funciones específicas, equipos a operar, o condiciones especiales de riesgo..."
                                 className={cn(
-                                    "w-full rounded-2xl border-2 p-5 text-sm text-text-primary min-h-[180px] transition-all duration-300 focus:outline-none shadow-inner",
+                                    "w-full border-4 p-5 text-[10px] font-pixel uppercase min-h-[180px] transition-all duration-300 focus:outline-none",
                                     isListening 
-                                        ? "border-solid border-red-300 bg-red-50/10 focus:border-red-400" 
-                                        : "border-dashed border-teal-200 bg-teal-50/5 focus:bg-teal-50/10 focus:border-teal-400"
+                                        ? "border-red-500 bg-black text-red-500" 
+                                        : "border-white bg-black text-green-400 focus:border-green-400"
                                 )}
                             />
                             {!isListening && (
@@ -702,10 +719,9 @@ const PerfilesCargo = () => {
                 </div>
 
                 {/* Normative Badge Re-styled */}
-                <div className="px-6 py-4 bg-teal-50/50 dark:bg-teal-900/10 border-t border-border-medium flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-teal-600" />
-                    <span className="text-[11px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">
-                        Cumple Art. 16 de la Resolución 1843 de 2025 & GTC 45 (2012)
+                <div className="mt-8 px-6 py-4 bg-black border-4 border-white flex items-center gap-3">
+                    <span className="text-[10px] font-pixel text-white uppercase">
+                        QUEST VALID: COMPLIES WITH RES 1843 (2025) & GTC 45 (2012)
                     </span>
                 </div>
             </div>

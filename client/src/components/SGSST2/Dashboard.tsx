@@ -21,6 +21,7 @@ import { PHASE_CATEGORIES } from './constants';
 import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
 import DashboardPredictivo from './DashboardPredictivo';
+import SSTWorldMap from './SSTWorldMap';
 
 const REQUIRED_FIELDS = [
     'companyName', 'nit', 'legalRepresentative', 'workerCount',
@@ -89,6 +90,7 @@ export default function SGSSTDashboard() {
     const [showCompanyInfo, setShowCompanyInfo] = useState(false);
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
+    const [showWorldMap, setShowWorldMap] = useState(false);
     const hasCheckedRef = React.useRef(false);
     const phases = getPhases();
 
@@ -180,6 +182,20 @@ export default function SGSSTDashboard() {
         );
     }
 
+    if (showWorldMap) {
+        return (
+            <div className="flex h-full w-full flex-col overflow-y-auto bg-[#111] pb-20 p-8">
+                <button 
+                   onClick={() => setShowWorldMap(false)}
+                   className="pixel-btn bg-red-600 mb-6 self-start"
+                >
+                   EXIT MAP
+                </button>
+                <SSTWorldMap />
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary pb-20 scroll-smooth">
             
@@ -204,6 +220,12 @@ export default function SGSSTDashboard() {
                             <p className="text-text-secondary mt-1 text-sm font-medium">Ciclo de Mejora Continua (PHVA) & Inteligencia Predictiva.</p>
                         </div>
                     </div>
+                    <button
+                        onClick={() => setShowWorldMap(true)}
+                        className="ml-4 pixel-btn bg-green-600 hidden sm:block animate-pulse"
+                    >
+                        ENTER 8-BIT RISK MAP
+                    </button>
                 </div>
 
                 {/* Right: Integrated Company Info Widget */}

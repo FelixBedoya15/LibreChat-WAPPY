@@ -25,7 +25,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
-
+import './sst-bit.css';
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
     id: string;
@@ -626,31 +626,30 @@ const PerfilSociodemografico = () => {
                 ) : (
                     <>
                         {trabajadores.map((w, wIdx) => (
-                            <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
-                                {/* Worker Header */}
-                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleWorker(w.id)}>
-                                    <div className="flex flex-wrap items-center gap-3 w-full">
-                                        <div className="text-teal-500">
-                                            {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
+                            <div key={w.id} className="pixel-box mb-6 transition-all">
+                                {/* Worker Header (Character Slot) */}
+                                <div className="flex items-center justify-between p-4 bg-[#111] cursor-pointer hover:bg-[#222]" onClick={() => toggleWorker(w.id)}>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-green-500 flex items-center justify-center border-2 border-white shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.5)]">
+                                             <span className="font-pixel text-white text-xl">P</span>
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-text-primary text-base">
-                                                {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
-                                                <span className="ml-2 text-xs font-normal text-text-secondary">— {w.cargo || 'Sin cargo asignado'}</span>
+                                            <h3 className="font-pixel text-green-400 text-sm uppercase">
+                                                {wIdx + 1}. {w.nombre || 'EMPTY SLOT'}
                                             </h3>
-                                            <p className="text-xs text-text-secondary mt-0.5">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
+                                            <p className="font-pixel text-[8px] text-white mt-2">CLASS: {w.cargo || 'NONE'} | LVL: {w.edad || '?'}</p>
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 w-full">
+                                    <div className="flex flex-wrap items-center gap-2 w-auto">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
-                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors">
-                                            <AnimatedIcon name="qrcode" size={18} />
+                                            className="pixel-btn bg-blue-600">
+                                            QR CODE
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteWorker(w.id); }}
-                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
-                                            <AnimatedIcon name="trash" size={18} />
+                                            className="pixel-btn bg-red-600">
+                                            DELETE
                                         </button>
                                     </div>
                                 </div>
@@ -659,19 +658,19 @@ const PerfilSociodemografico = () => {
                                 {expandedWorkers.has(w.id) && (
                                     <div className="p-0 border-t border-border-light animate-in fade-in duration-200 bg-surface-primary/30">
                                         {/* Tabs Header */}
-                                        <div className="flex items-center overflow-x-auto border-b border-border-light bg-surface-secondary px-4 pt-1 hide-scrollbar">
+                                        <div className="flex items-center overflow-x-auto border-t-4 border-b-4 border-white bg-black px-4 pt-2 pb-2 hide-scrollbar gap-4 mt-4">
                                             <button
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'general' })); }}
-                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'general' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
-                                            > General & Laboral </button>
+                                                className={cn("px-4 py-2 font-pixel text-[10px] uppercase transition-colors", (workerTabs[w.id] || 'general') === 'general' ? "text-green-400 border-b-4 border-green-400" : "text-white")}
+                                            > GENERAL </button>
                                             <button
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'salud' })); }}
-                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'salud' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
-                                            > Salud & Hábitos </button>
+                                                className={cn("px-4 py-2 font-pixel text-[10px] uppercase transition-colors", (workerTabs[w.id] || 'general') === 'salud' ? "text-green-400 border-b-4 border-green-400" : "text-white")}
+                                            > HEALTH </button>
                                             <button
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'roles' })); }}
-                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'roles' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
-                                            > Roles & Especialidades </button>
+                                                className={cn("px-4 py-2 font-pixel text-[10px] uppercase transition-colors", (workerTabs[w.id] || 'general') === 'roles' ? "text-green-400 border-b-4 border-green-400" : "text-white")}
+                                            > SKILLS </button>
                                         </div>
 
                                         {/* Tab Content */}
