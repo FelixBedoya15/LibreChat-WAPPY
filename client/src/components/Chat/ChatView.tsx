@@ -116,7 +116,7 @@ function ChatView({ index = 0 }: { index?: number }) {
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
   useEffect(() => {
-    const isMatrixRealized = isIPEVARActive && !!conversationId && conversationId !== Constants.NEW_CONVO;
+    const isMatrixRealized = isIPEVARActive;
     setIsIPEVARActive(isMatrixRealized);
     // Cleanup: reset active state if it's not a valid convo or on unmount
     return () => setIsIPEVARActive(false);
