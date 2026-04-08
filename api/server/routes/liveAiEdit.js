@@ -66,10 +66,73 @@ ${dataStr.slice(0, 4000)}${dataStr.length > 4000 ? '\n...(truncado)' : ''}
 
   let fieldSpecificPrompt = '';
   if (reportSourceData && reportSourceData.field) {
-    if (reportSourceData.field.includes('Anexo E') || reportSourceData.field.includes('Reducción')) {
-      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo de 'Factores de Reducción (Anexo E)' de la matriz GTC-45.
-CRÍTICO: Según el Anexo E de la GTC 45, tu análisis DEBE enfocarse en JUSTIFICAR EL CONTROL PROPUESTO evaluando el COSTO-BENEFICIO. 
-NO recites fórmulas matemáticas ni expliques cómo se calculó el Nivel de Riesgo. Analiza si el control planteado tiene un impacto real (Factor de Reducción) y si su implementación es lógica, viable y económicamente justificada dada la magnitud del riesgo.`;
+    const field = reportSourceData.field;
+
+    if (field === 'Factores de Reducción (Anexo E)') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Factores de Reducción (Anexo E)" de la matriz GTC-45.
+TERMINANTEMENTE PROHIBIDO: No uses frases cortas como "Seguimiento a pausas activas. (Responsable: X, Mensual)".
+OBLIGATORIO — Redacta un párrafo analítico de MÍNIMO 3 oraciones completas que:
+1. Explique TÉCNICA y ESPECÍFICAMENTE por qué el control propuesto reduce el riesgo (mecanismo biomecánico, epidemiológico, toxicológico o conductual según aplique).
+2. Sustente la VIABILIDAD TÉCNICA y FINANCIERA de la implementación, comparando el costo de la medida vs. el costo de la enfermedad laboral, el ausentismo o las compensaciones futuras.
+3. Justifique la RELACIÓN COSTO-BENEFICIO: demuestra cómo la combinación de controles mejora la productividad operativa, reduce la siniestralidad y garantiza el cumplimiento normativo colombiano (Decreto 1072/2015, GTC-45).
+Redacta con lenguaje técnico SST profesional. Basa tu análisis en los controles existentes y propuestos que aparecen en el contexto (datos de origen).`;
+
+    } else if (field === 'Controles en la Fuente') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles en la Fuente" de la matriz GTC-45.
+OBLIGATORIO — No te limites a nombrar el control. Analiza técnicamente:
+1. Si los controles existentes actúan directamente sobre el origen del peligro (fuente generadora).
+2. Su nivel de eficacia real frente al Nivel de Deficiencia (ND) calificado en la fila.
+3. Qué tan robusto y suficiente es el control para el tipo de peligro y la clasificación del riesgo.
+Usa lenguaje técnico propio de un higienista industrial o especialista SST.`;
+
+    } else if (field === 'Controles en el Medio') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles en el Medio" de la matriz GTC-45.
+OBLIGATORIO — Analiza técnicamente:
+1. Si los controles en el medio de transmisión interrumpen o atenúan el peligro entre la fuente y el trabajador.
+2. Su eficacia técnica específica para este tipo de peligro (barreras físicas, distancias, aislamientos, ventilación, etc.).
+3. Si son suficientes para el ND y NE calificados, o qué complemento requieren.`;
+
+    } else if (field === 'Controles en el Individuo') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles en el Individuo" de la matriz GTC-45.
+OBLIGATORIO — Analiza técnicamente:
+1. Las medidas de protección aplicadas directamente al trabajador (EPP, capacitación, vigilancia médica).
+2. Su nivel de protección real y las limitaciones inherentes frente a los controles de ingeniería.
+3. Si son suficientes para el nivel de riesgo calificado o qué complemento se requiere según la jerarquía GTC-45.`;
+
+    } else if (field === 'Medida: Ingeniería') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles de Ingeniería" (medida propuesta) de la matriz GTC-45.
+OBLIGATORIO — Sé técnico y específico:
+1. Nombra el tipo EXACTO de control de ingeniería (rediseño ergonómico, guardas de seguridad, sistemas de extracción local, automatización, aislamiento acústico, etc.).
+2. Explica el PRINCIPIO TÉCNICO por el cual este control elimina o reduce el peligro desde la fuente o el medio de transmisión.
+3. Sustenta por qué tiene mayor efectividad permanente y es preferible a los controles administrativos o el EPP según la jerarquía de controles.`;
+
+    } else if (field === 'Medida: Administrativos') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Controles Administrativos" (medida propuesta) de la matriz GTC-45.
+OBLIGATORIO — Sé específico y sustancial:
+1. Detalla los procedimientos documentados, programas de capacitación, sistemas de rotación, señalización o políticas concretas.
+2. Explica CÓMO cada medida impactará directamente en la reducción del Nivel de Exposición (NE) o del Nivel de Deficiencia (ND).
+3. Justifica por qué son necesarias como complemento a los controles de ingeniería para garantizar adherencia y sostenibilidad del programa de seguridad.`;
+
+    } else if (field === 'Medida: Sustitución') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Sustitución" (medida propuesta) de la matriz GTC-45.
+OBLIGATORIO — Sustenta analíticamente:
+1. Por qué la sustitución propuesta es técnicamente viable para este peligro específico.
+2. Qué nivel de riesgo residual (NR esperado) quedaría después de aplicarla.
+3. Cómo se compara en términos de costo-beneficio frente a mantener el peligro actual o aplicar solo controles administrativos.`;
+
+    } else if (field === 'Medida: Eliminación') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "Eliminación" (medida propuesta) de la matriz GTC-45.
+Es el control de mayor jerarquía. OBLIGATORIO — Sustenta técnicamente:
+1. Si la eliminación es viable, explica cómo se lograría desde el diseño del proceso, la actividad o la tarea.
+2. Si NO aplica, argumenta técnicamente por qué no es factible para este peligro y qué controles sustitutos (ingeniería o administrativos) son los más efectivos como alternativa.`;
+
+    } else if (field === 'Medida: EPP') {
+      fieldSpecificPrompt = `ATENCIÓN: Estás editando el campo "EPP" (Equipos de Protección Personal) de la matriz GTC-45.
+Recuerda: el EPP es el ÚLTIMO recurso en la jerarquía de controles.
+OBLIGATORIO:
+1. Especifica con referencia técnica exacta el EPP apropiado: norma de certificación (NTC, ANSI, EN), clase, material, nivel de protección requerido.
+2. Explica para qué riesgo específico o parte del cuerpo protege, y bajo qué condiciones de uso es efectivo.
+3. Si el peligro es Psicosocial, indica explícitamente: "No aplica — el riesgo psicosocial no se atenúa con EPP. La intervención debe ser organizacional.".`;
     }
   }
 
