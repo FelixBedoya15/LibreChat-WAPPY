@@ -777,21 +777,21 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     <div ref={containerRef} className={`flex flex-col h-full bg-surface-primary transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm">
+      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3 shrink-0 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-shrink mr-2 text-ellipsis overflow-hidden">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm shrink-0">
             <ShieldAlert className="h-5 w-5" />
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-text-primary">Matriz IPEVAR Live</h2>
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs text-text-secondary">Sincronización Activa</span>
+          <div className="min-w-0 overflow-hidden">
+            <h2 className="text-sm font-semibold text-text-primary truncate">Matriz IPEVAR Live</h2>
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+              <span className="text-xs text-text-secondary truncate">Sincronización Activa</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar flex-nowrap shrink-0 max-w-[calc(100%-120px)] md:max-w-none">
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
           <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} hideTooltip={true} />
