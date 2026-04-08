@@ -744,6 +744,15 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   if ((!actualConvoId || actualConvoId === 'new') && matrixRows.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-surface-primary border-l border-border-light relative">
+        {/* Botón para cerrar/minimizar en mobile si está expandido */}
+        <button
+          onClick={() => setIsMaximized(false)}
+          className="absolute top-4 right-4 p-2 rounded-xl border border-border-medium hover:bg-surface-hover text-text-primary transition-all md:hidden"
+          aria-label="Cerrar Matriz"
+        >
+          <Minimize2 className="h-5 w-5" />
+        </button>
+
         <div className="mb-4 rounded-full bg-surface-tertiary p-4 border border-border-medium shadow-sm">
           <AlertTriangle className="h-8 w-8 text-yellow-500" />
         </div>
