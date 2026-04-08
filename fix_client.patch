@@ -1,0 +1,13 @@
+--- api/server/controllers/agents/client.js
++++ api/server/controllers/agents/client.js
+@@ -1161,6 +1161,9 @@
+           }
+         }
+         if (rotateToNextModel && !success) {
+           attemptErrors = [];
+           continue; // Advance outer loop to next model
+         }
++        if (!success && !rotateToNextModel) {
++          break; // Stop model rotation on non-recoverable errors
++        }
+       }

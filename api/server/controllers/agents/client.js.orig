@@ -1164,9 +1164,6 @@ class AgentClient extends BaseClient {
           attemptErrors = [];
           continue; // Advance outer loop to next model
         }
-        if (!rotateToNextModel && !success) {
-          break; // Stop outer model rotation loop on non-recoverable errors
-        }
       }
 
       if (!success && lastErr) {
