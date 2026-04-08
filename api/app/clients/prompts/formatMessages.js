@@ -146,9 +146,6 @@ const formatAgentMessages = (payload) => {
       message.content = [{ type: ContentTypes.TEXT, [ContentTypes.TEXT]: message.content }];
     }
     if (message.role !== 'assistant') {
-      if (messages.length > 0 && messages[messages.length - 1] instanceof ToolMessage) {
-        messages.push(new AIMessage({ content: "(tool execution finished)" }));
-      }
       messages.push(formatMessage({ message, langChain: true }));
       continue;
     }

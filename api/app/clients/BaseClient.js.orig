@@ -427,22 +427,8 @@ class BaseClient {
     const prunedMemory = messages;
     remainingContextTokens -= currentTokenCount;
 
-    let finalizedContext = context.reverse();
-    if (finalizedContext.length > 0) {
-       const first = finalizedContext[0];
-       if (first.role === 'assistant' && Array.isArray(first.content) && first.content.some(p => p.type === 'tool_call' || p.type === 'tool_result')) {
-           // If the sliding window truncated the user message but kept the tool call, Gemini throws 400.
-           finalizedContext.unshift({
-               role: 'user',
-               content: '(Previous context truncated)',
-               isCreatedByUser: true,
-               tokenCount: 4
-           });
-       }
-    }
-
     return {
-      context: finalizedContext,
+      context: context.reverse(),
       remainingContextTokens,
       messagesToRefine: prunedMemory,
     };
