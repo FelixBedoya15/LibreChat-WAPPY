@@ -1,4 +1,5 @@
 import SGSSTDashboard from '~/components/SGSST/Dashboard';
+import SGSST2Dashboard from '~/components/SGSST2/Dashboard';
 import PublicReportView from '~/components/SGSST/PublicReportView';
 import PublicReporteActos from '~/components/SGSST/PublicReporteActos';
 import PublicParticipacionIPEVAR from '~/components/SGSST/PublicParticipacionIPEVAR';
@@ -228,6 +229,10 @@ export const router = createBrowserRouter(
             {
               path: 'sgsst',
               element: <SGSSTDashboard />,
+            },
+            {
+              path: 'sgsst2',
+              element: <SGSST2Dashboard />,
             },
             {
               /* Redirect old GTC-45 workspace URLs to the equivalent native chat */

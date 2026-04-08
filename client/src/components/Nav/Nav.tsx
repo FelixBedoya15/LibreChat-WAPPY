@@ -28,6 +28,7 @@ const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
 const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
+const SGSST2Button = lazy(() => import('./SGSST2Button'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -62,7 +63,7 @@ const Nav = memo(
     setNavVisible: React.Dispatch<React.SetStateAction<boolean>>;
   }) => {
     const localize = useLocalize();
-    const { isAuthenticated } = useAuthContext();
+    const { isAuthenticated, user } = useAuthContext();
     const [isHovering, setIsHovering] = useState(false);
     const isSmallScreen = useMediaQuery('(max-width: 768px)');
     const [newUser, setNewUser] = useLocalStorage('newUser', true);
@@ -82,6 +83,7 @@ const Nav = memo(
     // SG-SST button is always visible for all users so they can input company config.
     // Upgrade limits are handled inside the SGSST module itself.
     const hasAccessToSGSST = true;
+    const hasAccessToSGSST2 = user?.role === 'ADMIN';
 
     const search = useRecoilValue(store.search);
 
@@ -195,9 +197,14 @@ const Nav = memo(
               <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
+          {hasAccessToSGSST2 && (
+            <Suspense fallback={null}>
+              <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
+            </Suspense>
+          )}
         </>
       ),
-      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState],
+      [hasAccessToBookmarks, tags, isSmallScreen, toggleNavVisible, hasAccessToSGSST, hasAccessToSGSST2, hasAccessToLiveAnalysis, hasAccessToAgents, isCollapsedState],
     );
 
     const [isSearchLoading, setIsSearchLoading] = useState(
@@ -296,6 +303,11 @@ const Nav = memo(
                             <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {hasAccessToSGSST2 && (
+                          <Suspense fallback={null}>
+                            <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -344,6 +356,11 @@ const Nav = memo(
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {hasAccessToSGSST2 && (
+                                  <Suspense fallback={null}>
+                                    <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
                               </div>

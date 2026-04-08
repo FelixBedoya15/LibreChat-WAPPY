@@ -1,0 +1,332 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Download, Globe, FileText, FileDown, ChevronDown, Loader2 } from 'lucide-react';
+import axios from 'axios';
+import { useToastContext } from '@librechat/client';
+import { useAuthContext } from '~/hooks/AuthContext';
+
+interface ExportDropdownProps {
+    content: string;
+    fileName: string;
+    reportType?: 'checklist' | 'general';
+    onExportExcel?: () => void;
+}
+
+/**
+ * Shared Export Dropdown for SGSST modules.
+ * Provides HTML, Word, and PDF export options in a single dropdown button.
+ * Preserves full HTML styling (tables, colors, formatting) in all formats.
+ */
+const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, reportType = 'general', onExportExcel }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const { showToast } = useToastContext();
+    const { token } = useAuthContext();
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    /**
+     * Build a full HTML document with inline styles for export.
+     */
+    const buildFullHtml = (): string => {
+        return `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${fileName}</title>
+    <style>
+        @media print {
+            body { margin: 0; padding: 0; background: #fff; }
+            .report-wrapper { padding: 0; width: 100%; border: none !important; box-shadow: none !important; }
+            @page { margin: 1cm; size: A4; }
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff !important;
+            color: #222;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, Roboto, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .report-wrapper {
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 40px 30px;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        @media screen and (max-width: 600px) {
+            .report-wrapper {
+                padding: 15px 10px;
+            }
+        }
+        h1 { color: #004d99; text-align: center; margin-bottom: 5px; font-size: 1.8em; }
+        h2 { color: #004d99; border-bottom: 2px solid #004d99; padding-bottom: 5px; font-size: 1.4em; }
+        h3 { color: #333; font-size: 1.2em; }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 0;
+            font-size: 0.9em;
+            table-layout: auto; /* Changed to auto for responsiveness */
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            margin: 15px 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        @media screen and (max-width: 600px) {
+            table {
+                min-width: 600px; /* Force minimum width to trigger scroll on mobile */
+            }
+        }
+        th {
+            background-color: #004d99;
+            color: white;
+            padding: 10px 8px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+            border-right: 1px solid rgba(255,255,255,0.15);
+        }
+        /* Specific column widths for SGSST Reports */
+        .checklist-mode th:nth-child(1) { width: 38px; } /* # - Narrowest */
+        .checklist-mode th:nth-child(2) { width: 14%; } /* Requisito / Norma */
+        .checklist-mode th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
+        .checklist-mode th:nth-child(4) { width: 10%; } /* Tipo */
+        .checklist-mode th:nth-child(5) { width: 15%; } /* Responsable */
+
+        th:last-child { border-right: none; }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #ddd;
+            border-right: 1px solid #eee;
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        td:last-child { border-right: none; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        tr:hover { background-color: #e8f0fe; }
+    </style>
+</head>
+<body class="${reportType === 'checklist' ? 'checklist-mode' : ''}">
+    <div class="report-wrapper">
+        ${content.replace(/<table/g, '<div class="table-responsive"><table').replace(/<\/table>/g, '</table></div>')}
+    </div>
+</body>
+</html>`;
+    };
+
+    /**
+     * Export as HTML — opens in a new browser tab with full styling.
+     */
+    /**
+     * Export as HTML — saves to backend and opens a shareable URL.
+     */
+    const handleExportHtml = async () => {
+        setIsSharing(true);
+        try {
+            const fullHtml = buildFullHtml();
+            const response = await axios.post('/api/public-report', {
+                content: fullHtml,
+                fileName,
+                reportType
+            }, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            
+            const { id } = response.data;
+            const publicUrl = `${window.location.origin}/report/${id}`;
+            
+            window.open(publicUrl, '_blank');
+            setIsOpen(false);
+        } catch (error) {
+            console.error('Error sharing report:', error);
+            // Fallback to blob if backend fails
+            const fullHtml = buildFullHtml();
+            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            showToast({
+                status: 'error',
+                message: 'No se pudo generar el link compartido, se abrió una vista temporal.',
+            });
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
+    /**
+     * Download as HTML file.
+     */
+    const handleDownloadHtml = () => {
+        const fullHtml = buildFullHtml();
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsOpen(false);
+    };
+
+    /**
+     * Export as Word (.doc) — uses MHTML format which Word can open with full styling.
+     * This preserves tables, colors, fonts, and layout.
+     */
+    const handleExportWord = () => {
+        const fullHtml = buildFullHtml();
+
+        // Word-compatible MHTML wrapper
+        const header = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="----=_NextBoundary"\r\n\r\n------=_NextBoundary\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n`;
+        const footer = `\r\n------=_NextBoundary--`;
+
+        const mhtmlContent = header + fullHtml + footer;
+
+        const blob = new Blob(['\ufeff' + mhtmlContent], {
+            type: 'application/msword'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${fileName}.doc`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsOpen(false);
+    };
+
+    /**
+     * Export as PDF — opens HTML in a new window and triggers print dialog.
+     */
+    const handleExportPdf = () => {
+        const fullHtml = buildFullHtml();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(fullHtml);
+            printWindow.document.close();
+            // Wait for content to render before printing
+            printWindow.onload = () => {
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+            };
+            // Fallback if onload doesn't trigger (already loaded)
+            setTimeout(() => {
+                printWindow.print();
+            }, 1500);
+        }
+        setIsOpen(false);
+    };
+
+    const exportOptions = [
+        {
+            label: 'Abrir en Navegador (HTML)',
+            icon: Globe,
+            handler: handleExportHtml,
+            description: 'Vista completa con estilos',
+        },
+        {
+            label: 'Descargar HTML (.html)',
+            icon: FileDown,
+            handler: handleDownloadHtml,
+            description: 'Archivo HTML independiente',
+        },
+        {
+            label: 'Descargar Word (.doc)',
+            icon: FileText,
+            handler: handleExportWord,
+            description: 'Editable con tablas y formato',
+        },
+        {
+            label: 'Descargar PDF',
+            icon: FileDown,
+            handler: handleExportPdf,
+            description: 'Imprimir / guardar como PDF',
+        },
+    ];
+
+    if (onExportExcel) {
+        exportOptions.unshift({
+            label: 'Exportar Matriz a Excel (.xlsx)',
+            icon: FileText,
+            handler: () => {
+                onExportExcel();
+                setIsOpen(false);
+            },
+            description: 'Datos crudos de la tabla en Excel',
+        });
+    }
+
+    return (
+        <div ref={dropdownRef} className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary"
+            >
+                <div className="relative flex-shrink-0 flex items-center justify-center">
+                    <Download className="h-5 w-5" />
+                </div>
+                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                    <span className="text-sm font-bold tracking-wide mr-1">
+                        Exportar
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+
+            {isOpen && (
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-[9999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-1">
+                        {exportOptions.map((option) => {
+                            const Icon = option.icon;
+                            return (
+                                <button
+                                    key={option.label}
+                                    onClick={option.handler}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-hover transition-colors text-left"
+                                >
+                                    <div className="p-1.5 rounded-xl bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400">
+                                        <Icon className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <div className="text-sm font-medium text-text-primary">{option.label}</div>
+                                        <div className="text-xs text-text-secondary">{option.description}</div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default ExportDropdown;
