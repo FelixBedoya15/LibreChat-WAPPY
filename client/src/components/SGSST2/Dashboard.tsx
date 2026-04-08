@@ -183,15 +183,31 @@ export default function SGSSTDashboard() {
     }
 
     if (showWorldMap) {
+        const handleMapNavigate = (phaseId: string) => {
+            setShowWorldMap(false);
+            const phase = phases.find(p => p.id === phaseId);
+            if (phase) {
+                if (missingFields.length > 0) {
+                    setShowCompanyInfo(true);
+                } else {
+                    setSearchParams({ phase: phase.id });
+                }
+            }
+        };
         return (
-            <div className="flex h-full w-full flex-col overflow-y-auto bg-[#111] pb-20 p-8">
-                <button 
-                   onClick={() => setShowWorldMap(false)}
-                   className="pixel-btn bg-red-600 mb-6 self-start"
-                >
-                   EXIT MAP
-                </button>
-                <SSTWorldMap />
+            <div className="flex h-full w-full flex-col overflow-y-auto bg-[#0a0a0a] pb-20">
+                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b-4 border-green-500">
+                    <span className="font-pixel text-green-400 text-sm">SOMOS SST — RISK MAP</span>
+                    <button 
+                       onClick={() => setShowWorldMap(false)}
+                       className="pixel-btn bg-red-600"
+                    >
+                       EXIT MAP
+                    </button>
+                </div>
+                <div className="flex-1 p-4">
+                    <SSTWorldMap onNavigate={handleMapNavigate} />
+                </div>
             </div>
         );
     }
