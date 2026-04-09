@@ -207,15 +207,5 @@
     "description": "Añade, evalúa o actualiza peligros laborales directamente en la Matriz GTC-45 en tiempo real. Activa la tabla visual interactiva en el chat.",
     "icon": "https://cdn-icons-png.flaticon.com/512/2833/2833324.png",
     "authConfig": []
-  },
-  {
-    "name": "Lector Matriz IPEVAR",
-    "pluginKey": "leer_matriz_ipevar",
-    "description": "Explora y consulta los riesgos ya registrados en la Matriz GTC-45 de la conversación actual.",
-    "icon": "https://cdn-icons-png.flaticon.com/512/3233/3233515.png",
-    "authConfig": [],
-    "authenticated": true,
-    "isAuthRequired": false,
-    "adminOnly": false
   }
 ]
