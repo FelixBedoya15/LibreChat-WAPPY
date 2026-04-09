@@ -761,56 +761,52 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
                 {/* HUD Overlay - Top Elements */}
                 <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-40 pointer-events-none">
-                    {/* Top Left: LIVE Indicator & Metadata */}
-                    <div className="flex flex-col gap-1 md:gap-3">
-                        <div className="flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-md px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10 shadow-xl">
-                            <div className="flex items-center gap-1.5 md:gap-2">
+                    {/* Top Left: LIVE Indicator & Setup */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-[12px] border border-white/10 shadow-xl w-max">
+                            <div className="flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
                                 </span>
-                                <span className="text-[9px] md:text-[11px] font-bold text-white uppercase tracking-wider">LIVE STREAM</span>
+                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
                             </div>
                             <div className="w-[1px] h-3 bg-white/20"></div>
-                            <div className="text-[9px] md:text-[11px] font-mono text-white/70">
+                            <div className="text-[11px] font-mono text-white/70">
                                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-0.5 md:gap-1 px-1">
-                            <h2 className="text-white text-[11px] md:text-sm font-bold tracking-wide flex items-center gap-1.5 md:gap-2">
-                                <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-teal-500 rounded-full"></span>
-                                <span className="truncate max-w-[150px] md:max-w-none">AUDITORÍA SST EN VIVO</span>
+                        <div className="flex flex-col px-1">
+                            <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
+                                <span className="truncate uppercase">ASISTENTE SST</span>
                             </h2>
-                            <p className="text-white/40 text-[8px] md:text-[10px] font-mono tracking-tighter uppercase">
-                                PROCESO: PELIGROS
-                            </p>
+                            {countdown > 0 && !isReady && (
+                                <p className="text-white/40 text-[10px] font-mono tracking-widest uppercase mt-1">
+                                    {countdown} SECONDS REMAINING
+                                </p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Top Center: Status Display */}
-                    <div className="absolute left-1/2 -translate-x-1/2 top-8 flex flex-col items-center gap-2">
-                         <div className="bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border border-white/20 shadow-2xl flex items-center gap-3">
-                            {status === 'thinking' && <RefreshCcw className="w-4 h-4 text-teal-400 animate-spin" />}
-                            <h2 className="text-sm md:text-base font-medium text-white tracking-widest uppercase">
-                                {statusText || (status === 'listening' ? localize('com_nav_voice_listening') :
-                                    status === 'speaking' ? localize('com_nav_voice_speaking') :
-                                        status === 'thinking' ? localize('com_nav_voice_thinking') :
-                                            localize('com_nav_voice_ready_label'))}
-                            </h2>
+                    {/* Top Right: Call Info & Status */}
+                    <div className="flex flex-col items-end gap-2 text-right">
+                        <div className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-[12px] border border-white/10 shadow-xl flex flex-col items-end gap-1 min-w-[200px]">
+                            <div className="flex justify-between items-center w-full">
+                                <span className="text-[10px] text-white/60 font-mono tracking-widest">MODEL:</span>
+                                <span className="text-[10px] text-white/80 font-mono uppercase tracking-widest">{selectedModel?.split('-')[0] || 'GEMINI'}</span>
+                            </div>
+                            <div className="text-[10px] text-teal-400 font-mono uppercase tracking-widest font-bold">
+                                {statusText === 'Conectando...' ? 'CONNECTING...' : 
+                                 statusText === 'Generando Reporte...' ? 'GENERATING REPORT...' :
+                                 (isConnected ? 'CONNECTED' : 'DISCONNECTED')}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Top Right: Call Info / Timer */}
-                    <div className="flex flex-col items-end gap-1 md:gap-3 text-right">
-                        <div className="bg-black/40 backdrop-blur-md px-2 md:px-4 py-1 md:py-2 rounded-lg border border-white/10 shadow-xl flex flex-col items-end">
-                            <span className="text-[8px] md:text-[10px] text-white/40 font-mono uppercase tracking-widest">Model: {selectedModel?.split('-')[0] || 'Gemini'}</span>
-                            <span className="text-[8px] md:text-[10px] text-teal-500 font-mono uppercase tracking-widest hidden sm:inline">Active Link: {conversationId?.slice(0, 8) || 'SESSION_NEW'}</span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-white/60">
-                            <Monitor className="w-2.5 md:w-3 h-2.5 md:h-3" />
-                            <span className="text-[9px] md:text-xs font-mono">1080p / 15FPS</span>
+                        <div className="flex items-center gap-2 text-white/60 mr-1 mt-1">
+                            <Monitor className="w-3 h-3" />
+                            <span className="text-[10px] font-mono tracking-widest uppercase">VOICE / 16KHz</span>
                         </div>
                     </div>
                 </div>

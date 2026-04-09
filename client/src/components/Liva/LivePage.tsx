@@ -590,15 +590,17 @@ const LivePage = () => {
             </div>
 
             {/* Live Analysis Modal Overlay */}
-            <LiveAnalysisModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                conversationId={conversationId}
-                onConversationIdUpdate={setConversationId}
-                onTextReceived={handleTextReceived}
-                onReportReceived={handleReportReceived}
-                selectedModel={selectedModel}
-            />
+            {isModalOpen && (
+                <LiveAnalysisModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    conversationId={conversationId}
+                    onConversationIdUpdate={setConversationId}
+                    onTextReceived={handleTextReceived}
+                    onReportReceived={handleReportReceived}
+                    selectedModel={selectedModel}
+                />
+            )}
                 </>
             )}
         </div>
