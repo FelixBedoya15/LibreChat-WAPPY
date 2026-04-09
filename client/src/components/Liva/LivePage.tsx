@@ -220,10 +220,38 @@ const LivePage = () => {
 
 
     const initialReportContent = `
-<h1>${localize('com_ui_risk_report_title')}</h1>
-<p><strong>${localize('com_ui_date')}</strong> ${new Date().toLocaleDateString()}</p>
-<h2>${localize('com_ui_live_analysis_title')}</h2>
-`;
+<div style="font-family:'Segoe UI',Arial,sans-serif; max-width:900px; margin:0 auto; color:#222;">
+  <!-- HEADER -->
+  <div style="background:linear-gradient(135deg,#0d2d5e 0%,#1565c0 100%); padding:28px 32px; border-radius:12px 12px 0 0; margin-bottom:0;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="color:#64b5f6; font-size:0.7em; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">Sistema de Gestión de Seguridad y Salud en el Trabajo</div>
+        <h1 style="color:#fff; font-size:1.6em; font-weight:800; margin:0 0 4px;">Informe de Análisis de Riesgos y Peligros</h1>
+        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis)</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:10px 16px; min-width:160px;">
+          <div style="color:#64b5f6; font-size:0.65em; font-weight:700; letter-spacing:2px; text-transform:uppercase;">Radicado</div>
+          <div style="color:#fff; font-size:1.1em; font-weight:700;">LA-PENDIENTE</div>
+          <div style="color:#90caf9; font-size:0.7em; margin-top:4px;">${new Date().toLocaleDateString()}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO BAR -->
+  <div style="background:#e3f2fd; border:1px solid #90caf9; border-top:none; padding:12px 24px; display:flex; flex-wrap:wrap; gap:24px; font-size:0.8em; color:#1565c0;">
+    <div><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</div>
+    <div><strong>Hora:</strong> --:--</div>
+    <div><strong>Tipo:</strong> Inspección de Riesgos en Vivo</div>
+    <div><strong>Estado:</strong> <span style="color:#e65100; font-weight:700;">En Espera</span></div>
+  </div>
+
+  <!-- BODY -->
+  <div style="background:#fff; border:1px solid #e0e0e0; border-top:none; padding:28px 32px 16px; min-height: 200px;">
+    <p style="color:#7f8c8d; text-align:center; font-style:italic; margin-top:40px;">Activa la cámara para comenzar el análisis predictivo de riesgos en tiempo real.</p>
+  </div>
+</div>`;
 
     const handleSave = async () => {
         const contentToSave = editorContent || initialReportContent;

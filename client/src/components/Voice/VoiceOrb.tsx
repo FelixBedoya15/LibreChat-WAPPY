@@ -38,29 +38,29 @@ const VoiceOrb: FC<VoiceOrbProps> = ({ status, amplitude = 0.5, className = '' }
             let gradient: CanvasGradient;
 
             if (status === 'idle') {
-                // Gentle purple/blue gradient
+                // Gentle purple/blue gradient (more translucent)
                 gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, dynamicRadius);
-                gradient.addColorStop(0, 'rgba(147, 51, 234, 0.8)'); // purple-600
-                gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.6)'); // indigo-500
-                gradient.addColorStop(1, 'rgba(59, 130, 246, 0.2)'); // blue-500
+                gradient.addColorStop(0, 'rgba(147, 51, 234, 0.4)'); // purple-600
+                gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.2)'); // indigo-500
+                gradient.addColorStop(1, 'rgba(59, 130, 246, 0.05)'); // blue-500
             } else if (status === 'listening') {
-                // Blue gradient (user speaking)
+                // Blue gradient (user speaking, more translucent)
                 gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, dynamicRadius);
-                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.9)'); // blue-500
-                gradient.addColorStop(0.5, 'rgba(37, 99, 235, 0.7)'); // blue-600
-                gradient.addColorStop(1, 'rgba(29, 78, 216, 0.3)'); // blue-700
+                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); // blue-500
+                gradient.addColorStop(0.5, 'rgba(37, 99, 235, 0.3)'); // blue-600
+                gradient.addColorStop(1, 'rgba(29, 78, 216, 0.1)'); // blue-700
             } else if (status === 'thinking') {
-                // Yellow/amber gradient (processing)
+                // Yellow/amber gradient (processing, more translucent)
                 gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, dynamicRadius);
-                gradient.addColorStop(0, 'rgba(251, 191, 36, 0.9)'); // amber-400
-                gradient.addColorStop(0.5, 'rgba(245, 158, 11, 0.7)'); // amber-500
-                gradient.addColorStop(1, 'rgba(217, 119, 6, 0.3)'); // amber-600
+                gradient.addColorStop(0, 'rgba(251, 191, 36, 0.5)'); // amber-400
+                gradient.addColorStop(0.5, 'rgba(245, 158, 11, 0.3)'); // amber-500
+                gradient.addColorStop(1, 'rgba(217, 119, 6, 0.1)'); // amber-600
             } else if (status === 'speaking') {
-                // Green gradient (AI speaking)
+                // Green gradient (AI speaking, more translucent)
                 gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, dynamicRadius);
-                gradient.addColorStop(0, 'rgba(34, 197, 94, 0.9)'); // green-500
-                gradient.addColorStop(0.5, 'rgba(22, 163, 74, 0.7)'); // green-600
-                gradient.addColorStop(1, 'rgba(21, 128, 61, 0.3)'); // green-700
+                gradient.addColorStop(0, 'rgba(34, 197, 94, 0.5)'); // green-500
+                gradient.addColorStop(0.5, 'rgba(22, 163, 74, 0.3)'); // green-600
+                gradient.addColorStop(1, 'rgba(21, 128, 61, 0.1)'); // green-700
             }
 
             // Draw main orb

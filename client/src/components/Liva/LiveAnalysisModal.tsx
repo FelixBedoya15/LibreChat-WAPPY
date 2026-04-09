@@ -760,10 +760,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 )}
 
                 {/* HUD Overlay - Top Elements */}
-                <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-40 pointer-events-none">
-                    {/* Top Left: LIVE Indicator & Setup */}
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-[12px] border border-white/10 shadow-xl w-max">
+                <div className="absolute top-0 left-0 p-6 flex flex-col items-start gap-4 z-40 pointer-events-none w-full max-w-[250px]">
+                    {/* Top Group 1: LIVE Indicator & Setup */}
+                    <div className="flex flex-col gap-1.5 w-full">
+                        <div className="flex items-center justify-between bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-[12px] border border-white/5 shadow-xl w-full">
                             <div className="flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -777,34 +777,34 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                             </div>
                         </div>
 
-                        <div className="flex flex-col px-1">
+                        <div className="flex flex-col px-2">
                             <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
-                                <span className="truncate uppercase">ASISTENTE SST</span>
+                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shadow-[0_0_8px_rgba(20,184,166,0.6)]"></span>
+                                <span className="truncate uppercase drop-shadow-md">ASISTENTE SST</span>
                             </h2>
                             {countdown > 0 && !isReady && (
-                                <p className="text-white/40 text-[10px] font-mono tracking-widest uppercase mt-1">
+                                <p className="text-white/60 text-[10px] font-mono tracking-widest uppercase mt-0.5">
                                     {countdown} SECONDS REMAINING
                                 </p>
                             )}
                         </div>
                     </div>
 
-                    {/* Top Right: Call Info & Status */}
-                    <div className="flex flex-col items-end gap-2 text-right">
-                        <div className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-[12px] border border-white/10 shadow-xl flex flex-col items-end gap-1 min-w-[200px]">
+                    {/* Top Group 2: Call Info & Status */}
+                    <div className="flex flex-col items-start gap-1 w-full">
+                        <div className="bg-black/20 backdrop-blur-md px-3 py-2 rounded-[12px] border border-white/5 shadow-xl flex flex-col items-start gap-1 w-full">
                             <div className="flex justify-between items-center w-full">
                                 <span className="text-[10px] text-white/60 font-mono tracking-widest">MODEL:</span>
                                 <span className="text-[10px] text-white/80 font-mono uppercase tracking-widest">{selectedModel?.split('-')[0] || 'GEMINI'}</span>
                             </div>
-                            <div className="text-[10px] text-teal-400 font-mono uppercase tracking-widest font-bold">
+                            <div className="text-[10px] text-teal-400 font-mono uppercase tracking-widest font-bold self-end drop-shadow-sm">
                                 {statusText === 'Conectando...' ? 'CONNECTING...' : 
                                  statusText === 'Generando Reporte...' ? 'GENERATING REPORT...' :
                                  (isConnected ? 'CONNECTED' : 'DISCONNECTED')}
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-white/60 mr-1 mt-1">
+                        <div className="flex items-center gap-2 text-white/60 ml-2 mt-0.5">
                             <Monitor className="w-3 h-3" />
                             <span className="text-[10px] font-mono tracking-widest uppercase">VOICE / 16KHz</span>
                         </div>
