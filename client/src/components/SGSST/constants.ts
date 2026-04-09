@@ -29,6 +29,9 @@ export const PHASE_CATEGORIES = {
         { id: 'auditoria', title: 'Informe de Auditoría', icon: 'ClipboardCheck' },
         { id: 'alta_direccion', title: 'Revisión por Alta Dirección', icon: 'Target' },
         { id: 'acpm', title: 'Matriz ACPM (Sanación)', icon: 'GitMerge' },
+    ],
+    predict: [
+        { id: 'predictivo', title: 'Centro de Inteligencia Predictiva', icon: 'BrainCircuit' }
     ]
 };
 

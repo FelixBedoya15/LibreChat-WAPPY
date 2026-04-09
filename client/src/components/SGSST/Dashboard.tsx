@@ -72,6 +72,16 @@ const getPhases = () => [
         borderHover: 'hover:border-[#14b8a6]',
         icon: <BrainCircuit className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
+    {
+        id: 'predict',
+        title: 'Inteligencia Predictiva',
+        subtitle: 'Visión extendida con IA',
+        description: 'Monitoreo dinámico del ecosistema mediante datos cruzados y análisis probabilístico avanzado.',
+        accent: 'text-[#8b5cf6]',
+        bgGlow: 'bg-[#8b5cf6]/5',
+        borderHover: 'hover:border-[#8b5cf6]',
+        icon: <BrainCircuit className="w-8 h-8 text-[#8b5cf6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+    },
 ];
 
 const OrganicBlob = () => (
@@ -325,25 +335,6 @@ export default function SGSSTDashboard() {
                                 </div>
                             );
                         })}
-                    </div>
-                </section>
-
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-border-medium to-transparent opacity-50 my-8" />
-
-                {/* ═══ Predictive AI Dashboard (Native Integration) ═══ */}
-                <section className="animate-in fade-in slide-in-from-bottom-12 duration-[1000ms] fill-mode-both">
-                    <div className="flex items-center gap-3 mb-6 px-1">
-                        <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-900/30">
-                            <BrainCircuit className="h-5 w-5 text-teal-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Centro de Inteligencia Predictiva</h2>
-                            <p className="text-sm text-text-secondary font-medium mt-0.5">Monitoreo dinámico del ecosistema SST alimentado por datos cruzados.</p>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-surface-primary dark:bg-[#1a1a1a] rounded-3xl overflow-hidden transition-all shadow-sm">
-                        <DashboardPredictivo />
                     </div>
                 </section>
             </main>
