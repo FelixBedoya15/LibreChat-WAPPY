@@ -53,7 +53,10 @@ interface PhaseDetailProps {
         id: string;
         title: string;
         description: string;
+        extendedPhilosophy?: string;
         color: string;
+        accent?: string;
+        bgGlow?: string;
     };
     onBack: () => void;
     navVisible: boolean;
@@ -266,9 +269,15 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                     </button>
                 </div>
                 
-                <div className="flex-1">
+                <div className="flex-1 w-full md:w-auto">
                     <h2 className="text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">{phase.title}</h2>
-                    <p className="text-base text-text-secondary mt-1 max-w-3xl leading-relaxed">{phase.description}</p>
+                    <p className="text-base text-text-secondary mt-1 max-w-3xl leading-relaxed font-medium">{phase.description}</p>
+                    {(phase as any).extendedPhilosophy && (
+                        <div className="mt-4 p-4 rounded-2xl bg-surface-secondary/40 border border-white/10 dark:border-white/5 backdrop-blur-md relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-400 to-emerald-500 rounded-l-2xl"></div>
+                            <p className="text-sm text-text-primary/90 italic leading-relaxed pl-2 relative z-10">"{((phase as any).extendedPhilosophy)}"</p>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="w-full md:w-auto flex">
@@ -348,7 +357,37 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
 
                                 {/* Category Content */}
                                 {isExpanded && (
-                                    <div className="px-5 md:px-7 pb-7 pt-2 border-t border-border-light dark:border-white/5">
+                                    <div className="px-5 md:px-7 pb-7 pt-5 border-t border-border-light dark:border-white/5 bg-gradient-to-b from-surface-secondary/10 to-transparent">
+                                        {/* Bio Rationale y Normatividad */}
+                                        {(category as any).bioRationale && (
+                                            <div className="mb-6 bg-surface-primary/60 dark:bg-black/20 rounded-2xl p-5 border border-border-light dark:border-white/5 shadow-inner">
+                                                <div className="flex flex-col md:flex-row md:items-start gap-4">
+                                                    <div className="flex-1">
+                                                        <h4 className="text-[11px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                                            <Activity className="w-3.5 h-3.5" /> Visión del Bioindividuo
+                                                        </h4>
+                                                        <p className="text-sm font-medium text-text-primary/90 leading-relaxed">
+                                                            {(category as any).bioRationale}
+                                                        </p>
+                                                    </div>
+                                                    
+                                                    {/* Divisor en desktop */}
+                                                    <div className="hidden md:block w-px bg-border-medium/40 dark:bg-white/10 self-stretch mx-2" />
+                                                    {/* Divisor en mobile */}
+                                                    <div className="block md:hidden h-px bg-border-medium/40 dark:bg-white/10 w-full my-1" />
+                                                    
+                                                    <div className="flex-1 md:max-w-[280px]">
+                                                        <h4 className="text-[11px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                                            <Scale className="w-3.5 h-3.5" /> Contexto Normativo
+                                                        </h4>
+                                                        <p className="text-xs font-bold text-text-secondary/90 leading-relaxed bg-surface-secondary/50 dark:bg-white/5 py-1.5 px-3 rounded-lg border border-border-light dark:border-white/5 inline-block">
+                                                            {(category as any).normativity || 'N/A'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {!hasAccessToSGSST ? (
                                             <UpgradeWall plan={user?.role} />
                                         ) : (
