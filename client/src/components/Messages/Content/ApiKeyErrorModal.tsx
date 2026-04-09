@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { KeyRound, AlertTriangle, ExternalLink, X, GraduationCap } from 'lucide-react';
 
 const TRAINING_URL = 'https://wappy-ia.com/training/69a5efb4780d73647a1961fe';
@@ -36,7 +37,7 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
     window.open(TRAINING_URL, '_blank', 'noopener,noreferrer');
   };
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
@@ -44,7 +45,7 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 9998,
+          zIndex: 99998,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -64,9 +65,9 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
           aria-labelledby="api-key-modal-title"
           style={{
             position: 'relative',
-            zIndex: 9999,
+            zIndex: 99999,
             width: '100%',
-            maxWidth: '480px',
+            maxWidth: '380px',
             borderRadius: '16px',
             overflow: 'hidden',
             boxShadow: '0 25px 60px rgba(0,0,0,0.4)',
@@ -91,7 +92,7 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: '2rem 2rem 1rem',
+              padding: '1.5rem 1.5rem 1rem',
               textAlign: 'center',
             }}
           >
@@ -133,7 +134,7 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
             <h2
               id="api-key-modal-title"
               style={{
-                fontSize: '1.25rem',
+                fontSize: '1.15rem',
                 fontWeight: 700,
                 color: 'var(--text-primary)',
                 marginBottom: '0.5rem',
@@ -162,10 +163,10 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
             {/* Description */}
             <p
               style={{
-                fontSize: '0.9rem',
+                fontSize: '0.85rem',
                 color: 'var(--text-secondary)',
-                lineHeight: 1.6,
-                maxWidth: '380px',
+                lineHeight: 1.5,
+                maxWidth: '340px',
                 marginBottom: '0.75rem',
               }}
             >
@@ -341,6 +342,9 @@ const ApiKeyErrorModal = ({ isOpen, onClose }: ApiKeyErrorModalProps) => {
       `}</style>
     </>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 };
 
 export default ApiKeyErrorModal;
