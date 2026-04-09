@@ -200,8 +200,8 @@ export default function SGSSTDashboard() {
                             <Activity className="h-8 w-8 text-[#10b981]" strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">Sistema Estratégico SST</h1>
-                            <p className="text-text-secondary mt-1 text-sm font-medium">Ciclo de Mejora Continua (PHVA) & Inteligencia Predictiva.</p>
+                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">Somos SST</h1>
+                            <p className="text-text-secondary mt-1 text-sm font-medium">Por una Seguridad y Salud integral para el bienestar del bioindividuo.</p>
                         </div>
                     </div>
                 </div>
@@ -250,8 +250,8 @@ export default function SGSSTDashboard() {
                             <Box className="h-5 w-5 text-[#10b981]" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Gestión Operativa PHVA</h2>
-                            <p className="text-sm text-text-secondary font-medium mt-0.5">Navegación por las fases del ciclo de mejora continua.</p>
+                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Ciclo de Mejora Continua</h2>
+                            <p className="text-sm text-text-secondary font-medium mt-0.5">Ruta metodológica para la evolución preventiva en seguridad y salud.</p>
                         </div>
                     </div>
 
