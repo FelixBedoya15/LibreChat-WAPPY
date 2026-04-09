@@ -23,7 +23,9 @@ import CompanyInfoModal from './CompanyInfoModal';
 import DashboardPredictivo from './DashboardPredictivo';
 import SSTWorldMap from './SSTWorldMap';
 import { useSSTProgress, LEVELS } from './useSSTProgress';
+import SSTMissionEngine from './SSTMissionEngine';
 import './sst-bit.css';
+
 
 const REQUIRED_FIELDS = [
     'companyName', 'nit', 'legalRepresentative', 'workerCount',
@@ -408,6 +410,27 @@ export default function SGSSTDashboard() {
                 {/* Separator */}
                 <div className="h-px w-full bg-green-900 opacity-30" />
 
+                {/* Active Missions — History Intelligence Engine */}
+                <section>
+                    <div className="flex items-center gap-3 mb-4">
+                        <span className="font-pixel text-red-400 animate-pulse" style={{ fontSize:'10px' }}>&#x25CF; MISIONES ACTIVAS</span>
+                        <div className="flex-1 h-px bg-red-900" />
+                        <span className="font-pixel text-gray-600" style={{ fontSize:'6px' }}>HISTORY INTELLIGENCE ENGINE v1.0</span>
+                    </div>
+                    <SSTMissionEngine
+                        missingFields={missingFields.length}
+                        hp={worldMapHp}
+                        visitedPhases={progress.completedModules}
+                        onNavigate={(phaseId) => {
+                            const phase = phases.find(p => p.id === phaseId);
+                            if (phase) handlePhaseSelect(phase);
+                        }}
+                    />
+                </section>
+
+                {/* Separator */}
+                <div className="h-px w-full bg-purple-900 opacity-30" />
+
                 {/* Predictive AI section */}
                 <section>
                     <div className="flex items-center gap-3 mb-6">
@@ -418,6 +441,7 @@ export default function SGSSTDashboard() {
                         <DashboardPredictivo />
                     </div>
                 </section>
+
             </main>
 
             <CompanyInfoModal isOpen={showCompanyInfo} onClose={handleModalClose} />

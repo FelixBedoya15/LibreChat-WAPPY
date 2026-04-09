@@ -31,6 +31,8 @@ import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import './sst-bit.css';
+
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -430,113 +432,87 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         handleSelectReport
     });
 
+    // ─── Arcade Rank ────────────────────────────────────────────────────────────────
+    const arcadeRank = weightedPercentage >= 85 ? { rank: 'S', color: '#4ade80', label: 'EXCEPCIONAL' }
+        : weightedPercentage >= 70 ? { rank: 'A', color: '#60a5fa', label: 'ACEPTABLE' }
+        : weightedPercentage >= 55 ? { rank: 'B', color: '#fbbf24', label: 'MODERADO' }
+        : weightedPercentage >= 40 ? { rank: 'C', color: '#f97316', label: 'DÉBIL' }
+        : { rank: 'D', color: '#ef4444', label: 'CRÍTICO' };
+
+    const nonConformCount = validStatuses.filter(s => s.status === 'no_cumple').length;
+    const parcialCount    = validStatuses.filter(s => s.status === 'parcial').length;
+
     return (
         <div className="flex flex-col gap-6">
-            <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
-                <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="h-5 w-5 text-teal-500" />
-                    <div>
-                        <h3 className="font-semibold text-text-primary">Lista de Verificación de Auditoría Interna</h3>
-                        <p className="text-xs text-text-secondary">Decreto 1072 de 2015 / Resolución 0312</p>
-                    </div>
+            {/* ─── ARCADE SCOREBOARD HUD ─── */}
+            <div className="pixel-box overflow-hidden bg-[#0a0a0a]" style={{ borderColor:'#f87171' }}>
+                {/* Header strip */}
+                <div className="flex items-center justify-between px-4 py-2 border-b-4 border-red-700 bg-[#1a0000]">
+                    <span className="font-pixel text-red-400" style={{ fontSize:'10px' }}>&#9632; VERIFICAR &mdash; AUDIT ARCADE</span>
+                    <span className="font-pixel text-gray-500" style={{ fontSize:'6px' }}>DEC 1072 · RES 0312</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-                    {/* Card 1: Auditoría Global (Dec 1072) */}
-                    <div className="bg-surface-primary p-4 rounded-xl border border-border-medium flex items-center justify-between shadow-sm">
-                        <div>
-                            <p className="text-sm font-medium text-text-secondary">Auditoría (Dec 1072)</p>
-                            <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-2xl font-bold text-text-primary">
-                                    {compliancePercentage.toFixed(1)}%
-                                </span>
-                                <span className="text-xs text-text-tertiary">
-                                    ({completedCount}/{totalItems} ítems)
-                                </span>
-                            </div>
-                            <div className="mt-2 text-xs text-text-tertiary">
-                                Cumplimiento de requisitos globales y normas adicionales
-                            </div>
-                        </div>
-                        <div className="h-12 w-12 rounded-full border-4 border-teal-500 flex items-center justify-center text-xs font-bold bg-teal-50 text-teal-700">
-                            {compliancePercentage.toFixed(0)}%
-                        </div>
+                {/* Score grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 divide-x-4 divide-red-900">
+                    {/* RANK */}
+                    <div className="flex flex-col items-center justify-center py-4 px-2">
+                        <span className="font-pixel text-gray-500 mb-1" style={{ fontSize:'5px' }}>RANK</span>
+                        <span className="font-pixel" style={{ fontSize:'36px', color: arcadeRank.color, lineHeight:'1' }}>{arcadeRank.rank}</span>
+                        <span className="font-pixel mt-1" style={{ fontSize:'6px', color: arcadeRank.color }}>{arcadeRank.label}</span>
                     </div>
-
-                    {/* Card 2: Estándares Mínimos (Res 0312) */}
-                    <div className="bg-surface-primary p-4 rounded-xl border border-border-medium flex items-center justify-between shadow-sm">
-                        <div>
-                            <p className="text-sm font-medium text-text-secondary">Estándares (Res 0312)</p>
-                            <div className="flex items-baseline gap-2 mt-1">
-                                <span className="text-2xl font-bold text-text-primary">
-                                    {weightedScore.toFixed(2)}
-                                </span>
-                                <span className="text-sm font-medium text-text-secondary">
-                                    / 100 Puntos
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                                <span className={cn(
-                                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                                    complianceLevel.color
-                                )}>
-                                    {complianceLevel.label.toUpperCase()}
-                                </span>
-                            </div>
-                        </div>
-                        <div className={cn(
-                            "h-12 w-12 rounded-full border-4 flex items-center justify-center text-xs font-bold bg-surface-primary",
-                            (complianceLevel.color || '').replace('bg-', 'border-').replace('text-', 'text-')
-                        )}>
+                    {/* SCORE */}
+                    <div className="flex flex-col items-center justify-center py-4 px-2">
+                        <span className="font-pixel text-gray-500 mb-1" style={{ fontSize:'5px' }}>SCORE (RES 0312)</span>
+                        <span className="font-pixel text-white" style={{ fontSize:'24px', lineHeight:'1' }}>
                             {weightedScore.toFixed(0)}
+                            <span style={{ fontSize:'10px', color:'#6b7280' }}>/100</span>
+                        </span>
+                        <div className="w-full mt-2 h-2 bg-black border border-gray-700">
+                            <div className="h-full transition-all" style={{ width:`${weightedPercentage}%`, backgroundColor: arcadeRank.color }} />
                         </div>
+                    </div>
+                    {/* HITS / MISSES */}
+                    <div className="flex flex-col items-center justify-center py-4 px-2">
+                        <span className="font-pixel text-gray-500 mb-2" style={{ fontSize:'5px' }}>CONFORMIDADES</span>
+                        <div className="flex flex-col gap-1 w-full">
+                            <div className="flex justify-between items-center">
+                                <span className="font-pixel text-green-400" style={{ fontSize:'6px' }}>&#x2713; CUMPLE</span>
+                                <span className="font-pixel text-green-400" style={{ fontSize:'8px' }}>{compliantCount}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="font-pixel text-yellow-400" style={{ fontSize:'6px' }}>~ PARCIAL</span>
+                                <span className="font-pixel text-yellow-400" style={{ fontSize:'8px' }}>{parcialCount}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="font-pixel text-red-400" style={{ fontSize:'6px' }}>&#x2715; NO CUMPLE</span>
+                                <span className="font-pixel text-red-400" style={{ fontSize:'8px' }}>{nonConformCount}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {/* COMPLETION */}
+                    <div className="flex flex-col items-center justify-center py-4 px-2">
+                        <span className="font-pixel text-gray-500 mb-1" style={{ fontSize:'5px' }}>&#205;TEMS EVALUADOS</span>
+                        <span className="font-pixel text-white" style={{ fontSize:'20px', lineHeight:'1' }}>
+                            {completedCount}
+                            <span style={{ fontSize:'8px', color:'#6b7280' }}>/{totalItems}</span>
+                        </span>
+                        <div className="w-full mt-2 h-2 bg-black border border-gray-700">
+                            <div className="h-full bg-red-500 transition-all" style={{ width:`${(completedCount/totalItems)*100}%` }} />
+                        </div>
+                        <span className="font-pixel text-gray-600 mt-1" style={{ fontSize:'5px' }}>{((completedCount/totalItems)*100).toFixed(0)}% COMPLETADO</span>
                     </div>
                 </div>
+            </div>
 
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Progress Bar 1: Standards (Res 0312) */}
-                    <div>
-                        <div className="flex justify-between text-xs mb-1">
-                            <span className="text-text-secondary font-medium">Progreso Estándares Mínimos</span>
-                            <span className="font-bold text-text-primary">{weightedPercentage.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-tertiary">
-                            <div
-                                className={cn(
-                                    'h-full transition-all duration-300',
-                                    weightedPercentage >= 85 ? 'bg-green-500' :
-                                        weightedPercentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                                )}
-                                style={{ width: `${weightedPercentage}%` }}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Progress Bar 2: Audit (Dec 1072) */}
-                    <div>
-                        <div className="flex justify-between text-xs mb-1">
-                            <span className="text-text-secondary font-medium">Auditoría (Dec 1072/15)</span>
-                            <span className="font-bold text-text-primary">{compliancePercentage.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-tertiary">
-                            <div
-                                className={cn(
-                                    'h-full transition-all duration-300',
-                                    compliancePercentage >= 90 ? 'bg-green-500' :
-                                        compliancePercentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                                )}
-                                style={{ width: `${compliancePercentage}%` }}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-            <SGSSTToolbar
+            {/* Original header area (toolbar only) */}
+            <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
+                <SGSSTToolbar
                 onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                 isHistoryOpen={isHistoryOpen}
                 onAnalyze={handleAnalyze}
                 isAnalyzing={isAnalyzing}
                 selectedModel={selectedModel}
+
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
