@@ -11,7 +11,8 @@ import {
     ChevronRight,
     BrainCircuit,
     Activity,
-    Box
+    Box,
+    UserCircle
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -33,43 +34,43 @@ const REQUIRED_FIELDS = [
 const getPhases = () => [
     {
         id: 'plan',
-        title: 'Planear',
-        subtitle: 'Proyección y Estrategia',
-        description: 'Políticas SG-SST, Perfil Sociodemográfico, Matriz GTC 45, Requisitos Legales y Plan de Trabajo Institucional.',
+        title: 'Consciencia y Contexto',
+        subtitle: 'Conociendo al individuo',
+        description: 'Perfiles de Cargo (Roles), Perfil Sociodemográfico, Condiciones de Salud y Diagnóstico Inicial.',
         accent: 'text-[#10b981]',
         bgGlow: 'bg-[#10b981]/5',
         borderHover: 'hover:border-[#10b981]',
-        icon: <FileText className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        icon: <UserCircle className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
         id: 'do',
-        title: 'Hacer',
-        subtitle: 'Ejecución Operativa',
-        description: 'Reporte de Actos, Investigación ATEL, Método OWAS, Permiso en Alturas, EPP y Análisis SafeStart.',
+        title: 'Interacción y Entorno',
+        subtitle: 'Diseño consciente de espacios',
+        description: 'Participación y Peligros IPEVAR, Método OWAS, Permiso en Alturas, ATS y Vulnerabilidad.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
         borderHover: 'hover:border-[#0d9488]',
-        icon: <ShieldAlert className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        icon: <Activity className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
         id: 'check',
-        title: 'Verificar',
-        subtitle: 'Evaluación y Medición',
-        description: 'Auditorías de Cumplimiento SG-SST, Supervisión Institucional e Indicadores Clave de Gestión Gerencial.',
+        title: 'Marco de Cuidado',
+        subtitle: 'Acuerdos y cultura protectora',
+        description: 'Políticas y Objetivos SST, Reglamento Interno y de Higiene, Matriz Legal y Responsable SG-SST.',
         accent: 'text-[#059669]',
         bgGlow: 'bg-[#059669]/5',
         borderHover: 'hover:border-[#059669]',
-        icon: <ClipboardCheck className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        icon: <ShieldAlert className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
         id: 'act',
-        title: 'Actuar',
-        subtitle: 'Mejora Continua',
-        description: 'Registro de Acciones Correctivas y Preventivas (ACPM), Actualizaciones y Consolidación de Mejora Continua.',
+        title: 'Resiliencia y Evolución',
+        subtitle: 'Aprendizaje continuo del ecosistema',
+        description: 'Reporte de Actos, Investigación y Estadísticas ATEL, Auditoría, Alta Dirección y Matriz ACPM.',
         accent: 'text-[#14b8a6]',
         bgGlow: 'bg-[#14b8a6]/5',
         borderHover: 'hover:border-[#14b8a6]',
-        icon: <BarChart2 className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        icon: <BrainCircuit className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
 ];
 
