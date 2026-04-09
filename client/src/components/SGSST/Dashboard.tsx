@@ -244,59 +244,87 @@ export default function SGSSTDashboard() {
                     </div>
                 )}
 
-                {/* ═══ PHVA Phase Grid (Dynamic SVGs) ═══ */}
+                {/* ═══ Roadmap (Timeline) Section ═══ */}
                 <section className="animate-in fade-in slide-in-from-bottom-8 duration-[800ms] fill-mode-both">
-                    <div className="flex items-center gap-3 mb-8 px-1">
-                        <div className="p-2 rounded-xl bg-[#10b981]/10 dark:bg-[#10b981]/20">
-                            <Box className="h-5 w-5 text-[#10b981]" />
+                    <div className="flex items-center justify-center flex-col text-center gap-3 mb-16 pt-4 px-4">
+                        <div className="p-3 rounded-2xl bg-[#10b981]/10 dark:bg-[#10b981]/20 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                            <Box className="h-6 w-6 text-[#10b981] animate-pulse" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Ciclo de Mejora Continua</h2>
-                            <p className="text-sm text-text-secondary font-medium mt-0.5">Ruta metodológica para la evolución preventiva en seguridad y salud.</p>
+                            <h2 className="text-3xl md:text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">Ruta del Bienestar Integral</h2>
+                            <p className="text-sm md:text-base text-text-secondary font-medium mt-2 max-w-2xl mx-auto">Hoja de ruta viva centrada en la protección, equilibrio y evolución del bioindividuo dentro de nuestra organización.</p>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-stretch max-w-5xl mx-auto">
-                        {phases.map((phase, i) => (
-                            <div
-                                key={phase.id}
-                                onClick={() => handlePhaseSelect(phase)}
-                                className={cn(
-                                    "group relative cursor-pointer flex flex-col rounded-2xl border-2 bg-surface-primary transition-all duration-300 ease-out shadow-sm hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 overflow-hidden h-full",
-                                    "border-border-medium dark:border-white/10",
-                                    phase.borderHover
-                                )}
-                                style={{ animationDelay: `${i * 100}ms` }}
-                            >
-                                {/* Dynamic Glow Behind Card content */}
-                                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${phase.bgGlow} pointer-events-none`} />
-
-                                {/* Organic blob subtle background */}
-                                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none group-hover:scale-125 transition-transform duration-700">
-                                    <svg className={cn("w-full h-full transform translate-x-4 -translate-y-4", phase.accent)} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                                        <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
-                                    </svg>
-                                </div>
-
-                                {/* Content Block */}
-                                <div className="relative p-6 px-7 flex flex-col flex-1 bg-transparent z-10 w-full">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="p-3 bg-white dark:bg-black/20 rounded-2xl shadow-sm border border-border-light group-hover:border-transparent transition-colors">
-                                            {phase.icon}
+                    <div className="relative flex flex-col gap-16 lg:gap-24 w-full py-6 mx-auto max-w-5xl">
+                        {/* Línea Central Conectora */}
+                        <div className="absolute top-0 bottom-0 left-[34px] lg:left-1/2 w-1 -translate-x-1/2 bg-gradient-to-b from-[#10b981] via-[#0d9488] to-[#14b8a6] opacity-30 dark:opacity-40 rounded-full" />
+                        
+                        {phases.map((phase, i) => {
+                            const isEven = i % 2 === 1;
+                            return (
+                                <div 
+                                    key={phase.id} 
+                                    className={cn(
+                                        "relative flex flex-col lg:flex-row items-center w-full gap-4", 
+                                        isEven ? "lg:flex-row-reverse" : ""
+                                    )}
+                                    style={{ animationDelay: `${i * 150}ms` }}
+                                >
+                                    {/* Nodo Central (Icono con latido) */}
+                                    <div className="absolute left-[34px] lg:left-1/2 -translate-x-1/2 z-20 flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full bg-surface-primary border-4 border-surface-secondary shadow-[0_0_20px_rgba(16,185,129,0.25)]">
+                                        <div className="relative flex items-center justify-center w-full h-full rounded-full bg-surface-secondary overflow-hidden">
+                                            <span className="absolute inline-flex h-full w-full rounded-full opacity-30 animate-ping duration-1000 bg-current" style={{ color: phase.accent.replace('text-', '') }}></span>
+                                            <div className="scale-75 md:scale-[0.85] origin-center">{phase.icon}</div>
                                         </div>
-                                        <div className="bg-surface-secondary rounded-full px-3 py-1 border border-border-light text-text-secondary text-[10px] font-black tracking-[0.2em] uppercase">
-                                            Fase 0{i+1}
+                                    </div>
+
+                                    {/* Contenedor de Tarjeta (Espaciado adaptativo) */}
+                                    <div className={cn("w-full pl-[86px] lg:pl-0 lg:w-1/2 flex", isEven ? "lg:pr-14 lg:justify-end" : "lg:pl-14 lg:justify-start")}>
+                                        <div
+                                            onClick={() => handlePhaseSelect(phase)}
+                                            className={cn(
+                                                "group relative cursor-pointer flex flex-col w-full max-w-lg rounded-[2rem] border border-border-light dark:border-white/10 bg-white/70 dark:bg-black/40 backdrop-blur-3xl shadow-xl hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_40px_rgba(16,185,129,0.15)] transition-all duration-500 hover:-translate-y-2 overflow-hidden",
+                                                phase.borderHover
+                                            )}
+                                        >
+                                            {/* Glow de Fondo Intenso */}
+                                            <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${phase.bgGlow} pointer-events-none`} />
+
+                                            {/* Blob Orgánico de Adorno */}
+                                            <div className="absolute top-0 right-0 w-40 h-40 opacity-10 pointer-events-none group-hover:scale-[1.4] transition-transform duration-[1.2s] ease-out">
+                                                <svg className={cn("w-full h-full transform translate-x-10 -translate-y-10", phase.accent)} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                                    <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
+                                                </svg>
+                                            </div>
+
+                                            <div className="relative p-6 sm:p-8 flex flex-col flex-1 z-10 w-full">
+                                                <div className="mb-4">
+                                                    <div className="inline-block bg-surface-secondary dark:bg-black/60 rounded-full px-4 py-1.5 border border-border-medium text-text-secondary text-[11px] font-black tracking-[0.25em] uppercase shadow-sm">
+                                                        Hito 0{i+1}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="text-left flex flex-col flex-1">
+                                                    <h2 className={cn("text-2xl sm:text-3xl font-black tracking-tight leading-none mb-3 text-text-primary transition-colors", `group-hover:${phase.accent}`)}>
+                                                        {phase.title}
+                                                    </h2>
+                                                    <p className="text-text-secondary font-bold text-xs uppercase tracking-wider mb-4 opacity-80">
+                                                        {phase.subtitle}
+                                                    </p>
+                                                    <p className="text-sm font-medium text-text-secondary leading-relaxed md:leading-loose opacity-90 mt-auto pt-2 border-t border-border-light pt-4 dark:border-white/10">
+                                                        {phase.description}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     
-                                    <div className="text-left flex flex-col flex-1">
-                                        <h2 className={cn("text-2xl font-black tracking-tight leading-none mb-2 text-text-primary transition-colors uppercase", `group-hover:${phase.accent}`)}>{phase.title}</h2>
-                                        <p className="text-text-secondary font-bold text-xs uppercase tracking-wide mb-3 min-h-[32px] sm:min-h-0 lg:min-h-[32px]">{phase.subtitle}</p>
-                                        <p className="text-[13px] font-medium text-text-secondary leading-relaxed opacity-90 mt-auto pt-2">{phase.description}</p>
-                                    </div>
+                                    {/* Bloque espaciador para empujar la tarjeta hacia un lado (Desktop Only) */}
+                                    <div className="hidden lg:block lg:w-1/2" />
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </section>
 
