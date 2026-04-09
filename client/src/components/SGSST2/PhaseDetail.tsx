@@ -13,6 +13,7 @@ import { Button, useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
 import { useNavigate } from 'react-router-dom';
 import { PHASE_CATEGORIES } from './constants';
+import './sst-bit.css';
 import DiagnosticoChecklist from './DiagnosticoChecklist';
 import PoliticaSST from './PoliticaSST';
 import ResponsableSGSST from './ResponsableSGSST';
@@ -240,113 +241,123 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
         return <IconComponent className="h-5 w-5" />;
     };
 
-    return (
-        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary p-6">
-            <div className="mb-6 flex items-center gap-4 border-b border-border-medium pb-4 w-full">
-                {!navVisible && (
-                    <div className="mr-2 hidden md:block shrink-0">
-                        <OpenSidebar setNavVisible={setNavVisible} />
-                    </div>
-                )}
-                <button
-                    onClick={onBack}
-                    className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
-                    aria-label="Back"
-                >
-                    <ArrowLeft className="h-6 w-6 text-text-primary" />
-                </button>
-                <div>
-                    <h2 className="text-2xl font-bold text-text-primary">{phase.title}</h2>
-                    <p className="text-sm text-text-secondary">{phase.description}</p>
-                </div>
-                <div className="ml-auto flex gap-2">
-                    <button
-                        onClick={handleChat}
-                        className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium text-text-primary"
-                    >
-                        <div className="relative flex-shrink-0 flex items-center justify-center">
-                            <MessageSquare className="h-5 w-5" />
-                        </div>
-                        <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                            Chatea con SG-SST
-                        </div>
-                    </button>
-                </div>
+    const PHASE_RETRO: Record<string, { label: string; accent: string; bg: string }> = {
+        plan:  { label: 'PLANEAR', accent: '#4ade80', bg: '#14532d' },
+        do:    { label: 'HACER',   accent: '#fbbf24', bg: '#78350f' },
+        check: { label: 'VERIFICAR', accent: '#f87171', bg: '#7f1d1d' },
+        act:   { label: 'ACTUAR',  accent: '#c084fc', bg: '#4c1d95' },
+    };
+    const retro = PHASE_RETRO[phase.id] ?? { label: phase.title, accent: '#4ade80', bg: '#14532d' };
 
-                {/* Hidden global input, triggered by specific category buttons */}
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    className="hidden"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
-                />
+    return (
+        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-[#0a0a0a] overflow-y-auto">
+            {/* ── Retro Header ── */}
+            <div className="border-b-4 border-white px-6 py-3 flex items-center justify-between gap-4"
+                 style={{ backgroundColor: retro.bg }}>
+                <div className="flex items-center gap-4">
+                    {!navVisible && (
+                        <div className="mr-2 hidden md:block shrink-0">
+                            <OpenSidebar setNavVisible={setNavVisible} />
+                        </div>
+                    )}
+                    <button
+                        onClick={onBack}
+                        className="pixel-btn bg-black border-white text-white"
+                        style={{ borderColor: retro.accent, color: retro.accent }}
+                        aria-label="Back"
+                    >◄ EXIT</button>
+                    <div>
+                        <h2 className="font-pixel uppercase" style={{ color: retro.accent, fontSize: '12px' }}>
+                            ☘ {retro.label} BOARD
+                        </h2>
+                        <p className="font-pixel text-white mt-1" style={{ fontSize: '6px', opacity: 0.7 }}>
+                            {categories.length} QUESTS AVAILABLE
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleChat}
+                    className="pixel-btn text-black"
+                    style={{ backgroundColor: retro.accent }}
+                >
+                    ► CHAT SST
+                </button>
             </div>
 
-            <div className="flex-1 w-full overflow-y-scroll space-y-6">
+            {/* Hidden file input */}
+            <input type="file" ref={fileInputRef} onChange={handleFileSelect}
+                className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+
+            {/* ─── Quest List ─── */}
+            <div className="flex-1 w-full overflow-y-scroll space-y-3 p-6">
                 {categories.filter(c => isAdmin || !disabledApps.includes(c.id)).length === 0 ? (
-                    <div className="p-8 text-center text-text-secondary">
-                        No hay categorías disponibles para esta fase.
+                    <div className="pixel-box p-8 text-center">
+                        <span className="font-pixel text-green-400 text-xs">NO QUESTS AVAILABLE</span>
                     </div>
                 ) : (
                     categories
                         .filter(category => isAdmin || !disabledApps.includes(category.id))
-                        .map((category) => {
+                        .map((category, idx) => {
                         const categoryFiles = files.filter(f => f.category === category.id);
                         const isExpanded = expandedCategories.includes(category.id);
                         const isThisUploading = isUploading === category.id;
+                        const isDisabled = disabledApps.includes(category.id);
 
                         return (
-                            <div key={category.id} className="w-full min-w-0 rounded-xl border border-border-medium bg-surface-secondary overflow-hidden transition-all duration-200">
-                                {/* Category Header */}
+                            <div key={category.id} className="pixel-box overflow-hidden" style={{ borderColor: isExpanded ? retro.accent : '#374151' }}>
+                                {/* Quest Header */}
                                 <div
-                                    className="flex items-center justify-between p-4 bg-surface-tertiary/50 cursor-pointer hover:bg-surface-tertiary transition-colors"
+                                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:opacity-90 transition-opacity"
+                                    style={{ backgroundColor: isExpanded ? retro.bg : '#111827' }}
                                     onClick={() => toggleCategory(category.id)}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="text-text-secondary">
-                                            {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                                        </div>
-                                        <div className="p-2 rounded-xl bg-surface-primary text-teal-600 dark:text-teal-400">
-                                            {renderIcon(category.icon)}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-text-primary">{category.title}</h3>
-                                            <p className="text-xs text-text-secondary">{categoryFiles.length} documentos</p>
-                                        </div>
+                                        <span className="font-pixel text-[8px]" style={{ color: retro.accent }}>
+                                            {isExpanded ? '▼' : '►'}
+                                        </span>
+                                        <span className="font-pixel text-[8px]" style={{ color: retro.accent }}>
+                                            #{String(idx+1).padStart(2,'0')}
+                                        </span>
+                                        <span className="font-pixel text-white uppercase" style={{ fontSize:'8px' }}>
+                                            {category.title}
+                                        </span>
+                                        {categoryFiles.length > 0 && (
+                                            <span className="font-pixel text-[6px] px-2 py-0.5 border"
+                                                  style={{ color: retro.accent, borderColor: retro.accent }}>
+                                                {categoryFiles.length} DOC
+                                            </span>
+                                        )}
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
                                         {isAdmin && (
-                                            <div 
-                                                className="flex items-center bg-surface-primary px-3 py-1 rounded-full border border-border-medium hover:bg-surface-tertiary transition-colors"
+                                            <div
+                                                className="flex items-center cursor-pointer gap-1"
                                                 onClick={(e) => handleToggleApp(category.id, e)}
-                                                title={disabledApps.includes(category.id) ? "Aplicativo Oculto: Clic para mostrar" : "Aplicativo Visible: Clic para ocultar"}
+                                                title={isDisabled ? 'Oculto — clic para mostrar' : 'Visible — clic para ocultar'}
                                             >
-                                                <div className="relative inline-flex items-center cursor-pointer">
-                                                    <div className={`w-8 h-4 rounded-full transition-colors ${!disabledApps.includes(category.id) ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform ${!disabledApps.includes(category.id) ? 'translate-x-4' : ''}`}></div>
+                                                <div className={`w-6 h-3 border border-white relative ${isDisabled ? 'bg-gray-700' : 'bg-green-700'}`}>
+                                                    <div className={`absolute top-0.5 w-2 h-2 bg-white transition-all ${isDisabled ? 'left-0.5' : 'left-3'}`} />
                                                 </div>
-                                                <span className={`ml-2 text-xs font-bold uppercase ${!disabledApps.includes(category.id) ? 'text-green-500' : 'text-gray-400'}`}>
-                                                    {!disabledApps.includes(category.id) ? 'ON' : 'OFF'}
+                                                <span className="font-pixel text-[6px]" style={{ color: isDisabled ? '#6b7280' : '#4ade80' }}>
+                                                    {isDisabled ? 'OFF' : 'ON'}
                                                 </span>
                                             </div>
                                         )}
-                                        <Button
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
                                             disabled={!!isUploading}
-                                            size="sm"
-                                            className="gap-2 bg-white/10 hover:bg-white/20 text-text-primary border border-white/10"
+                                            className="pixel-btn text-[7px] py-1"
+                                            style={{ backgroundColor: retro.bg, color: retro.accent, borderColor: retro.accent }}
                                         >
-                                            {isThisUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                                            <span className="hidden sm:inline">Subir</span>
-                                        </Button>
+                                            {isThisUploading ? '...' : '↑ UPLOAD'}
+                                        </button>
                                     </div>
                                 </div>
 
-                                {/* Category Content */}
+                                {/* Quest Content */}
                                 {isExpanded && (
-                                    <div className="p-4 bg-surface-primary/30">
+                                    <div className="p-4 border-t-4" style={{ borderColor: retro.accent, backgroundColor: '#0d0d0d' }}>
                                         {!hasAccessToSGSST ? (
                                             <UpgradeWall plan={user?.role} />
                                         ) : (
@@ -498,35 +509,33 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                          <DashboardPredictivo />
                                                      </div>
                                                  )}
-
-                                                {categoryFiles.length === 0 ? (
-                                                    <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-xl">
-                                                        <FolderOpen className="h-8 w-8 mb-2 opacity-40" />
-                                                        <span className="text-sm">Sin documentos</span>
+                                                 {categoryFiles.length === 0 ? (
+                                                    <div className="pixel-box flex flex-col items-center justify-center py-6 mt-4"
+                                                         style={{ borderColor: '#374151' }}>
+                                                        <span className="font-pixel text-[8px] text-gray-600">&#9632; NO FILES &#9632;</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-4">
                                                         {categoryFiles.map((file) => (
                                                             <div
                                                                 key={file.file_id}
-                                                                className="group relative flex items-center gap-3 p-3 rounded-xl border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
+                                                                className="group relative pixel-box flex items-center gap-2 p-2"
+                                                                style={{ borderColor: retro.accent, backgroundColor: '#111' }}
                                                             >
-                                                                <div className="flex-shrink-0 p-2 rounded bg-surface-tertiary text-text-secondary">
-                                                                    <File className="h-5 w-5" />
-                                                                </div>
+                                                                <span className="font-pixel text-[8px]" style={{ color: retro.accent }}>&#9633;</span>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <p className="truncate text-sm font-medium text-text-primary" title={file.name}>
+                                                                    <p className="font-pixel text-white truncate" style={{ fontSize:'6px' }} title={file.name}>
                                                                         {file.name}
                                                                     </p>
-                                                                    <p className="text-xs text-text-secondary">
-                                                                        {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Size unknown'}
+                                                                    <p className="font-pixel text-gray-500" style={{ fontSize:'5px' }}>
+                                                                        {file.size ? (file.size / 1024).toFixed(1) + ' KB' : '?KB'}
                                                                     </p>
                                                                 </div>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
-                                                                    className="p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 hover:bg-surface-tertiary transition-all"
+                                                                    className="font-pixel text-red-500 opacity-0 group-hover:opacity-100 transition-all text-[10px]"
                                                                 >
-                                                                    <Trash2 className="h-4 w-4" />
+                                                                    &#215;
                                                                 </button>
                                                             </div>
                                                         ))}

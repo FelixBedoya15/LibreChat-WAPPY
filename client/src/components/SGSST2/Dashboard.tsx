@@ -91,8 +91,25 @@ export default function SGSSTDashboard() {
     const [missingFields, setMissingFields] = useState<string[]>([]);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
     const [showWorldMap, setShowWorldMap] = useState(false);
+    const [worldMapHp, setWorldMapHp] = useState(100);
     const hasCheckedRef = React.useRef(false);
     const phases = getPhases();
+
+    // ─── Fetch Accident HP ──────────────────────────────────────────────────
+    useEffect(() => {
+        if (!token) return;
+        fetch('/api/sgsst/reporte-actos', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+        .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+        .then(data => {
+            const accidents = (data?.reportesList ?? []).filter((r: any) => r.estado !== 'Cerrado');
+            // Each open accident reduces HP by 8 (max reduction 80, floor 20)
+            const hp = Math.max(20, 100 - accidents.length * 8);
+            setWorldMapHp(hp);
+        })
+        .catch(() => setWorldMapHp(100)); // fallback: full HP
+    }, [token]);
 
     // ─── Fetch Company Info ────────────────────────────────────────────────
     useEffect(() => {
@@ -206,7 +223,7 @@ export default function SGSSTDashboard() {
                     </button>
                 </div>
                 <div className="flex-1 p-4">
-                    <SSTWorldMap onNavigate={handleMapNavigate} />
+                    <SSTWorldMap onNavigate={handleMapNavigate} hp={worldMapHp} />
                 </div>
             </div>
         );
