@@ -1,10 +1,12 @@
 // file deepcode ignore HardcodedNonCryptoSecret: No hardcoded secrets
 import { ViolationTypes, ErrorTypes, alternateName } from 'librechat-data-provider';
+import { useState, useEffect } from 'react';
 import type { LocalizeFunction } from '~/common';
 import { formatJSON, extractJson, isJson } from '~/utils/json';
 import { useLocalize } from '~/hooks';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 import CodeBlock from './CodeBlock';
+import ApiKeyErrorModal from './ApiKeyErrorModal';
 
 const localizedErrorPrefix = 'com_error';
 
@@ -134,27 +136,44 @@ const errorMessages = {
 
 const Error = ({ text }: { text: string }) => {
   const localize = useLocalize();
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  
+  useEffect(() => {
+    if (text && (text.includes('API_KEY_INVALID') || text.includes('API key not valid') || text.includes('invalid_api_key'))) {
+      setShowApiKeyModal(true);
+    }
+  }, [text]);
+
   const jsonString = extractJson(text);
   const errorMessage = text.length > 512 && !jsonString ? text.slice(0, 512) + '...' : text;
   const defaultResponse = `Algo salió mal. Este es el mensaje de error específico que encontramos: ${errorMessage}`;
 
-  if (!isJson(jsonString)) {
-    return defaultResponse;
-  }
+  const renderContent = () => {
+    if (!isJson(jsonString)) {
+      return defaultResponse;
+    }
 
-  const json = JSON.parse(jsonString);
-  const errorKey = json.code || json.type;
-  const keyExists = errorKey && errorMessages[errorKey];
+    const json = JSON.parse(jsonString);
+    const errorKey = json.code || json.type;
+    const keyExists = errorKey && errorMessages[errorKey];
 
-  if (keyExists && typeof errorMessages[errorKey] === 'function') {
-    return errorMessages[errorKey](json, localize);
-  } else if (keyExists && keyExists.startsWith(localizedErrorPrefix)) {
-    return localize(errorMessages[errorKey]);
-  } else if (keyExists) {
-    return errorMessages[errorKey];
-  } else {
-    return defaultResponse;
-  }
+    if (keyExists && typeof errorMessages[errorKey] === 'function') {
+      return errorMessages[errorKey](json, localize);
+    } else if (keyExists && keyExists.startsWith(localizedErrorPrefix)) {
+      return localize(errorMessages[errorKey]);
+    } else if (keyExists) {
+      return errorMessages[errorKey];
+    } else {
+      return defaultResponse;
+    }
+  };
+
+  return (
+    <>
+      {renderContent()}
+      <ApiKeyErrorModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />
+    </>
+  );
 };
 
 export default Error;
