@@ -202,7 +202,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
               className="select-item text-sm"
             >
               <Shield className="icon-md" aria-hidden="true" />
-              Somos SST
+              Game SST
             </Select.SelectItem>
           )}
           <Select.SelectItem

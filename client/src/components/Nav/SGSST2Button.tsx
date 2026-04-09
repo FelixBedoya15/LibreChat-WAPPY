@@ -27,7 +27,7 @@ export default function SGSST2Button({
     if (isCollapsed) {
         return (
             <TooltipAnchor
-              description="Somos SST"
+              description="Game SST"
               side="right"
               render={
                 <motion.button
@@ -59,7 +59,7 @@ export default function SGSST2Button({
             )}
         >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="font-semibold text-text-primary text-[13px]">Somos SST</span>
+            <span className="font-semibold text-text-primary text-[13px]">Game SST</span>
         </motion.button>
     );
 }

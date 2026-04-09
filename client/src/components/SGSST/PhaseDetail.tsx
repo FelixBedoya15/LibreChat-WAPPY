@@ -279,16 +279,6 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         </div>
                     )}
                 </div>
-                
-                <div className="w-full md:w-auto flex">
-                    <button
-                        onClick={handleChat}
-                        className="group flex flex-1 sm:flex-none items-center justify-center py-3 px-6 transition-all duration-500 shadow-[0_8px_30px_rgba(16,185,129,0.2)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.4)] cursor-pointer outline-none rounded-[1.25rem] hover:-translate-y-1 bg-gradient-to-r from-teal-500 to-emerald-400 text-white border border-white/20"
-                    >
-                        <MessageSquare className="h-5 w-5 mr-3 group-hover:scale-110 transition-transform" />
-                        <span className="font-bold tracking-wide">Analizar con Inteligencia Artificial</span>
-                    </button>
-                </div>
 
                 {/* Hidden global input */}
                 <input
