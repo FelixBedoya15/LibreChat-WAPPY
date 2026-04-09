@@ -241,39 +241,47 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     };
 
     return (
-        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary p-6">
-            <div className="mb-6 flex items-center gap-4 border-b border-border-medium pb-4 w-full">
-                {!navVisible && (
-                    <div className="mr-2 hidden md:block shrink-0">
-                        <OpenSidebar setNavVisible={setNavVisible} />
-                    </div>
-                )}
-                <button
-                    onClick={onBack}
-                    className="rounded-full p-2 hover:bg-surface-tertiary transition-colors"
-                    aria-label="Back"
-                >
-                    <ArrowLeft className="h-6 w-6 text-text-primary" />
-                </button>
-                <div>
-                    <h2 className="text-2xl font-bold text-text-primary">{phase.title}</h2>
-                    <p className="text-sm text-text-secondary">{phase.description}</p>
+        <div className="flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary relative overflow-hidden">
+            {/* Organic Background Blob */}
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-[0.03] dark:opacity-[0.05] pointer-events-none transform translate-x-1/3 -translate-y-1/4">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
+                </svg>
+            </div>
+
+            {/* Header Section */}
+            <div className="relative z-10 px-6 pt-10 pb-6 w-full flex flex-col md:flex-row items-start md:items-center gap-6">
+                <div className="flex items-center gap-4">
+                    {!navVisible && (
+                        <div className="hidden md:block shrink-0">
+                            <OpenSidebar setNavVisible={setNavVisible} />
+                        </div>
+                    )}
+                    <button
+                        onClick={onBack}
+                        className="rounded-2xl p-3 bg-surface-secondary border border-border-light dark:border-white/5 hover:bg-surface-tertiary transition-all shadow-sm hover:shadow-md hover:-translate-x-1"
+                        aria-label="Back"
+                    >
+                        <ArrowLeft className="h-6 w-6 text-text-primary" />
+                    </button>
                 </div>
-                <div className="ml-auto flex gap-2">
+                
+                <div className="flex-1">
+                    <h2 className="text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">{phase.title}</h2>
+                    <p className="text-base text-text-secondary mt-1 max-w-3xl leading-relaxed">{phase.description}</p>
+                </div>
+                
+                <div className="w-full md:w-auto flex">
                     <button
                         onClick={handleChat}
-                        className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-surface-primary border-border-medium text-text-primary"
+                        className="group flex flex-1 sm:flex-none items-center justify-center py-3 px-6 transition-all duration-500 shadow-[0_8px_30px_rgba(16,185,129,0.2)] hover:shadow-[0_8px_30px_rgba(16,185,129,0.4)] cursor-pointer outline-none rounded-[1.25rem] hover:-translate-y-1 bg-gradient-to-r from-teal-500 to-emerald-400 text-white border border-white/20"
                     >
-                        <div className="relative flex-shrink-0 flex items-center justify-center">
-                            <MessageSquare className="h-5 w-5" />
-                        </div>
-                        <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                            Chatea con SG-SST
-                        </div>
+                        <MessageSquare className="h-5 w-5 mr-3 group-hover:scale-110 transition-transform" />
+                        <span className="font-bold tracking-wide">Analizar con Inteligencia Artificial</span>
                     </button>
                 </div>
 
-                {/* Hidden global input, triggered by specific category buttons */}
+                {/* Hidden global input */}
                 <input
                     type="file"
                     ref={fileInputRef}
@@ -283,7 +291,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 />
             </div>
 
-            <div className="flex-1 w-full overflow-y-scroll space-y-6">
+            <div className="flex-1 w-full overflow-y-scroll space-y-8 px-6 pb-20 relative z-10 scroll-smooth">
                 {categories.filter(c => isAdmin || !disabledApps.includes(c.id)).length === 0 ? (
                     <div className="p-8 text-center text-text-secondary">
                         No hay categorías disponibles para esta fase.
@@ -297,56 +305,50 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         const isThisUploading = isUploading === category.id;
 
                         return (
-                            <div key={category.id} className="w-full min-w-0 rounded-xl border border-border-medium bg-surface-secondary overflow-hidden transition-all duration-200">
+                            <div key={category.id} className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-3xl overflow-hidden transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
                                 {/* Category Header */}
                                 <div
-                                    className="flex items-center justify-between p-4 bg-surface-tertiary/50 cursor-pointer hover:bg-surface-tertiary transition-colors"
+                                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02] transition-colors gap-5"
                                     onClick={() => toggleCategory(category.id)}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-text-secondary">
-                                            {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                                        </div>
-                                        <div className="p-2 rounded-xl bg-surface-primary text-teal-600 dark:text-teal-400">
+                                    <div className="flex items-center gap-5">
+                                        <div className="p-4 rounded-2xl bg-surface-secondary shadow-inner border border-white/20 dark:border-white/5 text-text-primary">
                                             {renderIcon(category.icon)}
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-text-primary">{category.title}</h3>
-                                            <p className="text-xs text-text-secondary">{categoryFiles.length} documentos</p>
+                                            <h3 className="text-xl font-black tracking-tight text-text-primary mb-1">{category.title}</h3>
+                                            <p className="text-xs text-text-secondary uppercase tracking-widest font-bold opacity-70">
+                                                {categoryFiles.length} {categoryFiles.length === 1 ? 'Anexo Documental' : 'Anexos Documentales'}
+                                            </p>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-4 w-full sm:w-auto mt-2 sm:mt-0">
                                         {isAdmin && (
                                             <div 
-                                                className="flex items-center bg-surface-primary px-3 py-1 rounded-full border border-border-medium hover:bg-surface-tertiary transition-colors"
+                                                className="flex items-center bg-surface-secondary/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-border-light dark:border-white/10 hover:bg-surface-tertiary transition-all shadow-sm"
                                                 onClick={(e) => handleToggleApp(category.id, e)}
                                                 title={disabledApps.includes(category.id) ? "Aplicativo Oculto: Clic para mostrar" : "Aplicativo Visible: Clic para ocultar"}
                                             >
-                                                <div className="relative inline-flex items-center cursor-pointer">
-                                                    <div className={`w-8 h-4 rounded-full transition-colors ${!disabledApps.includes(category.id) ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform ${!disabledApps.includes(category.id) ? 'translate-x-4' : ''}`}></div>
+                                                <div className="relative inline-flex items-center cursor-pointer my-1 mx-1">
+                                                    <div className={`w-9 h-5 rounded-full transition-colors ${!disabledApps.includes(category.id) ? 'bg-teal-500' : 'bg-surface-tertiary border border-border-medium'}`}></div>
+                                                    <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full shadow-md transition-transform ${!disabledApps.includes(category.id) ? 'translate-x-4' : 'translate-x-0'}`}></div>
                                                 </div>
-                                                <span className={`ml-2 text-xs font-bold uppercase ${!disabledApps.includes(category.id) ? 'text-green-500' : 'text-gray-400'}`}>
-                                                    {!disabledApps.includes(category.id) ? 'ON' : 'OFF'}
+                                                <span className={`ml-2 text-[10px] font-black uppercase tracking-wider ${!disabledApps.includes(category.id) ? 'text-teal-600 dark:text-teal-400' : 'text-text-secondary text-opacity-50'}`}>
+                                                    {!disabledApps.includes(category.id) ? 'ACTIVO' : 'INACT.'}
                                                 </span>
                                             </div>
                                         )}
-                                        <Button
-                                            onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
-                                            disabled={!!isUploading}
-                                            size="sm"
-                                            className="gap-2 bg-white/10 hover:bg-white/20 text-text-primary border border-white/10"
-                                        >
-                                            {isThisUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-                                            <span className="hidden sm:inline">Subir</span>
-                                        </Button>
+                                        
+                                        <div className="flex items-center justify-center h-10 w-10 text-text-secondary bg-surface-secondary/50 hover:bg-surface-secondary rounded-full border border-border-light dark:border-white/5 transition-all">
+                                            {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* Category Content */}
                                 {isExpanded && (
-                                    <div className="p-4 bg-surface-primary/30">
+                                    <div className="px-5 md:px-7 pb-7 pt-2 border-t border-border-light dark:border-white/5">
                                         {!hasAccessToSGSST ? (
                                             <UpgradeWall plan={user?.role} />
                                         ) : (
@@ -499,32 +501,46 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                      </div>
                                                  )}
 
+                                                {/* File Area Top Divider */}
+                                                <div className="flex items-center justify-between mt-8 mb-6 pb-4 border-b border-border-light dark:border-white/5">
+                                                    <h4 className="text-sm font-black text-text-primary/70 tracking-widest uppercase">Archivos Adjuntos (RAG)</h4>
+                                                    <Button
+                                                        onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
+                                                        disabled={!!isUploading}
+                                                        size="sm"
+                                                        className="gap-2 rounded-xl border border-border-light dark:border-white/10 shadow-sm"
+                                                    >
+                                                        {isThisUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                                        <span className="font-bold">Subir Documento</span>
+                                                    </Button>
+                                                </div>
+
                                                 {categoryFiles.length === 0 ? (
-                                                    <div className="flex flex-col items-center justify-center py-8 text-text-secondary/60 border-2 border-dashed border-border-medium/50 rounded-xl">
-                                                        <FolderOpen className="h-8 w-8 mb-2 opacity-40" />
-                                                        <span className="text-sm">Sin documentos</span>
+                                                    <div className="flex flex-col items-center justify-center py-10 text-text-secondary/50 border-2 border-dashed border-border-medium/30 rounded-3xl bg-surface-primary/20">
+                                                        <FolderOpen className="h-10 w-10 mb-3 opacity-30" />
+                                                        <span className="text-sm font-medium tracking-wide">No se han anexado documentos a este módulo.</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                                         {categoryFiles.map((file) => (
                                                             <div
                                                                 key={file.file_id}
-                                                                className="group relative flex items-center gap-3 p-3 rounded-xl border border-border-medium bg-surface-primary hover:shadow-sm transition-all"
+                                                                className="group relative flex items-center gap-4 p-4 rounded-2xl border border-border-light dark:border-white/10 bg-surface-primary/50 hover:bg-surface-primary shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
                                                             >
-                                                                <div className="flex-shrink-0 p-2 rounded bg-surface-tertiary text-text-secondary">
+                                                                <div className="flex-shrink-0 p-3 rounded-xl bg-surface-secondary text-text-secondary group-hover:text-teal-500 transition-colors">
                                                                     <File className="h-5 w-5" />
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <p className="truncate text-sm font-medium text-text-primary" title={file.name}>
+                                                                    <p className="truncate text-[13px] font-bold text-text-primary" title={file.name}>
                                                                         {file.name}
                                                                     </p>
-                                                                    <p className="text-xs text-text-secondary">
+                                                                    <p className="text-[11px] font-mono tracking-widest text-text-secondary/70 mt-0.5">
                                                                         {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Size unknown'}
                                                                     </p>
                                                                 </div>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
-                                                                    className="p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 hover:bg-surface-tertiary transition-all"
+                                                                    className="p-2 rounded-full text-red-500/70 hover:text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 transition-all duration-300"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </button>
