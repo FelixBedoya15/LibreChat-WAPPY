@@ -22,6 +22,8 @@ import PhaseDetail from './PhaseDetail';
 import CompanyInfoModal from './CompanyInfoModal';
 import DashboardPredictivo from './DashboardPredictivo';
 import SSTWorldMap from './SSTWorldMap';
+import { useSSTProgress, LEVELS } from './useSSTProgress';
+import './sst-bit.css';
 
 const REQUIRED_FIELDS = [
     'companyName', 'nit', 'legalRepresentative', 'workerCount',
@@ -30,49 +32,55 @@ const REQUIRED_FIELDS = [
     'sector', 'responsibleSST', 'generalActivities',
 ] as const;
 
-// ─── Phase Definitions ────────────────────────────────────────────────────────
-const getPhases = () => [
+// ─── Retro Phase Definitions ────────────────────────────────────────────────────
+const RETRO_PHASES = [
     {
         id: 'plan',
-        title: 'Planear',
-        subtitle: 'Proyección y Estrategia',
-        description: 'Políticas SG-SST, Perfil Sociodemográfico, Matriz GTC 45, Requisitos Legales y Plan de Trabajo Institucional.',
-        accent: 'text-[#10b981]',
-        bgGlow: 'bg-[#10b981]/5',
-        borderHover: 'hover:border-[#10b981]',
-        icon: <FileText className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        label: 'PLANEAR',
+        sublabel: 'POLÍTICA · PERFILES · LEGAL',
+        desc: 'Política, Objetivos, Diagnóstico, Matrices y Requisitos Legales.',
+        num: '01',
+        accent: '#4ade80',
+        bg: '#14532d',
+        xpReward: 50,
+        modules: (PHASE_CATEGORIES.plan ?? []).length,
     },
     {
         id: 'do',
-        title: 'Hacer',
-        subtitle: 'Ejecución Operativa',
-        description: 'Reporte de Actos, Investigación ATEL, Método OWAS, Permiso en Alturas, EPP y Análisis SafeStart.',
-        accent: 'text-[#0d9488]',
-        bgGlow: 'bg-[#0d9488]/5',
-        borderHover: 'hover:border-[#0d9488]',
-        icon: <ShieldAlert className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        label: 'HACER',
+        sublabel: 'IPEVAR · ACTOS · EPP',
+        desc: 'Reporte de Actos, Investigación ATEL, Método OWAS, IPEVAR.',
+        num: '02',
+        accent: '#fbbf24',
+        bg: '#78350f',
+        xpReward: 60,
+        modules: (PHASE_CATEGORIES.do ?? []).length,
     },
     {
         id: 'check',
-        title: 'Verificar',
-        subtitle: 'Evaluación y Medición',
-        description: 'Auditorías de Cumplimiento SG-SST, Supervisión Institucional e Indicadores Clave de Gestión Gerencial.',
-        accent: 'text-[#059669]',
-        bgGlow: 'bg-[#059669]/5',
-        borderHover: 'hover:border-[#059669]',
-        icon: <ClipboardCheck className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        label: 'VERIFICAR',
+        sublabel: 'AUDITORÍA · INDICADORES',
+        desc: 'Auditorías, Revisión Alta Dirección e Indicadores de Gestión.',
+        num: '03',
+        accent: '#f87171',
+        bg: '#7f1d1d',
+        xpReward: 40,
+        modules: (PHASE_CATEGORIES.check ?? []).length,
     },
     {
         id: 'act',
-        title: 'Actuar',
-        subtitle: 'Mejora Continua',
-        description: 'Registro de Acciones Correctivas y Preventivas (ACPM), Actualizaciones y Consolidación de Mejora Continua.',
-        accent: 'text-[#14b8a6]',
-        bgGlow: 'bg-[#14b8a6]/5',
-        borderHover: 'hover:border-[#14b8a6]',
-        icon: <BarChart2 className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        label: 'ACTUAR',
+        sublabel: 'ACPM · MEJORA CONTINUA',
+        desc: 'Acciones Correctivas, Preventivas y de Mejora Continua.',
+        num: '04',
+        accent: '#c084fc',
+        bg: '#4c1d95',
+        xpReward: 45,
+        modules: (PHASE_CATEGORIES.act ?? []).length,
     },
 ];
+
+const getPhases = () => RETRO_PHASES;
 
 const OrganicBlob = () => (
     <svg className="absolute top-0 right-0 w-64 h-64 opacity-20 transform translate-x-12 -translate-y-8 transition-transform duration-[1200ms] group-hover:scale-[1.35] group-hover:-rotate-[15deg] pointer-events-none" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -82,8 +90,11 @@ const OrganicBlob = () => (
 
 export default function SGSSTDashboard() {
     const { token } = useAuthContext();
+    const { user } = useAuthContext();
     const { navVisible, setNavVisible } = useOutletContext<ContextType>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { progress, addXP } = useSSTProgress(user?.id);
+
     
     // State
     const [selectedPhase, setSelectedPhase] = useState<any>(null);
@@ -183,6 +194,8 @@ export default function SGSSTDashboard() {
             setShowCompanyInfo(true);
             return;
         }
+        // Award XP for visiting a phase
+        addXP(phase.xpReward ?? 30, `phase_visit_${phase.id}`);
         setSearchParams({ phase: phase.id });
     };
 
@@ -230,145 +243,178 @@ export default function SGSSTDashboard() {
     }
 
     return (
-        <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary pb-20 scroll-smooth">
+        <div className="flex h-full w-full flex-col overflow-y-auto bg-[#0a0a0a] pb-20 scroll-smooth">
             
-            {/* ═══ Header Section (Standard simple style equivalent to Blog/Aula) ═══ */}
-            <header className="px-6 lg:px-12 py-8 bg-surface-primary flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                {/* Left: Title & Sidebar toggle */}
+            {/* \u2500\u2500\u2500 Retro 8-bit Header HUD \u2500\u2500\u2500 */}
+            <header className="bg-[#0a0a0a] border-b-4 border-green-500 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                {/* Left: sidebar + title */}
                 <div className="flex items-center gap-4">
                     {!navVisible && (
-                        <button 
-                            onClick={() => setNavVisible(true)}
-                            className="hidden md:flex shrink-0 p-2 rounded-xl border border-border-medium hover:bg-surface-secondary transition-colors text-text-secondary hover:text-text-primary"
-                        >
+                        <button onClick={() => setNavVisible(true)}
+                            className="hidden md:flex shrink-0 p-2 border border-green-500 text-green-500 hover:bg-green-900/20 transition-colors">
                             <OpenSidebar setNavVisible={setNavVisible} />
                         </button>
                     )}
-                    <div className="flex items-center gap-4">
-                        <div className="bg-[#10b981]/10 p-3.5 rounded-2xl dark:bg-[#10b981]/20">
-                            <Activity className="h-8 w-8 text-[#10b981]" strokeWidth={2.5} />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">Sistema Estratégico SST</h1>
-                            <p className="text-text-secondary mt-1 text-sm font-medium">Ciclo de Mejora Continua (PHVA) & Inteligencia Predictiva.</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => setShowWorldMap(true)}
-                        className="ml-4 pixel-btn bg-green-600 hidden sm:block animate-pulse"
-                    >
-                        ENTER 8-BIT RISK MAP
-                    </button>
-                </div>
-
-                {/* Right: Integrated Company Info Widget */}
-                <button
-                    onClick={() => setShowCompanyInfo(true)}
-                    className="group flex items-center gap-3 bg-surface-secondary border border-border-medium px-4 py-3 rounded-2xl hover:bg-surface-hover hover:border-[#10b981]/40 hover:shadow-sm transition-all text-left w-full sm:w-auto"
-                >
-                    <div className="p-2.5 bg-[#10b981]/10 rounded-xl group-hover:bg-[#10b981]/20 group-hover:scale-105 transition-all">
-                        <Building2 className="h-5 w-5 text-[#10b981]" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-[10px] uppercase font-bold text-text-secondary mb-0.5 tracking-wider">Entidad Activa</p>
-                        <p className="text-sm font-bold text-text-primary truncate max-w-[160px]">
-                            {companyInfo?.companyName || 'Configurar Organización'}
+                    <div>
+                        <h1 className="font-pixel text-green-400 uppercase" style={{ fontSize:'11px' }}>&#x2618; SOMOS SST</h1>
+                        <p className="font-pixel text-gray-500 mt-1" style={{ fontSize:'6px' }}>
+                            SISTEMA GAMIFICADO SG-SST v3.0
                         </p>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-text-secondary group-hover:text-[#10b981] group-hover:translate-x-1 transition-all" />
-                </button>
+                </div>
+
+                {/* Center: XP HUD */}
+                <div className="flex items-center gap-4 flex-wrap">
+                    {/* Level badge */}
+                    <div className="pixel-box px-3 py-1 flex items-center gap-2" style={{ borderColor:'#fbbf24' }}>
+                        <span className="font-pixel text-yellow-400" style={{ fontSize:'7px' }}>LVL {progress.level}</span>
+                        <span className="font-pixel text-white" style={{ fontSize:'6px' }}>{progress.levelName}</span>
+                    </div>
+                    {/* XP bar */}
+                    <div className="flex items-center gap-2">
+                        <span className="font-pixel text-white" style={{ fontSize:'7px' }}>XP</span>
+                        <div className="w-32 h-3 bg-black border-2 border-white">
+                            {(() => {
+                                const lvls = LEVELS;
+                                const cur  = lvls[Math.min(progress.level, lvls.length-1)].xp;
+                                const next = progress.level < lvls.length-1 ? lvls[progress.level+1].xp : cur + 500;
+                                const pct  = Math.min(100, Math.round(((progress.xp - cur) / (next - cur)) * 100));
+                                return <div className="h-full bg-yellow-400 transition-all" style={{ width:`${pct}%` }} />;
+                            })()}
+                        </div>
+                        <span className="font-pixel text-yellow-400" style={{ fontSize:'7px' }}>{progress.xp} XP</span>
+                    </div>
+                    {/* Completion */}
+                    <div className="flex items-center gap-2">
+                        <span className="font-pixel text-white" style={{ fontSize:'7px' }}>PROG</span>
+                        <div className="w-20 h-3 bg-black border-2 border-white">
+                            <div className="h-full bg-green-500 transition-all" style={{ width:`${progress.pct}%` }} />
+                        </div>
+                        <span className="font-pixel text-green-400" style={{ fontSize:'7px' }}>{progress.pct}%</span>
+                    </div>
+                </div>
+
+                {/* Right: company + map button */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <button onClick={() => setShowCompanyInfo(true)}
+                        className="pixel-box flex items-center gap-2 px-3 py-2 hover:border-green-500 transition-colors">
+                        <Building2 className="h-4 w-4 text-green-400" />
+                        <div>
+                            <p className="font-pixel text-gray-500" style={{ fontSize:'5px' }}>ENTIDAD ACTIVA</p>
+                            <p className="font-pixel text-white" style={{ fontSize:'7px' }}>{companyInfo?.companyName || '???'}</p>
+                        </div>
+                    </button>
+                    <button onClick={() => setShowWorldMap(true)}
+                        className="pixel-btn bg-green-700 animate-pulse font-pixel" style={{ fontSize:'8px' }}>
+                        &#x25BA; RISK MAP
+                    </button>
+                </div>
             </header>
 
-            {/* ═══ Main Content Container ═══ */}
-            <main className="max-w-[1400px] mx-auto w-full px-6 lg:px-8 pt-8 space-y-12">
-                
-                {/* Missing Info Warning */}
-                {missingFields.length > 0 && (
-                    <div
-                        onClick={() => setShowCompanyInfo(true)}
-                        className="animate-in fade-in slide-in-from-top-4 flex cursor-pointer items-center gap-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 transition-all hover:bg-amber-500/20 hover:shadow-md"
-                    >
-                        <AlertTriangle className="h-6 w-6 flex-shrink-0 text-amber-500 animate-pulse" />
-                        <div className="text-sm">
-                            <span className="font-bold text-amber-600 dark:text-amber-500 tracking-wide uppercase text-xs block mb-0.5">Atención Requerida</span>
-                            <span className="text-text-secondary font-medium">
-                                Su organización tiene <strong className="text-text-primary">{missingFields.length} campos</strong> pendientes por diligenciar. Finalice la configuración para habilitar simulaciones precisas.
-                            </span>
-                        </div>
-                    </div>
-                )}
+            {/* Missing info warning */}
+            {missingFields.length > 0 && (
+                <div onClick={() => setShowCompanyInfo(true)}
+                    className="mx-6 mt-4 pixel-box flex cursor-pointer items-center gap-3 px-4 py-3 border-yellow-500"
+                    style={{ borderColor:'#f59e0b', backgroundColor:'#1c1400' }}>
+                    <AlertTriangle className="h-5 w-5 text-yellow-500 animate-pulse flex-shrink-0" />
+                    <span className="font-pixel text-yellow-400" style={{ fontSize:'7px' }}>
+                        {missingFields.length} CAMPOS PENDIENTES &mdash; CONFIGURA TU ORGANIZACI&Oacute;N
+                    </span>
+                </div>
+            )}
 
-                {/* ═══ PHVA Phase Grid (Dynamic SVGs) ═══ */}
-                <section className="animate-in fade-in slide-in-from-bottom-8 duration-[800ms] fill-mode-both">
-                    <div className="flex items-center gap-3 mb-8 px-1">
-                        <div className="p-2 rounded-xl bg-[#10b981]/10 dark:bg-[#10b981]/20">
-                            <Box className="h-5 w-5 text-[#10b981]" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Gestión Operativa PHVA</h2>
-                            <p className="text-sm text-text-secondary font-medium mt-0.5">Navegación por las fases del ciclo de mejora continua.</p>
-                        </div>
+            {/* \u2500\u2500\u2500 LEVEL SELECT: PHVA 8-bit cards \u2500\u2500\u2500 */}
+            <main className="max-w-[1400px] mx-auto w-full px-6 pt-6 pb-20 space-y-10">
+                <section>
+                    <div className="flex items-center gap-3 mb-6">
+                        <span className="font-pixel text-green-400" style={{ fontSize:'10px' }}>&#x25CF; SELECT PHASE</span>
+                        <div className="flex-1 h-px bg-green-900" />
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 items-stretch max-w-5xl mx-auto">
-                        {phases.map((phase, i) => (
-                            <div
-                                key={phase.id}
-                                onClick={() => handlePhaseSelect(phase)}
-                                className={cn(
-                                    "group relative cursor-pointer flex flex-col rounded-2xl border-2 bg-surface-primary transition-all duration-300 ease-out shadow-sm hover:shadow-[0_8px_30px_rgba(16,185,129,0.15)] hover:-translate-y-1 overflow-hidden h-full",
-                                    "border-border-medium dark:border-white/10",
-                                    phase.borderHover
-                                )}
-                                style={{ animationDelay: `${i * 100}ms` }}
-                            >
-                                {/* Dynamic Glow Behind Card content */}
-                                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${phase.bgGlow} pointer-events-none`} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        {phases.map((phase) => {
+                            const completed = progress.completedModules.filter(m => m.includes(phase.id)).length;
+                            const phaseModules = phase.modules || 1;
+                            const phasePct = Math.min(100, Math.round((completed / phaseModules) * 100));
+                            const isVisited = progress.completedModules.includes(`phase_visit_${phase.id}`);
 
-                                {/* Organic blob subtle background */}
-                                <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none group-hover:scale-125 transition-transform duration-700">
-                                    <svg className={cn("w-full h-full transform translate-x-4 -translate-y-4", phase.accent)} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                                        <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
-                                    </svg>
-                                </div>
-
-                                {/* Content Block */}
-                                <div className="relative p-6 px-7 flex flex-col flex-1 bg-transparent z-10 w-full">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="p-3 bg-white dark:bg-black/20 rounded-2xl shadow-sm border border-border-light group-hover:border-transparent transition-colors">
-                                            {phase.icon}
+                            return (
+                                <button
+                                    key={phase.id}
+                                    onClick={() => handlePhaseSelect(phase)}
+                                    className="pixel-box text-left group hover:scale-[1.02] transition-transform active:scale-95 w-full"
+                                    style={{ borderColor: phase.accent, backgroundColor:'#0d0d0d' }}
+                                >
+                                    {/* Card top */}
+                                    <div className="px-4 pt-4 pb-3 border-b-4" style={{ borderColor: phase.accent, backgroundColor: phase.bg }}>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="font-pixel text-white" style={{ fontSize:'6px' }}>FASE {phase.num}</span>
+                                            {isVisited
+                                                ? <span className="font-pixel text-green-400" style={{ fontSize:'6px' }}>&#x2713; VISITADO</span>
+                                                : <span className="font-pixel text-gray-500" style={{ fontSize:'6px' }}>&#x25CB; NUEVO</span>
+                                            }
                                         </div>
-                                        <div className="bg-surface-secondary rounded-full px-3 py-1 border border-border-light text-text-secondary text-[10px] font-black tracking-[0.2em] uppercase">
-                                            Fase 0{i+1}
+                                        <h2 className="font-pixel uppercase mt-1" style={{ fontSize:'13px', color: phase.accent }}>{phase.label}</h2>
+                                        <p className="font-pixel text-white mt-1" style={{ fontSize:'5px', opacity:0.7 }}>{phase.sublabel}</p>
+                                    </div>
+                                    {/* Card body */}
+                                    <div className="px-4 py-3">
+                                        <p className="font-pixel text-gray-400 mb-3" style={{ fontSize:'6px', lineHeight:'1.8' }}>{phase.desc}</p>
+                                        {/* Phase progress bar */}
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex-1 h-2 bg-black border border-gray-700">
+                                                <div className="h-full transition-all" style={{ width:`${phasePct}%`, backgroundColor: phase.accent }} />
+                                            </div>
+                                            <span className="font-pixel" style={{ fontSize:'6px', color: phase.accent }}>{phasePct}%</span>
+                                        </div>
+                                        {/* Module count + XP reward */}
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-pixel text-gray-600" style={{ fontSize:'5px' }}>{phase.modules} MÓDULOS</span>
+                                            <span className="font-pixel" style={{ fontSize:'6px', color:'#fbbf24' }}>+{phase.xpReward} XP</span>
                                         </div>
                                     </div>
-                                    
-                                    <div className="text-left flex flex-col flex-1">
-                                        <h2 className={cn("text-2xl font-black tracking-tight leading-none mb-2 text-text-primary transition-colors uppercase", `group-hover:${phase.accent}`)}>{phase.title}</h2>
-                                        <p className="text-text-secondary font-bold text-xs uppercase tracking-wide mb-3 min-h-[32px] sm:min-h-0 lg:min-h-[32px]">{phase.subtitle}</p>
-                                        <p className="text-[13px] font-medium text-text-secondary leading-relaxed opacity-90 mt-auto pt-2">{phase.description}</p>
+                                    {/* Enter button */}
+                                    <div className="px-4 pb-4">
+                                        <div className="pixel-btn w-full text-center font-pixel text-[8px] text-black group-hover:opacity-90"
+                                             style={{ backgroundColor: phase.accent }}>
+                                            &#x25BA; ENTRAR
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        ))}
+                                </button>
+                            );
+                        })}
                     </div>
                 </section>
 
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-border-medium to-transparent opacity-50 my-8" />
+                {/* Completed modules log */}
+                {progress.completedModules.length > 0 && (
+                    <section>
+                        <div className="flex items-center gap-3 mb-4">
+                            <span className="font-pixel text-yellow-400" style={{ fontSize:'9px' }}>&#x25CF; LOG DE PROGRESO</span>
+                            <div className="flex-1 h-px bg-yellow-900" />
+                        </div>
+                        <div className="pixel-box p-4 border-yellow-600">
+                            <div className="flex flex-wrap gap-2">
+                                {progress.completedModules.slice(-12).map(m => (
+                                    <span key={m} className="font-pixel text-[6px] px-2 py-1 border border-green-800 text-green-400 bg-green-950">
+                                        &#x2713; {m.replace('phase_visit_', 'FASE ')}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
 
-                {/* ═══ Predictive AI Dashboard (Native Integration) ═══ */}
-                <section className="animate-in fade-in slide-in-from-bottom-12 duration-[1000ms] fill-mode-both">
-                    <div className="flex items-center gap-3 mb-6 px-1">
-                        <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-900/30">
-                            <BrainCircuit className="h-5 w-5 text-teal-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black text-text-primary tracking-tight">Centro de Inteligencia Predictiva</h2>
-                            <p className="text-sm text-text-secondary font-medium mt-0.5">Monitoreo dinámico del ecosistema SST alimentado por datos cruzados.</p>
-                        </div>
+                {/* Separator */}
+                <div className="h-px w-full bg-green-900 opacity-30" />
+
+                {/* Predictive AI section */}
+                <section>
+                    <div className="flex items-center gap-3 mb-6">
+                        <span className="font-pixel text-purple-400" style={{ fontSize:'10px' }}>&#x25CF; INTELIGENCIA PREDICTIVA</span>
+                        <div className="flex-1 h-px bg-purple-900" />
                     </div>
-                    
-                    <div className="bg-surface-primary dark:bg-[#1a1a1a] rounded-3xl overflow-hidden transition-all shadow-sm">
+                    <div className="border-4 border-purple-800 bg-[#0d0d0d]">
                         <DashboardPredictivo />
                     </div>
                 </section>
