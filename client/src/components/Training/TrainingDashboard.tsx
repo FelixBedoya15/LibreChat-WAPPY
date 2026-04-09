@@ -94,7 +94,7 @@ export default function TrainingDashboard() {
                             <p className="mt-1 text-gray-500 dark:text-gray-400">Actualmente no hay cursos publicados en la plataforma.</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {courses.map((course: any) => {
                                 const progress = course.progress || { percentage: 0, completedCount: 0, totalLessons: 0, isCompleted: false };
 
