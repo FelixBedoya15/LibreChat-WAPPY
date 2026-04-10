@@ -24,6 +24,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import SingleSelect from './SingleSelect';
 
 // ─── Diamante de Colores Calculator ───
 const getColorValue = (score: number) => {
@@ -558,11 +559,7 @@ const AnalisisVulnerabilidad = () => {
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-sm font-medium">Origen de la Amenaza</label>
-                                  <select value={am.origenAmenaza} onChange={e => updateAmenaza(am.id, { origenAmenaza: e.target.value })} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-teal-500">
-                                    <option>Natural (Sismo, Inundación...)</option>
-                                    <option>Tecnológico (Incendio, Derrame...)</option>
-                                    <option>Social (Robo, Atentado...)</option>
-                                  </select>
+                                  <SingleSelect value={am.origenAmenaza} onChange={val => updateAmenaza(am.id, { origenAmenaza: val })} placeholder="Seleccione..." options={['Natural (Sismo, Inundación...)', 'Tecnológico (Incendio, Derrame...)', 'Social (Robo, Atentado...)']} />
                                 </div>
                               </div>
 
@@ -575,11 +572,7 @@ const AnalisisVulnerabilidad = () => {
                                       <h5 className="font-bold text-gray-800 dark:text-gray-100 uppercase text-xs">CALIFICACIÓN DE LA AMENAZA</h5>
                                       <span className="px-3 py-1 text-xs font-bold rounded" style={{ backgroundColor: getHex(graphics.amenazaColor), color: graphics.amenazaColor === 'AMARILLO' ? '#000' : '#fff' }}>{graphics.amenazaColor}</span>
                                     </div>
-                                    <select value={am.nivelAmenaza} onChange={e => updateAmenaza(am.id, { nivelAmenaza: e.target.value })} className="w-full rounded border px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border-gray-300">
-                                      <option value="Posible">POSIBLE (Nunca ha sucedido, muy raro) - VERDE</option>
-                                      <option value="Probable">PROBABLE (Ocurre a veces) - AMARILLO</option>
-                                      <option value="Inminente">INMINENTE (Es seguro o muy frecuente) - ROJO</option>
-                                    </select>
+                                    <SingleSelect value={am.nivelAmenaza} onChange={val => updateAmenaza(am.id, { nivelAmenaza: val })} placeholder="Seleccione..." options={['Posible', 'Probable', 'Inminente']} />
                                   </div>
 
                                   {/* Vulnerabilidades */}

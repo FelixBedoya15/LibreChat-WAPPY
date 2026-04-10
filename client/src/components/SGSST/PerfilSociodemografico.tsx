@@ -20,6 +20,7 @@ import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import SingleSelect from './SingleSelect';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { QRCodeSVG } from 'qrcode.react';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
@@ -810,13 +811,7 @@ const PerfilSociodemografico = () => {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Perfil de Cargo</label>
-                                                        <select value={w.cargo} onChange={e => updateWorkerField(w.id, 'cargo', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-teal-300 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/20 text-teal-900 dark:text-teal-100 font-bold shadow-sm focus:ring-2 focus:ring-teal-400">
-                                                            <option value="">Seleccione el Rol...</option>
-                                                            {cargosDisponibles.map(c => (
-                                                                <option key={c.id} value={c.nombreCargo}>{c.nombreCargo} ({c.nivelCargo})</option>
-                                                            ))}
-                                                        </select>
+                                                        <SingleSelect value={w.cargo || ''} onChange={val => updateWorkerField(w.id, 'cargo', val)} placeholder="Seleccione el Rol..." options={cargosDisponibles.map(c => c.nombreCargo)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
@@ -831,39 +826,15 @@ const PerfilSociodemografico = () => {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Género</label>
-                                                        <select value={w.genero} onChange={e => updateWorkerField(w.id, 'genero', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Masculino</option>
-                                                            <option>Femenino</option>
-                                                            <option>Otro</option>
-                                                        </select>
+                                                        <SingleSelect value={w.genero || ''} onChange={val => updateWorkerField(w.id, 'genero', val)} placeholder="Seleccione..." options={['Masculino', 'Femenino', 'Otro']} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Estado Civil</label>
-                                                        <select value={w.estadoCivil} onChange={e => updateWorkerField(w.id, 'estadoCivil', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Soltero/a</option>
-                                                            <option>Casado/a</option>
-                                                            <option>Unión Libre</option>
-                                                            <option>Separado/a</option>
-                                                            <option>Viudo/a</option>
-                                                        </select>
+                                                        <SingleSelect value={w.estadoCivil || ''} onChange={val => updateWorkerField(w.id, 'estadoCivil', val)} placeholder="Seleccione..." options={['Soltero/a', 'Casado/a', 'Unión Libre', 'Separado/a', 'Viudo/a']} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
-                                                        <select value={w.nivelEscolaridad} onChange={e => updateWorkerField(w.id, 'nivelEscolaridad', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Ninguna</option>
-                                                            <option>Primaria</option>
-                                                            <option>Secundaria</option>
-                                                            <option>Técnico</option>
-                                                            <option>Tecnólogo</option>
-                                                            <option>Profesional</option>
-                                                            <option>Especialización / Postgrado</option>
-                                                        </select>
+                                                        <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
                                                     </div>
 
                                                     <div className="space-y-1 lg:col-span-2">
@@ -874,22 +845,11 @@ const PerfilSociodemografico = () => {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Vivienda</label>
-                                                        <select value={w.vivienda} onChange={e => updateWorkerField(w.id, 'vivienda', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Propia</option>
-                                                            <option>Arrendada</option>
-                                                            <option>Familiar</option>
-                                                        </select>
+                                                        <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar']} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Estrato</label>
-                                                        <select value={w.estrato} onChange={e => updateWorkerField(w.id, 'estrato', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>1</option><option>2</option><option>3</option>
-                                                            <option>4</option><option>5</option><option>6</option>
-                                                        </select>
+                                                        <SingleSelect value={w.estrato || ''} onChange={val => updateWorkerField(w.id, 'estrato', val)} placeholder="Seleccione..." options={['1', '2', '3', '4', '5', '6']} />
                                                     </div>
 
                                                     <div className="space-y-1 lg:col-span-2">
@@ -913,14 +873,7 @@ const PerfilSociodemografico = () => {
                                                     {/* Grupo 1: Fisiológicos */}
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Tipo de Sangre</label>
-                                                        <select value={w.tipoSangre} onChange={e => updateWorkerField(w.id, 'tipoSangre', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>O+</option><option>O-</option>
-                                                            <option>A+</option><option>A-</option>
-                                                            <option>B+</option><option>B-</option>
-                                                            <option>AB+</option><option>AB-</option>
-                                                        </select>
+                                                        <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
                                                     </div>
                                                     <div className="space-y-1 lg:col-span-3">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Enfermedades Actuales (Preexistencias)</label>
@@ -931,14 +884,7 @@ const PerfilSociodemografico = () => {
 
                                                     <div className="space-y-1 lg:col-span-2">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Diagnóstico / Hallazgos Ocupacionales</label>
-                                                        <select value={w.diagnosticoMedico || ''} onChange={e => updateWorkerField(w.id, 'diagnosticoMedico', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option value="Apto / Sin Hallazgos">Apto / Sin Hallazgos / Ninguno</option>
-                                                            <optgroup label="3. Sistema Osteomuscular (DME)"><option value="Osteomuscular - Espalda">Espalda: Lumbalgia / Cervicalgia / Hernias</option><option value="Osteomuscular - M. Superiores">M. Superiores: Túnel carpiano / Epicondilitis / Manguito</option></optgroup>
-                                                            <optgroup label="Visual/Audio"><option value="Visual - Vicios de refracción">Vicios de refracción</option><option value="Auditivo - Hipoacusia">Hipoacusia</option></optgroup>
-                                                            <option value="Otros">Otros (No categorizado)</option>
-                                                        </select>
+                                                        <SingleSelect value={w.diagnosticoMedico || '' || ''} onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)} placeholder="Seleccione..." options={['Apto / Sin Hallazgos / Ninguno', 'Espalda: Lumbalgia / Cervicalgia / Hernias', 'M. Superiores: Túnel carpiano / Epicondilitis / Manguito', 'Vicios de refracción', 'Hipoacusia', 'Otros (No categorizado)']} />
                                                     </div>
                                                     <div className="space-y-1 lg:col-span-2">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Medicamentos Estrictos</label>
@@ -961,24 +907,15 @@ const PerfilSociodemografico = () => {
                                                     {/* Grupo Hábitos */}
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Fuma</label>
-                                                        <select value={w.fuma} onChange={e => updateWorkerField(w.id, 'fuma', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-amber-200 bg-amber-50/10 dark:bg-amber-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option><option>No</option><option>Sí, diario</option><option>Ocasional</option>
-                                                        </select>
+                                                        <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
                                                     </div>
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Consumo de Alcohol</label>
-                                                        <select value={w.alcohol} onChange={e => updateWorkerField(w.id, 'alcohol', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-amber-200 bg-amber-50/10 dark:bg-amber-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option><option>No</option><option>Mensual</option><option>Semanal</option><option>Diario</option>
-                                                        </select>
+                                                        <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Seleccione..." options={['No', 'Mensual', 'Semanal', 'Diario']} />
                                                     </div>
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Terapia Psicológica</label>
-                                                        <select value={w.terapiaPsicologica} onChange={e => updateWorkerField(w.id, 'terapiaPsicologica', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-amber-200 bg-amber-50/10 dark:bg-amber-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option>
-                                                        </select>
+                                                        <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Seleccione..." options={['No', 'Sí, actualmente', 'Anteriormente']} />
                                                     </div>
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase">Próximo Segumiento</label>
@@ -1055,11 +992,7 @@ const PerfilSociodemografico = () => {
                                                         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                                                             <div className="space-y-1 w-full md:w-1/2">
                                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado (Firma Digital)</label>
-                                                                <select value={w.consentimientoFirmaDigital || 'No'} onChange={e => updateWorkerField(w.id, 'consentimientoFirmaDigital', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-indigo-200 bg-indigo-50/10 dark:bg-indigo-900/10 text-text-primary">
-                                                                    <option>Sí</option>
-                                                                    <option>No</option>
-                                                                </select>
+                                                                <SingleSelect value={w.consentimientoFirmaDigital || 'No' || ''} onChange={val => updateWorkerField(w.id, 'consentimientoFirmaDigital', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                                 <p className="text-[10px] text-text-secondary mt-1 max-w-[280px]">Muestra la firma en el Código QR y la habilita para reportar.</p>
                                                             </div>
 

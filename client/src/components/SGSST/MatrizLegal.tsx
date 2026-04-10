@@ -28,6 +28,7 @@ import { MATRIZ_LEGAL_ITEMS, MatrizLegalItem } from './matrizLegalData';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
+import SingleSelect from './SingleSelect';
 
 interface ComplianceStatus {
     itemId: string;
@@ -476,11 +477,12 @@ const MatrizLegal = () => {
                             </div>
                             <div className="space-y-1">
                                 <label className="text-xs font-medium text-text-secondary">Tipo de Entidad</label>
-                                <select value={entityType} onChange={(e) => setEntityType(e.target.value)} className="w-full rounded-md border border-border-medium bg-surface-primary px-3 py-1.5 text-sm">
-                                    <option value="private">Privada</option>
-                                    <option value="public">Pública</option>
-                                    <option value="mixed">Mixta</option>
-                                </select>
+                                <SingleSelect
+                                    value={entityType === 'private' ? 'Privada' : entityType === 'public' ? 'Pública' : 'Mixta'}
+                                    onChange={val => setEntityType(val === 'Privada' ? 'private' : val === 'Pública' ? 'public' : 'mixed')}
+                                    placeholder="Seleccione..."
+                                    options={['Privada', 'Pública', 'Mixta']}
+                                />
                             </div>
                         </div>
                     </div>

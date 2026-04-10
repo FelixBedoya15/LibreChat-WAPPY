@@ -12,6 +12,7 @@ import { cn } from '~/utils';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SignaturePad from './SignaturePad';
 import { PenTool } from 'lucide-react';
+import SingleSelect from './SingleSelect';
 
 interface CompanyInfoData {
     companyName: string;
@@ -271,10 +272,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </div>
                                     <div>
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
-                                        <select className={selectClass} value={data.sector} onChange={e => handleChange('sector', e.target.value)}>
-                                            <option value="">{t('com_ui_select_sector', 'Seleccionar sector')}</option>
-                                            {SECTOR_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
+                                        <SingleSelect value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
                                     </div>
                                 </div>
                             </div>
@@ -287,17 +285,11 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     <div>
                                         <label className={labelClass}><Shield className="h-3 w-3" />ARL</label>
-                                        <select className={selectClass} value={data.arl} onChange={e => handleChange('arl', e.target.value)}>
-                                            <option value="">{t('com_ui_select_arl', 'Seleccionar ARL')}</option>
-                                            {ARL_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
-                                        </select>
+                                        <SingleSelect value={data.arl} onChange={val => handleChange('arl', val)} placeholder={t('com_ui_select_arl', 'Seleccionar ARL')} options={ARL_OPTIONS} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Activity className="h-3 w-3" />{t('com_ui_risk_level', 'Nivel de Riesgo')}</label>
-                                        <select className={selectClass} value={data.riskLevel} onChange={e => handleChange('riskLevel', e.target.value)}>
-                                            <option value="">{t('com_ui_select_level', 'Seleccionar nivel')}</option>
-                                            {RISK_LEVELS.map(r => <option key={r} value={r}>{r}</option>)}
-                                        </select>
+                                        <SingleSelect value={data.riskLevel} onChange={val => handleChange('riskLevel', val)} placeholder={t('com_ui_select_level', 'Seleccionar nivel')} options={RISK_LEVELS} />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_economic_activity', 'Actividad Económica')}</label>
@@ -347,10 +339,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
-                                                <select className={selectClass} value={data.legalRepConsent || 'No'} onChange={e => handleChange('legalRepConsent', e.target.value)}>
-                                                    <option>Sí</option>
-                                                    <option>No</option>
-                                                </select>
+                                                <SingleSelect value={data.legalRepConsent || 'No'} onChange={val => handleChange('legalRepConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                 <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
                                             </div>
                                             <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
@@ -389,10 +378,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado para uso de Firma Digital</label>
-                                                <select className={selectClass} value={data.sstRespConsent || 'No'} onChange={e => handleChange('sstRespConsent', e.target.value)}>
-                                                    <option>Sí</option>
-                                                    <option>No</option>
-                                                </select>
+                                                <SingleSelect value={data.sstRespConsent || 'No'} onChange={val => handleChange('sstRespConsent', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                 <p className="text-[10px] text-text-secondary mt-1">Habilita el uso automático de la firma en los informes generados.</p>
                                             </div>
                                             <div className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">

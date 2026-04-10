@@ -33,6 +33,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
@@ -242,7 +243,6 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
         </div>
     );
 };
-
 // ─── Component ────────────────────────────────────────────────────────────────
 const PerfilesCargo = () => {
     const { showToast } = useToastContext();
@@ -519,15 +519,11 @@ const PerfilesCargo = () => {
             'w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm';
         if (field.type === 'select') {
             return (
-                <select
-                    value={(formData as any)[field.key]}
-                    onChange={e => handleInput(field.key as keyof PerfilCargoData, e.target.value)}
-                    className={baseClass}
-                >
-                    {field.options.map((opt: string) => (
-                        <option key={opt}>{opt}</option>
-                    ))}
-                </select>
+                <SingleSelect
+                    value={(formData as any)[field.key] || ''}
+                    onChange={val => handleInput(field.key as keyof PerfilCargoData, val)}
+                    options={field.options}
+                />
             );
         }
         return (

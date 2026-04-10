@@ -40,6 +40,7 @@ import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import SingleSelect from './SingleSelect';
 
 // Force rebuild verification
 console.log('DiagnosticoChecklist loaded');
@@ -489,30 +490,24 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         <label className="mb-2 block text-sm font-medium text-text-secondary">
                             {t('com_ui_worker_count', 'Número de Trabajadores')}
                         </label>
-                        <select
-                            value={companySize}
-                            onChange={(e) => handleCompanySizeChange(e.target.value as CompanySize)}
-                            className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
-                        >
-                            {COMPANY_SIZE_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                        <SingleSelect
+                            value={COMPANY_SIZE_OPTIONS.find(o => o.value === companySize)?.label || ''}
+                            onChange={val => { const opt = COMPANY_SIZE_OPTIONS.find(o => o.label === val); if (opt) handleCompanySizeChange(opt.value); }}
+                            placeholder="Seleccione..."
+                            options={COMPANY_SIZE_OPTIONS.map(o => o.label)}
+                        />
                     </div>
 
                     <div>
                         <label className="mb-2 block text-sm font-medium text-text-secondary">
                             {t('com_ui_risk_level', 'Nivel de Riesgo')}
                         </label>
-                        <select
-                            value={riskLevel}
-                            onChange={(e) => handleRiskLevelChange(Number(e.target.value) as RiskLevel)}
-                            className="w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-text-primary focus:border-teal-500 focus:outline-none"
-                        >
-                            {RISK_LEVEL_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                        <SingleSelect
+                            value={RISK_LEVEL_OPTIONS.find(o => o.value === riskLevel)?.label || ''}
+                            onChange={val => { const opt = RISK_LEVEL_OPTIONS.find(o => o.label === val); if (opt) handleRiskLevelChange(opt.value); }}
+                            placeholder="Seleccione..."
+                            options={RISK_LEVEL_OPTIONS.map(o => o.label)}
+                        />
                     </div>
                 </div>
 

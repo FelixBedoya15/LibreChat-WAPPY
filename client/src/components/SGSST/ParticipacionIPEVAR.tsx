@@ -31,6 +31,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 const WorkerAutocomplete = ({
     value,
@@ -818,10 +819,9 @@ const ParticipacionIPEVAR = () => {
                             
                             <div className="flex items-center gap-3">
                                 <label className="text-sm font-medium">¿Son suficientes los controles?</label>
-                                <select value={formData.suficientes ? 'Sí' : 'No'} onChange={e => handleInputChange('suficientes', e.target.value === 'Sí')} className="w-32 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option value="Sí">Sí</option>
-                                    <option value="No">No</option>
-                                </select>
+                                <div className="w-32">
+                                    <SingleSelect value={formData.suficientes ? 'Sí' : 'No'} onChange={val => handleInputChange('suficientes', val === 'Sí')} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                </div>
                             </div>
                         </div>
 

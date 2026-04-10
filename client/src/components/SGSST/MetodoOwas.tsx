@@ -24,6 +24,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 // ─── OWAS Risk Category Table (server-side mirror for instant UI feedback) ───
 const OWAS_TABLE: Record<string, number> = {
@@ -517,9 +518,7 @@ const MetodoOwas = () => {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Frecuencia de Observación</label>
-                <select value={formData.frecuenciaObservacion} onChange={e => setFormData(p => ({ ...p, frecuenciaObservacion: e.target.value }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                  <option>Cada 30 segundos</option><option>Cada 1 minuto</option><option>Cada 2 minutos</option><option>Irregular / Según criterio</option>
-                </select>
+                <SingleSelect value={formData.frecuenciaObservacion} onChange={val => setFormData(p => ({ ...p, frecuenciaObservacion: val }))} placeholder="Seleccione..." options={['Cada 30 segundos', 'Cada 1 minuto', 'Cada 2 minutos', 'Irregular / Según criterio']} />
               </div>
             </div>
 
@@ -561,27 +560,19 @@ const MetodoOwas = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">ESPALDA (1er dígito)</label>
-                    <select value={currentObs.espalda} onChange={e => setCurrentObs(p => ({ ...p, espalda: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
-                      {ESPALDA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <SingleSelect value={ESPALDA_OPTIONS.find(o => o.value === currentObs.espalda)?.label || ''} onChange={val => { const opt = ESPALDA_OPTIONS.find(o => o.label === val); if (opt) setCurrentObs(p => ({ ...p, espalda: opt.value })); }} placeholder="Seleccione..." options={ESPALDA_OPTIONS.map(o => o.label)} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">BRAZOS (2do dígito)</label>
-                    <select value={currentObs.brazos} onChange={e => setCurrentObs(p => ({ ...p, brazos: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
-                      {BRAZOS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <SingleSelect value={BRAZOS_OPTIONS.find(o => o.value === currentObs.brazos)?.label || ''} onChange={val => { const opt = BRAZOS_OPTIONS.find(o => o.label === val); if (opt) setCurrentObs(p => ({ ...p, brazos: opt.value })); }} placeholder="Seleccione..." options={BRAZOS_OPTIONS.map(o => o.label)} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">PIERNAS (3er dígito)</label>
-                    <select value={currentObs.piernas} onChange={e => setCurrentObs(p => ({ ...p, piernas: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
-                      {PIERNAS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <SingleSelect value={PIERNAS_OPTIONS.find(o => o.value === currentObs.piernas)?.label || ''} onChange={val => { const opt = PIERNAS_OPTIONS.find(o => o.label === val); if (opt) setCurrentObs(p => ({ ...p, piernas: opt.value })); }} placeholder="Seleccione..." options={PIERNAS_OPTIONS.map(o => o.label)} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-purple-700">CARGA / FUERZA (4to dígito)</label>
-                    <select value={currentObs.carga} onChange={e => setCurrentObs(p => ({ ...p, carga: parseInt(e.target.value) }))} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary focus:border-purple-500">
-                      {CARGA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    <SingleSelect value={CARGA_OPTIONS.find(o => o.value === currentObs.carga)?.label || ''} onChange={val => { const opt = CARGA_OPTIONS.find(o => o.label === val); if (opt) setCurrentObs(p => ({ ...p, carga: opt.value })); }} placeholder="Seleccione..." options={CARGA_OPTIONS.map(o => o.label)} />
                   </div>
                 </div>
                 <div className="rounded-xl p-3 text-sm font-medium" style={{ backgroundColor: currentCatCfg.bg, color: currentCatCfg.color, border: `1px solid ${currentCatCfg.border}` }}>

@@ -20,6 +20,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 const WorkerAutocomplete = ({
     value,
@@ -558,21 +559,15 @@ const AnalisisTrabajoSeguro = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Charla de Seguridad Realizada</label>
-                                <select value={formData.seguridadSocial} onChange={e => handleInputChange('seguridadSocial', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option>Sí</option><option>No</option>
-                                </select>
+                                <SingleSelect value={formData.seguridadSocial} onChange={val => handleInputChange('seguridadSocial', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Equipos / Herramientas Inspeccionados</label>
-                                <select value={formData.aptitudMedica} onChange={e => handleInputChange('aptitudMedica', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option>Sí</option><option>No</option>
-                                </select>
+                                <SingleSelect value={formData.aptitudMedica} onChange={val => handleInputChange('aptitudMedica', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Condiciones del Área Verificadas</label>
-                                <select value={formData.certificacionAlturas} onChange={e => handleInputChange('certificacionAlturas', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option>Sí</option><option>No</option>
-                                </select>
+                                <SingleSelect value={formData.certificacionAlturas} onChange={val => handleInputChange('certificacionAlturas', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                             </div>
                         </div>
 

@@ -5,6 +5,7 @@ import {
     Activity, Heart, Car, Briefcase, Home, Users, Loader2, Send, Key
 } from 'lucide-react';
 import axios from 'axios';
+import SingleSelect from './SingleSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerData {
@@ -41,14 +42,6 @@ const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     />
 );
 
-const Select = ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { children: React.ReactNode }) => (
-    <select
-        {...props}
-        className="w-full border border-gray-200 rounded-xl text-sm bg-gray-50 px-3 py-2.5 focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none transition-all font-medium"
-    >
-        {children}
-    </select>
-);
 
 // ─── Main Component ────────────────────────────────────────────────
 export default function PublicPerfilUpdate() {
@@ -248,10 +241,7 @@ export default function PublicPerfilUpdate() {
                                     <Input type="tel" value={formData.telefono || ''} onChange={e => upd('telefono', e.target.value)} placeholder="3001234567" />
                                 </Field>
                                 <Field label="Tipo de Sangre">
-                                    <Select value={formData.tipoSangre || ''} onChange={e => upd('tipoSangre', e.target.value)}>
-                                        <option value="">Seleccionar</option>
-                                        {['O+','O-','A+','A-','B+','B-','AB+','AB-'].map(t => <option key={t}>{t}</option>)}
-                                    </Select>
+                                    <SingleSelect value={formData.tipoSangre || ''} onChange={val => upd('tipoSangre', val)} placeholder="Seleccionar" options={['O+','O-','A+','A-','B+','B-','AB+','AB-']} />
                                 </Field>
                             </div>
                             <Field label="Contacto de Emergencia (Nombre y Teléfono)">
@@ -268,48 +258,24 @@ export default function PublicPerfilUpdate() {
                             </Field>
                             <div className="grid grid-cols-2 gap-3">
                                 <Field label="Fuma">
-                                    <Select value={formData.fuma || ''} onChange={e => upd('fuma', e.target.value)}>
-                                        <option value="">Seleccionar</option>
-                                        <option>No</option>
-                                        <option>Sí, diario</option>
-                                        <option>Sí, ocasional</option>
-                                    </Select>
+                                    <SingleSelect value={formData.fuma || ''} onChange={val => upd('fuma', val)} placeholder="Seleccionar" options={['No', 'Sí, diario', 'Sí, ocasional']} />
                                 </Field>
                                 <Field label="Consume Alcohol">
-                                    <Select value={formData.alcohol || ''} onChange={e => upd('alcohol', e.target.value)}>
-                                        <option value="">Seleccionar</option>
-                                        <option>No</option>
-                                        <option>Ocasional</option>
-                                        <option>Semanal</option>
-                                        <option>Frecuente</option>
-                                    </Select>
+                                    <SingleSelect value={formData.alcohol || ''} onChange={val => upd('alcohol', val)} placeholder="Seleccionar" options={['No', 'Ocasional', 'Semanal', 'Frecuente']} />
                                 </Field>
                             </div>
                             <Field label="Terapia Psicológica">
-                                <Select value={formData.terapiaPsicologica || ''} onChange={e => upd('terapiaPsicologica', e.target.value)}>
-                                    <option value="">Seleccionar</option>
-                                    <option>No</option>
-                                    <option>Sí, actualmente</option>
-                                    <option>Sí, en el pasado</option>
-                                </Select>
+                                <SingleSelect value={formData.terapiaPsicologica || ''} onChange={val => upd('terapiaPsicologica', val)} placeholder="Seleccionar" options={['No', 'Sí, actualmente', 'Sí, en el pasado']} />
                             </Field>
 
                             {/* Socioeconomic */}
                             <SectionTitle icon={Home} label="Vivienda y Económico" />
                             <div className="grid grid-cols-3 gap-3">
                                 <Field label="Estrato">
-                                    <Select value={formData.estrato || ''} onChange={e => upd('estrato', e.target.value)}>
-                                        <option value="">—</option>
-                                        {['1','2','3','4','5','6'].map(s => <option key={s}>{s}</option>)}
-                                    </Select>
+                                    <SingleSelect value={formData.estrato || ''} onChange={val => upd('estrato', val)} placeholder="—" options={['1','2','3','4','5','6']} />
                                 </Field>
                                 <Field label="Vivienda">
-                                    <Select value={formData.vivienda || ''} onChange={e => upd('vivienda', e.target.value)}>
-                                        <option value="">—</option>
-                                        <option>Propia</option>
-                                        <option>Arrendada</option>
-                                        <option>Familiar</option>
-                                    </Select>
+                                    <SingleSelect value={formData.vivienda || ''} onChange={val => upd('vivienda', val)} placeholder="—" options={['Propia', 'Arrendada', 'Familiar']} />
                                 </Field>
                                 <Field label="Personas a cargo">
                                     <Input type="number" min={0} max={20} value={formData.personasCargo as string || ''} onChange={e => upd('personasCargo', e.target.value)} placeholder="0" />
