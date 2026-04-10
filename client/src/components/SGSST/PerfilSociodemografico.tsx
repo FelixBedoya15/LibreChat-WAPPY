@@ -8,7 +8,9 @@ import {
     X,
     Inbox,
     CheckCircle,
-    PenTool
+    PenTool,
+    Briefcase,
+    AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -371,8 +373,13 @@ const PerfilSociodemografico = () => {
         }
         setIsAnalyzing(true);
         try {
+            const trabajadoresConRol = trabajadores.map(w => ({
+                ...w,
+                perfilCargoData: cargosDisponibles.find(c => c.nombreCargo === w.cargo) || null
+            }));
+
             const payload = {
-                trabajadores,
+                trabajadores: trabajadoresConRol,
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
                 userName: user?.name || user?.username || 'Usuario',
                 modelName: selectedModel,
@@ -394,7 +401,7 @@ const PerfilSociodemografico = () => {
         } finally {
             setIsAnalyzing(false);
         }
-    }, [trabajadores, showToast, token, user, selectedModel]);
+    }, [trabajadores, cargosDisponibles, showToast, token, user, selectedModel]);
 
     const handleSaveReport = useCallback(async () => {
         const content = editorContent || generatedReport;
@@ -470,6 +477,62 @@ const PerfilSociodemografico = () => {
     const getUpdateQrValue = (w: WorkerEntry) => {
         const base = window.location.origin;
         return `${base}/sgsst-public/perfil-update/${user?.id || ''}/${w.id}`;
+    };
+
+    // ─── Bio-Fit Engine ──────────────────────────────────────────
+    const calculateBiocentricFit = (w: WorkerEntry) => {
+        let score = 100;
+        let alerts: string[] = [];
+        let isLethal = false;
+
+        const cargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
+        if (!cargo) return { score: 0, alerts: ['No hay rol asignado'], isLethal: false };
+
+        // Física
+        if (cargo.exigenciaFisica === 'Alta') {
+            if (w.edad && Number(w.edad) > 55) {
+                score -= 15;
+                alerts.push('Edad avanzada para Alta Exigencia Física');
+            }
+            if (w.enfermedades?.trim()) {
+                score -= 20;
+                alerts.push('Enfermedad detectada en rol de alta carga física');
+            }
+        }
+
+        // Mental/Psicosocial
+        if (cargo.exigenciaMental === 'Alta') {
+            if (w.terapiaPsicologica === 'Sí') {
+                score -= 10;
+                alerts.push('Alerta de Burnout: Rol de alta demanda mental + Terapia reportada');
+            }
+            if (w.personasCargo && Number(w.personasCargo) >= 3 && ['1', '2'].includes(w.estrato)) {
+                score -= 10;
+                alerts.push('Alerta Psicosocial: Alta carga familiar/económica y rol estresante');
+            }
+        }
+
+        // Maquinaria (Lethal)
+        if (cargo.operaMaquinaria === 'Sí') {
+            if (w.medicamentos?.toLowerCase().includes('psiquiátrico') || 
+                w.medicamentos?.toLowerCase().includes('dormir') ||
+                w.alcohol === 'Sí (Frecuente)') {
+                score -= 50;
+                isLethal = true;
+                alerts.push('BLOQUEO PREVENTIVO: Sustancias/Medicamentos + Maquinaria Peligrosa');
+            }
+        }
+
+        // Brechas de Entrenamiento
+        if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
+            const missing = cargo.entrenamientosSeleccionados.length; // Simplification for now
+            if (missing > 0 && !w.curso50h && !w.curso20h) {
+                score -= 5;
+                alerts.push('Brecha de Entrenamiento detectada');
+            }
+        }
+
+        return { score: Math.max(0, score), alerts, isLethal };
     };
 
     // ─── Render ──────────────────────────────────────────────────
@@ -641,7 +704,12 @@ const PerfilSociodemografico = () => {
                     </div>
                 ) : (
                     <>
-                        {trabajadores.map((w, wIdx) => (
+                        {trabajadores.map((w, wIdx) => {
+                            const fitData = calculateBiocentricFit(w);
+                            const scoreColor = fitData.score >= 80 ? 'text-green-500' : fitData.score >= 60 ? 'text-yellow-500' : 'text-red-500';
+                            const scoreBg = fitData.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : fitData.score >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
+                            
+                            return (
                             <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Worker Header */}
                                 <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleWorker(w.id)}>
@@ -674,6 +742,41 @@ const PerfilSociodemografico = () => {
                                 {/* Worker Body */}
                                 {expandedWorkers.has(w.id) && (
                                     <div className="p-0 border-t border-border-light animate-in fade-in duration-200 bg-surface-primary/30">
+                                        
+                                        {/* Bio-Fit Dashboard */}
+                                        {w.cargo && cargosDisponibles.length > 0 && (
+                                            <div className="p-4 border-b border-border-light bg-surface-secondary/50">
+                                                <div className={`p-4 rounded-2xl border ${scoreBg} shadow-sm backdrop-blur-sm transition-all relative overflow-hidden`}>
+                                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`flex items-center justify-center w-16 h-16 rounded-full bg-white dark:bg-gray-800 shadow-md ${scoreColor} font-black text-2xl border-4 ${fitData.score >= 80 ? 'border-green-400' : fitData.score >= 60 ? 'border-yellow-400' : 'border-red-400'}`}>
+                                                                {fitData.score}%
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-text-primary uppercase tracking-wider mb-1 flex items-center gap-2">
+                                                                    <Sparkles className="w-4 h-4 text-teal-600"/> Fit Biocéntrico
+                                                                </h4>
+                                                                <p className="text-xs font-medium text-text-secondary">Compatibilidad calculada entre vulnerabilidad humana y exigencias del rol: <span className="font-bold text-text-primary">{w.cargo}</span></p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1.5 w-full md:w-1/2">
+                                                            {fitData.alerts.length === 0 ? (
+                                                                <div className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 p-2 rounded-lg">
+                                                                    <CheckCircle className="w-4 h-4"/> Bio-compatibilidad óptima. Sin alertas de riesgo cruzado.
+                                                                </div>
+                                                            ) : (
+                                                                fitData.alerts.map((alert, idx) => (
+                                                                    <div key={idx} className={`flex text-xs font-bold p-2 rounded-lg gap-2 items-center ${alert.includes('BLOQUEO') ? 'bg-red-500 text-white shadow-lg animate-pulse' : 'text-yellow-700 bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-300'}`}>
+                                                                        <AlertTriangle className="w-4 h-4 flex-shrink-0"/> {alert}
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Tabs Header */}
                                         <div className="flex items-center overflow-x-auto border-b border-border-light bg-surface-secondary px-4 pt-1 hide-scrollbar">
                                             <button
@@ -996,7 +1099,8 @@ const PerfilSociodemografico = () => {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                        );
+                        })}
 
                         {/* Add Worker Button */}
                         <button onClick={handleAddWorker}

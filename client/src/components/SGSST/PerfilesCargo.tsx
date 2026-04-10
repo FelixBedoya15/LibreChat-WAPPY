@@ -48,6 +48,9 @@ interface PerfilCargoData {
     contextoAdicional: string;
     eppSeleccionados: string[];
     entrenamientosSeleccionados: string[];
+    exigenciaFisica?: string;
+    exigenciaMental?: string;
+    operaMaquinaria?: string;
     report?: string;
 }
 
@@ -134,9 +137,15 @@ const createInitialPerfil = (): PerfilCargoData => ({
     contextoAdicional: '',
     eppSeleccionados: [],
     entrenamientosSeleccionados: [],
+    exigenciaFisica: 'Media',
+    exigenciaMental: 'Media',
+    operaMaquinaria: 'No',
 });
 
 // ─── Field config for rendering ─────────────────────────────────────────────
+const EXIGENCIA_OPTIONS = ['Baja', 'Media', 'Alta'];
+const SINO_OPTIONS = ['Sí', 'No'];
+
 const FIELD_SECTIONS = [
     {
         title: 'Identificación del Cargo',
@@ -156,6 +165,15 @@ const FIELD_SECTIONS = [
             { key: 'tipoContrato', label: 'Tipo de Contrato', type: 'select', options: TIPO_CONTRATO_OPTIONS },
             { key: 'jornada', label: 'Jornada Laboral', type: 'select', options: JORNADA_OPTIONS },
             { key: 'escalasSalarial', label: 'Escala Salarial', placeholder: '1.8 SMMLV - 2.5 SMMLV', type: 'text' },
+        ]
+    },
+    {
+        title: 'Exigencias Biocéntricas del Entorno',
+        icon: <Brain className="h-4 w-4 text-teal-600" />,
+        fields: [
+            { key: 'exigenciaFisica', label: 'Carga Física Esperada', type: 'select', options: EXIGENCIA_OPTIONS },
+            { key: 'exigenciaMental', label: 'Carga Mental / Toma Decisiones', type: 'select', options: EXIGENCIA_OPTIONS },
+            { key: 'operaMaquinaria', label: '¿Opera Maquinaria Peligrosa / Vehículos?', type: 'select', options: SINO_OPTIONS },
         ]
     },
 ];
