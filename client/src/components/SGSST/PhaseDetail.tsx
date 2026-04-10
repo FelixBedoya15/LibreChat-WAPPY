@@ -270,14 +270,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 </div>
                 
                 <div className="flex-1 w-full md:w-auto">
-                    <h2 className="text-4xl font-black text-text-primary tracking-tighter drop-shadow-sm">{phase.title}</h2>
-                    <p className="text-base text-text-secondary mt-1 max-w-3xl leading-relaxed font-medium">{phase.description}</p>
-                    {(phase as any).extendedPhilosophy && (
-                        <div className="mt-4 p-4 rounded-2xl bg-surface-secondary/40 border border-white/10 dark:border-white/5 backdrop-blur-md relative overflow-hidden group">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-400 to-emerald-500 rounded-l-2xl"></div>
-                            <p className="text-sm text-text-primary/90 italic leading-relaxed pl-2 relative z-10">"{((phase as any).extendedPhilosophy)}"</p>
-                        </div>
-                    )}
+                    <h2 className="text-4xl sm:text-5xl font-black text-text-primary tracking-tighter drop-shadow-sm">{phase.title}</h2>
                 </div>
 
                 {/* Hidden global input */}
@@ -291,6 +284,16 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
             </div>
 
             <div className="flex-1 w-full overflow-y-scroll space-y-8 px-6 pb-20 relative z-10 scroll-smooth">
+                {/* Context & Description (Scrolls with the page) */}
+                <div className="flex flex-col gap-4 mb-2 max-w-4xl">
+                    <p className="text-base sm:text-lg text-text-secondary leading-relaxed font-medium">{phase.description}</p>
+                    {(phase as any).extendedPhilosophy && (
+                        <div className="mt-2 p-5 rounded-3xl bg-surface-secondary/40 border border-white/10 dark:border-white/5 backdrop-blur-md relative overflow-hidden group shadow-sm">
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-teal-400 to-emerald-500 rounded-l-3xl"></div>
+                            <p className="text-sm font-medium text-text-primary/80 italic leading-relaxed pl-3 relative z-10">"{((phase as any).extendedPhilosophy)}"</p>
+                        </div>
+                    )}
+                </div>
                 {categories.filter(c => isAdmin || !disabledApps.includes(c.id)).length === 0 ? (
                     <div className="p-8 text-center text-text-secondary">
                         No hay categorías disponibles para esta fase.
