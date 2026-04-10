@@ -102,6 +102,7 @@ const PerfilSociodemografico = () => {
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
+    const [cargosDisponibles, setCargosDisponibles] = useState<any[]>([]);
 
     // Report state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
@@ -178,6 +179,18 @@ const PerfilSociodemografico = () => {
         })
             .then(res => res.json())
             .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+            .catch(() => { });
+
+        // Load available Cargo Profiles
+        fetch('/api/sgsst/perfiles-cargo/data', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.perfilesList) {
+                    setCargosDisponibles(data.perfilesList);
+                }
+            })
             .catch(() => { });
     }, [token]);
 
@@ -324,6 +337,9 @@ const PerfilSociodemografico = () => {
     // ─── Save & Generate ────────────────────────────────────────
     const handleDummyData = () => {
         const dummyWorkers = generateDummyData.perfilSociodemografico();
+        if (cargosDisponibles.length > 0) {
+            dummyWorkers.forEach(w => w.cargo = cargosDisponibles[0].nombreCargo);
+        }
         setTrabajadores(prev => [...prev, ...dummyWorkers]);
         showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, status: 'success' });
     };
@@ -690,9 +706,14 @@ const PerfilSociodemografico = () => {
                                                             className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Cargo</label>
-                                                        <input type="text" value={w.cargo} onChange={e => updateWorkerField(w.id, 'cargo', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Perfil de Cargo</label>
+                                                        <select value={w.cargo} onChange={e => updateWorkerField(w.id, 'cargo', e.target.value)}
+                                                            className="w-full text-sm p-2 rounded-xl border border-teal-300 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/20 text-teal-900 dark:text-teal-100 font-bold shadow-sm focus:ring-2 focus:ring-teal-400">
+                                                            <option value="">Seleccione el Rol...</option>
+                                                            {cargosDisponibles.map(c => (
+                                                                <option key={c.id} value={c.nombreCargo}>{c.nombreCargo} ({c.nivelCargo})</option>
+                                                            ))}
+                                                        </select>
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
