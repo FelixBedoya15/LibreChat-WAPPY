@@ -637,11 +637,13 @@ const PerfilesCargo = () => {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                                 {section.fields.map(field => (
-                                    <div key={field.key} className="space-y-1.5">
+                                    <div key={field.key} className="flex flex-col justify-end h-full space-y-1.5">
                                         <label className="text-[11px] font-bold text-text-secondary uppercase tracking-tighter">
                                             {field.label}
                                         </label>
-                                        {renderField(field)}
+                                        <div className="mt-auto">
+                                            {renderField(field)}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
