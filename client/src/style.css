@@ -3,6 +3,22 @@
 @tailwind components;
 @tailwind utilities;
 
+.live-editor-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 999999 !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+
 
 /* Custom Variables */
 :root {

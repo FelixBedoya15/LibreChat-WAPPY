@@ -571,17 +571,14 @@ const PerfilesCargo = () => {
             />
 
             {/* ── History (Filtered by Profile ID) ── */}
-            {isHistoryOpen && (
-                <div className="rounded-2xl border-2 border-teal-100 dark:border-teal-900/30 bg-surface-secondary shadow-lg overflow-hidden animate-in zoom-in-95 duration-200">
-                    <ReportHistory
-                        onSelectReport={handleSelectReport}
-                        isOpen={isHistoryOpen}
-                        toggleOpen={() => setIsHistoryOpen(false)}
-                        refreshTrigger={refreshTrigger}
-                        tags={['sgsst-perfil-cargo', `sgsst-perfil-cargo-${activePerfilId}`]}
-                    />
-                </div>
-            )}
+            {/* ── History (Filtered by Profile ID) ── */}
+            <ReportHistory
+                onSelectReport={handleSelectReport}
+                isOpen={isHistoryOpen}
+                toggleOpen={() => setIsHistoryOpen(false)}
+                refreshTrigger={refreshTrigger}
+                tags={['sgsst-perfil-cargo', `sgsst-perfil-cargo-${activePerfilId}`]}
+            />
 
             {/* ── Profiles Quick Access ── */}
             <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
