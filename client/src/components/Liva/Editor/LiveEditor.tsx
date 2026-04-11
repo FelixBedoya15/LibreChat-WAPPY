@@ -60,48 +60,21 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const editorWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Fullscreen: neutralize ALL ancestor transforms/overflows so position:fixed works
-    // We do this by injecting a style tag that targets them inline
+    // Dispatch global events so ancestor containers (PhaseDetail) can neutralize clipping
     useEffect(() => {
-        if (!editorWrapperRef.current) return;
-        
         if (isFullScreen) {
-            // Walk up the DOM and force inline styles to neutralize clipping
-            let parent = editorWrapperRef.current.parentElement;
-            while (parent && parent !== document.body) {
-                const style = window.getComputedStyle(parent);
-                const hasTransform = style.transform && style.transform !== 'none';
-                const hasOverflow = style.overflow !== 'visible' || style.overflowX !== 'visible' || style.overflowY !== 'visible';
-                if (hasTransform || hasOverflow) {
-                    parent.dataset.liveEditorOrigTransform = parent.style.transform || '';
-                    parent.dataset.liveEditorOrigOverflow = parent.style.overflow || '';
-                    parent.dataset.liveEditorOrigOverflowX = parent.style.overflowX || '';
-                    parent.dataset.liveEditorOrigOverflowY = parent.style.overflowY || '';
-                    parent.style.setProperty('transform', 'none', 'important');
-                    parent.style.setProperty('overflow', 'visible', 'important');
-                    parent.style.setProperty('overflow-x', 'visible', 'important');
-                    parent.style.setProperty('overflow-y', 'visible', 'important');
-                }
-                parent = parent.parentElement;
-            }
+            window.dispatchEvent(new CustomEvent('live-editor-fullscreen-enter'));
         } else {
-            // Restore original styles
-            let parent = editorWrapperRef.current.parentElement;
-            while (parent && parent !== document.body) {
-                if ('liveEditorOrigTransform' in parent.dataset) {
-                    parent.style.transform = parent.dataset.liveEditorOrigTransform || '';
-                    parent.style.overflow = parent.dataset.liveEditorOrigOverflow || '';
-                    parent.style.overflowX = parent.dataset.liveEditorOrigOverflowX || '';
-                    parent.style.overflowY = parent.dataset.liveEditorOrigOverflowY || '';
-                    delete parent.dataset.liveEditorOrigTransform;
-                    delete parent.dataset.liveEditorOrigOverflow;
-                    delete parent.dataset.liveEditorOrigOverflowX;
-                    delete parent.dataset.liveEditorOrigOverflowY;
-                }
-                parent = parent.parentElement;
-            }
+            window.dispatchEvent(new CustomEvent('live-editor-fullscreen-exit'));
         }
+        // Cleanup: always exit fullscreen when component unmounts
+        return () => {
+            if (isFullScreen) {
+                window.dispatchEvent(new CustomEvent('live-editor-fullscreen-exit'));
+            }
+        };
     }, [isFullScreen]);
+
     const [showAiInput, setShowAiInput] = useState(false);
     const [bubbleDebug, setBubbleDebug] = useState<any>({}); // CRITICAL FIX: debug state
     const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
