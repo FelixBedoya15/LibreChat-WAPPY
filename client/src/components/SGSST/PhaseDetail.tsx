@@ -257,8 +257,8 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     };
 
     return (
-        <div className={`flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary relative ${isEditorFullscreen ? 'overflow-visible' : 'overflow-hidden'}`}>
-            {/* Organic Background Blob */}
+        <div className={`flex flex-1 h-full w-full min-w-0 flex-col bg-surface-primary overflow-y-auto`}>
+            {/* Organic Background Blob — NO transform to avoid breaking position:fixed */}
             <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-[0.03] dark:opacity-[0.05] pointer-events-none">
                 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                     <path fill="currentColor" d="M47.7,-67.2C61.4,-57.1,71.5,-41.8,78.2,-24.5C84.9,-7.2,88.2,12.1,81.3,28.8C74.4,45.5,57.3,59.6,39.6,68.4C21.9,77.2,3.6,80.7,-14.2,78.7C-32,76.7,-49.3,69.2,-64.1,56.5C-78.9,43.8,-91.2,25.9,-93.8,6.8C-96.4,-12.3,-89.3,-32.6,-76.3,-48.1C-63.3,-63.6,-44.4,-74.3,-26.8,-76.6C-9.2,-78.9,7.1,-72.8,22.8,-71.8C38.5,-70.8,34,-77.3,47.7,-67.2Z" transform="translate(100 100)" />
@@ -296,7 +296,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                 />
             </div>
 
-            <div className={`flex-1 w-full ${isEditorFullscreen ? 'overflow-visible' : 'overflow-y-scroll'} space-y-8 px-6 pb-20 relative z-10 scroll-smooth`}>
+            <div className="flex-1 w-full overflow-y-auto space-y-8 px-6 pb-20 relative z-10 scroll-smooth">
                 {/* Context & Description (Scrolls with the page) */}
                 <div className="flex flex-col gap-4 mb-2 max-w-4xl">
                     <p className="text-base sm:text-lg text-text-secondary leading-relaxed font-medium">{phase.description}</p>
@@ -320,7 +320,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                         const isThisUploading = isUploading === category.id;
 
                         return (
-                            <div key={category.id} className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-3xl overflow-hidden transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                            <div key={category.id} className="w-full min-w-0 rounded-[2rem] border border-border-light dark:border-white/5 bg-white/60 dark:bg-[#1a1a1a]/60 transition-all duration-500 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
                                 {/* Category Header */}
                                 <div
                                     className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 md:p-7 cursor-pointer hover:bg-surface-secondary/50 dark:hover:bg-white-[0.02] transition-colors gap-5"
