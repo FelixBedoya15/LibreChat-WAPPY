@@ -48,6 +48,17 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [selectedDiagramNode, setSelectedDiagramNode] = useState<HTMLElement | null>(null);
     const [diagramNodeToolbarPos, setDiagramNodeToolbarPos] = useState({ top: 0, left: 0 });
 
+    const [activeSignaturePlaceholder, setActiveSignaturePlaceholder] = useState<HTMLElement | null>(null);
+    const [activeSignatureName, setActiveSignatureName] = useState<string>('');
+
+    // ── AI Inline Edit ──────────────────────────────────────────────────────
+    const [aiEditBubble, setAiEditBubble] = useState<{ x: number; y: number } | null>(null);
+    const [aiEditInstruction, setAiEditInstruction] = useState('');
+    const [aiEditSelectedText, setAiEditSelectedText] = useState('');
+    const [isAiEditing, setIsAiEditing] = useState(false);
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [paperMode, setPaperMode] = useState(true);
+
     const editorWrapperRef = useRef<HTMLDivElement>(null);
 
     // Escape fullscreen containment blocks safely without Portals
@@ -67,16 +78,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             modifiedParents.forEach(p => p.classList.remove('live-editor-fullscreen-escape'));
         };
     }, [isFullScreen]);
-
-    const [activeSignaturePlaceholder, setActiveSignaturePlaceholder] = useState<HTMLElement | null>(null);
-    const [activeSignatureName, setActiveSignatureName] = useState<string>('');
-
-    // ── AI Inline Edit ──────────────────────────────────────────────────────
-    const [aiEditBubble, setAiEditBubble] = useState<{ x: number; y: number } | null>(null);
-    const [aiEditInstruction, setAiEditInstruction] = useState('');
-    const [aiEditSelectedText, setAiEditSelectedText] = useState('');
-    const [isAiEditing, setIsAiEditing] = useState(false);
-    const [isFullScreen, setIsFullScreen] = useState(false);
     const [showAiInput, setShowAiInput] = useState(false);
     const [bubbleDebug, setBubbleDebug] = useState<any>({}); // CRITICAL FIX: debug state
     const [portalNode, setPortalNode] = useState<HTMLElement | null>(null);
