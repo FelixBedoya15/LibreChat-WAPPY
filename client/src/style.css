@@ -3204,3 +3204,13 @@ html {
 .sharepoint-picker-bg {
   background-color: #F5F5F5;
 }
+
+/* Ensure ancestors do not form a containment block for the fixed Live Editor */
+.live-editor-fullscreen-escape {
+  transform: none !important;
+  animation: none !important;
+  perspective: none !important;
+  filter: none !important;
+  contain: none !important;
+  will-change: auto !important;
+}

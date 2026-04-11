@@ -671,29 +671,29 @@ const ParticipacionIPEVAR = () => {
             {/* QR Modal */}
             {showQrModal && ReactDOM.createPortal(
                 <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
-                    <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-primary w-full max-w-xs rounded-2xl shadow-2xl overflow-hidden border border-border-medium" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
-                            <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
+                            <button onClick={() => setShowQrModal(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
-                                <QrCode className="w-7 h-7 text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
+                                <QrCode className="w-6 h-6 text-white" />
                             </div>
-                            <h3 className="font-bold text-xl">Portal Público SGSST</h3>
+                            <h3 className="font-bold text-lg">Portal Público SGSST</h3>
                         </div>
 
                         {/* QR Code Body */}
-                        <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5">
-                            <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
+                        <div className="p-4 flex flex-col items-center bg-white dark:bg-surface-primary space-y-4">
+                            <p className="text-[12px] text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[240px]">
                                 Comparte este código o enlace. Los trabajadores podrán reportar actos inseguros desde su celular.
                             </p>
                             
-                            <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
+                            <div className="p-2 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                 <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`)}`} 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`)}`} 
                                     alt="QR Code" 
-                                    className="w-40 h-40 mx-auto"
+                                    className="w-32 h-32 mx-auto"
                                 />
                             </div>
                             

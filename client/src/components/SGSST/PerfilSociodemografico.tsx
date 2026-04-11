@@ -1033,7 +1033,7 @@ const PerfilSociodemografico = () => {
                 <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm mt-8">
                     <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
                         <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <AnimatedIcon name="file-text" size={20} className="text-indigo-500" />
+                            <AnimatedIcon name="file-text" size={16} className="text-indigo-500" />
                             Documento de Perfil Sociodemográfico Generado
                         </h3>
                         <span className="text-xs text-text-secondary">Edita si es necesario</span>
@@ -1056,30 +1056,30 @@ const PerfilSociodemografico = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}>
                     <div
-                        className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
+                        className="bg-surface-primary w-full max-w-[280px] rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
-                            <button onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
-                                <X className="w-5 h-5" />
+                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
+                            <button onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
+                                <X className="w-4 h-4" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
-                                <AnimatedIcon name="qrcode" size={28} className="text-white" />
+                            <div className="inline-flex items-center justify-center w-10 h-10 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
+                                <AnimatedIcon name="qrcode" size={20} className="text-white" />
                             </div>
-                            <h3 className="font-bold text-xl">{selectedQrWorker.nombre || 'Trabajador'}</h3>
-                            <p className="text-sm text-teal-100 mt-1 opacity-90">{selectedQrWorker.cargo || 'Sin cargo'}</p>
+                            <h3 className="font-bold text-sm">{selectedQrWorker.nombre || 'Trabajador'}</h3>
+                            <p className="text-[10px] text-teal-100 mt-0.5 opacity-90">{selectedQrWorker.cargo || 'Sin cargo'}</p>
                         </div>
 
                         {/* QR Tab Switcher */}
                         <div className="flex border-b border-gray-100 dark:border-border-medium bg-white dark:bg-surface-primary">
                             <button
                                 onClick={() => setQrTab('profile')}
-                                className={cn('flex-1 py-3 text-xs font-bold transition-colors', qrTab === 'profile' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-gray-400 hover:text-gray-600')}>
+                                className={cn('flex-1 py-2 text-[10px] font-bold transition-colors', qrTab === 'profile' ? 'border-b-2 border-teal-500 text-teal-600' : 'text-gray-400 hover:text-gray-600')}>
                                 Ver Perfil
                             </button>
                             <button
                                 onClick={() => setQrTab('update')}
-                                className={cn('flex-1 py-3 text-xs font-bold transition-colors', qrTab === 'update' ? 'border-b-2 border-cyan-500 text-cyan-600' : 'text-gray-400 hover:text-gray-600')}>
+                                className={cn('flex-1 py-2 text-[10px] font-bold transition-colors', qrTab === 'update' ? 'border-b-2 border-cyan-500 text-cyan-600' : 'text-gray-400 hover:text-gray-600')}>
                                 Actualizar Datos
                             </button>
                         </div>
@@ -1092,7 +1092,7 @@ const PerfilSociodemografico = () => {
                                         Escanea este código para ver el perfil público del trabajador.
                                     </p>
                                     <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                        <QRCodeSVG value={getQrValue(selectedQrWorker)} size={160} style={{ width: '160px', height: '160px' }} className="mx-auto" level="L" includeMargin={false} />
+                                        <QRCodeSVG value={getQrValue(selectedQrWorker)} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
                                     </div>
                                     <div className="text-center text-gray-600 dark:text-gray-400 space-y-1">
                                         <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Identificación (CC)</p>
@@ -1105,7 +1105,7 @@ const PerfilSociodemografico = () => {
                                         El trabajador escanea este QR o usa el enlace para actualizar su información sociodemográfica.
                                     </p>
                                     <div className="p-3 border-4 border-cyan-100 dark:border-cyan-800 rounded-2xl shadow-inner bg-white">
-                                        <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={160} style={{ width: '160px', height: '160px' }} className="mx-auto" level="L" includeMargin={false} />
+                                        <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
                                     </div>
                                     <div className="w-full space-y-2">
                                         <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-600 text-center">Enlace de acceso personal</p>
@@ -1150,28 +1150,28 @@ const PerfilSociodemografico = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowPortalQr(false)}>
                     <div
-                        className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
+                        className="bg-surface-primary w-full max-w-xs rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
-                            <button onClick={() => setShowPortalQr(false)} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
+                            <button onClick={() => setShowPortalQr(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
-                                <AnimatedIcon name="qrcode" size={28} className="text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
+                                <AnimatedIcon name="qrcode" size={24} className="text-white" />
                             </div>
-                            <h3 className="font-bold text-xl uppercase tracking-tighter">Portal Público SGSST</h3>
-                            <p className="text-sm text-teal-100 mt-1 opacity-90">Auto-Actualización de Perfil</p>
+                            <h3 className="font-bold text-lg uppercase tracking-tighter">Portal Público SGSST</h3>
+                            <p className="text-[11px] text-teal-100 mt-0.5 opacity-90">Auto-Actualización de Perfil</p>
                         </div>
 
                         {/* Modal Body */}
-                        <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5 text-center">
-                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-[280px]">
+                        <div className="p-4 flex flex-col items-center bg-white dark:bg-surface-primary space-y-4 text-center">
+                            <p className="text-[12px] text-gray-600 dark:text-gray-300 leading-relaxed max-w-[240px]">
                                 Comparte este código o enlace. Los trabajadores podrán actualizar su información sociodemográfica desde su celular.
                             </p>
 
-                            <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={160} style={{ width: '160px', height: '160px' }} className="mx-auto" level="L" includeMargin={false} />
+                            <div className="p-2 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
+                                <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
                             </div>
 
                             <div className="w-full space-y-2">

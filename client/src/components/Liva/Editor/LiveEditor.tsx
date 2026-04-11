@@ -47,6 +47,27 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [graphicToolbarPos, setGraphicToolbarPos] = useState({ top: 0, left: 0 });
     const [selectedDiagramNode, setSelectedDiagramNode] = useState<HTMLElement | null>(null);
     const [diagramNodeToolbarPos, setDiagramNodeToolbarPos] = useState({ top: 0, left: 0 });
+
+    const editorWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Escape fullscreen containment blocks safely without Portals
+    useEffect(() => {
+        if (!isFullScreen || !editorWrapperRef.current) return;
+        
+        let parent = editorWrapperRef.current.parentElement;
+        const modifiedParents: HTMLElement[] = [];
+        
+        while (parent && parent !== document.body) {
+            parent.classList.add('live-editor-fullscreen-escape');
+            modifiedParents.push(parent);
+            parent = parent.parentElement;
+        }
+        
+        return () => {
+            modifiedParents.forEach(p => p.classList.remove('live-editor-fullscreen-escape'));
+        };
+    }, [isFullScreen]);
+
     const [activeSignaturePlaceholder, setActiveSignaturePlaceholder] = useState<HTMLElement | null>(null);
     const [activeSignatureName, setActiveSignatureName] = useState<string>('');
 
@@ -760,8 +781,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
 
-    const editorContent = (
-        <div className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
+    return (
+        <div ref={editorWrapperRef} className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
             {/* Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
                 {/* Desktop View */}
@@ -1287,11 +1308,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
         </div>
     );
-
-    if (isFullScreen) {
-        return createPortal(editorContent, document.body);
-    }
-    return editorContent;
 });
 
 LiveEditor.displayName = 'LiveEditor';
