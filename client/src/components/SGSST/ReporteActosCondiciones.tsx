@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -667,8 +668,8 @@ const ReporteActosCondiciones = () => {
             )}
 
             {/* QR Modal */}
-            {showQrModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
+            {showQrModal && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
                     <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
@@ -725,7 +726,8 @@ const ReporteActosCondiciones = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Form */}

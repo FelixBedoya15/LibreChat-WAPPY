@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -31,6 +32,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 const WorkerAutocomplete = ({
     value,
@@ -666,8 +668,8 @@ const ReporteActosCondiciones = () => {
             )}
 
             {/* QR Modal */}
-            {showQrModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
+            {showQrModal && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
                     <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
@@ -724,7 +726,8 @@ const ReporteActosCondiciones = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Form */}
@@ -821,21 +824,15 @@ const ReporteActosCondiciones = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Revisión SG-SST Aplicable</label>
-                                <select value={formData.seguridadSocial} onChange={e => handleInputChange('seguridadSocial', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option>Sí</option><option>No</option>
-                                </select>
+                                <SingleSelect value={formData.seguridadSocial} onChange={val => handleInputChange('seguridadSocial', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Actividad Suspendida por el Hallazgo</label>
-                                <select value={formData.aptitudMedica} onChange={e => handleInputChange('aptitudMedica', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option>Sí</option><option>No</option>
-                                </select>
+                                <SingleSelect value={formData.aptitudMedica} onChange={val => handleInputChange('aptitudMedica', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-sm font-medium">Requiere Intervención Urgente</label>
-                                <select value={formData.certificacionAlturas} onChange={e => handleInputChange('certificacionAlturas', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option>Sí</option><option>No</option>
-                                </select>
+                                <SingleSelect value={formData.certificacionAlturas} onChange={val => handleInputChange('certificacionAlturas', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                             </div>
                         </div>
 

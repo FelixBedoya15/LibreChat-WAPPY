@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
     X, Building2, Save, User, MapPin, Phone, Mail,
@@ -221,7 +222,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
     const selectClass = cn(inputClass, 'appearance-none cursor-pointer');
 
-    return (
+    return ReactDOM.createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="relative mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-2xl">
                 {/* Header */}
@@ -492,7 +493,8 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                     }
                 }}
             />
-        </div>
+        </div>,
+        document.body
     );
 };
 

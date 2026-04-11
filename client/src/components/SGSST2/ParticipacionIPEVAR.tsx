@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -31,6 +32,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 const WorkerAutocomplete = ({
     value,
@@ -667,8 +669,8 @@ const ParticipacionIPEVAR = () => {
             )}
 
             {/* QR Modal */}
-            {showQrModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
+            {showQrModal && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
                     <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
@@ -689,7 +691,7 @@ const ParticipacionIPEVAR = () => {
                             
                             <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                 <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/ipevar/${user?.id || user?._id}`)}`} 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`)}`} 
                                     alt="QR Code" 
                                     className="w-40 h-40 mx-auto"
                                 />
@@ -700,12 +702,12 @@ const ParticipacionIPEVAR = () => {
                                 <div className="flex items-center gap-2">
                                     <input 
                                         readOnly 
-                                        value={`${window.location.origin}/sgsst-public/ipevar/${user?.id || user?._id}`}
+                                        value={`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`}
                                         className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300 ring-0"
                                     />
                                     <button 
                                         onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/ipevar/${user?.id || user?._id}`);
+                                            navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`);
                                             showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
@@ -725,7 +727,8 @@ const ParticipacionIPEVAR = () => {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Form */}
@@ -818,10 +821,9 @@ const ParticipacionIPEVAR = () => {
                             
                             <div className="flex items-center gap-3">
                                 <label className="text-sm font-medium">¿Son suficientes los controles?</label>
-                                <select value={formData.suficientes ? 'Sí' : 'No'} onChange={e => handleInputChange('suficientes', e.target.value === 'Sí')} className="w-32 rounded-xl border px-3 py-2 text-sm bg-surface-primary text-text-primary">
-                                    <option value="Sí">Sí</option>
-                                    <option value="No">No</option>
-                                </select>
+                                <div className="w-32">
+                                    <SingleSelect value={formData.suficientes ? 'Sí' : 'No'} onChange={val => handleInputChange('suficientes', val === 'Sí')} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                </div>
                             </div>
                         </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
@@ -521,7 +522,7 @@ export default function AltaDireccionChecklist() {
             </div>
 
             {/* ─── QR Modal ─────────────────────────────────────────────── */}
-            {showQrModal && (
+            {showQrModal && ReactDOM.createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
                     <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
@@ -593,7 +594,8 @@ export default function AltaDireccionChecklist() {
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* ─── Inbox Panel ───────────────────────────────────────────── */}

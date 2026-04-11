@@ -1,4 +1,5 @@
-import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useCallback, useEffect, type CSSProperties } from 'react';
+import ReactDOM from 'react-dom';
 import { useAuthContext, useNavScrolling, useLocalize } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
 import { Spinner, OGDialog, OGDialogContent, Button } from '@librechat/client';
@@ -48,21 +49,36 @@ const DeleteReportDialog = ({
 // Simple Dropdown Component for Context Menu
 const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversationId: string, title: string, onRename: (name: string) => void, onDelete: () => Promise<void> }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const menuRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const localize = useLocalize();
 
+    const calcMenuStyle = () => {
+        if (!buttonRef.current) return;
+        const rect = buttonRef.current.getBoundingClientRect();
+        setMenuStyle({
+            position: 'fixed',
+            top: rect.bottom + 4,
+            right: window.innerWidth - rect.right,
+            zIndex: 999999,
+        });
+    };
+
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
+        if (!isOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (!buttonRef.current?.contains(t) && !dropdownRef.current?.contains(t)) {
                 setIsOpen(false);
             }
         };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
 
     const handleRenameClick = () => {
         const newName = prompt(localize('com_ui_new_report_name'), title);
@@ -78,31 +94,38 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
         setIsOpen(false);
     };
 
-    return (
-        <div className="relative" ref={menuRef}>
+    const menu = isOpen ? (
+        <div
+            ref={dropdownRef}
+            style={menuStyle}
+            className="w-32 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg py-1"
+        >
             <button
-                onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                onClick={(e) => { e.stopPropagation(); handleRenameClick(); }}
+                className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
+            >
+                <Edit className="w-3 h-3" /> {localize('com_ui_rename')}
+            </button>
+            <button
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); setShowDeleteDialog(true); }}
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+            >
+                <Trash className="w-3 h-3" /> {localize('com_ui_delete')}
+            </button>
+        </div>
+    ) : null;
+
+    return (
+        <>
+            <button
+                ref={buttonRef}
+                onClick={(e) => { e.stopPropagation(); calcMenuStyle(); setIsOpen(o => !o); }}
                 className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
             >
                 <MoreVertical className="w-4 h-4 text-text-secondary" />
             </button>
 
-            {isOpen && (
-                <div className="absolute right-0 top-full mt-1 w-32 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg z-50 py-1">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleRenameClick(); }}
-                        className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
-                    >
-                        <Edit className="w-3 h-3" /> {localize('com_ui_rename')}
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setIsOpen(false); setShowDeleteDialog(true); }}
-                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                    >
-                        <Trash className="w-3 h-3" /> {localize('com_ui_delete')}
-                    </button>
-                </div>
-            )}
+            {ReactDOM.createPortal(menu, document.body)}
 
             <DeleteReportDialog
                 open={showDeleteDialog}
@@ -111,7 +134,7 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
                 title={title}
                 loading={isDeleting}
             />
-        </div>
+        </>
     );
 };
 
@@ -191,8 +214,8 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
+    return ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
             {/* Backdrop to handle click outside */}
             <div 
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
@@ -317,7 +340,8 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
             {/* Minimal footer line to round out the popup elegantly */}
             <div className="h-2 bg-gradient-to-t from-surface-secondary/50 to-transparent" />
         </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

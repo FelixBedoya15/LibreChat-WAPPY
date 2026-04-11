@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useRecoilValue } from 'recoil';
+import ReactDOM from 'react-dom';
+import { useRecoilValue, useRecoilState } from 'recoil';
 import store from '~/store';
 import {
   Save, Maximize2, Minimize2, RefreshCw, Plus, Trash2,
@@ -354,7 +355,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
 export default function MatrizIPEVARTable({ conversationId }: { conversationId: string | null }) {
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
   const [isLoading, setIsLoading] = useState(false);
   const [aiRowLoading, setAiRowLoading] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -442,20 +443,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     }
   };
 
-  // ── Sync with mobile Header toggle button via CustomEvents ────────────────
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const next = (e as CustomEvent).detail?.isMaximized ?? false;
-      setIsMaximized(next);
-    };
-    window.addEventListener('ipevar:toggle', handler);
-    return () => window.removeEventListener('ipevar:toggle', handler);
-  }, []);
-
-  useEffect(() => {
-    // Notify Header button to keep its icon in sync
-    window.dispatchEvent(new CustomEvent('ipevar:maximized', { detail: { isMaximized } }));
-  }, [isMaximized]);
+  // ── Sync with mobile Header toggle button via Recoil ───────────────
+  // Note: custom events removed in favor of store.ipevarMaximized state sharing
 
   // ── Filters & Sort ──────────────────────────────────────────────────────
   const [filterText, setFilterText] = useState('');
@@ -756,6 +745,15 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   if ((!actualConvoId || actualConvoId === 'new') && matrixRows.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-surface-primary border-l border-border-light relative">
+        {/* Botón para cerrar/minimizar en mobile si está expandido */}
+        <button
+          onClick={() => setIsMaximized(false)}
+          className="absolute top-4 right-4 p-2 rounded-xl border border-border-medium hover:bg-surface-hover text-text-primary transition-all md:hidden"
+          aria-label="Cerrar Matriz"
+        >
+          <Minimize2 className="h-5 w-5" />
+        </button>
+
         <div className="mb-4 rounded-full bg-surface-tertiary p-4 border border-border-medium shadow-sm">
           <AlertTriangle className="h-8 w-8 text-yellow-500" />
         </div>
@@ -785,20 +783,20 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     return 'text-green-500';
   };
 
-  return (
-    <div ref={containerRef} className={`flex flex-col h-full bg-surface-primary transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
+  const renderContent = () => (
+    <div ref={containerRef} className={`flex flex-col h-full transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[999999] backdrop-blur-xl bg-surface-primary/95 w-screen h-screen m-0 rounded-none shadow-2xl' : 'bg-surface-primary w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 relative z-[300] overflow-visible" style={{ minHeight: '4rem' }}>
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm">
+      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 min-w-0 relative z-[300] overflow-visible" style={{ minHeight: '4rem' }}>
+        <div className="flex items-center gap-3 min-w-0 flex-shrink mr-2 text-ellipsis overflow-hidden">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm shrink-0">
             <ShieldAlert className="h-5 w-5" />
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-text-primary">Matriz IPEVAR Live</h2>
-            <div className="flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs text-text-secondary">Sincronización Activa</span>
+          <div className="min-w-0 overflow-hidden">
+            <h2 className="text-sm font-semibold text-text-primary truncate">Matriz IPEVAR Live</h2>
+            <div className="flex items-center gap-1.5 overflow-hidden">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+              <span className="text-xs text-text-secondary truncate">Sincronización Activa</span>
             </div>
           </div>
         </div>
@@ -1231,4 +1229,6 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
     </div>
   );
+
+  return isMaximized ? ReactDOM.createPortal(renderContent(), document.body) : renderContent();
 }

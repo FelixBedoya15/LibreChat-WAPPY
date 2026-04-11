@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import {
     Loader2,
     Sparkles,
@@ -8,7 +9,9 @@ import {
     X,
     Inbox,
     CheckCircle,
-    PenTool
+    PenTool,
+    Briefcase,
+    AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -18,6 +21,7 @@ import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import SingleSelect from './SingleSelect';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { QRCodeSVG } from 'qrcode.react';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
@@ -25,7 +29,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
-import './sst-bit.css';
+
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
     id: string;
@@ -102,6 +106,7 @@ const PerfilSociodemografico = () => {
     const [isGeneratingFull, setIsGeneratingFull] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [companyInfo, setCompanyInfo] = useState<any>(null);
+    const [cargosDisponibles, setCargosDisponibles] = useState<any[]>([]);
 
     // Report state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
@@ -178,6 +183,18 @@ const PerfilSociodemografico = () => {
         })
             .then(res => res.json())
             .then(info => { if (info && info.companyName) setCompanyInfo(info); })
+            .catch(() => { });
+
+        // Load available Cargo Profiles
+        fetch('/api/sgsst/perfiles-cargo/data', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.perfilesList) {
+                    setCargosDisponibles(data.perfilesList);
+                }
+            })
             .catch(() => { });
     }, [token]);
 
@@ -324,6 +341,9 @@ const PerfilSociodemografico = () => {
     // ─── Save & Generate ────────────────────────────────────────
     const handleDummyData = () => {
         const dummyWorkers = generateDummyData.perfilSociodemografico();
+        if (cargosDisponibles.length > 0) {
+            dummyWorkers.forEach(w => w.cargo = cargosDisponibles[0].nombreCargo);
+        }
         setTrabajadores(prev => [...prev, ...dummyWorkers]);
         showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, status: 'success' });
     };
@@ -355,8 +375,13 @@ const PerfilSociodemografico = () => {
         }
         setIsAnalyzing(true);
         try {
+            const trabajadoresConRol = trabajadores.map(w => ({
+                ...w,
+                perfilCargoData: cargosDisponibles.find(c => c.nombreCargo === w.cargo) || null
+            }));
+
             const payload = {
-                trabajadores,
+                trabajadores: trabajadoresConRol,
                 currentDate: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
                 userName: user?.name || user?.username || 'Usuario',
                 modelName: selectedModel,
@@ -378,7 +403,7 @@ const PerfilSociodemografico = () => {
         } finally {
             setIsAnalyzing(false);
         }
-    }, [trabajadores, showToast, token, user, selectedModel]);
+    }, [trabajadores, cargosDisponibles, showToast, token, user, selectedModel]);
 
     const handleSaveReport = useCallback(async () => {
         const content = editorContent || generatedReport;
@@ -454,6 +479,62 @@ const PerfilSociodemografico = () => {
     const getUpdateQrValue = (w: WorkerEntry) => {
         const base = window.location.origin;
         return `${base}/sgsst-public/perfil-update/${user?.id || ''}/${w.id}`;
+    };
+
+    // ─── Bio-Fit Engine ──────────────────────────────────────────
+    const calculateBiocentricFit = (w: WorkerEntry) => {
+        let score = 100;
+        let alerts: string[] = [];
+        let isLethal = false;
+
+        const cargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
+        if (!cargo) return { score: 0, alerts: ['No hay rol asignado'], isLethal: false };
+
+        // Física
+        if (cargo.exigenciaFisica === 'Alta') {
+            if (w.edad && Number(w.edad) > 55) {
+                score -= 15;
+                alerts.push('Edad avanzada para Alta Exigencia Física');
+            }
+            if (w.enfermedades?.trim()) {
+                score -= 20;
+                alerts.push('Enfermedad detectada en rol de alta carga física');
+            }
+        }
+
+        // Mental/Psicosocial
+        if (cargo.exigenciaMental === 'Alta') {
+            if (w.terapiaPsicologica === 'Sí') {
+                score -= 10;
+                alerts.push('Alerta de Burnout: Rol de alta demanda mental + Terapia reportada');
+            }
+            if (w.personasCargo && Number(w.personasCargo) >= 3 && ['1', '2'].includes(w.estrato)) {
+                score -= 10;
+                alerts.push('Alerta Psicosocial: Alta carga familiar/económica y rol estresante');
+            }
+        }
+
+        // Maquinaria (Lethal)
+        if (cargo.operaMaquinaria === 'Sí') {
+            if (w.medicamentos?.toLowerCase().includes('psiquiátrico') || 
+                w.medicamentos?.toLowerCase().includes('dormir') ||
+                w.alcohol === 'Sí (Frecuente)') {
+                score -= 50;
+                isLethal = true;
+                alerts.push('BLOQUEO PREVENTIVO: Sustancias/Medicamentos + Maquinaria Peligrosa');
+            }
+        }
+
+        // Brechas de Entrenamiento
+        if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
+            const missing = cargo.entrenamientosSeleccionados.length; // Simplification for now
+            if (missing > 0 && !w.curso50h && !w.curso20h) {
+                score -= 5;
+                alerts.push('Brecha de Entrenamiento detectada');
+            }
+        }
+
+        return { score: Math.max(0, score), alerts, isLethal };
     };
 
     // ─── Render ──────────────────────────────────────────────────
@@ -537,8 +618,9 @@ const PerfilSociodemografico = () => {
             />
 
             {/* ═══ Inbox Panel: Pending Profile Updates ═══ */}
-            {showInboxPerfil && (
-                <div className="rounded-xl border border-cyan-200 bg-cyan-50/30 dark:bg-cyan-900/10 overflow-hidden shadow-inner p-4 animate-in fade-in slide-in-from-top-4">
+            {showInboxPerfil && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowInboxPerfil(false)}>
+                    <div className="w-full max-w-5xl rounded-xl border border-cyan-200 bg-surface-primary dark:bg-surface-primary overflow-hidden shadow-2xl p-4 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="font-bold text-lg text-cyan-800 dark:text-cyan-400 flex items-center gap-2">
                             <Inbox className="w-5 h-5" /> Actualizaciones de Perfil Recibidas
@@ -584,12 +666,14 @@ const PerfilSociodemografico = () => {
                             ))}
                         </div>
                     )}
-                </div>
+                    </div>
+                </div>,
+                document.body
             )}
 
             {/* ═══ History Modal (Popup) ═══ */}
-            {isHistoryOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsHistoryOpen(false)}>
+            {isHistoryOpen && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsHistoryOpen(false)}>
                     <div className="bg-surface-primary w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden border border-border-medium flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="p-4 border-b border-border-light flex items-center justify-between bg-surface-secondary">
                             <h3 className="font-bold text-lg flex items-center gap-2">
@@ -612,9 +696,9 @@ const PerfilSociodemografico = () => {
                             <button onClick={() => setIsHistoryOpen(false)} className="px-6 py-2 rounded-xl font-bold text-sm bg-surface-tertiary hover:bg-surface-tertiary/80 transition-colors">
                                 Cerrar
                             </button>
-                        </div>
-                    </div>
-                </div>
+                            </div>
+                </div>,
+                document.body
             )}
 
             {/* ═══ Workers List ═══ */}
@@ -625,31 +709,37 @@ const PerfilSociodemografico = () => {
                     </div>
                 ) : (
                     <>
-                        {trabajadores.map((w, wIdx) => (
-                            <div key={w.id} className="pixel-box mb-6 transition-all">
-                                {/* Worker Header (Character Slot) */}
-                                <div className="flex items-center justify-between p-4 bg-[#111] cursor-pointer hover:bg-[#222]" onClick={() => toggleWorker(w.id)}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-green-500 flex items-center justify-center border-2 border-white shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.5)]">
-                                             <span className="font-pixel text-white text-xl">P</span>
+                        {trabajadores.map((w, wIdx) => {
+                            const fitData = calculateBiocentricFit(w);
+                            const scoreColor = fitData.score >= 80 ? 'text-green-500' : fitData.score >= 60 ? 'text-yellow-500' : 'text-red-500';
+                            const scoreBg = fitData.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : fitData.score >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
+                            
+                            return (
+                            <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
+                                {/* Worker Header */}
+                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleWorker(w.id)}>
+                                    <div className="flex flex-wrap items-center gap-3 w-full">
+                                        <div className="text-teal-500">
+                                            {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
                                         <div>
-                                            <h3 className="font-pixel text-green-400 text-sm uppercase">
-                                                {wIdx + 1}. {w.nombre || 'EMPTY SLOT'}
+                                            <h3 className="font-bold text-text-primary text-base">
+                                                {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
+                                                <span className="ml-2 text-xs font-normal text-text-secondary">— {w.cargo || 'Sin cargo asignado'}</span>
                                             </h3>
-                                            <p className="font-pixel text-[8px] text-white mt-2">CLASS: {w.cargo || 'NONE'} | LVL: {w.edad || '?'}</p>
+                                            <p className="text-xs text-text-secondary mt-0.5">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 w-auto">
+                                    <div className="flex flex-wrap items-center gap-2 w-full">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
-                                            className="pixel-btn bg-blue-600">
-                                            QR CODE
+                                            className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors">
+                                            <AnimatedIcon name="qrcode" size={18} />
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleDeleteWorker(w.id); }}
-                                            className="pixel-btn bg-red-600">
-                                            DELETE
+                                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+                                            <AnimatedIcon name="trash" size={18} />
                                         </button>
                                     </div>
                                 </div>
@@ -657,20 +747,55 @@ const PerfilSociodemografico = () => {
                                 {/* Worker Body */}
                                 {expandedWorkers.has(w.id) && (
                                     <div className="p-0 border-t border-border-light animate-in fade-in duration-200 bg-surface-primary/30">
+                                        
+                                        {/* Bio-Fit Dashboard */}
+                                        {w.cargo && cargosDisponibles.length > 0 && (
+                                            <div className="p-4 border-b border-border-light bg-surface-secondary/50">
+                                                <div className={`p-4 rounded-2xl border ${scoreBg} shadow-sm backdrop-blur-sm transition-all relative overflow-hidden`}>
+                                                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`flex items-center justify-center w-16 h-16 rounded-full bg-white dark:bg-gray-800 shadow-md ${scoreColor} font-black text-2xl border-4 ${fitData.score >= 80 ? 'border-green-400' : fitData.score >= 60 ? 'border-yellow-400' : 'border-red-400'}`}>
+                                                                {fitData.score}%
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-text-primary uppercase tracking-wider mb-1 flex items-center gap-2">
+                                                                    <Sparkles className="w-4 h-4 text-teal-600"/> Fit Biocéntrico
+                                                                </h4>
+                                                                <p className="text-xs font-medium text-text-secondary">Compatibilidad calculada entre vulnerabilidad humana y exigencias del rol: <span className="font-bold text-text-primary">{w.cargo}</span></p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-col gap-1.5 w-full md:w-1/2">
+                                                            {fitData.alerts.length === 0 ? (
+                                                                <div className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 bg-green-100 p-2 rounded-lg">
+                                                                    <CheckCircle className="w-4 h-4"/> Bio-compatibilidad óptima. Sin alertas de riesgo cruzado.
+                                                                </div>
+                                                            ) : (
+                                                                fitData.alerts.map((alert, idx) => (
+                                                                    <div key={idx} className={`flex text-xs font-bold p-2 rounded-lg gap-2 items-center ${alert.includes('BLOQUEO') ? 'bg-red-500 text-white shadow-lg animate-pulse' : 'text-yellow-700 bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-300'}`}>
+                                                                        <AlertTriangle className="w-4 h-4 flex-shrink-0"/> {alert}
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Tabs Header */}
-                                        <div className="flex items-center overflow-x-auto border-t-4 border-b-4 border-white bg-black px-4 pt-2 pb-2 hide-scrollbar gap-4 mt-4">
+                                        <div className="flex items-center overflow-x-auto border-b border-border-light bg-surface-secondary px-4 pt-1 hide-scrollbar">
                                             <button
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'general' })); }}
-                                                className={cn("px-4 py-2 font-pixel text-[10px] uppercase transition-colors", (workerTabs[w.id] || 'general') === 'general' ? "text-green-400 border-b-4 border-green-400" : "text-white")}
-                                            > GENERAL </button>
+                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'general' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
+                                            > General & Laboral </button>
                                             <button
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'salud' })); }}
-                                                className={cn("px-4 py-2 font-pixel text-[10px] uppercase transition-colors", (workerTabs[w.id] || 'general') === 'salud' ? "text-green-400 border-b-4 border-green-400" : "text-white")}
-                                            > HEALTH </button>
+                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'salud' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
+                                            > Salud & Hábitos </button>
                                             <button
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'roles' })); }}
-                                                className={cn("px-4 py-2 font-pixel text-[10px] uppercase transition-colors", (workerTabs[w.id] || 'general') === 'roles' ? "text-green-400 border-b-4 border-green-400" : "text-white")}
-                                            > SKILLS </button>
+                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'roles' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
+                                            > Roles & Especialidades </button>
                                         </div>
 
                                         {/* Tab Content */}
@@ -689,9 +814,8 @@ const PerfilSociodemografico = () => {
                                                             className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Cargo</label>
-                                                        <input type="text" value={w.cargo} onChange={e => updateWorkerField(w.id, 'cargo', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Perfil de Cargo</label>
+                                                        <SingleSelect value={w.cargo || ''} onChange={val => updateWorkerField(w.id, 'cargo', val)} placeholder="Seleccione el Rol..." options={cargosDisponibles.map(c => c.nombreCargo)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
@@ -706,39 +830,15 @@ const PerfilSociodemografico = () => {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Género</label>
-                                                        <select value={w.genero} onChange={e => updateWorkerField(w.id, 'genero', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Masculino</option>
-                                                            <option>Femenino</option>
-                                                            <option>Otro</option>
-                                                        </select>
+                                                        <SingleSelect value={w.genero || ''} onChange={val => updateWorkerField(w.id, 'genero', val)} placeholder="Seleccione..." options={['Masculino', 'Femenino', 'Otro']} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Estado Civil</label>
-                                                        <select value={w.estadoCivil} onChange={e => updateWorkerField(w.id, 'estadoCivil', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Soltero/a</option>
-                                                            <option>Casado/a</option>
-                                                            <option>Unión Libre</option>
-                                                            <option>Separado/a</option>
-                                                            <option>Viudo/a</option>
-                                                        </select>
+                                                        <SingleSelect value={w.estadoCivil || ''} onChange={val => updateWorkerField(w.id, 'estadoCivil', val)} placeholder="Seleccione..." options={['Soltero/a', 'Casado/a', 'Unión Libre', 'Separado/a', 'Viudo/a']} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
-                                                        <select value={w.nivelEscolaridad} onChange={e => updateWorkerField(w.id, 'nivelEscolaridad', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Ninguna</option>
-                                                            <option>Primaria</option>
-                                                            <option>Secundaria</option>
-                                                            <option>Técnico</option>
-                                                            <option>Tecnólogo</option>
-                                                            <option>Profesional</option>
-                                                            <option>Especialización / Postgrado</option>
-                                                        </select>
+                                                        <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
                                                     </div>
 
                                                     <div className="space-y-1 lg:col-span-2">
@@ -749,22 +849,11 @@ const PerfilSociodemografico = () => {
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Vivienda</label>
-                                                        <select value={w.vivienda} onChange={e => updateWorkerField(w.id, 'vivienda', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>Propia</option>
-                                                            <option>Arrendada</option>
-                                                            <option>Familiar</option>
-                                                        </select>
+                                                        <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar']} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-text-secondary uppercase">Estrato</label>
-                                                        <select value={w.estrato} onChange={e => updateWorkerField(w.id, 'estrato', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>1</option><option>2</option><option>3</option>
-                                                            <option>4</option><option>5</option><option>6</option>
-                                                        </select>
+                                                        <SingleSelect value={w.estrato || ''} onChange={val => updateWorkerField(w.id, 'estrato', val)} placeholder="Seleccione..." options={['1', '2', '3', '4', '5', '6']} />
                                                     </div>
 
                                                     <div className="space-y-1 lg:col-span-2">
@@ -788,14 +877,7 @@ const PerfilSociodemografico = () => {
                                                     {/* Grupo 1: Fisiológicos */}
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Tipo de Sangre</label>
-                                                        <select value={w.tipoSangre} onChange={e => updateWorkerField(w.id, 'tipoSangre', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option>O+</option><option>O-</option>
-                                                            <option>A+</option><option>A-</option>
-                                                            <option>B+</option><option>B-</option>
-                                                            <option>AB+</option><option>AB-</option>
-                                                        </select>
+                                                        <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
                                                     </div>
                                                     <div className="space-y-1 lg:col-span-3">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Enfermedades Actuales (Preexistencias)</label>
@@ -806,14 +888,7 @@ const PerfilSociodemografico = () => {
 
                                                     <div className="space-y-1 lg:col-span-2">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Diagnóstico / Hallazgos Ocupacionales</label>
-                                                        <select value={w.diagnosticoMedico || ''} onChange={e => updateWorkerField(w.id, 'diagnosticoMedico', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option>
-                                                            <option value="Apto / Sin Hallazgos">Apto / Sin Hallazgos / Ninguno</option>
-                                                            <optgroup label="3. Sistema Osteomuscular (DME)"><option value="Osteomuscular - Espalda">Espalda: Lumbalgia / Cervicalgia / Hernias</option><option value="Osteomuscular - M. Superiores">M. Superiores: Túnel carpiano / Epicondilitis / Manguito</option></optgroup>
-                                                            <optgroup label="Visual/Audio"><option value="Visual - Vicios de refracción">Vicios de refracción</option><option value="Auditivo - Hipoacusia">Hipoacusia</option></optgroup>
-                                                            <option value="Otros">Otros (No categorizado)</option>
-                                                        </select>
+                                                        <SingleSelect value={w.diagnosticoMedico || '' || ''} onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)} placeholder="Seleccione..." options={['Apto / Sin Hallazgos / Ninguno', 'Espalda: Lumbalgia / Cervicalgia / Hernias', 'M. Superiores: Túnel carpiano / Epicondilitis / Manguito', 'Vicios de refracción', 'Hipoacusia', 'Otros (No categorizado)']} />
                                                     </div>
                                                     <div className="space-y-1 lg:col-span-2">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Medicamentos Estrictos</label>
@@ -836,24 +911,15 @@ const PerfilSociodemografico = () => {
                                                     {/* Grupo Hábitos */}
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Fuma</label>
-                                                        <select value={w.fuma} onChange={e => updateWorkerField(w.id, 'fuma', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-amber-200 bg-amber-50/10 dark:bg-amber-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option><option>No</option><option>Sí, diario</option><option>Ocasional</option>
-                                                        </select>
+                                                        <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
                                                     </div>
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Consumo de Alcohol</label>
-                                                        <select value={w.alcohol} onChange={e => updateWorkerField(w.id, 'alcohol', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-amber-200 bg-amber-50/10 dark:bg-amber-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option><option>No</option><option>Mensual</option><option>Semanal</option><option>Diario</option>
-                                                        </select>
+                                                        <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Seleccione..." options={['No', 'Mensual', 'Semanal', 'Diario']} />
                                                     </div>
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase">Terapia Psicológica</label>
-                                                        <select value={w.terapiaPsicologica} onChange={e => updateWorkerField(w.id, 'terapiaPsicologica', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-amber-200 bg-amber-50/10 dark:bg-amber-900/10 text-text-primary">
-                                                            <option value="">Seleccione...</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option>
-                                                        </select>
+                                                        <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Seleccione..." options={['No', 'Sí, actualmente', 'Anteriormente']} />
                                                     </div>
                                                     <div className="space-y-1 border-t border-border-light pt-4 mt-2">
                                                         <label className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase">Próximo Segumiento</label>
@@ -930,11 +996,7 @@ const PerfilSociodemografico = () => {
                                                         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
                                                             <div className="space-y-1 w-full md:w-1/2">
                                                                 <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado (Firma Digital)</label>
-                                                                <select value={w.consentimientoFirmaDigital || 'No'} onChange={e => updateWorkerField(w.id, 'consentimientoFirmaDigital', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-indigo-200 bg-indigo-50/10 dark:bg-indigo-900/10 text-text-primary">
-                                                                    <option>Sí</option>
-                                                                    <option>No</option>
-                                                                </select>
+                                                                <SingleSelect value={w.consentimientoFirmaDigital || 'No' || ''} onChange={val => updateWorkerField(w.id, 'consentimientoFirmaDigital', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
                                                                 <p className="text-[10px] text-text-secondary mt-1 max-w-[280px]">Muestra la firma en el Código QR y la habilita para reportar.</p>
                                                             </div>
 
@@ -974,7 +1036,8 @@ const PerfilSociodemografico = () => {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                        );
+                        })}
 
                         {/* Add Worker Button */}
                         <button onClick={handleAddWorker}
@@ -1009,9 +1072,9 @@ const PerfilSociodemografico = () => {
             )}
 
             {/* ═══ QR Modal ═══ */}
-            {selectedQrWorker && (
+            {selectedQrWorker && ReactDOM.createPortal(
                 <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}>
                     <div
                         className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
@@ -1096,15 +1159,15 @@ const PerfilSociodemografico = () => {
                                 className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                 Cerrar
                             </button>
-                        </div>
-                    </div>
-                </div>
+                            </div>
+                </div>,
+                document.body
             )}
 
             {/* ═══ General Public Portal QR Modal ═══ */}
-            {showPortalQr && (
+            {showPortalQr && ReactDOM.createPortal(
                 <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => setShowPortalQr(false)}>
                     <div
                         className="bg-surface-primary w-full max-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
@@ -1159,9 +1222,9 @@ const PerfilSociodemografico = () => {
                                 className="px-6 py-2 rounded-xl font-bold text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                 Cerrar
                             </button>
-                        </div>
-                    </div>
-                </div>
+                            </div>
+                </div>,
+                document.body
             )}
 
             {/* ═══ Excel Import Hidden Input ═══ */}

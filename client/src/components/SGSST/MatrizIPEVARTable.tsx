@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import store from '~/store';
 import {
@@ -782,8 +783,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     return 'text-green-500';
   };
 
-  return (
-    <div ref={containerRef} className={`flex flex-col h-full bg-surface-primary transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
+  const renderContent = () => (
+    <div ref={containerRef} className={`flex flex-col h-full transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[999999] backdrop-blur-xl bg-surface-primary/95 w-screen h-screen m-0 rounded-none shadow-2xl' : 'bg-surface-primary w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 min-w-0 relative z-[300] overflow-visible" style={{ minHeight: '4rem' }}>
@@ -1228,4 +1229,6 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
 
     </div>
   );
+
+  return isMaximized ? ReactDOM.createPortal(renderContent(), document.body) : renderContent();
 }
