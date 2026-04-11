@@ -62,6 +62,7 @@ export default function Root() {
   const localize = useLocalize();
   const [showTerms, setShowTerms] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
+  const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
   const [navVisible, setNavVisible] = useState(() => {
     // On mobile (≤768px), always start with nav hidden so users see the chat
     const isMobile = window.innerWidth <= 768;
@@ -85,6 +86,18 @@ export default function Root() {
   });
 
   useSearchEnabled(isAuthenticated);
+
+  // Listen to LiveEditor fullscreen to remove overflow-hidden from layout wrappers
+  useEffect(() => {
+    const enter = () => setIsEditorFullscreen(true);
+    const exit = () => setIsEditorFullscreen(false);
+    window.addEventListener('live-editor-fullscreen-enter', enter);
+    window.addEventListener('live-editor-fullscreen-exit', exit);
+    return () => {
+      window.removeEventListener('live-editor-fullscreen-enter', enter);
+      window.removeEventListener('live-editor-fullscreen-exit', exit);
+    };
+  }, []);
 
   useEffect(() => {
     if (termsData) {
@@ -126,9 +139,9 @@ export default function Root() {
             <PromptGroupsProvider>
               <Banner onHeightChange={setBannerHeight} />
               <div className="flex" style={{ height: `calc(100dvh - ${bannerHeight}px)` }}>
-                <div className="relative z-0 flex h-full w-full overflow-hidden">
+                <div className={`relative z-0 flex h-full w-full ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
                   <Nav navVisible={navVisible} setNavVisible={setNavVisible} />
-                  <div className="relative flex h-full max-w-full flex-1 flex-col overflow-hidden">
+                  <div className={`relative flex h-full max-w-full flex-1 flex-col ${isEditorFullscreen ? '' : 'overflow-hidden'}`}>
                     <MobileNav setNavVisible={setNavVisible} />
                     <Outlet context={{ navVisible, setNavVisible } satisfies ContextType} />
                   </div>
