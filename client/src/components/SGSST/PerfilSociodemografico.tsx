@@ -1092,7 +1092,7 @@ const PerfilSociodemografico = () => {
                                         Escanea este código para ver el perfil público del trabajador.
                                     </p>
                                     <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                        <QRCodeSVG value={getQrValue(selectedQrWorker)} size={160} level="L" includeMargin={false} />
+                                        <QRCodeSVG value={getQrValue(selectedQrWorker)} size={160} style={{ width: '160px', height: '160px' }} className="mx-auto" level="L" includeMargin={false} />
                                     </div>
                                     <div className="text-center text-gray-600 dark:text-gray-400 space-y-1">
                                         <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Identificación (CC)</p>
@@ -1105,7 +1105,7 @@ const PerfilSociodemografico = () => {
                                         El trabajador escanea este QR o usa el enlace para actualizar su información sociodemográfica.
                                     </p>
                                     <div className="p-3 border-4 border-cyan-100 dark:border-cyan-800 rounded-2xl shadow-inner bg-white">
-                                        <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={160} level="L" includeMargin={false} />
+                                        <QRCodeSVG value={getUpdateQrValue(selectedQrWorker)} size={160} style={{ width: '160px', height: '160px' }} className="mx-auto" level="L" includeMargin={false} />
                                     </div>
                                     <div className="w-full space-y-2">
                                         <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-600 text-center">Enlace de acceso personal</p>
@@ -1171,7 +1171,7 @@ const PerfilSociodemografico = () => {
                             </p>
 
                             <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
-                                <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={160} level="L" includeMargin={false} />
+                                <QRCodeSVG value={`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`} size={160} style={{ width: '160px', height: '160px' }} className="mx-auto" level="L" includeMargin={false} />
                             </div>
 
                             <div className="w-full space-y-2">

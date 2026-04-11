@@ -13,6 +13,7 @@ import ReportHistory from '~/components/Liva/ReportHistory';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import SingleSelect from './SingleSelect';
 
 // ─── Styled Tooltip ───────────────────────────────────────────────────
 const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
@@ -753,11 +754,16 @@ const MatrizPeligrosGTC45 = () => {
                                                     <div className="flex gap-2">
                                                         <input type="text" value={p.tarea} onChange={e => updateProcesoField(p.id, 'tarea', e.target.value)}
                                                             className="flex-1 text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                        <select value={p.rutinario ? 'si' : 'no'} onChange={e => updateProcesoField(p.id, 'rutinario', e.target.value === 'si')}
-                                                            className="w-16 text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                            <option value="si">SÍ</option>
-                                                            <option value="no">NO</option>
-                                                        </select>
+                                                        <div className="w-20">
+                                                            <SingleSelect 
+                                                                value={p.rutinario ? 'si' : 'no'}
+                                                                onChange={val => updateProcesoField(p.id, 'rutinario', val === 'si')}
+                                                                options={[
+                                                                    { label: 'SÍ', value: 'si' },
+                                                                    { label: 'NO', value: 'no' }
+                                                                ]}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -903,21 +909,23 @@ const MatrizPeligrosGTC45 = () => {
                                                                     <div className="space-y-1">
                                                                         <label className="text-[10px] font-bold text-text-secondary uppercase">Clasificación</label>
                                                                         <div className="flex flex-col gap-2">
-                                                                            <select
+                                                                            <SingleSelect
                                                                                 value={GTC45_CATEGORIES[h.clasificacion] ? h.clasificacion : (h.clasificacion ? "OTRO" : "")}
-                                                                                onChange={e => {
-                                                                                    if (e.target.value === 'OTRO') {
+                                                                                onChange={val => {
+                                                                                    if (val === 'OTRO') {
                                                                                         updatePeligroField(p.id, h.id, 'clasificacion', 'Otro');
                                                                                     } else {
-                                                                                        updatePeligroField(p.id, h.id, 'clasificacion', e.target.value);
+                                                                                        updatePeligroField(p.id, h.id, 'clasificacion', val);
                                                                                         updatePeligroField(p.id, h.id, 'descripcionPeligro', '');
                                                                                     }
                                                                                 }}
-                                                                                className="w-full text-xs p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary">
-                                                                                <option value="">Seleccionar Clasificación...</option>
-                                                                                {Object.keys(GTC45_CATEGORIES).map(c => <option key={c} value={c}>{c}</option>)}
-                                                                                <option value="OTRO">✏️ Edición Manual / Generado por IA</option>
-                                                                            </select>
+                                                                                placeholder="Seleccionar Clasificación..."
+                                                                                options={[
+                                                                                    { label: 'Seleccionar Clasificación...', value: '' },
+                                                                                    ...Object.keys(GTC45_CATEGORIES).map(c => ({ label: c, value: c })),
+                                                                                    { label: '✏️ Edición Manual / Generado por IA', value: 'OTRO' }
+                                                                                ]}
+                                                                            />
                                                                             {(!GTC45_CATEGORIES[h.clasificacion] && h.clasificacion !== '') && (
                                                                                 <input type="text" value={h.clasificacion} onChange={e => updatePeligroField(p.id, h.id, 'clasificacion', e.target.value)}
                                                                                     placeholder="Especifique la clasificación manual..."
@@ -928,28 +936,29 @@ const MatrizPeligrosGTC45 = () => {
                                                                     <div className="space-y-1">
                                                                         <label className="text-[10px] font-bold text-text-secondary uppercase">Descripción del Peligro</label>
                                                                         <div className="flex flex-col gap-2">
-                                                                            <select
+                                                                            <SingleSelect
                                                                                 value={
                                                                                     (h.clasificacion && GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro))
                                                                                         ? h.descripcionPeligro
                                                                                         : (h.descripcionPeligro ? "OTRO" : "")
                                                                                 }
-                                                                                onChange={e => {
-                                                                                    if (e.target.value === 'OTRO') {
+                                                                                onChange={val => {
+                                                                                    if (val === 'OTRO') {
                                                                                         updatePeligroField(p.id, h.id, 'descripcionPeligro', 'Otro...');
                                                                                     } else {
-                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value);
+                                                                                        updatePeligroField(p.id, h.id, 'descripcionPeligro', val);
                                                                                     }
                                                                                 }}
                                                                                 disabled={!h.clasificacion && !h.descripcionPeligro}
-                                                                                className="w-full text-[11px] p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary overflow-hidden text-ellipsis"
-                                                                            >
-                                                                                <option value="">Seleccionar Componente...</option>
-                                                                                {h.clasificacion && GTC45_CATEGORIES[h.clasificacion] && GTC45_CATEGORIES[h.clasificacion].map(d => (
-                                                                                    <option key={d} value={d}>{d}</option>
-                                                                                ))}
-                                                                                <option value="OTRO">✏️ Edición Manual / Generado por IA</option>
-                                                                            </select>
+                                                                                placeholder="Seleccionar Componente..."
+                                                                                options={
+                                                                                    (!h.clasificacion && !h.descripcionPeligro) ? [] : [
+                                                                                        { label: 'Seleccionar Componente...', value: '' },
+                                                                                        ...(h.clasificacion && GTC45_CATEGORIES[h.clasificacion] ? GTC45_CATEGORIES[h.clasificacion].map(d => ({ label: d, value: d })) : []),
+                                                                                        { label: '✏️ Edición Manual / Generado por IA', value: 'OTRO' }
+                                                                                    ]
+                                                                                }
+                                                                            />
 
                                                                             {(!h.clasificacion || !GTC45_CATEGORIES[h.clasificacion]?.includes(h.descripcionPeligro)) && h.descripcionPeligro !== '' && (
                                                                                 <textarea value={h.descripcionPeligro} onChange={e => updatePeligroField(p.id, h.id, 'descripcionPeligro', e.target.value)}
@@ -977,14 +986,17 @@ const MatrizPeligrosGTC45 = () => {
                                                                             {h.clasificacion && (h.clasificacion.toLowerCase().includes('físico') || h.clasificacion.toLowerCase().includes('químico') || h.clasificacion.toLowerCase().includes('biológico')) && (
                                                                                 <div className="space-y-1 col-span-2">
                                                                                     <label className="text-[9px] font-bold text-text-secondary uppercase text-teal-500">Deficiencia Higiénica (Anexo C)</label>
-                                                                                    <select value={h.deficienciaHigienica || ''} onChange={e => updatePeligroField(p.id, h.id, 'deficienciaHigienica', e.target.value)}
-                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                                        <option value="">Seleccionar...</option>
-                                                                                        <option value="Muy Alto (MA)">Muy Alto (MA)</option>
-                                                                                        <option value="Alto (A)">Alto (A)</option>
-                                                                                        <option value="Medio (M)">Medio (M)</option>
-                                                                                        <option value="Bajo (B)">Bajo (B)</option>
-                                                                                    </select>
+                                                                                    <SingleSelect
+                                                                                        value={h.deficienciaHigienica || ''}
+                                                                                        onChange={val => updatePeligroField(p.id, h.id, 'deficienciaHigienica', val)}
+                                                                                        options={[
+                                                                                            { label: 'Seleccionar...', value: '' },
+                                                                                            { label: 'Muy Alto (MA)', value: 'Muy Alto (MA)' },
+                                                                                            { label: 'Alto (A)', value: 'Alto (A)' },
+                                                                                            { label: 'Medio (M)', value: 'Medio (M)' },
+                                                                                            { label: 'Bajo (B)', value: 'Bajo (B)' }
+                                                                                        ]}
+                                                                                    />
                                                                                 </div>
                                                                             )}
                                                                             <div className="space-y-1">
@@ -1048,23 +1060,28 @@ const MatrizPeligrosGTC45 = () => {
                                                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                                                 <div className="space-y-1">
                                                                                                     <label className="text-[9px] font-bold text-text-secondary uppercase">% FACTOR DE REDUCCIÓN (FR)</label>
-                                                                                                    <select value={String((h as any)[frKey] || 0)} onChange={e => updatePeligroField(p.id, h.id, frKey, Number(e.target.value))}
-                                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                                                        <option value="0">Seleccione (0%)</option>
-                                                                                                        <option value="100">100% - Eliminación Total</option>
-                                                                                                        <option value="75">75% - Alto (Ingeniería)</option>
-                                                                                                        <option value="50">50% - Medio (Administrativo)</option>
-                                                                                                        <option value="25">25% - Bajo (EPP)</option>
-                                                                                                    </select>
+                                                                                                    <SingleSelect
+                                                                                                        value={String((h as any)[frKey] || 0)}
+                                                                                                        onChange={val => updatePeligroField(p.id, h.id, frKey, Number(val))}
+                                                                                                        options={[
+                                                                                                            { label: 'Seleccione (0%)', value: '0' },
+                                                                                                            { label: '100% - Eliminación Total', value: '100' },
+                                                                                                            { label: '75% - Alto (Ingeniería)', value: '75' },
+                                                                                                            { label: '50% - Medio (Administrativo)', value: '50' },
+                                                                                                            { label: '25% - Bajo (EPP)', value: '25' }
+                                                                                                        ]}
+                                                                                                    />
                                                                                                 </div>
                                                                                                 <div className="space-y-1">
                                                                                                     <label className="text-[9px] font-bold text-text-secondary uppercase">Factor de Costo (FC)</label>
-                                                                                                    <select value={String((h as any)[fcKey] || 1)} onChange={e => updatePeligroField(p.id, h.id, fcKey, Number(e.target.value))}
-                                                                                                        className="w-full text-xs p-1.5 rounded border border-border-medium bg-surface-primary text-text-primary">
-                                                                                                        {COST_FACTOR_OPTIONS.map(opt => (
-                                                                                                            <option key={opt.d} value={String(opt.d)}>{opt.label} (d={opt.d})</option>
-                                                                                                        ))}
-                                                                                                    </select>
+                                                                                                    <SingleSelect
+                                                                                                        value={String((h as any)[fcKey] || 1)}
+                                                                                                        onChange={val => updatePeligroField(p.id, h.id, fcKey, Number(val))}
+                                                                                                        options={COST_FACTOR_OPTIONS.map(opt => ({
+                                                                                                            label: `${opt.label} (d=${opt.d})`,
+                                                                                                            value: String(opt.d)
+                                                                                                        }))}
+                                                                                                    />
                                                                                                 </div>
                                                                                             </div>
                                                                                         </div>

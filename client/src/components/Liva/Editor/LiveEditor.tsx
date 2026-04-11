@@ -760,7 +760,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
 
-    return (
+    const editorContent = (
         <div className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
             {/* Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
@@ -1286,8 +1286,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             )}
 
         </div>
-
     );
+
+    if (isFullScreen) {
+        return createPortal(editorContent, document.body);
+    }
+    return editorContent;
 });
 
 LiveEditor.displayName = 'LiveEditor';

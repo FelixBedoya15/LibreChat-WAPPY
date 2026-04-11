@@ -13,11 +13,13 @@ const SingleSelect = ({
     value,
     onChange,
     placeholder,
+    disabled = false
 }: {
-    options: string[];
+    options: (string | { label: string; value: string })[];
     value: string;
     onChange: (val: string) => void;
     placeholder?: string;
+    disabled?: boolean;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -26,6 +28,9 @@ const SingleSelect = ({
 
     const DROPDOWN_MAX_H = 256; // max-h-64 in px
     const MARGIN = 6;
+
+    const currentOptionObj = options.find(o => typeof o === 'string' ? o === value : o.value === value);
+    const displayValue = currentOptionObj ? (typeof currentOptionObj === 'string' ? currentOptionObj : currentOptionObj.label) : '';
 
     const calcStyle = () => {
         if (!triggerRef.current) return;
@@ -80,21 +85,31 @@ const SingleSelect = ({
             className="max-h-64 overflow-y-auto bg-surface-primary border border-border-medium rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 duration-150"
         >
             <div className="p-1">
-                {options.map(opt => (
-                    <div
-                        key={opt}
-                        onClick={() => { onChange(opt); setIsOpen(false); }}
-                        className={cn(
-                            'flex items-center justify-between px-3 py-2 text-sm rounded-md cursor-pointer transition-colors',
-                            value === opt
-                                ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-bold'
-                                : 'hover:bg-surface-hover text-text-primary',
-                        )}
-                    >
-                        <span>{opt}</span>
-                        {value === opt && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
-                    </div>
-                ))}
+                {options.map((option, idx) => {
+                    const optLabel = typeof option === 'string' ? option : option.label;
+                    const optVal = typeof option === 'string' ? option : option.value;
+                    return (
+                        <button
+                            key={idx}
+                            type="button"
+                            className={cn(
+                                "w-full text-left px-3 py-2 text-[11px] outline-none flex items-center justify-between",
+                                "hover:bg-surface-secondary focus:bg-surface-secondary",
+                                "border-t border-border-light first:border-t-0 uppercase",
+                                value === optVal && "bg-surface-secondary/50 font-bold"
+                            )}
+                            onClick={() => {
+                                onChange(optVal);
+                                setIsOpen(false);
+                            }}
+                        >
+                            <span className="truncate pr-4">{optLabel}</span>
+                            {value === optVal && (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                            )}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     ) : null;
@@ -103,11 +118,14 @@ const SingleSelect = ({
         <>
             <div
                 ref={triggerRef}
-                onClick={handleToggle}
-                className="w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm flex items-center justify-between cursor-pointer hover:border-teal-400"
+                onClick={disabled ? undefined : handleToggle}
+                className={cn(
+                    "w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm flex items-center justify-between",
+                    disabled ? "opacity-50 cursor-not-allowed bg-surface-secondary text-text-tertiary" : "text-text-primary cursor-pointer hover:border-teal-400"
+                )}
             >
-                <span className={!value ? 'text-text-tertiary' : ''}>
-                    {value || placeholder || 'Seleccionar...'}
+                <span className={!displayValue ? 'text-text-tertiary' : ''}>
+                    {displayValue || placeholder || 'Seleccionar...'}
                 </span>
                 <ChevronDown
                     className={cn(
