@@ -60,22 +60,47 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const editorWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Escape fullscreen containment blocks safely without Portals
+    // Fullscreen: neutralize ALL ancestor transforms/overflows so position:fixed works
+    // We do this by injecting a style tag that targets them inline
     useEffect(() => {
-        if (!isFullScreen || !editorWrapperRef.current) return;
+        if (!editorWrapperRef.current) return;
         
-        let parent = editorWrapperRef.current.parentElement;
-        const modifiedParents: HTMLElement[] = [];
-        
-        while (parent && parent !== document.body) {
-            parent.classList.add('live-editor-fullscreen-escape');
-            modifiedParents.push(parent);
-            parent = parent.parentElement;
+        if (isFullScreen) {
+            // Walk up the DOM and force inline styles to neutralize clipping
+            let parent = editorWrapperRef.current.parentElement;
+            while (parent && parent !== document.body) {
+                const style = window.getComputedStyle(parent);
+                const hasTransform = style.transform && style.transform !== 'none';
+                const hasOverflow = style.overflow !== 'visible' || style.overflowX !== 'visible' || style.overflowY !== 'visible';
+                if (hasTransform || hasOverflow) {
+                    parent.dataset.liveEditorOrigTransform = parent.style.transform || '';
+                    parent.dataset.liveEditorOrigOverflow = parent.style.overflow || '';
+                    parent.dataset.liveEditorOrigOverflowX = parent.style.overflowX || '';
+                    parent.dataset.liveEditorOrigOverflowY = parent.style.overflowY || '';
+                    parent.style.setProperty('transform', 'none', 'important');
+                    parent.style.setProperty('overflow', 'visible', 'important');
+                    parent.style.setProperty('overflow-x', 'visible', 'important');
+                    parent.style.setProperty('overflow-y', 'visible', 'important');
+                }
+                parent = parent.parentElement;
+            }
+        } else {
+            // Restore original styles
+            let parent = editorWrapperRef.current.parentElement;
+            while (parent && parent !== document.body) {
+                if ('liveEditorOrigTransform' in parent.dataset) {
+                    parent.style.transform = parent.dataset.liveEditorOrigTransform || '';
+                    parent.style.overflow = parent.dataset.liveEditorOrigOverflow || '';
+                    parent.style.overflowX = parent.dataset.liveEditorOrigOverflowX || '';
+                    parent.style.overflowY = parent.dataset.liveEditorOrigOverflowY || '';
+                    delete parent.dataset.liveEditorOrigTransform;
+                    delete parent.dataset.liveEditorOrigOverflow;
+                    delete parent.dataset.liveEditorOrigOverflowX;
+                    delete parent.dataset.liveEditorOrigOverflowY;
+                }
+                parent = parent.parentElement;
+            }
         }
-        
-        return () => {
-            modifiedParents.forEach(p => p.classList.remove('live-editor-fullscreen-escape'));
-        };
     }, [isFullScreen]);
     const [showAiInput, setShowAiInput] = useState(false);
     const [bubbleDebug, setBubbleDebug] = useState<any>({}); // CRITICAL FIX: debug state
