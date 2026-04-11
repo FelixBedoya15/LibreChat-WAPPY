@@ -60,7 +60,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-[9999] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl z-[9999] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
                     <div className="p-2 border-b border-border-light bg-surface-tertiary/30">
                         <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider px-2">
                             Modelo de Inteligencia Artificial

@@ -786,7 +786,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     <div ref={containerRef} className={`flex flex-col h-full bg-surface-primary transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3 shrink-0 min-w-0">
+      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-2.5 shrink-0 min-w-0 relative z-[200] overflow-visible" style={{ minHeight: '3.75rem' }}>
         <div className="flex items-center gap-3 min-w-0 flex-shrink mr-2 text-ellipsis overflow-hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm shrink-0">
             <ShieldAlert className="h-5 w-5" />
@@ -800,7 +800,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar flex-nowrap shrink-0 max-w-[calc(100%-120px)] md:max-w-none">
+        <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible hide-scrollbar flex-nowrap shrink-0 max-w-[calc(100%-120px)] md:max-w-none">
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
           <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} hideTooltip={true} />
