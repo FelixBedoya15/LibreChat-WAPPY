@@ -789,7 +789,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     <div ref={containerRef} className={`flex flex-col h-full bg-surface-primary transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[9999] backdrop-blur-xl' : 'w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 py-3 shrink-0">
+      <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 relative z-[300] overflow-visible" style={{ minHeight: '4rem' }}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 border border-teal-500/20 shadow-sm">
             <ShieldAlert className="h-5 w-5" />
@@ -803,7 +803,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
           {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
           <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} hideTooltip={true} />
