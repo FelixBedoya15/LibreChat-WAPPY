@@ -57,7 +57,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [aiEditSelectedText, setAiEditSelectedText] = useState('');
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const [paperMode, setPaperMode] = useState(true);
 
     const editorWrapperRef = useRef<HTMLDivElement>(null);
 
