@@ -1,6 +1,6 @@
 # 📖 Manual Completo de Usuario - WAPPY IA
 
-Bienvenido al manual oficial y exhaustivo de **WAPPY IA**. Esta guía contiene toda la información detallada sobre el funcionamiento de la plataforma, el Gestor del Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST), sus herramientas, cómo utilizarlas y los planes de suscripción.
+Bienvenido al manual oficial y exhaustivo de **WAPPY IA**. Esta guía contiene toda la información detallada sobre el funcionamiento de la plataforma, el aplicativo **Somos SST** (antes conocido como Gestor del Sistema de Gestión de Seguridad y Salud en el Trabajo, SG-SST), sus herramientas, cómo utilizarlas y los planes de suscripción.
 
 ---
 
@@ -14,7 +14,7 @@ La plataforma está diseñada para ser intuitiva. Desde la barra lateral izquier
         *   **Expertos Técnicos y Tareas Críticas:** Expert@ en Riesgo Eléctrico, Expert@ en Riesgo Biológico, Expert@ en Riesgo Químico, Expert@ en Riesgo Vial, Expert@ en Emergencias, Expert@ en Tareas de Alto Riesgo, Asistente Permiso TSA.
         *   **Gestión Documental y Legal:** Abogad@ Laboral, Profesional SST, Auditor SG-SST, Asistente ATS, Asistente Inv AT, Asistente Inv EL, Asistente Método ROSA, Asistente en Capacitaciones, Asistente de ACI.
     *   **Funcionalidades:** Puedes interactuar enviando texto, subiendo archivos y documentos (PDFs, Word) para que los lea, o enviando imágenes para que los agentes extraigan información. Todo guarda un historial organizado.
-*   **🏢 Gestor SG-SST** (`/sgsst`): El módulo estrella. Automatiza todo el ciclo PHVA (Planear, Hacer, Verificar, Actuar) exigido por la normativa colombiana (Resolución 0312 y Decreto 1072).
+*   **🏢 Somos SST** (`/sgsst`): El módulo estrella. Automatiza todo el ciclo PHVA exigido por la normativa colombiana (Resolución 0312 y Decreto 1072). Ahora presenta un diseño centrado en el ser humano, dividido en "Hitos" evolutivos para gestionar la seguridad laboral desde el bienestar y la consciencia, en lugar del mero cumplimiento documental.
 *   **🎓 Aula de estudio** (`/training`): Zona de capacitación donde los usuarios pueden encontrar cursos y material de SST.
 *   **📰 Blog** (`/blog`): Artículos y actualizaciones. La IA (Tenshi) lee automáticamente estos artículos para estar siempre al día.
 *   **📁 Archivos** (`/search?type=files`): Tu nube privada donde gestionas todos los documentos y evidencias que has subido.
@@ -23,9 +23,9 @@ La plataforma está diseñada para ser intuitiva. Desde la barra lateral izquier
 
 ---
 
-## 🏢 2. Gestor SG-SST: Funcionamiento Detallado (Ciclo PHVA)
+## 🏢 2. Somos SST: Funcionamiento Detallado (Ciclo PHVA)
 
-Para que los documentos se generen correctamente, el primer paso SIEMPRE es hacer clic en el botón con el **icono de edificio (🏢 Información de la Empresa)** ubicado en la pantalla principal del Gestor SG-SST (`/sgsst`). Aquí debes llenar: NIT, Representante Legal, ARL, Actividad Económica, CIIU, Clase de Riesgo y Trabajadores. 
+Para que los documentos se generen correctamente, el primer paso SIEMPRE es hacer clic en el botón con el **icono de edificio (🏢 Información de la Empresa)** ubicado en la pantalla principal de Somos SST (`/sgsst`). Aquí debes llenar: NIT, Representante Legal, ARL, Actividad Económica, CIIU, Clase de Riesgo y Trabajadores. 
 
 > **Nota General sobre Botones:** En casi todos los aplicativos encontrarás la siguiente botonera estándar dispuesta en la parte superior:
 > *   **🪄 IA Dummy**: Botón verde aqua ubicado como primera opción. Sirve para autocompletar el formulario con datos simulados y realistas generados localmente o por IA. Es de extrema utilidad para entender y explorar cómo funciona un módulo sin tener que digitar datos reales manualmente.
@@ -41,13 +41,13 @@ Para que los documentos se generen correctamente, el primer paso SIEMPRE es hace
 >
 > ✍️ **Sobre las Firmas en los Informes:**
 > *   ¡No tienes que pegar fotos de firmas manualmente! Todos los reportes legales (como Resoluciones, Políticas, Actas, ATS y ATEL) incluyen al final del documento "Marcadores de Posición" o cuadros para las firmas.
-> *   **¿De dónde salen las firmas principales?** Las firmas del **Representante Legal** y la del **Responsable del SG-SST** se cargan una única vez. Debes ir nuevamente al módulo inicial de 🏢 **"Información de la Empresa"** en Gestor SG-SST, bajar en ese formulario y allí en los escuadrones subir los archivos PNG/JPG de las firmas. Una vez subidos ahí, *todos los reportes autocompletarán y estamparán estas dos firmas automáticamente*.
+> *   **¿De dónde salen las firmas principales?** Las firmas del **Representante Legal** y la del **Responsable del SG-SST** se cargan una única vez. Debes ir nuevamente al módulo inicial de 🏢 **"Información de la Empresa"** en Somos SST, bajar en ese formulario y allí en los escuadrones subir los archivos PNG/JPG de las firmas. Una vez subidos ahí, *todos los reportes autocompletarán y estamparán estas dos firmas automáticamente*.
 > *   **Firmas adicionales:** En anexos particulares como el ATS o la Investigación ATEL, notarás que los recuadros de trabajadores como "Testigos" o "Jefes Directos" en el HTML generado te permiten hacer *clic* directamente encima del recuadro dentro del LiveEditor. Si les haces clic, se abrirá un menú para que dibujes la firma de ese operario en pantalla o subas un archivo desde el celular.
 
-El gestor está dividido por colores y fases metodológicas:
+El gestor está dividido en Hitos evolutivos y fases metodológicas:
 
-### 📝 A. FASE PLANEAR (Color Azul)
-*Base documental y planificación del sistema.*
+### 📝 Hito 01: Consciencia y Contexto (Planear)
+*Conociendo al individuo y estableciendo la línea base del sistema.*
 
 1.  **Política SST** (`/sgsst/politica`)
     *   **¿Para qué sirve?**: Genera automáticamente la política central de SST de tu empresa, garantizando que cumpla con los 3 compromisos de ley (protección, cumplimiento legal y mejora continua).
@@ -71,8 +71,8 @@ El gestor está dividido por colores y fases metodológicas:
     *   **¿Para qué sirve?**: Documento o Acta de designación del responsable SST de la entidad.
     *   **Cómo interactuar**: Diligencia el nombre, cédula, cargo y licencia SST de la persona (o llénalo con IA Dummy). La IA cruzará esa información con la "Clase de Riesgo" de la empresa (llenada previamente en perfil empresa) para asignarle roles de acuerdo al estándar de la resolución 0312.
 
-### 🛠️ B. FASE HACER (Color Amarillo)
-*Ejecución y gestión del riesgo en la práctica.*
+### 🛠️ Hito 02: Interacción y Entorno (Hacer)
+*Diseño consciente de espacios y gestión del riesgo en la práctica.*
 
 1.  **Perfil Sociodemográfico** (`/sgsst/perfiles-sociodemograficos`)
     *   **¿Para qué sirve?**: Recolectar datos paramétricos de salud y antecedentes del recurso humano.
@@ -113,8 +113,8 @@ El gestor está dividido por colores y fases metodológicas:
     *   **¿Para qué sirve?**: Diagnóstico general resumiendo casos de ausentismo, restricciones y capacidad laboral.
 
 
-### 🔍 C. FASE VERIFICAR (Color Rojo)
-*Auditoría y control de cumplimiento.*
+### 🔍 Hito 03: Marco de Cuidado (Verificar)
+*Acuerdos, cultura protectora y revisión de cumplimiento.*
 
 1.  **Auditoría SG-SST** (`/sgsst/auditoria`)
     *   **¿Para qué sirve?**: Checklist anual de escrutinio interno del sistema por la gerencia.
@@ -123,15 +123,15 @@ El gestor está dividido por colores y fases metodológicas:
     *   **¿Para qué sirve?**: Rendición de cuentas gerencial, mostrando estado de avances técnicos, capacitación y financieros del sistema.
     *   **Cómo interactuar**: El encargado completa el informe técnico mediante el chat bot interno, y usa la URL/QR para que el gran jefe apruebe o evalúe la gestión en tiempo real.
 
-### 📈 D. FASE ACTUAR (Color Verde Claro)
-*Mejora continua y corrección de desviaciones.*
+### 📈 Hito 04: Resiliencia y Evolución (Actuar)
+*Aprendizaje continuo del ecosistema y mejora.*
 
 1.  **Matriz ACPM** (`/sgsst/acpm`)
     *   **¿Para qué sirve?**: (Acciones Correctivas, Preventivas y de Mejora) Hace el trackeo y cierre de hallazgos detectados o accidentes que sucedieron.
     *   **Cómo interactuar**: Al registrar la no conformidad o problema particular, la IA despliega métodos de corrección, determina causas estructurales (Espina Pescado o Por Qués) y establece responsables/fecha.
 
-### 🔮 E. FASE INTELIGENCIA Y PREVENCIÓN AVANZADA (Exclusivo Plan Pro)
-*Herramientas predictivas de alto nivel impulsadas por visión y correlación de IA.*
+### 🔮 Hito 05: Inteligencia Predictiva (Exclusivo Plan Pro)
+*Visión extendida. Herramientas predictivas de alto nivel impulsadas por visión y correlación de IA.*
 
 1.  **Centro de Inteligencia Predictiva** (`/sgsst/dashboard-predictivo`)
     *   **¿Para qué sirve?**: Analiza en tiempo real de forma predictiva el ecosistema de más de 8 módulos interconectados del SGSST.
@@ -167,11 +167,11 @@ WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Sem
 ### 1. Plan Gratis ($0)
 *   **Propósito:** Para explorar la IA.
 *   **Incluye:** Chat básico de IA, Aula de estudio, máx 10 conversaciones, permite ingresar 1 clave API propia de Google Gemini.
-*   **NO incluye:** Gestor SG-SST, Blog ni Agentes.
+*   **NO incluye:** Somos SST, Blog ni Agentes.
 
 > 🎁 **NUEVA INSTRUCCIÓN COMERCIAL (Solo para usuarios Gratis):**
 > Actúa como una Asesora Comercial Estratégica. Si notas que un usuario del Plan Gratis tiene interés en automatizar su trabajo o pregunta por los **planes Plus o Pro**, tienes autorización para gestionar ofertas flash:
-> 1. Háblales maravillas de todo lo que podrían lograr con el Gestor SST completo o la Inteligencia Predictiva.
+> 1. Háblales maravillas de todo lo que podrían lograr con el aplicativo Somos SST completo o la Inteligencia Predictiva.
 > 2. **Hazles una oferta irrechazable:** *"Como eres uno de nuestros exploradores de WAPPY IA, tengo una sorpresa especial para ti. Si adquieres el plan Plus o Pro **hoy mismo**, gestionaré de inmediato un descuento exclusivo del **10%** sobre tu factura. ¿Te animas a aprovecharlo ahora mismo? (Responde Sí o No)"*
 > 3. **Si te dicen que "Sí":** Felicítalos efusivamente: *"¡Excelente decisión estratégica! 🎉 He enviado la notificación al sistema de facturación. Muy pronto te llegará el código de descuento del 10%. Importante: este cupón será válido por una única vez y caducará irremediablemente en 24 horas. ¡Prepárate para llevar tu gestión SST al Olimpo digital!"*
 > 4. **Si te dicen que "No":** Agradéceles sin presionar: *"¡Entiendo perfectamente! Estaré aquí por si cambias de opinión o necesitas ayuda para seguir descubriendo el Plan Gratis. ¡Cuándo te sientas preparado, avísame y validamos si la oferta sigue en pie!"*
@@ -180,12 +180,12 @@ WAPPY IA funciona bajo modelo SaaS. Puedes elegir pagar Mensual, Trimestral, Sem
 *   **Valores Base SIN Descuento (COP):** Mensual ($59.532), Trimestral ($174.240), Semestral ($333.960), Anual ($624.360).
 *   **Propósito:** Para productividad personal aumentada.
 *   **Incluye:** Todo lo del gratis + Acceso al Blog WAPPY, hasta 30 conversaciones abiertas, y permite 4 claves API de Gemini.
-*   **NO incluye:** Gestor SG-SST ni Agentes.
+*   **NO incluye:** Somos SST ni Agentes.
 
 ### 3. Plan Plus
 *   **Valores Base SIN Descuento (COP):** Mensual ($69.938), Trimestral ($203.280), Semestral ($392.040), Anual ($726.000).
 *   **Propósito:** Acceso completo para prevencionistas y empresas.
-*   **Incluye:** **¡El Gestor SG-SST completo!** Todo el ciclo PHVA, conversaciones ilimitadas con la IA y 10 claves API de Gemini.
+*   **Incluye:** **¡El aplicativo Somos SST completo!** Todo el ciclo PHVA, conversaciones ilimitadas con la IA y 10 claves API de Gemini.
 *   **¿Por qué elegirlo?:** Es el ecosistema total para automatizar la Resolución 0312 a un precio imbatible.
 
 ### 4. Plan Pro - ⭐ EL MÁS POPULAR

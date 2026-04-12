@@ -212,7 +212,7 @@ export default function Personalization({
           
           <div className="flex items-center justify-between">
             <div id="gemini-sst-label" className="font-medium">
-              {localize('com_ui_gemini_sst', { defaultValue: 'Gestor SG-SST' })}
+              {localize('com_ui_gemini_sst', { defaultValue: 'Somos SST' })}
             </div>
             <Dropdown
               value={geminiModels.sstManagement || ''}
