@@ -48,6 +48,7 @@ module.exports = {
     analisisVulnerabilidad,
     predictivo,
     participacionIpevar,
+    altaDireccion,
     signatures: require('./signatures'),
     gtc45Workspace,
     patchAgentPrompt,
