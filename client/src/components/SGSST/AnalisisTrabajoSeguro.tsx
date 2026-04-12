@@ -381,7 +381,7 @@ const AnalisisTrabajoSeguro = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(p => p + 1);
-                showToast({ message: 'ATS guardado exitosamente', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });

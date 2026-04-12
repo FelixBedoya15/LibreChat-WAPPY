@@ -148,7 +148,7 @@ const ReglamentoHigiene = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Reglamento guardado exitosamente', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
