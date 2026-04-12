@@ -20,6 +20,7 @@ const SingleSelect = ({
     onChange: (val: string) => void;
     placeholder?: string;
     disabled?: boolean;
+    allowCustomInput?: boolean;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -30,7 +31,7 @@ const SingleSelect = ({
     const MARGIN = 6;
 
     const currentOptionObj = options.find(o => typeof o === 'string' ? o === value : o.value === value);
-    const displayValue = currentOptionObj ? (typeof currentOptionObj === 'string' ? currentOptionObj : currentOptionObj.label) : '';
+    const displayValue = currentOptionObj ? (typeof currentOptionObj === 'string' ? currentOptionObj : currentOptionObj.label) : (allowCustomInput ? value : '');
 
     const calcStyle = () => {
         if (!triggerRef.current) return;
@@ -118,21 +119,45 @@ const SingleSelect = ({
         <>
             <div
                 ref={triggerRef}
-                onClick={disabled ? undefined : handleToggle}
+                onClick={disabled ? undefined : (allowCustomInput ? () => setIsOpen(true) : handleToggle)}
                 className={cn(
                     "w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm flex items-center justify-between",
                     disabled ? "opacity-50 cursor-not-allowed bg-surface-secondary text-text-tertiary" : "text-text-primary cursor-pointer hover:border-teal-400"
                 )}
             >
-                <span className={!displayValue ? 'text-text-tertiary' : ''}>
-                    {displayValue || placeholder || 'Seleccionar...'}
-                </span>
-                <ChevronDown
-                    className={cn(
-                        'h-4 w-4 text-text-tertiary transition-transform duration-200',
-                        isOpen && 'rotate-180',
-                    )}
-                />
+                {allowCustomInput ? (
+                    <input 
+                        type="text"
+                        value={displayValue}
+                        onChange={(e) => {
+                            onChange(e.target.value);
+                            if (!isOpen) {
+                                calcStyle();
+                                setIsOpen(true);
+                            }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={() => {
+                            calcStyle();
+                            setIsOpen(true);
+                        }}
+                        className="w-full bg-transparent outline-none truncate font-medium text-text-primary placeholder:text-text-tertiary"
+                        placeholder={placeholder || 'Escribir o buscar...'}
+                        readOnly={!!disabled}
+                    />
+                ) : (
+                    <span className={!displayValue ? 'text-text-tertiary truncate' : 'truncate'}>
+                        {displayValue || placeholder || 'Seleccionar...'}
+                    </span>
+                )}
+                <div onClick={(e) => { if (allowCustomInput) { e.stopPropagation(); handleToggle(); } }} className="shrink-0 pl-2 flex items-center justify-center cursor-pointer">
+                    <ChevronDown
+                        className={cn(
+                            'h-4 w-4 text-text-tertiary transition-transform duration-200',
+                            isOpen && 'rotate-180',
+                        )}
+                    />
+                </div>
             </div>
 
             {ReactDOM.createPortal(dropdown, document.body)}

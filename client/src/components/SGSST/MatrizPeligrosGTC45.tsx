@@ -706,11 +706,6 @@ const MatrizPeligrosGTC45 = () => {
                 </p>
             </div>
 
-            {/* Datalist for Cargos */}
-            <datalist id="cargos-disponibles-list">
-                {cargosDisponibles.map((c, i) => <option key={i} value={c} />)}
-            </datalist>
-
             {/* ═══ Processes List ═══ */}
             <div className="space-y-4">
                 {isLoading ? (
@@ -755,8 +750,13 @@ const MatrizPeligrosGTC45 = () => {
                                             <div className="flex flex-nowrap gap-4 min-w-[800px] pb-2">
                                                 <div className="space-y-1 flex-[1.5]">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Perfil del Cargo</label>
-                                                    <input type="text" list="cargos-disponibles-list" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
-                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-bold text-indigo-600 dark:text-indigo-400" placeholder="Ej: Conductor, Auxiliar..." />
+                                                    <SingleSelect 
+                                                        value={p.proceso}
+                                                        onChange={val => updateProcesoField(p.id, 'proceso', val)}
+                                                        options={cargosDisponibles}
+                                                        placeholder="Ej: Conductor, Auxiliar..."
+                                                        allowCustomInput={true}
+                                                    />
                                                 </div>
                                                 <div className="space-y-1 flex-1">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
