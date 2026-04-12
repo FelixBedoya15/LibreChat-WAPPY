@@ -465,7 +465,7 @@ const MatrizPeligrosGTC45 = () => {
     const handleDummyData = () => {
         const dummy = generateDummyData.matrizPeligros();
         setProcesos(prev => [...prev, ...dummy.procesos]);
-        showToast({ message: 'Datos de prueba (Matriz de Peligros) generados con éxito', status: 'success', severity: 'success' });
+        showToast({ message: 'Datos de prueba (IPEVAR Bio-Individual) generados con éxito', status: 'success', severity: 'success' });
     };
 
     const handleCompletePeligro = async (proceso: ProcesoEntry, peligro: PeligroItem) => {
@@ -571,7 +571,7 @@ const MatrizPeligrosGTC45 = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(isNew ? {
                     content,
-                    title: `Matriz GTC 45 - ${new Date().toLocaleDateString('es-CO')}`,
+                    title: `IPEVAR Bio-Individual - ${new Date().toLocaleDateString('es-CO')}`,
                     tags: ['sgsst-matriz-peligros'],
                 } : { conversationId, messageId: reportMessageId, content }),
             });
@@ -665,9 +665,8 @@ const MatrizPeligrosGTC45 = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSaveReport}
-                hasContent={!!generatedReport}
                 exportContent={editorContent || generatedReport || ''}
-                exportFileName="Matriz_Peligros_GTC45"
+                exportFileName="IPEVAR_Bio_Individual"
                 onDummy={handleDummyData}
             />
 
