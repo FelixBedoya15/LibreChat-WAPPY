@@ -173,6 +173,26 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
     }
 });
 
+// ─── GET /api/public-sgsst/debug-ipevar/:companyId (TEMPORAL) ───────────────────────
+router.get('/debug-ipevar/:companyId', async (req, res) => {
+    try {
+        const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData;
+        const docs = await ParticipacionIpevarData.collection.find({}).toArray();
+        return res.json({
+            count: docs.length,
+            docs: docs.map(d => ({
+                id: d._id,
+                user: d.user,
+                userType: typeof d.user,
+                userConstructor: d.user?.constructor?.name,
+                inboxCount: d.inboxPublico?.length || 0
+            }))
+        });
+    } catch (e) {
+        return res.json({ error: e.message });
+    }
+});
+
 // ─── POST /api/public-sgsst/participacion-ipevar/:companyId ───────────────────────
 // Submit a new Participacion IPEVAR Trabajadores report from a worker
 router.post('/participacion-ipevar/:companyId', async (req, res) => {

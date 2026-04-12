@@ -235,6 +235,9 @@ const startServer = async () => {
   app.use('/api/sgsst/rit', routes.sgsst.rit);
   app.use('/api/sgsst/perfil-sociodemografico', routes.sgsst.perfilSociodemografico);
   app.use('/api/sgsst/predictivo', routes.sgsst.predictivo);
+  app.use('/api/sgsst/participacion-ipevar', routes.sgsst.participacionIpevar);
+  app.use('/api/sgsst/alta-direccion', routes.sgsst.altaDireccion);
+  app.use('/api/sgsst/patch-agent-prompt', routes.sgsst.patchAgentPrompt);
   app.use('/api/sgsst/gtc45-workspace', routes.sgsst.gtc45Workspace);
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
