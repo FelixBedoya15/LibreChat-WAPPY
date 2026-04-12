@@ -287,7 +287,7 @@ export const ToolbarButton: React.FC<ToolbarButtonConfig> = ({
         <motion.button
             whileHover="hover"
             whileTap="tap"
-            onClick={onClick}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(); }}
             disabled={disabled}
             className={cn(
                 "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
