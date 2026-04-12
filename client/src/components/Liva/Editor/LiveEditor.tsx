@@ -400,10 +400,15 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     // Track if we already did the initial load so we never overwrite user edits
     const initializedRef = useRef(false);
+    
+    // Maintain fresh reference to onUpdate to prevent stale closures in Observer
+    const onUpdateRef = useRef(onUpdate);
+    useEffect(() => {
+        onUpdateRef.current = onUpdate;
+    }, [onUpdate]);
 
     useEffect(() => {
         // Set content ONLY once when the component first mounts and has content
-        // After that, all updates go through the imperative setHTML() handle
         if (!initializedRef.current && editorRef.current && initialContent) {
             const safeHtml = initialContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
             editorRef.current.innerHTML = safeHtml;
@@ -411,13 +416,33 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         } else if (!initializedRef.current && editorRef.current) {
             initializedRef.current = true;
         }
+        
+        // Setup MutationObserver to catch ALL dom changes (bold, images, resizing, AI edits) that bypass onInput
+        if (editorRef.current) {
+            const observer = new MutationObserver(() => {
+                const newContent = editorRef.current?.innerHTML || '';
+                setContent(newContent);
+                onUpdateRef.current(newContent);
+            });
+            
+            observer.observe(editorRef.current, { 
+                childList: true, 
+                subtree: true, 
+                characterData: true,
+                attributes: true, 
+                attributeFilter: ['style', 'class', 'src', 'width', 'height'] 
+            });
+            
+            return () => observer.disconnect();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // ← Empty deps: run ONCE on mount only.
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+        // Fallback for direct keyboard input, though MutationObserver catches most
         const newContent = e.currentTarget.innerHTML;
         setContent(newContent);
-        onUpdate(newContent);
+        onUpdateRef.current(newContent);
     };
 
     const execCmd = (command: string, value: string | undefined = undefined) => {
