@@ -57,6 +57,19 @@ const WorkerEntrySchema = new mongoose.Schema({
   frecuenciaCardiaca: { type: String, default: '' },
   limitacionesBiomecanicas: { type: String, default: '' },
   alergiasQuimicas: { type: String, default: '' },
+
+  // Conducción
+  licenciaConduccion: { type: String, default: '' },
+  licenciaConduccionVencimiento: { type: String, default: '' },
+
+  // Comités SG-SST
+  esCopasst: { type: String, default: 'No' },
+  esComiteConvivencia: { type: String, default: 'No' },
+  esBrigadista: { type: String, default: 'No' },
+  esComiteSeguridadVial: { type: String, default: 'No' },
+
+  // Formación
+  formacion: { type: Array, default: [] },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({

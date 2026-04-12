@@ -8,7 +8,12 @@ export const generateDummyData = {
             emergenciaContacto: '', tipoSangre: '', enfermedades: '', medicamentos: '',
             fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '' as const,
             estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
+            licenciaConduccion: '', licenciaConduccionVencimiento: '',
             licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
+            esCopasst: 'No', esComiteConvivencia: 'No', esBrigadista: 'No', esComiteSeguridadVial: 'No',
+            formacion: [],
+            peso: '', talla: '', imc: '', presionArterial: '', frecuenciaCardiaca: '',
+            limitacionesBiomecanicas: '', alergiasQuimicas: ''
         };
         return [
             {
@@ -37,6 +42,8 @@ export const generateDummyData = {
                 estrato: '4',
                 vivienda: 'Propia',
                 personasCargo: 3,
+                peso: '78', talla: '1.75', imc: '25.5', presionArterial: '120/80',
+                esCopasst: 'Sí', esComiteConvivencia: 'Sí'
             },
             {
                 id: crypto.randomUUID(),
@@ -68,6 +75,9 @@ export const generateDummyData = {
                 licenciaVencimiento: past(-24),
                 curso50h: past(-18),
                 curso20h: past(-12),
+                alergiasQuimicas: 'Sensibilidad a solventes orgánicos',
+                peso: '60', talla: '1.62', imc: '22.9',
+                esBrigadista: 'Sí'
             },
             {
                 id: crypto.randomUUID(),
@@ -79,7 +89,7 @@ export const generateDummyData = {
                 nivelEscolaridad: 'Bachiller',
                 direccion: 'Transversal 91 # 120-10, Bogotá',
                 telefono: '3001234567',
-                cargo: 'Operario de Producción',
+                cargo: 'Conductor de Carga Pesada',
                 fechaExamenMedico: past(1),
                 fechaCursoAlturasAutorizado: past(1),
                 fechaCursoAlturasCoordinador: '',
@@ -98,6 +108,14 @@ export const generateDummyData = {
                 estrato: '2',
                 vivienda: 'Arrendada',
                 personasCargo: 2,
+                peso: '98', talla: '1.70', imc: '33.9',
+                presionArterial: '145/95',
+                limitacionesBiomecanicas: 'Hernia discal en proceso de valoración.',
+                licenciaConduccion: '1098765432',
+                licenciaConduccionVencimiento: past(-36),
+                soatVencimiento: past(-12),
+                tecnicomecanicaVencimiento: past(-12),
+                esComiteSeguridadVial: 'Sí',
             }
         ];
     },

@@ -62,11 +62,23 @@ interface WorkerEntry {
     // New Conditional Fields (Conductor)
     soatVencimiento: string;
     tecnicomecanicaVencimiento: string;
+    licenciaConduccion: string;
+    licenciaConduccionVencimiento: string;
+
     // New Conditional Fields (SGSST)
     licenciaSST: string;
     licenciaVencimiento: string;
     curso50h: string;
     curso20h: string;
+
+    // Comités
+    esCopasst: string;
+    esComiteConvivencia: string;
+    esBrigadista: string;
+    esComiteSeguridadVial: string;
+
+    // Formación (lista JSON o similar)
+    formacion: any[];
 
     // New Biomonitoring Fields
     peso: string;
@@ -90,7 +102,10 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     emergenciaContacto: '', tipoSangre: '', enfermedades: '', medicamentos: '',
     fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '',
     estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
+    licenciaConduccion: '', licenciaConduccionVencimiento: '',
     licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
+    esCopasst: 'No', esComiteConvivencia: 'No', esBrigadista: 'No', esComiteSeguridadVial: 'No',
+    formacion: [],
     peso: '', talla: '', imc: '', presionArterial: '', frecuenciaCardiaca: '',
     limitacionesBiomecanicas: '', alergiasQuimicas: '',
     completedByAI: false, consentimientoFirmaDigital: 'No', firmaDigital: null,
@@ -288,10 +303,16 @@ const PerfilSociodemografico = () => {
             'Fecha Seguimiento': w.fechaSeguimiento,
             'Vencimiento SOAT': w.soatVencimiento,
             'Vencimiento Tecnicomecánica': w.tecnicomecanicaVencimiento,
+            'Licencia Conducción': w.licenciaConduccion,
+            'Vencimiento Licencia Cond': w.licenciaConduccionVencimiento,
             'N° Licencia SGSST': w.licenciaSST,
             'Venc. Licencia SGSST': w.licenciaVencimiento,
             'Curso 50h': w.curso50h,
             'Curso 20h': w.curso20h,
+            'COPASST': w.esCopasst,
+            'Comité Convivencia': w.esComiteConvivencia,
+            'Brigadista': w.esBrigadista,
+            'Comité Seg. Vial': w.esComiteSeguridadVial,
             'Peso (kg)': w.peso,
             'Talla (m)': w.talla,
             'IMC': w.imc,
@@ -356,10 +377,17 @@ const PerfilSociodemografico = () => {
                         vivienda: row['Tipo de Vivienda'] || row.vivienda || '',
                         soatVencimiento: row['Vencimiento SOAT'] || row.soatVencimiento || '',
                         tecnicomecanicaVencimiento: row['Vencimiento Tecnicomecánica'] || row.tecnicomecanicaVencimiento || '',
+                        licenciaConduccion: row['Licencia Conducción'] || row.licenciaConduccion || '',
+                        licenciaConduccionVencimiento: row['Vencimiento Licencia Cond'] || row.licenciaConduccionVencimiento || '',
                         licenciaSST: row['N° Licencia SGSST'] || row.licenciaSST || '',
                         licenciaVencimiento: row['Venc. Licencia SGSST'] || row.licenciaVencimiento || '',
                         curso50h: row['Curso 50h'] || row.curso50h || '',
                         curso20h: row['Curso 20h'] || row.curso20h || '',
+                        esCopasst: row['COPASST'] || row.esCopasst || 'No',
+                        esComiteConvivencia: row['Comité Convivencia'] || row.esComiteConvivencia || 'No',
+                        esBrigadista: row['Brigadista'] || row.esBrigadista || 'No',
+                        esComiteSeguridadVial: row['Comité Seg. Vial'] || row.esComiteSeguridadVial || 'No',
+                        formacion: row.formacion || [],
                         peso: row['Peso (kg)'] || row.peso || '',
                         talla: row['Talla (m)'] || row.talla || '',
                         imc: row['IMC'] || row.imc || '',
@@ -838,6 +866,10 @@ const PerfilSociodemografico = () => {
                                                 onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'roles' })); }}
                                                 className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'roles' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
                                             > Roles & Especialidades </button>
+                                            <button
+                                                onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'formacion' })); }}
+                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'formacion' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
+                                            > Formación & Misiones </button>
                                         </div>
 
                                         {/* Tab Content */}
@@ -1034,20 +1066,51 @@ const PerfilSociodemografico = () => {
 
                                                     {/* Conductor Conditional */}
                                                     {w.cargo && w.cargo.toLowerCase().includes('conductor') && (
-                                                        <div className="p-4 border border-blue-200 bg-blue-50/30 dark:bg-blue-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <h4 className="md:col-span-2 text-blue-700 dark:text-blue-400 font-bold text-sm uppercase">Requisitos de Conductor</h4>
-                                                            <div className="space-y-1">
+                                                        <div className="p-4 border border-blue-200 bg-blue-50/30 dark:bg-blue-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                            <h4 className="md:col-span-2 lg:col-span-4 text-blue-700 dark:text-blue-400 font-bold text-sm uppercase">Requisitos de Conductor</h4>
+                                                            <div className="space-y-1 lg:col-span-2">
                                                                 <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento SOAT</label>
                                                                 <input type="date" value={w.soatVencimiento} onChange={e => updateWorkerField(w.id, 'soatVencimiento', e.target.value)}
                                                                     className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
                                                             </div>
-                                                            <div className="space-y-1">
+                                                            <div className="space-y-1 lg:col-span-2">
                                                                 <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Tecnicomecánica</label>
                                                                 <input type="date" value={w.tecnicomecanicaVencimiento} onChange={e => updateWorkerField(w.id, 'tecnicomecanicaVencimiento', e.target.value)}
                                                                     className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
                                                             </div>
+                                                            <div className="space-y-1 lg:col-span-2">
+                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Licencia de Conducción</label>
+                                                                <input type="text" value={w.licenciaConduccion} onChange={e => updateWorkerField(w.id, 'licenciaConduccion', e.target.value)} placeholder="Número de Licencia"
+                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                            </div>
+                                                            <div className="space-y-1 lg:col-span-2">
+                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Licencia</label>
+                                                                <input type="date" value={w.licenciaConduccionVencimiento} onChange={e => updateWorkerField(w.id, 'licenciaConduccionVencimiento', e.target.value)}
+                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                            </div>
                                                         </div>
                                                     )}
+
+                                                    {/* Comités de Apoyo al SG-SST */}
+                                                    <div className="p-4 border border-green-200 bg-green-50/30 dark:bg-green-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                        <h4 className="md:col-span-4 lg:col-span-4 text-green-700 dark:text-green-400 font-bold text-sm uppercase">Comités de Apoyo al SG-SST</h4>
+                                                        <div className="space-y-1 lg:col-span-1">
+                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">COPASST</label>
+                                                            <SingleSelect value={w.esCopasst || 'No'} onChange={val => updateWorkerField(w.id, 'esCopasst', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                        </div>
+                                                        <div className="space-y-1 lg:col-span-1">
+                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Convivencia Laboral</label>
+                                                            <SingleSelect value={w.esComiteConvivencia || 'No'} onChange={val => updateWorkerField(w.id, 'esComiteConvivencia', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                        </div>
+                                                        <div className="space-y-1 lg:col-span-1">
+                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Brigada Emergencias</label>
+                                                            <SingleSelect value={w.esBrigadista || 'No'} onChange={val => updateWorkerField(w.id, 'esBrigadista', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                        </div>
+                                                        <div className="space-y-1 lg:col-span-1">
+                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Seguridad Vial</label>
+                                                            <SingleSelect value={w.esComiteSeguridadVial || 'No'} onChange={val => updateWorkerField(w.id, 'esComiteSeguridadVial', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
+                                                        </div>
+                                                    </div>
 
                                                     {/* SST Conditional */}
                                                     {w.cargo && ['sst', 'hseq', 'seguridad', 'salud', 'ocupacional'].some(kw => w.cargo.toLowerCase().includes(kw)) && (
@@ -1113,6 +1176,107 @@ const PerfilSociodemografico = () => {
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* TAB 4: FORMACIÓN Y MISIONES */}
+                                            {(workerTabs[w.id] || 'general') === 'formacion' && (
+                                                <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-300">
+                                                    <div className="flex flex-col gap-4 p-4 border rounded-xl bg-surface-tertiary/30 border-border-medium min-h-[300px]">
+                                                        <div>
+                                                            <h4 className="font-bold text-sm text-teal-700 dark:text-teal-400 uppercase tracking-wider">Historial de Capacitación y Competencias</h4>
+                                                            <p className="text-xs text-text-secondary">Cursos requeridos por el Perfil de Cargo: <span className="font-bold text-text-primary">{w.cargo || 'Ninguno'}</span></p>
+                                                        </div>
+                                                        
+                                                        {w.cargo && cargosDisponibles.find(c => c.nombreCargo === w.cargo)?.entrenamientosSeleccionados.map((cursoReq, idx) => {
+                                                            const forms = w.formacion || [];
+                                                            const courseData = forms.find((f:any) => f.curso === cursoReq) || { curso: cursoReq, estado: 'No Realizado', fecha: '' };
+                                                            return (
+                                                                <div key={`req-${idx}`} className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-surface-primary border border-border-light p-3 rounded-lg w-full">
+                                                                    <div className="flex-1 min-w-[200px]">
+                                                                        <span className="text-sm font-bold text-text-primary">{cursoReq}</span>
+                                                                    </div>
+                                                                    <div className="w-full md:w-56 shrink-0">
+                                                                        <SingleSelect 
+                                                                            value={courseData.estado} 
+                                                                            onChange={(val) => {
+                                                                                const newF = [...forms.filter((f:any) => f.curso !== cursoReq), { ...courseData, estado: val }];
+                                                                                updateWorkerField(w.id, 'formacion', newF);
+                                                                            }} 
+                                                                            placeholder="Estado..." options={['Realizado', 'No Realizado', 'Pendiente Validación']} />
+                                                                    </div>
+                                                                    <div className="w-full md:w-48 shrink-0">
+                                                                        <input type="date" value={courseData.fecha} 
+                                                                            onChange={(e) => {
+                                                                                const newF = [...forms.filter((f:any) => f.curso !== cursoReq), { ...courseData, fecha: e.target.value }];
+                                                                                updateWorkerField(w.id, 'formacion', newF);
+                                                                            }} 
+                                                                            className="w-full text-sm p-[9px] rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+
+                                                        {/* Extra Cursos */}
+                                                        {((w.formacion || []) as any[]).filter(f => {
+                                                            const reqs = cargosDisponibles.find(c => c.nombreCargo === w.cargo)?.entrenamientosSeleccionados || [];
+                                                            return !reqs.includes(f.curso);
+                                                        }).map((extraCourse, eIdx) => (
+                                                            <div key={`ex-${eIdx}`} className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-indigo-50/20 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 p-3 rounded-lg w-full relative group">
+                                                                <div className="flex-1 min-w-[200px]">
+                                                                    <span className="text-sm font-bold text-indigo-700 dark:text-indigo-400">{extraCourse.curso}</span>
+                                                                    <span className="text-[10px] ml-2 text-indigo-600 uppercase rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5">Extra</span>
+                                                                </div>
+                                                                <div className="w-full md:w-56 shrink-0">
+                                                                    <SingleSelect 
+                                                                        value={extraCourse.estado} 
+                                                                        onChange={(val) => {
+                                                                            const forms = w.formacion || [];
+                                                                            const newF = [...forms.filter((f:any) => f.curso !== extraCourse.curso), { ...extraCourse, estado: val }];
+                                                                            updateWorkerField(w.id, 'formacion', newF);
+                                                                        }} 
+                                                                        placeholder="Estado..." options={['Realizado', 'No Realizado']} />
+                                                                </div>
+                                                                <div className="w-full md:w-48 shrink-0">
+                                                                    <input type="date" value={extraCourse.fecha} 
+                                                                        onChange={(e) => {
+                                                                            const forms = w.formacion || [];
+                                                                            const newF = [...forms.filter((f:any) => f.curso !== extraCourse.curso), { ...extraCourse, fecha: e.target.value }];
+                                                                            updateWorkerField(w.id, 'formacion', newF);
+                                                                        }} 
+                                                                        className="w-full text-sm p-[9px] rounded-xl border border-indigo-200 dark:border-indigo-800 bg-surface-primary text-text-primary" />
+                                                                </div>
+                                                                <button onClick={() => {
+                                                                        const newF = (w.formacion || []).filter((f:any) => f.curso !== extraCourse.curso);
+                                                                        updateWorkerField(w.id, 'formacion', newF);
+                                                                    }}
+                                                                    className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    title="Eliminar curso extra">
+                                                                    <AnimatedIcon name="trash" size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+
+                                                        <div className="pt-2">
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    const title = window.prompt('Ingrese el nombre del nuevo curso o competencia específica:');
+                                                                    if (title && title.trim()) {
+                                                                        const forms = w.formacion || [];
+                                                                        const exists = forms.find((f:any) => f.curso.toLowerCase() === title.toLowerCase().trim());
+                                                                        if (exists) {
+                                                                            alert('El curso ya existe en la lista de este trabajador.');
+                                                                        } else {
+                                                                            updateWorkerField(w.id, 'formacion', [...forms, { curso: title.trim(), estado: 'Realizado', fecha: '' }]);
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30 px-4 py-2 rounded-xl transition-colors">
+                                                                <AnimatedIcon name="plus" size={16} /> Añadir Competencia Extra
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
