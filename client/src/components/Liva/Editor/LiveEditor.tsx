@@ -12,10 +12,6 @@ import { useLocalize } from '~/hooks';
 import { useAuthContext } from '~/hooks/AuthContext';
 import SignaturePad from '~/components/SGSST/SignaturePad';
 
-// Singleton content cache: persists content across the React unmount/remount that occurs
-// when the editor switches between inline and portal (fullscreen) render modes.
-// Safe to use as a singleton because only ONE LiveEditor is active at a time.
-let _leSingletonContent: string | null = null;
 
 
 interface LiveEditorProps {
@@ -41,19 +37,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const editorRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signatureInputRef = useRef<HTMLInputElement>(null);
-    // Always-current content ref (updated on every keystroke and before fullscreen toggle)
-    const latestContentRef = useRef(initialContent);
-
-    const [content, setContent] = useState(() => {
-        // On remount after a fullscreen toggle, restore the preserved content
-        if (_leSingletonContent !== null) {
-            const cached = _leSingletonContent;
-            _leSingletonContent = null;  // consume once
-            latestContentRef.current = cached;
-            return cached;
-        }
-        return initialContent;
-    });
+    const [content, setContent] = useState(initialContent);
     const [namedSignatures, setNamedSignatures] = useState<Record<string, string>>({});
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isDrawingPadOpen, setIsDrawingPadOpen] = useState(false);
@@ -78,51 +62,17 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const editorWrapperRef = useRef<HTMLDivElement>(null);
 
-    // ── Fullscreen portal element: a persistent div appended/removed from body ──
-    const fsPortalElRef = useRef<HTMLDivElement | null>(null);
-    if (!fsPortalElRef.current) {
-        const el = document.createElement('div');
-        el.setAttribute('data-live-editor-fs', 'true');
-        el.style.position = 'fixed';
-        el.style.top = '0';
-        el.style.left = '0';
-        el.style.width = '100vw';
-        el.style.height = '100vh';
-        el.style.zIndex = '999999';
-        el.style.display = 'flex';
-        el.style.flexDirection = 'column';
-        el.style.overflow = 'hidden';
-        // Background inherits from the inner editor div
-        fsPortalElRef.current = el;
-    }
-
-    // Attach / detach the portal element from body when fullscreen state changes
+    // Dispatch global events so ancestor containers can remove overflow containment
     useEffect(() => {
-        const el = fsPortalElRef.current;
-        if (!el) return;
-
         if (isFullScreen) {
-            document.body.appendChild(el);
-            // Also neutralize body scroll and notify ancestors (belt-and-suspenders)
-            document.body.style.overflow = 'hidden';
             window.dispatchEvent(new CustomEvent('live-editor-fullscreen-enter'));
         } else {
-            if (el.parentNode) {
-                el.parentNode.removeChild(el);
-            }
-            document.body.style.overflow = '';
             window.dispatchEvent(new CustomEvent('live-editor-fullscreen-exit'));
-            // Re-hydrate the inline contentEditable from the latest content
-            if (editorRef.current) {
-                editorRef.current.innerHTML = latestContentRef.current;
-            }
         }
-
         return () => {
-            // On unmount (e.g. navigating away while in fullscreen) clean up
-            if (el.parentNode) el.parentNode.removeChild(el);
-            document.body.style.overflow = '';
-            window.dispatchEvent(new CustomEvent('live-editor-fullscreen-exit'));
+            if (isFullScreen) {
+                window.dispatchEvent(new CustomEvent('live-editor-fullscreen-exit'));
+            }
         };
     }, [isFullScreen]);
 
@@ -302,13 +252,48 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         }
     };
 
-    const toggleFullScreen = () => {
-        // Save current content to singleton before React unmounts/remounts between render modes
-        const currentHtml = editorRef.current?.innerHTML ?? latestContentRef.current;
-        latestContentRef.current = currentHtml;
-        _leSingletonContent = currentHtml;  // persists across remount
-        setIsFullScreen(prev => !prev);
+    const toggleFullScreen = async () => {
+        if (!isFullScreen) {
+            try {
+                // Use native browser Fullscreen API — immune to ALL CSS containment issues
+                const el = editorWrapperRef.current;
+                if (el) {
+                    if (el.requestFullscreen) {
+                        await el.requestFullscreen();
+                    } else if ((el as any).webkitRequestFullscreen) {
+                        await (el as any).webkitRequestFullscreen();
+                    }
+                    setIsFullScreen(true);
+                }
+            } catch {
+                // Fallback: CSS-only approach if browser rejects fullscreen request
+                setIsFullScreen(true);
+            }
+        } else {
+            try {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if ((document as any).webkitExitFullscreen) {
+                    await (document as any).webkitExitFullscreen();
+                }
+            } catch { /* ignore */ }
+            setIsFullScreen(false);
+        }
     };
+
+    // Sync isFullScreen state if user exits native fullscreen via Escape or other
+    useEffect(() => {
+        const onFsChange = () => {
+            const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+            if (!fsEl) setIsFullScreen(false);
+        };
+        document.addEventListener('fullscreenchange', onFsChange);
+        document.addEventListener('webkitfullscreenchange', onFsChange);
+        return () => {
+            document.removeEventListener('fullscreenchange', onFsChange);
+            document.removeEventListener('webkitfullscreenchange', onFsChange);
+        };
+    }, []);
 
     // Handle Esc key and overflow
     useEffect(() => {
@@ -409,22 +394,20 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const initializedRef = useRef(false);
 
     useEffect(() => {
-        // Set content ONLY once when the component first mounts.
-        // `content` state already has the preserved value from _leContentCache (if remounting
-        // after a fullscreen toggle), so we use that — NOT the stale `initialContent` prop.
-        if (!initializedRef.current && editorRef.current) {
-            const source = content || initialContent;
-            const safeHtml = source.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+        // Set content ONLY once when the component first mounts and has content
+        // After that, all updates go through the imperative setHTML() handle
+        if (!initializedRef.current && editorRef.current && initialContent) {
+            const safeHtml = initialContent.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
             editorRef.current.innerHTML = safeHtml;
-            latestContentRef.current = safeHtml;
+            initializedRef.current = true;
+        } else if (!initializedRef.current && editorRef.current) {
             initializedRef.current = true;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // ← Empty deps: run ONCE on mount only. Updates come via setHTML() imperatively.
+    }, []); // ← Empty deps: run ONCE on mount only.
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         const newContent = e.currentTarget.innerHTML;
-        latestContentRef.current = newContent;  // always track latest
         setContent(newContent);
         onUpdate(newContent);
     };
@@ -837,8 +820,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
     const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
 
-    const editorUI = (
-        <div ref={editorWrapperRef} className="w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300">
+    return (
+        <div ref={editorWrapperRef} className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
             {/* Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
                 {/* Desktop View */}
@@ -1364,13 +1347,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
         </div>
     );
-
-    // Render into a body-level portal when fullscreen (bypasses ALL CSS containment).
-    // When NOT fullscreen, render inline as normal.
-    if (isFullScreen && fsPortalElRef.current) {
-        return createPortal(editorUI, fsPortalElRef.current);
-    }
-    return editorUI;
 });
 
 LiveEditor.displayName = 'LiveEditor';

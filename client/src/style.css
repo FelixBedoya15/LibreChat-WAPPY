@@ -19,6 +19,30 @@
   overflow-y: auto !important;
 }
 
+/* Native browser Fullscreen API — used by requestFullscreen() */
+.live-editor-fullscreen:fullscreen,
+.live-editor-fullscreen:-webkit-full-screen {
+  width: 100% !important;
+  height: 100% !important;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dark .live-editor-fullscreen:fullscreen,
+.dark .live-editor-fullscreen:-webkit-full-screen {
+  background: #18181b; /* zinc-900 */
+}
+
+/* When any element is in native fullscreen, ensure full coverage */
+:fullscreen .live-editor-fullscreen,
+:-webkit-full-screen .live-editor-fullscreen {
+  width: 100vw;
+  height: 100vh;
+}
+
+
 
 /* Custom Variables */
 :root {
