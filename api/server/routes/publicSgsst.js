@@ -333,6 +333,19 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         );
 
         res.json({ success: true, message: 'Su testimonio ha sido radicado exitosamente en el sistema de investigación.' });
+
+        // ─── Crear notificación de sistema ───
+        try {
+            await Notification.create({
+                user: companyObjectId,
+                type: 'sgsst_testimonio_atel',
+                title: 'Nuevo Testimonio de Testigo',
+                body: `${nombre} ha radicado su testimonio en la investigación ATEL desde el portal público.`,
+                metadata: { module: 'investigacion_atel', reportId: newInboxItem.id }
+            });
+        } catch (notifErr) {
+            logger.warn('[Public SGSST] Could not create ATEL testimony notification:', notifErr.message);
+        }
     } catch (error) {
         logger.error('[Public SGSST] ATEL Testimony submission error:', error);
         res.status(500).json({ error: 'Error al procesar el testimonio' });

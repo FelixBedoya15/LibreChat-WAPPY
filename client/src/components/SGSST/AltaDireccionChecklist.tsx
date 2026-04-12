@@ -524,35 +524,35 @@ export default function AltaDireccionChecklist() {
             {/* ─── QR Modal ─────────────────────────────────────────────── */}
             {showQrModal && ReactDOM.createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
-                    <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-primary w-full max-w-xs rounded-2xl shadow-2xl overflow-hidden border border-border-medium animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-6 text-center relative">
-                            <button onClick={() => setShowQrModal(false)} className="absolute top-4 right-4 text-teal-100 hover:text-white transition-colors">
+                        <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
+                            <button onClick={() => setShowQrModal(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-white/20 rounded-full mb-3 shadow-inner backdrop-blur-sm">
-                                <QrCode className="w-7 h-7 text-white" />
+                            <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 rounded-full mb-2 shadow-inner backdrop-blur-sm">
+                                <QrCode className="w-6 h-6 text-white" />
                             </div>
-                            <h3 className="font-bold text-xl uppercase tracking-wider">Portal Alta Dirección</h3>
+                            <h3 className="font-bold text-lg">Portal Público SGSST</h3>
                         </div>
 
                         {/* QR Code Body */}
-                        <div className="p-6 flex flex-col items-center bg-white dark:bg-surface-primary space-y-5">
-                            <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
+                        <div className="p-4 flex flex-col items-center bg-white dark:bg-surface-primary space-y-4">
+                            <p className="text-[12px] text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[240px]">
                                 Comparte este QR exclusivamente con el <strong>Representante Legal</strong> o personal de <strong>Gerencia</strong>.
                             </p>
                             
-                            <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
+                            <div className="p-2 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                 {qrDataUrl ? (
-                                    <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-40 h-40 mx-auto" />
+                                    <img src={qrDataUrl} alt="QR Portal Alta Dirección" className="w-32 h-32 mx-auto" />
                                 ) : (
-                                    <div className="w-40 h-40 flex items-center justify-center bg-gray-50">
+                                    <div className="w-32 h-32 flex items-center justify-center bg-gray-50">
                                         <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
                                     </div>
                                 )}
                             </div>
 
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-left w-full flex items-start gap-2">
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-left w-full flex items-start gap-2">
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                                 <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
                                     Solo podrán acceder los trabajadores con cargo de <strong>Representante Legal</strong>, <strong>Gerente</strong> o <strong>Director</strong> registrados en el Perfil Sociodemográfico.
@@ -560,7 +560,7 @@ export default function AltaDireccionChecklist() {
                             </div>
 
                             {/* Public Link Section */}
-                            <div className="w-full space-y-2 text-left">
+                            <div className="w-full space-y-2">
                                 <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Enlace de acceso público</p>
                                 <div className="flex items-center gap-2">
                                     <input 
@@ -579,10 +579,6 @@ export default function AltaDireccionChecklist() {
                                     </button>
                                 </div>
                             </div>
-
-                            <p className="text-[10px] text-gray-400 uppercase tracking-widest text-center mt-2">
-                                Decreto 1072/2015 · Art. 2.2.4.6.31 · SG-SST
-                            </p>
                         </div>
 
                         {/* Modal Footer */}
@@ -597,6 +593,7 @@ export default function AltaDireccionChecklist() {
                 </div>,
                 document.body
             )}
+
 
             {/* ─── Inbox Panel ───────────────────────────────────────────── */}
             {showInbox && (
