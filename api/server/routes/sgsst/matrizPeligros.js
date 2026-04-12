@@ -334,9 +334,9 @@ Eres un experto en Seguridad y Salud en el Trabajo (SST) en Colombia, especializ
 ${companyContext ? `**Contexto de la empresa:** ${companyContext}` : ''}
 ${integratedSSTContext}
 
-**DATOS DEL PELIGRO A ANALIZAR (Contexto de Proceso):**
-- Proceso: ${proceso.proceso}
-- Zona / Lugar: ${proceso.zona || 'No especificada'}
+**DATOS DEL PELIGRO A ANALIZAR (Contexto Bio-Individual del Trabajador y su Cargo):**
+- Perfil de Cargo Evaluado: ${proceso.proceso}
+- Zona / Lugar de Exposición: ${proceso.zona || 'No especificada'}
 - Actividad: ${proceso.actividad}
 - Tarea: ${proceso.tarea || 'No especificada'}
 - Rutinario: ${proceso.rutinario ? 'Sí' : 'No'}
@@ -351,12 +351,13 @@ Analice cuidadosamente las imágenes y el video adjuntos (si existen) para ident
 - Foto 2 (Ambiente): ${proceso.images?.foto2Desc || 'Sin descripción'}
 - Foto 3 (Controles): ${proceso.images?.foto3Desc || 'Sin descripción'}
 
-**INSTRUCCIONES:**
-Analiza la actividad/tarea y la evidencia visual descrita/adjunta para generar la valoración completa según GTC 45.
+**INSTRUCCIONES BIOCÉNTRICAS:**
+Actúa como médico laboral e higienista biocéntrico. Genera un análisis de vulnerabilidad cruzada y matriz GTC-45 para el **Perfil de Cargo** especificado arriba. 
+Al emitir medidas de intervención, ASUME que quien ejecuta el rol tiene limitaciones biológicas (ej. sobrepeso, hernias, susceptibilidad a químicos).
 - SI la clasificación sugerida es Físico, Químico o Biológico (Higiénico), OBLIGATORIAMENTE evalúa "deficienciaHigienica" usando la escala cualitativa (Muy Alto (MA), Alto (A), Medio (M), Bajo (B)) y asigna el "nivelDeficiencia" numérico correspondiente (MA=10, A=6, M=2, B=0).
-- Para CADA medida de intervención propuesta (eliminacion, sustitucion, ingenieria, administrativo, epp), DEBES asignar obligatoriamente un FR (>0) y FC (>0) asumiendo que el control SÍ se implementará. NUNCA los dejes en 0 si propones una medida.
+- Para CADA medida de intervención propuesta (eliminacion, sustitucion, ingenieria, administrativo, epp), DEBES asignar obligatoriamente un FR (>0) y FC (>0). Propone controles en la persona y organizacionales.
 - Evalúa mentalmente J = (NR * FR) / FC para cada medida y elige la más costo-efectiva. Llena "medidaSeleccionada" con esa medida.
-- Añade "justificacion" (Anexo E) argumentando tu elección de la medida seleccionada basándote también en lo observado en las imágenes.
+- Añade "justificacion" (Anexo E) argumentando tu elección de controles bio-individuales frente al rol analizado.
 Responde ÚNICAMENTE con un JSON válido (sin markdown, sin \`\`\`json, solo el objeto JSON puro).
 
 **ESTRUCTURA JSON REQUERIDA (OBLIGATORIO RESPETAR ESTAS LLAVES):**
@@ -548,7 +549,10 @@ Nivel de Riesgo: ${ci.riskLevel || 'N/A'}
 
 ${integratedSSTContext}
 
-Genera exactamente 5 a 7 procesos principales que sean lógicos para este tipo de empresa.
+El objetivo principal de tu consultoría es pasar del enfoque tradicional a un ENFOQUE BIO-INDIVIDUAL, donde la matriz se tabula enfocada en LA POSICIÓN/ROLES (Cargos) en lugar de procesos vacíos.
+
+Genera exactamente 5 a 7 Perfiles de Cargo (Roles) principales que sean lógicos para este tipo de empresa.
+Los "Cargos" deben usarse como el equivalente a los "Procesos" en tu JSON de respuesta (en la llave 'proceso' pon el nombre del cargo).
 ¡ESTRICTAMENTE PROHIBIDO GENERAR UN PROCESO CON 1 O 2 PELIGROS!
 Para CADA proceso, *DEBES INCLUIR MÍNIMO entre 5 y 8 peligros diferentes*. Es obligatorio listar TODAS las dimensiones aplicables (biomecánico por cargas/postura, físico por ruido/iluminación, seguridad por caídas/maquinaria, psicosocial, biológico, etc.). Si es Logística, debes incluir todos estos.
 No acortes la lista para ahorrar texto. Escribe el JSON completo con TODOS los peligros para cada proceso.
@@ -562,7 +566,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 {
   "procesos": [
     {
-      "proceso": "Nombre del Proceso",
+      "proceso": "Nombre del Cargo Ocupacional (Ej. Auxiliar Logístico)",
       "zona": "Lugar o área",
       "actividad": "Descripción de la actividad principal",
       "tarea": "Tarea específica",
@@ -766,7 +770,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const fechaEmision = currentDate || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 
         const headerHTML = buildStandardHeader({
-            title: 'INFORME EJECUTIVO DE MATRIZ DE PELIGROS GTC 45',
+            title: 'INFORME EJECUTIVO IPEVAR BIO-INDIVIDUAL (GTC-45)',
             companyInfo: loadedCompanyInfo,
             date: currentDate,
             norm: 'GTC 45 / Decreto 1072',
@@ -789,7 +793,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
                 else if (h.nivelRiesgo >= 40) riskLevels.III++;
                 else riskLevels.IV++;
 
-                let ficha = `▪ PROCESO: ${p.proceso} | ACTIVIDAD: ${p.actividad || '-'} | TAREA: ${p.tarea || '-'} | ZONA: ${p.zona || '-'} | ${p.rutinario ? 'RUTINARIA' : 'NO RUTINARIA'}`;
+                let ficha = `▪ CARGO / PERFIL: ${p.proceso} | ACTIVIDAD: ${p.actividad || '-'} | TAREA: ${p.tarea || '-'} | ZONA: ${p.zona || '-'} | ${p.rutinario ? 'RUTINARIA' : 'NO RUTINARIA'}`;
                 ficha += `\n  Peligro: "${h.descripcionPeligro || 'Sin descripción'}" | Clasificación: ${h.clasificacion || '-'}`;
                 ficha += `\n  Efectos Posibles: ${h.efectosPosibles || '-'}`;
                 ficha += `\n  Controles Existentes → Fuente: ${p.fuenteGeneradora || h.fuenteGeneradora || 'Ninguno'} | Medio: ${p.medioExistente || h.medioExistente || 'Ninguno'} | Individuo: ${p.individuoControl || h.individuoControl || 'Ninguno'}`;

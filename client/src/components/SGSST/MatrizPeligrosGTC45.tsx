@@ -209,6 +209,21 @@ const MatrizPeligrosGTC45 = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    const [cargosDisponibles, setCargosDisponibles] = useState<string[]>([]);
+    useEffect(() => {
+        const fetchCargos = async () => {
+            if (!token) return;
+            try {
+                const res = await fetch('/api/sgsst/perfil-cargo/data', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.perfilesList) setCargosDisponibles(data.perfilesList.map((c: any) => c.nombreCargo));
+                }
+            } catch (err) {}
+        };
+        fetchCargos();
+    }, [token]);
+
     useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {
             setSelectedModel(user.personalization.geminiModels.sstManagement);
@@ -691,6 +706,11 @@ const MatrizPeligrosGTC45 = () => {
                 </p>
             </div>
 
+            {/* Datalist for Cargos */}
+            <datalist id="cargos-disponibles-list">
+                {cargosDisponibles.map((c, i) => <option key={i} value={c} />)}
+            </datalist>
+
             {/* ═══ Processes List ═══ */}
             <div className="space-y-4">
                 {isLoading ? (
@@ -709,10 +729,10 @@ const MatrizPeligrosGTC45 = () => {
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-text-primary text-base">
-                                                {pIdx + 1}. {p.proceso || 'Nuevo Proceso'}
+                                                {pIdx + 1}. Cargo: {p.proceso || 'Nuevo Perfil'}
                                                 <span className="ml-2 text-xs font-normal text-text-secondary">— {p.actividad || 'Sin actividad'}</span>
                                             </h3>
-                                            <p className="text-xs text-text-secondary mt-0.5">{p.peligros.length} peligros identificados</p>
+                                            <p className="text-xs text-text-secondary mt-0.5">{p.peligros.length} peligros identificados para este perfil</p>
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2 w-full">
@@ -733,10 +753,10 @@ const MatrizPeligrosGTC45 = () => {
                                         {/* Process Details Inputs */}
                                         <div className="overflow-x-auto overflow-y-hidden pb-4 mb-4 border-bottom border-border-light classic-scrollbar">
                                             <div className="flex flex-nowrap gap-4 min-w-[800px] pb-2">
-                                                <div className="space-y-1 flex-1">
-                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Proceso</label>
-                                                    <input type="text" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
-                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium" />
+                                                <div className="space-y-1 flex-[1.5]">
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Perfil del Cargo</label>
+                                                    <input type="text" list="cargos-disponibles-list" value={p.proceso} onChange={e => updateProcesoField(p.id, 'proceso', e.target.value)}
+                                                        className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-bold text-indigo-600 dark:text-indigo-400" placeholder="Ej: Conductor, Auxiliar..." />
                                                 </div>
                                                 <div className="space-y-1 flex-1">
                                                     <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Zona / Lugar</label>
@@ -770,7 +790,7 @@ const MatrizPeligrosGTC45 = () => {
 
                                         {/* Controles Existentes del Proceso */}
                                         <div className="pt-2 pb-4">
-                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 tracking-tight uppercase mb-3 block border-b border-border-light pb-1">Controles Existentes (Aplicables al Proceso)</label>
+                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 tracking-tight uppercase mb-3 block border-b border-border-light pb-1">Controles Existentes (Aplicables al Cargo)</label>
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                 <div className="space-y-1">
                                                     <label className="text-[10px] font-bold text-text-secondary uppercase">En la Fuente</label>
@@ -863,7 +883,7 @@ const MatrizPeligrosGTC45 = () => {
                                         <div className="space-y-3">
                                             <div className="flex items-center justify-between border-b border-border-medium pb-1">
                                                 <h5 className="text-[11px] font-black text-teal-500 uppercase tracking-widest flex items-center gap-2">
-                                                    <Layers className="h-3.5 w-3.5" /> Peligros en este Proceso
+                                                    <Layers className="h-3.5 w-3.5" /> Ficha IPEVAR del Cargo
                                                 </h5>
                                                 {p.peligros.length === 0 && (
                                                     <span className="text-[10px] text-text-secondary italic">Haz clic en + para agregar un peligro</span>
@@ -1123,7 +1143,7 @@ const MatrizPeligrosGTC45 = () => {
                 <button onClick={handleAddProceso}
                     className="w-full p-4 border-2 border-dashed border-border-medium rounded-2xl flex items-center justify-center gap-2 text-text-secondary hover:bg-surface-secondary/50 hover:text-teal-500 transition-all">
                     <AnimatedIcon name="plus" size={20} />
-                    <span className="font-bold">Agregar Nuevo Proceso</span>
+                    <span className="font-bold">Agregar Nuevo Cargo</span>
                 </button>
             </div>
 
