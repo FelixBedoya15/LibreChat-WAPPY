@@ -60,6 +60,18 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
 
+    const [localToast, setLocalToast] = useState<{message: string, status: string, severity: string} | null>(null);
+
+    React.useEffect(() => {
+        const handleToast = (e: any) => {
+            if (!e.detail?.message) return;
+            setLocalToast({ message: e.detail.message, status: e.detail.status, severity: e.detail.severity });
+            setTimeout(() => setLocalToast(null), 3500);
+        };
+        window.addEventListener('add-toast', handleToast);
+        return () => window.removeEventListener('add-toast', handleToast);
+    }, []);
+
     const editorWrapperRef = useRef<HTMLDivElement>(null);
 
     // Dispatch global events so ancestor containers can remove overflow containment
@@ -854,8 +866,18 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
 
     return (
-        <div ref={editorWrapperRef} className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 relative ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
-            {/* Toolbar */}
+        <div ref={editorWrapperRef} className={`relative flex flex-col ${isFullScreen ? 'fixed inset-0 z-[99999] bg-surface-secondary' : 'h-full min-h-[600px] w-full rounded-xl bg-surface-secondary'} transition-all duration-300 font-sans`}>
+            
+            {localToast && (
+                <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[99999999] pointer-events-none">
+                    <div className="bg-[#0d0d0d] text-teal-400 border border-teal-500/30 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 font-semibold text-sm animate-in fade-in slide-in-from-top-6 duration-300">
+                        <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                        {localToast.message}
+                    </div>
+                </div>
+            )}
+
+            {/* Header Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
                 {/* Desktop View */}
                 <div className="hidden sm:flex flex-wrap gap-2 items-center justify-center">
