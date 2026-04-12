@@ -34,10 +34,10 @@ const REQUIRED_FIELDS = [
 const getPhases = () => [
     {
         id: 'plan',
-        title: 'Consciencia y Contexto',
-        subtitle: 'Conociendo al individuo',
-        description: 'Perfiles de Cargo (Roles), Perfil Sociodemográfico, Condiciones de Salud y Diagnóstico Inicial.',
-        extendedPhilosophy: 'El viaje preventivo comienza desde la comprensión profunda de dónde estamos y quiénes somos. Antes de intervenir el entorno o establecer reglas normativas, debemos diagnosticar el estado del "cuerpo corporativo" y de sus individuos, creando una línea base fundamental para que cualquier acción posterior sea humana y precisa.',
+        title: 'Consciencia Bio-Individual',
+        subtitle: 'El trabajador no es un promedio',
+        description: 'Perfil Sociodemográfico, Condiciones de Salud, Perfiles de Cargo y Diagnóstico Inicial.',
+        extendedPhilosophy: 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones únicas de edad, metabolismo y co-exposiciones. Dejamos de proteger a un "trabajador hipotético" para diagnosticar el estado real de cada bio-individuo, creando una línea base hiper-personalizada.',
         accent: 'text-[#10b981]',
         bgGlow: 'bg-[#10b981]/5',
         borderHover: 'hover:border-[#10b981]',
@@ -45,10 +45,10 @@ const getPhases = () => [
     },
     {
         id: 'do',
-        title: 'Interacción y Entorno',
-        subtitle: 'Diseño consciente de espacios',
+        title: 'Interacción Fisiológica y Entorno',
+        subtitle: 'El riesgo vive dentro del cuerpo',
         description: 'Participación y Peligros IPEVAR, Método OWAS, Permiso en Alturas, ATS y Vulnerabilidad.',
-        extendedPhilosophy: 'No se trata de cumplir procesos operativos aleatorios, sino de garantizar que cada interacción biomecánica y ambiental sea inherentemente segura. Aquí escuchamos al trabajador frente a sus riesgos cotidianos y mitigamos proactivamente el ecosistema físico y mental que habita día a día.',
+        extendedPhilosophy: 'El entorno es solo el catalizador; el riesgo real se materializa en la fisiología de cada persona. Más allá del monitoreo ambiental tradicional, buscamos medir el contacto real con los peligros, garantizando que cada interacción biomecánica y química esté controlada desde el metabolismo hasta el exterior.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
         borderHover: 'hover:border-[#0d9488]',
@@ -56,10 +56,10 @@ const getPhases = () => [
     },
     {
         id: 'check',
-        title: 'Marco de Cuidado',
-        subtitle: 'Acuerdos y cultura protectora',
+        title: 'Marco de Cuidado Personalizado',
+        subtitle: 'Reglas que contemplan al bio-individuo',
         description: 'Políticas y Objetivos SST, Reglamento Interno y de Higiene, Matriz Legal y Responsable SG-SST.',
-        extendedPhilosophy: 'Reemplazamos la "obligación documental" por un sistema de pactos, reglas de convivencia y normatividad que estructuran una red protectora alrededor de toda la comunidad corporativa. Es el baluarte institucional del bienestar ético.',
+        extendedPhilosophy: 'Reemplazamos las políticas genéricas por un sistema de pactos que protegen la diversidad bio-individual de nuestra comunidad. Es el baluarte institucional donde la normatividad se adapta a la realidad fisiológica de cada colaborador.',
         accent: 'text-[#059669]',
         bgGlow: 'bg-[#059669]/5',
         borderHover: 'hover:border-[#059669]',
@@ -67,10 +67,10 @@ const getPhases = () => [
     },
     {
         id: 'act',
-        title: 'Resiliencia y Evolución',
-        subtitle: 'Aprendizaje continuo del ecosistema',
+        title: 'Alerta Temprana y Resiliencia',
+        subtitle: 'Prevención antes del daño',
         description: 'Reporte de Actos, Investigación y Estadísticas ATEL, Auditoría, Alta Dirección y Matriz ACPM.',
-        extendedPhilosophy: 'Los incidentes no son castigos, sino lecciones. En esta etapa el sistema entero escucha las fallas en el bienestar humano para accionar soluciones profundas, permitiéndole a la organización sanar, adaptarse y evolucionar con el tiempo.',
+        extendedPhilosophy: 'Diseñado para proveer advertencias tempranas. Si el biomonitoreo revela contacto irregular, la organización aprende de esas señales mucho antes de que la enfermedad se manifieste, permitiéndole sanar, adaptar controles e iterar sus medidas de bioseguridad.',
         accent: 'text-[#14b8a6]',
         bgGlow: 'bg-[#14b8a6]/5',
         borderHover: 'hover:border-[#14b8a6]',
@@ -78,10 +78,10 @@ const getPhases = () => [
     },
     {
         id: 'predict',
-        title: 'Inteligencia Predictiva',
+        title: 'Inteligencia Predictiva Bio-Métrica',
         subtitle: 'Visión extendida con IA',
         description: 'Monitoreo dinámico del ecosistema mediante datos cruzados y análisis probabilístico avanzado.',
-        extendedPhilosophy: 'El futuro de la prevención radica en anticiparnos. Al cruzar todas las métricas del viaje del trabajador, la red neuronal y nuestros modelos probabilísticos detectan tendencias perjudiciales, dándonos el poder de salvaguardar el bienestar antes de que el riesgo se materialice.',
+        extendedPhilosophy: 'Al cruzar la data fisiológica, las costumbres de vida y el riesgo del entorno de cada colaborador, nuestros algoritmos probabilísticos detectan tendencias perjudiciales antes de que sucedan, brindando el poder de salvaguardar el bienestar celular y mental.',
         accent: 'text-[#8b5cf6]',
         bgGlow: 'bg-[#8b5cf6]/5',
         borderHover: 'hover:border-[#8b5cf6]',
@@ -216,8 +216,8 @@ export default function SGSSTDashboard() {
                             <Activity className="h-8 w-8 text-[#10b981]" strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">Somos SST</h1>
-                            <p className="text-text-secondary mt-1 text-sm font-medium">Por una Seguridad y Salud integral para el bienestar del bioindividuo.</p>
+                            <h1 className="text-3xl font-bold text-text-primary tracking-tight">SST Bio-Individual</h1>
+                            <p className="text-text-secondary mt-1 text-sm font-medium">Metodología centrada en el bio-monitoreo del individuo, donde la prevención se personaliza antes del daño.</p>
                         </div>
                     </div>
                 </div>

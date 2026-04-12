@@ -655,7 +655,7 @@
   "com_ui_gemini_models_desc": "Gestiona los modelos de Gemini predeterminados para cada aplicativo del sistema.",
   "com_ui_gemini_chat": "Chat General",
   "com_ui_gemini_agents": "Agentes",
-  "com_ui_gemini_sst": "Somos SST",
+  "com_ui_gemini_sst": "SST Bio-Individual",
   "com_ui_gemini_live": "Análisis y Chat en Vivo (Live)",
   "com_ui_gemini_correction": "Corrección de Texto (Voz)",
   "com_ui_gemini_report": "Generación de Informe SST",
@@ -1539,5 +1539,5 @@
   "com_ui_bulk_inactivate_error": "Error al inactivar usuarios",
   "com_ui_live_analysis_title": "Análisis en Vivo",
   "com_nav_blog": "Blog",
-  "com_nav_sgsst": "Somos SST"
+  "com_nav_sgsst": "SST Bio-Individual"
 }

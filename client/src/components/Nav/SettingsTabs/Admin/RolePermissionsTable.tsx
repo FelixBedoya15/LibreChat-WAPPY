@@ -29,7 +29,7 @@ const PERMISSION_LABELS = {
     [PermissionTypes.ENDPOINTS]: 'Modelos (Endpoints)',
     [PermissionTypes.ATTACHMENTS]: 'Adjuntar Archivos',
     [PermissionTypes.PARAMETERS]: 'Parámetros (Temp, Top P, etc)',
-    [PermissionTypes.SGSST]: 'Somos SST',
+    [PermissionTypes.SGSST]: 'SST Bio-Individual',
 };
 
 const ENDPOINT_KEYS = ['openAI', 'google', 'anthropic', 'wappy', 'agents', 'NVIDIA'];
