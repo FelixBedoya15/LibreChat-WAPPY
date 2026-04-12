@@ -525,10 +525,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 img.setAttribute('data-selected', 'true');
                 setSelectedImage(img);
                 const rect = img.getBoundingClientRect();
-                const editorRect = editorRef.current.getBoundingClientRect();
+                const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
                 setImageToolbarPos({
-                    top: rect.top - editorRect.top - 50 + editorRef.current.scrollTop,
-                    left: rect.left - editorRect.left
+                    top: rect.top - wrapperRect.top - 50,
+                    left: rect.left - wrapperRect.left
                 });
             } else if ((target.closest('.signature-placeholder') || target.innerText?.includes('FIRMADO DIGITALMENTE')) && editorRef.current?.contains(target)) {
                 const placeholder = (target.closest('.signature-placeholder') || target.closest('div') || target.parentElement) as HTMLElement;
@@ -553,10 +553,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 cell.setAttribute('data-selected', 'true');
                 setSelectedTableCell(cell);
                 const rect = cell.getBoundingClientRect();
-                const editorRect = editorRef.current!.getBoundingClientRect();
+                const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
                 setTableToolbarPos({
-                    top: rect.top - editorRect.top - 50 + editorRef.current!.scrollTop,
-                    left: rect.left - editorRect.left
+                    top: rect.top - wrapperRect.top - 50,
+                    left: rect.left - wrapperRect.left
                 });
             } else if (target.closest('.progress-bar-container, [style*="width:"]') && editorRef.current?.contains(target)) {
                 const graphic = target.closest('div') as HTMLDivElement;
@@ -565,10 +565,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     graphic.setAttribute('data-selected', 'true');
                     setSelectedGraphic(graphic);
                     const rect = graphic.getBoundingClientRect();
-                    const editorRect = editorRef.current!.getBoundingClientRect();
+                    const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
                     setGraphicToolbarPos({
-                        top: rect.top - editorRect.top - 60 + editorRef.current!.scrollTop,
-                        left: rect.left - editorRect.left
+                        top: rect.top - wrapperRect.top - 60,
+                        left: rect.left - wrapperRect.left
                     });
                 }
             } else if (target.closest('.diagram-node') && editorRef.current?.contains(target)) {
@@ -577,10 +577,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 node.setAttribute('data-selected', 'true');
                 setSelectedDiagramNode(node);
                 const rect = node.getBoundingClientRect();
-                const editorRect = editorRef.current.getBoundingClientRect();
+                const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
                 setDiagramNodeToolbarPos({
-                    top: rect.top - editorRect.top - 50 + editorRef.current.scrollTop,
-                    left: rect.left - editorRect.left
+                    top: rect.top - wrapperRect.top - 50,
+                    left: rect.left - wrapperRect.left
                 });
             } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.diagram-toolbar') && !target.closest('.signature-modal')) {
                 clearSelections();
