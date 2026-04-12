@@ -101,6 +101,8 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ isOpen, onClose, onS
         onClose();
     };
 
+    const targetNode = document.fullscreenElement || document.body;
+
     return ReactDOM.createPortal(
         <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 touch-none">
             <div className="bg-white dark:bg-surface-secondary w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
@@ -146,7 +148,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ isOpen, onClose, onS
                 </div>
             </div>
         </div>,
-        document.body
+        targetNode
     );
 };
 

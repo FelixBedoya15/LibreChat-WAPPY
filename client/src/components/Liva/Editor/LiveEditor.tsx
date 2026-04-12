@@ -83,7 +83,15 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const aiInputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        setPortalNode(document.getElementById('root') || document.body);
+        const updatePortal = () => {
+            setPortalNode(
+                (document.fullscreenElement as HTMLElement) ||
+                document.getElementById('root') || document.body
+            );
+        };
+        updatePortal();
+        document.addEventListener('fullscreenchange', updatePortal);
+        return () => document.removeEventListener('fullscreenchange', updatePortal);
     }, []);
 
     useEffect(() => {
@@ -821,7 +829,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const ToolbarSeparator = () => <div className="w-px h-6 bg-border-medium/60 mx-1" />;
 
     return (
-        <div ref={editorWrapperRef} className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
+        <div ref={editorWrapperRef} className={`w-full h-full flex flex-col bg-white dark:bg-zinc-900 transition-all duration-300 relative ${isFullScreen ? 'live-editor-fullscreen' : ''}`}>
             {/* Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
                 {/* Desktop View */}
@@ -874,7 +882,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
             {/* Signature Management Modal */}
             {isSignatureModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
+                <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
                     <div className="bg-surface-primary rounded-2xl border border-border-medium shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-4 border-b border-border-light flex justify-between items-center bg-surface-secondary">
                             <h3 className="font-bold text-text-primary text-sm uppercase">
@@ -949,139 +957,141 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 title={activeSignatureName && activeSignatureName !== 'DESCONOCIDO' ? `Firma: ${activeSignatureName}` : "Dibujar Nueva Firma"}
             />
 
+            {/* Floating Image Toolbar */}
+            {selectedImage && (
+                <div
+                    className="image-toolbar absolute z-[80] bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
+                    style={{
+                        top: `${Math.max(10, imageToolbarPos.top)}px`,
+                        left: `${Math.max(10, Math.min(imageToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                    }}
+                >
+                    <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
+                        <button onClick={() => setImageSize('sm')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Pequeño">S</button>
+                        <button onClick={() => setImageSize('md')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-bold border border-transparent hover:border-border-medium" title="Mediano">M</button>
+                        <button onClick={() => setImageSize('lg')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Grande">L</button>
+                        <button onClick={() => setImageSize('full')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Ancho Total">W</button>
+                    </div>
+
+                    <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                        <ToolbarButton icon={AlignLeft} onClick={() => setImageAlign('left')} label="Alinear Izquierda / Envolver" />
+                        <ToolbarButton icon={AlignCenter} onClick={() => setImageAlign('center')} label="Centrar" />
+                        <ToolbarButton icon={AlignRight} onClick={() => setImageAlign('right')} label="Alinear Derecha / Envolver" />
+                        <ToolbarButton icon={Move} onClick={() => setImageAlign('none')} label="Restablecer (En línea)" />
+                    </div>
+
+                    <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                        <ToolbarButton icon={ArrowUp} onClick={() => setImageLayer('front')} label="Traer al frente" />
+                        <ToolbarButton icon={ArrowDown} onClick={() => setImageLayer('back')} label="Enviar al fondo" />
+                    </div>
+
+                    <button
+                        onClick={removeImage}
+                        className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                        title="Eliminar imagen"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setSelectedImage(null)}
+                        className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
+                        title="Cerrar"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* Floating Table Toolbar */}
+            {selectedTableCell && (
+                <div
+                    className="table-toolbar absolute z-[80] bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex flex-wrap items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-200"
+                    style={{
+                        top: `${Math.max(10, tableToolbarPos.top)}px`,
+                        left: `${Math.max(10, Math.min(tableToolbarPos.left, (editorRef.current?.clientWidth || 0) - 400))}px`
+                    }}
+                >
+                    <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                        <ToolbarButton icon={Plus} onClick={() => addTableRow('above')} label="Fila Arriba" />
+                        <ToolbarButton icon={Plus} onClick={() => addTableRow('below')} label="Fila Abajo" />
+                        <ToolbarButton icon={Trash2} onClick={deleteTableRow} label="Eliminar Fila" />
+                    </div>
+                    <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                        <ToolbarButton icon={ChevronRight} onClick={() => addTableCol('right')} label="Columna Derecha" />
+                        <ToolbarButton icon={Trash2} onClick={deleteTableCol} label="Eliminar Columna" />
+                    </div>
+                    <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
+                        <ToolbarButton icon={Maximize} onClick={() => resizeColumn('wider')} label="Más Ancho" />
+                        <ToolbarButton icon={Minimize} onClick={() => resizeColumn('narrower')} label="Menos Ancho" />
+                    </div>
+                    <button onClick={deleteTable} className="p-1 px-2 text-red-500 hover:bg-red-50 rounded text-xs font-bold" title="Eliminar Tabla">TABLA</button>
+                    <button onClick={() => setSelectedTableCell(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
+                </div>
+            )}
+
+            {/* Floating Graphic/Progress Toolbar */}
+            {selectedGraphic && (
+                <div
+                    className="graphic-toolbar absolute z-[80] bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200"
+                    style={{
+                        top: `${Math.max(10, graphicToolbarPos.top)}px`,
+                        left: `${Math.max(10, Math.min(graphicToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                    }}
+                >
+                    <input
+                        type="range"
+                        min="0" max="100"
+                        defaultValue={parseInt(selectedGraphic.style.width) || 0}
+                        onChange={(e) => updateGraphic(parseInt(e.target.value))}
+                        className="w-24 accent-blue-600"
+                    />
+                    <div className="flex gap-1">
+                        <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#22c55e')} className="w-5 h-5 rounded-full bg-green-500 border border-white/20" title="Verde" />
+                        <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#eab308')} className="w-5 h-5 rounded-full bg-yellow-500 border border-white/20" title="Amarillo" />
+                        <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#ef4444')} className="w-5 h-5 rounded-full bg-red-500 border border-white/20" title="Rojo" />
+                    </div>
+                    <button onClick={() => setSelectedGraphic(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
+                </div>
+            )}
+
+            {/* Floating Diagram Node Toolbar */}
+            {selectedDiagramNode && (
+                <div
+                    className="diagram-toolbar absolute z-[80] bg-surface-primary shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
+                    style={{
+                        top: `${Math.max(10, diagramNodeToolbarPos.top)}px`,
+                        left: `${Math.max(10, Math.min(diagramNodeToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                    }}
+                >
+                    <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
+                        <span className="text-[10px] font-bold text-text-tertiary mr-1 uppercase self-center">Fondo:</span>
+                        <button onClick={() => setDiagramNodeColor('#f8fafc', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-[#f8fafc]" title="Gris Claro" />
+                        <button onClick={() => setDiagramNodeColor('#fef08a', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-yellow-200" title="Amarillo" />
+                        <button onClick={() => setDiagramNodeColor('#fed7aa', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-orange-200" title="Naranja" />
+                        <button onClick={() => setDiagramNodeColor('#fca5a5', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-red-300" title="Rojo Claro" />
+                        <button onClick={() => setDiagramNodeColor('#bbf7d0', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-green-200" title="Verde Claro" />
+                        <button onClick={() => setDiagramNodeColor('#e2e8f0', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-slate-200" title="Gris" />
+                    </div>
+                    <button
+                        onClick={deleteDiagramNode}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Eliminar figura"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setSelectedDiagramNode(null)}
+                        className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
             <div className="relative flex-1 overflow-x-auto overflow-y-hidden flex flex-col">
-                {/* Floating Image Toolbar */}
-                {selectedImage && (
-                    <div
-                        className="image-toolbar absolute z-50 bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
-                        style={{
-                            top: `${Math.max(10, imageToolbarPos.top)}px`,
-                            left: `${Math.max(10, Math.min(imageToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
-                        }}
-                    >
-                        <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
-                            <button onClick={() => setImageSize('sm')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Pequeño">S</button>
-                            <button onClick={() => setImageSize('md')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-bold border border-transparent hover:border-border-medium" title="Mediano">M</button>
-                            <button onClick={() => setImageSize('lg')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Grande">L</button>
-                            <button onClick={() => setImageSize('full')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Ancho Total">W</button>
-                        </div>
-
-                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
-                            <ToolbarButton icon={AlignLeft} onClick={() => setImageAlign('left')} label="Alinear Izquierda / Envolver" />
-                            <ToolbarButton icon={AlignCenter} onClick={() => setImageAlign('center')} label="Centrar" />
-                            <ToolbarButton icon={AlignRight} onClick={() => setImageAlign('right')} label="Alinear Derecha / Envolver" />
-                            <ToolbarButton icon={Move} onClick={() => setImageAlign('none')} label="Restablecer (En línea)" />
-                        </div>
-
-                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
-                            <ToolbarButton icon={ArrowUp} onClick={() => setImageLayer('front')} label="Traer al frente" />
-                            <ToolbarButton icon={ArrowDown} onClick={() => setImageLayer('back')} label="Enviar al fondo" />
-                        </div>
-
-                        <button
-                            onClick={removeImage}
-                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                            title="Eliminar imagen"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => setSelectedImage(null)}
-                            className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
-                            title="Cerrar"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-                )}
-
-                {/* Floating Table Toolbar */}
-                {selectedTableCell && (
-                    <div
-                        className="table-toolbar absolute z-50 bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex flex-wrap items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-200"
-                        style={{
-                            top: `${Math.max(10, tableToolbarPos.top)}px`,
-                            left: `${Math.max(10, Math.min(tableToolbarPos.left, (editorRef.current?.clientWidth || 0) - 400))}px`
-                        }}
-                    >
-                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
-                            <ToolbarButton icon={Plus} onClick={() => addTableRow('above')} label="Fila Arriba" />
-                            <ToolbarButton icon={Plus} onClick={() => addTableRow('below')} label="Fila Abajo" />
-                            <ToolbarButton icon={Trash2} onClick={deleteTableRow} label="Eliminar Fila" />
-                        </div>
-                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
-                            <ToolbarButton icon={ChevronRight} onClick={() => addTableCol('right')} label="Columna Derecha" />
-                            <ToolbarButton icon={Trash2} onClick={deleteTableCol} label="Eliminar Columna" />
-                        </div>
-                        <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
-                            <ToolbarButton icon={Maximize} onClick={() => resizeColumn('wider')} label="Más Ancho" />
-                            <ToolbarButton icon={Minimize} onClick={() => resizeColumn('narrower')} label="Menos Ancho" />
-                        </div>
-                        <button onClick={deleteTable} className="p-1 px-2 text-red-500 hover:bg-red-50 rounded text-xs font-bold" title="Eliminar Tabla">TABLA</button>
-                        <button onClick={() => setSelectedTableCell(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
-                    </div>
-                )}
-
-                {/* Floating Graphic/Progress Toolbar */}
-                {selectedGraphic && (
-                    <div
-                        className="graphic-toolbar absolute z-50 bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200"
-                        style={{
-                            top: `${Math.max(10, graphicToolbarPos.top)}px`,
-                            left: `${Math.max(10, Math.min(graphicToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
-                        }}
-                    >
-                        <input
-                            type="range"
-                            min="0" max="100"
-                            defaultValue={parseInt(selectedGraphic.style.width) || 0}
-                            onChange={(e) => updateGraphic(parseInt(e.target.value))}
-                            className="w-24 accent-blue-600"
-                        />
-                        <div className="flex gap-1">
-                            <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#22c55e')} className="w-5 h-5 rounded-full bg-green-500 border border-white/20" title="Verde" />
-                            <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#eab308')} className="w-5 h-5 rounded-full bg-yellow-500 border border-white/20" title="Amarillo" />
-                            <button onClick={() => updateGraphic(parseInt(selectedGraphic.style.width), '#ef4444')} className="w-5 h-5 rounded-full bg-red-500 border border-white/20" title="Rojo" />
-                        </div>
-                        <button onClick={() => setSelectedGraphic(null)} className="p-1 text-text-tertiary hover:bg-surface-hover rounded"><X className="w-4 h-4" /></button>
-                    </div>
-                )}
-
-                {/* Floating Diagram Node Toolbar */}
-                {selectedDiagramNode && (
-                    <div
-                        className="diagram-toolbar absolute z-50 bg-surface-primary shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
-                        style={{
-                            top: `${Math.max(10, diagramNodeToolbarPos.top)}px`,
-                            left: `${Math.max(10, Math.min(diagramNodeToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
-                        }}
-                    >
-                        <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
-                            <span className="text-[10px] font-bold text-text-tertiary mr-1 uppercase self-center">Fondo:</span>
-                            <button onClick={() => setDiagramNodeColor('#f8fafc', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-[#f8fafc]" title="Gris Claro" />
-                            <button onClick={() => setDiagramNodeColor('#fef08a', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-yellow-200" title="Amarillo" />
-                            <button onClick={() => setDiagramNodeColor('#fed7aa', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-orange-200" title="Naranja" />
-                            <button onClick={() => setDiagramNodeColor('#fca5a5', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-red-300" title="Rojo Claro" />
-                            <button onClick={() => setDiagramNodeColor('#bbf7d0', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-green-200" title="Verde Claro" />
-                            <button onClick={() => setDiagramNodeColor('#e2e8f0', '#111111')} className="w-5 h-5 rounded-full border border-gray-300 bg-slate-200" title="Gris" />
-                        </div>
-                        <button
-                            onClick={deleteDiagramNode}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="Eliminar figura"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => setSelectedDiagramNode(null)}
-                            className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-                )}
                 <div
                     ref={editorRef}
+
                     className={`flex-1 p-3 sm:p-8 outline-none overflow-y-auto prose ${!paperMode ? 'dark:prose-invert' : ''} max-w-none w-full min-w-[900px] live-editor-content ${reportType === 'checklist' ? 'checklist-mode' : ''} ${paperMode ? 'paper-mode' : ''}`}
                     contentEditable
                     onInput={handleInput}
