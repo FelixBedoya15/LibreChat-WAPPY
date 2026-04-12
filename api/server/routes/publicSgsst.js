@@ -7,7 +7,7 @@ const Notification = require('~/models/Notification');
 const router = express.Router();
 
 // ─── GET /api/public-sgsst/company/:companyId ─────────────────────────────
-// Get public details of the company (Name, Logo) to show in the portal
+// Get public details of the company (Name, Logo, Cargos) to show in the portal
 router.get('/company/:companyId', async (req, res) => {
     try {
         const { companyId } = req.params;
@@ -20,16 +20,32 @@ router.get('/company/:companyId', async (req, res) => {
             return res.status(404).json({ error: 'Empresa no encontrada' });
         }
 
+        // Also fetch unique cargos from the workers list
+        const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData;
+        let cargos = [];
+        if (PerfilSociodemograficoData) {
+            const perfil = await PerfilSociodemograficoData.findOne({ user: companyId }).lean();
+            if (perfil?.trabajadores?.length) {
+                const set = new Set();
+                perfil.trabajadores.forEach(t => {
+                    if (t.cargo && t.cargo.trim()) set.add(t.cargo.trim());
+                });
+                cargos = [...set].sort();
+            }
+        }
+
         return res.json({
             companyName: company.companyName || 'Empresa Registrada',
             nit: company.nit || '',
-            logo: company.logoBase64 || null
+            logo: company.logoBase64 || null,
+            cargos,
         });
     } catch (error) {
         logger.error('[Public SGSST] Company fetch error:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+
 
 // ─── POST /api/public-sgsst/validate-worker/:companyId ─────────────────────
 // Validar tempranamente que el trabajador sí existe en el Perfil Sociodemográfico

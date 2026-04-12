@@ -99,6 +99,10 @@ export default function PublicAtelTestimonio() {
             alert("Por favor ingrese su nombre y cédula para continuar.");
             return;
         }
+        if (company?.cargos?.length > 0 && !cargo) {
+            alert("Por favor seleccione su cargo antes de continuar.");
+            return;
+        }
         setStep(2);
     };
 
@@ -280,7 +284,20 @@ export default function PublicAtelTestimonio() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-1.5">Cargo / Relación</label>
-                                    <input type="text" className="w-full border-gray-300 rounded-xl focus:ring-teal-500 py-3 bg-gray-50" placeholder="Tu cargo en la empresa" value={cargo} onChange={(e) => setCargo(e.target.value)} />
+                                    {company.cargos && company.cargos.length > 0 ? (
+                                        <select
+                                            className="w-full border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 py-3 px-3 bg-gray-50 font-medium text-gray-800 appearance-none"
+                                            value={cargo}
+                                            onChange={(e) => setCargo(e.target.value)}
+                                        >
+                                            <option value="">Selecciona tu cargo...</option>
+                                            {company.cargos.map((c: string) => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input type="text" className="w-full border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 py-3 px-3 bg-gray-50" placeholder="Tu cargo en la empresa" value={cargo} onChange={(e) => setCargo(e.target.value)} />
+                                    )}
                                 </div>
                             </div>
                             <div className="mt-auto pt-8">
