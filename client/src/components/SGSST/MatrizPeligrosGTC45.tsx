@@ -214,7 +214,7 @@ const MatrizPeligrosGTC45 = () => {
         const fetchCargos = async () => {
             if (!token) return;
             try {
-                const res = await fetch('/api/sgsst/perfil-cargo/data', { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch('/api/sgsst/perfiles-cargo/data', { headers: { 'Authorization': `Bearer ${token}` } });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.perfilesList) setCargosDisponibles(data.perfilesList.map((c: any) => c.nombreCargo));
