@@ -140,7 +140,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     const handleSaveData = useCallback(() => {
         try {
             localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify({ statuses: validStatuses, observations }));
-            showToast({ message: 'Calificación de auditoría guardada localmente', status: 'success' });
+            showToast({ message: 'Calificación de auditoría guardada localmente', status: 'success', severity: 'success' });
         } catch(e) {
             showToast({ message: 'Error al guardar calificación', status: 'error' });
         }
@@ -198,7 +198,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
         
         setStatuses(newStatuses);
         setObservations(newObservations);
-        showToast({ message: 'Resultados de auditoría simulados generados correctamente', status: 'success' });
+        showToast({ message: 'Resultados de auditoría simulados generados correctamente', status: 'success', severity: 'success' });
     };
 
     const toggleItemExpanded = useCallback((itemId: string) => {
@@ -280,7 +280,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             setConversationId('new');
             setReportMessageId(null);
             onAnalysisComplete?.(result.report);
-            showToast({ message: 'Informe de Auditoría generado exitosamente', status: 'success' });
+            showToast({ message: 'Informe de Auditoría generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Audit Analysis error:', error);
             let errorMsg: string;
@@ -344,7 +344,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 setAnalysisReport(contentToSave);
                 setEditorContent(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Auditoría guardada exitosamente', status: 'success' });
+                showToast({ message: 'Auditoría guardada exitosamente', status: 'success', severity: 'success' });
             } else {
                 showToast({ message: 'Error al guardar auditoría', status: 'error' });
             }
@@ -394,7 +394,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Auditoría cargada y restaurada', status: 'success' });
+                showToast({ message: 'Auditoría cargada y restaurada', status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load error:', e);

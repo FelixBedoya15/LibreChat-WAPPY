@@ -183,7 +183,7 @@ const MatrizLegal = () => {
         setSeguimientos(newSeguimientos);
         if (!activity) setActivity('Manufactura y distribución de productos químicos');
         if (!location) setLocation('Bogotá D.C.');
-        showToast({ message: 'Datos de matriz legal simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de matriz legal simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const toggleCategory = useCallback((category: string) => {
@@ -233,7 +233,7 @@ const MatrizLegal = () => {
             setEditorContent(data.matrix);
             setConversationId('new');
             setReportMessageId(null);
-            showToast({ message: 'Matriz Legal generada exitosamente', status: 'success' });
+            showToast({ message: 'Matriz Legal generada exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Matrix generation error:', error);
             showToast({ message: error.message || 'Error al generar la matriz', status: 'error' });
@@ -264,7 +264,7 @@ const MatrizLegal = () => {
                 body: JSON.stringify(body),
             });
             if (res.ok) {
-                showToast({ message: 'Avance guardado exitosamente', status: 'success' });
+                showToast({ message: 'Avance guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 throw new Error('Error al guardar datos');
             }
@@ -314,7 +314,7 @@ const MatrizLegal = () => {
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Documento guardado en historial', status: 'success' });
+                showToast({ message: 'Documento guardado en historial', status: 'success', severity: 'success' });
             } else {
                 showToast({ message: 'Error al guardar el documento', status: 'error' });
             }

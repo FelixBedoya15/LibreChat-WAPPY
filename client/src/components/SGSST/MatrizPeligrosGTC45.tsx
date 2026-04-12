@@ -453,7 +453,7 @@ const MatrizPeligrosGTC45 = () => {
                     peligros: (p.peligros || []).map((h: any) => recalculateHazard({ ...EMPTY_HAZARD, ...h }))
                 }));
                 setProcesos(refreshedProcesos);
-                showToast({ message: 'Matriz generada con éxito (7 procesos)', status: 'success' });
+                showToast({ message: 'Matriz generada con éxito (7 procesos)', status: 'success', severity: 'success' });
             }
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
@@ -465,7 +465,7 @@ const MatrizPeligrosGTC45 = () => {
     const handleDummyData = () => {
         const dummy = generateDummyData.matrizPeligros();
         setProcesos(prev => [...prev, ...dummy.procesos]);
-        showToast({ message: 'Datos de prueba (Matriz de Peligros) generados con éxito', status: 'success' });
+        showToast({ message: 'Datos de prueba (Matriz de Peligros) generados con éxito', status: 'success', severity: 'success' });
     };
 
     const handleCompletePeligro = async (proceso: ProcesoEntry, peligro: PeligroItem) => {
@@ -495,7 +495,7 @@ const MatrizPeligrosGTC45 = () => {
                     peligros: p.peligros.map(h => h.id === peligro.id ? recalculateHazard({ ...h, ...hazardFields }) : h)
                 };
             }));
-            showToast({ message: 'Peligro valorado con IA', status: 'success' });
+            showToast({ message: 'Peligro valorado con IA', status: 'success', severity: 'success' });
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
@@ -512,7 +512,7 @@ const MatrizPeligrosGTC45 = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ procesos }),
             });
-            if (res.ok) showToast({ message: 'Matriz guardada', status: 'success' });
+            if (res.ok) showToast({ message: 'Matriz guardada', status: 'success', severity: 'success' });
             else throw new Error('Error al guardar');
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
@@ -553,7 +553,7 @@ const MatrizPeligrosGTC45 = () => {
             setEditorContent(html);
             setConversationId('new');
             setReportMessageId(null);
-            showToast({ message: 'Informe gerencial generado con éxito', status: 'success' });
+            showToast({ message: 'Informe gerencial generado con éxito', status: 'success', severity: 'success' });
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
@@ -580,7 +580,7 @@ const MatrizPeligrosGTC45 = () => {
                 if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false); // Hide the history panel
-                showToast({ message: 'Informe guardado', status: 'success' });
+                showToast({ message: 'Informe guardado', status: 'success', severity: 'success' });
             }
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });

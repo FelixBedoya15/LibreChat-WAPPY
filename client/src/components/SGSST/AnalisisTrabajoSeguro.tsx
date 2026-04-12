@@ -188,7 +188,7 @@ const AnalisisTrabajoSeguro = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ formData, trabajadoresList, responsablesList, images, video })
             });
-            if (res.ok && !silent) showToast({ message: 'Datos del ATS guardados correctamente.', status: 'success' });
+            if (res.ok && !silent) showToast({ message: 'Datos del ATS guardados correctamente.', status: 'success', severity: 'success' });
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
         }
@@ -200,7 +200,7 @@ const AnalisisTrabajoSeguro = () => {
         setTrabajadoresList(dummy.trabajadoresList);
         setResponsablesList(dummy.responsablesList);
         setImages(dummy.images as any);
-        showToast({ message: 'Datos de prueba generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de prueba generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleVoiceInput = () => {
@@ -304,7 +304,7 @@ const AnalisisTrabajoSeguro = () => {
             reader.onload = (ev) => {
                 setVideo(ev.target?.result as string);
                 setIsVideoUploading(false);
-                showToast({ message: 'Video de evidencia cargado (Máx 10s).', status: 'success' });
+                showToast({ message: 'Video de evidencia cargado (Máx 10s).', status: 'success', severity: 'success' });
             };
             reader.onerror = () => setIsVideoUploading(false);
             reader.readAsDataURL(file);
@@ -346,7 +346,7 @@ const AnalisisTrabajoSeguro = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'ATS generado exitosamente', status: 'success' });
+            showToast({ message: 'ATS generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar ATS', status: 'error' });
         } finally {
@@ -364,7 +364,7 @@ const AnalisisTrabajoSeguro = () => {
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
                 });
-                if (res.ok) { setRefreshTrigger(p => p + 1); showToast({ message: 'ATS actualizado exitosamente', status: 'success' }); }
+                if (res.ok) { setRefreshTrigger(p => p + 1); showToast({ message: 'ATS actualizado exitosamente', status: 'success', severity: 'success' }); }
                 return;
             }
             const res = await fetch('/api/sgsst/diagnostico/save-report', {
@@ -381,7 +381,7 @@ const AnalisisTrabajoSeguro = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(p => p + 1);
-                showToast({ message: 'ATS guardado exitosamente', status: 'success' });
+                showToast({ message: 'ATS guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
@@ -405,7 +405,7 @@ const AnalisisTrabajoSeguro = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'ATS cargado correctamente', status: 'success' });
+                showToast({ message: 'ATS cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error al cargar el ATS', status: 'error' });

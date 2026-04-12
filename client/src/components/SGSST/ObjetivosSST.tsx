@@ -63,7 +63,7 @@ const ObjetivosSST = () => {
         setPolicySummary('Prevenir accidentes y enfermedades laborales, fomentar la cultura de autocuidado, garantizar el bienestar físico y mental de los trabajadores, cumplir con la normatividad colombiana vigente en SST.');
         setDiagnosticSummary('Debilidades identificadas: falta de capacitaciones en 40% del personal, plan de emergencias desactualizado, sin indicadores de ausencia activos. Fortalezas: COPASST activo, empresa con <50 trabajadores.');
         setAdditionalNorms('Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012');
-        showToast({ message: 'Datos de objetivos simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de objetivos simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleGenerate = useCallback(async () => {
@@ -95,7 +95,7 @@ const ObjetivosSST = () => {
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Objetivos SST generados exitosamente', status: 'success' });
+            showToast({ message: 'Objetivos SST generados exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Objectives generation error:', error);
             showToast({ message: error.message || 'Error al generar los objetivos', status: 'error' });
@@ -130,7 +130,7 @@ const ObjetivosSST = () => {
 
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Objetivos actualizados exitosamente', status: 'success' });
+                    showToast({ message: 'Objetivos actualizados exitosamente', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
@@ -154,7 +154,7 @@ const ObjetivosSST = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Objetivos guardados exitosamente', status: 'success' });
+                showToast({ message: 'Objetivos guardados exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
@@ -184,7 +184,7 @@ const ObjetivosSST = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Objetivos cargados correctamente', status: 'success' });
+                showToast({ message: 'Objetivos cargados correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load objectives error:', e);
@@ -211,7 +211,7 @@ const ObjetivosSST = () => {
     const handleSaveData = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ policySummary, diagnosticSummary, previousObjectives, yearPlan }));
-            showToast({ message: 'Datos guardados exitosamente', status: 'success' });
+            showToast({ message: 'Datos guardados exitosamente', status: 'success', severity: 'success' });
         } catch(e) {
             showToast({ message: 'Error al guardar datos', status: 'error' });
         }

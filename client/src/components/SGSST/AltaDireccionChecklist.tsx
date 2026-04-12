@@ -184,7 +184,7 @@ export default function AltaDireccionChecklist() {
             await axios.post('/api/sgsst/alta-direccion/save', { statusData }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            showToast({ message: 'Calificación de Alta Dirección guardada', status: 'success' });
+            showToast({ message: 'Calificación de Alta Dirección guardada', status: 'success', severity: 'success' });
         } catch (e) {
             showToast({ message: 'Error al guardar calificación', status: 'error' });
         }
@@ -247,7 +247,7 @@ export default function AltaDireccionChecklist() {
             setShowInbox(false);
             showToast({
                 message: '✅ Evaluación aprobada y cargada en el formulario. ¡Ya puedes generar el informe!',
-                status: 'success',
+                status: 'success', severity: 'success',
                 duration: 5000,
             });
         } catch (e) {
@@ -314,7 +314,7 @@ export default function AltaDireccionChecklist() {
             setEditorContent(cleanReport);
             setConversationId('new');
             setReportMessageId(null);
-            showToast({ message: 'Informe de Alta Dirección generado exitosamente', status: 'success' });
+            showToast({ message: 'Informe de Alta Dirección generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             let errorMsg = 'Error al generar el análisis';
             if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
@@ -344,7 +344,7 @@ export default function AltaDireccionChecklist() {
                 });
                 if (res.ok) {
                     setRefreshTrigger(p => p + 1);
-                    showToast({ message: 'Informe actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Informe actualizado exitosamente', status: 'success', severity: 'success' });
                 }
                 return;
             }
@@ -362,7 +362,7 @@ export default function AltaDireccionChecklist() {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(p => p + 1);
-                showToast({ message: 'Informe de Alta Dirección guardado', status: 'success' });
+                showToast({ message: 'Informe de Alta Dirección guardado', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error de red al guardar el informe', status: 'error' });
@@ -384,7 +384,7 @@ export default function AltaDireccionChecklist() {
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Informe cargado exitosamente', status: 'success' });
+                showToast({ message: 'Informe cargado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error al cargar el informe', status: 'error' });
@@ -571,7 +571,7 @@ export default function AltaDireccionChecklist() {
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(portalUrl);
-                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                                     >

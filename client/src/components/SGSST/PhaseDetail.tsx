@@ -181,7 +181,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
     const uploadMutation = useUploadFileMutation({
         onSuccess: (data) => {
             setIsUploading(null);
-            showToast({ message: 'Archivo subido correctamente', status: 'success' });
+            showToast({ message: 'Archivo subido correctamente', status: 'success', severity: 'success' });
 
             const newFile = {
                 file_id: data.file_id,

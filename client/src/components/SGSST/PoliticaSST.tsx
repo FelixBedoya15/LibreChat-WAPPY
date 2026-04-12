@@ -64,7 +64,7 @@ const PoliticaSST = () => {
         setCommitments('Destinación de recursos financieros, técnicos y humanos; cumplimiento estricto de la normativa colombiana vigente; mejora continua del desempeño en SST; protección de la salud física y mental.');
         setObjectives('Reducir la tasa de accidentalidad en un 20% anual, implementar programa de pausas activas, mantener el SG-SST actualizado conforme a la Res 0312 de 2019.');
         setAdditionalNorms('Decreto 1072 de 2015, Resolución 0312 de 2019, Ley 1562 de 2012');
-        showToast({ message: 'Datos de política simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de política simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleGenerate = useCallback(async () => {
@@ -98,7 +98,7 @@ const PoliticaSST = () => {
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Política SST generada exitosamente', status: 'success' });
+            showToast({ message: 'Política SST generada exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Policy generation error:', error);
             showToast({ message: error.message || 'Error al generar la política', status: 'error' });
@@ -133,7 +133,7 @@ const PoliticaSST = () => {
 
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Política actualizada exitosamente', status: 'success' });
+                    showToast({ message: 'Política actualizada exitosamente', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
@@ -157,7 +157,7 @@ const PoliticaSST = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Política guardada exitosamente', status: 'success' });
+                showToast({ message: 'Política guardada exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
@@ -189,7 +189,7 @@ const PoliticaSST = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Política cargada correctamente', status: 'success' });
+                showToast({ message: 'Política cargada correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load policy error:', e);
@@ -215,7 +215,7 @@ const PoliticaSST = () => {
     const handleSaveData = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ hazards, scope, commitments }));
-            showToast({ message: 'Datos guardados exitosamente', status: 'success' });
+            showToast({ message: 'Datos guardados exitosamente', status: 'success', severity: 'success' });
         } catch(e) {
             showToast({ message: 'Error al guardar datos', status: 'error' });
         }

@@ -202,7 +202,7 @@ const PermisoAlturas = () => {
             { nombre: dummy.coordinadorAlturas, rol: 'Coordinador de Alturas', cedula: '' },
             { nombre: dummy.rescatista, rol: 'Rescatista', cedula: '' },
         ]);
-        showToast({ message: 'Datos de permiso de alturas simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de permiso de alturas simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleSaveData = async (silent = false) => {
@@ -220,7 +220,7 @@ const PermisoAlturas = () => {
                 })
             });
             if (res.ok && !silent) {
-                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success' });
+                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success', severity: 'success' });
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
@@ -363,7 +363,7 @@ const PermisoAlturas = () => {
             reader.onload = (ev) => {
                 setVideo(ev.target?.result as string);
                 setIsVideoUploading(false);
-                showToast({ message: 'Video de evidencia en alturas cargado.', status: 'success' });
+                showToast({ message: 'Video de evidencia en alturas cargado.', status: 'success', severity: 'success' });
             };
             reader.onerror = () => setIsVideoUploading(false);
             reader.readAsDataURL(file);
@@ -417,7 +417,7 @@ const PermisoAlturas = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Permiso generado exitosamente', status: 'success' });
+            showToast({ message: 'Permiso generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
             showToast({ message: error.message || 'Error al generar', status: 'error' });
@@ -444,7 +444,7 @@ const PermisoAlturas = () => {
                 });
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Permiso actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Permiso actualizado exitosamente', status: 'success', severity: 'success' });
                 }
                 return;
             }
@@ -464,7 +464,7 @@ const PermisoAlturas = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Permiso guardado exitosamente', status: 'success' });
+                showToast({ message: 'Permiso guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
@@ -488,7 +488,7 @@ const PermisoAlturas = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Permiso cargado correctamente', status: 'success' });
+                showToast({ message: 'Permiso cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error al cargar el permiso', status: 'error' });

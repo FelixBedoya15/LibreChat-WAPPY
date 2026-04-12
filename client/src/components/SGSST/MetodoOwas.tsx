@@ -237,7 +237,7 @@ const MetodoOwas = () => {
     setObservaciones(obsFromDummy);
     setTrabajadoresList([{ nombre: 'Juan Carlos Mendoza', cedula: '12345678' }]);
     setResponsablesList([{ nombre: 'Ing. Marcela Salcedo', cedula: '98765432', rol: 'Responsable Ergonómica SST' }]);
-    showToast({ message: `Datos OWAS simulados generados: ${obsFromDummy.length} observaciones cargadas.`, status: 'success' });
+    showToast({ message: `Datos OWAS simulados generados: ${obsFromDummy.length} observaciones cargadas.`, status: 'success', severity: 'success' });
   };
 
   const handleSaveData = async (silent = false) => {
@@ -248,7 +248,7 @@ const MetodoOwas = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ formData, observaciones, trabajadoresList, responsablesList, images, video })
       });
-      if (res.ok && !silent) showToast({ message: 'Datos OWAS guardados correctamente.', status: 'success' });
+      if (res.ok && !silent) showToast({ message: 'Datos OWAS guardados correctamente.', status: 'success', severity: 'success' });
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
   };
 
@@ -344,7 +344,7 @@ const MetodoOwas = () => {
       reader.onload = (ev) => {
         setVideo(ev.target?.result as string);
         setIsVideoUploading(false);
-        showToast({ message: 'Video de evidencia cargado (Máx 10s).', status: 'success' });
+        showToast({ message: 'Video de evidencia cargado (Máx 10s).', status: 'success', severity: 'success' });
       };
       reader.onerror = () => setIsVideoUploading(false);
       reader.readAsDataURL(file);
@@ -398,7 +398,7 @@ const MetodoOwas = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-      showToast({ message: 'Informe OWAS generado exitosamente', status: 'success' });
+      showToast({ message: 'Informe OWAS generado exitosamente', status: 'success', severity: 'success' });
     } catch (error: any) {
       showToast({ message: error.message || 'Error al generar el informe OWAS', status: 'error' });
     } finally { setIsGenerating(false); }
@@ -410,11 +410,11 @@ const MetodoOwas = () => {
     try {
       if (conversationId && conversationId !== 'new' && reportMessageId) {
         const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ conversationId, messageId: reportMessageId, content }) });
-        if (res.ok) { setRefreshTrigger(p => p + 1); showToast({ message: 'OWAS actualizado', status: 'success' }); }
+        if (res.ok) { setRefreshTrigger(p => p + 1); showToast({ message: 'OWAS actualizado', status: 'success', severity: 'success' }); }
         return;
       }
       const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ content, title: `OWAS – ${new Date().toLocaleDateString('es-CO')}`, tags: ['sgsst-owas'] }) });
-      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Informe OWAS guardado', status: 'success' }); }
+      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Informe OWAS guardado', status: 'success', severity: 'success' }); }
     } catch (e: any) { showToast({ message: `Error: ${e.message}`, status: 'error' }); }
   }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
 
@@ -426,7 +426,7 @@ const MetodoOwas = () => {
       const last = messages[messages.length - 1];
       if (last?.text) { setGeneratedReport(last.text); setEditorContent(last.text); setConversationId(id); setReportMessageId(last.messageId); setEditorKey(Date.now().toString());
             
-            setIsFormExpanded(false); showToast({ message: 'OWAS cargado', status: 'success' }); }
+            setIsFormExpanded(false); showToast({ message: 'OWAS cargado', status: 'success', severity: 'success' }); }
     } catch { showToast({ message: 'Error al cargar', status: 'error' }); }
     setIsHistoryOpen(false);
   }, [token, showToast]);

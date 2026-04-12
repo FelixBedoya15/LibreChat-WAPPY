@@ -92,7 +92,7 @@ const ResponsableSGSST = () => {
         setLicenseExpiry(prev => prev || '2026-12-31');
         setCourseStatus(prev => prev || '2025-03-01');
         setAdditionalNorms(prev => prev || 'Resolución 908 de 2025, Decreto 1072 de 2015, Resolución 0312 de 2019');
-        showToast({ message: 'Datos del responsable SG-SST simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos del responsable SG-SST simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleGenerate = useCallback(async () => {
@@ -128,7 +128,7 @@ const ResponsableSGSST = () => {
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Documento generado exitosamente', status: 'success' });
+            showToast({ message: 'Documento generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
             showToast({ message: error.message || 'Error al generar el documento', status: 'error' });
@@ -162,7 +162,7 @@ const ResponsableSGSST = () => {
 
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Documento actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Documento actualizado exitosamente', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     throw new Error(err.message || 'Error al actualizar');
@@ -184,7 +184,7 @@ const ResponsableSGSST = () => {
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Documento guardado exitosamente', status: 'success' });
+                    showToast({ message: 'Documento guardado exitosamente', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     throw new Error(err.message || 'Error al guardar');
@@ -216,7 +216,7 @@ const ResponsableSGSST = () => {
     const handleSaveData = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }));
-            showToast({ message: 'Datos guardados exitosamente', status: 'success' });
+            showToast({ message: 'Datos guardados exitosamente', status: 'success', severity: 'success' });
         } catch(e) {
             showToast({ message: 'Error al guardar datos', status: 'error' });
         }
@@ -241,7 +241,7 @@ const ResponsableSGSST = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Documento cargado correctamente', status: 'success' });
+                showToast({ message: 'Documento cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load document error:', e);

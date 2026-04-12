@@ -186,7 +186,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 body: JSON.stringify(data),
             });
             if (res.ok) {
-                showToast({ message: 'Información de la empresa guardada', status: 'success' });
+                showToast({ message: 'Información de la empresa guardada', status: 'success', severity: 'success' });
                 onClose();
             } else {
                 showToast({ message: 'Error al guardar', status: 'error' });

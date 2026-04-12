@@ -141,7 +141,7 @@ export default function AgenteGTC45Workspace() {
         body: JSON.stringify({ matrixRows: rows })
       });
       if (res.ok && showNotification) {
-         showToast({ message: 'Matriz guardada exitosamente.', status: 'success' });
+         showToast({ message: 'Matriz guardada exitosamente.', status: 'success', severity: 'success' });
       }
     } catch (e) {
       if (showNotification) showToast({ message: 'Error guardando la matriz.', status: 'error' });

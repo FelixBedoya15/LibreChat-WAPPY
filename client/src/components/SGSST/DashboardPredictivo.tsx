@@ -175,7 +175,7 @@ const DashboardPredictivo = () => {
             if (res.ok) {
                 const data = await res.json();
                 setForecast(data);
-                showToast({ message: 'Indicadores predictivos actualizados', status: 'success' });
+                showToast({ message: 'Indicadores predictivos actualizados', status: 'success', severity: 'success' });
             } else {
                 const errData = await res.json();
                 showToast({ message: errData.error || 'Error al cargar indicadores', status: 'error' });
@@ -220,7 +220,7 @@ const DashboardPredictivo = () => {
             setConversationId('new');
             setReportMessageId(null);
             setIsReportCollapsed(false);
-            showToast({ message: 'Informe Predictivo generado exitosamente', status: 'success' });
+            showToast({ message: 'Informe Predictivo generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
         } finally {
@@ -256,7 +256,7 @@ const DashboardPredictivo = () => {
                 setGeneratedReport(contentToSave);
                 setEditorContent(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Informe guardado exitosamente', status: 'success' });
+                showToast({ message: 'Informe guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });

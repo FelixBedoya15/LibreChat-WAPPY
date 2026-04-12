@@ -266,7 +266,7 @@ const PerfilSociodemografico = () => {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Trabajadores");
         XLSX.writeFile(workbook, "Perfil_Sociodemografico.xlsx");
-        showToast({ message: 'Archivo Excel exportado exitosamente', status: 'success' });
+        showToast({ message: 'Archivo Excel exportado exitosamente', status: 'success', severity: 'success' });
     };
 
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -328,7 +328,7 @@ const PerfilSociodemografico = () => {
                 });
 
                 setTrabajadores(prev => [...prev, ...newWorkers]);
-                showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, status: 'success' });
+                showToast({ message: `${newWorkers.length} trabajadores importados correctamente`, status: 'success', severity: 'success' });
             } catch (err) {
                 console.error("Error importing Excel:", err);
                 showToast({ message: 'Error al importar Excel. Verifique el formato del archivo.', status: 'error' });
@@ -345,7 +345,7 @@ const PerfilSociodemografico = () => {
             dummyWorkers.forEach(w => w.cargo = cargosDisponibles[0].nombreCargo);
         }
         setTrabajadores(prev => [...prev, ...dummyWorkers]);
-        showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, status: 'success' });
+        showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, status: 'success', severity: 'success' });
     };
 
     const handleSaveData = async () => {
@@ -359,7 +359,7 @@ const PerfilSociodemografico = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ trabajadores }),
             });
-            if (res.ok) showToast({ message: 'Perfil sociodemográfico guardado', status: 'success' });
+            if (res.ok) showToast({ message: 'Perfil sociodemográfico guardado', status: 'success', severity: 'success' });
             else throw new Error('Error al guardar');
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
@@ -397,7 +397,7 @@ const PerfilSociodemografico = () => {
             setEditorContent(data.report);
             setConversationId('new');
             setReportMessageId(null);
-            showToast({ message: 'Informe sociodemográfico generado con éxito', status: 'success' });
+            showToast({ message: 'Informe sociodemográfico generado con éxito', status: 'success', severity: 'success' });
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         } finally {
@@ -429,7 +429,7 @@ const PerfilSociodemografico = () => {
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Informe guardado', status: 'success' });
+                showToast({ message: 'Informe guardado', status: 'success', severity: 'success' });
             }
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
@@ -568,13 +568,13 @@ const PerfilSociodemografico = () => {
         const { workerId, changes } = update;
         setTrabajadores(prev => prev.map(w => w.id === workerId ? { ...w, ...changes } : w));
         setInboxPerfil(prev => prev.filter(u => u.id !== update.id));
-        showToast({ message: 'Actualización aprobada y aplicada al perfil', status: 'success' });
+        showToast({ message: 'Actualización aprobada y aplicada al perfil', status: 'success', severity: 'success' });
     };
 
     // Dismiss a pending update
     const handleDismissUpdate = (updateId: string) => {
         setInboxPerfil(prev => prev.filter(u => u.id !== updateId));
-        showToast({ message: 'Solicitud descartada', status: 'success' });
+        showToast({ message: 'Solicitud descartada', status: 'success', severity: 'success' });
     };
 
     return (
@@ -1118,7 +1118,7 @@ const PerfilSociodemografico = () => {
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(getUpdateQrValue(selectedQrWorker));
-                                                    showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                                    showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                                 }}
                                                 className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                             >
@@ -1185,7 +1185,7 @@ const PerfilSociodemografico = () => {
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/perfil-update/${user?.id || ''}`);
-                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
                                     >

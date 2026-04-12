@@ -218,7 +218,7 @@ const ParticipacionIPEVAR = () => {
             if (res.ok) {
                 const data = await res.json();
                 setInboxPublico(data.inboxPublico || []);
-                showToast({ message: 'Reporte archivado', status: 'success' });
+                showToast({ message: 'Reporte archivado', status: 'success', severity: 'success' });
             }
         } catch (err) {
             showToast({ message: 'Error archivando el reporte', status: 'error' });
@@ -287,7 +287,7 @@ const ParticipacionIPEVAR = () => {
             foto2: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=500',
             foto3: 'https://images.unsplash.com/photo-1621905235210-90805c862d22?auto=format&fit=crop&q=80&w=500'
         });
-        showToast({ message: 'Datos de participación simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de participación simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleSaveData = async (silent = false) => {
@@ -305,7 +305,7 @@ const ParticipacionIPEVAR = () => {
                 })
             });
             if (res.ok && !silent) {
-                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success' });
+                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success', severity: 'success' });
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
@@ -442,7 +442,7 @@ const ParticipacionIPEVAR = () => {
             reader.onload = (ev) => {
                 setVideo(ev.target?.result as string);
                 setIsVideoUploading(false);
-                showToast({ message: 'Video de evidencia cargado.', status: 'success' });
+                showToast({ message: 'Video de evidencia cargado.', status: 'success', severity: 'success' });
             };
             reader.onerror = () => setIsVideoUploading(false);
             reader.readAsDataURL(file);
@@ -490,7 +490,7 @@ const ParticipacionIPEVAR = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Reporte generado exitosamente', status: 'success' });
+            showToast({ message: 'Reporte generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
             showToast({ message: error.message || 'Error al generar', status: 'error' });
@@ -513,7 +513,7 @@ const ParticipacionIPEVAR = () => {
                 });
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Reporte actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Reporte actualizado exitosamente', status: 'success', severity: 'success' });
                 }
                 return;
             }
@@ -533,7 +533,7 @@ const ParticipacionIPEVAR = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Reporte guardado exitosamente', status: 'success' });
+                showToast({ message: 'Reporte guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
@@ -557,7 +557,7 @@ const ParticipacionIPEVAR = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Reporte cargado correctamente', status: 'success' });
+                showToast({ message: 'Reporte cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error al cargar el reporte', status: 'error' });
@@ -708,7 +708,7 @@ const ParticipacionIPEVAR = () => {
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/ipevar/${user?.id || (user as any)?._id}`);
-                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                                     >

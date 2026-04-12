@@ -220,7 +220,7 @@ const ReporteActosCondiciones = () => {
             if (res.ok) {
                 const data = await res.json();
                 setInboxPublico(data.inboxPublico || []);
-                showToast({ message: 'Reporte archivado', status: 'success' });
+                showToast({ message: 'Reporte archivado', status: 'success', severity: 'success' });
             }
         } catch (err) {
             showToast({ message: 'Error archivando el reporte', status: 'error' });
@@ -286,7 +286,7 @@ const ReporteActosCondiciones = () => {
         }));
         setTrabajadoresList(dummy.trabajadoresList.map(t => ({ nombre: t.nombre, cedula: t.cedula })));
         setResponsablesList(dummy.responsablesList.map(r => ({ nombre: r.nombre, cedula: r.cedula, rol: r.rol })));
-        showToast({ message: 'Datos de reporte simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de reporte simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleSaveData = async (silent = false) => {
@@ -304,7 +304,7 @@ const ReporteActosCondiciones = () => {
                 })
             });
             if (res.ok && !silent) {
-                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success' });
+                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success', severity: 'success' });
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
@@ -441,7 +441,7 @@ const ReporteActosCondiciones = () => {
             reader.onload = (ev) => {
                 setVideo(ev.target?.result as string);
                 setIsVideoUploading(false);
-                showToast({ message: 'Video de evidencia cargado.', status: 'success' });
+                showToast({ message: 'Video de evidencia cargado.', status: 'success', severity: 'success' });
             };
             reader.onerror = () => setIsVideoUploading(false);
             reader.readAsDataURL(file);
@@ -489,7 +489,7 @@ const ReporteActosCondiciones = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Reporte generado exitosamente', status: 'success' });
+            showToast({ message: 'Reporte generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
             showToast({ message: error.message || 'Error al generar', status: 'error' });
@@ -512,7 +512,7 @@ const ReporteActosCondiciones = () => {
                 });
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Reporte actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Reporte actualizado exitosamente', status: 'success', severity: 'success' });
                 }
                 return;
             }
@@ -532,7 +532,7 @@ const ReporteActosCondiciones = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Reporte guardado exitosamente', status: 'success' });
+                showToast({ message: 'Reporte guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
@@ -556,7 +556,7 @@ const ReporteActosCondiciones = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Reporte cargado correctamente', status: 'success' });
+                showToast({ message: 'Reporte cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error al cargar el reporte', status: 'error' });
@@ -707,7 +707,7 @@ const ReporteActosCondiciones = () => {
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(`${window.location.origin}/sgsst-public/reportar/${user?.id || user?._id}`);
-                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
                                         }}
                                         className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                                     >

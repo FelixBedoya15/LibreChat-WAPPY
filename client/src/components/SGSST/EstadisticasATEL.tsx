@@ -127,7 +127,7 @@ const EstadisticasATEL = () => {
                 events: dummy.events
             }
         }));
-        showToast({ message: 'Datos estadísticos de prueba generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos estadísticos de prueba generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     // Calculate totals for current month based on events
@@ -162,7 +162,7 @@ const EstadisticasATEL = () => {
             });
 
             if (res.ok) {
-                showToast({ message: 'Datos guardados correctamente', status: 'success' });
+                showToast({ message: 'Datos guardados correctamente', status: 'success', severity: 'success' });
             } else {
                 throw new Error('Error en respuesta del servidor');
             }
@@ -226,7 +226,7 @@ const EstadisticasATEL = () => {
             setConversationId('new');
             setReportMessageId(null);
 
-            showToast({ message: `Informe ${scope === 'ANNUAL' ? 'Anual' : 'Mensual'} generado exitosamente`, status: 'success' });
+            showToast({ message: `Informe ${scope === 'ANNUAL' ? 'Anual' : 'Mensual'} generado exitosamente`, status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Statistics generation error:', error);
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
@@ -278,7 +278,7 @@ const EstadisticasATEL = () => {
                 setEditorContent(contentToSave);
 
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Informe guardado exitosamente', status: 'success' });
+                showToast({ message: 'Informe guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });

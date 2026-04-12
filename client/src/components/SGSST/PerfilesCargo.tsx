@@ -423,7 +423,7 @@ const PerfilesCargo = () => {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ perfilesList: updatedPerfiles }),
             });
-            if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente', status: 'success' });
+            if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente', status: 'success', severity: 'success' });
         } catch {
             if (!silent) showToast({ message: 'Error al guardar', status: 'error' });
         }
@@ -453,7 +453,7 @@ const PerfilesCargo = () => {
             setIsFormExpanded(false);
             // Persist report in list immediately
             setPerfiles(prev => prev.map(p => p.id === activePerfilId ? { ...p, report: data.report } : p));
-            showToast({ message: 'Perfil generado con éxito ✅', status: 'success' });
+            showToast({ message: 'Perfil generado con éxito ✅', status: 'success', severity: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar', status: 'error' });
         } finally {
@@ -479,7 +479,7 @@ const PerfilesCargo = () => {
             });
             if (res.ok) {
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Perfil guardado en el historial', status: 'success' });
+                showToast({ message: 'Perfil guardado en el historial', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
@@ -503,7 +503,7 @@ const PerfilesCargo = () => {
                     setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                    showToast({ message: 'Reporte cargado desde el historial', status: 'success' });
+                    showToast({ message: 'Reporte cargado desde el historial', status: 'success', severity: 'success' });
                 }
             } catch {
                 showToast({ message: 'Error al cargar reporte', status: 'error' });
@@ -566,7 +566,7 @@ const PerfilesCargo = () => {
                         entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST']
                     };
                     setFormData(dummy);
-                    showToast({ message: 'Ejemplo cargado', status: 'success' });
+                    showToast({ message: 'Ejemplo cargado', status: 'success', severity: 'success' });
                 }}
             />
 

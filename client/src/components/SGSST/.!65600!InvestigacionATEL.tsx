@@ -233,7 +233,7 @@ const InvestigacionATEL = () => {
                 body: JSON.stringify({ formData, equipoList, testigosList, images })
             });
             if (res.ok && !silent) {
-                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success' });
+                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success', severity: 'success' });
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
@@ -269,7 +269,7 @@ const InvestigacionATEL = () => {
         }));
         setEquipoList(dummy.equipoList.map((item: any) => ({ nombre: item.nombre, cedula: item.cedula, rol: item.cargo })));
         setTestigosList(dummy.testigosList.map((item: any) => ({ nombre: item.nombre, cedula: item.cedula, cargo: item.cargo, testimonio: item.version })));
-        showToast({ message: 'Datos de investigación simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de investigación simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     // ── Voice Input (identical to PermisoAlturas) ──
@@ -388,7 +388,7 @@ const InvestigacionATEL = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Informe de investigación generado exitosamente', status: 'success' });
+            showToast({ message: 'Informe de investigación generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
             showToast({ message: error.message || 'Error al generar', status: 'error' });
@@ -410,7 +410,7 @@ const InvestigacionATEL = () => {
                 });
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Informe actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Informe actualizado exitosamente', status: 'success', severity: 'success' });
                 }
                 return;
             }
@@ -428,7 +428,7 @@ const InvestigacionATEL = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Informe guardado exitosamente', status: 'success' });
+                showToast({ message: 'Informe guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
@@ -453,7 +453,7 @@ const InvestigacionATEL = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Informe cargado correctamente', status: 'success' });
+                showToast({ message: 'Informe cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error al cargar el informe', status: 'error' });

@@ -181,7 +181,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         
         setStatuses(newStatuses);
         setObservations(newObservations);
-        showToast({ message: 'Resultados simulados generados correctamente', status: 'success' });
+        showToast({ message: 'Resultados simulados generados correctamente', status: 'success', severity: 'success' });
     };
 
     const toggleItemExpanded = useCallback((itemId: string) => {
@@ -228,7 +228,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const handleSaveData = () => {
         try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ statuses, observations }));
-            showToast({ message: 'Calificación de diagnóstico guardada localmente', status: 'success' });
+            showToast({ message: 'Calificación de diagnóstico guardada localmente', status: 'success', severity: 'success' });
         } catch(e) {
             showToast({ message: 'Error al guardar calificación', status: 'error' });
         }
@@ -287,7 +287,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             setConversationId('new');
             setReportMessageId(null);
             onAnalysisComplete?.(result.report);
-            showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success' });
+            showToast({ message: t('com_ui_analysis_success', 'Análisis generado exitosamente'), status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Analysis error:', error);
             let errorMsg: string;
@@ -352,7 +352,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     setAnalysisReport(contentToSave);
                     setEditorContent(contentToSave);
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success' });
+                    showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success', severity: 'success' });
                 } else {
                     // ... error handling
                     const err = await res.json();
@@ -380,7 +380,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 setAnalysisReport(contentToSave);
                 setEditorContent(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: t('com_ui_diagnostic_saved', 'Diagnóstico guardado exitosamente'), status: 'success' });
+                showToast({ message: t('com_ui_diagnostic_saved', 'Diagnóstico guardado exitosamente'), status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `${t('com_ui_save_error', 'Error al guardar')}: ${err.error || res.status}`, status: 'error' });
@@ -440,7 +440,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
-                showToast({ message: t('com_ui_diagnostic_loaded', 'Diagnóstico cargado y restaurado'), status: 'success' });
+                showToast({ message: t('com_ui_diagnostic_loaded', 'Diagnóstico cargado y restaurado'), status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load error:', e);

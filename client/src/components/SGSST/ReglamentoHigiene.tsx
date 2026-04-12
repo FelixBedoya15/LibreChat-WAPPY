@@ -59,7 +59,7 @@ const ReglamentoHigiene = () => {
         setIdentifiedRisks('Riesgo biomecánico: manejo manual de cargas (>25kg). Riesgo químico: exposición a solventes orgánicos en área de pintura. Riesgo eléctrico: instalaciones de baja tensión en bodega. Riesgo locativo: superficies irregulares en zona de cargue.');
         setWorkShifts('Jornada diurna: 7:00am a 5:00pm. Turno nocturno de vigilancia: 10:00pm a 6:00am. Personal administrativo: 8:00am a 5:00pm.');
         setAdditionalRules('Prohibición absoluta de consumo de alcohol o sustancias psicoactivas en instalaciones. Uso obligatorio de EPP en planta. Reporte inmediato de todo incidente o condición insegura al jefe inmediato.');
-        showToast({ message: 'Datos de reglamento simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos de reglamento simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleGenerate = useCallback(async () => {
@@ -91,7 +91,7 @@ const ReglamentoHigiene = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Reglamento generado exitosamente', status: 'success' });
+            showToast({ message: 'Reglamento generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('RHS generation error:', error);
             showToast({ message: error.message || 'Error al generar el reglamento', status: 'error' });
@@ -125,7 +125,7 @@ const ReglamentoHigiene = () => {
 
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Reglamento actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Reglamento actualizado exitosamente', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
@@ -148,7 +148,7 @@ const ReglamentoHigiene = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Reglamento guardado exitosamente', status: 'success' });
+                showToast({ message: 'Reglamento guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
@@ -177,7 +177,7 @@ const ReglamentoHigiene = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Reglamento cargado correctamente', status: 'success' });
+                showToast({ message: 'Reglamento cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load report error:', e);

@@ -295,7 +295,7 @@ const AnalisisVulnerabilidad = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images, video })
       });
-      if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente.', status: 'success' });
+      if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente.', status: 'success', severity: 'success' });
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
   };
 
@@ -305,7 +305,7 @@ const AnalisisVulnerabilidad = () => {
     setEvaluadoresList(dummy.evaluadoresList);
     setImages({ foto1: null, foto2: null, foto3: null });
     setActiveAmenazaId(dummy.amenazasList[0].id);
-    showToast({ message: 'Datos de prueba generados exitosamente.', status: 'success' });
+    showToast({ message: 'Datos de prueba generados exitosamente.', status: 'success', severity: 'success' });
   };
 
   const handleImageUpload = (field: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -353,7 +353,7 @@ const AnalisisVulnerabilidad = () => {
       reader.onload = (ev) => {
         setVideo(ev.target?.result as string);
         setIsVideoUploading(false);
-        showToast({ message: 'Video de evidencia cargado.', status: 'success' });
+        showToast({ message: 'Video de evidencia cargado.', status: 'success', severity: 'success' });
       };
       reader.onerror = () => setIsVideoUploading(false);
       reader.readAsDataURL(file);
@@ -400,7 +400,7 @@ const AnalisisVulnerabilidad = () => {
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-      showToast({ message: 'Análisis Multi-Amenaza generado', status: 'success' });
+      showToast({ message: 'Análisis Multi-Amenaza generado', status: 'success', severity: 'success' });
     } catch (error: any) {
       showToast({ message: error.message || 'Error al generar', status: 'error' });
     } finally { setIsGenerating(false); }
@@ -412,12 +412,12 @@ const AnalisisVulnerabilidad = () => {
     try {
       if (conversationId && conversationId !== 'new' && reportMessageId) {
         const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ conversationId, messageId: reportMessageId, content }) });
-        if (res.ok) { setRefreshTrigger(p => p + 1); showToast({ message: 'Análisis actualizado', status: 'success' }); }
+        if (res.ok) { setRefreshTrigger(p => p + 1); showToast({ message: 'Análisis actualizado', status: 'success', severity: 'success' }); }
         return;
       }
       const titleName = amenazasList.length === 1 ? amenazasList[0].amenaza : `Múltiple (${amenazasList.length} Amenazas)`;
       const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ content, title: `Vulnerabilidad: ${titleName} – ${new Date().toLocaleDateString('es-CO')}`, tags: ['sgsst-vulnerabilidad'] }) });
-      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Análisis guardado permanentemente', status: 'success' }); }
+      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Análisis guardado permanentemente', status: 'success', severity: 'success' }); }
     } catch (e: any) { showToast({ message: `Error: ${e.message}`, status: 'error' }); }
   }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast, amenazasList]);
 
@@ -429,7 +429,7 @@ const AnalisisVulnerabilidad = () => {
       const last = messages[messages.length - 1];
       if (last?.text) { setGeneratedReport(last.text); setEditorContent(last.text); setConversationId(id); setReportMessageId(last.messageId); setEditorKey(Date.now().toString());
             
-            setIsFormExpanded(false); showToast({ message: 'Documento cargado', status: 'success' }); }
+            setIsFormExpanded(false); showToast({ message: 'Documento cargado', status: 'success', severity: 'success' }); }
     } catch { showToast({ message: 'Error al cargar', status: 'error' }); }
     setIsHistoryOpen(false);
   }, [token, showToast]);

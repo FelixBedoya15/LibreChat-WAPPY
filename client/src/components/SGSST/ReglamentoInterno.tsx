@@ -74,7 +74,7 @@ const ReglamentoInterno = () => {
             cap7_sanciones: 'Faltas leves (llamado de atención verbal y luego escrito): llegar tarde, descuido de herramientas. Faltas graves (suspensión): desobediencia al jefe, daño intencional de equipos. Faltas gravesísimas (justa causa): robo, violar reglas SST, acoso.',
             cap8_convivencia: 'Comité de Convivencia sesiona cada 3 meses. Aplicación de Ley 1010 de 2006 contra acoso laboral. Canal de denuncias anónimo disponible. Tolerancia cero con discriminación o violencia.'
         });
-        showToast({ message: 'Datos del reglamento interno simulados generados exitosamente.', status: 'success' });
+        showToast({ message: 'Datos del reglamento interno simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleGenerate = useCallback(async () => {
@@ -149,7 +149,7 @@ const ReglamentoInterno = () => {
                 setEditorContent(accumulatedHtml);
             }
 
-            showToast({ message: 'Reglamento generado exitosamente capítulo por capítulo', status: 'success' });
+            showToast({ message: 'Reglamento generado exitosamente capítulo por capítulo', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('RIT generation error:', error);
             showToast({ message: error.message || 'Error al generar el reglamento', status: 'error' });
@@ -184,7 +184,7 @@ const ReglamentoInterno = () => {
 
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Reglamento actualizado exitosamente', status: 'success' });
+                    showToast({ message: 'Reglamento actualizado exitosamente', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     showToast({ message: `Error al actualizar: ${err.error || res.status}`, status: 'error' });
@@ -207,7 +207,7 @@ const ReglamentoInterno = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Reglamento guardado exitosamente', status: 'success' });
+                showToast({ message: 'Reglamento guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });
@@ -236,7 +236,7 @@ const ReglamentoInterno = () => {
                 setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
-                showToast({ message: 'Reglamento cargado correctamente', status: 'success' });
+                showToast({ message: 'Reglamento cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             console.error('Load report error:', e);
