@@ -145,8 +145,9 @@ router.post('/reporte-acto/:companyId', async (req, res) => {
         };
 
         // 3. Guardar en el Inbox Público de ReporteActosData
+        const companyObjectId = new mongoose.Types.ObjectId(companyId);
         await ReporteActosData.findOneAndUpdate(
-            { user: companyId },
+            { user: companyObjectId },
             { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -237,8 +238,9 @@ router.post('/participacion-ipevar/:companyId', async (req, res) => {
         };
 
         // 3. Guardar en el Inbox Público de ParticipacionIpevarData
+        const companyObjectId = new mongoose.Types.ObjectId(companyId);
         await ParticipacionIpevarData.findOneAndUpdate(
-            { user: companyId },
+            { user: companyObjectId },
             { $push: { inboxPublico: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -303,8 +305,9 @@ router.post('/investigacion-atel/testimonio/:companyId', async (req, res) => {
         };
 
         // Push to inboxTestimonios
+        const companyObjectId = new mongoose.Types.ObjectId(companyId);
         await InvestigacionAtelData.findOneAndUpdate(
-            { user: companyId },
+            { user: companyObjectId },
             { $push: { inboxTestimonios: newInboxItem }, $set: { updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
