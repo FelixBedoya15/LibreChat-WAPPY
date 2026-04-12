@@ -49,6 +49,14 @@ const WorkerEntrySchema = new mongoose.Schema({
   licenciaVencimiento: { type: String, default: '' },
   curso50h: { type: String, default: '' },
   curso20h: { type: String, default: '' },
+  // Biomonitoring / Fisiología
+  peso: { type: String, default: '' },
+  talla: { type: String, default: '' },
+  imc: { type: String, default: '' },
+  presionArterial: { type: String, default: '' },
+  frecuenciaCardiaca: { type: String, default: '' },
+  limitacionesBiomecanicas: { type: String, default: '' },
+  alergiasQuimicas: { type: String, default: '' },
 }, { _id: false });
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({

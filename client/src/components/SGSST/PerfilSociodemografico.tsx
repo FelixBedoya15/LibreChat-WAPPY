@@ -68,6 +68,15 @@ interface WorkerEntry {
     curso50h: string;
     curso20h: string;
 
+    // New Biomonitoring Fields
+    peso: string;
+    talla: string;
+    imc: string;
+    presionArterial: string;
+    frecuenciaCardiaca: string;
+    limitacionesBiomecanicas: string;
+    alergiasQuimicas: string;
+
     completedByAI: boolean;
     consentimientoFirmaDigital: string;
     firmaDigital: string | null;
@@ -82,6 +91,8 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     fuma: '', alcohol: '', terapiaPsicologica: '', personasCargo: '',
     estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
     licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
+    peso: '', talla: '', imc: '', presionArterial: '', frecuenciaCardiaca: '',
+    limitacionesBiomecanicas: '', alergiasQuimicas: '',
     completedByAI: false, consentimientoFirmaDigital: 'No', firmaDigital: null,
 };
 
@@ -210,7 +221,28 @@ const PerfilSociodemografico = () => {
     };
 
     const updateWorkerField = (workerId: string, field: keyof WorkerEntry, value: any) => {
-        setTrabajadores(prev => prev.map(w => w.id === workerId ? { ...w, [field]: value } : w));
+        setTrabajadores(prev => prev.map(w => {
+            if (w.id !== workerId) return w;
+            const updated = { ...w, [field]: value };
+            
+            // Auto calculate IMC if peso or talla is updated
+            if (field === 'peso' || field === 'talla') {
+                const { peso, talla } = updated;
+                if (peso && talla) {
+                    const p = parseFloat(String(peso).replace(',', '.'));
+                    const t = parseFloat(String(talla).replace(',', '.'));
+                    if (p > 0 && t > 0) {
+                        const tMeters = t > 3 ? t / 100 : t; 
+                        updated.imc = (p / (tMeters * tMeters)).toFixed(1);
+                    } else {
+                        updated.imc = '';
+                    }
+                } else {
+                    updated.imc = '';
+                }
+            }
+            return updated;
+        }));
     };
 
     const handleFirmaUpload = (workerId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,6 +292,13 @@ const PerfilSociodemografico = () => {
             'Venc. Licencia SGSST': w.licenciaVencimiento,
             'Curso 50h': w.curso50h,
             'Curso 20h': w.curso20h,
+            'Peso (kg)': w.peso,
+            'Talla (m)': w.talla,
+            'IMC': w.imc,
+            'Presión Arterial': w.presionArterial,
+            'Frecuencia Cardíaca': w.frecuenciaCardiaca,
+            'Limitaciones Biomecánicas': w.limitacionesBiomecanicas,
+            'Alergias / Sensibilidad Química': w.alergiasQuimicas,
             'Consentimiento Firma': w.consentimientoFirmaDigital
         }));
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -321,6 +360,13 @@ const PerfilSociodemografico = () => {
                         licenciaVencimiento: row['Venc. Licencia SGSST'] || row.licenciaVencimiento || '',
                         curso50h: row['Curso 50h'] || row.curso50h || '',
                         curso20h: row['Curso 20h'] || row.curso20h || '',
+                        peso: row['Peso (kg)'] || row.peso || '',
+                        talla: row['Talla (m)'] || row.talla || '',
+                        imc: row['IMC'] || row.imc || '',
+                        presionArterial: row['Presión Arterial'] || row.presionArterial || '',
+                        frecuenciaCardiaca: row['Frecuencia Cardíaca'] || row.frecuenciaCardiaca || '',
+                        limitacionesBiomecanicas: row['Limitaciones Biomecánicas'] || row.limitacionesBiomecanicas || '',
+                        alergiasQuimicas: row['Alergias / Sensibilidad Química'] || row.alergiasQuimicas || '',
                         consentimientoFirmaDigital: row['Consentimiento Firma'] || row.consentimientoFirmaDigital || 'No',
                         firmaDigital: null,
                         completedByAI: false,
@@ -500,6 +546,23 @@ const PerfilSociodemografico = () => {
                 score -= 20;
                 alerts.push('Enfermedad detectada en rol de alta carga física');
             }
+            if (w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && w.limitacionesBiomecanicas.toLowerCase() !== 'ninguna') {
+                score -= 30;
+                alerts.push('Alerta Biomecánica: Restricción incompatible con alta exigencia de carga/esfuerzo');
+            }
+            if (w.presionArterial) {
+                const sis = parseInt(w.presionArterial.split('/')[0]);
+                if (sis >= 135) {
+                    score -= 25;
+                    alerts.push('Alerta Cardiovascular: Hipertensión reportada frente a rol de alto impacto físico');
+                }
+            }
+        }
+
+        // Químico / Alergias
+        if (w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && w.alergiasQuimicas.toLowerCase() !== 'ninguna') {
+             score -= 15;
+             alerts.push('Alerta Inmunológica: Sensibilidad química reportada. Aislar de exposición cruzada');
         }
 
         // Mental/Psicosocial
@@ -850,18 +913,61 @@ const PerfilSociodemografico = () => {
                                                 </div>
                                             )}
 
-                                            {/* TAB 2: SALUD Y HÁBITOS */}
+                                            {/* TAB 2: SALUD Y HÁBITOS (BIOMONITOREO) */}
                                             {(workerTabs[w.id] || 'general') === 'salud' && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
-                                                    {/* Grupo 1: Fisiológicos */}
+                                                    
+                                                    {/* Grupo 1: Fisiología y Examen Físico */}
+                                                    <div className="lg:col-span-4 pb-2 border-b border-border-light flex items-center justify-between">
+                                                         <h4 className="font-bold text-sm text-teal-700 dark:text-teal-400 uppercase tracking-wider">Línea Base Fisiológica (Biomonitoreo)</h4>
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase">Peso (kg)</label>
+                                                        <input type="number" value={w.peso} onChange={e => updateWorkerField(w.id, 'peso', e.target.value)}
+                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase">Talla (m)</label>
+                                                        <input type="number" value={w.talla} onChange={e => updateWorkerField(w.id, 'talla', e.target.value)} step="0.01" placeholder="Ej: 1.75"
+                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase">IMC (Calculado)</label>
+                                                        <input type="text" readOnly value={w.imc} placeholder="Calculado" title="Índice de Masa Corporal Automático"
+                                                            className={`w-full text-sm font-bold p-2 rounded-xl border ${w.imc && parseFloat(w.imc) > 25 ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-border-medium bg-surface-secondary text-text-secondary'}`} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase">Presión Arterial</label>
+                                                        <input type="text" value={w.presionArterial} onChange={e => updateWorkerField(w.id, 'presionArterial', e.target.value)}
+                                                            placeholder="Ej: 120/80" className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase">Frec. Cardíaca (lpm)</label>
+                                                        <input type="number" value={w.frecuenciaCardiaca} onChange={e => updateWorkerField(w.id, 'frecuenciaCardiaca', e.target.value)}
+                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
+                                                    </div>
                                                     <div className="space-y-1">
                                                         <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Tipo de Sangre</label>
                                                         <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
                                                     </div>
-                                                    <div className="space-y-1 lg:col-span-3">
-                                                        <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Enfermedades Actuales (Preexistencias)</label>
+                                                    <div className="space-y-1 lg:col-span-2">
+                                                        <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Alergias Químicas / Asma</label>
+                                                        <input type="text" value={w.alergiasQuimicas} onChange={e => updateWorkerField(w.id, 'alergiasQuimicas', e.target.value)}
+                                                            placeholder="Alergias diagnosticadas relevantes para exposición a químicos/polvo..."
+                                                            className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
+                                                    </div>
+
+                                                    <div className="space-y-1 lg:col-span-2">
+                                                        <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Limitaciones Biomecánicas</label>
+                                                        <input type="text" value={w.limitacionesBiomecanicas} onChange={e => updateWorkerField(w.id, 'limitacionesBiomecanicas', e.target.value)}
+                                                            placeholder="Ej: Hernia discal, túnel carpiano, problemas de rodilla..."
+                                                            className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
+                                                    </div>
+                                                    <div className="space-y-1 lg:col-span-2">
+                                                        <label className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Enfermedades Preexistentes</label>
                                                         <input type="text" value={w.enfermedades} onChange={e => updateWorkerField(w.id, 'enfermedades', e.target.value)}
-                                                            placeholder="Indique si sufre alguna enfermedad diagnosticada..."
+                                                            placeholder="Indique si sufre alguna patología diagnosticada..."
                                                             className="w-full text-sm p-2 rounded-xl border border-rose-200 bg-rose-50/10 dark:bg-rose-900/10 text-text-primary" />
                                                     </div>
 
