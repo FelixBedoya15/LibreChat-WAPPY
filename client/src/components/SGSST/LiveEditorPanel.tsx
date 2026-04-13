@@ -13,10 +13,12 @@ import {
   Trash2,
   RefreshCw,
   FileText,
+  History,
 } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import store from '~/store';
 
@@ -36,6 +38,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   const lastUpdatedAtRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +77,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     fetchDocument(true);
   }, [fetchDocument]);
 
-  // Polling while agent is submitting or 10s after
+  // Polling while agent is submitting or every interval
   useEffect(() => {
     if (!conversationId || conversationId === 'new') return;
     const interval = setInterval(() => fetchDocument(), POLL_INTERVAL_MS);
@@ -93,6 +97,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       if (res.ok) {
         const data = await res.json();
         lastUpdatedAtRef.current = data.contentUpdatedAt;
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (e) {
       console.error('[LiveEditorPanel] Save error:', e);
@@ -100,6 +105,42 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       setIsSaving(false);
     }
   }, [conversationId, token, editorContent, content, fileName]);
+
+  // ── History: load a saved report into the editor ────────────────────────
+  const handleSelectReport = async (reportOrId: any) => {
+    let docContent = '';
+    if (typeof reportOrId === 'string') {
+      try {
+        const res = await fetch(`/api/messages/${reportOrId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const messages = await res.json();
+          const reportMsg = messages.reverse().find(
+            (m: any) => m.isCreatedByUser === false && m.text?.length > 100,
+          );
+          if (reportMsg) docContent = reportMsg.text;
+        }
+      } catch { /* ignore */ }
+    } else if (reportOrId?.content) {
+      docContent = reportOrId.content;
+    }
+
+    if (docContent) {
+      // Persist to current conversation
+      if (conversationId && conversationId !== 'new') {
+        await fetch(`/api/live-editor/${conversationId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ content: docContent }),
+        });
+      }
+      setContent(docContent);
+      setEditorContent(docContent);
+      setEditorKey(Date.now().toString());
+      setIsHistoryOpen(false);
+    }
+  };
 
   // ── Clear document ───────────────────────────────────────────────────────
   const handleClear = async () => {
@@ -115,7 +156,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     setEditorKey(Date.now().toString());
   };
 
-  // ── Upload DOCX/PDF (reuses existing /live-documents/extract endpoint) ──
+  // ── Upload DOCX/PDF ──────────────────────────────────────────────────────
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !conversationId || conversationId === 'new') return;
@@ -136,7 +177,6 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       if (data.html) {
         extractedHtml = data.html;
       } else if (data.text) {
-        // PDF: convert plain text to basic HTML paragraphs
         extractedHtml = data.text
           .split('\n\n')
           .filter((p: string) => p.trim())
@@ -146,7 +186,6 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
 
       if (extractedHtml) {
         const newFileName = file.name.replace(/\.[^.]+$/, '');
-        // Persist to backend
         const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -188,20 +227,19 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             <h2 className="text-sm font-semibold text-text-primary truncate">Editor Live</h2>
             <div className="flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSubmitting ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`} />
-              <span className="text-xs text-text-secondary truncate">
-                {fileName}
-              </span>
+              <span className="text-xs text-text-secondary truncate">{fileName}</span>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 overflow-visible flex-nowrap shrink-0 py-1">
-          {isLoading && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
+          {(isLoading || isSaving) && <RefreshCw className="h-4 w-4 animate-spin text-text-secondary" />}
 
           {/* Upload */}
           <button
             onClick={() => fileInputRef.current?.click()}
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            title="Subir DOCX o PDF"
           >
             <Upload className="h-4 w-4 shrink-0" />
             <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
@@ -223,6 +261,19 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             reportType="general"
           />
 
+          {/* History */}
+          <button
+            onClick={() => setIsHistoryOpen(h => !h)}
+            className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+              isHistoryOpen
+                ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
+                : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
+            } hover:-rotate-3 hover:scale-105`}
+            title="Historial de reportes"
+          >
+            <History className="h-4 w-4 shrink-0" />
+          </button>
+
           {/* Clear */}
           {content && (
             <button
@@ -234,10 +285,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             </button>
           )}
 
-          {/* Maximize */}
+          {/* Maximize — solo el del panel (el del LiveEditor está oculto) */}
           <button
             onClick={() => setIsMaximized((m) => !m)}
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            title={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             {isMaximized ? (
               <Minimize2 className="h-4 w-4 shrink-0" />
@@ -247,6 +299,19 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
           </button>
         </div>
       </div>
+
+      {/* ── History Panel ─────────────────────────────────────────────────── */}
+      {isHistoryOpen && (
+        <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden mx-2 mt-4">
+          <ReportHistory
+            onSelectReport={handleSelectReport}
+            isOpen={isHistoryOpen}
+            toggleOpen={() => setIsHistoryOpen(h => !h)}
+            refreshTrigger={refreshTrigger}
+            tags={['live-editor-doc']}
+          />
+        </div>
+      )}
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">
@@ -264,23 +329,35 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
                 Pídele al agente que <span className="font-bold text-blue-600">cree un documento</span> (ej: "Crea la Política SST de mi empresa"), o sube un archivo Word o PDF.
               </p>
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl font-bold shadow-sm hover:bg-blue-500 hover:text-white transition-all transform hover:-translate-y-0.5"
-            >
-              <Upload className="h-4 w-4" />
-              Subir DOCX o PDF
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-500/10 text-blue-600 border border-blue-500/20 rounded-xl font-bold shadow-sm hover:bg-blue-500 hover:text-white transition-all transform hover:-translate-y-0.5"
+              >
+                <Upload className="h-4 w-4" />
+                Subir DOCX o PDF
+              </button>
+              <button
+                onClick={() => setIsHistoryOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-teal-500/10 text-teal-600 border border-teal-500/20 rounded-xl font-bold shadow-sm hover:bg-teal-500 hover:text-white transition-all transform hover:-translate-y-0.5"
+              >
+                <History className="h-4 w-4" />
+                Cargar desde Historial
+              </button>
+            </div>
           </div>
         ) : (
-          // LiveEditor
+          // LiveEditor con toolbar oculta en modo panel (solo visible al expandir)
           <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-            <div style={{ minWidth: '100%', padding: '24px' }}>
+            <div style={{ minWidth: '100%', padding: isMaximized ? '24px' : '12px' }}>
               <LiveEditor
                 key={editorKey}
                 initialContent={content}
                 onUpdate={(c: string) => setEditorContent(c)}
                 onSave={handleSave}
+                onHistory={() => setIsHistoryOpen(h => !h)}
+                hideFullscreen={true}
+                hideToolbarWhenCollapsed={!isMaximized}
               />
             </div>
           </div>

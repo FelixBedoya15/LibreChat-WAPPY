@@ -114,31 +114,15 @@ function ChatView({ index = 0 }: { index?: number }) {
     }
   }, [currentIsIPEVARActive, conversationId]);
 
-  // ── EDITOR LIVE: detect if tool is active ──────────────────────────────
+  // ── EDITOR LIVE: only open when the user explicitly toggles it ON ──────
+  // We deliberately do NOT check agent.tools or message history so the panel
+  // starts closed and the user controls it via the tool toggle in the chat.
   const isEditorLiveActive = React.useMemo(() => {
     const tools = conversation?.tools ?? [];
-    const hasToolByKey = tools.some((t: string | { pluginKey?: string }) =>
+    return tools.some((t: string | { pluginKey?: string }) =>
       typeof t === 'string' ? t === 'editor_live' : t.pluginKey === 'editor_live',
     );
-    if (hasToolByKey) return true;
-
-    const agentTools = agent?.tools ?? [];
-    const hasAgentToolByKey = agentTools.some(
-      (t: string | { pluginKey?: string }) =>
-        typeof t === 'string' ? t === 'editor_live' : t.pluginKey === 'editor_live',
-    );
-    if (hasAgentToolByKey) return true;
-
-    if (
-      messagesTree?.some(
-        (msg) =>
-          msg.plugin?.plugin === 'editor_live' ||
-          msg.plugins?.some((p: { plugin?: string }) => p.plugin === 'editor_live'),
-      )
-    ) return true;
-
-    return false;
-  }, [conversation?.tools, messagesTree, agent?.tools]);
+  }, [conversation?.tools]);
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);

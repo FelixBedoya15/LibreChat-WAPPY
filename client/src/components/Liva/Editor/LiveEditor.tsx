@@ -24,6 +24,10 @@ interface LiveEditorProps {
     /** Optional source data for AI context (passed to backend for AI inline editing) */
     reportSourceData?: any;
     onHistory?: () => void;
+    /** When true, hides the native fullscreen button from the toolbar (use when the parent panel provides its own maximize control) */
+    hideFullscreen?: boolean;
+    /** When true, the toolbar is hidden unless the editor is in its own native fullscreen mode */
+    hideToolbarWhenCollapsed?: boolean;
 }
 
 
@@ -31,7 +35,7 @@ export interface LiveEditorHandle {
     setHTML: (html: string) => void;
 }
 
-const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, onHistory, reportType = 'general', reportSourceData, paperMode = true }, ref) => {
+const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialContent, onUpdate, onSave, onHistory, reportType = 'general', reportSourceData, paperMode = true, hideFullscreen = false, hideToolbarWhenCollapsed = false }, ref) => {
     const localize = useLocalize();
     const { token } = useAuthContext();
     const editorRef = useRef<HTMLDivElement>(null);
@@ -841,7 +845,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         { id: 'save', buttons: [
             ...(onHistory ? [{ icon: History, label: localize('com_ui_history') || "Historial", onClick: onHistory }] : []),
             ...(onSave ? [{ icon: Save, label: localize('com_ui_save_report') || "Guardar Informe", onClick: onSave }] : []),
-            { icon: isFullScreen ? Minimize : Maximize, label: isFullScreen ? "Salir Pantalla Completa" : "Pantalla Completa", onClick: toggleFullScreen }
+            ...(!hideFullscreen ? [{ icon: isFullScreen ? Minimize : Maximize, label: isFullScreen ? "Salir Pantalla Completa" : "Pantalla Completa", onClick: toggleFullScreen }] : [])
         ]}
     ].filter(g => g.buttons.length > 0);
 
@@ -877,7 +881,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 </div>
             )}
 
-            {/* Header Toolbar */}
+            {/* Header Toolbar — hidden in collapsed mode when hideToolbarWhenCollapsed=true */}
+            {(!hideToolbarWhenCollapsed || isFullScreen) && (
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
                 <div className="flex flex-wrap gap-1 md:gap-2 items-center justify-center">
                     {editorGroups.map((group, idx) => (
@@ -892,6 +897,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     ))}
                 </div>
             </div>
+            )}
 
                 <input
                     type="file"
