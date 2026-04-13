@@ -397,7 +397,7 @@ const AnalisisVulnerabilidad = () => {
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Error al generar'); }
       const data = await response.json();
       setGeneratedReport(data.report);
-      setEditorContent(data.report);
+      setEditorContent(data.report); setEditorKey(Date.now().toString());
       setEditorKey(Date.now().toString());
             setConversationId(null);
             setReportMessageId(null);

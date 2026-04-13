@@ -566,7 +566,7 @@ const MatrizPeligrosGTC45 = () => {
             const html = data.report;
 
             setGeneratedReport(html);
-            setEditorContent(html);
+            setEditorContent(html); setEditorKey(Date.now().toString());
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Informe gerencial generado con éxito', status: 'success', severity: 'success' });
@@ -621,7 +621,7 @@ const MatrizPeligrosGTC45 = () => {
             content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
         }
         if (content) {
-            setGeneratedReport(content); setEditorContent(content);
+            setGeneratedReport(content); setEditorContent(content); setEditorKey(Date.now().toString());
             setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
         }

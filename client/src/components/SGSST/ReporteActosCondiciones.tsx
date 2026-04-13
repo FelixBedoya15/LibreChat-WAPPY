@@ -485,7 +485,7 @@ const ReporteActosCondiciones = () => {
 
             const data = await response.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report);
+            setEditorContent(data.report); setEditorKey(Date.now().toString());
             setEditorKey(Date.now().toString());
             setConversationId(null);
             setReportMessageId(null);
@@ -551,7 +551,7 @@ const ReporteActosCondiciones = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedReport(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());

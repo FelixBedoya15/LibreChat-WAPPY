@@ -283,7 +283,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
 
             setAnalysisReport(cleanReport);
-            setEditorContent(cleanReport);
+            setEditorContent(cleanReport); setEditorKey(Date.now().toString());
             // Always reset for a fresh save after regeneration
             setConversationId('new');
             setReportMessageId(null);
@@ -351,7 +351,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 if (res.ok) {
                     // Synchronize state
                     setAnalysisReport(contentToSave);
-                    setEditorContent(contentToSave);
+                    setEditorContent(contentToSave); setEditorKey(Date.now().toString());
                     setRefreshTrigger(prev => prev + 1);
                     showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success', severity: 'success' });
                 } else {
@@ -379,7 +379,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 setReportMessageId(data.messageId);
                 // Synchronize state
                 setAnalysisReport(contentToSave);
-                setEditorContent(contentToSave);
+                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: t('com_ui_diagnostic_saved', 'Diagnóstico guardado exitosamente'), status: 'success', severity: 'success' });
             } else {
@@ -437,7 +437,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
                 setAnalysisReport(loadedContent);
-                setEditorContent(loadedContent);
+                setEditorContent(loadedContent); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);

@@ -283,7 +283,7 @@ const PerfilesCargo = () => {
                     setActivePerfilId(first.id);
                     setFormData(first);
                     setGeneratedReport(first.report || null);
-                    setEditorContent(first.report || null);
+                    setEditorContent(first.report || null); setEditorKey(Date.now().toString());
                 } else {
                     const initial = createInitialPerfil();
                     setPerfiles([initial]);
@@ -304,7 +304,7 @@ const PerfilesCargo = () => {
         setActivePerfilId(newPerfil.id);
         setFormData(newPerfil);
         setGeneratedReport(null);
-        setEditorContent(null);
+        setEditorContent(null); setEditorKey(Date.now().toString());
         setIsFormExpanded(true);
         showToast({ message: 'Nuevo perfil de cargo creado', status: 'info' });
     };
@@ -322,7 +322,7 @@ const PerfilesCargo = () => {
                 setActivePerfilId(updated[0].id);
                 setFormData(updated[0]);
                 setGeneratedReport(updated[0].report || null);
-                setEditorContent(updated[0].report || null);
+                setEditorContent(updated[0].report || null); setEditorKey(Date.now().toString());
             }
         }
     };
@@ -333,7 +333,7 @@ const PerfilesCargo = () => {
             setActivePerfilId(id);
             setFormData(perfil);
             setGeneratedReport(perfil.report || null);
-            setEditorContent(perfil.report || null);
+            setEditorContent(perfil.report || null); setEditorKey(Date.now().toString());
             setIsFormExpanded(true);
             // Reset conversation tracking when switching profiles
             setConversationId(null);
@@ -447,7 +447,7 @@ const PerfilesCargo = () => {
             if (!res.ok) throw new Error('Error al generar el perfil');
             const data = await res.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report);
+            setEditorContent(data.report); setEditorKey(Date.now().toString());
             setEditorKey(Date.now().toString());
             setConversationId(null);
             setReportMessageId(null);
@@ -500,7 +500,7 @@ const PerfilesCargo = () => {
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg?.text) {
                     setGeneratedReport(lastMsg.text);
-                    setEditorContent(lastMsg.text);
+                    setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                     setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);

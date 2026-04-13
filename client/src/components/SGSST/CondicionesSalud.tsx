@@ -472,7 +472,7 @@ const CondicionesSalud = () => {
             if (!res.ok) throw new Error('Error al generar informe con IA');
             const data = await res.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report);
+            setEditorContent(data.report); setEditorKey(Date.now().toString());
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Informe sociodemográfico generado con éxito', status: 'success', severity: 'success' });
@@ -494,7 +494,7 @@ const CondicionesSalud = () => {
                 body: JSON.stringify(isNew ? {
                     content,
                     title: `Informe Condiciones de Salud - ${new Date().toLocaleDateString('es-CO')}`,
-                    tags: ['sgsst-perfil-sociodemografico'],
+                    tags: ['sgsst-condiciones-salud'],
                 } : { conversationId, messageId: reportMessageId, content }),
             });
             if (res.ok) {
@@ -503,7 +503,7 @@ const CondicionesSalud = () => {
 
                 // Synchronize state
                 setGeneratedReport(content);
-                setEditorContent(content);
+                setEditorContent(content); setEditorKey(Date.now().toString());
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
@@ -532,7 +532,7 @@ const CondicionesSalud = () => {
             content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
         }
         if (content) {
-            setGeneratedReport(content); setEditorContent(content);
+            setGeneratedReport(content); setEditorContent(content); setEditorKey(Date.now().toString());
             setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
         }
@@ -636,7 +636,7 @@ const CondicionesSalud = () => {
 
     useAutoLoadReport({
         token,
-        tags: ['sgsst-perfil-sociodemografico'],
+        tags: ['sgsst-condiciones-salud'],
         generatedReport: generatedReport,
         handleSelectReport
     });
@@ -812,7 +812,7 @@ const CondicionesSalud = () => {
                 isOpen={isHistoryOpen}
                 toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)}
                 refreshTrigger={refreshTrigger}
-                tags={['sgsst-perfil-sociodemografico']}
+                tags={['sgsst-condiciones-salud']}
             />
 
             {/* ═══ Workers List ═══ */}

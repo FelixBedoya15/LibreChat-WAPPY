@@ -217,7 +217,7 @@ const EstadisticasATEL = () => {
 
             const data = await response.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report);
+            setEditorContent(data.report); setEditorKey(Date.now().toString());
             setEditorKey(Date.now().toString());
             setConversationId(null);
             setReportMessageId(null);
@@ -277,7 +277,7 @@ const EstadisticasATEL = () => {
                 }
                 // Synchronize state
                 setGeneratedReport(contentToSave);
-                setEditorContent(contentToSave);
+                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
 
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
@@ -340,7 +340,7 @@ const EstadisticasATEL = () => {
 
         if (content) {
             setGeneratedReport(content);
-            setEditorContent(content);
+            setEditorContent(content); setEditorKey(Date.now().toString());
             setConversationId(convId);
             setReportMessageId(msgId);
             setEditorKey(Date.now().toString());

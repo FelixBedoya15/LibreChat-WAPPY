@@ -276,7 +276,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
 
             setAnalysisReport(cleanReport);
-            setEditorContent(cleanReport);
+            setEditorContent(cleanReport); setEditorKey(Date.now().toString());
             // Always reset for a fresh save after regeneration
             setConversationId('new');
             setReportMessageId(null);
@@ -343,7 +343,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 }
                 // Synchronize state
                 setAnalysisReport(contentToSave);
-                setEditorContent(contentToSave);
+                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Auditoría guardada exitosamente', status: 'success', severity: 'success' });
             } else {
@@ -391,7 +391,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
                 setAnalysisReport(loadedContent);
-                setEditorContent(loadedContent);
+                setEditorContent(loadedContent); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);

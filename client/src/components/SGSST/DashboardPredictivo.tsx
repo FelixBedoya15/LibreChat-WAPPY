@@ -218,7 +218,7 @@ const DashboardPredictivo = () => {
 
             const data = await response.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report);
+            setEditorContent(data.report); setEditorKey(Date.now().toString());
             setConversationId('new');
             setReportMessageId(null);
             setIsReportCollapsed(false);
@@ -256,7 +256,7 @@ const DashboardPredictivo = () => {
                 const data = await res.json();
                 if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
                 setGeneratedReport(contentToSave);
-                setEditorContent(contentToSave);
+                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
             } else {
@@ -292,7 +292,7 @@ const DashboardPredictivo = () => {
         }
 
         if (content) {
-            setGeneratedReport(content); setEditorContent(content);
+            setGeneratedReport(content); setEditorContent(content); setEditorKey(Date.now().toString());
             setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
             showToast({ message: 'Informe cargado desde historial', status: 'info' });

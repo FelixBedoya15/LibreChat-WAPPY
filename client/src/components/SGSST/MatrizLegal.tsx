@@ -231,7 +231,7 @@ const MatrizLegal = () => {
 
             const data = await response.json();
             setGeneratedMatrix(data.matrix);
-            setEditorContent(data.matrix);
+            setEditorContent(data.matrix); setEditorKey(Date.now().toString());
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Matriz Legal generada exitosamente', status: 'success', severity: 'success' });
@@ -311,7 +311,7 @@ const MatrizLegal = () => {
                 }
                 // Synchronize state
                 setGeneratedMatrix(content);
-                setEditorContent(content);
+                setEditorContent(content); setEditorKey(Date.now().toString());
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
@@ -348,7 +348,7 @@ const MatrizLegal = () => {
             // Support legacy embedded states just in case
             const cleanContent = content.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '').trim();
             setGeneratedMatrix(cleanContent || null);
-            setEditorContent(cleanContent || null);
+            setEditorContent(cleanContent || null); setEditorKey(Date.now().toString());
             setConversationId(convId);
             setReportMessageId(msgId);
             setIsHistoryOpen(false);

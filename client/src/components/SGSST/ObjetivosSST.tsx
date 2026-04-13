@@ -91,7 +91,7 @@ const ObjetivosSST = () => {
 
             const data = await response.json();
             setGeneratedObjectives(data.objectives);
-            setEditorContent(data.objectives);
+            setEditorContent(data.objectives); setEditorKey(Date.now().toString());
             setEditorKey(Date.now().toString());
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
@@ -179,7 +179,7 @@ const ObjetivosSST = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedObjectives(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());

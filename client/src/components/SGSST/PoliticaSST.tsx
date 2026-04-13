@@ -94,7 +94,7 @@ const PoliticaSST = () => {
 
             const data = await response.json();
             setGeneratedPolicy(data.policy);
-            setEditorContent(data.policy);
+            setEditorContent(data.policy); setEditorKey(Date.now().toString());
             setEditorKey(Date.now().toString());
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
@@ -184,7 +184,7 @@ const PoliticaSST = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedPolicy(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());

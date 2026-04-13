@@ -124,7 +124,7 @@ const ResponsableSGSST = () => {
 
             const data = await response.json();
             setGeneratedDoc(data.document);
-            setEditorContent(data.document);
+            setEditorContent(data.document); setEditorKey(Date.now().toString());
             setEditorKey(Date.now().toString());
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
@@ -236,7 +236,7 @@ const ResponsableSGSST = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedDoc(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());

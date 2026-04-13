@@ -85,7 +85,7 @@ const ReglamentoInterno = () => {
             setReportMessageId(null);
             setIsFormExpanded(false);
         setGeneratedDocument('');
-        setEditorContent('');
+        setEditorContent(''); setEditorKey(Date.now().toString());
         
         const RIT_CHAPTERS_DEF = [
             { key: 'cap1_admision', title: 'Condiciones de Admisión y Contrato' },
@@ -133,7 +133,7 @@ const ReglamentoInterno = () => {
                 
                 // Show progressive writing in UI
                 setGeneratedDocument(accumulatedHtml);
-                setEditorContent(accumulatedHtml);
+                setEditorContent(accumulatedHtml); setEditorKey(Date.now().toString());
             }
 
             // Finally, generate signatures block and append
@@ -147,7 +147,7 @@ const ReglamentoInterno = () => {
                 const sigData = await sigResponse.json();
                 accumulatedHtml += '\\n' + sigData.signatureHtml;
                 setGeneratedDocument(accumulatedHtml);
-                setEditorContent(accumulatedHtml);
+                setEditorContent(accumulatedHtml); setEditorKey(Date.now().toString());
             }
 
             showToast({ message: 'Reglamento generado exitosamente capítulo por capítulo', status: 'success', severity: 'success' });
@@ -231,7 +231,7 @@ const ReglamentoInterno = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedDocument(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setEditorKey(Date.now().toString());

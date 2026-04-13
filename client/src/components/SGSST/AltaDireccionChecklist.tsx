@@ -312,7 +312,7 @@ export default function AltaDireccionChecklist() {
             const cleanReport = response.data.report.replace(/<img[^>]*>/gi, signatureIcon);
 
             setAnalysisReport(cleanReport);
-            setEditorContent(cleanReport);
+            setEditorContent(cleanReport); setEditorKey(Date.now().toString());
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Informe de Alta Dirección generado exitosamente', status: 'success', severity: 'success' });
@@ -381,7 +381,7 @@ export default function AltaDireccionChecklist() {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setAnalysisReport(lastMsg.text);
-                setEditorContent(lastMsg.text);
+                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
