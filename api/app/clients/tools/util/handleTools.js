@@ -38,6 +38,7 @@ const {
   GoogleImageTools,
   n8nWebhook,
   MatrizIPEVAR,
+  EditorLive,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -228,6 +229,10 @@ const loadTools = async ({
     matriz_ipevar: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body
       return new MatrizIPEVAR({ req: options.req });
+    },
+    editor_live: async (_toolContextMap) => {
+      // Passes `req` so the tool can read conversationId from req.body
+      return new EditorLive({ req: options.req });
     },
   };
 

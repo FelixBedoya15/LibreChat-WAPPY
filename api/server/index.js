@@ -239,6 +239,7 @@ const startServer = async () => {
   app.use('/api/sgsst/alta-direccion', routes.sgsst.altaDireccion);
   app.use('/api/sgsst/patch-agent-prompt', routes.sgsst.patchAgentPrompt);
   app.use('/api/sgsst/gtc45-workspace', routes.sgsst.gtc45Workspace);
+  app.use('/api/live-editor', routes.sgsst.liveEditor);
   app.use('/api/training', routes.training);
   app.use('/api/blog', routes.blog);
   app.use('/api/wompi', routes.wompi);

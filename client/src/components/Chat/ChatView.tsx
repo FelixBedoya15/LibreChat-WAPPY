@@ -19,6 +19,7 @@ import Footer from './Footer';
 import { cn } from '~/utils';
 import store from '~/store';
 import MatrizIPEVARTable from '../SGSST/MatrizIPEVARTable';
+import LiveEditorPanel from '../SGSST/LiveEditorPanel';
 const isMobileScreen = () => window.innerWidth <= 768;
 
 function LoadingSpinner() {
@@ -113,6 +114,32 @@ function ChatView({ index = 0 }: { index?: number }) {
     }
   }, [currentIsIPEVARActive, conversationId]);
 
+  // ── EDITOR LIVE: detect if tool is active ──────────────────────────────
+  const isEditorLiveActive = React.useMemo(() => {
+    const tools = conversation?.tools ?? [];
+    const hasToolByKey = tools.some((t: string | { pluginKey?: string }) =>
+      typeof t === 'string' ? t === 'editor_live' : t.pluginKey === 'editor_live',
+    );
+    if (hasToolByKey) return true;
+
+    const agentTools = agent?.tools ?? [];
+    const hasAgentToolByKey = agentTools.some(
+      (t: string | { pluginKey?: string }) =>
+        typeof t === 'string' ? t === 'editor_live' : t.pluginKey === 'editor_live',
+    );
+    if (hasAgentToolByKey) return true;
+
+    if (
+      messagesTree?.some(
+        (msg) =>
+          msg.plugin?.plugin === 'editor_live' ||
+          msg.plugins?.some((p: { plugin?: string }) => p.plugin === 'editor_live'),
+      )
+    ) return true;
+
+    return false;
+  }, [conversation?.tools, messagesTree, agent?.tools]);
+
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
   useEffect(() => {
@@ -172,8 +199,6 @@ function ChatView({ index = 0 }: { index?: number }) {
                   {isIPEVARActive && (
                     <div className={cn(
                       'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary gt45-matrix-panel',
-                      // Desktop: always visible at half width
-                      // Mobile: hidden by default, only shown when mobileExpanded
                       isMobileScreen()
                         ? mobileExpanded
                           ? 'fixed inset-0 z-[9990] w-full'
@@ -181,6 +206,11 @@ function ChatView({ index = 0 }: { index?: number }) {
                         : 'w-1/2',
                     )}>
                       <MatrizIPEVARTable key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
+                    </div>
+                  )}
+                  {isEditorLiveActive && !isIPEVARActive && (
+                    <div className="h-full w-1/2 flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary">
+                      <LiveEditorPanel key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
                     </div>
                   )}
                 </div>

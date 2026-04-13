@@ -21,6 +21,7 @@ const predictivo = require('./predictivo');
 const participacionIpevar = require('./participacionIpevar');
 const altaDireccion = require('./altaDireccion');
 const gtc45Workspace = require('./gtc45Workspace');
+const liveEditor = require('./liveEditor');
 const patchAgentPrompt = require('./patchAgentPrompt');
 
 
@@ -51,6 +52,7 @@ module.exports = {
     altaDireccion,
     signatures: require('./signatures'),
     gtc45Workspace,
+    liveEditor,
     patchAgentPrompt,
 };
 

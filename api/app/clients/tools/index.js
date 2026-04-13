@@ -15,6 +15,7 @@ const GoogleImageTools = require('./structured/GoogleImageTools');
 const TavilySearchResults = require('./structured/TavilySearchResults');
 const n8nWebhook = require('./structured/n8n');
 const MatrizIPEVAR = require('./structured/MatrizIPEVAR');
+const EditorLive = require('./structured/EditorLive');
 
 module.exports = {
   ...manifest,
@@ -33,4 +34,5 @@ module.exports = {
   GoogleImageTools,
   n8nWebhook,
   MatrizIPEVAR,
+  EditorLive,
 };
