@@ -879,8 +879,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
 
             {/* Header Toolbar */}
             <div className="bg-surface-secondary/50 backdrop-blur-sm p-2 border-b border-border-medium flex flex-col items-center sticky top-0 z-50 transition-all duration-300 group/toolbar">
-                {/* Desktop View */}
-                <div className="hidden sm:flex flex-wrap gap-2 items-center justify-center">
+                <div className="flex flex-wrap gap-1 md:gap-2 items-center justify-center">
                     {editorGroups.map((group, idx) => (
                         <React.Fragment key={group.id}>
                             <div className="flex gap-1.5 items-center">
@@ -890,24 +889,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                             </div>
                             {idx < editorGroups.length - 1 && <ToolbarSeparator />}
                         </React.Fragment>
-                    ))}
-                </div>
-
-                {/* Mobile View */}
-                <div className="flex sm:hidden flex-col gap-2 items-center">
-                    {editorRows.map((row, rIdx) => (
-                        <div key={rIdx} className="flex gap-1.5 items-center justify-center">
-                            {row.map((group, gIdx) => (
-                                <React.Fragment key={group.id}>
-                                    <div className="flex gap-1.5 items-center">
-                                        {group.buttons.map((btn, bIdx) => (
-                                            <ToolbarButton key={bIdx} {...btn} />
-                                        ))}
-                                    </div>
-                                    {gIdx < row.length - 1 && <ToolbarSeparator />}
-                                </React.Fragment>
-                            ))}
-                        </div>
                     ))}
                 </div>
             </div>

@@ -469,6 +469,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     - NO uses frases genéricas como "veo una persona". Describe "trabajador operando maquinaria sin guantes de carnaza".
                     - Sé lo más extenso posible en los párrafos descriptivos.
                     - Utiliza formato HTML limpio para tablas y listas.
+                    - ¡CRÍTICO! Genera el informe técnico de análisis INMEDIATAMENTE basándote SÓLO en la imagen/video que estés captando. NO ESPERES a que yo te describa algo u hable por el micrófono primero. Inicia el análisis proactivamente ahora mismo.
                 `);
             }, 1000); // Short delay after ready
 
