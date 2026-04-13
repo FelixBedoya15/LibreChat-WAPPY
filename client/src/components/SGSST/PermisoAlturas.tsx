@@ -900,8 +900,6 @@ const PermisoAlturas = () => {
                             </div>
                         </div>
                     </CollapsibleReportBox>
-                )
-            }
         </div>
     );
 };

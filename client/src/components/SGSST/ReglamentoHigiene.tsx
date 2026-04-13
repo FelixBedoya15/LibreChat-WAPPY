@@ -319,7 +319,6 @@ const ReglamentoHigiene = () => {
                 )}
             </div>
 
-            {generatedDocument && (
                 <CollapsibleReportBox
                     title="Reglamento de Higiene y Seguridad Industrial"
                     icon={<ShieldAlert className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
@@ -374,7 +373,6 @@ const ReglamentoHigiene = () => {
                         `}</style>
                     </div>
                 </CollapsibleReportBox>
-            )}
         </div>
     );
 };

@@ -742,7 +742,6 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 </button>
             </div>
             {/* Analysis Report - Editable */}
-            {analysisReport && (
                 <CollapsibleReportBox
                     title="Diagnóstico SGSST"
                     icon={<FileText className="h-5 w-5" />}
@@ -787,7 +786,6 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                         }
                     `}</style>
                 </CollapsibleReportBox>
-            )}
 
             {/* Report History Panel */}
             <ReportHistory

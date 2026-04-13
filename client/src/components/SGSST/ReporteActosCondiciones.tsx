@@ -1058,7 +1058,6 @@ const ReporteActosCondiciones = () => {
             </div>
 
             {/* Generated Report Editor */}
-            {generatedReport && (
                 <CollapsibleReportBox
                     title="Reporte de Actos y Condiciones Inseguras"
                     icon={<AlertTriangle className="h-5 w-5" />}
@@ -1069,7 +1068,6 @@ const ReporteActosCondiciones = () => {
                         </div>
                     </div>
                 </CollapsibleReportBox>
-            )}
         </div>
     );
 };

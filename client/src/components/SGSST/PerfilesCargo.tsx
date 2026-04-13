@@ -725,12 +725,11 @@ const PerfilesCargo = () => {
             </div>
 
             {/* Generated Report View */}
-            {generatedReport && (
                 <CollapsibleReportBox
                     title="Perfil de Cargos"
                     icon={<FileText className="h-5 w-5" />}
-                    containerClassName="shadow-2xl border-border-medium"
-                    headerClassName="bg-surface-tertiary"
+                    
+                    
                 >
                     <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                          <div style={{ minWidth: '100%', padding: '24px' }}>
@@ -744,7 +743,6 @@ const PerfilesCargo = () => {
                         </div>
                     </div>
                 </CollapsibleReportBox>
-            )}
         </div>
     );
 };

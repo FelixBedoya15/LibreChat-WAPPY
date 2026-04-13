@@ -961,7 +961,6 @@ const ParticipacionIPEVAR = () => {
             </div>
 
             {/* Generated Report Editor */}
-            {generatedReport && (
                 <CollapsibleReportBox
                     title="Participación IPEVAR"
                     icon={<AlertTriangle className="h-5 w-5 text-teal-600" />}
@@ -984,7 +983,6 @@ const ParticipacionIPEVAR = () => {
                         </div>
                     </div>
                 </CollapsibleReportBox>
-            )}
         </div>
     );
 };

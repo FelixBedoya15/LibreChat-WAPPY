@@ -743,7 +743,6 @@ const MetodoOwas = () => {
       </div>
 
       {/* Generated report editor */}
-      {generatedReport && (
         <CollapsibleReportBox
             title="Método OWAS"
             icon={<Activity className="h-5 w-5 text-purple-700" />}
@@ -766,7 +765,6 @@ const MetodoOwas = () => {
             </div>
           </div>
         </CollapsibleReportBox>
-      )}
     </div>
   );
 };

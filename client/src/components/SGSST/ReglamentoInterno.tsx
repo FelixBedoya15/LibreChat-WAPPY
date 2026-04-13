@@ -425,7 +425,6 @@ const ReglamentoInterno = () => {
                 )}
             </div>
 
-            {generatedDocument && (
                 <CollapsibleReportBox
                     title="Reglamento Interno de Trabajo"
                     icon={<Briefcase className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
@@ -480,7 +479,6 @@ const ReglamentoInterno = () => {
                         `}</style>
                     </div>
                 </CollapsibleReportBox>
-            )}
         </div>
     );
 };
