@@ -26,6 +26,7 @@ import SGSSTToolbar from './SGSSTToolbar';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 const ResponsableSGSST = () => {
     const { t } = useTranslation();
@@ -417,23 +418,31 @@ const ResponsableSGSST = () => {
             </div>
 
             {generatedDoc && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                            Documento de Asignación Generado
-                        </h3>
-                        <span className="text-xs text-text-secondary">Edita si es necesario</span>
-                    </div>
-                    <div className="rounded-xl p-1 overflow-hidden">
-                        <LiveEditor
-                            key={editorKey}
-                            initialContent={generatedDoc}
-                            onUpdate={(html) => setEditorContent(html)}
-                            onSave={handleSave}
-                            reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
-                        />
-                    </div>
+                <div className="mt-6">
+                    <CollapsibleReportBox
+                        title="Documento de Asignación Generado"
+                        icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                        actions={
+                            <button
+                                onClick={handleSave}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                title="Guardar"
+                            >
+                                <Save size={16} />
+                                Guardar
+                            </button>
+                        }
+                    >
+                        <div className="rounded-xl p-1 overflow-hidden">
+                            <LiveEditor
+                                key={editorKey}
+                                initialContent={generatedDoc}
+                                onUpdate={(html) => setEditorContent(html)}
+                                onSave={handleSave}
+                                reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
+                            />
+                        </div>
+                    </CollapsibleReportBox>
                 </div>
             )}
         </div>

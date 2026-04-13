@@ -27,6 +27,8 @@ import { cn } from '~/utils';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import { UpgradeWall } from './UpgradeWall';
 import { SystemRoles } from 'librechat-data-provider';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import { FileText } from 'lucide-react';
 
 interface ForecastData {
     overallRisk: number;
@@ -545,43 +547,27 @@ const DashboardPredictivo = () => {
             </div>
             {/* ═══ Generated Report ═══ */}
             {generatedReport && (
-                <div className="rounded-2xl border-2 border-[#10b981]/20 bg-surface-primary overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-4 duration-700">
-                    <div 
-                        className="border-b border-border-medium bg-gradient-to-r from-[#10b981]/10 to-transparent dark:from-[#10b981]/20 px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-[#10b981]/5 transition-colors"
-                        onClick={() => setIsReportCollapsed(!isReportCollapsed)}
+                <div className="mt-4">
+                    <CollapsibleReportBox
+                        title="Informe Predictivo Detallado"
+                        icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSaveReport}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                    title="Guardar"
+                                >
+                                    <AnimatedIcon name="save" size={16} />
+                                    Guardar
+                                </button>
+                                <ExportDropdown
+                                    content={editorContent || generatedReport || ''}
+                                    fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
+                                />
+                            </div>
+                        }
                     >
-                        <div className="flex flex-wrap items-center gap-3 w-full">
-                            <div className="p-2 rounded-xl bg-[#10b981]/20 text-[#10b981]">
-                                <LineChart className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-[#0d9488] dark:text-[#10b981]">Informe Predictivo Detallado</h3>
-                                <p className="text-[10px] text-text-secondary uppercase tracking-widest">Generado por WAPPY AI Engine</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => handleSaveReport()}
-                                className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 border outline-none rounded-xl hover:-rotate-3 hover:scale-105 bg-[#10b981] hover:bg-[#059669] text-white">
-                                <div className="relative flex-shrink-0 flex items-center justify-center">
-                                    <AnimatedIcon name="save" size={20} />
-                                </div>
-                                <div className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
-                                    <span className="text-sm font-bold tracking-wide">Guardar en Historial</span>
-                                </div>
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || generatedReport || ''}
-                                fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
-                            />
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); setIsReportCollapsed(!isReportCollapsed); }}
-                                className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-md transition-colors text-text-secondary"
-                            >
-                                {isReportCollapsed ? <ChevronDown /> : <ChevronUp />}
-                            </button>
-                        </div>
-                    </div>
-                    {!isReportCollapsed && (
                         <div className="rounded-xl p-1 overflow-hidden bg-white dark:bg-[#1a1a1a]">
                             <LiveEditor
                                 initialContent={generatedReport}
@@ -590,7 +576,7 @@ const DashboardPredictivo = () => {
                                 reportSourceData={forecast}
                             />
                         </div>
-                    )}
+                    </CollapsibleReportBox>
                 </div>
             )}
         </div>

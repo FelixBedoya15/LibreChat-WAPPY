@@ -25,6 +25,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ─── OWAS Risk Category Table (server-side mirror for instant UI feedback) ───
 const OWAS_TABLE: Record<string, number> = {
@@ -742,11 +743,20 @@ const MetodoOwas = () => {
 
       {/* Generated report editor */}
       {generatedReport && (
-        <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-          <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center gap-2">
-            <Activity className="h-5 w-5 text-purple-700" />
-            <h3 className="font-semibold">Informe Ergonómico OWAS Generado</h3>
-          </div>
+        <CollapsibleReportBox
+            title="Informe Ergonómico OWAS Generado"
+            icon={<Activity className="h-5 w-5 text-purple-700" />}
+            actions={
+                <button
+                    onClick={handleSave}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg transition-colors text-sm font-medium"
+                    title="Guardar"
+                >
+                    <Save size={16} />
+                    Guardar
+                </button>
+            }
+        >
           <div className="p-1 overflow-hidden">
             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
               <div style={{ minWidth: '900px', padding: '16px' }}>
@@ -754,7 +764,7 @@ const MetodoOwas = () => {
               </div>
             </div>
           </div>
-        </div>
+        </CollapsibleReportBox>
       )}
     </div>
   );

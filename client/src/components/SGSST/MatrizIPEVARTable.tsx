@@ -15,6 +15,7 @@ import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ── FilterSelect: dropdown con estilo del sistema (reemplaza <select> nativo) ────────────────
 const FilterSelect = ({
@@ -1145,21 +1146,11 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
           El contenido se genera presionando 'Crear Informe' en el toolbar
         */}
         <div id="ipevar-report-editor" className="mt-6 mb-4">
-          <div className="rounded-2xl border border-border-medium bg-surface-secondary overflow-hidden shadow-sm">
-            {/* Cabecera del Editor */}
-            <button
-              onClick={() => setIsReportExpanded(e => !e)}
-              className="w-full flex items-center justify-between px-5 py-3 bg-surface-tertiary hover:bg-surface-hover transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                <span className="font-bold text-sm text-text-primary">Informe Ejecutivo IPEVAR — GTC-45</span>
-                {reportContent && (
-                  <span className="text-[10px] bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold ml-2">Generado</span>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                {reportContent && (
+          <CollapsibleReportBox
+            title="Informe Ejecutivo IPEVAR — GTC-45"
+            icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
+            actions={
+              reportContent ? (
                   <div onClick={e => e.stopPropagation()}>
                     <ExportDropdown
                       content={reportContent}
@@ -1167,63 +1158,58 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
                       reportType="general"
                     />
                   </div>
-                )}
-                <ChevronDown className={`h-4 w-4 text-text-secondary transition-transform duration-200 ${isReportExpanded ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-
+              ) : undefined
+            }
+          >
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden mb-4 mx-2">
+                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden mb-4 mx-2 mt-4">
                     <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
                         toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger}
                         tags={['sgsst-matriz-ipevar']} />
                 </div>
             )}
 
-            {/* Editor colapsable */}
-            {isReportExpanded && (
-              <div className="p-2">
-                {reportContent ? (
-                  <div style={{ minHeight: '500px', width: '100%' }}>
-                    <LiveEditor
-                      key={editorKey}
-                      initialContent={reportContent}
-                      onUpdate={(content: string) => setReportContent(content)}
-                      reportSourceData={{ matrixRows, chartConclusions }}
-                      onSave={handleSaveReport}
-                      onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
-                    />
+            <div className="p-2">
+              {reportContent ? (
+                <div style={{ minHeight: '500px', width: '100%' }}>
+                  <LiveEditor
+                    key={editorKey}
+                    initialContent={reportContent}
+                    onUpdate={(content: string) => setReportContent(content)}
+                    reportSourceData={{ matrixRows, chartConclusions }}
+                    onSave={handleSaveReport}
+                    onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 gap-4 text-text-secondary">
+                  <FileTextIcon className="h-12 w-12 opacity-20" />
+                  <p className="text-sm text-center max-w-sm">
+                    Presiona{' '}
+                    <span className="font-bold text-purple-600">“Análisis IPEVAR”</span>
+                    {' '}en la barra superior para que la IA genere el Informe Ejecutivo GTC-45 con análisis de riesgos, controles y recomendaciones.
+                  </p>
+                  <div className="flex gap-4 mt-2">
+                    <button
+                      onClick={handleAnalyzeMatrix}
+                      disabled={isAnalyzing || matrixRows.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-purple-400 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-bold hover:bg-purple-100 transition-colors disabled:opacity-50"
+                    >
+                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileTextIcon className="h-4 w-4" />}
+                      {isAnalyzing ? 'Generando informe…' : 'Generar Informe Ahora'}
+                    </button>
+                    <button
+                      onClick={() => setIsHistoryOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-teal-400 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-sm font-bold hover:bg-teal-100 transition-colors shadow-sm"
+                    >
+                      <History className="h-4 w-4" />
+                      Cargar desde Historial
+                    </button>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 gap-4 text-text-secondary">
-                    <FileTextIcon className="h-12 w-12 opacity-20" />
-                    <p className="text-sm text-center max-w-sm">
-                      Presiona{' '}
-                      <span className="font-bold text-purple-600">“Análisis IPEVAR”</span>
-                      {' '}en la barra superior para que la IA genere el Informe Ejecutivo GTC-45 con análisis de riesgos, controles y recomendaciones.
-                    </p>
-                    <div className="flex gap-4 mt-2">
-                      <button
-                        onClick={handleAnalyzeMatrix}
-                        disabled={isAnalyzing || matrixRows.length === 0}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-purple-400 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-sm font-bold hover:bg-purple-100 transition-colors disabled:opacity-50"
-                      >
-                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileTextIcon className="h-4 w-4" />}
-                        {isAnalyzing ? 'Generando informe…' : 'Generar Informe Ahora'}
-                      </button>
-                      <button
-                        onClick={() => setIsHistoryOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-teal-400 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-sm font-bold hover:bg-teal-100 transition-colors shadow-sm"
-                      >
-                        <History className="h-4 w-4" />
-                        Cargar desde Historial
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleReportBox>
         </div>
       </div>
 

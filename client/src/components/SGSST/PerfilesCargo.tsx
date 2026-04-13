@@ -727,7 +727,7 @@ const PerfilesCargo = () => {
             {/* Generated Report View */}
             {generatedReport && (
                 <CollapsibleReportBox
-                    title="INFORME TÉCNICO GENERADO"
+                    title="Perfil de Cargos"
                     icon={<FileText className="h-5 w-5" />}
                     containerClassName="shadow-2xl border-border-medium"
                     headerClassName="bg-surface-tertiary"

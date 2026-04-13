@@ -31,6 +31,7 @@ import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 interface AuditoriaChecklistProps {
     onAnalysisComplete?: (report: string) => void;
@@ -660,31 +661,52 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
 
             {analysisReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
-
-                    <div style={{ minHeight: '400px', overflowX: 'auto' }}>
-                        <div style={{ minWidth: '900px' }}>
-                            <LiveEditor
-                                key={editorKey}
-                                reportType="checklist"
-                                initialContent={analysisReport}
-                                onUpdate={(content) => setEditorContent(content)}
-                                onSave={handleSave}
-                                reportSourceData={{ statuses: validStatuses, observations, weightedScore, weightedPercentage, complianceLevel }}
-                            />
-                        </div>
-                    </div>
-                    <style>{`
-                        [contenteditable] table {
-                            width: 100%;
-                            min-width: 800px;
-                            border-collapse: separate;
-                            border-spacing: 0;
-                            border-radius: 12px;
-                            overflow: hidden;
-                            border: 1px solid var(--border-medium, #ddd);
+                <div className="mt-4">
+                    <CollapsibleReportBox
+                        title="Documento de Análisis Documentado"
+                        icon={<FileText className="h-5 w-5 text-teal-700" />}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                  <button
+                                      onClick={handleSave}
+                                      className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                      title="Guardar"
+                                  >
+                                      <Save size={16} />
+                                      Guardar
+                                  </button>
+                                  <ExportDropdown
+                                    content={editorContent || analysisReport || ''}
+                                    fileName="Informe_Auditoria_SST"
+                                    reportType="checklist"
+                                  />
+                            </div>
                         }
-                    `}</style>
+                    >
+                        <div style={{ minHeight: '400px', overflowX: 'auto' }}>
+                            <div style={{ minWidth: '900px' }}>
+                                <LiveEditor
+                                    key={editorKey}
+                                    reportType="checklist"
+                                    initialContent={analysisReport}
+                                    onUpdate={(content) => setEditorContent(content)}
+                                    onSave={handleSave}
+                                    reportSourceData={{ statuses: validStatuses, observations, weightedScore, weightedPercentage, complianceLevel }}
+                                />
+                            </div>
+                        </div>
+                        <style>{`
+                            [contenteditable] table {
+                                width: 100%;
+                                min-width: 800px;
+                                border-collapse: separate;
+                                border-spacing: 0;
+                                border-radius: 12px;
+                                overflow: hidden;
+                                border: 1px solid var(--border-medium, #ddd);
+                            }
+                        `}</style>
+                    </CollapsibleReportBox>
                 </div>
             )}
 

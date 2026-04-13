@@ -29,6 +29,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 interface ComplianceStatus {
     itemId: string;
@@ -568,26 +569,27 @@ const MatrizLegal = () => {
                 </div>
 
                 {/* Report Viewer Section */}
-                <div className="border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col mt-6">
-                    <div className="p-3 bg-surface-tertiary/50 border-b border-border-medium flex justify-between items-center shrink-0">
-                        <span className="font-semibold text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Documento de Matriz</span>
-                        {generatedMatrix && (
-                            <div className="flex flex-wrap items-center gap-2 w-full">
+                {generatedMatrix ? (
+                    <CollapsibleReportBox
+                        title="Documento de Matriz"
+                        icon={<FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                        actions={
+                            <>
                                 <button
-                                    onClick={() => handleSaveReport()}
-                                    className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
+                                    onClick={handleSaveReport}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                    title="Guardar Informe"
                                 >
-                                    <AnimatedIcon name="save" size={20} className="text-gray-500" />
-                                    <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar Informe</span>
+                                    <Save size={16} />
+                                    Guardar
                                 </button>
                                 <ExportDropdown
                                     content={editorContent || generatedMatrix || ''}
                                     fileName="Matriz_Legal"
                                 />
-                            </div>
-                        )}
-                    </div>
-                    {generatedMatrix ? (
+                            </>
+                        }
+                    >
                         <div className="rounded-xl p-1 overflow-visible">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
@@ -627,14 +629,16 @@ const MatrizLegal = () => {
                                 }
                             `}</style>
                         </div>
-                    ) : (
+                    </CollapsibleReportBox>
+                ) : (
+                    <div className="border border-border-medium rounded-xl bg-surface-primary overflow-hidden shadow-sm flex flex-col mt-6">
                         <div className="w-full h-48 flex flex-col items-center justify-center p-6 text-center text-text-secondary bg-surface-secondary/50">
                             <Scale className="h-10 w-10 mb-3 opacity-20" />
                             <p className="font-medium text-sm">No hay matriz generada</p>
                             <p className="text-xs mt-1 max-w-sm">Califica los criterios en los paneles superiores y haz clic en "Generar Documento IA".</p>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );

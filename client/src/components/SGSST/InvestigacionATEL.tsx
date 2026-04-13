@@ -39,6 +39,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import ModelSelector from './ModelSelector';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ─── Worker Autocomplete (identical to PermisoAlturas) ────────────────────────
 const WorkerAutocomplete = ({
@@ -1253,25 +1254,42 @@ const InvestigacionATEL = () => {
 
             {/* ── Report Viewer ── */}
             {generatedObjectives && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-teal-600" /> Informe de Investigación ATEL Generado
-                        </h3>
-                    </div>
-                    <div className="p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor
-                                    key={editorKey}
-                                    initialContent={generatedObjectives}
-                                    onUpdate={setEditorContent}
-                                    onSave={handleSave}
-                                    reportSourceData={{ formData, testigosList, equipoList }}
+                <div className="mt-4">
+                    <CollapsibleReportBox
+                        title="Informe de Investigación ATEL Generado"
+                        icon={<FileText className="h-5 w-5 text-teal-600" />}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSave}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                    title="Guardar"
+                                >
+                                    <Save size={16} />
+                                    Guardar
+                                </button>
+                                <ExportDropdown
+                                    content={editorContent || generatedObjectives || ''}
+                                    fileName={`Investigacion_ATEL_${formData.fechaEvento}`}
+                                    reportType="general"
                                 />
                             </div>
+                        }
+                    >
+                        <div className="p-1 overflow-hidden">
+                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                                <div style={{ minWidth: '900px', padding: '16px' }}>
+                                    <LiveEditor
+                                        key={editorKey}
+                                        initialContent={generatedObjectives}
+                                        onUpdate={setEditorContent}
+                                        onSave={handleSave}
+                                        reportSourceData={{ formData, testigosList, equipoList }}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </CollapsibleReportBox>
                 </div>
             )}
         </div>

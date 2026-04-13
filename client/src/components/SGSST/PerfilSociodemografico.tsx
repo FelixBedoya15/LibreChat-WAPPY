@@ -29,6 +29,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
@@ -1300,23 +1301,21 @@ const PerfilSociodemografico = () => {
 
             {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
             {generatedReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm mt-8">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <AnimatedIcon name="file-text" size={16} className="text-indigo-500" />
-                            Documento de Perfil Sociodemográfico Generado
-                        </h3>
-                        <span className="text-xs text-text-secondary">Edita si es necesario</span>
-                    </div>
-                    <div className="rounded-xl p-1 overflow-hidden">
-                        <LiveEditor 
-                            key={editorKey} 
-                            initialContent={generatedReport} 
-                            onUpdate={setEditorContent} 
-                            onSave={handleSaveReport} 
-                            reportSourceData={trabajadores} 
-                        />
-                    </div>
+                <div className="mt-8">
+                    <CollapsibleReportBox
+                        title="Documento de Perfil Sociodemográfico Generado"
+                        icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
+                    >
+                        <div className="rounded-xl p-1 overflow-hidden">
+                            <LiveEditor 
+                                key={editorKey} 
+                                initialContent={generatedReport} 
+                                onUpdate={setEditorContent} 
+                                onSave={handleSaveReport} 
+                                reportSourceData={trabajadores} 
+                            />
+                        </div>
+                    </CollapsibleReportBox>
                 </div>
             )}
 

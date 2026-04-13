@@ -41,10 +41,10 @@ const CollapsibleReportBox = ({
                         </div>
                     )}
                     <div>
-                        <h3 className="font-bold text-[#0d9488] dark:text-[#10b981] flex items-center gap-2">
-                            {title}
+                        <h3 className="font-bold text-[#0d9488] dark:text-[#10b981] flex items-center gap-2 uppercase tracking-wide">
+                            Análisis IA
                         </h3>
-                        {subtitle && <p className="text-[10px] text-text-secondary uppercase tracking-widest mt-0.5">{subtitle}</p>}
+                        {title && <p className="text-[10px] text-text-secondary font-semibold uppercase tracking-widest mt-0.5">{title}</p>}
                     </div>
                 </div>
                 

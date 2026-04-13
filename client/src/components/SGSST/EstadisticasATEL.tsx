@@ -26,6 +26,8 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
+import CollapsibleReportBox from './CollapsibleReportBox';
+import { FileText } from 'lucide-react';
 
 interface MonthData {
     numTrabajadores: number | '';
@@ -548,53 +550,68 @@ const EstadisticasATEL = () => {
 
             {/* Generated Report - LiveEditor */}
             {generatedReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                            Informe Generado ({MONTHS[currentMonthIndex]})
-                        </h3>
-                        <span className="text-xs text-text-secondary">Edita directamente antes de guardar</span>
-                    </div>
-                    <div className="rounded-xl p-1 overflow-hidden">
-                        <div style={{ minHeight: '800px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor
-                                    key={editorKey}
-                                    initialContent={generatedReport}
-                                    onUpdate={(html) => setEditorContent(html)}
-                                    onSave={handleSaveReport}
-                                    reportSourceData={annualData}
+                <div className="mt-4">
+                    <CollapsibleReportBox
+                        title={`Informe Generado (${MONTHS[currentMonthIndex]})`}
+                        icon={<BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSaveReport}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                    title="Guardar"
+                                >
+                                    <Save size={16} />
+                                    Guardar
+                                </button>
+                                <ExportDropdown
+                                    content={editorContent || generatedReport || ''}
+                                    fileName={`Estadisticas_ATEL_${MONTHS[currentMonthIndex]}`}
+                                    reportType="general"
                                 />
                             </div>
+                        }
+                    >
+                        <div className="rounded-xl p-1 overflow-hidden">
+                            <div style={{ minHeight: '800px', overflowX: 'auto', width: '100%' }}>
+                                <div style={{ minWidth: '900px', padding: '16px' }}>
+                                    <LiveEditor
+                                        key={editorKey}
+                                        initialContent={generatedReport}
+                                        onUpdate={(html) => setEditorContent(html)}
+                                        onSave={handleSaveReport}
+                                        reportSourceData={annualData}
+                                    />
+                                </div>
+                            </div>
+                            <style>{`
+                                [contenteditable] table {
+                                    width: 100%;
+                                    min-width: 650px;
+                                    border-collapse: separate;
+                                    border-spacing: 0;
+                                    table-layout: auto;
+                                    border-radius: 12px;
+                                    overflow: hidden;
+                                    border: 1px solid var(--border-medium, #ddd);
+                                }
+                                [contenteditable] table td,
+                                [contenteditable] table th {
+                                    padding: 8px 12px;
+                                    border-bottom: 1px solid var(--border-medium, #ddd);
+                                    border-right: 1px solid var(--border-medium, #eee);
+                                    word-wrap: break-word;
+                                }
+                                [contenteditable] table td:last-child,
+                                [contenteditable] table th:last-child {
+                                    border-right: none;
+                                }
+                                [contenteditable] table tr:last-child td {
+                                    border-bottom: none;
+                                }
+                            `}</style>
                         </div>
-                        <style>{`
-                            [contenteditable] table {
-                                width: 100%;
-                                min-width: 650px;
-                                border-collapse: separate;
-                                border-spacing: 0;
-                                table-layout: auto;
-                                border-radius: 12px;
-                                overflow: hidden;
-                                border: 1px solid var(--border-medium, #ddd);
-                            }
-                            [contenteditable] table td,
-                            [contenteditable] table th {
-                                padding: 8px 12px;
-                                border-bottom: 1px solid var(--border-medium, #ddd);
-                                border-right: 1px solid var(--border-medium, #eee);
-                                word-wrap: break-word;
-                            }
-                            [contenteditable] table td:last-child,
-                            [contenteditable] table th:last-child {
-                                border-right: none;
-                            }
-                            [contenteditable] table tr:last-child td {
-                                border-bottom: none;
-                            }
-                        `}</style>
-                    </div>
+                    </CollapsibleReportBox>
                 </div>
             )}
         </div>

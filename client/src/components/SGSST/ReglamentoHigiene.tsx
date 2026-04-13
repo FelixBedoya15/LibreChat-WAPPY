@@ -22,6 +22,7 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 const ReglamentoHigiene = () => {
     const { t } = useTranslation();
@@ -319,15 +320,20 @@ const ReglamentoHigiene = () => {
             </div>
 
             {generatedDocument && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <ShieldAlert className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                            Reglamento de Higiene y Seguridad Industrial
-                        </h3>
-                        <span className="text-xs text-text-secondary">Edita el reglamento generado directamente</span>
-                    </div>
-
+                <CollapsibleReportBox
+                    title="Reglamento de Higiene y Seguridad Industrial"
+                    icon={<ShieldAlert className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                    actions={
+                        <button
+                            onClick={handleSave}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                            title="Guardar Reglamente"
+                        >
+                            <Save size={16} />
+                            Guardar
+                        </button>
+                    }
+                >
                     <div className="rounded-xl p-1 overflow-visible">
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
@@ -367,7 +373,7 @@ const ReglamentoHigiene = () => {
                             }
                         `}</style>
                     </div>
-                </div>
+                </CollapsibleReportBox>
             )}
         </div>
     );

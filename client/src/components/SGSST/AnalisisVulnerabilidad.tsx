@@ -25,6 +25,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ─── Diamante de Colores Calculator ───
 const getColorValue = (score: number) => {
@@ -724,18 +725,29 @@ const AnalisisVulnerabilidad = () => {
 
       {/* Generated report editor */}
       {generatedReport && (
-        <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm mt-4">
-          <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-teal-700" />
-            <h3 className="font-semibold">Documento de Análisis Documentado</h3>
-          </div>
-          <div className="p-1 overflow-hidden">
-            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-              <div style={{ minWidth: '900px', padding: '16px' }}>
-                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={amenazasList} />
+        <div className="mt-4">
+          <CollapsibleReportBox
+              title="Documento de Análisis Documentado"
+              icon={<Shield className="h-5 w-5 text-teal-700" />}
+              actions={
+                  <button
+                      onClick={handleSave}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      title="Guardar"
+                  >
+                      <Save size={16} />
+                      Guardar
+                  </button>
+              }
+          >
+            <div className="p-1 overflow-hidden">
+              <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                <div style={{ minWidth: '900px', padding: '16px' }}>
+                  <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={amenazasList} />
+                </div>
               </div>
             </div>
-          </div>
+          </CollapsibleReportBox>
         </div>
       )}
     </div>

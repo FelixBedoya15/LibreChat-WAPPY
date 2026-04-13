@@ -27,6 +27,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 const WorkerAutocomplete = ({
     value,
@@ -877,10 +878,20 @@ const PermisoAlturas = () => {
 
             {
                 generatedObjectives && (
-                    <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                        <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                            <h3 className="font-semibold flex items-center gap-2"><FileText className="h-5 w-5 text-teal-600" /> Permiso de Alturas Generado</h3>
-                        </div>
+                    <CollapsibleReportBox
+                        title="Permiso de Alturas Generado"
+                        icon={<FileText className="h-5 w-5 text-teal-600" />}
+                        actions={
+                            <button
+                                onClick={handleSave}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                title="Guardar"
+                            >
+                                <Save size={16} />
+                                Guardar
+                            </button>
+                        }
+                    >
                         <div className="p-1 overflow-hidden">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
@@ -888,7 +899,7 @@ const PermisoAlturas = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </CollapsibleReportBox>
                 )
             }
         </div>
