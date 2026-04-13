@@ -963,7 +963,7 @@ const ParticipacionIPEVAR = () => {
             {/* Generated Report Editor */}
             {generatedReport && (
                 <CollapsibleReportBox
-                    title="Pre-Matriz de Participación IPEVAR"
+                    title="Participación IPEVAR"
                     icon={<AlertTriangle className="h-5 w-5 text-teal-600" />}
                     actions={
                         <button

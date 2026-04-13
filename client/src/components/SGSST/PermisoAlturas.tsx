@@ -879,7 +879,7 @@ const PermisoAlturas = () => {
             {
                 generatedObjectives && (
                     <CollapsibleReportBox
-                        title="Permiso de Alturas Generado"
+                        title="Permiso de Trabajo en Alturas"
                         icon={<FileText className="h-5 w-5 text-teal-600" />}
                         actions={
                             <button

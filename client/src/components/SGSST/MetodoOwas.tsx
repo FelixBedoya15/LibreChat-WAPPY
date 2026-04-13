@@ -12,6 +12,7 @@ import {
     Download,
     Video,
     Film,
+    Save,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -744,7 +745,7 @@ const MetodoOwas = () => {
       {/* Generated report editor */}
       {generatedReport && (
         <CollapsibleReportBox
-            title="Informe Ergonómico OWAS Generado"
+            title="Método OWAS"
             icon={<Activity className="h-5 w-5 text-purple-700" />}
             actions={
                 <button

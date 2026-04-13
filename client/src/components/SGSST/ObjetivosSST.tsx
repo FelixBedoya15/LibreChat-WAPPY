@@ -24,6 +24,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 const ObjetivosSST = () => {
     const { t } = useTranslation();
@@ -354,54 +355,67 @@ const ObjetivosSST = () => {
 
             {/* Generated Objectives - LiveEditor */}
             {generatedObjectives && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary/30 px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                            <Target className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                            Objetivos SST Generados
-                        </h3>
-                        <span className="text-xs text-text-secondary">Puedes editar el contenido directamente</span>
-                    </div>
-
-                    <div className="rounded-xl p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor
-                                    key={editorKey}
-                                    initialContent={generatedObjectives}
-                                    onUpdate={(html) => setEditorContent(html)}
-                                    onSave={handleSave}
-                                    reportSourceData={{ policySummary, diagnosticSummary, additionalNorms, previousObjectives, yearPlan }}
+                <div className="mt-4">
+                    <CollapsibleReportBox
+                        title="Objetivos SST"
+                        icon={<Target className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
+                        actions={
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSave}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
+                                >
+                                    <Save size={16} />
+                                    Guardar
+                                </button>
+                                <ExportDropdown
+                                    content={editorContent || generatedObjectives || ''}
+                                    fileName="Objetivos_SST"
+                                    reportType="general"
                                 />
                             </div>
+                        }
+                    >
+                        <div className="rounded-xl p-1 overflow-hidden">
+                            <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                                <div style={{ minWidth: '900px', padding: '16px' }}>
+                                    <LiveEditor
+                                        key={editorKey}
+                                        initialContent={generatedObjectives}
+                                        onUpdate={(html) => setEditorContent(html)}
+                                        onSave={handleSave}
+                                        reportSourceData={{ policySummary, diagnosticSummary, additionalNorms, previousObjectives, yearPlan }}
+                                    />
+                                </div>
+                            </div>
+                            <style>{`
+                                [contenteditable] table {
+                                    width: 100%;
+                                    min-width: 650px;
+                                    border-collapse: separate;
+                                    border-spacing: 0;
+                                    table-layout: auto;
+                                    border-radius: 12px;
+                                    overflow: hidden;
+                                    border: 1px solid var(--border-medium, #ddd);
+                                }
+                                [contenteditable] table td,
+                                [contenteditable] table th {
+                                    padding: 8px 12px;
+                                    border-bottom: 1px solid var(--border-medium, #ddd);
+                                    border-right: 1px solid var(--border-medium, #eee);
+                                    word-wrap: break-word;
+                                }
+                                [contenteditable] table td:last-child,
+                                [contenteditable] table th:last-child {
+                                    border-right: none;
+                                }
+                                [contenteditable] table tr:last-child td {
+                                    border-bottom: none;
+                                }
+                            `}</style>
                         </div>
-                        <style>{`
-                            [contenteditable] table {
-                                width: 100%;
-                                min-width: 650px;
-                                border-collapse: separate;
-                                border-spacing: 0;
-                                table-layout: auto;
-                                border-radius: 12px;
-                                overflow: hidden;
-                                border: 1px solid var(--border-medium, #ddd);
-                            }
-                            [contenteditable] table td,
-                            [contenteditable] table th {
-                                padding: 8px 12px;
-                                border-bottom: 1px solid var(--border-medium, #ddd);
-                                border-right: 1px solid var(--border-medium, #eee);
-                                word-wrap: break-word;
-                            }
-                            [contenteditable] table td:last-child,
-                            [contenteditable] table th:last-child {
-                                border-right: none;
-                            }
-                            [contenteditable] table tr:last-child td {
-                                border-bottom: none;
-                            }
-                        `}</style>
-                    </div>
+                    </CollapsibleReportBox>
                 </div>
             )}
         </div>

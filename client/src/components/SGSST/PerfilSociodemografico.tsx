@@ -1303,7 +1303,7 @@ const PerfilSociodemografico = () => {
             {generatedReport && (
                 <div className="mt-8">
                     <CollapsibleReportBox
-                        title="Documento de Perfil Sociodemográfico Generado"
+                        title="Perfil Sociodemográfico"
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
                     >
                         <div className="rounded-xl p-1 overflow-hidden">

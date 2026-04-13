@@ -1147,7 +1147,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
         */}
         <div id="ipevar-report-editor" className="mt-6 mb-4">
           <CollapsibleReportBox
-            title="Informe Ejecutivo IPEVAR — GTC-45"
+            title="Matriz IPEVAR — GTC-45"
             icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
             actions={
               reportContent ? (

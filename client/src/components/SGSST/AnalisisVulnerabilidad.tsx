@@ -11,7 +11,8 @@ import {
     AlertTriangle,
     Download,
     Video,
-    Film
+    Film,
+    Save,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -727,7 +728,7 @@ const AnalisisVulnerabilidad = () => {
       {generatedReport && (
         <div className="mt-4">
           <CollapsibleReportBox
-              title="Documento de Análisis Documentado"
+              title="Análisis de Vulnerabilidad"
               icon={<Shield className="h-5 w-5 text-teal-700" />}
               actions={
                   <button

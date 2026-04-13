@@ -828,7 +828,7 @@ export default function AltaDireccionChecklist() {
             {analysisReport && (
                 <div className="mt-4">
                     <CollapsibleReportBox
-                        title="Informe Revisión Alta Dirección"
+                        title="Revisión Alta Dirección"
                         icon={<FileText className="h-5 w-5 text-text-secondary" />}
                         actions={
                             <div className="flex items-center gap-2">

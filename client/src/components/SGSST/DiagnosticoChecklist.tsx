@@ -744,7 +744,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             {/* Analysis Report - Editable */}
             {analysisReport && (
                 <CollapsibleReportBox
-                    title={t('com_ui_manager_report', 'Informe Gerencial')}
+                    title="Diagnóstico SGSST"
                     icon={<FileText className="h-5 w-5" />}
                     actions={
                         <>

@@ -663,7 +663,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             {analysisReport && (
                 <div className="mt-4">
                     <CollapsibleReportBox
-                        title="Documento de Análisis Documentado"
+                        title="Auditoría Interna"
                         icon={<FileText className="h-5 w-5 text-teal-700" />}
                         actions={
                             <div className="flex items-center gap-2">

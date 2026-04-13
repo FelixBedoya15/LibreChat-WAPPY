@@ -1256,7 +1256,7 @@ const InvestigacionATEL = () => {
             {generatedObjectives && (
                 <div className="mt-4">
                     <CollapsibleReportBox
-                        title="Informe de Investigación ATEL Generado"
+                        title="Investigación ATEL"
                         icon={<FileText className="h-5 w-5 text-teal-600" />}
                         actions={
                             <div className="flex items-center gap-2">

@@ -549,7 +549,7 @@ const DashboardPredictivo = () => {
             {generatedReport && (
                 <div className="mt-4">
                     <CollapsibleReportBox
-                        title="Informe Predictivo Detallado"
+                        title="Gestión Predictiva SST"
                         icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                             <div className="flex items-center gap-2">

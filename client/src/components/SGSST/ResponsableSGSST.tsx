@@ -420,7 +420,7 @@ const ResponsableSGSST = () => {
             {generatedDoc && (
                 <div className="mt-6">
                     <CollapsibleReportBox
-                        title="Documento de Asignación Generado"
+                        title="Responsable SGSST"
                         icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                             <button
