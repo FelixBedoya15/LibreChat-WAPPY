@@ -21,6 +21,7 @@ import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 const WorkerAutocomplete = ({
     value,
@@ -772,26 +773,22 @@ const AnalisisTrabajoSeguro = () => {
 
             {/* Generated ATS Editor */}
             {generatedReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <ShieldCheck className="h-5 w-5 text-teal-700" /> Análisis de Trabajo Seguro (ATS) Generado
-                        </h3>
-                    </div>
-                    <div className="p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor
-                                    key={editorKey}
-                                    initialContent={generatedReport}
-                                    onUpdate={setEditorContent}
-                                    onSave={handleSave}
-                                    reportSourceData={{ formData, trabajadoresList, responsablesList }}
-                                />
-                            </div>
+                <CollapsibleReportBox
+                    title="Análisis de Trabajo Seguro (ATS) Generado"
+                    icon={<ShieldCheck className="h-5 w-5" />}
+                >
+                    <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                        <div style={{ minWidth: '900px', padding: '16px' }}>
+                            <LiveEditor
+                                key={editorKey}
+                                initialContent={generatedReport}
+                                onUpdate={setEditorContent}
+                                onSave={handleSave}
+                                reportSourceData={{ formData, trabajadoresList, responsablesList }}
+                            />
                         </div>
                     </div>
-                </div>
+                </CollapsibleReportBox>
             )}
         </div>
     );

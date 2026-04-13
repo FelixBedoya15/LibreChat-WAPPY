@@ -14,6 +14,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
 import { useAutoLoadReport } from './useAutoLoadReport';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ─── Styled Tooltip ───────────────────────────────────────────────────
 const Tip = ({ children, text }: { children: React.ReactNode; text: string }) => (
@@ -1149,10 +1150,10 @@ const MatrizPeligrosGTC45 = () => {
 
             {generatedReport && (
                 <div className="mt-8 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-text-primary">Vista Previa del Informe</h3>
-                    </div>
-                    <div className="rounded-xl border border-border-medium bg-white dark:bg-gray-900 p-1 overflow-hidden">
+                    <CollapsibleReportBox
+                        title="Matriz Resumen de Recomendaciones IPEVAR"
+                        icon={<AlertTriangle className="h-5 w-5" />}
+                    >
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} reportSourceData={procesos} onSave={handleSaveReport} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
@@ -1184,7 +1185,7 @@ const MatrizPeligrosGTC45 = () => {
                                 border-bottom: none;
                             }
                         `}</style>
-                    </div>
+                    </CollapsibleReportBox>
                 </div>
             )}
         </div>

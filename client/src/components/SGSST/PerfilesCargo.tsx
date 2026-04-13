@@ -34,6 +34,7 @@ import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
+import CollapsibleReportBox from './CollapsibleReportBox';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
@@ -725,25 +726,24 @@ const PerfilesCargo = () => {
 
             {/* Generated Report View */}
             {generatedReport && (
-                <div className="rounded-2xl border border-border-medium bg-surface-primary shadow-2xl overflow-hidden animate-in fade-in duration-500">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-6 py-4 flex items-center gap-3">
-                        <div className="p-2 bg-teal-600 rounded-xl text-white"><FileText className="h-5 w-5" /></div>
-                        <h3 className="font-black text-base tracking-tight">INFORME TÉCNICO GENERADO</h3>
-                    </div>
-                    <div className="p-1">
-                        <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
-                             <div style={{ minWidth: '100%', padding: '24px' }}>
-                                <LiveEditor
-                                    key={`${editorKey}-${refreshTrigger}`}
-                                    initialContent={generatedReport}
-                                    onUpdate={setEditorContent}
-                                    onSave={handleSaveReport}
-                                    reportSourceData={{ formData, perfiles }}
-                                />
-                            </div>
+                <CollapsibleReportBox
+                    title="INFORME TÉCNICO GENERADO"
+                    icon={<FileText className="h-5 w-5" />}
+                    containerClassName="shadow-2xl border-border-medium"
+                    headerClassName="bg-surface-tertiary"
+                >
+                    <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+                         <div style={{ minWidth: '100%', padding: '24px' }}>
+                            <LiveEditor
+                                key={`${editorKey}-${refreshTrigger}`}
+                                initialContent={generatedReport}
+                                onUpdate={setEditorContent}
+                                onSave={handleSaveReport}
+                                reportSourceData={{ formData, perfiles }}
+                            />
                         </div>
                     </div>
-                </div>
+                </CollapsibleReportBox>
             )}
         </div>
     );

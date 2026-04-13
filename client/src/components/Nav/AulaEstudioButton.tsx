@@ -18,10 +18,10 @@ const AulaEstudioButton = ({
 }: Props) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const isActive = location.pathname.startsWith('/aula-estudio');
+  const isActive = location.pathname.startsWith('/training');
 
   const handleClick = () => {
-    navigate('/aula-estudio');
+    navigate('/training');
     if (isSmallScreen && toggleNav) {
       toggleNav();
     }

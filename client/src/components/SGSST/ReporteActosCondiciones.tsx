@@ -25,6 +25,7 @@ import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
+import CollapsibleReportBox from './CollapsibleReportBox';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -1058,20 +1059,16 @@ const ReporteActosCondiciones = () => {
 
             {/* Generated Report Editor */}
             {generatedReport && (
-                <div className="rounded-xl border border-border-medium bg-surface-primary overflow-hidden shadow-sm">
-                    <div className="border-b border-border-medium bg-surface-tertiary px-4 py-3 flex items-center justify-between">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-orange-500" /> Reporte de Actos y Condiciones Inseguras
-                        </h3>
-                    </div>
-                    <div className="p-1 overflow-hidden">
-                        <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
-                            <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
-                            </div>
+                <CollapsibleReportBox
+                    title="Reporte de Actos y Condiciones Inseguras"
+                    icon={<AlertTriangle className="h-5 w-5" />}
+                >
+                    <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
+                        <div style={{ minWidth: '900px', padding: '16px' }}>
+                            <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
                         </div>
                     </div>
-                </div>
+                </CollapsibleReportBox>
             )}
         </div>
     );
