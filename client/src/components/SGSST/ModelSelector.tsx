@@ -67,7 +67,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onSelectMo
     const dropdown = isOpen ? (
         <div
             ref={dropdownRef}
-            style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 99999 }}
+            style={{ position: 'fixed', top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999999 }}
             className="w-64 rounded-xl border border-border-medium bg-surface-primary shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
         >
             <div className="p-2 border-b border-border-light bg-surface-tertiary/30">
