@@ -265,7 +265,7 @@ const MatrizLegal = () => {
                 body: JSON.stringify(body),
             });
             if (res.ok) {
-                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
             } else {
                 throw new Error('Error al guardar datos');
             }

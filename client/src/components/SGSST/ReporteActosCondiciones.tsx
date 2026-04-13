@@ -533,7 +533,7 @@ const ReporteActosCondiciones = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
