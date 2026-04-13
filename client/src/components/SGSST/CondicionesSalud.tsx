@@ -1076,7 +1076,14 @@ const CondicionesSalud = () => {
                     <CollapsibleReportBox
                         title="Informe Condiciones de Salud"
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
-                    >
+                    actions={
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_CondicionesSalud"
+                            reportType="general"
+                        />
+                    }
+                >
                         <div className="rounded-xl p-1 overflow-hidden">
                             <LiveEditor 
                                 key={editorKey} 

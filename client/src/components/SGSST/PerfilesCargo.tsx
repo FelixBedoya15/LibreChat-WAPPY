@@ -728,8 +728,13 @@ const PerfilesCargo = () => {
                 <CollapsibleReportBox
                     title="Perfil de Cargos"
                     icon={<FileText className="h-5 w-5" />}
-                    
-                    
+                    actions={
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_PerfilesCargo"
+                            reportType="general"
+                        />
+                    }
                 >
                     <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                          <div style={{ minWidth: '100%', padding: '24px' }}>

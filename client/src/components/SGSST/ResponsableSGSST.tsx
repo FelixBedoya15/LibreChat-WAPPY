@@ -423,15 +423,12 @@ const ResponsableSGSST = () => {
                         title="Responsable SGSST"
                         icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
-                            <button
-                                onClick={handleSave}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
-                                title="Guardar"
-                            >
-                                <Save size={16} />
-                                Guardar
-                            </button>
-                        }
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_ResponsableSGSST"
+                            reportType="general"
+                        />
+                    }
                     >
                         <div className="rounded-xl p-1 overflow-hidden">
                             <LiveEditor

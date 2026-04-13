@@ -1150,16 +1150,12 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             title="Matriz IPEVAR — GTC-45"
             icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
             actions={
-              reportContent ? (
-                  <div onClick={e => e.stopPropagation()}>
-                    <ExportDropdown
-                      content={reportContent}
-                      fileName={`Informe_IPEVAR_GTC45_${new Date().toISOString().slice(0,10)}`}
-                      reportType="general"
-                    />
-                  </div>
-              ) : undefined
-            }
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_MatrizIPEVARTable"
+                            reportType="general"
+                        />
+                    }
           >
             {isHistoryOpen && (
                 <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden mb-4 mx-2 mt-4">

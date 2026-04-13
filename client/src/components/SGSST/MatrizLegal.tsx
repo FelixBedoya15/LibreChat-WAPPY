@@ -574,21 +574,12 @@ const MatrizLegal = () => {
                         title="Matriz Legal SST"
                         icon={<FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
-                            <>
-                                <button
-                                    onClick={handleSaveReport}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
-                                    title="Guardar Informe"
-                                >
-                                    <Save size={16} />
-                                    Guardar
-                                </button>
-                                <ExportDropdown
-                                    content={editorContent || generatedMatrix || ''}
-                                    fileName="Matriz_Legal"
-                                />
-                            </>
-                        }
+                        <ExportDropdown
+                            content={editorContent || generatedMatrix || ''}
+                            fileName="Informe_MatrizLegal"
+                            reportType="general"
+                        />
+                    }
                     >
                         <div className="rounded-xl p-1 overflow-visible">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>

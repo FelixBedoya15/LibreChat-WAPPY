@@ -552,21 +552,12 @@ const DashboardPredictivo = () => {
                         title="Gestión Predictiva SST"
                         icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handleSaveReport}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
-                                    title="Guardar"
-                                >
-                                    <AnimatedIcon name="save" size={16} />
-                                    Guardar
-                                </button>
-                                <ExportDropdown
-                                    content={editorContent || generatedReport || ''}
-                                    fileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
-                                />
-                            </div>
-                        }
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_DashboardPredictivo"
+                            reportType="general"
+                        />
+                    }
                     >
                         <div className="rounded-xl p-1 overflow-hidden bg-white dark:bg-[#1a1a1a]">
                             <LiveEditor

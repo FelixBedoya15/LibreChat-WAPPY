@@ -1205,7 +1205,14 @@ const PerfilSociodemografico = () => {
                     <CollapsibleReportBox
                         title="Perfil Sociodemográfico"
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
-                    >
+                    actions={
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_PerfilSociodemografico"
+                            reportType="general"
+                        />
+                    }
+                >
                         <div className="rounded-xl p-1 overflow-hidden">
                             <LiveEditor 
                                 key={editorKey} 

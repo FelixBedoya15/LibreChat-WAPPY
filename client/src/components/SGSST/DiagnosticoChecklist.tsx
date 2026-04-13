@@ -746,20 +746,11 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     title="Diagnóstico SGSST"
                     icon={<FileText className="h-5 w-5" />}
                     actions={
-                        <>
-                            <button
-                                onClick={() => handleSave()}
-                                className="group flex items-center px-3 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-medium text-sm"
-                            >
-                                <AnimatedIcon name="save" size={18} className="text-gray-500" />
-                                <span className="max-w-0 overflow-hidden opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 transition-all duration-300 whitespace-nowrap group-hover:ml-2">Guardar</span>
-                            </button>
-                            <ExportDropdown
-                                content={editorContent || analysisReport || ''}
-                                fileName="Informe_Diagnostico"
-                                reportType="checklist"
-                            />
-                        </>
+                        <ExportDropdown
+                            content={editorContent || analysisReport || ''}
+                            fileName="Informe_DiagnosticoChecklist"
+                            reportType="general"
+                        />
                     }
                 >
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>

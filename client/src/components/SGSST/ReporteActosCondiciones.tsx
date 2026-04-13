@@ -1061,6 +1061,13 @@ const ReporteActosCondiciones = () => {
                 <CollapsibleReportBox
                     title="Reporte de Actos y Condiciones Inseguras"
                     icon={<AlertTriangle className="h-5 w-5" />}
+                    actions={
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_ReporteActosCondiciones"
+                            reportType="general"
+                        />
+                    }
                 >
                     <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                         <div style={{ minWidth: '900px', padding: '16px' }}>

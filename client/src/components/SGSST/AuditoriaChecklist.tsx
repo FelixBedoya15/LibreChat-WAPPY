@@ -666,22 +666,12 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         title="Auditoría Interna"
                         icon={<FileText className="h-5 w-5 text-teal-700" />}
                         actions={
-                            <div className="flex items-center gap-2">
-                                  <button
-                                      onClick={handleSave}
-                                      className="flex items-center gap-2 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors text-sm font-medium"
-                                      title="Guardar"
-                                  >
-                                      <Save size={16} />
-                                      Guardar
-                                  </button>
-                                  <ExportDropdown
-                                    content={editorContent || analysisReport || ''}
-                                    fileName="Informe_Auditoria_SST"
-                                    reportType="checklist"
-                                  />
-                            </div>
-                        }
+                        <ExportDropdown
+                            content={editorContent || analysisReport || ''}
+                            fileName="Informe_AuditoriaChecklist"
+                            reportType="general"
+                        />
+                    }
                     >
                         <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                             <div style={{ minWidth: '900px' }}>

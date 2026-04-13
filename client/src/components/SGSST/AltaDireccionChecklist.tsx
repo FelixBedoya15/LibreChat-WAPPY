@@ -830,22 +830,12 @@ export default function AltaDireccionChecklist() {
                         title="Revisión Alta Dirección"
                         icon={<FileText className="h-5 w-5 text-text-secondary" />}
                         actions={
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => handleSave()}
-                                    className="group flex items-center px-3 py-1.5 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-lg transition-all duration-300 shadow-sm font-medium text-sm"
-                                    title="Guardar"
-                                >
-                                    <AnimatedIcon name="save" size={16} className="text-gray-500" />
-                                    <span className="ml-2">Guardar Informe</span>
-                                </button>
-                                <ExportDropdown
-                                    content={editorContent || analysisReport || ''}
-                                    fileName="Informe_Alta_Direccion"
-                                    reportType="checklist"
-                                />
-                            </div>
-                        }
+                        <ExportDropdown
+                            content={editorContent || analysisReport || ''}
+                            fileName="Informe_AltaDireccionChecklist"
+                            reportType="general"
+                        />
+                    }
                     >
                         <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                             <div style={{ minWidth: '900px' }}>

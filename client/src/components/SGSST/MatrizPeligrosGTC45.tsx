@@ -1153,7 +1153,14 @@ const MatrizPeligrosGTC45 = () => {
                     <CollapsibleReportBox
                         title="Matriz Resumen de Recomendaciones IPEVAR"
                         icon={<AlertTriangle className="h-5 w-5" />}
-                    >
+                    actions={
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_MatrizPeligrosGTC45"
+                            reportType="general"
+                        />
+                    }
+                >
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} reportSourceData={procesos} onSave={handleSaveReport} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />

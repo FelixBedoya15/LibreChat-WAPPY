@@ -776,6 +776,13 @@ const AnalisisTrabajoSeguro = () => {
                 <CollapsibleReportBox
                     title="Análisis de Trabajo Seguro (ATS)"
                     icon={<ShieldCheck className="h-5 w-5" />}
+                    actions={
+                        <ExportDropdown
+                            content={editorContent || generatedReport || ''}
+                            fileName="Informe_AnalisisTrabajoSeguro"
+                            reportType="general"
+                        />
+                    }
                 >
                     <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                         <div style={{ minWidth: '900px', padding: '16px' }}>
