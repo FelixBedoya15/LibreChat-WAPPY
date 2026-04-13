@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useToastContext } from '@librechat/client';
 import { useLocalize } from '~/hooks';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import BulkUpdateDatesModal from './BulkUpdateDatesModal';
@@ -142,19 +143,22 @@ export default function UserManagementTable() {
             u.lastActivity ? new Date(u.lastActivity).toISOString() : ''
         ]);
         
-        const csvContent = [header, ...rows]
-            .map(row => row.map(item => `"${String(item).replace(/"/g, '""')}"`).join(','))
-            .join('\n');
-            
-        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+        const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Usuarios');
+        
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', 'usuarios.csv');
+        link.setAttribute('download', 'usuarios.xlsx');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        
         showToast({ message: localize('com_ui_export_success') || 'Usuarios exportados correctamente', status: 'success' });
     };
 
@@ -163,30 +167,57 @@ export default function UserManagementTable() {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const text = (e.target as any).result;
-            const rows = text.split('\n').slice(1);
-            let successCount = 0, errorCount = 0;
-            showToast({ message: localize('com_ui_processing') || 'Processing...', status: 'info' });
-            for (const row of rows) {
-                if (!row.trim()) continue;
-                const [name, email, username, role, status] = row.split(',').map(c => c.trim());
-                if (!email) continue;
-                try {
-                    await axios.post('/api/admin/users/create', {
-                        name: name || undefined,
-                        username: username || email.split('@')[0],
-                        email,
-                        password: username || email.split('@')[0],
-                        role: role && ['USER', 'ADMIN', 'USER_PRO', 'USER_PLUS'].includes(role.toUpperCase()) ? role.toUpperCase() : 'USER',
-                        accountStatus: status && ['active', 'inactive', 'pending'].includes(status.toLowerCase()) ? status.toLowerCase() : 'active',
-                    });
-                    successCount++;
-                } catch { errorCount++; }
+            try {
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                const dataRows = rows.slice(1);
+                let successCount = 0, errorCount = 0;
+                showToast({ message: localize('com_ui_processing') || 'Procesando archivo excel...', status: 'info' });
+                
+                for (const row of dataRows) {
+                    if (!row || !row[1]) continue;
+                    
+                    const name = row[0] ? String(row[0]).trim() : undefined;
+                    const email = row[1] ? String(row[1]).trim() : undefined;
+                    const phoneNumber = row[2] ? String(row[2]).trim() : undefined;
+                    const username = row[3] ? String(row[3]).trim() : (email ? email.split('@')[0] : undefined);
+                    const role = row[4] ? String(row[4]).toUpperCase().trim() : 'USER';
+                    const status = row[5] ? String(row[5]).toLowerCase().trim() : 'active';
+                    
+                    if (!email) continue;
+                    
+                    try {
+                        const validRole = ['USER', 'ADMIN', 'USER_PRO', 'USER_PLUS', 'USER_GO'].includes(role) ? role : 'USER';
+                        const validStatus = ['active', 'inactive', 'pending', 'activo', 'inactivo', 'pendiente'].includes(status) 
+                            ? (status === 'activo' ? 'active' : status === 'inactivo' ? 'inactive' : status === 'pendiente' ? 'pending' : status) 
+                            : 'active';
+                            
+                        await axios.post('/api/admin/users/create', {
+                            name,
+                            username,
+                            email,
+                            password: username || email.split('@')[0],
+                            role: validRole,
+                            accountStatus: validStatus,
+                            phoneNumber
+                        });
+                        successCount++;
+                    } catch { errorCount++; }
+                }
+                
+                if (successCount > 0) { showToast({ message: `${localize('com_ui_import_success') || 'Usuarios importados'}: ${successCount}`, status: 'success' }); fetchUsers(); }
+                if (errorCount > 0) { showToast({ message: `${localize('com_ui_import_error') || 'Errores de importación'}: ${errorCount}`, status: 'warning' }); }
+                
+            } catch (error) {
+                console.error('Error importing excel:', error);
+                showToast({ message: 'Error procesando el archivo Excel', status: 'error' });
             }
-            if (successCount > 0) { showToast({ message: `${localize('com_ui_import_success')}: ${successCount}`, status: 'success' }); fetchUsers(); }
-            if (errorCount > 0) { showToast({ message: `${localize('com_ui_import_error')}: ${errorCount}`, status: 'warning' }); }
         };
-        reader.readAsText(file);
+        reader.readAsArrayBuffer(file);
         event.target.value = '';
     };
 
@@ -227,7 +258,7 @@ export default function UserManagementTable() {
             {/* ── Top action bar ─────────────────────────────────────────── */}
             <div className="flex justify-end">
                 <div className="flex gap-2">
-                    <input type="file" accept=".csv" className="hidden" id="import-users-file" onChange={handleImportUsers} />
+                    <input type="file" accept=".xlsx, .xls" className="hidden" id="import-users-file" onChange={handleImportUsers} />
                     <label htmlFor="import-users-file" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium cursor-pointer">
                         {localize('com_ui_import_users')}
                     </label>
