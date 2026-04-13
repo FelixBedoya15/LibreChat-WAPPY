@@ -29,6 +29,8 @@ const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const SGSST2Button = lazy(() => import('./SGSST2Button'));
+const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
+const BlogButton = lazy(() => import('./BlogButton'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -308,6 +310,12 @@ const Nav = memo(
                             <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        <Suspense fallback={null}>
+                          <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
+                        <Suspense fallback={null}>
+                          <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -363,6 +371,12 @@ const Nav = memo(
                                     <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
+                                <Suspense fallback={null}>
+                                  <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
+                                <Suspense fallback={null}>
+                                  <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
                               </div>
                             </>
                           }
