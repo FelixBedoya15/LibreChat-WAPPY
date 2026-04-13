@@ -1151,9 +1151,10 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             icon={<FileTextIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
             actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
-                            fileName="Informe_MatrizIPEVARTable"
+                            content={reportContent || ''}
+                            fileName="Informe_IPEVAR_GTC45"
                             reportType="general"
+                            onExportExcel={handleExportExcel}
                         />
                     }
           >
