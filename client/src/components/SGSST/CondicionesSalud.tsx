@@ -550,7 +550,7 @@ const CondicionesSalud = () => {
     // (data:URI era demasiado grande — QR tiene límite ~4KB)
     const getQrValue = (w: WorkerEntry) => {
         const base = window.location.origin;
-        return `${base}/api/sgsst/perfil-sociodemografico/profile/${w.id}`;
+        return `${base}/api/sgsst/perfil-sociodemografico/profile/${w.id}?type=health`;
     };
 
     // ─── QR: Portal de auto-actualización por el propio trabajador ───────
