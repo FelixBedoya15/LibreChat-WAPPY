@@ -76,6 +76,7 @@ const PerfilSociodemograficoDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   trabajadores: [WorkerEntrySchema],
   actualizacionesPendientes: { type: Array, default: [] },
+  actualizacionesPendientesSalud: { type: Array, default: [] },
   updatedAt: { type: Date, default: Date.now },
 });
 
@@ -315,12 +316,14 @@ router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const data = await PerfilSociodemograficoData.findOne({ user: req.user.id });
     if (data) {
-      return res.json({ 
+      return res.json({
         trabajadores: data.trabajadores || [],
-        actualizacionesPendientes: data.actualizacionesPendientes || []
+        actualizacionesPendientes: data.actualizacionesPendientes || [],
+        actualizacionesPendientesSalud: data.actualizacionesPendientesSalud || []
       });
+    } else {
+      res.json({ trabajadores: [], actualizacionesPendientes: [], actualizacionesPendientesSalud: [] });
     }
-    res.json({ trabajadores: [], actualizacionesPendientes: [] });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Load error:', error);
     res.status(500).json({ error: 'Error al cargar datos' });
@@ -345,6 +348,61 @@ router.post('/save', requireJwtAuth, async (req, res) => {
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
     res.status(500).json({ error: 'Error al guardar datos' });
+  }
+});
+
+// ─── POST /inbox/approve ─────────────────────────────────────────────
+router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
+  try {
+    const { updateId, workerId, changes, inboxType } = req.body;
+    if (!updateId || !workerId || !changes || !inboxType) return res.status(400).json({ error: 'Faltan parámetros' });
+
+    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id });
+    if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
+
+    // Encontrar y actualizar el trabajador
+    const workerIndex = doc.trabajadores.findIndex(w => String(w.id) === String(workerId));
+    if (workerIndex !== -1) {
+      // Merge changes into the existing worker object
+      const currentWorker = doc.trabajadores[workerIndex]._doc || doc.trabajadores[workerIndex];
+      doc.trabajadores[workerIndex] = { ...currentWorker, ...changes };
+    }
+
+    // Remover la petición de la bandeja correspondiente
+    if (inboxType === 'social') {
+      doc.actualizacionesPendientes = (doc.actualizacionesPendientes || []).filter(u => u.id !== updateId);
+    } else if (inboxType === 'health') {
+      doc.actualizacionesPendientesSalud = (doc.actualizacionesPendientesSalud || []).filter(u => u.id !== updateId);
+    }
+
+    await doc.save();
+    res.json({ success: true, actualizacionesPendientes: doc.actualizacionesPendientes, actualizacionesPendientesSalud: doc.actualizacionesPendientesSalud });
+  } catch (error) {
+    logger.error('Inbox approve error:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─── POST /inbox/dismiss ─────────────────────────────────────────────
+router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
+  try {
+    const { updateId, inboxType } = req.body;
+    if (!updateId || !inboxType) return res.status(400).json({ error: 'Faltan parámetros' });
+
+    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id });
+    if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
+
+    if (inboxType === 'social') {
+      doc.actualizacionesPendientes = (doc.actualizacionesPendientes || []).filter(u => u.id !== updateId);
+    } else if (inboxType === 'health') {
+      doc.actualizacionesPendientesSalud = (doc.actualizacionesPendientesSalud || []).filter(u => u.id !== updateId);
+    }
+    
+    await doc.save();
+    res.json({ success: true, actualizacionesPendientes: doc.actualizacionesPendientes, actualizacionesPendientesSalud: doc.actualizacionesPendientesSalud });
+  } catch (error) {
+    logger.error('Inbox dismiss error:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

@@ -638,10 +638,26 @@ const PerfilSociodemografico = () => {
         handleSelectReport
     });
 
-    // Load inbox on open
-    const handleLoadInbox = async () => {
-        setLoadingInbox(true);
-        setShowInboxPerfil(true);
+    // Auto-load y carga reactiva de la bandeja sociodemográfica
+    React.useEffect(() => {
+        handleLoadInbox(true); // silent fetch on mount
+
+        // Opcional: Escuchar cuando una notificación en Head nos pida abrir
+        const handleOpenInbox = (e: Event) => {
+            const { module } = (e as CustomEvent).detail || {};
+            if (module === 'perfil_sociodemografico') {
+                setShowInboxPerfil(true);
+                handleLoadInbox(true);
+            }
+        };
+        window.addEventListener('sgsst-open-inbox', handleOpenInbox);
+        return () => window.removeEventListener('sgsst-open-inbox', handleOpenInbox);
+    }, []);
+
+    // Load inbox
+    const handleLoadInbox = async (silent = false) => {
+        if (!silent) setLoadingInbox(true);
+        if (!silent) setShowInboxPerfil(true);
         try {
             const res = await fetch('/api/sgsst/perfil-sociodemografico/data', {
                 headers: { Authorization: `Bearer ${token}` }
@@ -655,18 +671,42 @@ const PerfilSociodemografico = () => {
         }
     };
 
-    // Approve a pending update: merge into worker
+    // Approve a pending update by hitting endpoint
     const handleApproveUpdate = async (update: any) => {
-        const { workerId, changes } = update;
-        setTrabajadores(prev => prev.map(w => w.id === workerId ? { ...w, ...changes } : w));
-        setInboxPerfil(prev => prev.filter(u => u.id !== update.id));
-        showToast({ message: 'Actualización aprobada y aplicada al perfil', status: 'success', severity: 'success' });
+        const { workerId, changes, id: updateId } = update;
+        try {
+            const res = await fetch('/api/sgsst/perfil-sociodemografico/inbox/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ updateId, workerId, changes, inboxType: 'social' })
+            });
+            if (res.ok) {
+                const json = await res.json();
+                setTrabajadores(prev => prev.map(w => w.id === workerId ? { ...w, ...changes } : w));
+                setInboxPerfil(json.actualizacionesPendientes || []);
+                showToast({ message: 'Actualización aprobada y guardada permanentemente', status: 'success', severity: 'success' });
+            }
+        } catch (e) {
+            showToast({ message: 'Error al aprobar la actualización', status: 'error' });
+        }
     };
 
-    // Dismiss a pending update
-    const handleDismissUpdate = (updateId: string) => {
-        setInboxPerfil(prev => prev.filter(u => u.id !== updateId));
-        showToast({ message: 'Solicitud descartada', status: 'success', severity: 'success' });
+    // Dismiss a pending update by hitting endpoint
+    const handleDismissUpdate = async (updateId: string) => {
+        try {
+            const res = await fetch('/api/sgsst/perfil-sociodemografico/inbox/dismiss', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ updateId, inboxType: 'social' })
+            });
+            if (res.ok) {
+                const json = await res.json();
+                setInboxPerfil(json.actualizacionesPendientes || []);
+                showToast({ message: 'Solicitud descartada permanentemente', status: 'success', severity: 'success' });
+            }
+        } catch (e) {
+            showToast({ message: 'Error al descartar la solicitud', status: 'error' });
+        }
     };
 
     return (

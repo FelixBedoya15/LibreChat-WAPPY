@@ -569,17 +569,45 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
 
         const workerId = worker.id; // Use the real ID found
 
-        // Store in the pending inbox
-        if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
-        perfil.actualizacionesPendientes.push({
-            id: new mongoose.Types.ObjectId().toString(),
-            workerId,
-            workerName: worker.nombre, // Standardized key
-            workerCargo: worker.cargo,
-            changes: updates,           // Standardized key
-            status: 'pending',
-            createdAt: new Date()
-        });
+        // Separate fields into Social and Health categories
+        const socialKeys = ['edad', 'genero', 'estadoCivil', 'nivelEscolaridad', 'direccion', 'telefono', 'emergenciaContacto', 'personasCargo', 'estrato', 'vivienda', 'soatVencimiento', 'tecnicomecanicaVencimiento', 'licenciaSST', 'licenciaVencimiento', 'curso50h', 'curso20h'];
+        const healthKeys = ['tipoSangre', 'enfermedades', 'medicamentos', 'fuma', 'alcohol', 'terapiaPsicologica'];
+
+        const socialUpdates = {};
+        const healthUpdates = {};
+
+        for (const [key, value] of Object.entries(updates)) {
+            if (socialKeys.includes(key)) socialUpdates[key] = value;
+            if (healthKeys.includes(key)) healthUpdates[key] = value;
+        }
+
+        // Store in the corresponding pending inboxes
+        if (Object.keys(socialUpdates).length > 0) {
+            if (!perfil.actualizacionesPendientes) perfil.actualizacionesPendientes = [];
+            perfil.actualizacionesPendientes.push({
+                id: new mongoose.Types.ObjectId().toString(),
+                workerId,
+                workerName: worker.nombre, // Standardized key
+                workerCargo: worker.cargo,
+                changes: socialUpdates,    // Social changes only
+                status: 'pending',
+                createdAt: new Date()
+            });
+        }
+        
+        if (Object.keys(healthUpdates).length > 0) {
+            if (!perfil.actualizacionesPendientesSalud) perfil.actualizacionesPendientesSalud = [];
+            perfil.actualizacionesPendientesSalud.push({
+                id: new mongoose.Types.ObjectId().toString(),
+                workerId,
+                workerName: worker.nombre, // Standardized key
+                workerCargo: worker.cargo,
+                changes: healthUpdates,    // Health changes only
+                status: 'pending',
+                createdAt: new Date()
+            });
+        }
+
         await perfil.save();
 
         // Notify admin
