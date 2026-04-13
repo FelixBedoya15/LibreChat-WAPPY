@@ -29,7 +29,8 @@ const CollapsibleReportBox = ({
         <div className={cn("rounded-2xl border-2 border-[#10b981]/20 bg-surface-primary overflow-hidden shadow-xl animate-in fade-in slide-in-from-top-4 duration-500", containerClassName)}>
             <div 
                 className={cn(
-                    "border-b border-border-medium bg-gradient-to-r from-[#10b981]/10 to-transparent dark:from-[#10b981]/20 px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-[#10b981]/5 transition-colors", 
+                    "bg-gradient-to-r from-[#10b981]/10 to-transparent dark:from-[#10b981]/20 px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-[#10b981]/5 transition-colors", 
+                    !isCollapsed && "border-b border-border-medium",
                     headerClassName
                 )}
                 onClick={() => setIsCollapsed(!isCollapsed)}
