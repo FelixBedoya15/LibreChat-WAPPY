@@ -128,22 +128,34 @@ export default function UserManagementTable() {
     const handleEdit = (user) => { setSelectedUser(user); setIsEditModalOpen(true); };
 
     const handleExportUsers = () => {
-        const csvContent =
-            'data:text/csv;charset=utf-8,' +
-            [
-                ['Name', 'Email', 'Username', 'Role', 'Status', 'Last Activity'],
-                ...users.map((u: any) => [u.name || u.username, u.email, u.username, u.role, u.accountStatus, u.lastActivity ? new Date(u.lastActivity).toISOString() : '']),
-            ]
-                .map(e => e.join(','))
-                .join('\n');
-        const encodedUri = encodeURI(csvContent);
+        const header = ['Nombre', 'Correo', 'Número Telefónico', 'Usuario', 'Rol', 'Estado', 'Fecha de Creación', 'Activo Desde', 'Inactivo Desde', 'Última Actividad'];
+        const rows = users.map((u: any) => [
+            u.name || u.username || '',
+            u.email || '',
+            u.phoneNumber || '',
+            u.username || '',
+            u.role || '',
+            u.accountStatus || '',
+            u.createdAt ? new Date(u.createdAt).toISOString() : '',
+            u.activeAt ? new Date(u.activeAt).toISOString() : '',
+            u.inactiveAt ? new Date(u.inactiveAt).toISOString() : '',
+            u.lastActivity ? new Date(u.lastActivity).toISOString() : ''
+        ]);
+        
+        const csvContent = [header, ...rows]
+            .map(row => row.map(item => `"${String(item).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+            
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', 'users.csv');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'usuarios.csv');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        showToast({ message: localize('com_ui_export_success') || 'Users exported successfully', status: 'success' });
+        URL.revokeObjectURL(url);
+        showToast({ message: localize('com_ui_export_success') || 'Usuarios exportados correctamente', status: 'success' });
     };
 
     const handleImportUsers = async (event) => {
