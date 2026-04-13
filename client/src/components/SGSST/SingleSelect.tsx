@@ -13,7 +13,8 @@ const SingleSelect = ({
     value,
     onChange,
     placeholder,
-    disabled = false
+    disabled = false,
+    allowCustomInput = false
 }: {
     options: (string | { label: string; value: string })[];
     value: string;
