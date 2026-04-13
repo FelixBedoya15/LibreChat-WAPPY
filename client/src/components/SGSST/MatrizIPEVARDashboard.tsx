@@ -228,7 +228,7 @@ const MatrizIPEVARDashboard = ({ matrixRows, conversationId, token, savedConclus
             : (
               <div className="space-y-2">
                 {chartC.map(d => (
-                  <div key={d.name} className="flex items-center gap-3 p-2.5 rounded-xl border border-border-light bg-surface-primary">
+                  <div key={d.name} className="flex items-center gap-3 p-2.5 rounded-2xl border border-border-light bg-surface-primary">
                     <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${d.nivel === 'alto' ? 'bg-red-500' : d.nivel === 'medio' ? 'bg-orange-400' : 'bg-green-500'}`} />
                     <span className="text-xs font-semibold text-text-primary flex-1">{d.name}</span>
                     <span className="text-[10px] font-mono text-text-secondary">{d.count} riesgo{d.count > 1 ? 's' : ''}</span>

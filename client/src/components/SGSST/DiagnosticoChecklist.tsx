@@ -480,7 +480,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     return (
         <div className="flex flex-col gap-6">
             {/* Filters Section */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm p-4">
                 <div className="mb-4 flex items-center gap-2">
                     <Filter className="h-5 w-5 text-text-secondary" />
                     <h3 className="font-semibold text-text-primary">{t('com_ui_eval_filters', 'Filtros de Evaluación')}</h3>
@@ -522,7 +522,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             </div>
 
             {/* Progress Card */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm p-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 sm:gap-6 w-full md:w-auto">
                         <div className="bg-surface-tertiary/50 p-2 rounded-xl sm:bg-transparent sm:p-0">
@@ -604,7 +604,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     }).length;
 
                     return (
-                        <div key={category} className="overflow-hidden rounded-xl border border-border-medium bg-surface-secondary">
+                        <div key={category} className="overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
                             <button
                                 onClick={() => toggleCategoryExpanded(category)}
                                 className={cn(
@@ -695,7 +695,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                         </div>
 
                                                         {isItemExpanded && (
-                                                            <div className="mt-3 rounded-xl border border-border-light bg-surface-secondary p-3">
+                                                            <div className="mt-3 rounded-2xl border border-border-light bg-surface-secondary p-3">
                                                                 <p className="mb-2 text-sm font-medium text-text-primary">
                                                                     {t('com_ui_how_eval', '¿Cómo se evalúa?')}
                                                                 </p>

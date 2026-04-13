@@ -298,7 +298,7 @@ const PoliticaSST = () => {
 
             {/* History Panel */}
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                     <ReportHistory
                         onSelectReport={handleSelectReport}
                         isOpen={isHistoryOpen}
@@ -310,7 +310,7 @@ const PoliticaSST = () => {
             )}
 
             {/* Input Form */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                 <button
                     onClick={() => setIsFormExpanded(!isFormExpanded)}
                     className="w-full flex items-center justify-between p-4 bg-surface-tertiary/50 hover:bg-surface-tertiary transition-colors"

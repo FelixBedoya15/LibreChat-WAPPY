@@ -438,7 +438,7 @@ export default function AltaDireccionChecklist() {
             </div>
 
             {/* ─── Progress Card ────────────────────────────────────────── */}
-            <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm p-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="flex items-center gap-6">
                         <div>
@@ -683,7 +683,7 @@ export default function AltaDireccionChecklist() {
                     const categoryCompleted = items.filter(item => getItemStatus(item.id) !== 'pendiente').length;
 
                     return (
-                        <div key={category} className="overflow-hidden rounded-xl border border-border-medium bg-surface-secondary">
+                        <div key={category} className="overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
                             <button
                                 onClick={() => toggleCategoryExpanded(category)}
                                 className={cn(
@@ -773,7 +773,7 @@ export default function AltaDireccionChecklist() {
 
                                                         {/* Expanded: how to evaluate */}
                                                         {isItemExpanded && (
-                                                            <div className="mt-3 rounded-xl border border-border-light bg-surface-secondary p-3">
+                                                            <div className="mt-3 rounded-2xl border border-border-light bg-surface-secondary p-3">
                                                                 <p className="mb-2 text-sm font-medium text-text-primary flex items-center gap-2">
                                                                     <Info className="w-4 h-4 text-teal-500" />
                                                                     ¿Cómo se evalúa?
@@ -825,7 +825,6 @@ export default function AltaDireccionChecklist() {
             </div>
 
             {/* ─── Analysis Report ──────────────────────────────────────── */}
-            {analysisReport && (
                 <div className="mt-4">
                     <CollapsibleReportBox
                         title="Revisión Alta Dirección"
@@ -862,7 +861,6 @@ export default function AltaDireccionChecklist() {
                         </div>
                     </CollapsibleReportBox>
                 </div>
-            )}
 
             {/* ─── Report History Panel ─────────────────────────────────── */}
             <ReportHistory

@@ -553,7 +553,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                         onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
                                                         disabled={!!isUploading}
                                                         size="sm"
-                                                        className="gap-2 rounded-xl border border-border-light dark:border-white/10 shadow-sm"
+                                                        className="gap-2 rounded-2xl border border-border-light dark:border-white/10 shadow-sm"
                                                     >
                                                         {isThisUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                                                         <span className="font-bold">Subir Documento</span>

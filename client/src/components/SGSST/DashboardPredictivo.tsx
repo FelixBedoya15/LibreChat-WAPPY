@@ -382,7 +382,7 @@ const DashboardPredictivo = () => {
 
             {/* ═══ Report History ═══ */}
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                     <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
                         toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger} tags={['sgsst-predictivo-ia']} />
                 </div>
@@ -513,7 +513,7 @@ const DashboardPredictivo = () => {
                                     <AnimatedIcon name="sparkles" size={16} className="text-teal-500" />
                                     ANÁLISIS DE CORRELACIÓN PREDICTIVA
                                 </h3>
-                                <p className="text-sm text-text-secondary leading-relaxed font-medium italic p-4 bg-surface-primary rounded-xl border border-border-light">
+                                <p className="text-sm text-text-secondary leading-relaxed font-medium italic p-4 bg-surface-primary rounded-2xl border border-border-light">
                                     "{forecast?.predictionSummary || "Haga clic en 'Actualizar' para generar el análisis predictivo cruzado de todos los módulos..."}"
                                 </p>
                             </div>
@@ -534,7 +534,7 @@ const DashboardPredictivo = () => {
                                             <span className="text-xs text-text-primary font-medium leading-relaxed">{action}</span>
                                         </div>
                                     )) : [1, 2, 3].map(i => (
-                                        <div key={i} className="flex items-center gap-3 p-3 bg-surface-primary rounded-xl border border-border-light">
+                                        <div key={i} className="flex items-center gap-3 p-3 bg-surface-primary rounded-2xl border border-border-light">
                                             <div className="h-6 w-6 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse shrink-0" />
                                             <div className="flex-1 h-3 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
                                         </div>

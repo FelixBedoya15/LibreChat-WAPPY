@@ -461,13 +461,13 @@ const MetodoOwas = () => {
             />
 
       {isHistoryOpen && (
-        <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+        <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
           <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen} toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger} tags={['sgsst-owas']} />
         </div>
       )}
 
       {/* Main form */}
-      <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+      <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
         <button onClick={() => setIsFormExpanded(!isFormExpanded)} className="w-full flex items-center justify-between p-4 bg-surface-tertiary">
           <div className="flex items-center gap-2">
             {isFormExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}

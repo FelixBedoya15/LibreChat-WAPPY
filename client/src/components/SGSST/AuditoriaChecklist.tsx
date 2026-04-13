@@ -433,7 +433,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="rounded-xl border border-border-medium bg-surface-secondary p-4">
+            <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm p-4">
                 <div className="flex items-center gap-2 mb-4">
                     <AlertTriangle className="h-5 w-5 text-teal-500" />
                     <div>
@@ -444,7 +444,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                     {/* Card 1: Auditoría Global (Dec 1072) */}
-                    <div className="bg-surface-primary p-4 rounded-xl border border-border-medium flex items-center justify-between shadow-sm">
+                    <div className="bg-surface-primary p-4 rounded-2xl border border-border-medium flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-text-secondary">Auditoría (Dec 1072)</p>
                             <div className="flex items-baseline gap-2 mt-1">
@@ -465,7 +465,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     </div>
 
                     {/* Card 2: Estándares Mínimos (Res 0312) */}
-                    <div className="bg-surface-primary p-4 rounded-xl border border-border-medium flex items-center justify-between shadow-sm">
+                    <div className="bg-surface-primary p-4 rounded-2xl border border-border-medium flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-text-secondary">Estándares (Res 0312)</p>
                             <div className="flex items-baseline gap-2 mt-1">
@@ -557,7 +557,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                     const categoryCompleted = items.filter(item => getItemStatus(item.id) !== 'pendiente').length;
 
                     return (
-                        <div key={category} className="rounded-xl border border-border-medium bg-surface-secondary">
+                        <div key={category} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
                             <button
                                 onClick={() => toggleCategoryExpanded(category)}
                                 className={cn(

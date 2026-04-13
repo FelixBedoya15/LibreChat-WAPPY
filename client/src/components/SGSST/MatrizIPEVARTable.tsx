@@ -1162,7 +1162,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
             }
           >
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden mb-4 mx-2 mt-4">
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden mb-4 mx-2 mt-4">
                     <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
                         toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger}
                         tags={['sgsst-matriz-ipevar']} />

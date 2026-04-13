@@ -689,7 +689,7 @@ const MatrizPeligrosGTC45 = () => {
 
             {/* ═══ History Panel ═══ */}
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                     <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen}
                         toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger}
                         tags={['sgsst-matriz-peligros']} />

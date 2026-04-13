@@ -404,7 +404,7 @@ const MatrizLegal = () => {
 
             {/* History Panel */}
             {isHistoryOpen && (
-                <div className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden">
+                <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
                     <ReportHistory
                         onSelectReport={handleSelectReport}
                         isOpen={isHistoryOpen}
@@ -421,7 +421,7 @@ const MatrizLegal = () => {
                 {/* Checklist Section */}
                 <div className="space-y-4">
                     {/* Progress Overview Card */}
-                    <div className="p-5 rounded-xl border border-border-medium bg-surface-secondary shadow-sm flex flex-col md:flex-row items-center gap-6">
+                    <div className="p-5 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm flex flex-col md:flex-row items-center gap-6">
                         <div className="relative w-20 h-20 flex-shrink-0">
                             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-200 dark:text-gray-700" />
@@ -465,7 +465,7 @@ const MatrizLegal = () => {
                     </div>
 
                     {/* Metadata Form */}
-                    <div className="p-4 rounded-xl border border-border-medium bg-surface-secondary shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border-medium bg-surface-secondary shadow-sm">
                         <h4 className="font-semibold text-sm mb-3 flex items-center gap-2"><BookOpen className="w-4 h-4" /> Variables Organizacionales</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1 md:col-span-2">
@@ -496,7 +496,7 @@ const MatrizLegal = () => {
                             const categoryCompletedCount = items.filter(i => getItemStatus(i.id) !== 'pendiente').length;
 
                             return (
-                                <div key={category} className="rounded-xl border border-border-medium bg-surface-secondary overflow-hidden shadow-sm">
+                                <div key={category} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden shadow-sm">
                                     <button
                                         onClick={() => toggleCategory(category)}
                                         className="w-full flex items-center justify-between p-4 bg-surface-tertiary/30 hover:bg-surface-tertiary transition-colors"
