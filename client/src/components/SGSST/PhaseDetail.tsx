@@ -37,6 +37,7 @@ import AltaDireccionChecklist from './AltaDireccionChecklist';
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
 import PerfilSociodemografico from './PerfilSociodemografico';
+import CondicionesSalud from './CondicionesSalud';
 import { UpgradeWall } from './UpgradeWall';
 
 // Manual Icon Map to avoid dynamic import issues
@@ -522,6 +523,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 {category.id === 'perfil_socio' && (
                                                     <div className="mb-6">
                                                         <PerfilSociodemografico />
+                                                    </div>
+                                                )}
+
+                                                {/* Show CondicionesSalud for condiciones_salud category */}
+                                                {category.id === 'condiciones_salud' && (
+                                                    <div className="mb-6">
+                                                        <CondicionesSalud />
                                                     </div>
                                                 )}
 

@@ -11,7 +11,10 @@ import {
     CheckCircle,
     PenTool,
     Briefcase,
-    AlertTriangle
+    AlertTriangle,
+    Activity,
+    Stethoscope,
+    UserCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -112,7 +115,7 @@ const EMPTY_WORKER: Omit<WorkerEntry, 'id'> = {
     completedByAI: false, consentimientoFirmaDigital: 'No', firmaDigital: null,
 };
 
-const PerfilSociodemografico = () => {
+const CondicionesSalud = () => {
     const { token, user } = useAuthContext();
     const { showToast } = useToastContext();
 
@@ -490,7 +493,7 @@ const PerfilSociodemografico = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(isNew ? {
                     content,
-                    title: `Perfil Sociodemográfico - ${new Date().toLocaleDateString('es-CO')}`,
+                    title: `Informe Condiciones de Salud - ${new Date().toLocaleDateString('es-CO')}`,
                     tags: ['sgsst-perfil-sociodemografico'],
                 } : { conversationId, messageId: reportMessageId, content }),
             });
@@ -781,6 +784,10 @@ const PerfilSociodemografico = () => {
                 ) : (
                     <>
                         {trabajadores.map((w, wIdx) => {
+                            const fitData = calculateBiocentricFit(w);
+                            const scoreColor = fitData.score >= 80 ? 'text-green-500' : fitData.score >= 60 ? 'text-yellow-500' : 'text-red-500';
+                            const scoreBg = fitData.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 shadow-green-500/20' : fitData.score >= 60 ? 'bg-yellow-50 dark:bg-yellow-900/20 shadow-yellow-500/20' : 'bg-red-50 dark:bg-red-900/20 shadow-red-500/20';
+                            
                             return (
                             <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Worker Header */}
@@ -811,337 +818,201 @@ const PerfilSociodemografico = () => {
                                     </div>
                                 </div>
 
-                                {/* Worker Body */}
+                                {/* Worker Body, Premium Medical Dashboard UI */}
                                 {expandedWorkers.has(w.id) && (
-                                    <div className="p-0 border-t border-border-light animate-in fade-in duration-200 bg-surface-primary/30">
+                                    <div className="p-0 border-t border-border-light animate-in fade-in duration-300 bg-surface-primary/20 relative">
+                                        
+                                        {/* Bio-Fit Radar Premium Card */}
+                                        {w.cargo && cargosDisponibles.length > 0 && (
+                                            <div className="p-5 md:p-8 border-b border-border-light bg-gradient-to-br from-surface-secondary/80 to-surface-primary relative overflow-hidden">
+                                                <div className={`absolute top-0 right-0 w-64 h-64 rounded-full mix-blend-multiply filter blur-[80px] opacity-20 pointer-events-none ${scoreBg}`}></div>
+                                                
+                                                <div className={`p-6 rounded-[2rem] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-md transition-all duration-500 hover:shadow-lg relative overflow-hidden bg-white/40 dark:bg-[#1a1a1a]/40 group`}>
+                                                    <div className={`absolute top-0 left-0 w-1.5 h-full transition-all duration-700 ${fitData.score >= 80 ? 'bg-gradient-to-b from-green-400 to-emerald-600' : fitData.score >= 60 ? 'bg-gradient-to-b from-yellow-400 to-orange-500' : 'bg-gradient-to-b from-red-500 to-rose-700'}`}></div>
 
-                                        {/* Tabs Header */}
-                                        <div className="flex items-center overflow-x-auto border-b border-border-light bg-surface-secondary px-4 pt-1 hide-scrollbar">
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'general' })); }}
-                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'general' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
-                                            > General & Laboral </button>
-
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'roles' })); }}
-                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'roles' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
-                                            > Roles & Especialidades </button>
-                                            <button
-                                                onClick={(e) => { e.preventDefault(); setWorkerTabs(prev => ({ ...prev, [w.id]: 'formacion' })); }}
-                                                className={cn("px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors", (workerTabs[w.id] || 'general') === 'formacion' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-text-secondary hover:text-text-primary")}
-                                            > Formación & Misiones </button>
-                                        </div>
-
-                                        {/* Tab Content */}
-                                        <div className="p-4">
-                                            {/* TAB 1: GENERAL */}
-                                            {(workerTabs[w.id] || 'general') === 'general' && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-left-2 duration-300">
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Nombre Completo</label>
-                                                        <input type="text" value={w.nombre} onChange={e => updateWorkerField(w.id, 'nombre', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary font-medium" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Identificación (CC)</label>
-                                                        <input type="text" value={w.identificacion} onChange={e => updateWorkerField(w.id, 'identificacion', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-tighter flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5"/> Perfil de Cargo</label>
-                                                        <SingleSelect value={w.cargo || ''} onChange={val => updateWorkerField(w.id, 'cargo', val)} placeholder="Seleccione el Rol..." options={cargosDisponibles.map(c => c.nombreCargo)} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Teléfono</label>
-                                                        <input type="text" value={w.telefono} onChange={e => updateWorkerField(w.id, 'telefono', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Edad</label>
-                                                        <input type="number" value={w.edad} onChange={e => updateWorkerField(w.id, 'edad', e.target.value)}
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Género</label>
-                                                        <SingleSelect value={w.genero || ''} onChange={val => updateWorkerField(w.id, 'genero', val)} placeholder="Seleccione..." options={['Masculino', 'Femenino', 'Otro']} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Estado Civil</label>
-                                                        <SingleSelect value={w.estadoCivil || ''} onChange={val => updateWorkerField(w.id, 'estadoCivil', val)} placeholder="Seleccione..." options={['Soltero/a', 'Casado/a', 'Unión Libre', 'Separado/a', 'Viudo/a']} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Nivel Escolaridad</label>
-                                                        <SingleSelect value={w.nivelEscolaridad || ''} onChange={val => updateWorkerField(w.id, 'nivelEscolaridad', val)} placeholder="Seleccione..." options={['Ninguna', 'Primaria', 'Secundaria', 'Técnico', 'Tecnólogo', 'Profesional', 'Especialización / Postgrado']} />
-                                                    </div>
-
-                                                    <div className="space-y-1 lg:col-span-2">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Dirección (Google Maps)</label>
-                                                        <input type="text" value={w.direccion} onChange={e => updateWorkerField(w.id, 'direccion', e.target.value)}
-                                                            placeholder="Ej: Calle 123 #45-67, Medellín"
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Tipo de Vivienda</label>
-                                                        <SingleSelect value={w.vivienda || ''} onChange={val => updateWorkerField(w.id, 'vivienda', val)} placeholder="Seleccione..." options={['Propia', 'Arrendada', 'Familiar']} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Estrato</label>
-                                                        <SingleSelect value={w.estrato || ''} onChange={val => updateWorkerField(w.id, 'estrato', val)} placeholder="Seleccione..." options={['1', '2', '3', '4', '5', '6']} />
-                                                    </div>
-
-                                                    <div className="space-y-1 lg:col-span-2">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Contacto de Emergencia</label>
-                                                        <input type="text" value={w.emergenciaContacto} onChange={e => updateWorkerField(w.id, 'emergenciaContacto', e.target.value)}
-                                                            placeholder="Nombre y Teléfono"
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                    <div className="space-y-1 lg:col-span-2">
-                                                        <label className="text-xs font-bold text-text-secondary uppercase">Personas a Cargo</label>
-                                                        <input type="number" value={w.personasCargo} onChange={e => updateWorkerField(w.id, 'personasCargo', e.target.value)}
-                                                            placeholder="Número de personas"
-                                                            className="w-full text-sm p-2 rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                    </div>
-                                                </div>
-                                            )}
-
-
-
-                                            {/* TAB 3: ROLES Y FIRMA */}
-                                            {(workerTabs[w.id] || 'general') === 'roles' && (
-                                                <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-300">
-                                                    
-                                                    {/* Alturas (Default) */}
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Trab. Autorizado</label>
-                                                            <input type="date" value={w.fechaCursoAlturasAutorizado} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasAutorizado', e.target.value)}
-                                                                className="w-full text-sm p-2 rounded-xl border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase leading-tight">Alturas — Coordinador</label>
-                                                            <input type="date" value={w.fechaCursoAlturasCoordinador} onChange={e => updateWorkerField(w.id, 'fechaCursoAlturasCoordinador', e.target.value)}
-                                                                className="w-full text-sm p-2 rounded-xl border border-teal-200 bg-teal-50/10 dark:bg-teal-900/10 text-text-primary" />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Conductor Conditional */}
-                                                    {w.cargo && w.cargo.toLowerCase().includes('conductor') && (
-                                                        <div className="p-4 border border-blue-200 bg-blue-50/30 dark:bg-blue-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                            <h4 className="md:col-span-2 lg:col-span-4 text-blue-700 dark:text-blue-400 font-bold text-sm uppercase">Requisitos de Conductor</h4>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento SOAT</label>
-                                                                <input type="date" value={w.soatVencimiento} onChange={e => updateWorkerField(w.id, 'soatVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+                                                    <div className="flex flex-col md:flex-row items-center justify-between gap-8 pl-4">
+                                                        <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
+                                                            <div className="relative group-hover:scale-105 transition-transform duration-500">
+                                                                <svg className="w-28 h-28 transform -rotate-90">
+                                                                    <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" className="text-border-light dark:text-white/5" />
+                                                                    <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="314.159" strokeDashoffset={314.159 - (fitData.score / 100) * 314.159} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
+                                                                </svg>
+                                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                                    <span className={`text-3xl font-black tracking-tighter ${scoreColor}`}>{fitData.score}%</span>
+                                                                    <span className="text-[9px] uppercase font-bold tracking-widest text-text-secondary">FIT</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Tecnicomecánica</label>
-                                                                <input type="date" value={w.tecnicomecanicaVencimiento} onChange={e => updateWorkerField(w.id, 'tecnicomecanicaVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Licencia de Conducción</label>
-                                                                <input type="text" value={w.licenciaConduccion} onChange={e => updateWorkerField(w.id, 'licenciaConduccion', e.target.value)} placeholder="Número de Licencia"
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vencimiento Licencia</label>
-                                                                <input type="date" value={w.licenciaConduccionVencimiento} onChange={e => updateWorkerField(w.id, 'licenciaConduccionVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-blue-200 bg-white dark:bg-gray-800 text-text-primary" />
+
+                                                            <div className="text-center md:text-left">
+                                                                <h4 className="text-lg font-black text-text-primary uppercase tracking-wider mb-2 flex items-center justify-center md:justify-start gap-2">
+                                                                    <Activity className="w-5 h-5 text-teal-600 dark:text-teal-400 animate-pulse"/> Índice Biocéntrico Integral
+                                                                </h4>
+                                                                <p className="text-sm font-medium text-text-secondary leading-relaxed max-w-sm">Evaluación clínica vs exigencias del rol: <span className="font-bold text-text-primary p-1 bg-surface-secondary rounded-md border border-border-light">{w.cargo}</span>.</p>
                                                             </div>
                                                         </div>
-                                                    )}
 
-                                                    {/* Comités de Apoyo al SG-SST */}
-                                                    <div className="p-4 border border-green-200 bg-green-50/30 dark:bg-green-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                        <h4 className="md:col-span-4 lg:col-span-4 text-green-700 dark:text-green-400 font-bold text-sm uppercase">Comités de Apoyo al SG-SST</h4>
-                                                        <div className="space-y-1 lg:col-span-1">
-                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">COPASST</label>
-                                                            <SingleSelect value={w.esCopasst || 'No'} onChange={val => updateWorkerField(w.id, 'esCopasst', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                        </div>
-                                                        <div className="space-y-1 lg:col-span-1">
-                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Convivencia Laboral</label>
-                                                            <SingleSelect value={w.esComiteConvivencia || 'No'} onChange={val => updateWorkerField(w.id, 'esComiteConvivencia', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                        </div>
-                                                        <div className="space-y-1 lg:col-span-1">
-                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Brigada Emergencias</label>
-                                                            <SingleSelect value={w.esBrigadista || 'No'} onChange={val => updateWorkerField(w.id, 'esBrigadista', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                        </div>
-                                                        <div className="space-y-1 lg:col-span-1">
-                                                            <label className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Seguridad Vial</label>
-                                                            <SingleSelect value={w.esComiteSeguridadVial || 'No'} onChange={val => updateWorkerField(w.id, 'esComiteSeguridadVial', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* SST Conditional */}
-                                                    {w.cargo && ['sst', 'hseq', 'seguridad', 'salud', 'ocupacional'].some(kw => w.cargo.toLowerCase().includes(kw)) && (
-                                                        <div className="p-4 border border-purple-200 bg-purple-50/30 dark:bg-purple-900/20 rounded-xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                            <h4 className="md:col-span-4 lg:col-span-4 text-purple-700 dark:text-purple-400 font-bold text-sm uppercase">Perfil SST Exigido</h4>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Nº Licencia SST</label>
-                                                                <input type="text" value={w.licenciaSST} onChange={e => updateWorkerField(w.id, 'licenciaSST', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Vencimiento Licencia</label>
-                                                                <input type="date" value={w.licenciaVencimiento} onChange={e => updateWorkerField(w.id, 'licenciaVencimiento', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Curso de 50 Horas (Expedición)</label>
-                                                                <input type="date" value={w.curso50h} onChange={e => updateWorkerField(w.id, 'curso50h', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                            <div className="space-y-1 lg:col-span-2">
-                                                                <label className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase">Curso de 20 Horas (Expedición)</label>
-                                                                <input type="date" value={w.curso20h} onChange={e => updateWorkerField(w.id, 'curso20h', e.target.value)}
-                                                                    className="w-full text-sm p-2 rounded-xl border border-purple-200 bg-white dark:bg-gray-800 text-text-primary" />
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Firma Digital */}
-                                                    <div className="space-y-1 lg:col-span-4 p-4 border rounded-xl bg-surface-tertiary/30 border-border-medium">
-                                                        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                                                            <div className="space-y-1 w-full md:w-1/2">
-                                                                <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase leading-tight">Consentimiento Informado (Firma Digital)</label>
-                                                                <SingleSelect value={w.consentimientoFirmaDigital || 'No' || ''} onChange={val => updateWorkerField(w.id, 'consentimientoFirmaDigital', val)} placeholder="Seleccione..." options={['Sí', 'No']} />
-                                                                <p className="text-[10px] text-text-secondary mt-1 max-w-[280px]">Muestra la firma en el Código QR y la habilita para reportar.</p>
-                                                            </div>
-
-                                                            <div className="w-full md:w-1/2 flex flex-col items-center justify-center p-3 border-2 border-dashed border-border-medium rounded-xl relative hover:bg-surface-secondary/50 transition-colors">
-                                                                {w.firmaDigital ? (
-                                                                    <div className="relative group w-full flex items-center justify-center">
-                                                                        <img src={w.firmaDigital} alt="Firma" className="max-h-16 object-contain" />
-                                                                        <button
-                                                                            onClick={() => updateWorkerField(w.id, 'firmaDigital', null)}
-                                                                            className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity translate-x-1/2 -translate-y-1/2"
-                                                                        >
-                                                                            <AnimatedIcon name="trash" size={14} />
-                                                                        </button>
+                                                        <div className="flex flex-col gap-2.5 w-full md:flex-1 md:max-w-md">
+                                                            {fitData.alerts.length === 0 ? (
+                                                                <div className="flex items-center gap-3 text-sm font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 p-4 rounded-2xl shadow-sm">
+                                                                    <div className="p-2bg-green-100 dark:bg-green-800/50 rounded-full"><CheckCircle className="w-5 h-5"/></div>
+                                                                    Aptitud Operativa Óptima.
+                                                                </div>
+                                                            ) : (
+                                                                fitData.alerts.map((alert, idx) => (
+                                                                    <div key={idx} className={`flex text-xs font-bold px-4 py-3 rounded-2xl gap-3 items-center border transition-all duration-300 hover:-translate-x-1 ${alert.includes('BLOQUEO') ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-lg animate-[pulse_2s_ease-in-out_infinite] border-red-400' : 'text-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800/50'}`}>
+                                                                         <AlertTriangle className="w-5 h-5 flex-shrink-0 opacity-90"/> <span className="leading-tight">{alert}</span>
                                                                     </div>
-                                                                ) : (
-                                                                    <div className="flex flex-col gap-2 w-full">
-                                                                        <label className="cursor-pointer text-center flex items-center justify-center gap-2 px-3 py-2 bg-surface-hover hover:bg-surface-tertiary rounded-lg text-text-secondary w-full transition-colors font-medium border border-border-light">
-                                                                            <ImageIcon size={16} className="text-indigo-400" />
-                                                                            <span className="text-xs uppercase">Cargar Archivo</span>
-                                                                            <input type="file" accept="image/*" onChange={(e) => handleFirmaUpload(w.id, e)} className="hidden" />
-                                                                        </label>
-                                                                        <button 
-                                                                            onClick={(e) => { e.preventDefault(); setActiveSignatureWorkerId(w.id); }}
-                                                                            className="flex items-center justify-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg w-full transition-colors font-medium border border-indigo-200 dark:border-indigo-800"
-                                                                        >
-                                                                            <PenTool size={16} />
-                                                                            <span className="text-xs uppercase">Dibujar en Pantalla</span>
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                                ))
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
-                                            )}
+                                            </div>
+                                        )}
 
-                                            {/* TAB 4: FORMACIÓN Y MISIONES */}
-                                            {(workerTabs[w.id] || 'general') === 'formacion' && (
-                                                <div className="space-y-6 animate-in fade-in slide-in-from-left-2 duration-300">
-                                                    <div className="flex flex-col gap-4 p-4 border rounded-xl bg-surface-tertiary/30 border-border-medium min-h-[300px]">
-                                                        <div>
-                                                            <h4 className="font-bold text-sm text-teal-700 dark:text-teal-400 uppercase tracking-wider">Historial de Capacitación y Competencias</h4>
-                                                            <p className="text-xs text-text-secondary">Cursos requeridos por el Perfil de Cargo: <span className="font-bold text-text-primary">{w.cargo || 'Ninguno'}</span></p>
+                                        {/* Clinical Database Forms */}
+                                        <div className="p-5 md:p-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                
+                                                {/* Grupo 1: Fisiología */}
+                                                <div className="lg:col-span-4 pb-3 mb-2 flex items-center justify-between border-b border-border-light">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg">
+                                                            <Stethoscope className="w-4 h-4" />
                                                         </div>
-                                                        
-                                                        {w.cargo && cargosDisponibles.find(c => c.nombreCargo === w.cargo)?.entrenamientosSeleccionados.map((cursoReq, idx) => {
-                                                            const forms = w.formacion || [];
-                                                            const courseData = forms.find((f:any) => f.curso === cursoReq) || { curso: cursoReq, estado: 'No Realizado', fecha: '' };
-                                                            return (
-                                                                <div key={`req-${idx}`} className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-surface-primary border border-border-light p-3 rounded-lg w-full">
-                                                                    <div className="flex-1 min-w-[200px]">
-                                                                        <span className="text-sm font-bold text-text-primary">{cursoReq}</span>
-                                                                    </div>
-                                                                    <div className="w-full md:w-56 shrink-0">
-                                                                        <SingleSelect 
-                                                                            value={courseData.estado} 
-                                                                            onChange={(val) => {
-                                                                                const newF = [...forms.filter((f:any) => f.curso !== cursoReq), { ...courseData, estado: val }];
-                                                                                updateWorkerField(w.id, 'formacion', newF);
-                                                                            }} 
-                                                                            placeholder="Estado..." options={['Realizado', 'No Realizado', 'Pendiente Validación']} />
-                                                                    </div>
-                                                                    <div className="w-full md:w-48 shrink-0">
-                                                                        <input type="date" value={courseData.fecha} 
-                                                                            onChange={(e) => {
-                                                                                const newF = [...forms.filter((f:any) => f.curso !== cursoReq), { ...courseData, fecha: e.target.value }];
-                                                                                updateWorkerField(w.id, 'formacion', newF);
-                                                                            }} 
-                                                                            className="w-full text-sm p-[9px] rounded-xl border border-border-medium bg-surface-primary text-text-primary" />
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-
-                                                        {/* Extra Cursos */}
-                                                        {((w.formacion || []) as any[]).filter(f => {
-                                                            const reqs = cargosDisponibles.find(c => c.nombreCargo === w.cargo)?.entrenamientosSeleccionados || [];
-                                                            return !reqs.includes(f.curso);
-                                                        }).map((extraCourse, eIdx) => (
-                                                            <div key={`ex-${eIdx}`} className="flex flex-col md:flex-row items-start md:items-center gap-4 bg-indigo-50/20 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 p-3 rounded-lg w-full relative group">
-                                                                <div className="flex-1 min-w-[200px]">
-                                                                    <span className="text-sm font-bold text-indigo-700 dark:text-indigo-400">{extraCourse.curso}</span>
-                                                                    <span className="text-[10px] ml-2 text-indigo-600 uppercase rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5">Extra</span>
-                                                                </div>
-                                                                <div className="w-full md:w-56 shrink-0">
-                                                                    <SingleSelect 
-                                                                        value={extraCourse.estado} 
-                                                                        onChange={(val) => {
-                                                                            const forms = w.formacion || [];
-                                                                            const newF = [...forms.filter((f:any) => f.curso !== extraCourse.curso), { ...extraCourse, estado: val }];
-                                                                            updateWorkerField(w.id, 'formacion', newF);
-                                                                        }} 
-                                                                        placeholder="Estado..." options={['Realizado', 'No Realizado']} />
-                                                                </div>
-                                                                <div className="w-full md:w-48 shrink-0">
-                                                                    <input type="date" value={extraCourse.fecha} 
-                                                                        onChange={(e) => {
-                                                                            const forms = w.formacion || [];
-                                                                            const newF = [...forms.filter((f:any) => f.curso !== extraCourse.curso), { ...extraCourse, fecha: e.target.value }];
-                                                                            updateWorkerField(w.id, 'formacion', newF);
-                                                                        }} 
-                                                                        className="w-full text-sm p-[9px] rounded-xl border border-indigo-200 dark:border-indigo-800 bg-surface-primary text-text-primary" />
-                                                                </div>
-                                                                <button onClick={() => {
-                                                                        const newF = (w.formacion || []).filter((f:any) => f.curso !== extraCourse.curso);
-                                                                        updateWorkerField(w.id, 'formacion', newF);
-                                                                    }}
-                                                                    className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                    title="Eliminar curso extra">
-                                                                    <AnimatedIcon name="trash" size={14} />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-
-                                                        <div className="pt-2">
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    const title = window.prompt('Ingrese el nombre del nuevo curso o competencia específica:');
-                                                                    if (title && title.trim()) {
-                                                                        const forms = w.formacion || [];
-                                                                        const exists = forms.find((f:any) => f.curso.toLowerCase() === title.toLowerCase().trim());
-                                                                        if (exists) {
-                                                                            alert('El curso ya existe en la lista de este trabajador.');
-                                                                        } else {
-                                                                            updateWorkerField(w.id, 'formacion', [...forms, { curso: title.trim(), estado: 'Realizado', fecha: '' }]);
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className="flex items-center gap-2 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30 px-4 py-2 rounded-xl transition-colors">
-                                                                <AnimatedIcon name="plus" size={16} /> Añadir Competencia Extra
-                                                            </button>
-                                                        </div>
+                                                        <h4 className="font-black text-sm text-text-primary uppercase tracking-wider">Línea Base Fisiológica</h4>
                                                     </div>
                                                 </div>
-                                            )}
+
+                                                <div className="space-y-1.5 ">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Peso (kg)</label>
+                                                    <input type="number" value={w.peso} onChange={e => updateWorkerField(w.id, 'peso', e.target.value)}
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary font-medium outline-none" />
+                                                </div>
+                                                <div className="space-y-1.5 ">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Talla (m)</label>
+                                                    <input type="number" value={w.talla} onChange={e => updateWorkerField(w.id, 'talla', e.target.value)} step="0.01" placeholder="Ej: 1.75"
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary font-medium outline-none" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[11px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">IMC (Calculado)</label>
+                                                    <div className="relative">
+                                                        <input type="text" readOnly value={w.imc} placeholder="Automático"
+                                                            className={`w-full text-sm font-black py-2.5 px-3 rounded-xl border outline-none ${w.imc && parseFloat(w.imc) > 25 ? 'border-orange-400 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400 shadow-[inset_0_2px_10px_rgba(251,146,60,0.1)]' : 'border-border-light bg-surface-tertiary text-text-tertiary'}`} />
+                                                        {w.imc && <div className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full w-2 h-2 bg-current opacity-50"></div>}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Tipo Sangre</label>
+                                                    <SingleSelect value={w.tipoSangre || ''} onChange={val => updateWorkerField(w.id, 'tipoSangre', val)} placeholder="Seleccione..." options={['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']} />
+                                                </div>
+                                                <div className="space-y-1.5 lg:col-span-2">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Presión Arterial</label>
+                                                    <input type="text" value={w.presionArterial} onChange={e => updateWorkerField(w.id, 'presionArterial', e.target.value)}
+                                                        placeholder="Sistólica / Diastólica (Ej: 120/80)" className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
+                                                </div>
+                                                <div className="space-y-1.5 lg:col-span-2">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Frec. Cardíaca (lpm)</label>
+                                                    <input type="number" value={w.frecuenciaCardiaca} onChange={e => updateWorkerField(w.id, 'frecuenciaCardiaca', e.target.value)}
+                                                        placeholder="Latidos por minuto" className="w-full text-sm py-2.5 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
+                                                </div>
+
+                                                {/* Grupo 2: Patológico */}
+                                                <div className="lg:col-span-4 pb-3 mb-2 mt-6 flex items-center justify-between border-b border-border-light">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg">
+                                                            <Activity className="w-4 h-4" />
+                                                        </div>
+                                                        <h4 className="font-black text-sm text-text-primary uppercase tracking-wider">Restricciones Clínicas y Patológicas</h4>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-2">
+                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Alergias Químicas / Asma</label>
+                                                    <input type="text" value={w.alergiasQuimicas} onChange={e => updateWorkerField(w.id, 'alergiasQuimicas', e.target.value)}
+                                                        placeholder="Riesgo de choque anafiláctico / respiratorio..."
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-2">
+                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Limitaciones Biomecánicas</label>
+                                                    <input type="text" value={w.limitacionesBiomecanicas} onChange={e => updateWorkerField(w.id, 'limitacionesBiomecanicas', e.target.value)}
+                                                        placeholder="Hernia, manguito rotador, rodillas..."
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-4">
+                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Enfermedades Preexistentes Diagnosticadas</label>
+                                                    <input type="text" value={w.enfermedades} onChange={e => updateWorkerField(w.id, 'enfermedades', e.target.value)}
+                                                        placeholder="Patologías metabólicas, diabetes, cardíacas..."
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-2">
+                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Hallazgos Examen Ocupacional</label>
+                                                    <div className="[&>div>div]:border-rose-200/50 dark:[&>div>div]:border-rose-900/30 [&>div>div]:bg-rose-50/30 dark:[&>div>div]:bg-rose-900/10">
+                                                        <SingleSelect value={w.diagnosticoMedico || ''} onChange={val => updateWorkerField(w.id, 'diagnosticoMedico', val)} placeholder="Seleccione dictamen principal..." options={['Apto / Sin Hallazgos / Ninguno', 'Espalda: Lumbalgia / Cervicalgia / Hernias', 'M. Superiores: Túnel carpiano / Epicondilitis / Manguito', 'Vicios de refracción', 'Hipoacusia', 'Otros Clínicos']} />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-2">
+                                                    <label className="text-[11px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Medicamentos de Consumo</label>
+                                                    <input type="text" value={w.medicamentos} onChange={e => updateWorkerField(w.id, 'medicamentos', e.target.value)}
+                                                        placeholder="Psiquiátricos, dopaminérgicos, relajantes (riesgo maquinaria)..."
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-rose-200/50 bg-rose-50/30 focus:bg-white focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 text-text-primary dark:border-rose-900/30 dark:bg-rose-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-3">
+                                                    <label className="text-[11px] font-bold text-orange-500 uppercase tracking-wider">Recomendaciones & Restricciones Médicas (SST)</label>
+                                                    <input type="text" value={w.recomendacionesMedicas || ''} onChange={e => updateWorkerField(w.id, 'recomendacionesMedicas', e.target.value)}
+                                                        placeholder="Pautas del médico para reubicación laboral..."
+                                                        className="w-full text-sm py-2.5 px-3 rounded-xl border border-orange-200/50 bg-orange-50/30 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 text-text-primary dark:border-orange-900/30 dark:bg-orange-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-1">
+                                                    <label className="text-[11px] font-bold text-orange-500 uppercase tracking-wider">Fecha Evaluación</label>
+                                                    <input type="date" value={w.fechaExamenMedico} onChange={e => updateWorkerField(w.id, 'fechaExamenMedico', e.target.value)}
+                                                        className="w-full text-sm py-[9px] px-3 rounded-xl border border-orange-200/50 bg-orange-50/30 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 text-text-primary dark:border-orange-900/30 dark:bg-orange-900/10 dark:focus:bg-surface-primary outline-none" />
+                                                </div>
+
+                                                {/* Grupo 3: Estilos de Vida Inadecuados */}
+                                                <div className="lg:col-span-4 pb-3 mb-2 mt-6 flex items-center justify-between border-b border-border-light">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg">
+                                                            <UserCircle className="w-4 h-4" />
+                                                        </div>
+                                                        <h4 className="font-black text-sm text-text-primary uppercase tracking-wider">Estilos de Vida & Carga Mental</h4>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1.5 lg:col-span-1">
+                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">Tabaquismo</label>
+                                                    <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/30 dark:[&>div>div]:border-amber-900/30  dark:[&>div>div]:bg-amber-900/10">
+                                                        <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-1.5 lg:col-span-1">
+                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">Etilismo (Alcohol)</label>
+                                                    <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/30 dark:[&>div>div]:border-amber-900/30  dark:[&>div>div]:bg-amber-900/10">
+                                                        <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Anotador de Riesgo Letal..." options={['No', 'Mensual', 'Semanal', 'Sí (Frecuente)']} />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-1.5 lg:col-span-1">
+                                                    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider">Acompañamiento Psicológico</label>
+                                                    <div className="[&>div>div]:border-indigo-200/50 [&>div>div]:bg-indigo-50/30 dark:[&>div>div]:border-indigo-900/30  dark:[&>div>div]:bg-indigo-900/10">
+                                                        <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Indicador de Burnout..." options={['No', 'Sí', 'Anteriormente']} />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="space-y-1.5 lg:col-span-1">
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Próximo Segumiento</label>
+                                                    <input type="date" value={w.fechaSeguimiento} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
+                                                        className="w-full text-sm py-[9px] px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
+                                                </div>
+
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -1163,7 +1034,7 @@ const PerfilSociodemografico = () => {
             {generatedReport && (
                 <div className="mt-8">
                     <CollapsibleReportBox
-                        title="Perfil Sociodemográfico"
+                        title="Informe Condiciones de Salud"
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
                     >
                         <div className="rounded-xl p-1 overflow-hidden">
@@ -1360,4 +1231,4 @@ const PerfilSociodemografico = () => {
     );
 };
 
-export default PerfilSociodemografico;
+export default CondicionesSalud;
