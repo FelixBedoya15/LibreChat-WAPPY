@@ -785,7 +785,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   };
 
   const renderContent = () => (
-    <div ref={containerRef} className={`flex flex-col h-full transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[999999] backdrop-blur-xl bg-surface-primary/95 w-screen h-screen m-0 rounded-none shadow-2xl' : 'bg-surface-primary w-full'}`}>
+    <div ref={containerRef} className={`flex flex-col h-full transition-colors duration-300 border-l border-border-light ${isMaximized ? 'fixed inset-0 z-[999999] bg-surface-primary w-screen h-screen m-0 rounded-none shadow-2xl' : 'bg-surface-primary w-full'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between border-b border-border-light bg-surface-secondary px-4 shrink-0 min-w-0 relative z-[300] overflow-visible" style={{ minHeight: '4rem' }}>
