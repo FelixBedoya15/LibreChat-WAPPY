@@ -24,7 +24,7 @@ const PLANS = [
             'Máximo 10 conversaciones abiertas',
             'Podrá ingresar 1 clave API de Gemini',
         ],
-        notIncluded: ['Blog', 'Gestor SGSST', 'Editor de Archivos con IA'],
+        notIncluded: ['Blog', 'Somos SST', 'Editor de Archivos con IA'],
         popular: false,
     },
     {
@@ -43,7 +43,7 @@ const PLANS = [
             'Hasta 30 conversaciones abiertas',
             'Podrá ingresar 4 claves API de Gemini',
         ],
-        notIncluded: ['Gestor SGSST', 'Editor de Archivos con IA'],
+        notIncluded: ['Somos SST', 'Editor de Archivos con IA'],
         popular: false,
     },
     {
@@ -60,7 +60,7 @@ const PLANS = [
             'Todo lo del plan Go',
             'Conversaciones ilimitadas',
             'Podrá ingresar 10 claves API de Gemini',
-            'Gestor SGSST completo',
+            'Somos SST completo',
         ],
         notIncluded: ['Editor de Archivos con IA'],
         popular: false,
