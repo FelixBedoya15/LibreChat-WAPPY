@@ -101,10 +101,13 @@ export default function useAgentSessionOverrides({
                 updates[Tools.execute_code] = true;
             }
 
-            // Activate external tools by merging them into the tools array
-            if (ext.length > 0) {
+            // Activate external tools by merging them into the tools array.
+            // NOTE: 'editor_live' is intentionally excluded from auto-activation
+            // so the panel starts closed and the user controls it via the toggle.
+            const autoActivateExt = ext.filter((t) => t !== 'editor_live');
+            if (autoActivateExt.length > 0) {
                 const prevTools = prevExt?.tools ?? [];
-                const merged = Array.from(new Set([...prevTools, ...ext]));
+                const merged = Array.from(new Set([...prevTools, ...autoActivateExt]));
                 updates.tools = merged;
             }
 

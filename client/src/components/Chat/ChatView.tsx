@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect } from 'react';
 import { useRecoilValue, useSetRecoilState, useRecoilState } from 'recoil';
+import { ephemeralAgentByConvoId } from '~/store/agents';
 import { useForm } from 'react-hook-form';
 import { Spinner } from '@librechat/client';
 import { useParams } from 'react-router-dom';
@@ -115,14 +116,14 @@ function ChatView({ index = 0 }: { index?: number }) {
   }, [currentIsIPEVARActive, conversationId]);
 
   // ── EDITOR LIVE: only open when the user explicitly toggles it ON ──────
-  // We deliberately do NOT check agent.tools or message history so the panel
-  // starts closed and the user controls it via the tool toggle in the chat.
+  // Reads the ephemeralAgentByConvoId atom — that's where AgentSessionPanel
+  // stores per-session tool toggles (not conversation.tools).
+  const ephemeralKey = conversationId ?? 'new';
+  const ephemeralAgent = useRecoilValue(ephemeralAgentByConvoId(ephemeralKey));
   const isEditorLiveActive = React.useMemo(() => {
-    const tools = conversation?.tools ?? [];
-    return tools.some((t: string | { pluginKey?: string }) =>
-      typeof t === 'string' ? t === 'editor_live' : t.pluginKey === 'editor_live',
-    );
-  }, [conversation?.tools]);
+    const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
+    return tools.includes('editor_live');
+  }, [ephemeralAgent]);
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
