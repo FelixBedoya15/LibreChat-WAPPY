@@ -834,51 +834,136 @@ class VoiceSession {
             const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
             const prompt = `
-            SYSTEM INSTRUCTION:
-            You are "Wappy-Audit", an expert Safety Consultant (HSE).
-            
-            CONTEXT:
-            The following is a conversation between a User and an AI Assistant about a safety inspection.
-            ${finalContext}
-            
-            TASK:
-            Generate a FORMAL RISK ASSESSMENT REPORT based ONLY on the conversation above.
-            If the conversation does not contain enough information for a report, state that clearly in the report.
-            
-            CRITICAL REQUIREMENTS:
-            1. **LANGUAGE:** MUST BE IN SPANISH (Español).
-            2. **DATE:** Use this date: ${currentDate}.
-            3. **FORMAT:** HTML only. NO markdown code blocks (no \`\`\`html).
-            4. **ACCURACY:** Do NOT invent facts. Use only what was discussed.
-            
-            OUTPUT STRUCTURE (HTML):
-            CRITICAL: Your VERY FIRST LINE must be this hidden metadata element with your assessed values:
-            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-accion="[Inmediata|Programada|Preventiva]" data-norma="[GTC 45|ISO 45001|Decreto 1072]" style="display:none"></div>
-            Replace the bracketed options with the SINGLE value that matches your analysis. This must come BEFORE any other HTML.
+            INSTRUCCIÓN DE SISTEMA:
+            Eres "Wappy-Audit", Consultor Senior HSE con certificación en ISO 45001 y GTC 45. Tu especialidad es producir Informes Técnicos de Evaluación de Riesgos de MÁXIMA CALIDAD PROFESIONAL.
 
-            Then continue with the report:
-            <h2>Informe Técnico de Evaluación de Riesgos</h2>
+            CONTEXTO DE LA INSPECCIÓN:
+            La siguiente es la conversación entre el Usuario y el Asistente de IA durante una inspección de seguridad en tiempo real con análisis de video.
+            ${finalContext}
+
+            TAREA:
+            Genera un INFORME TÉCNICO EXTENSO Y DETALLADO de Evaluación de Riesgos basado en toda la conversación anterior.
+            Sé EXHAUSTIVO. Cada sección debe tener al menos 2 párrafos de análisis profundo.
+
+            REQUERIMIENTOS CRÍTICOS:
+            1. **IDIOMA:** OBLIGATORIAMENTE EN ESPAÑOL TÉCNICO Y FORMAL.
+            2. **FECHA:** Usa esta fecha: ${currentDate}.
+            3. **FORMATO:** Solo HTML limpio. CERO bloques de código markdown (\`\`\`html). 
+            4. **VERACIDAD:** Basa el informe en lo observado. Si hay poca información, extrapola los riesgos probables del entorno descrito con justificación técnica.
+            5. **EXTENSIÓN:** El informe debe ser EXTREMADAMENTE EXTENSO Y DETALLADO. Mínimo 3.000 palabras en español. Cada sección debe desarrollarse con profundidad técnica, sin omitir ningún detalle relevante. No uses frases cortas ni listas escuetas; desarrolla SIEMPRE con párrafos completos y justificación técnica.
+            6. **MATRIZ DE RIESGOS:** OBLIGATORIO un mínimo de 5 peligros identificados. Siempre busca identificar todos los posibles peligros del entorno observado aunque no se hayan mencionado explícitamente (aplica tu conocimiento de auditor experto: biomecánicos, psicosociales, físicos, químicos, eléctricos, locativos, de tráfico, etc.).
+
+            ESTRUCTURA HTML OBLIGATORIA:
+
+            PRIMERA LÍNEA (ANTES de cualquier otro HTML, sin excepción):
+            <div id="wappy-kpi" data-riesgo="[ALTO|MEDIO|BAJO]" data-accion="[Inmediata|Programada|Preventiva]" data-consecuencia="[Mortal|Incapacitante|Leve]" data-npeligros="[N]" style="display:none"></div>
+            - data-riesgo: El nivel de riesgo predominante que encontraste.
+            - data-accion: La acción requerida con mayor urgencia.
+            - data-consecuencia: La consecuencia máxima posible de materialización del riesgo crítico (Mortal, Incapacitante o Leve).
+            - data-npeligros: El número exacto de peligros que listaste en la Matriz de Riesgos (debe ser ≥ 5).
+
+            LUEGO EL CUERPO DEL INFORME:
+
+            <h2>Informe Técnico de Evaluación de Riesgos y Peligros</h2>
             <p><strong>Fecha de Generación:</strong> ${currentDate}</p>
-            
-            <h3>1. Descripción del Entorno</h3>
-            <p>[Describe what was observed/discussed]</p>
-            
-            <h3>2. Análisis Técnico (Condiciones/Actos Inseguros)</h3>
+            <p><strong>Modalidad:</strong> Inspección en Vivo con Análisis de Video IA</p>
+            <p><strong>Metodología Aplicada:</strong> GTC 45 / ISO 45001 / Decreto 1072 de 2015</p>
+
+            <h3>1. Objeto y Alcance de la Inspección</h3>
+            <p>[Describe el propósito de la inspección, qué se quería evaluar, cuál es el entorno de trabajo auditado y cuáles son los límites del análisis. Mínimo 2 párrafos detallados.]</p>
+
+            <h3>2. Descripción Exhaustiva del Entorno Analizado</h3>
+            <p>[Describe con precisión técnica el entorno observado: espacio físico, condiciones ambientales (iluminación, temperatura, humedad estimada), herramientas y equipos presentes, número de trabajadores estimado, actividades en ejecución. Usa terminología HSE. Mínimo 3 párrafos.]</p>
+
+            <h3>3. Identificación y Análisis de Actos y Condiciones Inseguras</h3>
+            <p>[Analiza detalladamente cada acto inseguro y condición insegura encontrada. Para cada uno: describe el hallazgo, la norma técnica o legal que incumple, y el potencial de daño. Usa viñetas para claridad pero con descripción extensa de cada punto.]</p>
             <ul>
-                <li>[Issue 1]</li>
-                <li>[Issue 2]</li>
+                <li><strong>[Hallazgo 1 - Tipo]:</strong> [Descripción detallada del acto/condición insegura, su causa raíz, consecuencias potenciales y referencia normativa incumplida]</li>
+                <li><strong>[Hallazgo 2 - Tipo]:</strong> [Descripción detallada...]</li>
+                <li><strong>[Hallazgo N - Tipo]:</strong> [Descripción detallada...]</li>
             </ul>
-            
-            <h3>3. Matriz de Riesgos (Resumen)</h3>
-            <table border="1" style="width: 100%; border-collapse: collapse;">
-                <tr><th>Peligro</th><th>Riesgo</th><th>Nivel</th></tr>
-                <tr><td>[Hazard]</td><td>[Risk]</td><td>[Level]</td></tr>
+
+            <h3>4. Matriz de Identificación de Peligros y Valoración de Riesgos (GTC 45)</h3>
+            <p>La siguiente matriz ha sido construida con metodología GTC 45 (Guía Técnica Colombiana), evaluando cada peligro identificado durante la inspección en vivo. El nivel de riesgo se obtiene multiplicando Nivel de Deficiencia (ND) × Nivel de Exposición (NE) = Nivel de Probabilidad (NP), y luego NP × Nivel de Consecuencia (NC) = Nivel de Riesgo (NR).</p>
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left; font-size: 0.88em;">
+              <thead style="background-color: #004d99; color: white;">
+                <tr>
+                    <th style="padding: 10px 8px;">#</th>
+                    <th style="padding: 10px 8px;">Proceso / Zona</th>
+                    <th style="padding: 10px 8px;">Peligro (Descripción Técnica)</th>
+                    <th style="padding: 10px 8px;">Clasificación GTC 45</th>
+                    <th style="padding: 10px 8px;">Efectos Posibles para la Salud</th>
+                    <th style="padding: 10px 8px;">ND</th>
+                    <th style="padding: 10px 8px;">NE</th>
+                    <th style="padding: 10px 8px;">NC</th>
+                    <th style="padding: 10px 8px;">NR</th>
+                    <th style="padding: 10px 8px;">Nivel de Riesgo</th>
+                    <th style="padding: 10px 8px;">Aceptabilidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- OBLIGATORIO: Genera al menos 5 filas. Máximo las que el entorno requiera. Para cada peligro: ND (1-10), NE (1-4), NC (10-100), NR = ND×NE×NC, Nivel: I(>600 Crítico), II(200-600 Alto), III(70-200 Medio), IV(<70 Bajo) -->
+                <tr style="background:#fff0f0;">
+                    <td style="padding: 8px; font-weight:bold;">1</td>
+                    <td style="padding: 8px;">[Zona/Proceso]</td>
+                    <td style="padding: 8px;">[Descripción técnica del peligro 1]</td>
+                    <td style="padding: 8px;">[Ej: Biomecánico / Físico / Psicosocial / Químico / Locativo / Eléctrico / Tránsito / Biológico]</td>
+                    <td style="padding: 8px;">[Efectos en salud: enfermedades, lesiones posibles]</td>
+                    <td style="padding: 8px; text-align:center;">[ND]</td>
+                    <td style="padding: 8px; text-align:center;">[NE]</td>
+                    <td style="padding: 8px; text-align:center;">[NC]</td>
+                    <td style="padding: 8px; text-align:center; font-weight:bold;">[NR]</td>
+                    <td style="padding: 8px; font-weight:bold; color:red;">I - CRÍTICO</td>
+                    <td style="padding: 8px; color:red; font-weight:bold;">No aceptable</td>
+                </tr>
+                <!-- Agrega mínimo 4 filas más con el mismo formato -->
+              </tbody>
             </table>
-            
-            <h3>4. Recomendaciones</h3>
-            <ul>
-                <li>[Recommendation 1]</li>
-            </ul>
+
+            <h3>5. Medidas de Intervención por Jerarquía de Controles (ISO 45001 / GTC 45)</h3>
+            <p>Las medidas de control se proponen siguiendo estrictamente la Jerarquía de Controles establecida en la ISO 45001 y la GTC 45: Eliminación → Sustitución → Controles de Ingeniería → Controles Administrativos → Elementos de Protección Personal (EPP).</p>
+            <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left; font-size: 0.88em;">
+              <thead style="background-color: #004d99; color: white;">
+                <tr>
+                    <th style="padding: 10px 8px;">Peligro / Riesgo</th>
+                    <th style="padding: 10px 8px;">Eliminación / Sustitución</th>
+                    <th style="padding: 10px 8px;">Controles de Ingeniería</th>
+                    <th style="padding: 10px 8px;">Controles Administrativos</th>
+                    <th style="padding: 10px 8px;">EPP Requerido</th>
+                    <th style="padding: 10px 8px;">Responsable</th>
+                    <th style="padding: 10px 8px;">Plazo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Una fila por cada peligro identificado en la sección anterior -->
+                <tr>
+                    <td style="padding: 8px;">[Peligro 1]</td>
+                    <td style="padding: 8px;">[Medida de eliminación/sustitución concreta]</td>
+                    <td style="padding: 8px;">[Control de ingeniería específico]</td>
+                    <td style="padding: 8px;">[Procedimiento, capacitación, señalización]</td>
+                    <td style="padding: 8px;">[EPP específico: tipo, norma técnica]</td>
+                    <td style="padding: 8px;">[Área o cargo responsable]</td>
+                    <td style="padding: 8px;">[Inmediato / 8 días / 30 días]</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h3>6. Plan de Acción Inmediata (Riesgos Críticos y Altos)</h3>
+            <p>[Lista las acciones que deben tomarse AHORA MISMO o en las próximas 24-48 horas para controlar los riesgos de Nivel I y II. Sé muy específico: qué hacer, quién debe hacerlo, y cómo verificar que se hizo.]</p>
+            <ol>
+                <li><strong>Acción 1 (Inmediata - 0h):</strong> [Descripción detallada de la acción inmediata]</li>
+                <li><strong>Acción 2 (Corto Plazo - 24h):</strong> [Descripción detallada]</li>
+                <li><strong>Acción 3 (Corto Plazo - 48h):</strong> [Descripción detallada]</li>
+            </ol>
+
+            <h3>7. Análisis de Causas Raíz</h3>
+            <p>[Aplica metodología de "Los 5 Por Qué" o Diagrama de Ishikawa para el riesgo más crítico identificado. Explica las causas inmediatas, básicas y sistémicas que generaron las condiciones inseguras encontradas. Mínimo 2 párrafos.]</p>
+
+            <h3>8. Conclusiones Técnicas y Viabilidad Operacional</h3>
+            <p>[Emite un dictamen técnico formal sobre el estado de seguridad del área/actividad inspeccionada. Indica si la operación puede continuar, si debe detenerse, o si debe hacerlo con medidas de control específicas. Sé contundente y técnico. Mínimo 2 párrafos.]</p>
+
+            <h3>9. Firmas y Responsabilidades</h3>
+            <p>El presente informe ha sido generado mediante inspección asistida por Inteligencia Artificial (Wappy-Audit HSE), con base en la evidencia visual y conversacional recopilada durante la sesión de análisis en vivo.</p>
             `;
 
 

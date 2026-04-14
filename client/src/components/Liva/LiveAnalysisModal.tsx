@@ -120,9 +120,9 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
             }
 
             // ─── Parse KPI metadata embedded by the AI ─────────────────────────
-            // The AI is instructed to start with: <div id="wappy-kpi" data-riesgo="..." data-accion="..." data-norma="...">
+            // The AI starts with: <div id="wappy-kpi" data-riesgo="..." data-accion="..." data-consecuencia="..." data-npeligros="N">
             const parseKpi = (rawHtml: string) => {
-                const defaults = { riesgo: 'INDETERMINADO', accion: 'Evaluar', norma: 'GTC 45' };
+                const defaults = { riesgo: 'INDETERMINADO', accion: 'Evaluar', consecuencia: 'Incapacitante', npeligros: '5+' };
                 try {
                     const match = rawHtml.match(/<div[^>]+id=["']wappy-kpi["'][^>]*>/i);
                     if (!match) return defaults;
@@ -132,9 +132,10 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                         return m ? m[1].trim() : '';
                     };
                     return {
-                        riesgo: get('data-riesgo') || defaults.riesgo,
-                        accion: get('data-accion') || defaults.accion,
-                        norma:  get('data-norma')  || defaults.norma,
+                        riesgo:       get('data-riesgo')       || defaults.riesgo,
+                        accion:       get('data-accion')       || defaults.accion,
+                        consecuencia: get('data-consecuencia') || defaults.consecuencia,
+                        npeligros:    get('data-npeligros')    || defaults.npeligros,
                     };
                 } catch { return defaults; }
             };
@@ -156,18 +157,24 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                 ? { bg: '#fff8e1', border: '#f57c00', labelColor: '#e65100', valColor: '#e65100', icon: '🟡' }
                 : { bg: '#e3f2fd', border: '#1565c0', labelColor: '#0d47a1', valColor: '#0d47a1', icon: '🟢' };
 
+            const consecuenciaStyle = kpi.consecuencia === 'Mortal'
+                ? { bg: '#fce4ec', border: '#880e4f', labelColor: '#880e4f', valColor: '#880e4f', icon: '☠️' }
+                : kpi.consecuencia === 'Incapacitante'
+                ? { bg: '#fff3e0', border: '#e65100', labelColor: '#bf360c', valColor: '#bf360c', icon: '🦺' }
+                : { bg: '#e8f5e9', border: '#2e7d32', labelColor: '#1b5e20', valColor: '#2e7d32', icon: '🩹' };
+
             const kpiCards = `
       <div style="flex:1; min-width:120px; background:${riesgoStyle.bg}; border-left:4px solid ${riesgoStyle.border}; border-radius:8px; padding:12px 16px;">
         <div style="font-size:0.65em; color:${riesgoStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Riesgo Predominante</div>
         <div style="font-size:1.3em; font-weight:800; color:${riesgoStyle.valColor};">${kpi.riesgo} ${riesgoStyle.icon}</div>
       </div>
-      <div style="flex:1; min-width:120px; background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#1b5e20; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Norma Aplicada</div>
-        <div style="font-size:1.1em; font-weight:800; color:#1b5e20;">${kpi.norma} ✔</div>
+      <div style="flex:1; min-width:120px; background:${consecuenciaStyle.bg}; border-left:4px solid ${consecuenciaStyle.border}; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:${consecuenciaStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Consecuencia Máx.</div>
+        <div style="font-size:1.1em; font-weight:800; color:${consecuenciaStyle.valColor};">${kpi.consecuencia} ${consecuenciaStyle.icon}</div>
       </div>
-      <div style="flex:1; min-width:120px; background:#e3f2fd; border-left:4px solid #1565c0; border-radius:8px; padding:12px 16px;">
-        <div style="font-size:0.65em; color:#0d47a1; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Modalidad</div>
-        <div style="font-size:1.1em; font-weight:800; color:#0d47a1;">Live AI 🎥</div>
+      <div style="flex:1; min-width:120px; background:#e8eaf6; border-left:4px solid #3949ab; border-radius:8px; padding:12px 16px;">
+        <div style="font-size:0.65em; color:#1a237e; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Peligros Detectados</div>
+        <div style="font-size:1.3em; font-weight:800; color:#283593;">${kpi.npeligros} 🔍</div>
       </div>
       <div style="flex:1; min-width:120px; background:${accionStyle.bg}; border-left:4px solid ${accionStyle.border}; border-radius:8px; padding:12px 16px;">
         <div style="font-size:0.65em; color:${accionStyle.labelColor}; font-weight:700; text-transform:uppercase; letter-spacing:1px;">Acción Requerida</div>
@@ -184,7 +191,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
       <div>
         <div style="color:#64b5f6; font-size:0.7em; font-weight:700; letter-spacing:3px; text-transform:uppercase; margin-bottom:4px;">Sistema de Gestión de Seguridad y Salud en el Trabajo</div>
         <h1 style="color:#fff; font-size:1.6em; font-weight:800; margin:0 0 4px;">Informe de Análisis de Riesgos y Peligros</h1>
-        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis) · Norma ${kpi.norma}</div>
+        <div style="color:#90caf9; font-size:0.8em;">Modalidad: Inspección en Vivo (Live Analysis) · GTC 45 / ISO 45001</div>
       </div>
       <div style="text-align:right;">
         <div style="background:rgba(255,255,255,0.15); border-radius:8px; padding:10px 16px; min-width:160px;">
@@ -201,7 +208,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
     <div><strong>Fecha:</strong> ${dateStr}</div>
     <div><strong>Hora:</strong> ${timeStr}</div>
     <div><strong>Tipo:</strong> Inspección de Riesgos en Vivo</div>
-    <div><strong>Norma:</strong> ${kpi.norma} / Decreto 1072</div>
+    <div><strong>Metodología:</strong> GTC 45 / ISO 45001 / Decreto 1072</div>
     <div><strong>Estado:</strong> <span style="color:#2e7d32; font-weight:700;">✔ Completado</span></div>
   </div>
 
