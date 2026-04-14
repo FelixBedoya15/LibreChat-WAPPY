@@ -68,62 +68,26 @@ function ChatView({ index = 0 }: { index?: number }) {
     enabled: !!conversation?.agent_id && conversation?.endpoint === 'agents',
   });
 
-  // ── IPEVAR Persistence Hack para Multi-Agentes (@) ───────────────────────
-  // Si inicias con un Agente que tiene la herramienta, y luego usas `@` para
-  // llamar a un psicólogo, el `agent` activo cambia y pierdes sus tools. Esto
-  // memoriza que en ESTA conversación la matriz estaba activa, y no la oculta.
-  const activeConvosRef = React.useRef<Set<string>>(new Set());
-
-  const currentIsIPEVARActive = React.useMemo(() => {
-    // Check if the tool is assigned to the current plugin/conversation
-    // tools can be TPlugin[] or string[]
-    const tools = conversation?.tools ?? [];
-    const hasToolByKey = tools.some((t) =>
-      typeof t === 'string' ? t === 'matriz_ipevar' : t.pluginKey === 'matriz_ipevar',
-    );
-    if (hasToolByKey) return true;
-
-    // Check if tool is assigned to the current Agent
-    const agentTools = agent?.tools ?? [];
-    const hasAgentToolByKey = agentTools.some(
-      (t: string | { pluginKey?: string }) =>
-        typeof t === 'string' ? t === 'matriz_ipevar' : t.pluginKey === 'matriz_ipevar',
-    );
-    if (hasAgentToolByKey) return true;
-
-    // Fallback: detect from message history if the tool was actually called
-    if (
-      messagesTree?.some(
-        (msg) =>
-          msg.plugin?.plugin === 'matriz_ipevar' ||
-          msg.plugins?.some((p) => p.plugin === 'matriz_ipevar'),
-      )
-    ) return true;
-
-    return false;
-  }, [conversation?.tools, messagesTree, agent?.tools]);
-
-  const isIPEVARActive = React.useMemo(() => {
-    if (currentIsIPEVARActive) return true;
-    if (conversationId && activeConvosRef.current.has(conversationId)) return true;
-    return false;
-  }, [currentIsIPEVARActive, conversationId]);
-
-  useEffect(() => {
-    if (currentIsIPEVARActive && conversationId) {
-      activeConvosRef.current.add(conversationId);
-    }
-  }, [currentIsIPEVARActive, conversationId]);
-
-  // ── EDITOR LIVE: only open when the user explicitly toggles it ON ──────
-  // Reads the ephemeralAgentByConvoId atom — that's where AgentSessionPanel
-  // stores per-session tool toggles (not conversation.tools).
+  // ── Shared ephemeral agent state (used for IPEVAR and Editor Live) ───────
+  // AgentSessionPanel stores per-session tool toggles in ephemeralAgentByConvoId.
+  // Reading this atom is the single source of truth for whether any tool panel is open.
   const ephemeralKey = conversationId ?? 'new';
   const ephemeralAgent = useRecoilValue(ephemeralAgentByConvoId(ephemeralKey));
+
+  // ── IPEVAR: open only when user explicitly toggles it ON ─────────────────
+  // Auto-activation for matriz_ipevar is excluded in useAgentSessionOverrides
+  // so the panel starts closed regardless of agent configuration.
+  const isIPEVARActive = React.useMemo(() => {
+    const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
+    return tools.includes('matriz_ipevar');
+  }, [ephemeralAgent]);
+
+  // ── EDITOR LIVE: open only when user explicitly toggles it ON ────────────
   const isEditorLiveActive = React.useMemo(() => {
     const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
     return tools.includes('editor_live');
   }, [ephemeralAgent]);
+
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
