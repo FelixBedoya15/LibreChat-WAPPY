@@ -566,10 +566,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 img.setAttribute('data-selected', 'true');
                 setSelectedImage(img);
                 const rect = img.getBoundingClientRect();
-                const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
+                // Use fixed viewport coords so toolbar works in maximized panels too
                 setImageToolbarPos({
-                    top: rect.top - wrapperRect.top - 50,
-                    left: rect.left - wrapperRect.left
+                    top: rect.top - 58,
+                    left: rect.left
                 });
             } else if ((target.closest('.signature-placeholder') || target.innerText?.includes('FIRMADO DIGITALMENTE')) && editorRef.current?.contains(target)) {
                 const placeholder = (target.closest('.signature-placeholder') || target.closest('div') || target.parentElement) as HTMLElement;
@@ -991,13 +991,15 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 title={activeSignatureName && activeSignatureName !== 'DESCONOCIDO' ? `Firma: ${activeSignatureName}` : "Dibujar Nueva Firma"}
             />
 
-            {/* Floating Image Toolbar */}
-            {selectedImage && (
+            {/* Floating Image Toolbar — rendered as fixed to escape any stacking context */}
+            {selectedImage && portalNode && createPortal(
                 <div
-                    className="image-toolbar absolute z-[80] bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
+                    className="image-toolbar bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
                     style={{
+                        position: 'fixed',
                         top: `${Math.max(10, imageToolbarPos.top)}px`,
-                        left: `${Math.max(10, Math.min(imageToolbarPos.left, (editorRef.current?.clientWidth || 0) - 300))}px`
+                        left: `${Math.max(10, Math.min(imageToolbarPos.left, window.innerWidth - 340))}px`,
+                        zIndex: 9999999,
                     }}
                 >
                     <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
@@ -1022,7 +1024,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     <button
                         onClick={removeImage}
                         className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                        title="Eliminar imagen"
+                        title="Eliminar imagen / firma"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
@@ -1033,7 +1035,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     >
                         <X className="w-4 h-4" />
                     </button>
-                </div>
+                </div>,
+                portalNode
             )}
 
             {/* Floating Table Toolbar */}

@@ -27,6 +27,57 @@ interface LiveEditorPanelProps {
 }
 
 const POLL_INTERVAL_MS = 2500;
+const LIVE_EDITOR_TAG = 'sgsst-live-editor';
+
+// ── Default signature block appended to every new document ────────────────
+const DEFAULT_SIGNATURE_BLOCK = `
+<div style="margin-top:60px; page-break-inside:avoid;">
+  <table style="width:100%; border-collapse:collapse;">
+    <tr>
+      <td style="width:48%; text-align:center; padding:8px;">
+        <div class="signature-placeholder" style="border-bottom:2px solid #333; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f9f9f9; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+          <span style="font-size:11px; opacity:0.6;">Clic para firmar</span>
+        </div>
+        <p style="font-size:12px; font-weight:bold; margin:4px 0 2px;">RESPONSABLE SST</p>
+        <p style="font-size:11px; margin:0; color:#555;">Firma y Sello</p>
+      </td>
+      <td style="width:4%;"></td>
+      <td style="width:48%; text-align:center; padding:8px;">
+        <div class="signature-placeholder" style="border-bottom:2px solid #333; min-height:80px; display:flex; align-items:center; justify-content:center; background:#f9f9f9; cursor:pointer; border-radius:8px 8px 0 0; margin-bottom:4px; transition:all 0.3s ease;">
+          <span style="font-size:11px; opacity:0.6;">Clic para firmar</span>
+        </div>
+        <p style="font-size:12px; font-weight:bold; margin:4px 0 2px;">REPRESENTANTE LEGAL</p>
+        <p style="font-size:11px; margin:0; color:#555;">Firma y Sello</p>
+      </td>
+    </tr>
+  </table>
+</div>`;
+
+/** Append default signature footer only if the document doesn't already have one */
+function appendSignatureIfMissing(html: string): string {
+  if (!html || html.includes('signature-placeholder') || html.includes('RESPONSABLE SST')) return html;
+  return html + DEFAULT_SIGNATURE_BLOCK;
+}
+
+/** Tag a conversation so it appears in ReportHistory */
+async function tagConversation(conversationId: string, tag: string, token: string) {
+  try {
+    const res = await fetch(`/api/convos/${conversationId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const convo = await res.json();
+    const currentTags: string[] = convo.tags ?? [];
+    if (currentTags.includes(tag)) return; // already tagged
+    await fetch('/api/convos/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ arg: { conversationId, tags: [...currentTags, tag] } }),
+    });
+  } catch (e) {
+    console.error('[LiveEditorPanel] Tag error:', e);
+  }
+}
 
 const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => {
   const { token } = useAuthContext();
@@ -44,10 +95,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   const lastUpdatedAtRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Track whether agent is actively submitting (same Recoil atom used by IPEVAR)
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
 
-  // ── Fetch document from backend ─────────────────────────────────────────
+  // ── Fetch document from backend ──────────────────────────────────────────
   const fetchDocument = useCallback(async (isInitial = false) => {
     if (!conversationId || conversationId === 'new') return;
     try {
@@ -57,12 +107,12 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       });
       const data = await res.json();
 
-      // Only update the editor if the backend has a newer version
       if (data.contentUpdatedAt && data.contentUpdatedAt !== lastUpdatedAtRef.current) {
         lastUpdatedAtRef.current = data.contentUpdatedAt;
-        setContent(data.content || '');
+        // Ensure every doc has default signature blocks
+        const htmlWithSigs = appendSignatureIfMissing(data.content || '');
+        setContent(htmlWithSigs);
         setFileName(data.fileName || 'Documento sin título');
-        // Bump key to force LiveEditor to remount with new content
         setEditorKey(Date.now().toString());
       }
     } catch (e) {
@@ -72,31 +122,30 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     }
   }, [conversationId, token]);
 
-  // Initial load
-  useEffect(() => {
-    fetchDocument(true);
-  }, [fetchDocument]);
+  useEffect(() => { fetchDocument(true); }, [fetchDocument]);
 
-  // Polling while agent is submitting or every interval
   useEffect(() => {
     if (!conversationId || conversationId === 'new') return;
     const interval = setInterval(() => fetchDocument(), POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [conversationId, fetchDocument, isSubmitting]);
 
-  // ── Save updated content (from user editing) ────────────────────────────
+  // ── Save ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!conversationId || conversationId === 'new') return;
     try {
       setIsSaving(true);
+      const finalContent = appendSignatureIfMissing(editorContent || content);
       const res = await fetch(`/api/live-editor/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: editorContent || content, fileName }),
+        body: JSON.stringify({ content: finalContent, fileName }),
       });
       if (res.ok) {
         const data = await res.json();
         lastUpdatedAtRef.current = data.contentUpdatedAt;
+        // Tag the conversation so it appears in ReportHistory
+        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
         setRefreshTrigger(prev => prev + 1);
       }
     } catch (e) {
@@ -106,20 +155,30 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     }
   }, [conversationId, token, editorContent, content, fileName]);
 
-  // ── History: load a saved report into the editor ────────────────────────
+  // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
     let docContent = '';
     if (typeof reportOrId === 'string') {
       try {
-        const res = await fetch(`/api/messages/${reportOrId}`, {
+        const res = await fetch(`/api/live-editor/${reportOrId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const messages = await res.json();
-          const reportMsg = messages.reverse().find(
-            (m: any) => m.isCreatedByUser === false && m.text?.length > 100,
-          );
-          if (reportMsg) docContent = reportMsg.text;
+          const data = await res.json();
+          docContent = data.content || '';
+        }
+        // Fallback: try messages endpoint
+        if (!docContent) {
+          const msgRes = await fetch(`/api/messages/${reportOrId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (msgRes.ok) {
+            const messages = await msgRes.json();
+            const reportMsg = messages.reverse().find(
+              (m: any) => m.isCreatedByUser === false && m.text?.length > 100,
+            );
+            if (reportMsg) docContent = reportMsg.text;
+          }
         }
       } catch { /* ignore */ }
     } else if (reportOrId?.content) {
@@ -127,22 +186,22 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     }
 
     if (docContent) {
-      // Persist to current conversation
+      const withSigs = appendSignatureIfMissing(docContent);
       if (conversationId && conversationId !== 'new') {
         await fetch(`/api/live-editor/${conversationId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: docContent }),
+          body: JSON.stringify({ content: withSigs }),
         });
       }
-      setContent(docContent);
-      setEditorContent(docContent);
+      setContent(withSigs);
+      setEditorContent(withSigs);
       setEditorKey(Date.now().toString());
       setIsHistoryOpen(false);
     }
   };
 
-  // ── Clear document ───────────────────────────────────────────────────────
+  // ── Clear ─────────────────────────────────────────────────────────────────
   const handleClear = async () => {
     if (!conversationId || conversationId === 'new') return;
     if (!window.confirm('¿Eliminar el documento actual? Esta acción no se puede deshacer.')) return;
@@ -185,17 +244,21 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       }
 
       if (extractedHtml) {
+        const withSigs = appendSignatureIfMissing(extractedHtml);
         const newFileName = file.name.replace(/\.[^.]+$/, '');
         const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: extractedHtml, fileName: newFileName }),
+          body: JSON.stringify({ content: withSigs, fileName: newFileName }),
         });
         const saved = await saveRes.json();
         lastUpdatedAtRef.current = saved.contentUpdatedAt;
-        setContent(extractedHtml);
+        setContent(withSigs);
         setFileName(newFileName);
         setEditorKey(Date.now().toString());
+        // Tag the conversation for history
+        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (err) {
       console.error('[LiveEditorPanel] Upload error:', err);
@@ -205,7 +268,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   const renderPanel = () => (
     <div
       className={`flex flex-col h-full transition-colors duration-300 border-l border-border-light bg-surface-primary ${
@@ -261,7 +324,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             reportType="general"
           />
 
-          {/* History */}
+          {/* History — ReportHistory handles its own portal at z-[99999999] */}
           <button
             onClick={() => setIsHistoryOpen(h => !h)}
             className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
@@ -269,7 +332,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
                 : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
             } hover:-rotate-3 hover:scale-105`}
-            title="Historial de reportes"
+            title="Historial de documentos"
           >
             <History className="h-4 w-4 shrink-0" />
           </button>
@@ -285,7 +348,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             </button>
           )}
 
-          {/* Maximize — solo el del panel (el del LiveEditor está oculto) */}
+          {/* Maximize */}
           <button
             onClick={() => setIsMaximized((m) => !m)}
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
@@ -300,23 +363,18 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
         </div>
       </div>
 
-      {/* ── History Panel ─────────────────────────────────────────────────── */}
-      {isHistoryOpen && (
-        <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden mx-2 mt-4">
-          <ReportHistory
-            onSelectReport={handleSelectReport}
-            isOpen={isHistoryOpen}
-            toggleOpen={() => setIsHistoryOpen(h => !h)}
-            refreshTrigger={refreshTrigger}
-            tags={['live-editor-doc']}
-          />
-        </div>
-      )}
+      {/* ── ReportHistory (portal — renders above z-[999999] panel) ─────── */}
+      <ReportHistory
+        onSelectReport={handleSelectReport}
+        isOpen={isHistoryOpen}
+        toggleOpen={() => setIsHistoryOpen(h => !h)}
+        refreshTrigger={refreshTrigger}
+        tags={[LIVE_EDITOR_TAG]}
+      />
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">
         {!content ? (
-          // Empty state
           <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20">
               <FileText className="h-8 w-8 text-blue-500 opacity-60" />
@@ -347,7 +405,6 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             </div>
           </div>
         ) : (
-          // LiveEditor con toolbar oculta en modo panel (solo visible al expandir)
           <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
             <div style={{ minWidth: '100%', padding: isMaximized ? '24px' : '12px' }}>
               <LiveEditor
