@@ -397,79 +397,15 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
                     
                     CONTEXTO:
                     Estás realizando una inspección técnica formal basada en la evidencia visual que estás viendo AHORA MISMO en el video.
-                    Fecha del reporte: ${currentDate}.
 
                     TU MISIÓN:
-                    Generar un INFORME TÉCNICO DETALLADO Y EXTENSO sobre los hallazgos.
+                    Identificar peligros evidentes, evaluar actos inseguros y dar recomendaciones asertivas en tiempo real. 
 
                     INSTRUCCIONES DE RESPUESTA:
-                    1. **AUDIO**: Háblame profesionalmente como si estuvieras dictando el resumen ejecutivo a un colega. Sé directo sobre los peligros críticos.
-                    2. **TEXTO (HTML)**: Genera el cuerpo del informe. Sé MUY EXTENSO. Usa un lenguaje técnico, formal y preciso.
-                    
-                    ESTRUCTURA OBLIGATORIA DEL CONTENIDO HTML (No incluyas <html> ni importes CSS, solo el contenido del body):
-
-                    <h2>2. Descripción Detallada del Procedimiento / Actividad</h2>
-                    <p>[Describe exhaustivamente qué está sucediendo, el entorno, las herramientas visibles, el personal, y las condiciones ambientales. Mínimo 2 párrafos detallados].</p>
-
-                    <h2>3. Identificación y Análisis de Hallazgos</h2>
-                    <p>[Analiza condición por condición. Usa viñetas para listar observaciones específicas].</p>
-                    <ul>
-                        <li><strong>Observación 1:</strong> [Detalle]</li>
-                        <li><strong>Observación 2:</strong> [Detalle]</li>
-                    </ul>
-
-                    <h2>4. Matriz de Valoración de Riesgos y Peligros (GTC 45 / Norma Técnica)</h2>
-                    <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left;">
-                      <thead style="background-color: #ecf0f1;">
-                        <tr>
-                            <th style="padding: 8px;">Proceso / Zona</th>
-                            <th style="padding: 8px;">Peligro (Descripción)</th>
-                            <th style="padding: 8px;">Clasificación</th>
-                            <th style="padding: 8px;">Efectos Posibles</th>
-                            <th style="padding: 8px;">Nivel de Riesgo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <!-- Genera al menos 3 filas si es posible -->
-                        <tr>
-                            <td style="padding: 8px;">[Ej: Soldadura]</td>
-                            <td style="padding: 8px;">[Ej: Humos metálicos]</td>
-                            <td style="padding: 8px;">[Ej: Químico]</td>
-                            <td style="padding: 8px;">[Ej: Neumoconiosis]</td>
-                            <td style="padding: 8px; font-weight: bold; color: red;">[Ej: Alto]</td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    <h2>5. Medidas de Intervención Recomendadas (Jerarquía de Controles)</h2>
-                    <p>[Propone soluciones detalladas para cada hallazgo].</p>
-                    <table border="0" style="border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; border: 1px solid #ddd; width: 100%; text-align: left;">
-                      <thead style="background-color: #ecf0f1;">
-                        <tr>
-                            <th style="padding: 8px;">Eliminación / Sustitución</th>
-                            <th style="padding: 8px;">Controles de Ingeniería</th>
-                            <th style="padding: 8px;">Controles Administrativos</th>
-                            <th style="padding: 8px;">EPP Requeridos</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                            <td style="padding: 8px;">[Propuesta...]</td>
-                            <td style="padding: 8px;">[Propuesta...]</td>
-                            <td style="padding: 8px;">[Propuesta...]</td>
-                            <td style="padding: 8px;">[Propuesta...]</td>
-                        </tr>
-                      </tbody>
-                    </table>
-
-                    <h2>6. Conclusiones y Cierre</h2>
-                    <p>[Conclusión técnica final sobre la viabilidad de la operación o la urgencia de las correcciones].</p>
-
-                    NOTA FINAL:
-                    - NO uses frases genéricas como "veo una persona". Describe "trabajador operando maquinaria sin guantes de carnaza".
-                    - Sé lo más extenso posible en los párrafos descriptivos.
-                    - Utiliza formato HTML limpio para tablas y listas.
-                    - ¡CRÍTICO! Genera el informe técnico de análisis INMEDIATAMENTE basándote SÓLO en la imagen/video que estés captando. NO ESPERES a que yo te describa algo u hable por el micrófono primero. Inicia el análisis proactivamente ahora mismo.
+                    1. **ANÁLISIS INICIAL**: Inicia el análisis proactivamente AHORA MISMO basándote SÓLO en la imagen/video que captas. Comienza hablando de inmediato.
+                    2. **ESTILO**: Háblame profesionalmente. Sé directo y táctico sobre los peligros críticos. 
+                    3. **REPORTE (CRÍTICO)**: Cuando yo te pida generar el informe o reporte de la inspección, tu ÚNICA RESPUESTA debe ser EXACTAMENTE: "Entendido. Estoy procesando lo que vimos para generar el informe técnico detallado." 
+                    NO generes el informe verbalmente ni en HTML. Solo di esa frase y el sistema en el backend se encargará de crearlo.
                 `);
             }, 1000); // Short delay after ready
 

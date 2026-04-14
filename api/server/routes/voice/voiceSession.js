@@ -348,8 +348,8 @@ class VoiceSession {
 
             // ONLY trigger report if AI explicitly says it will generate it
             // Keywords based on the system prompt instruction: "Entendido. Estoy procesando..."
-            const triggerKeywords = ['generar el informe', 'generar el reporte', 'procesando lo que vimos', 'procesando la información visual'];
-            const shouldGenerateReport = triggerKeywords.some(keyword => currentAiText.toLowerCase().includes(keyword));
+            const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
+            const shouldGenerateReport = triggerRegex.test(currentAiText);
 
             if (shouldGenerateReport) {
                 logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
