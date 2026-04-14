@@ -1125,7 +1125,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 </div>
             )}
 
-            <div className="relative flex-1 overflow-x-auto overflow-y-hidden flex flex-col">
+            <div className="relative flex-1 overflow-x-auto overflow-y-auto flex flex-col">
                 <div
                     ref={editorRef}
 

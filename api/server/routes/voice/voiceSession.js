@@ -86,6 +86,7 @@ class VoiceSession {
         // Text accumulation for saving
         this.userTranscriptionText = '';
         this.aiResponseText = '';
+        this.aiTranscriptionBuffer = ''; // ← NEW: accumulates AI speech transcription separately
         this.aiAudioChunkCount = 0; // Count audio chunks to know if AI responded with voice
         this.lastMessageId = null; // Track last message ID for parent linking
 
@@ -229,8 +230,9 @@ class VoiceSession {
         // Listen for AI transcription (what the AI says)
         this.geminiClient.on('aiTranscription', (text) => {
             logger.info(`[VoiceSession] AI transcription received: "${text}"`);
-            // Accumulate AI text
+            // Accumulate AI text (both buffers, so the trigger can find the phrase)
             this.aiResponseText += text;
+            this.aiTranscriptionBuffer += text; // ← NEW
         });
 
         // Listen for AI TEXT response
@@ -331,8 +333,10 @@ class VoiceSession {
                 await this.saveAiMessage('🎤 [Respuesta de voz]');
                 messagesSaved = true;
                 logger.info(`[VoiceSession] AI voice indicator saved. New lastMessageId: ${this.lastMessageId}`);
+                this.aiResponseText = ''; // Also reset to prevent bleeding into next turn
             } else {
                 logger.warn(`[VoiceSession] No AI response to save. Text: "${currentAiText}", Audio chunks: ${this.aiAudioChunkCount}`);
+                this.aiResponseText = ''; // Reset anyway to avoid accumulation
             }
 
             // TRIGGER REPORT GENERATION (Second Brain)
@@ -343,13 +347,20 @@ class VoiceSession {
             // Prevent concurrent report generation
             if (this.isGeneratingReport) {
                 logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
+                this.aiTranscriptionBuffer = ''; // Reset buffer even if skipping
                 return;
             }
 
             // ONLY trigger report if AI explicitly says it will generate it
-            // Keywords based on the system prompt instruction: "Entendido. Estoy procesando..."
+            // We check BOTH the written text AND the speech transcription buffer
+            // because native audio models primarily emit aiTranscription, not aiText.
             const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
-            const shouldGenerateReport = triggerRegex.test(currentAiText);
+            const shouldGenerateReport = triggerRegex.test(currentAiText) || triggerRegex.test(this.aiTranscriptionBuffer);
+
+            logger.info(`[VoiceSession] Report trigger check. aiText: "${currentAiText.substring(0, 80)}", aiTranscription: "${this.aiTranscriptionBuffer.substring(0, 80)}", trigger: ${shouldGenerateReport}`);
+
+            // Reset transcription buffer for next turn
+            this.aiTranscriptionBuffer = '';
 
             if (shouldGenerateReport) {
                 logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
@@ -1010,6 +1021,7 @@ class VoiceSession {
                     // NOTE: Save HTML directly for Live editor compatibility
                     // MongoDB schema doesn't persist custom fields like originalHtml
                     // The chat will show raw HTML but the Live editor will work correctly
+                    const reportModelName = SGSST_FALLBACK_MODELS[0]; // Use same model name used for generation
                     const reportMessage = {
                         messageId,
                         conversationId: this.conversationId,
@@ -1020,7 +1032,7 @@ class VoiceSession {
                         isCreatedByUser: false,
                         isHtmlReport: true, // Marker - this is an HTML report
                         error: false,
-                        model: modelName,
+                        model: reportModelName,
                         createdAt: new Date(),
                         updatedAt: new Date(),
                     };
@@ -1030,15 +1042,13 @@ class VoiceSession {
                     logger.info(`[VoiceSession] Report saved to DB. MessageId: ${messageId}`);
 
                     // INTERACTIVITY: Instruct Gemini Live (First Brain) to announce the report
-                    if (this.client && this.isActive) {
+                    if (this.geminiClient && this.isActive) {
                         logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
-                        const announcementPrompt = `
-                        System: The report has been generated successfully.
-                        Please announce to the user: "He generado el informe técnico con fecha de hoy. Puedes revisarlo y editarlo en el panel de la derecha."
-                        `;
-
-                        // Send as text input to the model
-                        this.client.sendText(announcementPrompt);
+                        try {
+                            this.geminiClient.sendText('El informe técnico ha sido generado exitosamente. Puedes revisarlo y editarlo en el panel del editor.');
+                        } catch (announceErr) {
+                            logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
+                        }
                     }
 
                 } catch (saveError) {
