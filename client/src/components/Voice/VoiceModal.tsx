@@ -62,6 +62,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const transcriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const sessionOptions = useMemo(() => ({
         conversationId,
@@ -78,6 +79,7 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 // Show user's own speech transcription live in the HUD
                 console.log('[VoiceModal] User transcription:', text);
                 setLastUserTranscript(text);
+                if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
             }
             // AI text responses are intentionally not displayed (audio-only UI)
         },
@@ -85,7 +87,10 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
         onStatusChange: (newStatus: string) => {
             console.log('[VoiceModal] Status changed:', newStatus);
             if (newStatus === 'listening') {
-                setLastUserTranscript('');
+                if (transcriptTimeoutRef.current) clearTimeout(transcriptTimeoutRef.current);
+                transcriptTimeoutRef.current = setTimeout(() => {
+                    setLastUserTranscript('');
+                }, 3500);
             }
         },
         onError: (error: string) => {
@@ -394,58 +399,64 @@ const VoiceModal: FC<VoiceModalProps> = ({ isOpen, onClose, conversationId, onCo
                 )}
 
                 {/* ── HUD Top Bar ── */}
-                <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-start z-40 pointer-events-none">
-                    {/* Left: LIVE indicator */}
-                    <div className="flex flex-col gap-1 md:gap-3">
-                        <div className="flex items-center gap-2 md:gap-3 bg-black/40 backdrop-blur-md px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10 shadow-xl">
-                            <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="absolute top-0 left-0 p-6 flex flex-col items-start gap-4 z-40 pointer-events-none w-full max-w-[250px]">
+                    {/* Top Group 1: LIVE Indicator & Setup */}
+                    <div className="flex flex-col gap-1.5 w-full">
+                        <div className="flex items-center justify-between bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-[12px] border border-white/5 shadow-xl w-full">
+                            <div className="flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
                                 </span>
-                                <span className="text-[9px] md:text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
+                                <span className="text-[11px] font-bold text-white uppercase tracking-wider">LIVE</span>
                             </div>
                             <div className="w-[1px] h-3 bg-white/20"></div>
-                            <div className="text-[9px] md:text-[11px] font-mono text-white/70">
+                            <div className="text-[11px] font-mono text-white/70">
                                 {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </div>
                         </div>
-                        <div className="flex flex-col gap-0.5 md:gap-1 px-1">
-                            <h2 className="text-white text-[11px] md:text-sm font-bold tracking-wide flex items-center gap-1.5 md:gap-2">
-                                <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-teal-500 rounded-full"></span>
-                                <span className="truncate max-w-[120px] md:max-w-none">ASISTENTE SST</span>
+                        <div className="flex flex-col px-2">
+                            <h2 className="text-white text-sm font-bold tracking-wide flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-teal-500 rounded-full shadow-[0_0_8px_rgba(20,184,166,0.6)]"></span>
+                                <span className="truncate uppercase drop-shadow-md">ASISTENTE IA</span>
                             </h2>
-                                <p className="text-xs text-text-secondary mt-1 tracking-widest uppercase opacity-70">
-                                    {(10 - countdownValue)} SECONDS REMAINING
+                            {countdownValue > 0 && !isReady && (
+                                <p className="text-white/60 text-[10px] font-mono tracking-widest uppercase mt-0.5">
+                                    {countdownValue} SECONDS REMAINING
                                 </p>
+                            )}
                         </div>
                     </div>
 
-                    {/* Center: Status pill */}
-                    <div className="absolute left-1/2 -translate-x-1/2 top-8 flex flex-col items-center gap-2">
-                        <div className="bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border border-white/20 shadow-2xl flex items-center gap-3">
-                            {status === 'thinking' && <RefreshCcw className="w-4 h-4 text-teal-400 animate-spin" />}
-                            <h2 className="text-sm md:text-base font-medium text-white tracking-widest uppercase">
-                                {statusText || (status === 'listening' ? localize('com_nav_voice_listening') :
-                                    status === 'speaking' ? localize('com_nav_voice_speaking') :
-                                        status === 'thinking' ? localize('com_nav_voice_thinking') :
-                                            localize('com_nav_voice_ready_label'))}
-                            </h2>
+                    {/* Top Group 2: Call Info & Status */}
+                    <div className="flex flex-col items-start gap-1 w-full">
+                        <div className="bg-black/20 backdrop-blur-md px-3 py-2 rounded-[12px] border border-white/5 shadow-xl flex flex-col items-start gap-1 w-full">
+                            <div className="flex justify-between items-center w-full">
+                                <span className="text-[10px] text-white/60 font-mono tracking-widest">MODEL:</span>
+                                <span className="text-[10px] text-white/80 font-mono uppercase tracking-widest">{model?.split('-')[0] || 'GEMINI'}</span>
+                            </div>
+                            <div className="text-[10px] text-teal-400 font-mono uppercase tracking-widest font-bold self-end drop-shadow-sm">
+                                {statusText ? statusText.toUpperCase() : (isConnected ? 'CONNECTED' : isConnecting ? 'CONNECTING...' : 'OFFLINE')}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Right: Model/Session info */}
-                    <div className="flex flex-col items-end gap-3 text-right">
-                        <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-lg border border-white/10 shadow-xl flex flex-col items-end">
-                            <span className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Model: {model || 'Gemini Live'}</span>
-                            <span className="text-[10px] text-teal-500 font-mono uppercase tracking-widest">
-                                {isConnected ? 'CONNECTED' : isConnecting ? 'CONNECTING...' : 'OFFLINE'}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-white/60">
+                        <div className="flex items-center gap-2 text-white/60 ml-2 mt-0.5">
                             <Monitor className="w-3 h-3" />
-                            <span className="text-xs font-mono">VOICE / 16KHz</span>
+                            <span className="text-[10px] font-mono tracking-widest uppercase">VOICE / 16KHz</span>
                         </div>
+                    </div>
+                </div>
+
+                {/* Center: Status pill (kept but styling refined) */}
+                <div className="absolute left-1/2 -translate-x-1/2 top-8 flex flex-col items-center gap-2 z-40 pointer-events-none">
+                    <div className="bg-black/60 backdrop-blur-xl px-6 py-2 rounded-full border border-white/20 shadow-2xl flex items-center gap-3">
+                        {status === 'thinking' && <RefreshCcw className="w-4 h-4 text-teal-400 animate-spin" />}
+                        <h2 className="text-sm md:text-base font-medium text-white tracking-widest uppercase">
+                            {status === 'listening' ? localize('com_nav_voice_listening') :
+                                status === 'speaking' ? localize('com_nav_voice_speaking') :
+                                    status === 'thinking' ? localize('com_nav_voice_thinking') :
+                                        localize('com_nav_voice_ready_label')}
+                        </h2>
                     </div>
                 </div>
 

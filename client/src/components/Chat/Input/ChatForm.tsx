@@ -421,10 +421,10 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
           queryClient.invalidateQueries([QueryKeys.allConversations]);
         }}
         onConversationUpdated={() => {
-          // FASE 1 FIX: Forzar refetch inmediato para mostrar mensajes en tiempo real
+          // FASE 1 FIX: Evitar refetchQueries sincrónico que traba el stream WS de Gemini Live, usar invalidate
           if (conversationId) {
-            console.log('[ChatForm] Forcing immediate refetch for:', conversationId);
-            queryClient.refetchQueries([QueryKeys.messages, conversationId]);
+            console.log('[ChatForm] Invalidate queries for messages live update:', conversationId);
+            queryClient.invalidateQueries([QueryKeys.messages, conversationId]);
           }
         }}
       />

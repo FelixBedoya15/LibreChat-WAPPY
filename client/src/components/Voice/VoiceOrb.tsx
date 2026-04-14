@@ -37,7 +37,7 @@ const VoiceOrb: FC<VoiceOrbProps> = ({ status, amplitude = 0.5, className = '' }
             // Color gradients based on status
             let gradient: CanvasGradient;
 
-            if (status === 'idle') {
+            if (status === 'idle' || status === 'connecting') {
                 // Gentle purple/blue gradient (more translucent)
                 gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, dynamicRadius);
                 gradient.addColorStop(0, 'rgba(147, 51, 234, 0.4)'); // purple-600
