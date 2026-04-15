@@ -735,6 +735,76 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     }
 });
 
+// ─── POST /autofill-proceso — AI fill basic info from PerfilCargo ────────
+router.post('/autofill-proceso', requireJwtAuth, async (req, res) => {
+    try {
+        const { perfil, modelName } = req.body;
+        if (!perfil) return res.status(400).json({ error: 'Perfil de cargo no proporcionado' });
+
+        const apiKey = await getApiKey(req.user.id);
+        if (!apiKey) return res.status(400).json({ error: 'No API Key' });
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const personalization = req.user?.personalization?.geminiModels;
+        const preferredModel = personalization?.sstManagement || (process.env.GOOGLE_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
+        const model = genAI.getGenerativeModel({ model: modelName || preferredModel });
+
+        const systemPrompt = `Eres un experto en SST. Tienes la información completa de un Perfil de Cargo, y posiblemente evidencia visual (fotos o video).
+        Extrae y deduce la información básica requerida para inicializar una fila en la Matriz de Peligros GTC-45.
+        
+        **DATOS DEL PERFIL DE CARGO:**
+        - Cargo: ${perfil.nombreCargo}
+        - Área: ${perfil.area}
+        - Exigencia Física: ${perfil.exigenciaFisica}
+        - Exigencia Mental: ${perfil.exigenciaMental}
+        - Opera Maquinaria: ${perfil.operaMaquinaria}
+        - Contexto Adicional: ${perfil.contextoAdicional || 'N/A'}
+        
+        Devuelve SOLO un JSON con la siguiente estructura:
+        {
+            "zona": "Deduce el área o lugar de trabajo típico para este cargo",
+            "actividad": "Resume la actividad principal en 3-5 palabras",
+            "tarea": "Define la tarea más representativa o crítica",
+            "rutinario": true o false,
+            "controlesExistentes": "Resume controles mencionados, Ej: en la fuente (Ninguno), Medio (Ninguno), Individuo (EPP...)"
+        }
+        No incluyas formateo markdown (\`\`\`json). Sólo el objeto JSON puro.`;
+
+        const parts = [{ text: systemPrompt }];
+
+        if (perfil.images || perfil.video) {
+            if (perfil.images) {
+                ['foto1', 'foto2', 'foto3'].forEach(k => {
+                    const b64 = perfil.images[k];
+                    if (b64) {
+                        const match = b64.match(/^data:(image\/\w+);base64,(.+)$/);
+                        if (match) {
+                            parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                        }
+                    }
+                });
+            }
+            if (perfil.video) {
+                const match = perfil.video.match(/^data:(video\/\w+);base64,(.+)$/);
+                if (match) {
+                    parts.push({ inlineData: { data: match[2], mimeType: match[1] } });
+                }
+            }
+        }
+
+        const result = await generateWithKeyRotation(model, req.user?.id || req.user, parts);
+        let text = result.response.text().trim();
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        const parsed = JSON.parse(text);
+        res.json({ data: parsed });
+
+    } catch (error) {
+        logger.error('[SGSST MatrizPeligros] Autofill error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ─── POST /analyze — Generate AI Exec Report for Matrix ─────────────────────────────
     router.post('/analyze', requireJwtAuth, async (req, res) => {
     try {

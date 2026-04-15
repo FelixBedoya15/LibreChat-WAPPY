@@ -22,6 +22,9 @@ import {
     Database,
     History,
     Save,
+    Camera,
+    Video,
+    Film,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -50,6 +53,15 @@ interface PerfilCargoData {
     contextoAdicional: string;
     eppSeleccionados: string[];
     entrenamientosSeleccionados: string[];
+    images?: {
+        foto1?: string | null;
+        foto2?: string | null;
+        foto3?: string | null;
+        foto1Desc?: string;
+        foto2Desc?: string;
+        foto3Desc?: string;
+    };
+    video?: string | null;
     exigenciaFisica?: string;
     exigenciaMental?: string;
     operaMaquinaria?: string;
@@ -139,6 +151,8 @@ const createInitialPerfil = (): PerfilCargoData => ({
     contextoAdicional: '',
     eppSeleccionados: [],
     entrenamientosSeleccionados: [],
+    images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+    video: null,
     exigenciaFisica: 'Media',
     exigenciaMental: 'Media',
     operaMaquinaria: 'No',
@@ -263,6 +277,74 @@ const PerfilesCargo = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
+
+    const [isVideoUploading, setIsVideoUploading] = useState(false);
+
+    const handleImageUpload = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result as string;
+            setFormData(prev => ({
+                ...prev,
+                images: {
+                    ...(prev.images || {}),
+                    [key]: base64String
+                }
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeImage = (key: string) => {
+        setFormData(prev => ({
+            ...prev,
+            images: {
+                ...(prev.images || {}),
+                [key]: null,
+                [`${key}Desc`]: ''
+            }
+        }));
+    };
+
+    const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsVideoUploading(true);
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+            window.URL.revokeObjectURL(video.src);
+            if (video.duration > 10) {
+                showToast({ message: 'El video no debe superar los 10 segundos.', status: 'error' });
+                setIsVideoUploading(false);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                setFormData(prev => ({ ...prev, video: base64String }));
+                setIsVideoUploading(false);
+            };
+            reader.readAsDataURL(file);
+        };
+        video.src = URL.createObjectURL(file);
+    };
+
+    const removeVideo = () => {
+        setFormData(prev => ({ ...prev, video: null }));
+    };
+
+    const handleImageDescUpdate = (key: string, value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            images: {
+                ...(prev.images || {}),
+                [key]: value
+            }
+        }));
+    };
 
     // Voice Input State
     const [isListening, setIsListening] = useState(false);
@@ -709,6 +791,85 @@ const PerfilesCargo = () => {
                             {!isListening && (
                                 <div className="absolute top-4 right-4 text-teal-200 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <FileText className="h-5 w-5" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── SECCIÓN: Registro Fotográfico de Evidencias ── */}
+                    <div className="space-y-4 pt-4 border-t border-border-medium">
+                        <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                            <Camera className="h-4 w-4 text-teal-600" /> Registro Fotográfico del Cargo
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {['foto1', 'foto2', 'foto3'].map((foto, idx) => {
+                                const labels = ['Actividad Principal', 'Ambiente de Trabajo', 'Controles / Herramientas'];
+                                const fieldName = foto as 'foto1' | 'foto2' | 'foto3';
+                                const descName = `${foto}Desc`;
+                                return (
+                                    <div key={foto} className="flex flex-col items-center gap-3">
+                                        <span className="font-semibold text-sm text-center">{labels[idx]}</span>
+                                        <div className="relative w-full aspect-square bg-surface-tertiary rounded-xl border-2 border-dashed border-border-medium flex flex-col items-center justify-center overflow-hidden hover:border-teal-500 transition-colors">
+                                            {formData.images?.[fieldName] ? (
+                                                <>
+                                                    <img src={formData.images[fieldName] as string} className="w-full h-full object-cover" alt={foto} />
+                                                    <button onClick={() => removeImage(fieldName)} className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white hover:bg-red-500">
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-text-secondary hover:text-teal-500">
+                                                    <Camera className="h-8 w-8 mb-2" />
+                                                    <span className="text-xs text-center px-4">Subir foto</span>
+                                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(fieldName, e)} />
+                                                </label>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Descripción de la foto..."
+                                            value={formData.images?.[descName as keyof typeof formData.images] || ''}
+                                            onChange={e => handleImageDescUpdate(descName, e.target.value)}
+                                            className="w-full rounded-xl border px-3 py-2 text-xs bg-surface-primary text-text-primary focus:outline-none focus:ring-1 focus:ring-teal-400"
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* ── SECCIÓN: Evidencia en Video ── */}
+                    <div className="space-y-4 pt-4 border-t border-border-medium">
+                        <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-text-primary text-sm flex items-center gap-2">
+                                <Film className="h-4 w-4 text-teal-600" /> Video de la Actividad (Opcional)
+                            </h4>
+                            <span className="text-[10px] bg-teal-100/50 text-teal-700 px-2 py-0.5 rounded-full font-bold uppercase border border-teal-200">Máximo 10 Segundos</span>
+                        </div>
+
+                        <div className="bg-surface-tertiary/10 border-2 border-dashed border-teal-200 rounded-2xl p-6 transition-all hover:bg-surface-tertiary/20">
+                            {!formData.video ? (
+                                <div className="flex flex-col items-center justify-center space-y-3">
+                                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600">
+                                        {isVideoUploading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Video className="h-8 w-8" />}
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-sm font-semibold text-text-primary">Sube un video corto de la labor</p>
+                                        <p className="text-xs text-text-secondary mt-1">Suministra contexto dinámico para autocompletar la Matriz IPEVAR</p>
+                                    </div>
+                                    <label className="cursor-pointer bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95">
+                                        {isVideoUploading ? 'Procesando...' : 'Seleccionar Video'}
+                                        <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={isVideoUploading} />
+                                    </label>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video max-w-md mx-auto shadow-2xl border-2 border-teal-400">
+                                        <video src={formData.video} controls className="w-full h-full" />
+                                        <button onClick={removeVideo} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10">
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>

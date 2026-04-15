@@ -210,7 +210,10 @@ const MatrizPeligrosGTC45 = () => {
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    const [perfilesData, setPerfilesData] = useState<any[]>([]);
     const [cargosDisponibles, setCargosDisponibles] = useState<string[]>([]);
+    const [autofillingIds, setAutofillingIds] = useState<Set<string>>(new Set());
+
     useEffect(() => {
         const fetchCargos = async () => {
             if (!token) return;
@@ -218,12 +221,58 @@ const MatrizPeligrosGTC45 = () => {
                 const res = await fetch('/api/sgsst/perfiles-cargo/data', { headers: { 'Authorization': `Bearer ${token}` } });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.perfilesList) setCargosDisponibles(data.perfilesList.map((c: any) => c.nombreCargo));
+                    if (data.perfilesList) {
+                        setPerfilesData(data.perfilesList);
+                        setCargosDisponibles(data.perfilesList.map((c: any) => c.nombreCargo));
+                    }
                 }
             } catch (err) {}
         };
         fetchCargos();
     }, [token]);
+
+    const handleCargoSelection = async (procesoId: string, value: string) => {
+        const perfil = perfilesData.find(p => p.nombreCargo === value);
+        if (!perfil) {
+             updateProcesoField(procesoId, 'proceso', value);
+             return;
+        }
+
+        // Apply media immediately
+        setProcesos(prev => prev.map(p => p.id === procesoId ? {
+             ...p,
+             proceso: value,
+             images: perfil.images || p.images,
+             video: perfil.video || p.video
+        } : p));
+
+        // Call AI Autofill
+        setAutofillingIds(prev => new Set(prev).add(procesoId));
+        try {
+            const res = await fetch('/api/sgsst/matriz-peligros/autofill-proceso', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                 body: JSON.stringify({ perfil, modelName: selectedModel })
+            });
+            if (!res.ok) throw new Error('Error en IA de auto-llamado');
+            const data = await res.json();
+            if (data.data) {
+                 setProcesos(prev => prev.map(p => p.id === procesoId ? {
+                      ...p,
+                      zona: data.data.zona || p.zona,
+                      actividad: data.data.actividad || p.actividad,
+                      tarea: data.data.tarea || p.tarea,
+                      rutinario: typeof data.data.rutinario === 'boolean' ? data.data.rutinario : p.rutinario,
+                      fuenteGeneradora: data.data.controlesExistentes || p.fuenteGeneradora
+                 } : p));
+                 showToast({ message: 'Datos básicos pre-llenados con IA', status: 'success', severity: 'success' });
+            }
+        } catch (err) {
+             showToast({ message: 'No se pudo auto-llenar con IA', status: 'warning' });
+        } finally {
+             setAutofillingIds(prev => { const n = new Set(prev); n.delete(procesoId); return n; });
+        }
+    };
 
     useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {
@@ -750,10 +799,13 @@ const MatrizPeligrosGTC45 = () => {
                                         <div className="overflow-x-auto overflow-y-hidden pb-4 mb-4 border-bottom border-border-light classic-scrollbar">
                                             <div className="flex flex-nowrap gap-4 min-w-[800px] pb-2">
                                                 <div className="space-y-1 flex-[1.5]">
-                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight">Perfil del Cargo</label>
+                                                    <label className="text-xs font-bold text-text-secondary uppercase tracking-tight flex items-center gap-2">
+                                                        Perfil del Cargo
+                                                        {autofillingIds.has(p.id) && <Loader2 className="h-3 w-3 animate-spin text-teal-500" />}
+                                                    </label>
                                                     <SingleSelect 
                                                         value={p.proceso}
-                                                        onChange={val => updateProcesoField(p.id, 'proceso', val)}
+                                                        onChange={val => handleCargoSelection(p.id, val)}
                                                         options={cargosDisponibles}
                                                         placeholder="Ej: Conductor, Auxiliar..."
                                                         allowCustomInput={true}
