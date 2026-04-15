@@ -263,7 +263,9 @@ const MatrizPeligrosGTC45 = () => {
                       actividad: data.data.actividad || p.actividad,
                       tarea: data.data.tarea || p.tarea,
                       rutinario: typeof data.data.rutinario === 'boolean' ? data.data.rutinario : p.rutinario,
-                      fuenteGeneradora: data.data.controlesExistentes || p.fuenteGeneradora
+                      fuenteGeneradora: data.data.fuenteGeneradora || p.fuenteGeneradora,
+                      medioExistente: data.data.medioExistente || p.medioExistente,
+                      individuoControl: data.data.individuoControl || p.individuoControl
                  } : p));
                  showToast({ message: 'Datos básicos pre-llenados con IA', status: 'success', severity: 'success' });
             }

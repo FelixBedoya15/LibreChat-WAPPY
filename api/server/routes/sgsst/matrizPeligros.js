@@ -766,7 +766,9 @@ router.post('/autofill-proceso', requireJwtAuth, async (req, res) => {
             "actividad": "Resume la actividad principal en 3-5 palabras",
             "tarea": "Define la tarea más representativa o crítica",
             "rutinario": true o false,
-            "controlesExistentes": "Resume controles mencionados, Ej: en la fuente (Ninguno), Medio (Ninguno), Individuo (EPP...)"
+            "fuenteGeneradora": "Resume controles específicos en la fuente (Ej: Ninguno, Mantenimiento preventivo, aislamiento acústico)",
+            "medioExistente": "Resume controles específicos en el medio (Ej: Señalización, extracción, ventilación, distancias)",
+            "individuoControl": "Resume controles específicos en el individuo (Ej: EPP: Casco, guantes, pausas activas, capacitación)"
         }
         No incluyas formateo markdown (\`\`\`json). Sólo el objeto JSON puro.`;
 
