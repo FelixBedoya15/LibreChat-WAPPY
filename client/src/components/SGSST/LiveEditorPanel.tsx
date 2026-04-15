@@ -15,7 +15,7 @@ import {
   FileText,
   History,
 } from 'lucide-react';
-import { useRecoilValue } from 'recoil';
+import { useRecoilValue, useRecoilState } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
 import LiveEditor from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
@@ -86,7 +86,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   const [editorContent, setEditorContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('Documento sin título');
   const [editorKey, setEditorKey] = useState<string>(() => Date.now().toString());
-  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.ipevarMaximized);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
