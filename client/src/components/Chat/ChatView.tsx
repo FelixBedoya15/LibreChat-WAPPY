@@ -91,12 +91,16 @@ function ChatView({ index = 0 }: { index?: number }) {
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
+  const setIsEditorLiveActive = useSetRecoilState(store.isEditorLiveActive);
+
   useEffect(() => {
-    const isMatrixRealized = isIPEVARActive;
-    setIsIPEVARActive(isMatrixRealized);
-    // Cleanup: reset active state if it's not a valid convo or on unmount
-    return () => setIsIPEVARActive(false);
-  }, [isIPEVARActive, conversationId, setIsIPEVARActive]);
+    setIsIPEVARActive(isIPEVARActive);
+    setIsEditorLiveActive(isEditorLiveActive);
+    return () => {
+      setIsIPEVARActive(false);
+      setIsEditorLiveActive(false);
+    };
+  }, [isIPEVARActive, isEditorLiveActive, conversationId, setIsIPEVARActive, setIsEditorLiveActive]);
 
   // ── Mobile: track whether IPEVAR panel is expanded via global state ──────
   const [mobileExpanded] = useRecoilState(store.ipevarMaximized);
@@ -158,7 +162,14 @@ function ChatView({ index = 0 }: { index?: number }) {
                     </div>
                   )}
                   {isEditorLiveActive && !isIPEVARActive && (
-                    <div className="h-full w-1/2 flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary">
+                    <div className={cn(
+                      'h-full flex-shrink-0 border-l border-border-medium shadow-l bg-surface-primary',
+                      isMobileScreen()
+                        ? mobileExpanded
+                          ? 'fixed inset-0 z-[9990] w-full'
+                          : 'hidden'
+                        : 'w-1/2',
+                    )}>
                       <LiveEditorPanel key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
                     </div>
                   )}

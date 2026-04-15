@@ -37,6 +37,11 @@ const isIPEVARActive = atom<boolean>({
   default: false,
 });
 
+const isEditorLiveActive = atom<boolean>({
+  key: 'isEditorLiveActive',
+  default: false,
+});
+
 export default {
   hideBannerHint,
   messageAttachmentsMap,
@@ -45,4 +50,5 @@ export default {
   chatBadges,
   ipevarMaximized,
   isIPEVARActive,
+  isEditorLiveActive,
 };

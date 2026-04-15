@@ -38,8 +38,9 @@ export default function Header() {
 
   const isSmallScreen = useMediaQuery('(max-width: 768px)');
 
-  // ── IPEVAR Matrix expand state (synced via Recoil) ───────────────────────
+  // ── Matrix / Live Editor expand state (synced via Recoil) ───────────────────────
   const isIPEVARActive = useRecoilValue(store.isIPEVARActive);
+  const isEditorLiveActive = useRecoilValue(store.isEditorLiveActive);
   const [ipevarMaximized, setIpevarMaximized] = useRecoilState(store.ipevarMaximized);
 
   const toggleIpevar = () => {
@@ -70,12 +71,12 @@ export default function Header() {
             {hasAccessToMultiConvo === true && <AddMultiConvo />}
              {isSmallScreen && (
                <>
-                 {/* Botón expandir Matriz IPEVAR — solo mobile y solo cuando la herramienta está activa */}
-                 {isIPEVARActive && (
+                 {/* Botón expandir Panel Lateral — solo mobile y solo cuando alguna de las herramientas está activa */}
+                 {(isIPEVARActive || isEditorLiveActive) && (
                    <button
                      onClick={toggleIpevar}
                      className="inline-flex size-10 flex-shrink-0 items-center justify-center rounded-xl border border-border-light text-text-primary transition-all duration-200 hover:bg-surface-hover shadow-sm"
-                     aria-label={ipevarMaximized ? 'Minimizar Matriz IPEVAR' : 'Expandir Matriz IPEVAR'}
+                     aria-label={ipevarMaximized ? 'Minimizar Panel' : 'Expandir Panel'}
                    >
                      {ipevarMaximized
                        ? <Minimize2 className="h-5 w-5 md:h-4 md:w-4" />
