@@ -6,6 +6,16 @@ FROM node:20-alpine AS node
 # Install jemalloc
 RUN apk add --no-cache jemalloc
 RUN apk add --no-cache python3 py3-pip uv
+# Install Chromium for Puppeteer (WhatsApp Web JS)
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    nodejs \
+    yarn
 
 # Set environment variable to use jemalloc
 ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2

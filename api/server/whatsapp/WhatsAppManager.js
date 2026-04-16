@@ -107,24 +107,32 @@ class WhatsAppManager {
     this.statuses.set(userId, 'STARTING');
     this.qrCodes.delete(userId);
 
+    const puppeteerOptions = {
+      headless: true,
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ]
+    };
+
+    // Si existe el binario de Chromium de Alpine/Linux (ej: en el contenedor Docker) lo forzamos.
+    // Esto evita el clásico error ENOENT de Puppeteer en Alpine Linux.
+    if (fs.existsSync('/usr/bin/chromium-browser')) {
+      puppeteerOptions.executablePath = '/usr/bin/chromium-browser';
+    }
+
     const client = new Client({
       authStrategy: new LocalAuth({
         clientId: userId,
         dataPath: this.sessionPath
       }),
-      puppeteer: {
-        headless: true,
-        args: [
-          '--no-sandbox', 
-          '--disable-setuid-sandbox', 
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--disable-gpu'
-        ] // Memory optimization flags
-      }
+      puppeteer: puppeteerOptions
     });
 
     this.clients.set(userId, client);
