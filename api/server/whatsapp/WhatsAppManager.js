@@ -65,6 +65,7 @@ class WhatsAppManager {
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let finalResponseText = '';
+      let accumulatedText = ''; // Acumula los chunks de texto del stream
 
       while (true) {
         const { value, done } = await reader.read();
@@ -80,22 +81,25 @@ class WhatsAppManager {
             if (dataStr === '[DONE]') continue;
             try {
               const dataObj = JSON.parse(dataStr);
-              // Capturar explícitamente errores que LibreChat manda por stream
+              // Capturar errores que LibreChat manda por stream
               if (dataObj.error && dataObj.message) {
-                 finalResponseText = `Error de IA: ${dataObj.message}`;
+                finalResponseText = `Error: ${dataObj.message}`;
               } else if (dataObj.final && dataObj.responseMessage?.text) {
-                 finalResponseText = dataObj.responseMessage.text;
-              } else if (!finalResponseText && dataObj.text) {
-                 finalResponseText = dataObj.text;
+                // Mensaje final con texto completo — tiene prioridad
+                finalResponseText = dataObj.responseMessage.text;
+              } else if (dataObj.text) {
+                // Acumular los chunks de streaming (el agente manda el texto fragmentado)
+                accumulatedText += dataObj.text;
               }
             } catch (e) {
-              // ignore middle parsing errors
+              // ignorar errores de parsing de chunks intermedios
             }
           }
         }
       }
 
-      return finalResponseText || "No pude generar una respuesta clara a partir de la API.";
+      // Usar el texto final del stream si está disponible, si no usar el acumulado
+      return finalResponseText || accumulatedText || 'No pude generar una respuesta clara a partir de la API.';
     } catch (error) {
       console.error('[WhatsApp Manager] Fetch Error:', error);
       return "Error de red intentando contactar a tu Asistente.";
