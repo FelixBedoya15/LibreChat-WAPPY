@@ -57,9 +57,13 @@ class WhatsAppManager {
         body: JSON.stringify(payload),
       });
 
+      console.log('[WhatsApp Manager] Payload enviado:', JSON.stringify(payload));
+      console.log('[WhatsApp Manager] HTTP Status:', response.status, response.statusText);
+
       if (!response.ok) {
-        console.error('[WhatsApp Manager] HTTP Error:', response.status);
-        return "Error interno intentando comunicar con LibreChat.";
+        const errBody = await response.text();
+        console.error('[WhatsApp Manager] HTTP Error Body:', errBody);
+        return `Error HTTP ${response.status}: ${errBody.substring(0, 200)}`;
       }
 
       const reader = response.body.getReader();
@@ -282,13 +286,10 @@ class WhatsAppManager {
       // Simulate typing indicator while LibreChat thinks
       await chat.sendStateTyping();
 
-      // Generar Conversation ID estático por usuario
-      const crypto = require('crypto');
-      const hash = crypto.createHash('sha256');
-      hash.update(`whatsapp-self-${userId}`);
-      const conversationId = hash.digest('hex').substring(0, 24);
-
-      const responseText = await this.getAgentResponse(user, unifiedMessage, conversationId);
+      // Pasar null como conversationId para que LibreChat lo trate como conversación nueva.
+      // Esto es idéntico a lo que hace el chat web al abrir "+ Nuevo Chat".
+      // El uuid real del servidor se creará automáticamente en la primera respuesta.
+      const responseText = await this.getAgentResponse(user, unifiedMessage, null);
       
       // Firma del bot y envío
       const finalMessage = `🤖 ${responseText}`;
