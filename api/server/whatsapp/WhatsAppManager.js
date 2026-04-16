@@ -137,21 +137,6 @@ class WhatsAppManager {
       puppeteerOptions.executablePath = '/usr/bin/chromium'; // Fallback forzado
     }
 
-    // Limpieza agresiva de archivos de bloqueo (SingletonLock) que impiden a Chromium iniciar
-    // después de un apagado forzado del contenedor en Dokploy o reinicio de Docker.
-    const userSessionDir = path.join(this.sessionPath, `session-${userId}`);
-    const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
-    try {
-      if (fs.existsSync(userSessionDir)) {
-        lockFiles.forEach(file => {
-          const lockFile = path.join(userSessionDir, file);
-          if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
-        });
-      }
-    } catch (err) {
-      console.warn(`[WhatsApp Manager] Aviso: No se pudieron limpiar bloqueos previos para ${userId}`, err);
-    }
-
     const client = new Client({
       authStrategy: new LocalAuth({
         clientId: userId,
