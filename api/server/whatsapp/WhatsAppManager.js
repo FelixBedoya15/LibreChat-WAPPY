@@ -40,6 +40,7 @@ class WhatsAppManager {
       const payload = {
         convoId: conversationId || 'new',
         text,
+        key: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         endpointOption: {
           endpoint: 'agents',
           agent_id: agent._id ? agent._id.toString() : agent.id,
