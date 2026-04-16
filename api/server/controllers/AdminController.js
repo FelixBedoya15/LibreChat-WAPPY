@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
+const CompanyInfo = require('~/models/CompanyInfo');
 const { logger } = require('@librechat/data-schemas');
 const { SystemRoles } = require('librechat-data-provider');
 const bcrypt = require('bcryptjs');
@@ -192,4 +193,27 @@ const getConversationDetails = async (req, res) => {
     }
 };
 
-module.exports = { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails };
+const getAllCompanyInfo = async (req, res) => {
+    try {
+        const companyInfos = await CompanyInfo.find({}).lean();
+        const users = await User.find({}, 'email name username').lean();
+
+        const userMap = {};
+        users.forEach(u => {
+            userMap[u._id.toString()] = u;
+        });
+
+        const result = companyInfos.map(info => ({
+            ...info,
+            userEmail: userMap[info.user]?.email || 'N/A',
+            userName: userMap[info.user]?.name || userMap[info.user]?.username || 'N/A',
+        }));
+
+        res.status(200).json(result);
+    } catch (err) {
+        logger.error('[getAllCompanyInfo]', err);
+        res.status(500).json({ message: 'Error fetching all company info' });
+    }
+};
+
+module.exports = { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails, getAllCompanyInfo };

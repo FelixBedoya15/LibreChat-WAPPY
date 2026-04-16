@@ -162,6 +162,76 @@ export default function UserManagementTable() {
         showToast({ message: localize('com_ui_export_success') || 'Usuarios exportados correctamente', status: 'success' });
     };
 
+    const handleExportCompanyInfo = async () => {
+        try {
+            showToast({ message: 'Preparando exportación de información empresarial...', status: 'info' });
+            const response = await axios.get('/api/admin/company-info');
+            const data = response.data;
+
+            if (!data || data.length === 0) {
+                showToast({ message: 'No hay información empresarial para exportar', status: 'warning' });
+                return;
+            }
+
+            const header = [
+                'Usuario', 'Correo Usuario', 'Razón Social', 'NIT', 'Representante Legal', 
+                'Número de Trabajadores', 'ARL', 'Actividad Económica', 'Nivel de Riesgo', 
+                'CIIU', 'Dirección', 'Ciudad', 'Teléfono Contacto', 'Email Contacto', 
+                'Actividades Generales', 'Sector', 'Responsable SST', 'Teléfono Responsable SST',
+                'Nivel Formación', 'Número Licencia', 'Estado Curso 50h', 'Vencimiento Licencia',
+                'Consentimiento Rep. Legal', 'Consentimiento Resp. SST'
+            ];
+
+            const rows = data.map((info: any) => [
+                info.userName || '',
+                info.userEmail || '',
+                info.companyName || '',
+                info.nit || '',
+                info.legalRepresentative || '',
+                info.workerCount || 0,
+                info.arl || '',
+                info.economicActivity || '',
+                info.riskLevel || '',
+                info.ciiu || '',
+                info.address || '',
+                info.city || '',
+                info.phone || '',
+                info.email || '',
+                info.generalActivities || '',
+                info.sector || '',
+                info.responsibleSST || '',
+                info.responsibleSSTPhone || '',
+                info.formationLevel || '',
+                info.licenseNumber || '',
+                info.courseStatus || '',
+                info.licenseExpiry || '',
+                info.legalRepConsent || 'No',
+                info.sstRespConsent || 'No'
+            ]);
+
+            const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Información Empresarial');
+
+            const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `informacion_empresarial_${new Date().toISOString().split('T')[0]}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast({ message: 'Información empresarial exportada correctamente', status: 'success' });
+        } catch (error) {
+            console.error('Error exporting company info:', error);
+            showToast({ message: 'Error exportando información empresarial', status: 'error' });
+        }
+    };
+
     const handleImportUsers = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -264,6 +334,9 @@ export default function UserManagementTable() {
                     </label>
                     <button onClick={handleExportUsers} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">
                         {localize('com_ui_export_users')}
+                    </button>
+                    <button onClick={handleExportCompanyInfo} className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Exportar Info Empresarial
                     </button>
                     <button onClick={() => setIsCreateModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
                         {localize('com_ui_create_user')}
