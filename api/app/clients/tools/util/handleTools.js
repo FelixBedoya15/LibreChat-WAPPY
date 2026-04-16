@@ -39,6 +39,7 @@ const {
   n8nWebhook,
   MatrizIPEVAR,
   EditorLive,
+  SomosSST,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -233,6 +234,9 @@ const loadTools = async ({
     editor_live: async (_toolContextMap) => {
       // Passes `req` so the tool can read conversationId from req.body
       return new EditorLive({ req: options.req });
+    },
+    somos_sst: async (_toolContextMap) => {
+      return new SomosSST({ req: options.req });
     },
   };
 
