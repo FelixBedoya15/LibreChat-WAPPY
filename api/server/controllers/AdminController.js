@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
-const CompanyInfo = require('~/models/CompanyInfo');
 const { logger } = require('@librechat/data-schemas');
 const { SystemRoles } = require('librechat-data-provider');
 const bcrypt = require('bcryptjs');
@@ -195,12 +194,27 @@ const getConversationDetails = async (req, res) => {
 
 const getAllCompanyInfo = async (req, res) => {
     try {
-        const companyInfos = await CompanyInfo.find({}).lean();
+        logger.info('[AdminController] [getAllCompanyInfo] Fetching all company info...');
+        
+        let CompanyInfoModel;
+        try {
+            CompanyInfoModel = mongoose.model('CompanyInfo');
+        } catch (e) {
+            logger.info('[AdminController] [getAllCompanyInfo] CompanyInfo model not registered, requiring manually...');
+            CompanyInfoModel = require('~/models/CompanyInfo');
+        }
+
+        const companyInfos = await CompanyInfoModel.find({}).lean();
+        logger.info(`[AdminController] [getAllCompanyInfo] Found ${companyInfos.length} company info records`);
+
         const users = await User.find({}, 'email name username').lean();
+        logger.info(`[AdminController] [getAllCompanyInfo] Mapping against ${users.length} users`);
 
         const userMap = {};
         users.forEach(u => {
-            userMap[u._id.toString()] = u;
+            if (u._id) {
+                userMap[u._id.toString()] = u;
+            }
         });
 
         const result = companyInfos.map(info => ({
@@ -209,10 +223,11 @@ const getAllCompanyInfo = async (req, res) => {
             userName: userMap[info.user]?.name || userMap[info.user]?.username || 'N/A',
         }));
 
+        logger.info(`[AdminController] [getAllCompanyInfo] Successfully prepared ${result.length} records for export`);
         res.status(200).json(result);
     } catch (err) {
-        logger.error('[getAllCompanyInfo]', err);
-        res.status(500).json({ message: 'Error fetching all company info' });
+        logger.error('[AdminController] [getAllCompanyInfo] Error:', err);
+        res.status(500).json({ message: 'Error fetching all company info', error: err.message });
     }
 };
 

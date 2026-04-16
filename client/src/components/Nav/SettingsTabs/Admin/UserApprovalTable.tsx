@@ -228,7 +228,8 @@ export default function UserManagementTable() {
             showToast({ message: 'Información empresarial exportada correctamente', status: 'success' });
         } catch (error) {
             console.error('Error exporting company info:', error);
-            showToast({ message: 'Error exportando información empresarial', status: 'error' });
+            const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Error desconocido';
+            showToast({ message: `Error exportando información empresarial: ${errorMessage}`, status: 'error' });
         }
     };
 
