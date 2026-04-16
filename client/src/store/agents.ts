@@ -7,13 +7,35 @@ export const ephemeralAgentByConvoId = atomFamily<TEphemeralAgent | null, string
   key: 'ephemeralAgentByConvoId',
   default: null,
   effects: [
-    ({ onSet, node }) => {
-      onSet(async (newValue) => {
-        const conversationId = node.key.split('__')[1]?.replaceAll('"', '');
-        logger.log('agents', 'Setting ephemeral agent:', { conversationId, newValue });
+    ({ setSelf, onSet, node }) => {
+      const convoKey = node.key.split('__')[1]?.replaceAll('"', '');
+      const isNewConvo = !convoKey || convoKey === Constants.NEW_CONVO || convoKey === 'new';
+      const storageKey = `ephemeralAgent__${convoKey}`;
+
+      if (!isNewConvo && typeof window !== 'undefined') {
+        const savedValue = localStorage.getItem(storageKey);
+        if (savedValue != null) {
+          try {
+            setSelf(JSON.parse(savedValue));
+          } catch (e) {
+            console.error('Failed to parse ephemeralAgent from localStorage', e);
+          }
+        }
+      }
+
+      onSet((newValue, _, isReset) => {
+        logger.log('agents', 'Setting ephemeral agent:', { conversationId: convoKey, newValue });
+        
+        if (isNewConvo || typeof window === 'undefined') return;
+
+        if (isReset || newValue === null) {
+          localStorage.removeItem(storageKey);
+        } else {
+          localStorage.setItem(storageKey, JSON.stringify(newValue));
+        }
       });
     },
-  ] as const,
+  ],
 });
 
 export function useUpdateEphemeralAgent() {

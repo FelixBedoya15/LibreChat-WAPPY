@@ -272,6 +272,9 @@ export default function AgentSessionPanel({ agentId, conversationId }: AgentSess
                                 context: 'Contexto',
                                 calculator: 'Calculadora',
                                 memory: 'Memoria',
+                                somos_sst: 'Somos SST',
+                                matriz_ipevar: 'Matriz IPEVAR',
+                                editor_live: 'Editor Live'
                             };
                             const displayName = toolTranslations[toolId] ?? toolId
                                 .split('_')
