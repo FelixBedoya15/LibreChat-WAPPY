@@ -121,10 +121,15 @@ class WhatsAppManager {
       ]
     };
 
-    // Si existe el binario de Chromium de Alpine/Linux (ej: en el contenedor Docker) lo forzamos.
-    // Esto evita el clásico error ENOENT de Puppeteer en Alpine Linux.
+    // Alpine Linux instala el binario en estas rutas. 
+    // Lo forzamos para evitar que intente usar el descargado nativamente.
     if (fs.existsSync('/usr/bin/chromium-browser')) {
       puppeteerOptions.executablePath = '/usr/bin/chromium-browser';
+    } else if (fs.existsSync('/usr/bin/chromium')) {
+      puppeteerOptions.executablePath = '/usr/bin/chromium';
+    } else {
+      console.warn('[WhatsApp Manager] ADVERTENCIA: No se encontró Chromium en las rutas de Alpine. Forzando a /usr/bin/chromium para depurar.');
+      puppeteerOptions.executablePath = '/usr/bin/chromium'; // Fallback forzado
     }
 
     const client = new Client({
