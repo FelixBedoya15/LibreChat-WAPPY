@@ -37,18 +37,15 @@ class WhatsAppManager {
         return "❌ No pude encontrar al 'Profesional SST' configurado en el sistema. Por favor, crea el agente Recepcionista con ese nombre exacto.";
       }
 
+      // Payload exacto al que el chat web de LibreChat envía (ver useChatFunctions.ts)
+      // `endpoint` y `agent_id` van al nivel raíz del body.
+      // `buildEndpointOption` middleware los toma de req.body y construye el endpointOption.
       const payload = {
-        convoId: conversationId || 'new',
+        conversationId: conversationId || null,
         text,
+        endpoint: 'agents',
+        agent_id: agent._id ? agent._id.toString() : agent.id,
         key: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        endpointOption: {
-          endpoint: 'agents',
-          agent_id: agent._id ? agent._id.toString() : agent.id,
-        },
-        ephemeralAgent: {
-          // Inject the routing tool so the Receptionist can delegate to specialists
-          tools: ['consultar_agente_especializado'],
-        }
       };
 
       const response = await fetch('http://localhost:3080/api/agents/chat', {
@@ -83,7 +80,10 @@ class WhatsAppManager {
             if (dataStr === '[DONE]') continue;
             try {
               const dataObj = JSON.parse(dataStr);
-              if (dataObj.final && dataObj.responseMessage?.text) {
+              // Capturar explícitamente errores que LibreChat manda por stream
+              if (dataObj.error && dataObj.message) {
+                 finalResponseText = `Error de IA: ${dataObj.message}`;
+              } else if (dataObj.final && dataObj.responseMessage?.text) {
                  finalResponseText = dataObj.responseMessage.text;
               } else if (!finalResponseText && dataObj.text) {
                  finalResponseText = dataObj.text;
@@ -95,7 +95,7 @@ class WhatsAppManager {
         }
       }
 
-      return finalResponseText || "No pude generar una respuesta clara.";
+      return finalResponseText || "No pude generar una respuesta clara a partir de la API.";
     } catch (error) {
       console.error('[WhatsApp Manager] Fetch Error:', error);
       return "Error de red intentando contactar a tu Asistente.";
