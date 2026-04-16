@@ -80,6 +80,7 @@ class WhatsAppManager {
 
         for (let line of lines) {
           if (line.trim() === '') continue;
+          console.log('[WA SSE]', line.substring(0, 200)); // LOG TEMPORAL
           if (line.startsWith('data: ')) {
             const dataStr = line.replace('data: ', '').trim();
             if (dataStr === '[DONE]') continue;
