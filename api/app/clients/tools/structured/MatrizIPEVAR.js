@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
+const mongoose = require('mongoose');
 const GTC45Matrix = require('~/models/GTC45WorkspaceSession');
 
 class MatrizIPEVAR extends Tool {
@@ -10,8 +11,8 @@ class MatrizIPEVAR extends Tool {
       'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar un peligro en la matriz IPEVAR/GTC-45.';
     this.req = fields.req;
     this.schema = z.object({
-      accion: z.enum(['leer', 'escribir', 'borrar']).describe('Selecciona "leer" si solo necesitas consultar. Selecciona "escribir" para guardar/actualizar. Selecciona "borrar" para eliminar riesgos por sus IDs.'),
-      filtro_proceso: z.string().optional().describe('Filtro para leer.'),
+      accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Selecciona "consultar_contexto_sgsst" antes de escribir para conocer la empresa, los cargos, EPP normativos y parámetros sociodemográficos y de salud. "leer" si solo necesitas consultar la matriz. "escribir" para guardar/actualizar en IPEVAR. "borrar" para eliminar riesgos.'),
+      filtro_proceso: z.string().optional().describe('Filtro para leer, o cargo a buscar en el contexto sgsst.'),
       filtro_actividad: z.string().optional().describe('Filtro para leer.'),
       filtro_peligro: z.string().optional().describe('Filtro para leer.'),
       ids_a_borrar: z.array(z.string()).optional().describe('Arreglo de IDs de los riesgos que deseas eliminar. Solamente usado cuando accion="borrar".'),
@@ -70,6 +71,85 @@ class MatrizIPEVAR extends Tool {
       // Obtener sesión
       let session = await GTC45Matrix.findOne({ conversationId });
       
+      const userId = this.req?.user?.id;
+
+      // LOGICA DE CONTEXTO SGSST EXTERNO
+      if (accion === 'consultar_contexto_sgsst') {
+         if (!userId) { return JSON.stringify({ error: 'No autenticado para acceder al contexto.' }); }
+         console.log(`[MatrizIPEVAR Tool] CONTEXTO SGSST solicitado para convo: ${conversationId}`);
+         
+         const CompanyInfo = mongoose.models.CompanyInfo;
+         const PerfilCargoModel = mongoose.models.PerfilCargoData;
+         const PerfilSocioModel = mongoose.models.PerfilSociodemograficoData;
+
+         let payload = {};
+
+         // Extraer Macro Empresa
+         if (CompanyInfo) {
+             const companyConf = await CompanyInfo.findOne({ user: userId }).lean();
+             if (companyConf) {
+                 payload.informacion_empresa = {
+                     nombre: companyConf.companyName || 'N/A',
+                     nit: companyConf.nit || 'N/A',
+                     representante_legal: companyConf.legalRepresentative || 'N/A',
+                     actividad_economica: companyConf.economicActivity || 'N/A',
+                     codigo_ciiu: companyConf.ciiu || 'N/A',
+                     sector: companyConf.sector || 'N/A',
+                     descripcion_actividades: companyConf.generalActivities || 'N/A',
+                     nivel_riesgo: companyConf.riskLevel || 'N/A',
+                     arl: companyConf.arl || 'N/A',
+                     numero_trabajadores: companyConf.workerCount || 'N/A',
+                     responsable_sst: companyConf.responsibleSST || 'N/A',
+                     licencia_sst: companyConf.licenseNumber || 'N/A',
+                     vencimiento_licencia: companyConf.licenseExpiry || 'N/A',
+                     curso_50_20h: companyConf.courseStatus || 'N/A'
+                 };
+             }
+         }
+
+         // Extraer Cargos
+         if (PerfilCargoModel) {
+             const cargoDataDoc = await PerfilCargoModel.findOne({ user: userId }).lean();
+             if (cargoDataDoc && cargoDataDoc.perfiles) {
+                 // Si nos mandan filtro_proceso (ej. "soldador"), filtramos para no aglomerar el payload, sino devolvemos todo.
+                 let perfiles = cargoDataDoc.perfiles;
+                 if (filtro_proceso) {
+                     perfiles = perfiles.filter(p => p.nombreCargo && p.nombreCargo.toLowerCase().includes(filtro_proceso.toLowerCase()));
+                 }
+                 payload.perfiles_cargo_encontrados = perfiles.map(p => ({
+                     cargo: p.nombreCargo,
+                     responsabilidadesSST: p.responsabilidadesSST || 'Ninguna definida',
+                     epp_estricto: p.elementosProteccion || 'No documentado',
+                     restricciones: p.restricciones || 'Ninguna'
+                 }));
+             }
+         }
+
+         // Extraer Salud y Vencimientos
+         if (PerfilSocioModel) {
+             const socioDataDoc = await PerfilSocioModel.findOne({ user: userId }).lean();
+             if (socioDataDoc && socioDataDoc.trabajadores) {
+                 let trabajadores = socioDataDoc.trabajadores;
+                 if (filtro_proceso) {
+                     trabajadores = trabajadores.filter(t => t.cargo && t.cargo.toLowerCase().includes(filtro_proceso.toLowerCase()));
+                 }
+                 payload.frecuencia_patologias_y_habitos = trabajadores.map(t => ({
+                     cargo_del_trabajador: t.cargo,
+                     diagnosticoOcupacional: t.diagnosticoMedico || '',
+                     recomendaciones: t.recomendacionesMedicas || '',
+                     limitacionesBiomecanicas: t.limitacionesBiomecanicas || '',
+                     alergias: t.alergiasQuimicas || ''
+                 }));
+             }
+         }
+
+         return JSON.stringify({
+            mensaje: "Contexto SGSST de la compañía recuperado exitosamente.",
+            advertencia: "MEMORIZA ESTA INFORMACIÓN PARA INYECTAR CONTROLES (ej. LOS EPP o RESTRICCIONES documentados) AL ESCRIBIR TUS FILAS DE MATRIZ DE PELIGROS.",
+            datos: payload
+         });
+      }
+
       // LOGICA DE LECTURA
       if (accion === 'leer') {
         console.log(`[MatrizIPEVAR Tool] LECTURA para convo: ${conversationId}`);
@@ -122,8 +202,6 @@ class MatrizIPEVAR extends Tool {
       }
 
       console.log(`[MatrizIPEVAR Tool] Procesando ${riesgos.length} riesgos para convo: ${conversationId}`);
-
-      const userId = this.req?.user?.id;
       
       if (!session) {
         session = new GTC45Matrix({
