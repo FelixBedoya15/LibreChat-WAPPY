@@ -17,6 +17,8 @@ const n8nWebhook = require('./structured/n8n');
 const MatrizIPEVAR = require('./structured/MatrizIPEVAR');
 const EditorLive = require('./structured/EditorLive');
 const SomosSST = require('./structured/SomosSST');
+const ConsultarAgenteEspecializado = require('./structured/ConsultarAgenteEspecializado');
+
 
 module.exports = {
   ...manifest,
@@ -37,4 +39,5 @@ module.exports = {
   MatrizIPEVAR,
   EditorLive,
   SomosSST,
+  ConsultarAgenteEspecializado,
 };

@@ -40,6 +40,7 @@ const {
   MatrizIPEVAR,
   EditorLive,
   SomosSST,
+  ConsultarAgenteEspecializado,
 } = require('../');
 const { primeFiles: primeCodeFiles } = require('~/server/services/Files/Code/process');
 const { createFileSearchTool, primeFiles: primeSearchFiles } = require('./fileSearch');
@@ -237,6 +238,9 @@ const loadTools = async ({
     },
     somos_sst: async (_toolContextMap) => {
       return new SomosSST({ req: options.req });
+    },
+    consultar_agente_especializado: async (_toolContextMap) => {
+      return new ConsultarAgenteEspecializado({ req: options.req });
     },
   };
 

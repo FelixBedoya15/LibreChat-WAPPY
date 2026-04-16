@@ -8,6 +8,7 @@ import { useLocalize } from '~/hooks';
 import Retrieval from './Retrieval';
 import CodeFiles from './CodeFiles';
 import Code from './Code';
+import WhatsAppToggle from './WhatsAppToggle';
 
 export default function CapabilitiesForm({
   version,
@@ -67,6 +68,7 @@ export default function CapabilitiesForm({
             files={files}
           />
         )}
+        <WhatsAppToggle />
       </div>
     </div>
   );

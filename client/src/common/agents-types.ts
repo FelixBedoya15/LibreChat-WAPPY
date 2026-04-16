@@ -42,4 +42,5 @@ export type AgentForm = {
   support_contact?: SupportContact;
   category: string;
   order?: number;
+  is_whatsapp_enabled?: boolean;
 } & TAgentCapabilities;

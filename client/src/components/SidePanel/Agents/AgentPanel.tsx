@@ -171,6 +171,7 @@ export default function AgentPanel() {
         recursion_limit,
         category,
         support_contact,
+        is_whatsapp_enabled,
       } = data;
 
       const model = _model ?? '';
@@ -196,6 +197,7 @@ export default function AgentPanel() {
             recursion_limit,
             category,
             support_contact,
+            is_whatsapp_enabled,
           },
         });
         return;
@@ -230,6 +232,7 @@ export default function AgentPanel() {
         recursion_limit,
         category,
         support_contact,
+        is_whatsapp_enabled,
       });
     },
     [agent_id, create, update, showToast, localize],

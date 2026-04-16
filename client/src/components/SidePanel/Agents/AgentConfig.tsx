@@ -30,6 +30,7 @@ import Artifacts from './Artifacts';
 import AgentTool from './AgentTool';
 import CodeForm from './Code/Form';
 import MCPTools from './MCPTools';
+import AgentWhatsAppToggle from './AgentWhatsAppToggle';
 
 const labelClass = 'mb-2 text-token-text-primary block font-medium';
 const inputClass = cn(
@@ -289,6 +290,8 @@ export default function AgentConfig({ createMutation }: Pick<AgentPanelProps, 'c
             </div>
           </button>
         </div>
+        {/* WhatsApp Specialist Toggle */}
+        <AgentWhatsAppToggle />
         {(codeEnabled ||
           fileSearchEnabled ||
           artifactsEnabled ||

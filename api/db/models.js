@@ -7,4 +7,9 @@ models.User.schema.add({ inactiveAt: Date });
 // Inject new field for scheduled activation
 models.User.schema.add({ activeAt: Date });
 
+// Inject whatsapp routing field for Agents
+if (models.Agent && models.Agent.schema) {
+  models.Agent.schema.add({ is_whatsapp_enabled: { type: Boolean, default: false } });
+}
+
 module.exports = { ...models };

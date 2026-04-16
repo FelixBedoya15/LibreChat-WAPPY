@@ -70,6 +70,7 @@ export const agentBaseSchema = z.object({
   tool_resources: agentToolResourcesSchema,
   support_contact: agentSupportContactSchema,
   category: z.string().optional(),
+  is_whatsapp_enabled: z.boolean().optional(),
 });
 
 /** Create schema extends base with required fields for creation */

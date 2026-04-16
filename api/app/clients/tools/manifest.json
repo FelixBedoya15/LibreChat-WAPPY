@@ -221,5 +221,12 @@
     "description": "Permite al agente consultar y cruzar expedientes integrales de los trabajadores (Perfil Sociodemográfico, Condiciones de Salud, Perfil del Cargo y Peligros aplicables de la Matriz IPEVAR GTC-45 en cascada).",
     "icon": "https://cdn-icons-png.flaticon.com/512/1004/1004358.png",
     "authConfig": []
+  },
+  {
+    "name": "Consultar Agente Especializado",
+    "pluginKey": "consultar_agente_especializado",
+    "description": "Herramienta de enrutamiento inteligente: Permite al Agente Recepcionista (Profesional SST) delegar consultas técnicas a Agentes Especialistas del sistema (ej. Médico Laboral) que tengan habilitado el acceso desde WhatsApp.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/1247/1247670.png",
+    "authConfig": []
   }
 ]

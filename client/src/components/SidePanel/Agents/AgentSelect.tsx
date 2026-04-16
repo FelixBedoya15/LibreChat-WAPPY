@@ -81,6 +81,8 @@ export default function AgentSelect({
         category: fullAgent.category || 'general',
         // Make sure support_contact is properly loaded
         support_contact: fullAgent.support_contact,
+        // Load WhatsApp routing flag
+        is_whatsapp_enabled: (fullAgent as any).is_whatsapp_enabled ?? false,
       };
 
       Object.entries(fullAgent).forEach(([name, value]) => {

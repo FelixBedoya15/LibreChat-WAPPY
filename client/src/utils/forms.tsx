@@ -52,6 +52,7 @@ export const getDefaultAgentFormValues = () => ({
   ...defaultAgentFormValues,
   model: localStorage.getItem(LocalStorageKeys.LAST_AGENT_MODEL) ?? '',
   provider: createProviderOption(localStorage.getItem(LocalStorageKeys.LAST_AGENT_PROVIDER) ?? ''),
+  is_whatsapp_enabled: false,
 });
 
 export const processAgentOption = ({

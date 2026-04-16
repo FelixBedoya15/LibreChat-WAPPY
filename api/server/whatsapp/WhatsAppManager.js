@@ -27,11 +27,11 @@ class WhatsAppManager {
     });
 
     try {
-      // Find the specific Agent ("Médico Laboral")
+      // Find the Receptionist Agent ("Profesional SST")
       const Agent = mongoose.models.Agent || mongoose.connection.collection('agents');
-      const agent = await Agent.findOne({ name: /Médico Laboral/i });
+      const agent = await Agent.findOne({ name: /Profesional SST/i });
       if (!agent) {
-        return "❌ No pude encontrar al 'Médico Laboral' configurado en el sistema.";
+        return "❌ No pude encontrar al 'Profesional SST' configurado en el sistema. Por favor, crea el agente Recepcionista con ese nombre exacto.";
       }
 
       const payload = {
@@ -42,7 +42,8 @@ class WhatsAppManager {
           agent_id: agent._id ? agent._id.toString() : agent.id,
         },
         ephemeralAgent: {
-          tools: ['somos_sst'],
+          // Inject the routing tool so the Receptionist can delegate to specialists
+          tools: ['consultar_agente_especializado'],
         }
       };
 

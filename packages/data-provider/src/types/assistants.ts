@@ -241,6 +241,7 @@ export type Agent = {
   category?: string;
   support_contact?: SupportContact;
   order?: number;
+  is_whatsapp_enabled?: boolean;
 };
 
 export type TAgentsMap = Record<string, Agent | undefined>;
@@ -266,6 +267,7 @@ export type AgentCreateParams = {
   | 'category'
   | 'support_contact'
   | 'order'
+  | 'is_whatsapp_enabled'
 >;
 
 export type AgentUpdateParams = {
@@ -293,6 +295,7 @@ export type AgentUpdateParams = {
   | 'category'
   | 'support_contact'
   | 'order'
+  | 'is_whatsapp_enabled'
 >;
 
 export type AgentListParams = {
