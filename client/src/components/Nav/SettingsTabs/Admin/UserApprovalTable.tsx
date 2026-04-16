@@ -177,36 +177,41 @@ export default function UserManagementTable() {
                 'Usuario', 'Correo Usuario', 'Razón Social', 'NIT', 'Representante Legal', 
                 'Número de Trabajadores', 'ARL', 'Actividad Económica', 'Nivel de Riesgo', 
                 'CIIU', 'Dirección', 'Ciudad', 'Teléfono Contacto', 'Email Contacto', 
-                'Actividades Generales', 'Sector', 'Responsable SST', 'Teléfono Responsable SST',
+                'Sector', 'Responsable SST', 'Teléfono Responsable SST',
                 'Nivel Formación', 'Número Licencia', 'Estado Curso 50h', 'Vencimiento Licencia',
                 'Consentimiento Rep. Legal', 'Consentimiento Resp. SST'
             ];
 
+            const truncate = (val: any) => {
+                if (typeof val !== 'string') return val;
+                if (val.length <= 32760) return val;
+                return val.substring(0, 32760) + '... [TRUNCADO POR LÍMITE DE EXCEL]';
+            };
+
             const rows = data.map((info: any) => [
-                info.userName || '',
-                info.userEmail || '',
-                info.companyName || '',
-                info.nit || '',
-                info.legalRepresentative || '',
+                truncate(info.userName || ''),
+                truncate(info.userEmail || ''),
+                truncate(info.companyName || ''),
+                truncate(info.nit || ''),
+                truncate(info.legalRepresentative || ''),
                 info.workerCount || 0,
-                info.arl || '',
-                info.economicActivity || '',
-                info.riskLevel || '',
-                info.ciiu || '',
-                info.address || '',
-                info.city || '',
-                info.phone || '',
-                info.email || '',
-                info.generalActivities || '',
-                info.sector || '',
-                info.responsibleSST || '',
-                info.responsibleSSTPhone || '',
-                info.formationLevel || '',
-                info.licenseNumber || '',
-                info.courseStatus || '',
-                info.licenseExpiry || '',
-                info.legalRepConsent || 'No',
-                info.sstRespConsent || 'No'
+                truncate(info.arl || ''),
+                truncate(info.economicActivity || ''),
+                truncate(info.riskLevel || ''),
+                truncate(info.ciiu || ''),
+                truncate(info.address || ''),
+                truncate(info.city || ''),
+                truncate(info.phone || ''),
+                truncate(info.email || ''),
+                truncate(info.sector || ''),
+                truncate(info.responsibleSST || ''),
+                truncate(info.responsibleSSTPhone || ''),
+                truncate(info.formationLevel || ''),
+                truncate(info.licenseNumber || ''),
+                truncate(info.courseStatus || ''),
+                truncate(info.licenseExpiry || ''),
+                truncate(info.legalRepConsent || 'No'),
+                truncate(info.sstRespConsent || 'No')
             ]);
 
             const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
