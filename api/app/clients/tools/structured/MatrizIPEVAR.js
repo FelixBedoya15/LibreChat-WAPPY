@@ -11,7 +11,7 @@ class MatrizIPEVAR extends Tool {
       'Lee, añade, evalúa o actualiza riesgos laborales directamente en la Matriz GTC-45 de la conversación actual. Usa esta herramienta para leer, documentar o evaluar un peligro en la matriz IPEVAR/GTC-45.';
     this.req = fields.req;
     this.schema = z.object({
-      accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Selecciona "consultar_contexto_sgsst" antes de escribir para conocer la empresa, los cargos, EPP normativos y parámetros sociodemográficos y de salud. "leer" si solo necesitas consultar la matriz. "escribir" para guardar/actualizar en IPEVAR. "borrar" para eliminar riesgos.'),
+      accion: z.enum(['leer', 'escribir', 'borrar', 'consultar_contexto_sgsst']).describe('Usa consultar_contexto_sgsst para datos de la empresa, leer para consultar, escribir para guardar, borrar para eliminar.'),
       filtro_proceso: z.string().optional().describe('Filtro para leer, o cargo a buscar en el contexto sgsst.'),
       filtro_actividad: z.string().optional().describe('Filtro para leer.'),
       filtro_peligro: z.string().optional().describe('Filtro para leer.'),
