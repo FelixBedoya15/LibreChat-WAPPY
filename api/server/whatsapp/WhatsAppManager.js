@@ -10,6 +10,8 @@ class WhatsAppManager {
     this.clients = new Map();
     this.qrCodes = new Map(); // userId => Base64 string
     this.statuses = new Map(); // userId => 'OFFLINE', 'STARTING', 'QR_READY', 'AUTHENTICATED'
+    this.messageQueues = new Map(); // userId => array of messages
+    this.processing = new Map(); // userId => boolean
     this.ensureSessionDir();
   }
 
@@ -195,23 +197,20 @@ class WhatsAppManager {
         // Find user model
         const User = mongoose.models.User || mongoose.connection.collection('users');
         const user = await User.findOne({ _id: new mongoose.Types.ObjectId(userId) }) || await User.findOne({ _id: userId });
-        
         if (!user) return;
-
-        // Simulate typing indicator
-        const chat = await msg.getChat();
-        chat.sendStateTyping();
 
         // Conversation ID binding for memory
         const hash = crypto.createHash('sha256');
         hash.update(`whatsapp-self-${userId}`);
         const conversationId = hash.digest('hex').substring(0, 24);
 
-        const responseText = await this.getAgentResponse(user, msg.body, conversationId);
-        
-        // Firma del bot para no auto-leerse
-        const finalMessage = `🤖 ${responseText}`;
-        await chat.sendMessage(finalMessage);
+        // Poner el mensaje en la cola para evitar que LibreChat lo banee por Concurrencia
+        if (!this.messageQueues.has(userId)) {
+          this.messageQueues.set(userId, []);
+        }
+        this.messageQueues.get(userId).push({ body: msg.body, chat: await msg.getChat(), conversationId });
+
+        this.processQueue(userId, user);
       }
     });
 
@@ -245,6 +244,37 @@ class WhatsAppManager {
       status: this.statuses.get(userId) || 'OFFLINE',
       qr: this.qrCodes.get(userId) || null
     };
+  }
+
+  async processQueue(userId, user) {
+    if (this.processing.get(userId)) return;
+    
+    const queue = this.messageQueues.get(userId);
+    if (!queue || queue.length === 0) return;
+
+    this.processing.set(userId, true);
+
+    try {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        
+        // Simulate typing indicator
+        item.chat.sendStateTyping();
+
+        const responseText = await this.getAgentResponse(user, item.body, item.conversationId);
+        
+        // Firma del bot para no auto-leerse
+        const finalMessage = `🤖 ${responseText}`;
+        await item.chat.sendMessage(finalMessage);
+        
+        // Pausa breve para evitar saturación antes del siguiente
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    } catch (err) {
+      console.error(`[WhatsApp Manager] Error procesando cola de mensajes para ${userId}:`, err);
+    } finally {
+      this.processing.set(userId, false);
+    }
   }
 
   async bootSavedSessions() {
