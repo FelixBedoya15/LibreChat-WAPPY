@@ -16,6 +16,7 @@ const TavilySearchResults = require('./structured/TavilySearchResults');
 const n8nWebhook = require('./structured/n8n');
 const MatrizIPEVAR = require('./structured/MatrizIPEVAR');
 const EditorLive = require('./structured/EditorLive');
+const SomosSST = require('./structured/SomosSST');
 
 module.exports = {
   ...manifest,
@@ -35,4 +36,5 @@ module.exports = {
   n8nWebhook,
   MatrizIPEVAR,
   EditorLive,
+  SomosSST,
 };

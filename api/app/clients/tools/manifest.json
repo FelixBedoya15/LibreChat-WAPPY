@@ -214,5 +214,12 @@
     "description": "Permite al agente crear, leer y editar un documento directamente en el chat. El agente puede generar documentos SST desde cero, editar secciones específicas, buscar y reemplazar normatividad, e insertar contenido. El usuario ve los cambios en tiempo real en el panel lateral.",
     "icon": "https://cdn-icons-png.flaticon.com/512/1289/1289938.png",
     "authConfig": []
+  },
+  {
+    "name": "Somos SST (Ruta Bienestar)",
+    "pluginKey": "somos_sst",
+    "description": "Permite al agente consultar y cruzar expedientes integrales de los trabajadores (Perfil Sociodemográfico, Condiciones de Salud, Perfil del Cargo y Peligros aplicables de la Matriz IPEVAR GTC-45 en cascada).",
+    "icon": "https://cdn-icons-png.flaticon.com/512/1004/1004358.png",
+    "authConfig": []
   }
 ]
