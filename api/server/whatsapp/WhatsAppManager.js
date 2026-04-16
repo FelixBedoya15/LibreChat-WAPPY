@@ -1,7 +1,6 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -30,84 +29,103 @@ class WhatsAppManager {
     });
 
     try {
-      // Find the Receptionist Agent ("Profesional SST")
+      // Buscar el Agente Recepcionista ("Profesional SST")
       const Agent = mongoose.models.Agent || mongoose.connection.collection('agents');
       const agent = await Agent.findOne({ name: /Profesional SST/i });
       if (!agent) {
         return "❌ No pude encontrar al 'Profesional SST' configurado en el sistema. Por favor, crea el agente Recepcionista con ese nombre exacto.";
       }
 
-      // Payload exacto al que el chat web de LibreChat envía (ver useChatFunctions.ts)
-      // `endpoint` y `agent_id` van al nivel raíz del body.
-      // `buildEndpointOption` middleware los toma de req.body y construye el endpointOption.
+      // Payload idéntico al que envía el chat web de LibreChat (useChatFunctions.ts)
+      // endpoint y agent_id van al nivel raíz del body, igual que el frontend.
       const payload = {
-        conversationId: conversationId || null,
+        conversationId: null, // null = nueva conversación, igual que "+ Nuevo Chat"
         text,
         endpoint: 'agents',
         agent_id: agent._id ? agent._id.toString() : agent.id,
         key: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       };
 
-      const response = await fetch('http://localhost:3080/api/agents/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+      console.log('[WhatsApp Manager] Payload enviado:', JSON.stringify(payload));
+
+      // Usar http nativo de Node.js para garantizar streaming SSE sin buffering en localhost.
+      // El fetch nativo de Node.js bufferiza el cuerpo internamente y no emite chunks en tiempo real.
+      const http = require('http');
+      const postData = JSON.stringify(payload);
+
+      const responseText = await new Promise((resolve, reject) => {
+        const options = {
+          hostname: 'localhost',
+          port: 3080,
+          path: '/api/agents/chat',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Content-Length': Buffer.byteLength(postData),
+          },
+        };
+
+        const req = http.request(options, (res) => {
+          console.log('[WhatsApp Manager] HTTP Status:', res.statusCode, res.statusMessage);
+
+          let accumulatedText = '';
+          let finalText = '';
+
+          res.setEncoding('utf8');
+
+          res.on('data', (chunk) => {
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              console.log('[WA SSE]', trimmed.substring(0, 250));
+              if (trimmed.startsWith('data: ')) {
+                const dataStr = trimmed.slice(6);
+                if (dataStr === '[DONE]') continue;
+                try {
+                  const dataObj = JSON.parse(dataStr);
+                  if (dataObj.error && dataObj.message) {
+                    finalText = `Error: ${dataObj.message}`;
+                  } else if (dataObj.final && dataObj.responseMessage?.text) {
+                    finalText = dataObj.responseMessage.text;
+                  } else if (dataObj.text) {
+                    accumulatedText += dataObj.text;
+                  }
+                } catch (e) {
+                  // chunk intermedio no parseable — ignorar
+                }
+              }
+            }
+          });
+
+          res.on('end', () => {
+            console.log('[WA SSE] Stream terminado. final:', finalText.length, '| acumulado:', accumulatedText.length);
+            resolve(finalText || accumulatedText || 'No pude generar una respuesta clara a partir de la API.');
+          });
+
+          res.on('error', (err) => {
+            console.error('[WhatsApp Manager] Stream Error:', err);
+            reject(err);
+          });
+        });
+
+        req.on('error', (err) => {
+          console.error('[WhatsApp Manager] Request Error:', err);
+          reject(err);
+        });
+
+        req.write(postData);
+        req.end();
       });
 
-      console.log('[WhatsApp Manager] Payload enviado:', JSON.stringify(payload));
-      console.log('[WhatsApp Manager] HTTP Status:', response.status, response.statusText);
+      return responseText;
 
-      if (!response.ok) {
-        const errBody = await response.text();
-        console.error('[WhatsApp Manager] HTTP Error Body:', errBody);
-        return `Error HTTP ${response.status}: ${errBody.substring(0, 200)}`;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let finalResponseText = '';
-      let accumulatedText = ''; // Acumula los chunks de texto del stream
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (let line of lines) {
-          if (line.trim() === '') continue;
-          console.log('[WA SSE]', line.substring(0, 200)); // LOG TEMPORAL
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const dataObj = JSON.parse(dataStr);
-              // Capturar errores que LibreChat manda por stream
-              if (dataObj.error && dataObj.message) {
-                finalResponseText = `Error: ${dataObj.message}`;
-              } else if (dataObj.final && dataObj.responseMessage?.text) {
-                // Mensaje final con texto completo — tiene prioridad
-                finalResponseText = dataObj.responseMessage.text;
-              } else if (dataObj.text) {
-                // Acumular los chunks de streaming (el agente manda el texto fragmentado)
-                accumulatedText += dataObj.text;
-              }
-            } catch (e) {
-              // ignorar errores de parsing de chunks intermedios
-            }
-          }
-        }
-      }
-
-      // Usar el texto final del stream si está disponible, si no usar el acumulado
-      return finalResponseText || accumulatedText || 'No pude generar una respuesta clara a partir de la API.';
     } catch (error) {
-      console.error('[WhatsApp Manager] Fetch Error:', error);
-      return "Error de red intentando contactar a tu Asistente.";
+      console.error('[WhatsApp Manager] Error:', error);
+      return 'Error de red intentando contactar a tu Asistente.';
     }
   }
 
@@ -167,105 +185,89 @@ class WhatsAppManager {
 
     client.on('ready', () => {
       console.log(`[WhatsApp Manager] ✅ Cliente listo para usuario: ${userId}`);
-      this.statuses.set(userId, 'AUTHENTICATED');
-      this.qrCodes.delete(userId);
+      this.statuses.set(userId, 'READY');
     });
 
     client.on('authenticated', () => {
       console.log(`[WhatsApp Manager] Autenticado: ${userId}`);
       this.statuses.set(userId, 'AUTHENTICATED');
-      this.qrCodes.delete(userId);
     });
 
-    client.on('auth_failure', () => {
-      console.error(`[WhatsApp Manager] Error de autenticación: ${userId}`);
+    client.on('auth_failure', (msg) => {
+      console.error(`[WhatsApp Manager] Auth Failure para usuario ${userId}:`, msg);
       this.statuses.set(userId, 'OFFLINE');
-      this.qrCodes.delete(userId);
-      this.destroyClientForUser(userId);
+      this.clients.delete(userId);
     });
 
     client.on('disconnected', (reason) => {
-      console.log(`[WhatsApp Manager] Cliente desconectado (${userId}): ${reason}`);
+      console.log(`[WhatsApp Manager] Desconectado para usuario ${userId}:`, reason);
       this.statuses.set(userId, 'OFFLINE');
-      this.qrCodes.delete(userId);
-      this.destroyClientForUser(userId);
+      this.clients.delete(userId);
     });
 
-    // OPENCLAW "MESSAGE YOURSELF" LOGIC
-    // Using `message_create` allows intercepting messages sent *by* the user (fromMe)
-    client.on('message_create', async (msg) => {
-      // Si el mensaje es enviado por MI a MI mismo (Message Yourself)
-      if (msg.fromMe && msg.to === msg.from) {
+    client.on('message', async (message) => {
+      try {
+        // Solo procesamos mensajes recibidos de nosotros mismos (mensajes enviados "a ti mismo")
+        // que es el canal de WhatsApp que usamos para el bot.
+        const contact = await message.getContact();
+        const isFromSelf = contact.id._serialized === client.info?.wid?._serialized;
+
+        if (!isFromSelf) return; // Ignorar mensajes de otros contactos
+        if (message.fromMe && !isFromSelf) return;
+
+        const msgBody = message.body.trim();
+        if (!msgBody) return;
         
-        // Evitar procesar mensajes que acabamos de enviar nosotros (el Agent)
-        const isBotResponse = msg.body.includes('⚕️') || msg.body.includes('Trabajadores') || msg.body.includes('**');
-        // Hacemos una verificación rústica por ahora. Ideal: la IA puede firmar los mensajes.
-        // What OpenClaw does is prepend an emoji or signature, e.g. "🤖"
-        if (msg.body.startsWith('🤖')) return;
+        // Ignorar mensajes propios del bot (los que empiezan con 🤖)
+        if (msgBody.startsWith('🤖')) return;
         
-        console.log(`[WhatsApp Manager] Comando interno recibido de sí mismo (${userId}): ${msg.body}`);
-        
-        // Find user model
+        // Comando interno de self-message
+        console.log(`[WhatsApp Manager] Comando interno recibido de sí mismo (${userId}): ${msgBody}`);
+
+        // Buscar el usuario en la BD
         const User = mongoose.models.User || mongoose.connection.collection('users');
-        const user = await User.findOne({ _id: new mongoose.Types.ObjectId(userId) }) || await User.findOne({ _id: userId });
-        if (!user) return;
-
-        // Búfer acumulativo de 7 segundos
-        if (!this.messageBuffer.has(userId)) {
-          this.messageBuffer.set(userId, []);
+        const user = await User.findById(userId);
+        if (!user) {
+          console.error(`[WhatsApp Manager] Usuario ${userId} no encontrado en BD`);
+          return;
         }
-        
-        // Agregar el texto a las partes acumuladas
-        this.messageBuffer.get(userId).push(msg.body);
-        
-        // Obtener el objeto del chat localmente y poner "escribiendo" del bot temporalmente
-        const chat = await msg.getChat();
-        chat.clearState(); // Limpiar por si había error
 
-        // Limpiar el timer si el usuario manda otro mensaje rápido (reiniciar conteo)
+        const chat = await message.getChat();
+
+        // Sistema de buffer de 7 segundos para acumular mensajes fragmentados
         if (this.bufferTimers.has(userId)) {
           clearTimeout(this.bufferTimers.get(userId));
         }
+        const currentBuffer = this.messageBuffer.get(userId) || [];
+        currentBuffer.push(msgBody);
+        this.messageBuffer.set(userId, currentBuffer);
 
-        // Programar el disparo de los mensajes acumulados 
-        const timerId = setTimeout(async () => {
-          this.bufferTimers.delete(userId);
-          
-          const pendingTexts = this.messageBuffer.get(userId) || [];
+        const timer = setTimeout(async () => {
+          const bufferedMessages = this.messageBuffer.get(userId) || [];
           this.messageBuffer.delete(userId);
-
-          if (pendingTexts.length === 0) return;
-
-          // Concatenamos las piezas con un espacio o salto de línea
-          const unifiedMessage = pendingTexts.join('\n');
-          
+          this.bufferTimers.delete(userId);
+          const unifiedMessage = bufferedMessages.join('\n');
           await this.processUnifiedMessage(userId, user, chat, unifiedMessage);
+        }, 7000);
 
-        }, 7000); // <-- 7 Segundos de espera para fragmentos
+        this.bufferTimers.set(userId, timer);
 
-        this.bufferTimers.set(userId, timerId);
+      } catch (err) {
+        console.error(`[WhatsApp Manager] Error en handler de mensaje para ${userId}:`, err);
       }
     });
 
-    try {
-      await client.initialize();
-    } catch (e) {
-      console.error(`[WhatsApp Manager] Fallo al iniciar puppeteer para usario ${userId}`, e);
+    client.initialize().catch((err) => {
+      console.error(`[WhatsApp Manager] Fallo al iniciar puppeteer para usario ${userId}`, err);
       this.statuses.set(userId, 'OFFLINE');
       this.clients.delete(userId);
-    }
+    });
   }
 
-  async destroyClientForUser(userId) {
-    if (this.clients.has(userId)) {
-      const client = this.clients.get(userId);
-      console.log(`[WhatsApp Manager] Destruyendo sesión de WhatsApp para: ${userId}`);
-      try {
-        await client.logout();
-      } catch (e) {
-        // usually failing if already offline
-        try { await client.destroy(); } catch (err) {}
-      }
+  stopClientForUser(userId) {
+    const client = this.clients.get(userId);
+    if (client) {
+      client.destroy().catch(console.error);
       this.clients.delete(userId);
       this.statuses.set(userId, 'OFFLINE');
       this.qrCodes.delete(userId);
