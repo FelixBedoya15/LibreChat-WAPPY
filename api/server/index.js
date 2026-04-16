@@ -169,6 +169,7 @@ const startServer = async () => {
     ['contact', routes.contact],
     ['publicReports', routes.publicReports],
     ['liveDocuments', routes.liveDocuments],
+    ['whatsapp', routes.whatsapp],
   ];
 
   for (const [name, route] of routeChecks) {
@@ -252,6 +253,7 @@ const startServer = async () => {
   app.use('/api/live/documents', routes.liveDocuments);
   app.use('/api/live', routes.liveAiEdit);
   app.use('/api/roadmap', routes.roadmap);
+  app.use('/api/whatsapp', routes.whatsapp);
 
   // TEMP MIGRATION ROUTE - REMOVE AFTER USE
   app.get('/api/temp-bulk-update-dates', async (req, res) => {
@@ -311,6 +313,10 @@ const startServer = async () => {
     // Start background poller for async payment methods (e.g. Compra y Paga Después / Bancolombia BNPL)
     const { startWompiPoller } = require('./services/wompiPendingPoller');
     startWompiPoller();
+
+    // Boot WhatsApp Sessions OpenClaw Architecture
+    const whatsappManager = require('./whatsapp/WhatsAppManager');
+    await whatsappManager.bootSavedSessions();
   });
 
   // Setup WebSocket server for voice conversations

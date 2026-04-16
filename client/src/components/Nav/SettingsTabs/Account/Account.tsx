@@ -10,6 +10,7 @@ import DeleteAccount from './DeleteAccount';
 import Avatar from './Avatar';
 import EnableTwoFactorItem from './TwoFactorAuthentication';
 import BackupCodesItem from './BackupCodesItem';
+import WhatsAppConnect from './WhatsAppConnect';
 import TicketForm from '~/components/Tickets/TicketForm';
 
 function Account() {
@@ -94,6 +95,9 @@ function Account() {
                 <BackupCodesItem />
               </div>
             )}
+            
+            <div className="h-px bg-border-light w-full my-1"></div>
+            <div className="py-2"><WhatsAppConnect /></div>
           </>
         )}
       </div>

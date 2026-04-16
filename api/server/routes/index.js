@@ -43,6 +43,7 @@ const publicSgsst = require('./publicSgsst');
 const liveAiEdit = require('./liveAiEdit');
 const liveDocuments = require('./liveDocuments');
 const roadmap = require('./roadmap');
+const whatsapp = require('./whatsapp');
 
 module.exports = {
   auth,
@@ -90,4 +91,5 @@ module.exports = {
   liveAiEdit,
   liveDocuments,
   roadmap,
+  whatsapp,
 };
