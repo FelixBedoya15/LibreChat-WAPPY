@@ -34,6 +34,7 @@ services:
       - librechat_uploads:/app/uploads
       - librechat_logs:/app/logs
       - librechat_images:/app/client/public/images
+      - whatsapp_sessions:/app/.wappy_whatsapp_sessions
 
     networks:
       - dokploy-network
@@ -97,6 +98,7 @@ volumes:
   librechat_logs:
   librechat_images:
   meili_data_v1.12:
+  whatsapp_sessions:
 
 networks:
   dokploy-network:

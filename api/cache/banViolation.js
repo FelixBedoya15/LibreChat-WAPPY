@@ -30,9 +30,13 @@ const interval = math(BAN_INTERVAL, 20);
  *
  */
 const banViolation = async (req, res, errorMessage) => {
+  // DISABLE BAN SYSTEM FOR WAPPY: Prevents accidental session wipes
+  return;
+  
   if (!isEnabled(BAN_VIOLATIONS)) {
     return;
   }
+
   if (!errorMessage) {
     return;
   }
