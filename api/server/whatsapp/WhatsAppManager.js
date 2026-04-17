@@ -36,14 +36,23 @@ class WhatsAppManager {
         return "❌ No pude encontrar al 'Profesional SST' configurado en el sistema. Por favor, crea el agente Recepcionista con ese nombre exacto.";
       }
 
-      // Payload idéntico al que envía el chat web de LibreChat (useChatFunctions.ts)
-      // endpoint y agent_id van al nivel raíz del body, igual que el frontend.
+      // Payload idéntico al WhatsAppBridge.js original (OpenClaw) que funciona correctamente.
+      // convoId, endpointOption anidado y ephemeralAgent — igual que el Bridge original.
+      const crypto = require('crypto');
+      const hash = crypto.createHash('sha256');
+      hash.update(`whatsapp-${user._id}-${agent._id || agent.id}`);
+      const convoId = hash.digest('hex').substring(0, 24);
+
       const payload = {
-        conversationId: null, // null = nueva conversación, igual que "+ Nuevo Chat"
+        convoId: convoId,
         text,
-        endpoint: 'agents',
-        agent_id: agent._id ? agent._id.toString() : agent.id,
-        key: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        endpointOption: {
+          endpoint: 'agents',
+          agent_id: agent._id ? agent._id.toString() : agent.id,
+        },
+        ephemeralAgent: {
+          tools: ['consultar_agente_especializado'],
+        },
       };
 
       console.log('[WhatsApp Manager] Payload enviado:', JSON.stringify(payload));
