@@ -214,18 +214,17 @@ class WhatsAppManager {
       this.clients.delete(userId);
     });
 
-    client.on('message', async (message) => {
+    // Usar message_create en lugar de message, ya que 'message' no dispara para msjs autoguiados.
+    client.on('message_create', async (message) => {
       try {
-        // Filtrar igual que el Bridge original de OpenClaw:
-        // Ignorar mensajes de grupos, broadcasts y los propios del bot (🤖)
-        if (message.from === 'status@broadcast') return;
-        if (message.from.includes('@g.us')) return;
-        if (message.isGroupMsg) return;
+        // Validación estricta para el modo OpenClaw (Message Yourself/Escríbete a ti mismo)
+        // El mensaje debe ser enviado POR MI hacia MI MISMO
+        if (!(message.fromMe && message.to === message.from)) return;
 
         const msgBody = message.body?.trim();
         if (!msgBody) return;
 
-        // Ignorar respuestas propias del bot para evitar loops
+        // Ignorar respuestas propias del bot para evitar loops infinitos
         if (msgBody.startsWith('🤖')) return;
 
         console.log(`[WhatsApp Manager] Comando interno recibido de sí mismo (${userId}): ${msgBody}`);
