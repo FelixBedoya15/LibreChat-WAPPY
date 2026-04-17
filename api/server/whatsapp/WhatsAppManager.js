@@ -93,12 +93,36 @@ class WhatsAppManager {
                 if (dataStr === '[DONE]') continue;
                 try {
                   const dataObj = JSON.parse(dataStr);
-                  if (dataObj.error && dataObj.message) {
+
+                  // Manejo de errores
+                  if (dataObj.error === true && dataObj.text) {
+                    finalText = dataObj.text;
+                  } else if (dataObj.error && dataObj.message) {
                     finalText = `Error: ${dataObj.message}`;
-                  } else if (dataObj.final && dataObj.responseMessage?.text) {
-                    finalText = dataObj.responseMessage.text;
-                  } else if (dataObj.text) {
-                    accumulatedText += dataObj.text;
+                  } 
+                  
+                  // Formato de Eventos de Agentes (tipo OpenAI Assistants)
+                  if (dataObj.event === 'on_message_delta' && dataObj.data?.delta?.content) {
+                    for (const item of dataObj.data.delta.content) {
+                      if (item.type === 'text' && item.text) {
+                        accumulatedText += item.text;
+                      }
+                    }
+                  } 
+                  
+                  // Formato Clásico LibreChat Final
+                  if (dataObj.final === true) {
+                    if (dataObj.text) {
+                      finalText = dataObj.text;
+                    } else if (dataObj.responseMessage?.text) {
+                      finalText = dataObj.responseMessage.text;
+                    }
+                  }
+                  
+                  // Formato Clásico LibreChat (por si acaso para otros endpoints)
+                  if (dataObj.text && !dataObj.final && !dataObj.event && !dataObj.conversationId) {
+                     // Solo para endpoints clásicos (no agentes) para evitar duplicación
+                     // accumulatedText += dataObj.text;
                   }
                 } catch (e) {
                   // chunk intermedio no parseable — ignorar
