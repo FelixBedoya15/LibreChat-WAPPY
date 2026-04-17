@@ -38,9 +38,11 @@ class WhatsAppManager {
 
       // Payload idéntico al que envía LibreChat en el frontend
       const crypto = require('crypto');
-      const hash = crypto.createHash('sha256');
-      hash.update(`whatsapp-${user._id}-${agent._id || agent.id}`);
-      const convoId = hash.digest('hex').substring(0, 24);
+      const hashObj = crypto.createHash('md5');
+      hashObj.update(`whatsapp-${user._id}-${agent.id || agent._id}`);
+      const hash = hashObj.digest('hex');
+      // LibreChat requiere estricto formato UUID v4 para conversationId
+      const convoId = `${hash.substring(0,8)}-${hash.substring(8,12)}-4${hash.substring(13,16)}-a${hash.substring(17,20)}-${hash.substring(20,32)}`;
 
       const payload = {
         conversationId: convoId,
