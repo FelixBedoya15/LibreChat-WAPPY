@@ -46,7 +46,7 @@ class WhatsAppManager {
         conversationId: convoId,
         text,
         endpoint: 'agents',
-        agent_id: agent._id ? agent._id.toString() : agent.id,
+        agent_id: agent.id || agent._id.toString(), // LibreChat expects the 'agent_...' format
       };
 
       console.log('[WhatsApp Manager] Payload enviado:', JSON.stringify(payload));
