@@ -38,14 +38,52 @@ class ConsultarAgenteEspecializado extends Tool {
         return "❌ Error: No se pudo cargar el modelo de Agentes del sistema central.";
       }
 
-      // Buscar al especialista asegurando que tenga wassap_enabled activo o filtrando estrictamente
-      // Nota: El usuario definió: "seleccionar entre los agentes que tengan activado su uso"
-      const regex = new RegExp(`^${nombre_especialista.trim()}$`, 'i');
-      const agent = await Agent.findOne({ name: regex, is_whatsapp_enabled: true });
+      // Buscar todos los especialistas activos
+      const agents = await Agent.find({ is_whatsapp_enabled: true });
+      if (!agents || agents.length === 0) {
+        return "❌ Error: No hay especialistas disponibles con el permiso de WhatsApp activado.";
+      }
+
+      // Funcion de limpieza para comparar (quita tildes, @ por a, minusculas, espacios extra)
+      const cleanString = (str) => {
+        return (str || '').toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quita tildes
+          .replace(/@/g, 'a') // Cambia @ por a (medic@ -> medica)
+          .replace(/[^a-z0-9 ]/g, '') // Quita caracteres especiales
+          .replace(/\s+/g, ' ').trim();
+      };
+
+      const queryStr = cleanString(nombre_especialista);
+      let agent = null;
+
+      // 1. Intento de coincidencia exacta mejorada (limpia)
+      agent = agents.find((a) => cleanString(a.name) === queryStr);
+
+      // 2. Búsqueda por similitud si el usuario cometió un gran error de tipeo
+      if (!agent) {
+        const queryWords = queryStr.split(' ').filter((w) => w.length > 2);
+        let maxScore = 0;
+        
+        for (const a of agents) {
+          const agName = cleanString(a.name);
+          let score = 0;
+          
+          for (const w of queryWords) {
+            if (agName.includes(w)) score++;
+          }
+          if (agName.includes(queryStr)) score += 5; // Bonus grande si la frase encaja junta
+          
+          if (score > maxScore && score > 0) {
+            maxScore = score;
+            agent = a;
+          }
+        }
+      }
 
       if (!agent) {
-        // Enviar retroalimentación para que la IA sepa que falló
-        return `❌ No se encontró ningún Agente Especialista llamado "${nombre_especialista}" que tenga permiso activo para WhatsApp (is_whatsapp_enabled: true), o el nombre está mal escrito.`;
+        // Enviar al LLM la lista de los válidos para que en su segundo intento lo haga perfecto.
+        const validos = agents.map((a) => a.name).join(', ');
+        return `❌ No se encontró ningún Agente Especialista que coincida con "${nombre_especialista}".\n💡 SUGERENCIA: Aquí tienes la lista de los únicos especialistas válidos: [${validos}]. Usa esta herramienta de nuevo copiando textualmente uno de estos.`;
       }
 
       // Generar token JWT derivado del req actual para invocar el endpoint interno
