@@ -216,21 +216,18 @@ class WhatsAppManager {
 
     client.on('message', async (message) => {
       try {
-        // Solo procesamos mensajes recibidos de nosotros mismos (mensajes enviados "a ti mismo")
-        // que es el canal de WhatsApp que usamos para el bot.
-        const contact = await message.getContact();
-        const isFromSelf = contact.id._serialized === client.info?.wid?._serialized;
+        // Filtrar igual que el Bridge original de OpenClaw:
+        // Ignorar mensajes de grupos, broadcasts y los propios del bot (🤖)
+        if (message.from === 'status@broadcast') return;
+        if (message.from.includes('@g.us')) return;
+        if (message.isGroupMsg) return;
 
-        if (!isFromSelf) return; // Ignorar mensajes de otros contactos
-        if (message.fromMe && !isFromSelf) return;
-
-        const msgBody = message.body.trim();
+        const msgBody = message.body?.trim();
         if (!msgBody) return;
-        
-        // Ignorar mensajes propios del bot (los que empiezan con 🤖)
+
+        // Ignorar respuestas propias del bot para evitar loops
         if (msgBody.startsWith('🤖')) return;
-        
-        // Comando interno de self-message
+
         console.log(`[WhatsApp Manager] Comando interno recibido de sí mismo (${userId}): ${msgBody}`);
 
         // Buscar el usuario en la BD
@@ -265,6 +262,7 @@ class WhatsAppManager {
         console.error(`[WhatsApp Manager] Error en handler de mensaje para ${userId}:`, err);
       }
     });
+
 
     client.initialize().catch((err) => {
       console.error(`[WhatsApp Manager] Fallo al iniciar puppeteer para usario ${userId}`, err);
