@@ -129,6 +129,7 @@ class ConsultarAgenteEspecializado extends Tool {
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let finalResponseText = '';
+      let accumulatedDeltas = '';
 
       while (true) {
         const { value, done } = await reader.read();
@@ -144,22 +145,45 @@ class ConsultarAgenteEspecializado extends Tool {
             if (dataStr === '[DONE]') continue;
             try {
               const dataObj = JSON.parse(dataStr);
-              if (dataObj.final && dataObj.responseMessage?.text) {
-                 finalResponseText = dataObj.responseMessage.text;
-              } else if (!finalResponseText && dataObj.text) {
-                 finalResponseText = dataObj.text;
+              
+              // 1. Extraer respuesta final si existe
+              if (dataObj.final) {
+                 if (dataObj.responseMessage && dataObj.responseMessage.text) {
+                    finalResponseText = dataObj.responseMessage.text;
+                 } else if (dataObj.message && dataObj.message.text) {
+                    finalResponseText = dataObj.message.text;
+                 }
+              }
+              
+              // 2. Acumular deltas (agentes LangGraph)
+              if (dataObj.event === 'on_message_delta' && dataObj.data?.delta?.content) {
+                 for (const c of dataObj.data.delta.content) {
+                    if (c.type === 'text' && c.text) {
+                       accumulatedDeltas += c.text;
+                    }
+                 }
+              } 
+              // 3. Fallback: streams antiguos envían el texto completo que va creciendo
+              else if (dataObj.text && typeof dataObj.text === 'string') {
+                 if (dataObj.text.length > accumulatedDeltas.length) {
+                    accumulatedDeltas = dataObj.text;
+                 }
               }
             } catch (e) {
-              // Ignore stream partial parsing errors
+              // Ignorar strings truncados u otros errores del parseo en vivo
             }
           }
         }
       }
 
-      if (finalResponseText) {
+      if (!finalResponseText) {
+          finalResponseText = accumulatedDeltas;
+      }
+
+      if (finalResponseText && finalResponseText.trim().length > 0) {
         return `✅ [Respuesta de Especialista ${agent.name}]:\n${finalResponseText}`;
       } else {
-        return `❌ El especialista ${agent.name} procesó la solicitud pero no generó respuesta legible.`;
+        return `❌ El especialista ${agent.name} procesó la solicitud pero no generó respuesta legible. (El texto devuelto estaba vacío).`;
       }
 
     } catch (error) {
