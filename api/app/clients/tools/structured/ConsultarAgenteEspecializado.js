@@ -101,12 +101,10 @@ class ConsultarAgenteEspecializado extends Tool {
       console.log(`[RouterTool] Derivando consulta a: ${agent.name}`);
 
       const payload = {
-        convoId: conversationId,
+        endpoint: 'agents',
+        conversationId: conversationId,
         text: consulta_completa,
-        endpointOption: {
-          endpoint: 'agents',
-          agent_id: agent._id.toString(),
-        },
+        agent_id: agent._id.toString(),
         ephemeralAgent: {
           // Si el especialista tiene sus propias herramientas (ej. "somos_sst"), se usarán.
           tools: agent.tools || [],
