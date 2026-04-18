@@ -104,7 +104,7 @@ class ConsultarAgenteEspecializado extends Tool {
         endpoint: 'agents',
         conversationId: conversationId,
         text: consulta_completa,
-        agent_id: agent._id.toString(),
+        agent_id: agent.id || agent._id.toString(),
         ephemeralAgent: {
           // Si el especialista tiene sus propias herramientas (ej. "somos_sst"), se usarán.
           tools: agent.tools || [],
