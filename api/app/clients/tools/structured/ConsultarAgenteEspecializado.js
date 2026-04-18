@@ -14,7 +14,7 @@ class ConsultarAgenteEspecializado extends Tool {
       nombre_especialista: z
         .string()
         .describe(
-          'El nombre del Agente Especialista en el sistema. Ejemplo: "Médico Laboral" o el especialista más apropiado según tu análisis del texto.',
+          'El nombre exacto del Agente Especialista al cual deseas consultar, deducido según tu análisis de la solicitud.',
         ),
       consulta_completa: z
         .string()
@@ -81,9 +81,9 @@ class ConsultarAgenteEspecializado extends Tool {
       }
 
       if (!agent) {
-        // Enviar al LLM la lista de los válidos para que en su segundo intento lo haga perfecto.
+        // Enviar al LLM la lista de los válidos para que en su segundo intento elija al correcto.
         const validos = agents.map((a) => a.name).join(', ');
-        return `❌ No se encontró ningún Agente Especialista que coincida con "${nombre_especialista}".\n💡 SUGERENCIA: Aquí tienes la lista de los únicos especialistas válidos: [${validos}]. Usa esta herramienta de nuevo copiando textualmente uno de estos.`;
+        return `❌ No se encontró ningún Agente Especialista que coincida con "${nombre_especialista}". Se sugiere utilizar un especialista de la siguiente lista de válidos: [${validos}]. Asegúrate de usar uno de estos nombres textualmente.`;
       }
 
       // Generar token JWT derivado del req actual para invocar el endpoint interno
@@ -100,9 +100,11 @@ class ConsultarAgenteEspecializado extends Tool {
 
       console.log(`[RouterTool] Derivando consulta a: ${agent.name}`);
 
+      const crypto = require('crypto');
       const payload = {
         endpoint: 'agents',
-        conversationId: conversationId,
+        conversationId: 'new',
+        messageId: crypto.randomUUID(),
         text: consulta_completa,
         agent_id: agent.id || agent._id.toString(),
         ephemeralAgent: {
