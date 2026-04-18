@@ -130,18 +130,26 @@ class ConsultarAgenteEspecializado extends Tool {
       const decoder = new TextDecoder('utf-8');
       let finalResponseText = '';
       let accumulatedDeltas = '';
+      let buffer = '';
+      let rawDebugStream = '';
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const partialChunk = decoder.decode(value, { stream: true });
+        rawDebugStream += partialChunk; // Acumular para debug
+        
+        buffer += partialChunk;
+        const lines = buffer.split('\n');
+        
+        // Dejamos en el buffer la última línea incompleta (si la hay)
+        buffer = lines.pop();
 
         for (let line of lines) {
           if (line.trim() === '') continue;
           if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
+            const dataStr = line.replace(/^data:\s*/, '').trim();
             if (dataStr === '[DONE]') continue;
             try {
               const dataObj = JSON.parse(dataStr);
@@ -183,7 +191,9 @@ class ConsultarAgenteEspecializado extends Tool {
       if (finalResponseText && finalResponseText.trim().length > 0) {
         return `✅ [Respuesta de Especialista ${agent.name}]:\n${finalResponseText}`;
       } else {
-        return `❌ El especialista ${agent.name} procesó la solicitud pero no generó respuesta legible. (El texto devuelto estaba vacío).`;
+        // Truncar rawDebugStream a los ultimos 1000 caracteres para no romper UI
+        const safeDebug = rawDebugStream.length > 1000 ? rawDebugStream.substring(0, 1000) + '...' : rawDebugStream;
+        return `❌ El especialista ${agent.name} procesó la solicitud pero no generó respuesta legible. (El texto estaba vacío).\n\n--- DUMP INTERNO DE LA RESPUESTA DE LA API ---\n${safeDebug}`;
       }
 
     } catch (error) {
