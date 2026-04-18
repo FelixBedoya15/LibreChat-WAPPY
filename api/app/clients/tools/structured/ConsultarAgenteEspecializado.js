@@ -100,7 +100,6 @@ class ConsultarAgenteEspecializado extends Tool {
 
       console.log(`[RouterTool] Derivando consulta a: ${agent.name}`);
 
-      const crypto = require('crypto');
       const payload = {
         endpoint: 'agents',
         conversationId: 'new',
