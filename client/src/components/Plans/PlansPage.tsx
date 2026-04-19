@@ -1206,18 +1206,18 @@ export default function PlansPage() {
 
                                             <div className="flex items-end gap-1">
                                                 <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
-                                                    {isFree ? '$0' : '$' + Math.round(pricePerMonth).toLocaleString('es-CO')}
+                                                    {isFree ? '$0' : '$' + Math.round(totalToBill).toLocaleString('es-CO')}
                                                 </span>
                                                 <span className="mb-1 text-xs font-semibold text-text-secondary">
-                                                    /mes
+                                                    /{isFree ? 'mes' : billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
                                                 </span>
                                             </div>
 
                                             {isNotMonthly && !isFree && (
                                                 <div className="mt-0.5 text-base font-bold text-text-primary">
-                                                    ${Math.round(totalToBill).toLocaleString('es-CO')}{' '}
+                                                    ${Math.round(pricePerMonth).toLocaleString('es-CO')}{' '}
                                                     <span className="text-xs font-semibold text-text-secondary">
-                                                        /{billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}
+                                                        /mes
                                                     </span>
                                                 </div>
                                             )}

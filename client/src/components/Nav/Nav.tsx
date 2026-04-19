@@ -22,6 +22,7 @@ import { cn } from '~/utils';
 import store from '~/store';
 import { Search } from 'lucide-react';
 
+const PlansButton = lazy(() => import('./PlansButton'));
 const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
 const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
@@ -181,6 +182,9 @@ const Nav = memo(
               <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
+          <Suspense fallback={null}>
+            <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
+          </Suspense>
           {hasAccessToBookmarks && (
             <Suspense fallback={null}>
               <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={isCollapsedState} />
@@ -284,6 +288,10 @@ const Nav = memo(
                             </button>
                           }
                         />
+                        {/* Plans icon */}
+                        <Suspense fallback={null}>
+                          <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
                         {/* Bookmarks icon */}
                         {hasAccessToBookmarks && (
                           <Suspense fallback={null}>
@@ -348,6 +356,9 @@ const Nav = memo(
                                     <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
+                                <Suspense fallback={null}>
+                                  <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                </Suspense>
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>
                                     <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
