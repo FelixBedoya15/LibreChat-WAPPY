@@ -52,6 +52,11 @@ export const PHASE_CATEGORIES = {
             bioRationale: 'Prepara psicológicamente y estructuralmente a la comunidad frente a la histeria colectiva o el desastre en una emergencia natural/tecnológica.', 
             normativity: 'Decreto 1072 de 2015 (Plan de Prevención, Preparación y Respuesta)' 
         },
+        { 
+            id: 'capacitaciones', title: 'Programa de Capacitación SG-SST', icon: 'UserCheck',
+            bioRationale: 'Entrenamiento técnico y conductual adaptativo para que el trabajador se defienda inteligentemente de su entorno.', 
+            normativity: 'Decreto 1072 de 2015 (Art. 2.2.4.6.11)' 
+        },
     ],
     check: [
         { 

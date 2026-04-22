@@ -32,7 +32,7 @@ import ParticipacionIPEVAR from './ParticipacionIPEVAR';
 import PerfilesCargo from './PerfilesCargo';
 import DashboardPredictivo from './DashboardPredictivo';
 import AltaDireccionChecklist from './AltaDireccionChecklist';
-
+import ProgramaCapacitaciones from './ProgramaCapacitaciones';
 
 import ReglamentoHigiene from './ReglamentoHigiene';
 import ReglamentoInterno from './ReglamentoInterno';
@@ -544,6 +544,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                  {category.id === 'vulnerabilidad' && (
                                                      <div className="mb-6">
                                                          <AnalisisVulnerabilidad />
+                                                     </div>
+                                                 )}
+
+                                                 {/* Show ProgramaCapacitaciones for capacitaciones category */}
+                                                 {category.id === 'capacitaciones' && (
+                                                     <div className="mb-6">
+                                                         <ProgramaCapacitaciones />
                                                      </div>
                                                  )}
                                                  
