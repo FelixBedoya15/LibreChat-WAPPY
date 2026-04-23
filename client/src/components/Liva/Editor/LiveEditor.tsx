@@ -629,15 +629,29 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 }
             } else if (target.closest('td, th') && editorRef.current?.contains(target)) {
                 const cell = target.closest('td, th') as HTMLTableCellElement;
-                clearSelections();
-                cell.setAttribute('data-selected', 'true');
-                setSelectedTableCell(cell);
-                const rect = cell.getBoundingClientRect();
-                const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
-                setTableToolbarPos({
-                    top: rect.top - wrapperRect.top - 50,
-                    left: rect.left - wrapperRect.left
-                });
+                // If the cell contains a signature placeholder, treat the click as a placeholder click
+                const sigInCell = cell.querySelector('.signature-placeholder') as HTMLElement | null;
+                if (sigInCell) {
+                    e.preventDefault();
+                    let extractedName = 'DESCONOCIDO';
+                    const nextEl = sigInCell.nextElementSibling;
+                    if (nextEl) {
+                        extractedName = nextEl.textContent?.trim().toUpperCase() || 'DESCONOCIDO';
+                    }
+                    setActiveSignatureName(extractedName);
+                    setActiveSignaturePlaceholder(sigInCell);
+                    setIsSignatureModalOpen(true);
+                } else {
+                    clearSelections();
+                    cell.setAttribute('data-selected', 'true');
+                    setSelectedTableCell(cell);
+                    const rect = cell.getBoundingClientRect();
+                    const wrapperRect = editorWrapperRef.current!.getBoundingClientRect();
+                    setTableToolbarPos({
+                        top: rect.top - wrapperRect.top - 50,
+                        left: rect.left - wrapperRect.left
+                    });
+                }
             } else if (target.closest('.progress-bar-container, [style*="width:"]') && editorRef.current?.contains(target)) {
                 const graphic = target.closest('div') as HTMLDivElement;
                 if (graphic.style.width || graphic.classList.contains('progress-bar')) {
@@ -734,7 +748,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             const placeholder = document.createElement('div');
             placeholder.className = 'signature-placeholder';
             placeholder.setAttribute('data-skip-auto', 'true');
-            placeholder.style.cssText = 'border-bottom: 2px solid #333; width: 80%; margin: 0 auto 10px auto; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;';
+            // Full width so the entire cell area is clickable again
+            placeholder.style.cssText = 'border-bottom: 2px solid #333; width: 100%; min-height: 80px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; cursor: pointer; border-radius: 8px 8px 0 0; transition: all 0.3s ease;';
             placeholder.innerHTML = '<span style="font-size: 11px; opacity: 0.6;">Clic para firmar</span>';
             selectedImage.replaceWith(placeholder);
         } else {
