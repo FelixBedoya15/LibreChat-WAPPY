@@ -623,8 +623,12 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     top: rect.top - wrapperRect.top - 50,
                     left: rect.left - wrapperRect.left
                 });
-            } else if (!target.closest('.image-toolbar') && !target.closest('.table-toolbar') && !target.closest('.graphic-toolbar') && !target.closest('.diagram-toolbar') && !target.closest('.signature-modal')) {
-                clearSelections();
+            } else {
+                // If it's a click on the document but NOT inside any toolbar, clear selections
+                const isInsideToolbar = !!target.closest('.image-toolbar, .table-toolbar, .graphic-toolbar, .diagram-toolbar, .signature-modal, [data-ai-bubble="true"]');
+                if (!isInsideToolbar) {
+                    clearSelections();
+                }
             }
         };
 
@@ -994,19 +998,22 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             {/* Floating Image Toolbar — rendered as fixed to escape any stacking context */}
             {selectedImage && portalNode && createPortal(
                 <div
-                    className="image-toolbar bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
+                    className="image-toolbar bg-surface-primary dark:bg-zinc-800 shadow-2xl border border-border-medium rounded-lg p-1.5 flex flex-wrap items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
                     style={{
                         position: 'fixed',
-                        top: `${Math.max(10, imageToolbarPos.top)}px`,
-                        left: `${Math.max(10, Math.min(imageToolbarPos.left, window.innerWidth - 340))}px`,
+                        top: `${Math.max(10, Math.min(imageToolbarPos.top, window.innerHeight - 80))}px`,
+                        left: `${Math.max(10, Math.min(imageToolbarPos.left, window.innerWidth - 380))}px`,
                         zIndex: 9999999,
+                        maxWidth: '360px'
                     }}
+                    onPointerDown={(e) => { e.stopPropagation(); }}
+                    onClick={(e) => { e.stopPropagation(); }}
                 >
                     <div className="flex gap-1 border-r border-border-light pr-1.5 mr-0.5">
-                        <button onClick={() => setImageSize('sm')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Pequeño">S</button>
-                        <button onClick={() => setImageSize('md')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-bold border border-transparent hover:border-border-medium" title="Mediano">M</button>
-                        <button onClick={() => setImageSize('lg')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Grande">L</button>
-                        <button onClick={() => setImageSize('full')} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Ancho Total">W</button>
+                        <button onClick={(e) => { e.stopPropagation(); setImageSize('sm'); }} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Pequeño">S</button>
+                        <button onClick={(e) => { e.stopPropagation(); setImageSize('md'); }} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-bold border border-transparent hover:border-border-medium" title="Mediano">M</button>
+                        <button onClick={(e) => { e.stopPropagation(); setImageSize('lg'); }} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Grande">L</button>
+                        <button onClick={(e) => { e.stopPropagation(); setImageSize('full'); }} className="px-2 py-1 hover:bg-surface-hover rounded text-xs font-medium border border-transparent hover:border-border-medium" title="Ancho Total">W</button>
                     </div>
 
                     <div className="flex gap-0.5 border-r border-border-light pr-1.5 mr-0.5">
@@ -1022,14 +1029,14 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     </div>
 
                     <button
-                        onClick={removeImage}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage(); }}
                         className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                         title="Eliminar imagen / firma"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => setSelectedImage(null)}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedImage(null); }}
                         className="p-1.5 text-text-tertiary hover:bg-surface-hover rounded transition-colors"
                         title="Cerrar"
                     >
