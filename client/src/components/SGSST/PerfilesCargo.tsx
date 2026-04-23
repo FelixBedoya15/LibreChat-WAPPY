@@ -596,6 +596,223 @@ const PerfilesCargo = () => {
         [token, showToast],
     );
 
+    const handleLoadDummyData = async () => {
+        const dummyProfiles: PerfilCargoData[] = [
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Gerente General',
+                area: 'Gerencia Administrativa',
+                nivelCargo: 'Estratégico / Directivo',
+                tipoContrato: 'Término indefinido',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Junta Directiva',
+                escalasSalarial: '> 10 SMMLV',
+                numVacantes: '1',
+                contextoAdicional: 'Líder de la estrategia corporativa, responsable legal y de los recursos de la empresa. Representa altos niveles de carga mental por la toma de decisiones, manejo presupuestal y relaciones comerciales en un contexto altamente volátil.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)'],
+                entrenamientosSeleccionados: ['Inducción y Reinducción en SST', 'Riesgo Psicosocial y Manejo del Estrés', 'Plan de Emergencias y Evacuación'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Baja',
+                exigenciaMental: 'Alta',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Profesional SISO / Líder SST',
+                area: 'Seguridad y Salud en el Trabajo',
+                nivelCargo: 'Profesional / Técnico',
+                tipoContrato: 'Término indefinido',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Gerente General',
+                escalasSalarial: '3.5 - 4.5 SMMLV',
+                numVacantes: '1',
+                contextoAdicional: 'Debe garantizar que se cumpla al 100% el rigor del Decreto 1072, la GTC 45 y la Resolución 0312. Audita en sitio los trabajos de alto riesgo y gestiona inspecciones, EPP y planes de emergencia.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Protección auditiva (Inserción/Copa)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo'],
+                entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Identificación de Peligros y Riesgos (GTC 45)', 'Plan de Emergencias y Evacuación', 'Primeros Auxilios Básicos', 'Supervisor de Trabajo en Espacios Confinados'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Media',
+                exigenciaMental: 'Alta',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Ingeniero Residente de Obra',
+                area: 'Dirección de Proyectos / Operaciones',
+                nivelCargo: 'Táctico / Mando Medio',
+                tipoContrato: 'Término fijo',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Gerencia Administrativa',
+                escalasSalarial: '5.0 - 7.0 SMMLV',
+                numVacantes: '2',
+                contextoAdicional: 'Coordinación y ejecución en campo de proyectos de infraestructura. Manejo de contratistas, supervisión estricta de planos, presupuestos y aval de permisos de trabajo.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)'],
+                entrenamientosSeleccionados: ['Inducción y Reinducción en SST', 'Identificación de Peligros y Riesgos (GTC 45)', 'Administrador del Programa de Protección Contra Caídas'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Media',
+                exigenciaMental: 'Alta',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Conductor de Volqueta y Maquinaria',
+                area: 'Logística y Transporte',
+                nivelCargo: 'Operativo',
+                tipoContrato: 'Obra o labor',
+                jornada: 'Turnos rotativos',
+                jefeInmediato: 'Ingeniero Residente de Obra',
+                escalasSalarial: '1.5 - 2.5 SMMLV',
+                numVacantes: '6',
+                contextoAdicional: 'Manejo de equipo pesado, transporte de materiales pétreos y escombros. Expuesto a riesgo público, vibración de cuerpo entero y estrés por condiciones de tránsito.',
+                eppSeleccionados: ['Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo', 'Guantes de protección mecánica/corte', 'Protección auditiva (Inserción/Copa)'],
+                entrenamientosSeleccionados: ['Seguridad Vial (PESV)', 'Ergonomía y Pausas Activas', 'Primeros Auxilios Básicos'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Media',
+                exigenciaMental: 'Alta',
+                operaMaquinaria: 'Sí',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Oficial de Obra Blanca y Fachadas',
+                area: 'Ejecución y Mantenimiento',
+                nivelCargo: 'Operativo',
+                tipoContrato: 'Obra o labor',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Ingeniero Residente de Obra',
+                escalasSalarial: '1.8 - 2.5 SMMLV',
+                numVacantes: '8',
+                contextoAdicional: 'Labores de repellado, estuco, pintura y mampostería en andamios colgantes o certificados. Tareas a nivel de plomo sobre el vacío absoluto, requiriendo aptitud médica en alturas.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Arnés de cuerpo completo (4 argollas)', 'Eslinga de posicionamiento / Protección de caídas', 'Mascarilla para material particulado (N95/P100)', 'Botas de seguridad con puntera (Dieléctrica)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Protector solar'],
+                entrenamientosSeleccionados: ['Trabajador Autorizado para Trabajo en Alturas', 'Uso y Mantenimiento de EPP', 'Prevención y Control de Incendios (Extintores)'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Alta',
+                exigenciaMental: 'Media',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Ayudante de Excavación y Redes',
+                area: 'Operaciones Internas / Especiales',
+                nivelCargo: 'Operativo',
+                tipoContrato: 'Obra o labor',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Oficial de Obra Blanca y Fachadas',
+                escalasSalarial: '1.2 - 1.5 SMMLV',
+                numVacantes: '10',
+                contextoAdicional: 'Perfil encargado del regateo, excavación manual y apoyo en redes subterráneas. Expuesto a condiciones anaerobias, derrumbes y levantamiento continuo de cargas pesadas.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Respirador con filtros químicos', 'Guantes de protección mecánica/corte', 'Mascarilla para material particulado (N95/P100)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo', 'Capas impermeables'],
+                entrenamientosSeleccionados: ['Trabajador Entrante para Espacios Confinados', 'Ergonomía y Pausas Activas', 'Primeros Auxilios Básicos'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Alta',
+                exigenciaMental: 'Baja',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Técnico Electricista / Liniero',
+                area: 'Mantenimiento Eléctrico',
+                nivelCargo: 'Profesional / Técnico',
+                tipoContrato: 'Término fijo',
+                jornada: 'Turnos rotativos',
+                jefeInmediato: 'Ingeniero Residente de Obra',
+                escalasSalarial: '2.5 - 3.5 SMMLV',
+                numVacantes: '4',
+                contextoAdicional: 'Experto certificado CONTE. Manipulación de redes activas y pasivas de baja y media tensión, montaje de transformadores y subestaciones eléctricas.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Guantes de protección mecánica/corte', 'Botas de seguridad con puntera (Dieléctrica)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Arnés de cuerpo completo (4 argollas)', 'Eslinga de posicionamiento / Protección de caídas'],
+                entrenamientosSeleccionados: ['Trabajador Autorizado para Trabajo en Alturas', 'Manejo Seguro de Herramientas Eléctricas y Manuales', 'Plan de Emergencias y Evacuación'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Alta',
+                exigenciaMental: 'Media',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Soldador Estructural Homologado',
+                area: 'Metalmecánica',
+                nivelCargo: 'Profesional / Técnico',
+                tipoContrato: 'Obra o labor',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Ingeniero Residente de Obra',
+                escalasSalarial: '2.8 - 4.0 SMMLV',
+                numVacantes: '3',
+                contextoAdicional: 'Armado de puentes y estructuras metálicas a gran escala, usando MIG/TIG y electrodo revestido. Exposición directa a humos metálicos y material particulado muy dañino.',
+                eppSeleccionados: ['Respirador con filtros químicos', 'Guantes de nitrilo/látex/vaqueta/carnaza', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo'],
+                entrenamientosSeleccionados: ['Uso y Mantenimiento de EPP', 'Prevención y Control de Incendios (Extintores)', 'Reporte de Actos y Condiciones Inseguras'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Alta',
+                exigenciaMental: 'Media',
+                operaMaquinaria: 'Sí',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Auxiliar de Almacén y Bodega',
+                area: 'Almacén y Compras',
+                nivelCargo: 'Auxiliar / Asistencial',
+                tipoContrato: 'Término indefinido',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Ingeniero Residente de Obra',
+                escalasSalarial: '1.3 - 1.6 SMMLV',
+                numVacantes: '2',
+                contextoAdicional: 'Entrega de material y control de Kardex. Operación ocasional de estocadora o montacarga. Levantamiento constante de bultos de cemento.',
+                eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Botas de seguridad con puntera (Dieléctrica)', 'Guantes de protección mecánica/corte', 'Mascarilla para material particulado (N95/P100)'],
+                entrenamientosSeleccionados: ['Ergonomía y Pausas Activas', 'Mantenimiento Preventivo de Equipos', 'Reporte de Actos y Condiciones Inseguras'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Media',
+                exigenciaMental: 'Baja',
+                operaMaquinaria: 'No',
+            },
+            {
+                id: crypto.randomUUID(),
+                nombreCargo: 'Auxiliar Contable y Administrativa',
+                area: 'Contabilidad y Finanzas',
+                nivelCargo: 'Auxiliar / Asistencial',
+                tipoContrato: 'Término fijo',
+                jornada: 'Tiempo completo (8 horas/día)',
+                jefeInmediato: 'Gerencia Administrativa',
+                escalasSalarial: '1.5 - 2.0 SMMLV',
+                numVacantes: '3',
+                contextoAdicional: 'Digitalización, conciliaciones bancarias, pago de proveedores. Cargo con posturas sedentes prolongadas (> 7 horas), y estrés frente a cierres de mes fiscales.',
+                eppSeleccionados: [],
+                entrenamientosSeleccionados: ['Ergonomía y Pausas Activas', 'Riesgo Psicosocial y Manejo del Estrés', 'Plan de Emergencias y Evacuación'],
+                images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
+                video: null,
+                exigenciaFisica: 'Baja',
+                exigenciaMental: 'Media',
+                operaMaquinaria: 'No',
+            }
+        ];
+
+        setPerfiles(dummyProfiles);
+        setActivePerfilId(dummyProfiles[0].id);
+        setFormData(dummyProfiles[0]);
+        setGeneratedReport(null);
+        setEditorContent(null);
+        setEditorKey(Date.now().toString());
+
+        try {
+            const res = await fetch('/api/sgsst/perfiles-cargo/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ perfilesList: dummyProfiles }),
+            });
+            if (res.ok) {
+                showToast({ message: 'Base de datos completada con 10 perfiles de cargo', status: 'success', severity: 'success' });
+            } else {
+                throw new Error('Failed to save to db');
+            }
+        } catch(e) {
+            showToast({ message: 'Error al guardar los perfiles en la base de datos', status: 'error' });
+        }
+    };
+
     // ─── Render Field helper ──────────────────────────────────────────────────
     const renderField = (field: any) => {
         const baseClass =
@@ -637,20 +854,7 @@ const PerfilesCargo = () => {
                 hasContent={!!generatedReport}
                 exportContent={editorContent || ''}
                 exportFileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
-                onDummy={() => {
-                    const dummy = {
-                        ...formData,
-                        nombreCargo: 'Coordinador de Seguridad y Salud en el Trabajo',
-                        area: 'Recursos Humanos / SST',
-                        nivelCargo: 'Profesional / Técnico',
-                        escalasSalarial: '3.5 - 4.5 SMMLV',
-                        contextoAdicional: 'Liderar el programa de alturas, coordinar capacitación de espacios confinados y supervisar brigadas de emergencia.',
-                        eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)'],
-                        entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Supervisor de Trabajo en Espacios Confinados', 'Inducción y Reinducción en SST']
-                    };
-                    setFormData(dummy);
-                    showToast({ message: 'Ejemplo cargado', status: 'success', severity: 'success' });
-                }}
+                onDummy={handleLoadDummyData}
             />
 
             {/* ── History (Filtered by Profile ID) ── */}
