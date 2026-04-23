@@ -93,6 +93,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
   const lastUpdatedAtRef = useRef<string | null>(null);
+  const isSavingRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
@@ -100,6 +101,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   // ── Fetch document from backend ──────────────────────────────────────────
   const fetchDocument = useCallback(async (isInitial = false) => {
     if (!conversationId || conversationId === 'new') return;
+    // Don't overwrite content while a save is in progress
+    if (isSavingRef.current) return;
     try {
       if (isInitial) setIsLoading(true);
       const res = await fetch(`/api/live-editor/${conversationId}`, {
@@ -109,11 +112,14 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
 
       if (data.contentUpdatedAt && data.contentUpdatedAt !== lastUpdatedAtRef.current) {
         lastUpdatedAtRef.current = data.contentUpdatedAt;
-        // Ensure every doc has default signature blocks
         const htmlWithSigs = appendSignatureIfMissing(data.content || '');
         setContent(htmlWithSigs);
         setFileName(data.fileName || 'Documento sin título');
-        setEditorKey(Date.now().toString());
+        // Only remount the editor on initial load, not on background polls
+        // to avoid losing in-progress edits
+        if (isInitial) {
+          setEditorKey(Date.now().toString());
+        }
       }
     } catch (e) {
       console.error('[LiveEditorPanel] Fetch error:', e);
@@ -134,8 +140,13 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   const handleSave = useCallback(async () => {
     if (!conversationId || conversationId === 'new') return;
     try {
+      isSavingRef.current = true;
       setIsSaving(true);
-      const finalContent = appendSignatureIfMissing(editorContent || content);
+      // Prefer editorContent (live DOM state) over content (last-fetched state)
+      // Never fall back to server content — only save what the user actually sees
+      const toSave = editorContent || content;
+      if (!toSave) return;
+      const finalContent = appendSignatureIfMissing(toSave);
       const res = await fetch(`/api/live-editor/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -143,14 +154,16 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       });
       if (res.ok) {
         const data = await res.json();
+        // Update ref AFTER save succeeds so the poll knows this timestamp is ours
         lastUpdatedAtRef.current = data.contentUpdatedAt;
-        // Tag the conversation so it appears in ReportHistory
+        setContent(finalContent);
         await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
         setRefreshTrigger(prev => prev + 1);
       }
     } catch (e) {
       console.error('[LiveEditorPanel] Save error:', e);
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   }, [conversationId, token, editorContent, content, fileName]);

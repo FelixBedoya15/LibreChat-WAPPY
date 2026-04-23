@@ -2,55 +2,16 @@ import React, { useRef, useMemo, useState, useCallback, useEffect, type CSSPrope
 import ReactDOM from 'react-dom';
 import { useAuthContext, useNavScrolling, useLocalize } from '~/hooks';
 import { useConversationsInfiniteQuery } from '~/data-provider';
-import { Spinner, OGDialog, OGDialogContent, Button } from '@librechat/client';
+import { Spinner } from '@librechat/client';
 import type { ConversationListResponse } from 'librechat-data-provider';
 import { useQueryClient, type InfiniteQueryObserverResult } from '@tanstack/react-query';
 import { FileText, RefreshCw, X, MoreVertical, Edit, Trash, History } from 'lucide-react';
 import { cn } from '~/utils';
 import axios from 'axios';
 
-// Simplified Delete Dialog
-const DeleteReportDialog = ({
-    open,
-    onOpenChange,
-    onConfirm,
-    title,
-    loading
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onConfirm: () => void;
-    title: string;
-    loading: boolean;
-}) => {
-    const localize = useLocalize();
-    return (
-        <OGDialog open={open} onOpenChange={onOpenChange}>
-            <OGDialogContent title={localize('com_ui_delete_report_confirm_title')} className="w-11/12 max-w-md">
-                <div className="py-4">
-                    {localize('com_ui_delete_report_confirm_msg', { 0: title })}<br />
-                    <span className="text-sm text-text-secondary mt-2 block">
-                        {localize('com_ui_delete_report_note')}
-                    </span>
-                </div>
-                <div className="flex justify-end gap-3 mt-4">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        {localize('com_ui_cancel')}
-                    </Button>
-                    <Button variant="destructive" onClick={onConfirm} disabled={loading}>
-                        {loading ? <Spinner className="w-4 h-4" /> : localize('com_ui_delete')}
-                    </Button>
-                </div>
-            </OGDialogContent>
-        </OGDialog>
-    );
-};
-
-// Simple Dropdown Component for Context Menu
 const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversationId: string, title: string, onRename: (name: string) => void, onDelete: () => Promise<void> }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -81,36 +42,39 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
     }, [isOpen]);
 
     const handleRenameClick = () => {
-        const newName = prompt(localize('com_ui_new_report_name'), title);
+        const newName = prompt('Nuevo nombre para el reporte:', title);
         if (newName && newName !== title) onRename(newName);
         setIsOpen(false);
     };
 
-    const handleDeleteConfirm = async () => {
+    const handleDeleteClick = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsOpen(false);
+        const confirmed = window.confirm(`¿Eliminar "${title}" del historial?\nEsta acción no borra la conversación, solo la saca del historial de reportes.`);
+        if (!confirmed) return;
         setIsDeleting(true);
         await onDelete();
         setIsDeleting(false);
-        setShowDeleteDialog(false);
-        setIsOpen(false);
     };
 
     const menu = isOpen ? (
         <div
             ref={dropdownRef}
             style={menuStyle}
-            className="w-32 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg py-1"
+            className="w-36 bg-surface-primary border border-gray-200 dark:border-gray-700 shadow-lg rounded-lg py-1"
         >
             <button
                 onClick={(e) => { e.stopPropagation(); handleRenameClick(); }}
                 className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2"
             >
-                <Edit className="w-3 h-3" /> {localize('com_ui_rename')}
+                <Edit className="w-3 h-3" /> Renombrar
             </button>
             <button
-                onClick={(e) => { e.stopPropagation(); setIsOpen(false); setShowDeleteDialog(true); }}
-                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                onClick={handleDeleteClick}
+                disabled={isDeleting}
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 disabled:opacity-50"
             >
-                <Trash className="w-3 h-3" /> {localize('com_ui_delete')}
+                {isDeleting ? <Spinner className="w-3 h-3" /> : <Trash className="w-3 h-3" />} Eliminar
             </button>
         </div>
     ) : null;
@@ -126,14 +90,6 @@ const MenuDropdown = ({ conversationId, title, onRename, onDelete }: { conversat
             </button>
 
             {ReactDOM.createPortal(menu, document.body)}
-
-            <DeleteReportDialog
-                open={showDeleteDialog}
-                onOpenChange={setShowDeleteDialog}
-                onConfirm={handleDeleteConfirm}
-                title={title}
-                loading={isDeleting}
-            />
         </>
     );
 };
