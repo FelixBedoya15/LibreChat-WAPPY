@@ -197,6 +197,7 @@ const FIELD_SECTIONS = [
 // ─── MultiSelect Component ────────────────────────────────────────────────────
 const MultiSelect = ({ options, selected, onChange, label, placeholder }: { options: string[], selected: string[], onChange: (val: string[]) => void, label: string, placeholder: string }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [inputValue, setInputValue] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
 
     const toggle = (val: string) => {
@@ -204,6 +205,17 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
             onChange(selected.filter(s => s !== val));
         } else {
             onChange([...selected, val]);
+        }
+    };
+
+    const handleAddCustom = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = inputValue.trim();
+            if (val && !selected.includes(val)) {
+                onChange([...selected, val]);
+                setInputValue('');
+            }
         }
     };
 
@@ -216,6 +228,8 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const allOptions = Array.from(new Set([...options, ...selected]));
 
     return (
         <div className="space-y-1 relative" ref={containerRef}>
@@ -237,21 +251,49 @@ const MultiSelect = ({ options, selected, onChange, label, placeholder }: { opti
             </div>
 
             {isOpen && (
-                <div className="absolute z-[60] mt-1 w-full max-h-64 overflow-y-auto bg-surface-secondary border border-border-medium rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2">
-                    <div className="p-1">
-                        {options.map(opt => (
+                <div className="absolute z-[60] mt-1 w-full max-h-72 overflow-hidden bg-surface-secondary border border-border-medium rounded-xl shadow-xl animate-in fade-in slide-in-from-top-2 flex flex-col">
+                    <div className="p-2 border-b border-border-medium bg-surface-primary sticky top-0 z-10 shrink-0">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleAddCustom}
+                            placeholder="Buscar o presionar Enter para crear..."
+                            className="w-full text-xs font-medium rounded-lg bg-surface-secondary border border-border-light px-3 py-2.5 text-text-primary focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400 transition-all placeholder:text-text-tertiary shadow-inner"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <div className="p-1.5 flex-1 overflow-y-auto">
+                        {allOptions.filter(opt => opt.toLowerCase().includes(inputValue.toLowerCase())).map(opt => (
                             <div
                                 key={opt}
                                 onClick={() => toggle(opt)}
                                 className={cn(
-                                    "flex items-center justify-between px-3 py-2 text-sm rounded-md cursor-pointer transition-colors",
+                                    "flex items-center justify-between px-3 py-2.5 text-sm rounded-lg cursor-pointer transition-colors mb-0.5",
                                     selected.includes(opt) ? "bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 font-bold" : "hover:bg-surface-hover text-text-primary"
                                 )}
                             >
-                                <span>{opt}</span>
-                                {selected.includes(opt) && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
+                                <span className="leading-snug">{opt}</span>
+                                {selected.includes(opt) && <CheckCircle2 className="h-4 w-4 text-teal-600 flex-shrink-0 ml-2" />}
                             </div>
                         ))}
+                        {inputValue.trim() && !allOptions.some(opt => opt.toLowerCase() === inputValue.toLowerCase().trim()) && (
+                             <div 
+                                className="px-3 py-2.5 text-sm rounded-lg cursor-pointer text-teal-600 bg-teal-50/50 hover:bg-teal-100 dark:text-teal-400 dark:bg-teal-900/20 dark:hover:bg-teal-900/40 font-bold flex items-center justify-between border border-dashed border-teal-300 dark:border-teal-700 transition-all mt-1"
+                                onClick={() => {
+                                    onChange([...selected, inputValue.trim()]);
+                                    setInputValue('');
+                                }}
+                             >
+                                 <span className="truncate mr-2">Agregar "{inputValue.trim()}"</span>
+                                 <Plus className="h-4 w-4 flex-shrink-0"/> 
+                             </div>
+                        )}
+                        {allOptions.filter(opt => opt.toLowerCase().includes(inputValue.toLowerCase())).length === 0 && !inputValue.trim() && (
+                            <div className="px-3 py-4 text-center text-xs text-text-tertiary italic">
+                                No hay opciones disponibles
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -608,7 +650,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Junta Directiva',
                 escalasSalarial: '> 10 SMMLV',
                 numVacantes: '1',
-                contextoAdicional: 'Líder de la estrategia corporativa, responsable legal y de los recursos de la empresa. Representa altos niveles de carga mental por la toma de decisiones, manejo presupuestal y relaciones comerciales en un contexto altamente volátil.',
+                contextoAdicional: 'Cargo administrativo y de dirección estratégica de la compañía. Las tareas implican trabajo sedentario prolongado (>6h) frente a video terminales, reuniones constantes de alta presión, negociaciones con proveedores y toma de decisiones presupuestales. El riesgo predominante es el psicosocial, derivado de altas cargas de estrés laboral, responsabilidad por el personal y los activos, y horarios extendidos. El riesgo biomecánico está presente en posturas mantenidas sedentes, trabajo repetitivo en teclado, y posibles disconfortes térmicos o lumínicos en oficina. Ocasionalmente, realiza visitas técnicas de inspección a campo u operaciones, exponiéndose temporalmente a riesgos físicos, químicos y mecánicos.',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)'],
                 entrenamientosSeleccionados: ['Inducción y Reinducción en SST', 'Riesgo Psicosocial y Manejo del Estrés', 'Plan de Emergencias y Evacuación'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -627,7 +669,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Gerente General',
                 escalasSalarial: '3.5 - 4.5 SMMLV',
                 numVacantes: '1',
-                contextoAdicional: 'Debe garantizar que se cumpla al 100% el rigor del Decreto 1072, la GTC 45 y la Resolución 0312. Audita en sitio los trabajos de alto riesgo y gestiona inspecciones, EPP y planes de emergencia.',
+                contextoAdicional: 'Profesional responsable del diseño, ejecución y auditoría de campo del Sistema de Gestión SST. Combina un 40% de labor administrativa (riesgo biomecánico, visual, posturas sedentes) y un 60% de trabajo directo en campo. En campo, audita zonas de alto riesgo: andamios colgantes, espacios confinados y zanjas. Se expone a ruido continuo (>85 dB), vibraciones de maquinaria pesada, radiación ultravioleta, y alta polución por sílice. Alta carga mental y emocional derivada del manejo de emergencias y accidentes.',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Protección auditiva (Inserción/Copa)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo'],
                 entrenamientosSeleccionados: ['Coordinador de Trabajo Seguro en Alturas', 'Identificación de Peligros y Riesgos (GTC 45)', 'Plan de Emergencias y Evacuación', 'Primeros Auxilios Básicos', 'Supervisor de Trabajo en Espacios Confinados'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -646,7 +688,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Gerencia Administrativa',
                 escalasSalarial: '5.0 - 7.0 SMMLV',
                 numVacantes: '2',
-                contextoAdicional: 'Coordinación y ejecución en campo de proyectos de infraestructura. Manejo de contratistas, supervisión estricta de planos, presupuestos y aval de permisos de trabajo.',
+                contextoAdicional: 'Mando técnico encargado de la supervisión total del proyecto. Su jornada exige amplios recorridos a pie por terrenos agrestes o estructuras en construcción, exponiéndose a un altísimo riesgo biomecánico (terreno inestable, caídas). A nivel físico, se expone a radiación solar intensa, ruido repetitivo producido por compresores, y estrés térmico. El riesgo emergente exige altísima carga mental en toma de decisiones críticas inmediatas. Existe riesgo de impactos por caída de objetos o interacción con maquinaria móvil.',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)'],
                 entrenamientosSeleccionados: ['Inducción y Reinducción en SST', 'Identificación de Peligros y Riesgos (GTC 45)', 'Administrador del Programa de Protección Contra Caídas'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -665,7 +707,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Ingeniero Residente de Obra',
                 escalasSalarial: '1.5 - 2.5 SMMLV',
                 numVacantes: '6',
-                contextoAdicional: 'Manejo de equipo pesado, transporte de materiales pétreos y escombros. Expuesto a riesgo público, vibración de cuerpo entero y estrés por condiciones de tránsito.',
+                contextoAdicional: 'Cargo operativo al volante en turnos prolongados. Se expone intensamente a vibraciones de cuerpo entero transmitidas por el terreno, incidiendo directamente en desórdenes musculoesqueléticos lumbares crónicos. Postura sedente fija y movimientos repetitivos articulares. Mantenimiento del nivel máximo de atención ocular (riesgo público, colisión). Existe riesgo biomecánico secundario por manipulación ocasional de llantas, y químico agudo y crónico debido a inhalación de gases tóxicos de motor diésel y polvo.',
                 eppSeleccionados: ['Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo', 'Guantes de protección mecánica/corte', 'Protección auditiva (Inserción/Copa)'],
                 entrenamientosSeleccionados: ['Seguridad Vial (PESV)', 'Ergonomía y Pausas Activas', 'Primeros Auxilios Básicos'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -684,7 +726,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Ingeniero Residente de Obra',
                 escalasSalarial: '1.8 - 2.5 SMMLV',
                 numVacantes: '8',
-                contextoAdicional: 'Labores de repellado, estuco, pintura y mampostería en andamios colgantes o certificados. Tareas a nivel de plomo sobre el vacío absoluto, requiriendo aptitud médica en alturas.',
+                contextoAdicional: 'Ejecutor demandante de labores sobre andamios tubulares o sistemas por cuerdas sobre espacios vacíos altísimos (riesgo extremo de muerte por precipitación/caída en altura). Expuesto de forma constante por inhalación y afecciones en piel a pinturas a base de solventes orgánicos y vapores VOCs (riesgo químico). Movimientos en extremidades con un alto desgaste por manipulación de bultos > 20kg. Sobreesfuerzo constante en hombros por trabajos sobre cabeza. Exposición a deslumbramientos oculares por refracción solar.',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Arnés de cuerpo completo (4 argollas)', 'Eslinga de posicionamiento / Protección de caídas', 'Mascarilla para material particulado (N95/P100)', 'Botas de seguridad con puntera (Dieléctrica)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Protector solar'],
                 entrenamientosSeleccionados: ['Trabajador Autorizado para Trabajo en Alturas', 'Uso y Mantenimiento de EPP', 'Prevención y Control de Incendios (Extintores)'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -703,7 +745,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Oficial de Obra Blanca y Fachadas',
                 escalasSalarial: '1.2 - 1.5 SMMLV',
                 numVacantes: '10',
-                contextoAdicional: 'Perfil encargado del regateo, excavación manual y apoyo en redes subterráneas. Expuesto a condiciones anaerobias, derrumbes y levantamiento continuo de cargas pesadas.',
+                contextoAdicional: 'Perfil de exigencia anaeróbica y máxima carga estática/dinámica. Retiro o corte y manejo manual de terrenos en zanjas profundas (>1.5 m). Constante exposición inminente al derrumbe de paredes y atrapamiento, aplastamiento, electrocución subterránea, o asfixia en la fosa (riesgo locativo de espacios confinados o deficientes de ventilación). Inhala polvo de sílice crónicamente, padece dermatosis por barro/cemento vivo (químico) e interactúa físicamente a intemperie en temperaturas hostiles.',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Respirador con filtros químicos', 'Guantes de protección mecánica/corte', 'Mascarilla para material particulado (N95/P100)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo', 'Capas impermeables'],
                 entrenamientosSeleccionados: ['Trabajador Entrante para Espacios Confinados', 'Ergonomía y Pausas Activas', 'Primeros Auxilios Básicos'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -722,7 +764,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Ingeniero Residente de Obra',
                 escalasSalarial: '2.5 - 3.5 SMMLV',
                 numVacantes: '4',
-                contextoAdicional: 'Experto certificado CONTE. Manipulación de redes activas y pasivas de baja y media tensión, montaje de transformadores y subestaciones eléctricas.',
+                contextoAdicional: 'Especialista en conexión de tableros eléctricos y acometidas de energía secundaria. Su riesgo primordial y grave es descarga o contacto con fases de baja/media tensión, arco eléctrico letal, o shock con posterior caída de la escalera/poste. Hiperextensión frecuente de cérvix, brazos, posiciones isométricas no confortables, generando tenosinovitis, combinadas con manipulación fina manual con guantes aislantes. Manejo indispensable de herramientas manuales de punción y corte (alicates, navajas mecánicas).',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Guantes de protección mecánica/corte', 'Botas de seguridad con puntera (Dieléctrica)', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Arnés de cuerpo completo (4 argollas)', 'Eslinga de posicionamiento / Protección de caídas'],
                 entrenamientosSeleccionados: ['Trabajador Autorizado para Trabajo en Alturas', 'Manejo Seguro de Herramientas Eléctricas y Manuales', 'Plan de Emergencias y Evacuación'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -741,7 +783,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Ingeniero Residente de Obra',
                 escalasSalarial: '2.8 - 4.0 SMMLV',
                 numVacantes: '3',
-                contextoAdicional: 'Armado de puentes y estructuras metálicas a gran escala, usando MIG/TIG y electrodo revestido. Exposición directa a humos metálicos y material particulado muy dañino.',
+                contextoAdicional: 'El trabajador presenta exposición aguda y crónica de alta intensidad a agentes cancerígenos (vapores metálicos, formaldehídos de soldadura MIG/MAG). Riesgo grave ocular y de piel por potentes emisiones de radiación visible, infrarroja y ultravioleta proveniente de la chispa eléctrica o de corte térmico, además de proyección masiva y directa de chispas ardientes en tronco y rostro, forzando la asunción prolongada de flexión o cuclillas extremas (riesgo osteomuscular severo).',
                 eppSeleccionados: ['Respirador con filtros químicos', 'Guantes de nitrilo/látex/vaqueta/carnaza', 'Gafas de seguridad (Claras/Oscuras/Antiempañantes)', 'Botas de seguridad con puntera (Dieléctrica)', 'Overol de trabajo / Chaleco reflectivo'],
                 entrenamientosSeleccionados: ['Uso y Mantenimiento de EPP', 'Prevención y Control de Incendios (Extintores)', 'Reporte de Actos y Condiciones Inseguras'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -760,7 +802,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Ingeniero Residente de Obra',
                 escalasSalarial: '1.3 - 1.6 SMMLV',
                 numVacantes: '2',
-                contextoAdicional: 'Entrega de material y control de Kardex. Operación ocasional de estocadora o montacarga. Levantamiento constante de bultos de cemento.',
+                contextoAdicional: 'El principal riesgo es el esfuerzo biomecánico agudo al manipular, levantar o traccionar centenares de cajas, vigas pesadas, bultos y sacos semanalmente. Esta repetitividad desencadena hernias o pinzamientos discales lumbares y daños articulares. Trabaja en micro-entornos de poca circulación (riesgo locativo de aplastamiento) y entre flujos intensivos de transporte vehicular que podría prensar al almacenista de cara a corredores cerrados, al igual que cortaduras en el desembalaje de hierro y flejes con filos cortopunzantes.',
                 eppSeleccionados: ['Casco de seguridad (Dieléctrico/Tipo I/II)', 'Botas de seguridad con puntera (Dieléctrica)', 'Guantes de protección mecánica/corte', 'Mascarilla para material particulado (N95/P100)'],
                 entrenamientosSeleccionados: ['Ergonomía y Pausas Activas', 'Mantenimiento Preventivo de Equipos', 'Reporte de Actos y Condiciones Inseguras'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
@@ -779,7 +821,7 @@ const PerfilesCargo = () => {
                 jefeInmediato: 'Gerencia Administrativa',
                 escalasSalarial: '1.5 - 2.0 SMMLV',
                 numVacantes: '3',
-                contextoAdicional: 'Digitalización, conciliaciones bancarias, pago de proveedores. Cargo con posturas sedentes prolongadas (> 7 horas), y estrés frente a cierres de mes fiscales.',
+                contextoAdicional: 'Trabajo sedentario, completamente estático por más de 8 horas, provocando trastornos musculoesqueléticos como inflamación de la región tenar o síndrome del túnel del carpo por impacto reiterativo incesante de teclas/clic de un ratón. Riesgo visual significativo debido el brillo persistente y falta de parpadeo adecuado ante documentos de caracteres microscópicos y resoluciones de pantalla inadecuadas. Concentración numérica demandante, alto riesgo sicosocial de sobrecarga, ansiedad por fechas fiscales obligatorias o presión legal corporativa.',
                 eppSeleccionados: [],
                 entrenamientosSeleccionados: ['Ergonomía y Pausas Activas', 'Riesgo Psicosocial y Manejo del Estrés', 'Plan de Emergencias y Evacuación'],
                 images: { foto1: null, foto2: null, foto3: null, foto1Desc: '', foto2Desc: '', foto3Desc: '' },
