@@ -104,7 +104,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ isOpen, onClose, onS
     const targetNode = document.fullscreenElement || document.body;
 
     return ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 touch-none">
+        <div className="fixed inset-0 z-[99999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 touch-none">
             <div className="bg-white dark:bg-surface-secondary w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
                 <div className="p-4 border-b border-border-light flex justify-between items-center bg-surface-tertiary">
                     <h3 className="font-bold text-lg text-text-primary">{title}</h3>

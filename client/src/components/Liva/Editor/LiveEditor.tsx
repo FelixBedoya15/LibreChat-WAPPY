@@ -480,6 +480,20 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         e.target.value = '';
     };
 
+    // Persist signatures to backend
+    const persistSignaturesToBackend = async (signatures: Record<string, string>) => {
+        if (!token) return;
+        try {
+            await fetch('/api/sgsst/signatures', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ signatures }),
+            });
+        } catch (err) {
+            console.error('Error saving signatures to backend:', err);
+        }
+    };
+
     const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -488,20 +502,32 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                 const signatureUrl = readerEvent.target?.result as string;
                 let nameToUse = activeSignatureName;
                 if (!nameToUse || nameToUse === 'DESCONOCIDO') {
-                    nameToUse = prompt("¿A qué nombre o rol pertenece esta firma?")?.trim().toUpperCase() || `Firma ${Object.keys(namedSignatures).length + 1}`;
+                    nameToUse = prompt('¿A qué nombre o rol pertenece esta firma?')?.trim().toUpperCase() || `Firma ${Object.keys(namedSignatures).length + 1}`;
                 }
 
-                setNamedSignatures(prev => ({
-                    ...prev,
-                    [nameToUse]: signatureUrl
-                }));
+                const updated = { ...namedSignatures, [nameToUse]: signatureUrl };
+                setNamedSignatures(updated);
+                localStorage.setItem('wappy_signatures', JSON.stringify(updated));
+                persistSignaturesToBackend(updated);
 
-                // Auto insert directly if it was called independent of a placeholder
-                if (!activeSignaturePlaceholder) {
-                    const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma ${nameToUse}" />`;
-                    document.execCommand('insertHTML', false, img);
+                // Insert into placeholder or at cursor
+                const img = document.createElement('img');
+                img.src = signatureUrl;
+                img.style.maxHeight = '100px';
+                img.style.display = 'block';
+                img.style.margin = '10px auto';
+                img.alt = `Firma ${nameToUse}`;
+
+                if (activeSignaturePlaceholder && editorRef.current?.contains(activeSignaturePlaceholder)) {
+                    activeSignaturePlaceholder.replaceWith(img);
+                } else {
+                    const html = `<img src="${signatureUrl}" style="max-height:100px;display:block;margin:10px auto;" alt="Firma ${nameToUse}" />`;
+                    document.execCommand('insertHTML', false, html);
                 }
+                onUpdate(editorRef.current?.innerHTML || '');
+                setActiveSignaturePlaceholder(null);
                 setIsSignatureModalOpen(false);
+                setIsDrawingPadOpen(false);
             };
             reader.readAsDataURL(file);
         }
@@ -509,48 +535,61 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     };
 
     const insertSignature = (signatureUrl: string, existingName: string) => {
-        if (activeSignaturePlaceholder) {
-            if (activeSignatureName && activeSignatureName !== 'DESCONOCIDO' && activeSignatureName !== existingName) {
-                setNamedSignatures(prev => ({
-                    ...prev,
-                    [activeSignatureName]: signatureUrl
-                }));
-            } else {
-                const img = document.createElement('img');
-                img.src = signatureUrl;
-                img.style.maxHeight = '100px';
-                img.style.display = 'block';
-                img.style.margin = '10px auto';
-                activeSignaturePlaceholder.replaceWith(img);
-                onUpdate(editorRef.current?.innerHTML || '');
-            }
-            setActiveSignaturePlaceholder(null);
+        const img = document.createElement('img');
+        img.src = signatureUrl;
+        img.style.maxHeight = '100px';
+        img.style.display = 'block';
+        img.style.margin = '10px auto';
+        img.alt = `Firma ${existingName}`;
+
+        if (activeSignaturePlaceholder && editorRef.current?.contains(activeSignaturePlaceholder)) {
+            activeSignaturePlaceholder.replaceWith(img);
         } else {
-            const img = `<img src="${signatureUrl}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma" />`;
-            document.execCommand('insertHTML', false, img);
-            onUpdate(editorRef.current?.innerHTML || '');
+            const html = `<img src="${signatureUrl}" style="max-height:100px;display:block;margin:10px auto;" alt="Firma ${existingName}" />`;
+            document.execCommand('insertHTML', false, html);
         }
+        onUpdate(editorRef.current?.innerHTML || '');
+        setActiveSignaturePlaceholder(null);
         setIsSignatureModalOpen(false);
     };
 
     const saveDrawnSignature = (base64: string) => {
         let nameToUse = activeSignatureName;
         if (!nameToUse || nameToUse === 'DESCONOCIDO') {
-            nameToUse = prompt("¿A qué nombre o rol pertenece esta firma?")?.trim().toUpperCase() || `Firma ${Object.keys(namedSignatures).length + 1}`;
+            nameToUse = prompt('¿A qué nombre o rol pertenece esta firma?')?.trim().toUpperCase() || `Firma ${Object.keys(namedSignatures).length + 1}`;
         }
-        setNamedSignatures(prev => ({ ...prev, [nameToUse]: base64 }));
-        
-        if (!activeSignaturePlaceholder) {
-            const img = `<img src="${base64}" style="max-height: 100px; display: block; margin: 10px auto;" alt="Firma ${nameToUse}" />`;
-            document.execCommand('insertHTML', false, img);
+
+        const updated = { ...namedSignatures, [nameToUse]: base64 };
+        setNamedSignatures(updated);
+        localStorage.setItem('wappy_signatures', JSON.stringify(updated));
+        persistSignaturesToBackend(updated);
+
+        // Immediately insert into the placeholder or at cursor
+        const img = document.createElement('img');
+        img.src = base64;
+        img.style.maxHeight = '100px';
+        img.style.display = 'block';
+        img.style.margin = '10px auto';
+        img.alt = `Firma ${nameToUse}`;
+
+        if (activeSignaturePlaceholder && editorRef.current?.contains(activeSignaturePlaceholder)) {
+            activeSignaturePlaceholder.replaceWith(img);
+        } else {
+            const html = `<img src="${base64}" style="max-height:100px;display:block;margin:10px auto;" alt="Firma ${nameToUse}" />`;
+            document.execCommand('insertHTML', false, html);
         }
+        onUpdate(editorRef.current?.innerHTML || '');
+        setActiveSignaturePlaceholder(null);
         setIsSignatureModalOpen(false);
+        setIsDrawingPadOpen(false);
     };
 
     const deleteSignature = (name: string) => {
         setNamedSignatures(prev => {
             const next = { ...prev };
             delete next[name];
+            localStorage.setItem('wappy_signatures', JSON.stringify(next));
+            persistSignaturesToBackend(next);
             return next;
         });
     };
@@ -919,10 +958,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                     onChange={handleSignatureUpload}
                 />
 
-            {/* Signature Management Modal */}
-            {isSignatureModalOpen && (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
-                    <div className="bg-surface-primary rounded-2xl border border-border-medium shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Signature Management Modal — portal so it sits centered in viewport */}
+            {isSignatureModalOpen && portalNode && createPortal(
+                <div className="fixed inset-0 z-[9999999] flex items-center justify-center p-4 bg-black/50" onClick={() => setIsSignatureModalOpen(false)}>
+                    <div className="bg-surface-primary rounded-2xl border border-border-medium shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b border-border-light flex justify-between items-center bg-surface-secondary">
                             <h3 className="font-bold text-text-primary text-sm uppercase">
                                 {activeSignatureName && activeSignatureName !== 'DESCONOCIDO'
@@ -973,7 +1012,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                                 <ImageIcon size={16} /> Cargar Archivo
                             </button>
                             <button
-                                onClick={() => setIsDrawingPadOpen(true)}
+                                onClick={() => { setIsSignatureModalOpen(false); setIsDrawingPadOpen(true); }}
                                 className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
                             >
                                 <PenTool size={16} /> Dibujar en Pantalla
@@ -986,7 +1025,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                portalNode
             )}
             
             <SignaturePad 
