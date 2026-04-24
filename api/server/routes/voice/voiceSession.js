@@ -1134,7 +1134,7 @@ class VoiceSession {
                     if (this.geminiClient && this.isActive) {
                         logger.info('[VoiceSession] Instructing Gemini Live to announce report...');
                         try {
-                            this.geminiClient.sendText('El informe técnico ha sido generado exitosamente. Puedes revisarlo y editarlo en el panel del editor.');
+                            this.geminiClient.sendText('INSTRUCCIÓN DE SISTEMA: El informe técnico acaba de ser generado exitosamente por el motor de análisis y ya está visible para el usuario en su pantalla del editor principal. Notifícale esto al usuario con una respuesta verbal muy breve de máximo 1 oración, diciendo algo como: "Listo, el informe ha sido generado y cargado en tu pantalla." PROHIBIDO INVENTAR O LEER EL CONTENIDO DEL INFORME. SOLO AVISA QUE YA ESTÁ LISTO.');
                         } catch (announceErr) {
                             logger.warn('[VoiceSession] Could not send report announcement to Gemini:', announceErr.message);
                         }

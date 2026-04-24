@@ -14,7 +14,7 @@ interface LiveAnalysisModalProps {
     conversationId?: string;
     onConversationIdUpdate?: (newId: string) => void;
     onTextReceived?: (text: string) => void;
-    onReportReceived?: (html: string, kpi?: any) => void;
+    onReportReceived?: (html: string, kpi?: any, messageId?: string) => void;
     onConversationUpdated?: () => void;
     selectedModel?: string;
 }
@@ -97,7 +97,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onTextReceived: (text: string) => {
             onTextReceived?.(text);
         },
-        onReportReceived: (html: string) => {
+        onReportReceived: (html: string, messageId?: string) => {
             setHasReceivedReport(true); // Toast is triggered by useEffect watching this
 
             const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -232,7 +232,7 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
 
 </div>`;
 
-            onReportReceived?.(finalHtml, kpi);
+            onReportReceived?.(finalHtml, kpi, messageId);
 
         },
         onStatusChange: (newStatus: string) => {

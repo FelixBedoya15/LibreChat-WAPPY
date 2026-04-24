@@ -344,6 +344,10 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
                 if (message.data.html) {
                     console.log('[LiveAnalysisSession] Report received');
                     optionsRef.current.onReportReceived?.(message.data.html, message.data.messageId);
+                    
+                    // Force state back to ready to unfreeze the UI from "Generando Reporte..."
+                    setStatus('ready');
+                    optionsRef.current.onStatusChange?.('turn_complete');
                 }
                 break;
 
