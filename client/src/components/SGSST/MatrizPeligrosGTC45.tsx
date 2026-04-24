@@ -648,7 +648,7 @@ const MatrizPeligrosGTC45 = () => {
                 if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false); // Hide the history panel
-                showToast({ message: 'Informe guardado', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });

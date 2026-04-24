@@ -221,7 +221,7 @@ const PermisoAlturas = () => {
                 })
             });
             if (res.ok && !silent) {
-                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
@@ -446,9 +446,9 @@ const PermisoAlturas = () => {
                 if (res.ok) {
                     setRefreshTrigger(prev => prev + 1);
                     setTimeout(() => {
-                        window.dispatchEvent(new CustomEvent('add-toast', { detail: { message: 'Informe Guardado correctamente. (Actualizado)', status: 'success', severity: 'success' } }));
+                        window.dispatchEvent(new CustomEvent('add-toast', { detail: { message: 'Guardado exitosamente', status: 'success', severity: 'success' } }));
                     }, 50);
-                    showToast({ message: 'Informe Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
+                    showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
                 }
                 return;
             }
@@ -469,9 +469,9 @@ const PermisoAlturas = () => {
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
                 setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('add-toast', { detail: { message: 'Informe Guardado correctamente. (Nuevo)', status: 'success', severity: 'success' } }));
+                    window.dispatchEvent(new CustomEvent('add-toast', { detail: { message: 'Guardado exitosamente', status: 'success', severity: 'success' } }));
                 }, 50);
-                showToast({ message: 'Informe Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });

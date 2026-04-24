@@ -129,7 +129,7 @@ const ResponsableSGSST = () => {
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
-            showToast({ message: 'Documento generado exitosamente', status: 'success', severity: 'success' });
+            showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
             showToast({ message: error.message || 'Error al generar el documento', status: 'error' });
@@ -150,50 +150,35 @@ const ResponsableSGSST = () => {
         }
 
         try {
-            if (conversationId && conversationId !== 'new' && reportMessageId) {
-                const res = await fetch('/api/sgsst/responsable/save-report', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        conversationId,
-                        messageId: reportMessageId,
-                        content: contentToSave,
-                    }),
-                });
+            const isNew = !conversationId || conversationId === 'new';
+            const res = await fetch('/api/sgsst/diagnostico/save-report', {
+                method: isNew ? 'POST' : 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(isNew ? {
+                    title: 'Asignación Responsable SG-SST',
+                    content: contentToSave,
+                    tags: ['sgsst-responsable'],
+                    metadata: { responsableName, formationLevel }
+                } : {
+                    conversationId,
+                    messageId: reportMessageId,
+                    content: contentToSave,
+                }),
+            });
 
-                if (res.ok) {
-                    setGeneratedDoc(contentToSave);
-                    editorContentRef.current = contentToSave;
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Documento actualizado correctamente ✅', status: 'success', severity: 'success' });
-                } else {
-                    const err = await res.json();
-                    throw new Error(err.message || 'Error al actualizar');
-                }
-            } else {
-                const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({
-                        title: 'Asignación Responsable SG-SST',
-                        content: contentToSave,
-                        tags: ['sgsst-responsable'],
-                        metadata: { responsableName, formationLevel }
-                    }),
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
+            if (res.ok) {
+                const data = await res.json();
+                if (isNew) {
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
-                    setGeneratedDoc(contentToSave);
-                    editorContentRef.current = contentToSave;
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Guardado correctamente. Puedes seguir editando ✅', status: 'success', severity: 'success' });
-                } else {
-                    const err = await res.json();
-                    throw new Error(err.message || 'Error al guardar');
                 }
+                setGeneratedDoc(contentToSave);
+                editorContentRef.current = contentToSave;
+                setRefreshTrigger(prev => prev + 1);
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
+            } else {
+                const err = await res.json();
+                throw new Error(err.message || 'Error al guardar');
             }
         } catch (error: any) {
             console.error('Save error:', error);

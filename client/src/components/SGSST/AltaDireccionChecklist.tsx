@@ -364,7 +364,7 @@ export default function AltaDireccionChecklist() {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(p => p + 1);
-                showToast({ message: 'Informe de Alta Dirección guardado', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
             showToast({ message: 'Error de red al guardar el informe', status: 'error' });

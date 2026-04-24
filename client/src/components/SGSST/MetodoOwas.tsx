@@ -250,7 +250,7 @@ const MetodoOwas = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ formData, observaciones, trabajadoresList, responsablesList, images, video })
       });
-      if (res.ok && !silent) showToast({ message: 'Datos OWAS guardados correctamente.', status: 'success', severity: 'success' });
+      if (res.ok && !silent) showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
   };
 
@@ -416,7 +416,7 @@ const MetodoOwas = () => {
         return;
       }
       const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ content, title: `OWAS – ${new Date().toLocaleDateString('es-CO')}`, tags: ['sgsst-owas'] }) });
-      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Informe OWAS guardado', status: 'success', severity: 'success' }); }
+      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' }); }
     } catch (e: any) { showToast({ message: `Error: ${e.message}`, status: 'error' }); }
   }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 

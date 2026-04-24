@@ -223,7 +223,7 @@ const DashboardPredictivo = () => {
             setConversationId('new');
             setReportMessageId(null);
             setIsReportCollapsed(false);
-            showToast({ message: 'Informe Predictivo generado exitosamente', status: 'success', severity: 'success' });
+            showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             showToast({ message: error.message || 'Error al generar el informe', status: 'error' });
         } finally {
@@ -260,7 +260,7 @@ const DashboardPredictivo = () => {
                 editorContentRef.current = contentToSave;
             liveEditorRef.current?.setHTML(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 const err = await res.json();
                 showToast({ message: `Error al guardar: ${err.error || res.status}`, status: 'error' });

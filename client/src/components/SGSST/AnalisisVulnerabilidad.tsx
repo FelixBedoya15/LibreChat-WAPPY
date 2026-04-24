@@ -297,7 +297,7 @@ const AnalisisVulnerabilidad = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amenazasList: dataToSave, evaluadoresList, images, video })
       });
-      if (res.ok && !silent) showToast({ message: 'Datos guardados correctamente.', status: 'success', severity: 'success' });
+      if (res.ok && !silent) showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
     } catch { if (!silent) showToast({ message: 'Error al guardar.', status: 'error' }); }
   };
 
@@ -419,7 +419,7 @@ const AnalisisVulnerabilidad = () => {
       }
       const titleName = amenazasList.length === 1 ? amenazasList[0].amenaza : `Múltiple (${amenazasList.length} Amenazas)`;
       const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ content, title: `Vulnerabilidad: ${titleName} – ${new Date().toLocaleDateString('es-CO')}`, tags: ['sgsst-vulnerabilidad'] }) });
-      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Análisis guardado permanentemente', status: 'success', severity: 'success' }); }
+      if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' }); }
     } catch (e: any) { showToast({ message: `Error: ${e.message}`, status: 'error' }); }
   }, [generatedReport, conversationId, reportMessageId, token, showToast, amenazasList]);
 

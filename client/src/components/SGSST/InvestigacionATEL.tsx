@@ -260,7 +260,7 @@ const InvestigacionATEL = () => {
                 body: JSON.stringify({ formData, equipoList, testigosList, images, video })
             });
             if (res.ok && !silent) {
-                showToast({ message: 'Datos del formulario guardados correctamente.', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (err) {
             if (!silent) showToast({ message: 'Error al guardar los datos.', status: 'error' });
@@ -543,7 +543,7 @@ const InvestigacionATEL = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });

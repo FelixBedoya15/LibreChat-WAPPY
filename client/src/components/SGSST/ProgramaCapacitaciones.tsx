@@ -71,7 +71,7 @@ export default function ProgramaCapacitaciones() {
                 body: JSON.stringify({ sesiones: updatedSesiones })
             });
             if (res.ok) {
-                showToast({ message: 'Programa guardado correctamente', status: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             } else {
                 throw new Error('Save failed');
             }

@@ -506,7 +506,7 @@ const PerfilSociodemografico = () => {
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
-                showToast({ message: 'Informe guardado', status: 'success', severity: 'success' });
+                showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
