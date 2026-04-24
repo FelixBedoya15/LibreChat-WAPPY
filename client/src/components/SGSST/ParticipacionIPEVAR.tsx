@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -149,11 +149,11 @@ const ParticipacionIPEVAR = () => {
         }
     }, [user]);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -486,8 +486,8 @@ const ParticipacionIPEVAR = () => {
 
             const data = await response.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -501,7 +501,7 @@ const ParticipacionIPEVAR = () => {
     }, [formData, images, selectedModel, token, showToast]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedReport;
+        const contentToSave = editorContentRef.current || generatedReport;
         if (!contentToSave) return;
         if (!token) return;
 
@@ -539,7 +539,7 @@ const ParticipacionIPEVAR = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
@@ -552,10 +552,10 @@ const ParticipacionIPEVAR = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedReport(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
                 showToast({ message: 'Reporte cargado correctamente', status: 'success', severity: 'success' });
@@ -585,7 +585,7 @@ const ParticipacionIPEVAR = () => {
                 onSaveLocal={() => handleSaveData(false)}
                 onSave={handleSave}
                 hasContent={!!generatedReport}
-                exportContent={editorContent || ''}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Reporte_Actos_Condiciones"
                 onDummy={handleDummyData}
                 customSections={[
@@ -966,7 +966,7 @@ const ParticipacionIPEVAR = () => {
                     icon={<AlertTriangle className="h-5 w-5 text-teal-600" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_ParticipacionIPEVAR"
                             reportType="general"
                         />
@@ -975,7 +975,7 @@ const ParticipacionIPEVAR = () => {
                     <div className="p-1 overflow-hidden">
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
+                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
                             </div>
                         </div>
                     </div>

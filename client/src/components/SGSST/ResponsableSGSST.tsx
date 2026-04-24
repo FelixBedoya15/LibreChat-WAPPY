@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, {  useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -46,8 +46,8 @@ const ResponsableSGSST = () => {
 
     // Generated document
     const [generatedDoc, setGeneratedDoc] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // History
@@ -124,8 +124,8 @@ const ResponsableSGSST = () => {
 
             const data = await response.json();
             setGeneratedDoc(data.document);
-            setEditorContent(data.document); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.document;
+            liveEditorRef.current?.setHTML(data.document);
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -139,7 +139,7 @@ const ResponsableSGSST = () => {
     }, [responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms, token, showToast, selectedModel]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedDoc;
+        const contentToSave = editorContentRef.current || generatedDoc;
         if (!contentToSave) {
             showToast({ message: 'No hay documento para guardar', status: 'warning' });
             return;
@@ -195,7 +195,7 @@ const ResponsableSGSST = () => {
             console.error('Save error:', error);
             showToast({ message: error.message || 'Error al guardar el documento', status: 'error' });
         }
-    }, [editorContent, generatedDoc, conversationId, reportMessageId, responsableName, formationLevel, token, showToast]);
+    }, [editorContentRef.current, generatedDoc, conversationId, reportMessageId, responsableName, formationLevel, token, showToast]);
 
     const LOCAL_STORAGE_KEY = 'sgsst_responsable_form';
 
@@ -236,10 +236,10 @@ const ResponsableSGSST = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedDoc(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
                 showToast({ message: 'Documento cargado correctamente', status: 'success', severity: 'success' });
@@ -327,8 +327,8 @@ const ResponsableSGSST = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!editorContentRef.current}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Asignacion_Responsable_SGSST"
                 onDummy={handleDummyData}
             />
@@ -424,7 +424,7 @@ const ResponsableSGSST = () => {
                         icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_ResponsableSGSST"
                             reportType="general"
                         />
@@ -432,9 +432,9 @@ const ResponsableSGSST = () => {
                     >
                         <div className="rounded-xl p-1 overflow-hidden">
                             <LiveEditor
-                                key={editorKey}
+                                ref={liveEditorRef}
                                 initialContent={generatedDoc}
-                                onUpdate={(html) => setEditorContent(html)}
+                                onUpdate={(html) => { editorContentRef.current = html; }}
                                 onSave={handleSave}
                                 reportSourceData={{ responsableName, formationLevel, licenseNumber, licenseExpiry, courseStatus, additionalNorms }}
                             />

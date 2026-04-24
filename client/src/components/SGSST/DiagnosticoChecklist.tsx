@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, {  useState, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
@@ -33,7 +33,7 @@ import {
     getTotalPoints,
     getComplianceLevel,
 } from './checklistData';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
@@ -107,12 +107,12 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     // Analysis state  
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [selectedModel, setSelectedModel] = useState<string>(() => {
@@ -283,7 +283,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
 
             setAnalysisReport(cleanReport);
-            setEditorContent(cleanReport); setEditorKey(Date.now().toString());
+            editorContentRef.current = cleanReport;
+            liveEditorRef.current?.setHTML(cleanReport);
             // Always reset for a fresh save after regeneration
             setConversationId('new');
             setReportMessageId(null);
@@ -309,7 +310,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
     // Save report using dedicated backend endpoint
     const handleSave = useCallback(async () => {
-        let contentToSave = editorContent || analysisReport;
+        let contentToSave = editorContentRef.current || analysisReport;
         if (!contentToSave) {
             showToast({ message: t('com_ui_no_report_save', 'No hay informe para guardar'), status: 'warning' });
             return;
@@ -351,7 +352,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 if (res.ok) {
                     // Synchronize state
                     setAnalysisReport(contentToSave);
-                    setEditorContent(contentToSave); setEditorKey(Date.now().toString());
+                    editorContentRef.current = contentToSave;
+            liveEditorRef.current?.setHTML(contentToSave);
                     setRefreshTrigger(prev => prev + 1);
                     showToast({ message: t('com_ui_diagnostic_updated', 'Diagnóstico actualizado exitosamente'), status: 'success', severity: 'success' });
                 } else {
@@ -379,7 +381,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 setReportMessageId(data.messageId);
                 // Synchronize state
                 setAnalysisReport(contentToSave);
-                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
+                editorContentRef.current = contentToSave;
+            liveEditorRef.current?.setHTML(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: t('com_ui_diagnostic_saved', 'Diagnóstico guardado exitosamente'), status: 'success', severity: 'success' });
             } else {
@@ -391,7 +394,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             console.error('[SGSST Save] Error:', e);
             showToast({ message: t('com_ui_save_network_error', 'Error de red al guardar el diagnóstico'), status: 'error' });
         }
-    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast, statuses, observations, companySize, riskLevel]);
+    }, [editorContentRef.current, analysisReport, token, conversationId, reportMessageId, showToast, statuses, observations, companySize, riskLevel]);
 
     // Load report from history
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
@@ -421,7 +424,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
 
                             // Remove the hidden data from the editor view to avoid confusion
                             // loadedContent = loadedContent.replace(/<!-- SGSST_DATA_V1:.*? -->/g, ''); 
-                            // Actually, keeping it in editorContent is fine as it's hidden HTML, but cleaner to strip for display if needed.
+                            // Actually, keeping it in editorContentRef.current is fine as it's hidden HTML, but cleaner to strip for display if needed.
                             // However, if we strip it, the next save might lose it if we don't re-append. 
                             // My handleSave logic re-appends based on current state, so stripping it from editor is safer.
                             loadedContent = loadedContent.replace(/<!-- SGSST_DATA_V1:.*? -->/g, '');
@@ -437,7 +440,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
                 setAnalysisReport(loadedContent);
-                setEditorContent(loadedContent); setEditorKey(Date.now().toString());
+                editorContentRef.current = loadedContent;
+            liveEditorRef.current?.setHTML(loadedContent);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
@@ -585,8 +589,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!editorContentRef.current}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Diagnostico_SST"
                 onDummy={handleDummyData}
             />
@@ -747,7 +751,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     icon={<FileText className="h-5 w-5" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || analysisReport || ''}
+                            content={editorContentRef.current || analysisReport || ''}
                             fileName="Informe_DiagnosticoChecklist"
                             reportType="general"
                         />
@@ -756,10 +760,10 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                     <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                         <div style={{ minWidth: '900px' }}>
                             <LiveEditor
-                                key={editorKey}
+                                ref={liveEditorRef}
                                 reportType="checklist"
                                 initialContent={analysisReport}
-                                onUpdate={(content) => setEditorContent(content)}
+                                onUpdate={(html) => { editorContentRef.current = html; }}
                                 onSave={handleSave}
                                 reportSourceData={{ statuses, observations, companySize, riskLevel, currentScore, totalPoints, complianceLevel }}
                             />

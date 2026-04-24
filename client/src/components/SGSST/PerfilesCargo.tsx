@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -312,10 +312,10 @@ const PerfilesCargo = () => {
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
@@ -407,7 +407,8 @@ const PerfilesCargo = () => {
                     setActivePerfilId(first.id);
                     setFormData(first);
                     setGeneratedReport(first.report || null);
-                    setEditorContent(first.report || null); setEditorKey(Date.now().toString());
+                    editorContentRef.current = first.report || '';
+                    liveEditorRef.current?.setHTML(first.report || '');
                 } else {
                     const initial = createInitialPerfil();
                     setPerfiles([initial]);
@@ -428,7 +429,8 @@ const PerfilesCargo = () => {
         setActivePerfilId(newPerfil.id);
         setFormData(newPerfil);
         setGeneratedReport(null);
-        setEditorContent(null); setEditorKey(Date.now().toString());
+        editorContentRef.current = '';
+        liveEditorRef.current?.setHTML('');
         setIsFormExpanded(true);
         showToast({ message: 'Nuevo perfil de cargo creado', status: 'info' });
     };
@@ -446,7 +448,8 @@ const PerfilesCargo = () => {
                 setActivePerfilId(updated[0].id);
                 setFormData(updated[0]);
                 setGeneratedReport(updated[0].report || null);
-                setEditorContent(updated[0].report || null); setEditorKey(Date.now().toString());
+                editorContentRef.current = updated[0].report || '';
+                liveEditorRef.current?.setHTML(updated[0].report || '');
             }
         }
     };
@@ -457,7 +460,8 @@ const PerfilesCargo = () => {
             setActivePerfilId(id);
             setFormData(perfil);
             setGeneratedReport(perfil.report || null);
-            setEditorContent(perfil.report || null); setEditorKey(Date.now().toString());
+            editorContentRef.current = perfil.report || '';
+            liveEditorRef.current?.setHTML(perfil.report || '');
             setIsFormExpanded(true);
             // Reset conversation tracking when switching profiles
             setConversationId(null);
@@ -571,8 +575,8 @@ const PerfilesCargo = () => {
             if (!res.ok) throw new Error('Error al generar el perfil');
             const data = await res.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -588,7 +592,7 @@ const PerfilesCargo = () => {
 
     // ─── Report History (Independent) ──────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
-        const content = editorContent || generatedReport;
+        const content = editorContentRef.current || generatedReport;
         if (!content || !token || !activePerfilId) return;
         setIsSaving(true);
         try {
@@ -611,7 +615,7 @@ const PerfilesCargo = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [editorContent, generatedReport, token, activePerfilId, formData.nombreCargo, showToast]);
+    }, [generatedReport, token, activePerfilId, formData.nombreCargo, showToast]);
 
     const handleSelectReport = useCallback(
         async (selectedConvoId: string) => {
@@ -624,10 +628,9 @@ const PerfilesCargo = () => {
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg?.text) {
                     setGeneratedReport(lastMsg.text);
-                    setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
-                    setEditorKey(Date.now().toString());
-            
-            setIsFormExpanded(false);
+                    editorContentRef.current = lastMsg.text;
+                    liveEditorRef.current?.setHTML(lastMsg.text);
+                    setIsFormExpanded(false);
                     showToast({ message: 'Reporte cargado desde el historial', status: 'success', severity: 'success' });
                 }
             } catch {
@@ -836,8 +839,8 @@ const PerfilesCargo = () => {
         setActivePerfilId(dummyProfiles[0].id);
         setFormData(dummyProfiles[0]);
         setGeneratedReport(null);
-        setEditorContent(null);
-        setEditorKey(Date.now().toString());
+        editorContentRef.current = '';
+        liveEditorRef.current?.setHTML('');
 
         try {
             const res = await fetch('/api/sgsst/perfiles-cargo/save', {
@@ -894,7 +897,7 @@ const PerfilesCargo = () => {
                 onSaveLocal={() => handleSaveData(false)}
                 onSave={handleSaveReport}
                 hasContent={!!generatedReport}
-                exportContent={editorContent || ''}
+                exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName={`Perfil_${formData.nombreCargo.replace(/\s+/g, '_')}`}
                 onDummy={handleLoadDummyData}
             />
@@ -1137,7 +1140,7 @@ const PerfilesCargo = () => {
                     icon={<FileText className="h-5 w-5" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_PerfilesCargo"
                             reportType="general"
                         />
@@ -1146,9 +1149,9 @@ const PerfilesCargo = () => {
                     <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                          <div style={{ minWidth: '100%', padding: '24px' }}>
                             <LiveEditor
-                                key={`${editorKey}-${refreshTrigger}`}
+                                ref={liveEditorRef}
                                 initialContent={generatedReport}
-                                onUpdate={setEditorContent}
+                                onUpdate={(html) => { editorContentRef.current = html; }}
                                 onSave={handleSaveReport}
                                 reportSourceData={{ formData, perfiles }}
                             />

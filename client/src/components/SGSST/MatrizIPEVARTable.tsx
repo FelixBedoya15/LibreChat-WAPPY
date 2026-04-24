@@ -13,7 +13,7 @@ import { MatrixRow, ANNEX_C_CRITERIA, detectAnnexCType, PSICOSOCIAL_BATTERY } fr
 import MatrizIPEVARDashboard from './MatrizIPEVARDashboard';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import CollapsibleReportBox from './CollapsibleReportBox';
 
@@ -361,7 +361,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const [aiRowLoading, setAiRowLoading] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
-  const [editorKey, setEditorKey] = useState(() => Date.now().toString());
+  const reportContentRef = useRef<string>('');
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
   const [isReportExpanded, setIsReportExpanded] = useState(true);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [chartConclusions, setChartConclusions] = useState<Record<string, string>>({});
@@ -631,7 +632,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       const data = await res.json();
       if (data.analysis) {
         setReportContent(data.analysis);
-        setEditorKey(Date.now().toString());
+        reportContentRef.current = data.analysis;
+        liveEditorRef.current?.setHTML(data.analysis);
         setIsReportExpanded(true);
         setTimeout(() => document.getElementById('ipevar-report-editor')?.scrollIntoView({ behavior: 'smooth' }), 300);
       }
@@ -640,17 +642,18 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   };
 
   const handleSaveReport = useCallback(async () => {
-    if (!reportContent || !token) return;
+    const contentToSave = reportContentRef.current || reportContent;
+    if (!contentToSave || !token) return;
     try {
       const isNew = !reportConversationId || reportConversationId === 'new';
       const res = await fetch('/api/sgsst/diagnostico/save-report', {
         method: isNew ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(isNew ? {
-          content: reportContent,
+          content: contentToSave,
           title: `Informe IPEVAR GTC-45 - ${new Date().toLocaleDateString('es-CO')}`,
           tags: ['sgsst-matriz-ipevar'],
-        } : { conversationId: reportConversationId, messageId: reportMessageId, content: reportContent }),
+        } : { conversationId: reportConversationId, messageId: reportMessageId, content: contentToSave }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -681,6 +684,8 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       }
       if (content) {
           setReportContent(content);
+          reportContentRef.current = content;
+          liveEditorRef.current?.setHTML(content);
           setReportConversationId(convId); setReportMessageId(msgId);
           setIsHistoryOpen(false);
           setIsReportExpanded(true);
@@ -1170,9 +1175,9 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
               {reportContent ? (
                 <div style={{ minHeight: '500px', width: '100%' }}>
                   <LiveEditor
-                    key={editorKey}
+                    ref={liveEditorRef}
                     initialContent={reportContent}
-                    onUpdate={(content: string) => setReportContent(content)}
+                    onUpdate={(html: string) => { reportContentRef.current = html; }}
                     reportSourceData={{ matrixRows, chartConclusions }}
                     onSave={handleSaveReport}
                     onHistory={() => setIsHistoryOpen(!isHistoryOpen)}

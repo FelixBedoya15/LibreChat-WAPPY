@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, {  useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -14,7 +14,7 @@ import {
 , Download } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -50,14 +50,14 @@ const ReglamentoInterno = () => {
 
     // Generated content
     const [generatedDocument, setGeneratedDocument] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatingProgress, setGeneratingProgress] = useState<{current: number, total: number, title: string} | null>(null);
 
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -80,12 +80,12 @@ const ReglamentoInterno = () => {
 
     const handleGenerate = useCallback(async () => {
         setIsGenerating(true);
-        setEditorKey(Date.now().toString());
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
         setGeneratedDocument('');
-        setEditorContent(''); setEditorKey(Date.now().toString());
+        editorContentRef.current = '';
+            liveEditorRef.current?.setHTML('');
         
         const RIT_CHAPTERS_DEF = [
             { key: 'cap1_admision', title: 'Condiciones de Admisión y Contrato' },
@@ -133,7 +133,8 @@ const ReglamentoInterno = () => {
                 
                 // Show progressive writing in UI
                 setGeneratedDocument(accumulatedHtml);
-                setEditorContent(accumulatedHtml); setEditorKey(Date.now().toString());
+                editorContentRef.current = accumulatedHtml;
+            liveEditorRef.current?.setHTML(accumulatedHtml);
             }
 
             // Finally, generate signatures block and append
@@ -147,7 +148,8 @@ const ReglamentoInterno = () => {
                 const sigData = await sigResponse.json();
                 accumulatedHtml += '\\n' + sigData.signatureHtml;
                 setGeneratedDocument(accumulatedHtml);
-                setEditorContent(accumulatedHtml); setEditorKey(Date.now().toString());
+                editorContentRef.current = accumulatedHtml;
+            liveEditorRef.current?.setHTML(accumulatedHtml);
             }
 
             showToast({ message: 'Reglamento generado exitosamente capítulo por capítulo', status: 'success', severity: 'success' });
@@ -161,7 +163,7 @@ const ReglamentoInterno = () => {
     }, [chapters, selectedModel, token, showToast]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedDocument;
+        const contentToSave = editorContentRef.current || generatedDocument;
         if (!contentToSave) {
             showToast({ message: 'No hay documento para guardar', status: 'warning' });
             return;
@@ -216,7 +218,7 @@ const ReglamentoInterno = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedDocument, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedDocument, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
@@ -231,10 +233,10 @@ const ReglamentoInterno = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedDocument(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
                 showToast({ message: 'Reglamento cargado correctamente', status: 'success', severity: 'success' });
@@ -340,8 +342,8 @@ const ReglamentoInterno = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSave()}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!editorContentRef.current}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Reglamento_Interno_De_Trabajo"
                 onDummy={handleDummyData}
             />
@@ -430,7 +432,7 @@ const ReglamentoInterno = () => {
                     icon={<Briefcase className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_ReglamentoInterno"
                             reportType="general"
                         />
@@ -440,9 +442,9 @@ const ReglamentoInterno = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={editorKey}
+                                    ref={liveEditorRef}
                                     initialContent={generatedDocument}
-                                    onUpdate={(html) => setEditorContent(html)}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
                                     onSave={handleSave}
                                     reportSourceData={chapters}
                                 />

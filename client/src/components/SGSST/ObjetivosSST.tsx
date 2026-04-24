@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, {  useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -47,13 +47,13 @@ const ObjetivosSST = () => {
 
     // Generated objectives
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -91,8 +91,8 @@ const ObjetivosSST = () => {
 
             const data = await response.json();
             setGeneratedObjectives(data.objectives);
-            setEditorContent(data.objectives); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.objectives;
+            liveEditorRef.current?.setHTML(data.objectives);
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -106,7 +106,7 @@ const ObjetivosSST = () => {
     }, [policySummary, diagnosticSummary, additionalNorms, selectedModel, token, showToast]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedObjectives;
+        const contentToSave = editorContentRef.current || generatedObjectives;
         if (!contentToSave) {
             showToast({ message: 'No hay objetivos para guardar', status: 'warning' });
             return;
@@ -163,7 +163,7 @@ const ObjetivosSST = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedObjectives, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedObjectives, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
@@ -179,10 +179,10 @@ const ObjetivosSST = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedObjectives(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
                 showToast({ message: 'Objetivos cargados correctamente', status: 'success', severity: 'success' });
@@ -267,8 +267,8 @@ const ObjetivosSST = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!editorContentRef.current}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Objetivos_SST"
                 onDummy={handleDummyData}
             />
@@ -361,7 +361,7 @@ const ObjetivosSST = () => {
                         icon={<Target className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || generatedObjectives || ''}
+                            content={editorContentRef.current || generatedObjectives || ''}
                             fileName="Informe_ObjetivosSST"
                             reportType="general"
                         />
@@ -371,9 +371,9 @@ const ObjetivosSST = () => {
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
                                     <LiveEditor
-                                        key={editorKey}
+                                        ref={liveEditorRef}
                                         initialContent={generatedObjectives}
-                                        onUpdate={(html) => setEditorContent(html)}
+                                        onUpdate={(html) => { editorContentRef.current = html; }}
                                         onSave={handleSave}
                                         reportSourceData={{ policySummary, diagnosticSummary, additionalNorms, previousObjectives, yearPlan }}
                                     />

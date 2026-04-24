@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, {  useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -18,7 +18,7 @@ import {
     AltaDireccionItem,
     AltaDireccionStatus,
 } from './altaDireccionData';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import ModelSelector from './ModelSelector';
@@ -67,12 +67,12 @@ export default function AltaDireccionChecklist() {
     // Analysis state
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
@@ -312,7 +312,8 @@ export default function AltaDireccionChecklist() {
             const cleanReport = response.data.report.replace(/<img[^>]*>/gi, signatureIcon);
 
             setAnalysisReport(cleanReport);
-            setEditorContent(cleanReport); setEditorKey(Date.now().toString());
+            editorContentRef.current = cleanReport;
+            liveEditorRef.current?.setHTML(cleanReport);
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Informe de Alta Dirección generado exitosamente', status: 'success', severity: 'success' });
@@ -331,7 +332,7 @@ export default function AltaDireccionChecklist() {
 
     // Save report to history
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || analysisReport;
+        const contentToSave = editorContentRef.current || analysisReport;
         if (!contentToSave) {
             showToast({ message: 'No hay informe para guardar', status: 'warning' });
             return;
@@ -368,7 +369,7 @@ export default function AltaDireccionChecklist() {
         } catch (e) {
             showToast({ message: 'Error de red al guardar el informe', status: 'error' });
         }
-    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast]);
+    }, [editorContentRef.current, analysisReport, token, conversationId, reportMessageId, showToast]);
 
     // Load from history
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
@@ -381,7 +382,8 @@ export default function AltaDireccionChecklist() {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setAnalysisReport(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
@@ -497,8 +499,8 @@ export default function AltaDireccionChecklist() {
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
                     onSave={handleSave}
-                    hasContent={!!editorContent}
-                    exportContent={editorContent || ''}
+                    hasContent={!!editorContentRef.current}
+                    exportContent={editorContentRef.current || ''}
                     exportFileName="Revision_Alta_Direccion"
                     customSections={[
                         <div className="flex items-center gap-2" key="custom-buttons">
@@ -831,7 +833,7 @@ export default function AltaDireccionChecklist() {
                         icon={<FileText className="h-5 w-5 text-text-secondary" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || analysisReport || ''}
+                            content={editorContentRef.current || analysisReport || ''}
                             fileName="Informe_AltaDireccionChecklist"
                             reportType="general"
                         />
@@ -840,10 +842,10 @@ export default function AltaDireccionChecklist() {
                         <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                             <div style={{ minWidth: '900px' }}>
                                 <LiveEditor
-                                    key={editorKey}
+                                    ref={liveEditorRef}
                                     reportType="checklist"
                                     initialContent={analysisReport}
-                                    onUpdate={(content) => setEditorContent(content)}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
                                     onSave={handleSave}
                                     reportSourceData={{ statuses, observations }}
                                 />

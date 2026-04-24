@@ -171,7 +171,7 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
     if (!isOpen) return null;
 
     return ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center p-4 sm:p-6">
             {/* Backdrop to handle click outside */}
             <div 
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"

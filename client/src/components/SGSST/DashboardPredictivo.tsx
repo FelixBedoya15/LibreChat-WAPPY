@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, {  useState, useCallback, useEffect, useRef } from 'react';
 import {
     Sparkles,
     Loader2,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -145,7 +145,8 @@ const DashboardPredictivo = () => {
     const [isLoadingForecast, setIsLoadingForecast] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     // UI State
     const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
@@ -157,7 +158,6 @@ const DashboardPredictivo = () => {
     }, [user]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
@@ -218,7 +218,8 @@ const DashboardPredictivo = () => {
 
             const data = await response.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report); setEditorKey(Date.now().toString());
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId('new');
             setReportMessageId(null);
             setIsReportCollapsed(false);
@@ -232,7 +233,7 @@ const DashboardPredictivo = () => {
 
     // ─── Save Report ──────────────────────────────────────────────────────
     const handleSaveReport = useCallback(async () => {
-        const contentToSave = editorContent || generatedReport;
+        const contentToSave = editorContentRef.current || generatedReport;
         if (!contentToSave) { showToast({ message: 'No hay informe para guardar', status: 'warning' }); return; }
         if (!token) { showToast({ message: 'Error: No autorizado', status: 'error' }); return; }
 
@@ -256,7 +257,8 @@ const DashboardPredictivo = () => {
                 const data = await res.json();
                 if (isNew) { setConversationId(data.conversationId); setReportMessageId(data.messageId); }
                 setGeneratedReport(contentToSave);
-                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
+                editorContentRef.current = contentToSave;
+            liveEditorRef.current?.setHTML(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
             } else {
@@ -266,7 +268,7 @@ const DashboardPredictivo = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 
     // ─── Select Report from History ──────────────────────────────────────
     const handleSelectReport = async (reportOrId: any) => {
@@ -292,7 +294,8 @@ const DashboardPredictivo = () => {
         }
 
         if (content) {
-            setGeneratedReport(content); setEditorContent(content); setEditorKey(Date.now().toString());
+            setGeneratedReport(content); editorContentRef.current = content;
+            liveEditorRef.current?.setHTML(content);
             setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
             showToast({ message: 'Informe cargado desde historial', status: 'info' });
@@ -358,8 +361,8 @@ const DashboardPredictivo = () => {
                         selectedModel={selectedModel}
                         onSelectModel={setSelectedModel}
                         onSave={handleSaveReport}
-                        hasContent={!!(editorContent || generatedReport)}
-                        exportContent={editorContent || generatedReport || ''}
+                        hasContent={!!(editorContentRef.current || generatedReport)}
+                        exportContent={editorContentRef.current || generatedReport || ''}
                         exportFileName={`Pronostico_Predictivo_IA_${new Date().toISOString().split('T')[0]}`}
                         customSections={[
                             <button
@@ -553,7 +556,7 @@ const DashboardPredictivo = () => {
                         icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_DashboardPredictivo"
                             reportType="general"
                         />
@@ -561,8 +564,9 @@ const DashboardPredictivo = () => {
                     >
                         <div className="rounded-xl p-1 overflow-hidden bg-white dark:bg-[#1a1a1a]">
                             <LiveEditor
+                                ref={liveEditorRef}
                                 initialContent={generatedReport}
-                                onUpdate={setEditorContent}
+                                onUpdate={(html) => { editorContentRef.current = html; }}
                                 onSave={handleSaveReport}
                                 reportSourceData={forecast}
                             />

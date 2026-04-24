@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, {  useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
@@ -20,7 +20,7 @@ import {
 import { Button, useToastContext } from '@librechat/client';
 import { cn } from '~/utils';
 import { AUDITORIA_ITEMS, AuditoriaItem } from './auditoriaData';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { useAuthContext } from '~/hooks';
 import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
@@ -66,7 +66,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     // Analysis state  
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisReport, setAnalysisReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     const [selectedModel, setSelectedModel] = useState<string>(() => user?.personalization?.geminiModels?.sstManagement || AI_MODELS[0].id);
 
@@ -79,7 +80,6 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const AUDIT_STORAGE_KEY = 'sgsst_auditoria_form';
@@ -276,7 +276,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             const cleanReport = result.report.replace(/<img[^>]*>/gi, signatureIcon);
 
             setAnalysisReport(cleanReport);
-            setEditorContent(cleanReport); setEditorKey(Date.now().toString());
+            editorContentRef.current = cleanReport;
+            liveEditorRef.current?.setHTML(cleanReport);
             // Always reset for a fresh save after regeneration
             setConversationId('new');
             setReportMessageId(null);
@@ -302,7 +303,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
 
     // Save report
     const handleSave = useCallback(async () => {
-        let contentToSave = editorContent || analysisReport;
+        let contentToSave = editorContentRef.current || analysisReport;
         if (!contentToSave) return;
         if (!token) {
             showToast({ message: 'Error: No autorizado', status: 'error' });
@@ -343,7 +344,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 }
                 // Synchronize state
                 setAnalysisReport(contentToSave);
-                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
+                editorContentRef.current = contentToSave;
+            liveEditorRef.current?.setHTML(contentToSave);
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Auditoría guardada exitosamente', status: 'success', severity: 'success' });
             } else {
@@ -353,7 +355,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             console.error('Save error:', e);
             showToast({ message: 'Error de red al guardar', status: 'error' });
         }
-    }, [editorContent, analysisReport, token, conversationId, reportMessageId, showToast, validStatuses, observations]);
+    }, [editorContentRef.current, analysisReport, token, conversationId, reportMessageId, showToast, validStatuses, observations]);
 
     // Load report from history
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
@@ -391,7 +393,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 loadedContent = loadedContent.replace(/<img[^>]*>/gi, signatureIcon);
 
                 setAnalysisReport(loadedContent);
-                setEditorContent(loadedContent); setEditorKey(Date.now().toString());
+                editorContentRef.current = loadedContent;
+            liveEditorRef.current?.setHTML(loadedContent);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
                 setIsHistoryOpen(false);
@@ -541,8 +544,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!(editorContent || analysisReport)}
-                exportContent={editorContent || analysisReport || ''}
+                hasContent={!!(editorContentRef.current || analysisReport)}
+                exportContent={editorContentRef.current || analysisReport || ''}
                 exportFileName="Informe_Auditoria_SST"
                 onDummy={handleDummyData}
             />
@@ -667,7 +670,7 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         icon={<FileText className="h-5 w-5 text-teal-700" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || analysisReport || ''}
+                            content={editorContentRef.current || analysisReport || ''}
                             fileName="Informe_AuditoriaChecklist"
                             reportType="general"
                         />
@@ -676,10 +679,10 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
                         <div style={{ minHeight: '400px', overflowX: 'auto' }}>
                             <div style={{ minWidth: '900px' }}>
                                 <LiveEditor
-                                    key={editorKey}
+                                    ref={liveEditorRef}
                                     reportType="checklist"
                                     initialContent={analysisReport}
-                                    onUpdate={(content) => setEditorContent(content)}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
                                     onSave={handleSave}
                                     reportSourceData={{ statuses: validStatuses, observations, weightedScore, weightedPercentage, complianceLevel }}
                                 />

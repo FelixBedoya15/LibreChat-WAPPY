@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {  useState, useEffect, useCallback, useRef } from 'react';
 import {
     Loader2, AlertTriangle, Shield, Zap, Layers, Download, Sparkles
 } from 'lucide-react';
@@ -8,7 +8,7 @@ import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
 import SGSSTToolbar from './SGSSTToolbar';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { DummyGenerateButton } from '~/components/ui/DummyGenerateButton';
 import { generateDummyData } from '~/utils/dummyDataGenerator';
@@ -203,10 +203,10 @@ const MatrizPeligrosGTC45 = () => {
 
     // Report state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -617,7 +617,8 @@ const MatrizPeligrosGTC45 = () => {
             const html = data.report;
 
             setGeneratedReport(html);
-            setEditorContent(html); setEditorKey(Date.now().toString());
+            editorContentRef.current = html;
+            liveEditorRef.current?.setHTML(html);
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Informe gerencial generado con éxito', status: 'success', severity: 'success' });
@@ -629,7 +630,7 @@ const MatrizPeligrosGTC45 = () => {
     }, [procesos, companyInfo, showToast, token, user, selectedModel]);
 
     const handleSaveReport = useCallback(async () => {
-        const content = editorContent || generatedReport;
+        const content = editorContentRef.current || generatedReport;
         if (!content || !token) return;
         try {
             const isNew = !conversationId || conversationId === 'new';
@@ -652,7 +653,7 @@ const MatrizPeligrosGTC45 = () => {
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         }
-    }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = async (reportOrId: any) => {
         let content = '', convId = '', msgId = '';
@@ -672,7 +673,8 @@ const MatrizPeligrosGTC45 = () => {
             content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
         }
         if (content) {
-            setGeneratedReport(content); setEditorContent(content); setEditorKey(Date.now().toString());
+            setGeneratedReport(content); editorContentRef.current = content;
+            liveEditorRef.current?.setHTML(content);
             setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
         }
@@ -732,7 +734,7 @@ const MatrizPeligrosGTC45 = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSaveReport}
-                exportContent={editorContent || generatedReport || ''}
+                exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="IPEVAR_Bio_Individual"
                 onDummy={handleDummyData}
             />
@@ -1209,7 +1211,7 @@ const MatrizPeligrosGTC45 = () => {
                         icon={<AlertTriangle className="h-5 w-5" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_MatrizPeligrosGTC45"
                             reportType="general"
                         />
@@ -1217,7 +1219,7 @@ const MatrizPeligrosGTC45 = () => {
                 >
                         <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
-                                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} reportSourceData={procesos} onSave={handleSaveReport} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
+                                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} reportSourceData={procesos} onSave={handleSaveReport} onHistory={() => setIsHistoryOpen(!isHistoryOpen)} />
                             </div>
                         </div>
                         <style>{`

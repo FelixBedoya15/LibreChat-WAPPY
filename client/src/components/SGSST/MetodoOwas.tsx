@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -174,11 +174,11 @@ const MetodoOwas = () => {
 
   const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-  const [editorContent, setEditorContent] = useState<string | null>(null);
+  const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [editorKey, setEditorKey] = useState(() => Date.now().toString());
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -395,8 +395,8 @@ const MetodoOwas = () => {
       if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Error al generar'); }
       const data = await response.json();
       setGeneratedReport(data.report);
-      setEditorContent(data.report); setEditorKey(Date.now().toString());
-      setEditorKey(Date.now().toString());
+      editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -407,7 +407,7 @@ const MetodoOwas = () => {
   }, [formData, observaciones, images, video, selectedModel, token, trabajadoresList, responsablesList, showToast, handleSaveData]);
 
   const handleSave = useCallback(async () => {
-    const content = editorContent || generatedReport;
+    const content = editorContentRef.current || generatedReport;
     if (!content || !token) return;
     try {
       if (conversationId && conversationId !== 'new' && reportMessageId) {
@@ -418,7 +418,7 @@ const MetodoOwas = () => {
       const res = await fetch('/api/sgsst/diagnostico/save-report', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ content, title: `OWAS – ${new Date().toLocaleDateString('es-CO')}`, tags: ['sgsst-owas'] }) });
       if (res.ok) { const d = await res.json(); setConversationId(d.conversationId); setReportMessageId(d.messageId); setRefreshTrigger(p => p + 1); showToast({ message: 'Informe OWAS guardado', status: 'success', severity: 'success' }); }
     } catch (e: any) { showToast({ message: `Error: ${e.message}`, status: 'error' }); }
-  }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
+  }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 
   const handleSelectReport = useCallback(async (id: string) => {
     if (!id) return;
@@ -426,7 +426,7 @@ const MetodoOwas = () => {
       const res = await fetch(`/api/messages/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
       const messages = await res.json();
       const last = messages[messages.length - 1];
-      if (last?.text) { setGeneratedReport(last.text); setEditorContent(last.text); setConversationId(id); setReportMessageId(last.messageId); setEditorKey(Date.now().toString());
+      if (last?.text) { setGeneratedReport(last.text); editorContentRef.current = last.text; liveEditorRef.current?.setHTML(last.text); setConversationId(id); setReportMessageId(last.messageId);
             
             setIsFormExpanded(false); showToast({ message: 'OWAS cargado', status: 'success', severity: 'success' }); }
     } catch { showToast({ message: 'Error al cargar', status: 'error' }); }
@@ -454,8 +454,8 @@ const MetodoOwas = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSaveData()}
                 onSave={handleSave}
-                hasContent={!!(editorContent || generatedReport)}
-                exportContent={editorContent || generatedReport || ''}
+                hasContent={!!(editorContentRef.current || generatedReport)}
+                exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="Evaluacion_Ergonomica_OWAS"
                 onDummy={handleDummyData}
             />
@@ -748,7 +748,7 @@ const MetodoOwas = () => {
             icon={<Activity className="h-5 w-5 text-purple-700" />}
             actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_MetodoOwas"
                             reportType="general"
                         />
@@ -757,7 +757,7 @@ const MetodoOwas = () => {
           <div className="p-1 overflow-hidden">
             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
               <div style={{ minWidth: '900px', padding: '16px' }}>
-                <LiveEditor key={editorKey} initialContent={generatedReport} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={{ formData, observaciones }} />
+                <LiveEditor ref={liveEditorRef} initialContent={generatedReport} onUpdate={(html) => { editorContentRef.current = html; }} onSave={handleSave} reportSourceData={{ formData, observaciones }} />
               </div>
             </div>
           </div>

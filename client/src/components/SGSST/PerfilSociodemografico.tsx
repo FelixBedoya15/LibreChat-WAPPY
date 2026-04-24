@@ -20,7 +20,7 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import SingleSelect from './SingleSelect';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import { QRCodeSVG } from 'qrcode.react';
@@ -137,10 +137,10 @@ const PerfilSociodemografico = () => {
 
     // Report state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -469,7 +469,8 @@ const PerfilSociodemografico = () => {
             if (!res.ok) throw new Error('Error al generar informe con IA');
             const data = await res.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report); setEditorKey(Date.now().toString());
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Informe sociodemográfico generado con éxito', status: 'success', severity: 'success' });
@@ -481,7 +482,7 @@ const PerfilSociodemografico = () => {
     }, [trabajadores, cargosDisponibles, showToast, token, user, selectedModel]);
 
     const handleSaveReport = useCallback(async () => {
-        const content = editorContent || generatedReport;
+        const content = editorContentRef.current || generatedReport;
         if (!content || !token) return;
         try {
             const isNew = !conversationId || conversationId === 'new';
@@ -500,7 +501,8 @@ const PerfilSociodemografico = () => {
 
                 // Synchronize state
                 setGeneratedReport(content);
-                setEditorContent(content); setEditorKey(Date.now().toString());
+                editorContentRef.current = content;
+            liveEditorRef.current?.setHTML(content);
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
@@ -509,7 +511,7 @@ const PerfilSociodemografico = () => {
         } catch (err: any) {
             showToast({ message: err.message, status: 'error' });
         }
-    }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = async (reportOrId: any) => {
         let content = '', convId = '', msgId = '';
@@ -529,7 +531,8 @@ const PerfilSociodemografico = () => {
             content = reportOrId.content; convId = reportOrId.conversationId; msgId = reportOrId.messageId;
         }
         if (content) {
-            setGeneratedReport(content); setEditorContent(content); setEditorKey(Date.now().toString());
+            setGeneratedReport(content); editorContentRef.current = content;
+            liveEditorRef.current?.setHTML(content);
             setConversationId(convId); setReportMessageId(msgId);
             setIsHistoryOpen(false);
         }
@@ -723,7 +726,7 @@ const PerfilSociodemografico = () => {
                 isSavingLocal={isSaving}
                 onSave={handleSaveReport}
                 hasContent={!!generatedReport}
-                exportContent={editorContent || generatedReport || ''}
+                exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="Perfil_Sociodemografico"
                 onDummy={handleDummyData}
                 onImportExcel={() => fileInputRef.current?.click()}
@@ -1207,7 +1210,7 @@ const PerfilSociodemografico = () => {
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_PerfilSociodemografico"
                             reportType="general"
                         />
@@ -1215,9 +1218,9 @@ const PerfilSociodemografico = () => {
                 >
                         <div className="rounded-xl p-1 overflow-hidden">
                             <LiveEditor 
-                                key={editorKey} 
+                                ref={liveEditorRef} 
                                 initialContent={generatedReport} 
-                                onUpdate={setEditorContent} 
+                                onUpdate={(html) => { editorContentRef.current = html; }} 
                                 onSave={handleSaveReport} 
                                 reportSourceData={trabajadores} 
                             />

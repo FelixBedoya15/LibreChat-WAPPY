@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, {  useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -46,13 +46,13 @@ const PoliticaSST = () => {
 
     // Generated policy
     const [generatedPolicy, setGeneratedPolicy] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -94,8 +94,8 @@ const PoliticaSST = () => {
 
             const data = await response.json();
             setGeneratedPolicy(data.policy);
-            setEditorContent(data.policy); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.policy;
+            liveEditorRef.current?.setHTML(data.policy);
             setConversationId('new');  // 'new' marker so handleSave uses POST
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -109,7 +109,7 @@ const PoliticaSST = () => {
     }, [hazards, scope, commitments, objectives, additionalNorms, token, showToast]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedPolicy;
+        const contentToSave = editorContentRef.current || generatedPolicy;
         if (!contentToSave) {
             showToast({ message: 'No hay política para guardar', status: 'warning' });
             return;
@@ -166,7 +166,7 @@ const PoliticaSST = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedPolicy, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedPolicy, conversationId, reportMessageId, token, showToast]);
 
 
 
@@ -184,10 +184,10 @@ const PoliticaSST = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedPolicy(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
                 showToast({ message: 'Política cargada correctamente', status: 'success', severity: 'success' });
@@ -289,8 +289,8 @@ const PoliticaSST = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!editorContentRef.current}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Politica_SST"
                 onDummy={handleDummyData}
             />
@@ -385,7 +385,7 @@ const PoliticaSST = () => {
                     icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedPolicy || ''}
+                            content={editorContentRef.current || generatedPolicy || ''}
                             fileName="Informe_PoliticaSST"
                             reportType="general"
                         />
@@ -395,9 +395,9 @@ const PoliticaSST = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={editorKey}
+                                    ref={liveEditorRef}
                                     initialContent={generatedPolicy}
-                                    onUpdate={(html) => setEditorContent(html)}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
                                     onSave={handleSave}
                                     reportSourceData={{ hazards, scope, commitments, objectives, additionalNorms }}
                                 />

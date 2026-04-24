@@ -17,7 +17,7 @@ import {
 , Download, Video, Film } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -144,11 +144,11 @@ const PermisoAlturas = () => {
         }
     }, [user?.personalization?.geminiModels?.sstManagement]);
     const [generatedObjectives, setGeneratedObjectives] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
@@ -413,8 +413,8 @@ const PermisoAlturas = () => {
 
             const data = await response.json();
             setGeneratedObjectives(data.report);
-            setEditorContent(data.report); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -428,7 +428,7 @@ const PermisoAlturas = () => {
     }, [formData, trabajadoresList, responsablesList, images, video, selectedModel, token, showToast, handleSaveData]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedObjectives;
+        const contentToSave = editorContentRef.current || generatedObjectives;
         if (!contentToSave) return;
         if (!token) return;
 
@@ -476,7 +476,7 @@ const PermisoAlturas = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedObjectives, conversationId, reportMessageId, token, showToast]);
+    }, [editorContentRef.current, generatedObjectives, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
@@ -489,10 +489,10 @@ const PermisoAlturas = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedObjectives(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+            liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
             
             setIsFormExpanded(false);
                 showToast({ message: 'Permiso cargado correctamente', status: 'success', severity: 'success' });
@@ -522,8 +522,8 @@ const PermisoAlturas = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!editorContentRef.current}
+                exportContent={editorContentRef.current || ''}
                 exportFileName="Permiso_Alturas"
                 onDummy={handleDummyData}
             />
@@ -881,7 +881,7 @@ const PermisoAlturas = () => {
                         icon={<FileText className="h-5 w-5 text-teal-600" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || generatedObjectives || ''}
+                            content={editorContentRef.current || generatedObjectives || ''}
                             fileName="Informe_PermisoAlturas"
                             reportType="general"
                         />
@@ -890,7 +890,7 @@ const PermisoAlturas = () => {
                         <div className="p-1 overflow-hidden">
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
-                                    <LiveEditor key={editorKey} initialContent={generatedObjectives} onUpdate={setEditorContent} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
+                                    <LiveEditor ref={liveEditorRef} initialContent={generatedObjectives} onUpdate={(html) => { editorContentRef.current = html; }} onSave={handleSave} reportSourceData={{ formData, trabajadoresList, responsablesList }} />
                                 </div>
                             </div>
                         </div>

@@ -28,6 +28,8 @@ interface LiveEditorPanelProps {
 
 const POLL_INTERVAL_MS = 2500;
 const LIVE_EDITOR_TAG = 'sgsst-live-editor';
+/** Per-conversation tag so ReportHistory shows only this chat's history */
+const liveEditorConvoTag = (convoId: string) => `live-doc-${convoId}`;
 
 // ── Default signature block appended to every new document ────────────────
 const DEFAULT_SIGNATURE_BLOCK = `
@@ -158,6 +160,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
         setContent(finalContent);
         editorContentRef.current = finalContent;
         await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+        await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
         setRefreshTrigger(prev => prev + 1);
       }
     } catch (e) {
@@ -209,6 +212,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
           const saved = await saveRes.json();
           lastUpdatedAtRef.current = saved.contentUpdatedAt;
         }
+        // Also tag with per-conversation tag so history only shows this chat's doc
+        await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
+        await tagConversation(conversationId, liveEditorConvoTag(conversationId), token);
       }
       setContent(withSigs);
       editorContentRef.current = withSigs;
@@ -381,13 +387,15 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
         </div>
       </div>
 
-      {/* ── ReportHistory (portal — renders above z-[999999] panel) ─────── */}
+      {/* ── ReportHistory — filters to this conversation's docs only ─────── */}
       <ReportHistory
         onSelectReport={handleSelectReport}
         isOpen={isHistoryOpen}
         toggleOpen={() => setIsHistoryOpen(h => !h)}
         refreshTrigger={refreshTrigger}
-        tags={[LIVE_EDITOR_TAG]}
+        tags={conversationId && conversationId !== 'new'
+          ? [liveEditorConvoTag(conversationId)]
+          : [LIVE_EDITOR_TAG]}
       />
 
       {/* ── Body ────────────────────────────────────────────────────────── */}

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, {  useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { useToastContext } from '@librechat/client';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -70,12 +70,12 @@ const EstadisticasATEL = () => {
     const [isSavingData, setIsSavingData] = useState(false); // New persistence state
     const [isLoadingData, setIsLoadingData] = useState(false); // New persistence state
     const [generatedReport, setGeneratedReport] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isFormExpanded, setIsFormExpanded] = useState(true);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     // Load Data Effect
@@ -217,12 +217,11 @@ const EstadisticasATEL = () => {
 
             const data = await response.json();
             setGeneratedReport(data.report);
-            setEditorContent(data.report); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.report;
+            liveEditorRef.current?.setHTML(data.report);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
-            setEditorKey(Date.now().toString());
 
             // Reset context for new save
             setConversationId('new');
@@ -238,7 +237,7 @@ const EstadisticasATEL = () => {
     }, [annualData, currentMonthIndex, year, selectedModel, token, user, showToast]);
 
     const handleSaveReport = useCallback(async () => {
-        const contentToSave = editorContent || generatedReport;
+        const contentToSave = editorContentRef.current || generatedReport;
         if (!contentToSave) {
             showToast({ message: t('com_ui_no_report_save', 'No hay informe para guardar'), status: 'warning' });
             return;
@@ -277,7 +276,8 @@ const EstadisticasATEL = () => {
                 }
                 // Synchronize state
                 setGeneratedReport(contentToSave);
-                setEditorContent(contentToSave); setEditorKey(Date.now().toString());
+                editorContentRef.current = contentToSave;
+            liveEditorRef.current?.setHTML(contentToSave);
 
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
@@ -288,7 +288,7 @@ const EstadisticasATEL = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedReport, conversationId, reportMessageId, token, showToast, t, currentMonthIndex, year]);
+    }, [editorContentRef.current, generatedReport, conversationId, reportMessageId, token, showToast, t, currentMonthIndex, year]);
 
     const handleSelectReport = async (reportOrId: any) => {
         let content = '';
@@ -340,10 +340,10 @@ const EstadisticasATEL = () => {
 
         if (content) {
             setGeneratedReport(content);
-            setEditorContent(content); setEditorKey(Date.now().toString());
+            editorContentRef.current = content;
+            liveEditorRef.current?.setHTML(content);
             setConversationId(convId);
             setReportMessageId(msgId);
-            setEditorKey(Date.now().toString());
             setIsHistoryOpen(false);
             showToast({ message: t('com_ui_report_loaded', 'Informe cargado'), status: 'info' });
         } else {
@@ -401,8 +401,8 @@ const EstadisticasATEL = () => {
                 onSaveLocal={handleSaveData}
                 isSavingLocal={isSavingData}
                 onSave={handleSaveReport}
-                hasContent={!!(editorContent || generatedReport)}
-                exportContent={editorContent || generatedReport || ''}
+                hasContent={!!(editorContentRef.current || generatedReport)}
+                exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName={`Estadisticas_ATEL_${MONTHS[currentMonthIndex]}`}
                 onDummy={handleDummyData}
             />
@@ -556,7 +556,7 @@ const EstadisticasATEL = () => {
                         icon={<BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedReport || ''}
                             fileName="Informe_EstadisticasATEL"
                             reportType="general"
                         />
@@ -566,9 +566,9 @@ const EstadisticasATEL = () => {
                             <div style={{ minHeight: '800px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
                                     <LiveEditor
-                                        key={editorKey}
+                                        ref={liveEditorRef}
                                         initialContent={generatedReport}
-                                        onUpdate={(html) => setEditorContent(html)}
+                                        onUpdate={(html) => { editorContentRef.current = html; }}
                                         onSave={handleSaveReport}
                                         reportSourceData={annualData}
                                     />
