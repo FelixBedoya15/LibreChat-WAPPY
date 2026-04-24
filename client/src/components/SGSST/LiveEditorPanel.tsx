@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ExportDropdown from './ExportDropdown';
 import store from '~/store';
@@ -83,15 +83,17 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   const { token } = useAuthContext();
 
   const [content, setContent] = useState<string>('');
-  const [editorContent, setEditorContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('Documento sin título');
-  const [editorKey, setEditorKey] = useState<string>(() => Date.now().toString());
   const [isMaximized, setIsMaximized] = useRecoilState<boolean>(store.ipevarMaximized);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
+  // Imperative handle to push content into the editor without remounting
+  const liveEditorRef = useRef<LiveEditorHandle>(null);
+  // Track latest editor content via ref to avoid stale closures in handleSave
+  const editorContentRef = useRef<string>('');
   const lastUpdatedAtRef = useRef<string | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +103,6 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
   // ── Fetch document from backend ──────────────────────────────────────────
   const fetchDocument = useCallback(async (isInitial = false) => {
     if (!conversationId || conversationId === 'new') return;
-    // Don't overwrite content while a save is in progress
     if (isSavingRef.current) return;
     try {
       if (isInitial) setIsLoading(true);
@@ -115,10 +116,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
         const htmlWithSigs = appendSignatureIfMissing(data.content || '');
         setContent(htmlWithSigs);
         setFileName(data.fileName || 'Documento sin título');
-        // Only remount the editor on initial load, not on background polls
-        // to avoid losing in-progress edits
-        if (isInitial) {
-          setEditorKey(Date.now().toString());
+        // Push content directly into editor DOM — no remount needed
+        if (liveEditorRef.current) {
+          liveEditorRef.current.setHTML(htmlWithSigs);
+          editorContentRef.current = htmlWithSigs;
         }
       }
     } catch (e) {
@@ -142,9 +143,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     try {
       isSavingRef.current = true;
       setIsSaving(true);
-      // Prefer editorContent (live DOM state) over content (last-fetched state)
-      // Never fall back to server content — only save what the user actually sees
-      const toSave = editorContent || content;
+      // Read from ref — always has the latest DOM content, no stale closure risk
+      const toSave = editorContentRef.current || content;
       if (!toSave) return;
       const finalContent = appendSignatureIfMissing(toSave);
       const res = await fetch(`/api/live-editor/${conversationId}`, {
@@ -154,9 +154,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       });
       if (res.ok) {
         const data = await res.json();
-        // Update ref AFTER save succeeds so the poll knows this timestamp is ours
         lastUpdatedAtRef.current = data.contentUpdatedAt;
         setContent(finalContent);
+        editorContentRef.current = finalContent;
         await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
         setRefreshTrigger(prev => prev + 1);
       }
@@ -166,7 +166,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [conversationId, token, editorContent, content, fileName]);
+  }, [conversationId, token, content, fileName]);
 
   // ── History: load a saved report ─────────────────────────────────────────
   const handleSelectReport = async (reportOrId: any) => {
@@ -180,7 +180,6 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
           const data = await res.json();
           docContent = data.content || '';
         }
-        // Fallback: try messages endpoint
         if (!docContent) {
           const msgRes = await fetch(`/api/messages/${reportOrId}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -201,15 +200,20 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
     if (docContent) {
       const withSigs = appendSignatureIfMissing(docContent);
       if (conversationId && conversationId !== 'new') {
-        await fetch(`/api/live-editor/${conversationId}`, {
+        const saveRes = await fetch(`/api/live-editor/${conversationId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ content: withSigs }),
         });
+        if (saveRes.ok) {
+          const saved = await saveRes.json();
+          lastUpdatedAtRef.current = saved.contentUpdatedAt;
+        }
       }
       setContent(withSigs);
-      setEditorContent(withSigs);
-      setEditorKey(Date.now().toString());
+      editorContentRef.current = withSigs;
+      // Push directly into editor DOM — no remount
+      liveEditorRef.current?.setHTML(withSigs);
       setIsHistoryOpen(false);
     }
   };
@@ -223,9 +227,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
       headers: { Authorization: `Bearer ${token}` },
     });
     setContent('');
-    setEditorContent('');
+    editorContentRef.current = '';
     lastUpdatedAtRef.current = null;
-    setEditorKey(Date.now().toString());
+    liveEditorRef.current?.setHTML('');
   };
 
   // ── Upload DOCX/PDF ──────────────────────────────────────────────────────
@@ -268,8 +272,8 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
         lastUpdatedAtRef.current = saved.contentUpdatedAt;
         setContent(withSigs);
         setFileName(newFileName);
-        setEditorKey(Date.now().toString());
-        // Tag the conversation for history
+        editorContentRef.current = withSigs;
+        liveEditorRef.current?.setHTML(withSigs);
         await tagConversation(conversationId, LIVE_EDITOR_TAG, token);
         setRefreshTrigger(prev => prev + 1);
       }
@@ -421,9 +425,9 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
           <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
             <div style={{ minWidth: '100%', padding: isMaximized ? '24px' : '12px' }}>
               <LiveEditor
-                key={editorKey}
+                ref={liveEditorRef}
                 initialContent={content}
-                onUpdate={(c: string) => setEditorContent(c)}
+                onUpdate={(c: string) => { editorContentRef.current = c; }}
                 onSave={handleSave}
                 onHistory={() => setIsHistoryOpen(h => !h)}
                 hideFullscreen={true}
