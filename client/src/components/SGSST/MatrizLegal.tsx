@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector, { AI_MODELS } from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -76,7 +76,8 @@ const MatrizLegal = () => {
     // Analysis state  
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [generatedMatrix, setGeneratedMatrix] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState('');
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || AI_MODELS[0].id);
 
@@ -89,7 +90,6 @@ const MatrizLegal = () => {
     // History & save state
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -231,7 +231,8 @@ const MatrizLegal = () => {
 
             const data = await response.json();
             setGeneratedMatrix(data.matrix);
-            setEditorContent(data.matrix); setEditorKey(Date.now().toString());
+            editorContentRef.current = data.matrix;
+            liveEditorRef.current?.setHTML(data.matrix);
             setConversationId('new');
             setReportMessageId(null);
             showToast({ message: 'Matriz Legal generada exitosamente', status: 'success', severity: 'success' });
@@ -279,7 +280,7 @@ const MatrizLegal = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSaveReport = useCallback(async () => {
-        const content = editorContent || generatedMatrix;
+        const content = editorContentRef.current || generatedMatrix;
         if (!content || content.trim() === '') {
             showToast({ message: 'No hay documento generado para guardar en el historial', status: 'warning' });
             return;
@@ -311,7 +312,7 @@ const MatrizLegal = () => {
                 }
                 // Synchronize state
                 setGeneratedMatrix(content);
-                setEditorContent(content); setEditorKey(Date.now().toString());
+                editorContentRef.current = content;
 
                 setRefreshTrigger(prev => prev + 1);
                 setIsHistoryOpen(false);
@@ -324,7 +325,7 @@ const MatrizLegal = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [editorContent, generatedMatrix, conversationId, reportMessageId, token, showToast]);
+    }, [generatedMatrix, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = async (reportOrId: any) => {
         let content = '', convId = '', msgId = '';
@@ -348,7 +349,8 @@ const MatrizLegal = () => {
             // Support legacy embedded states just in case
             const cleanContent = content.replace(/<!-- SGSST_MATRIZ_DATA_V1:.*? -->/g, '').trim();
             setGeneratedMatrix(cleanContent || null);
-            setEditorContent(cleanContent || null); setEditorKey(Date.now().toString());
+            editorContentRef.current = cleanContent || '';
+            liveEditorRef.current?.setHTML(cleanContent || '');
             setConversationId(convId);
             setReportMessageId(msgId);
             setIsHistoryOpen(false);
@@ -394,8 +396,8 @@ const MatrizLegal = () => {
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
                     onSave={handleSaveReport}
-                    hasContent={!!(editorContent || generatedMatrix)}
-                    exportContent={editorContent || generatedMatrix || ''}
+                    hasContent={!!(editorContentRef.current || generatedMatrix)}
+                    exportContent={editorContentRef.current || generatedMatrix || ''}
                     exportFileName="Matriz_Legal_SGSST"
                     onDummy={handleDummyData}
                 />
@@ -575,7 +577,7 @@ const MatrizLegal = () => {
                         icon={<FileText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                         <ExportDropdown
-                            content={editorContent || generatedMatrix || ''}
+                            content={editorContentRef.current || generatedMatrix || ''}
                             fileName="Informe_MatrizLegal"
                             reportType="general"
                         />
@@ -585,9 +587,9 @@ const MatrizLegal = () => {
                             <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                                 <div style={{ minWidth: '900px', padding: '16px' }}>
                                     <LiveEditor
-                                        key={editorKey}
+                                        ref={liveEditorRef}
                                         initialContent={generatedMatrix || ''}
-                                        onUpdate={(html) => setEditorContent(html)}
+                                        onUpdate={(html) => { editorContentRef.current = html; }}
                                         onSave={handleSaveReport}
                                         reportSourceData={{ statuses: validStatuses, seguimientos, activity, location, entityType, compliancePercentage }}
                                     />

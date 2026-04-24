@@ -336,10 +336,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
 
           {/* Export */}
           <ExportDropdown
-            content={editorContent || content || ''}
+            content={editorContentRef.current || content || ''}
             fileName={fileName || 'Documento_Live'}
             reportType="general"
           />
+
 
           {/* History — ReportHistory handles its own portal at z-[99999999] */}
           <button

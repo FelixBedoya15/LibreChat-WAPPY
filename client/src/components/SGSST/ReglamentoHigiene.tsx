@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Sparkles,
@@ -14,7 +14,7 @@ import {
 , Download } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import LiveEditor from '~/components/Liva/Editor/LiveEditor';
+import LiveEditor, { type LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import ReportHistory from '~/components/Liva/ReportHistory';
 import ModelSelector from './ModelSelector';
 import ExportDropdown from './ExportDropdown';
@@ -43,13 +43,13 @@ const ReglamentoHigiene = () => {
 
     // Generated content
     const [generatedDocument, setGeneratedDocument] = useState<string | null>(null);
-    const [editorContent, setEditorContent] = useState<string | null>(null);
+    const editorContentRef = useRef<string>('');
+    const liveEditorRef = useRef<LiveEditorHandle>(null);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // History
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [editorKey, setEditorKey] = useState(() => Date.now().toString());
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -87,8 +87,8 @@ const ReglamentoHigiene = () => {
 
             const data = await response.json();
             setGeneratedDocument(data.document);
-            setEditorContent(data.document); setEditorKey(Date.now().toString());
-            setEditorKey(Date.now().toString());
+            editorContentRef.current = data.document;
+            liveEditorRef.current?.setHTML(data.document);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
@@ -102,7 +102,7 @@ const ReglamentoHigiene = () => {
     }, [identifiedRisks, workShifts, additionalRules, selectedModel, token, showToast]);
 
     const handleSave = useCallback(async () => {
-        const contentToSave = editorContent || generatedDocument;
+        const contentToSave = editorContentRef.current || generatedDocument;
         if (!contentToSave) {
             showToast({ message: 'No hay documento para guardar', status: 'warning' });
             return;
@@ -157,7 +157,7 @@ const ReglamentoHigiene = () => {
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });
         }
-    }, [editorContent, generatedDocument, conversationId, reportMessageId, token, showToast]);
+    }, [generatedDocument, conversationId, reportMessageId, token, showToast]);
 
     const handleSelectReport = useCallback(async (selectedConvoId: string) => {
         if (!selectedConvoId) return;
@@ -172,12 +172,11 @@ const ReglamentoHigiene = () => {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg?.text) {
                 setGeneratedDocument(lastMsg.text);
-                setEditorContent(lastMsg.text); setEditorKey(Date.now().toString());
+                editorContentRef.current = lastMsg.text;
+                liveEditorRef.current?.setHTML(lastMsg.text);
                 setConversationId(selectedConvoId);
                 setReportMessageId(lastMsg.messageId);
-                setEditorKey(Date.now().toString());
-            
-            setIsFormExpanded(false);
+                setIsFormExpanded(false);
                 showToast({ message: 'Reglamento cargado correctamente', status: 'success', severity: 'success' });
             }
         } catch (e) {
@@ -236,8 +235,8 @@ const ReglamentoHigiene = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSave()}
                 onSave={handleSave}
-                hasContent={!!editorContent}
-                exportContent={editorContent || ''}
+                hasContent={!!(editorContentRef.current || generatedDocument)}
+                exportContent={editorContentRef.current || generatedDocument || ''}
                 exportFileName="Reglamento_Higiene_Seguridad_Industrial"
                 onDummy={handleDummyData}
             />
@@ -324,7 +323,7 @@ const ReglamentoHigiene = () => {
                     icon={<ShieldAlert className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={
                         <ExportDropdown
-                            content={editorContent || generatedReport || ''}
+                            content={editorContentRef.current || generatedDocument || ''}
                             fileName="Informe_ReglamentoHigiene"
                             reportType="general"
                         />
@@ -334,9 +333,9 @@ const ReglamentoHigiene = () => {
                         <div style={{ minHeight: '600px', overflowX: 'auto', width: '100%' }}>
                             <div style={{ minWidth: '900px', padding: '16px' }}>
                                 <LiveEditor
-                                    key={editorKey}
+                                    ref={liveEditorRef}
                                     initialContent={generatedDocument}
-                                    onUpdate={(html) => setEditorContent(html)}
+                                    onUpdate={(html) => { editorContentRef.current = html; }}
                                     onSave={handleSave}
                                     reportSourceData={{ identifiedRisks, workShifts, additionalRules }}
                                 />
