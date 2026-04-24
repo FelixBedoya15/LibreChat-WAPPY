@@ -170,7 +170,30 @@ module.exports = {
       filters.push({ tags: { $in: tags } });
     } else {
       // Exclude internal tool conversations from the main sidebar
-      const internalTags = ['sgsst-diagnostico', 'sgsst-politica', 'sgsst-auditoria', 'sgsst-matriz-legal', 'report', 'sgsst-estadisticas-atel'];
+      const internalTags = [
+        'sgsst-diagnostico', 
+        'sgsst-politica', 
+        'sgsst-auditoria', 
+        'sgsst-matriz-legal', 
+        'report', 
+        'sgsst-estadisticas-atel',
+        'sgsst-live-analysis',
+        'sgsst-matriz-ipevar',
+        'sgsst-matriz-peligros',
+        'sgsst-owas',
+        'sgsst-reglamento-interno',
+        'sgsst-reglamento-higiene',
+        'sgsst-permiso-alturas',
+        'sgsst-condiciones-salud',
+        'sgsst-investigacion-atel',
+        'sgsst-perfiles-cargo',
+        'sgsst-perfil-sociodemografico',
+        'sgsst-alta-direccion',
+        'sgsst-responsable',
+        'sgsst-objetivos',
+        'sgsst-reporte-actos',
+        'sgsst-ats'
+      ];
       filters.push({ $or: [{ tags: { $exists: false } }, { tags: { $nin: internalTags } }] });
     }
 

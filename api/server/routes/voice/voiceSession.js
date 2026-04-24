@@ -390,7 +390,8 @@ class VoiceSession {
                     await saveConvo({ user: { id: this.userId } }, {
                         conversationId: this.conversationId,
                         endpoint: this.dbEndpoint,
-                        model: this.dbModel
+                        model: this.dbModel,
+                        tags: ['sgsst-live-analysis']
                     }, { context: 'VoiceSession - TurnComplete' });
 
                     // If new conversation, send ID to client
@@ -597,7 +598,10 @@ class VoiceSession {
 
                         if (savedMessage) {
                             // Also save/update the conversation
-                            await saveConvo({ user: { id: this.userId } }, savedMessage, { context: 'VoiceSession' });
+                            await saveConvo({ user: { id: this.userId } }, {
+                                ...savedMessage,
+                                tags: ['sgsst-live-analysis']
+                            }, { context: 'VoiceSession' });
 
                             logger.info(`[VoiceSession] Saved user message: ${messageId}`);
 
