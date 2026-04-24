@@ -544,7 +544,8 @@ const PerfilesCargo = () => {
     // ─── Save Data ────────────────────────────────────────────────────────────
     const handleSaveData = async (silent = false) => {
         if (!token) return;
-        const updatedPerfiles = perfiles.map(p => (p.id === activePerfilId ? { ...formData, report: generatedReport || p.report } : p));
+        const editedReport = editorContentRef.current || generatedReport || undefined;
+        const updatedPerfiles = perfiles.map(p => (p.id === activePerfilId ? { ...formData, report: editedReport || p.report } : p));
         setPerfiles(updatedPerfiles);
         try {
             const res = await fetch('/api/sgsst/perfiles-cargo/save', {
@@ -607,8 +608,20 @@ const PerfilesCargo = () => {
                 }),
             });
             if (res.ok) {
+                // 1. Update in-memory state so the editor shows the saved content
+                setGeneratedReport(content);
+                // 2. Persist edited content to perfiles-cargo DB so it survives reload
+                const updatedPerfiles = perfiles.map(p =>
+                    p.id === activePerfilId ? { ...p, report: content } : p
+                );
+                setPerfiles(updatedPerfiles);
+                await fetch('/api/sgsst/perfiles-cargo/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ perfilesList: updatedPerfiles }),
+                });
                 setRefreshTrigger(prev => prev + 1);
-                showToast({ message: 'Perfil guardado en el historial', status: 'success', severity: 'success' });
+                showToast({ message: 'Perfil guardado correctamente ✅', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
             showToast({ message: `Error: ${error.message}`, status: 'error' });

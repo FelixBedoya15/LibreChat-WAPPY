@@ -162,8 +162,10 @@ const ResponsableSGSST = () => {
                 });
 
                 if (res.ok) {
+                    setGeneratedDoc(contentToSave);
+                    editorContentRef.current = contentToSave;
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Documento actualizado exitosamente', status: 'success', severity: 'success' });
+                    showToast({ message: 'Documento actualizado correctamente ✅', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     throw new Error(err.message || 'Error al actualizar');
@@ -184,8 +186,10 @@ const ResponsableSGSST = () => {
                     const data = await res.json();
                     setConversationId(data.conversationId);
                     setReportMessageId(data.messageId);
+                    setGeneratedDoc(contentToSave);
+                    editorContentRef.current = contentToSave;
                     setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Guardado correctamente. Puedes seguir editando', status: 'success', severity: 'success' });
+                    showToast({ message: 'Guardado correctamente. Puedes seguir editando ✅', status: 'success', severity: 'success' });
                 } else {
                     const err = await res.json();
                     throw new Error(err.message || 'Error al guardar');
@@ -424,7 +428,7 @@ const ResponsableSGSST = () => {
                         icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={
                         <ExportDropdown
-                            content={editorContentRef.current || generatedReport || ''}
+                            content={editorContentRef.current || generatedDoc || ''}
                             fileName="Informe_ResponsableSGSST"
                             reportType="general"
                         />

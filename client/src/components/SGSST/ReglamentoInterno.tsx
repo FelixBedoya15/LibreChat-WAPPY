@@ -432,7 +432,7 @@ const ReglamentoInterno = () => {
                     icon={<Briefcase className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={
                         <ExportDropdown
-                            content={editorContentRef.current || generatedReport || ''}
+                            content={editorContentRef.current || generatedDocument || ''}
                             fileName="Informe_ReglamentoInterno"
                             reportType="general"
                         />
