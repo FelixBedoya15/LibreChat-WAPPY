@@ -370,9 +370,6 @@ class VoiceSession {
                 this.aiResponseText = ''; // Reset anyway to avoid accumulation
             }
 
-            } else {
-                logger.warn(`[VoiceSession] No AI response text to save.`);
-            }
 
             // Reset audio counter for next turn
             this.aiAudioChunkCount = 0;
