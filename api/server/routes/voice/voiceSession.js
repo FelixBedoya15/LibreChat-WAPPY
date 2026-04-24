@@ -291,8 +291,39 @@ class VoiceSession {
             let messagesSaved = false;
             let isNewConversation = false;
 
+            // FASE FAST-TRACK: TRIGGER REPORT GENERATION (Second Brain) IMMEDIATELY
+            // We use the accumulated context + current turn
+            const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
+            this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
+
+            if (this.isGeneratingReport) {
+                logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
+                this.aiTranscriptionBuffer = ''; // Reset buffer even if skipping
+            } else {
+                const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
+                const shouldGenerateReport = triggerRegex.test(currentAiText) || triggerRegex.test(this.aiTranscriptionBuffer);
+
+                logger.info(`[VoiceSession] Report trigger check. aiText: "${currentAiText.substring(0, 80)}", trigger: ${shouldGenerateReport}`);
+                this.aiTranscriptionBuffer = ''; // Reset for next turn
+
+                if (shouldGenerateReport) {
+                    logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
+                    
+                    // Notify client IMMEDIATELY so they don't disconnect while waiting
+                    this.sendToClient({
+                        type: 'report',
+                        data: { html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>' }
+                    });
+
+                    // Generate report asynchronously in the background
+                    this.isGeneratingReport = true;
+                    this.generateReport(this.config.conversationContext).finally(() => {
+                        this.isGeneratingReport = false;
+                    });
+                }
+            }
+
             // CRITICAL: Save user message FIRST, then AI message
-            // This ensures proper parent-child relationship in the message chain
             if (currentUserText.trim()) {
                 const preview = currentUserText.substring(0, 100);
                 logger.info(`[VoiceSession] Saving USER message. Preview: "${preview}..."`);
@@ -339,47 +370,9 @@ class VoiceSession {
                 this.aiResponseText = ''; // Reset anyway to avoid accumulation
             }
 
-            // TRIGGER REPORT GENERATION (Second Brain)
-            // We use the accumulated context + current turn
-            const currentTurnContext = `User: ${currentUserText}\nAI: ${currentAiText}`;
-            this.config.conversationContext = (this.config.conversationContext || '') + '\n' + currentTurnContext;
-
-            // Prevent concurrent report generation
-            if (this.isGeneratingReport) {
-                logger.info('[VoiceSession] Report generation already in progress. Skipping trigger.');
-                this.aiTranscriptionBuffer = ''; // Reset buffer even if skipping
-                return;
-            }
-
-            // ONLY trigger report if AI explicitly says it will generate it
-            // We check BOTH the written text AND the speech transcription buffer
-            // because native audio models primarily emit aiTranscription, not aiText.
-            const triggerRegex = /(generar( el| un)? (informe|reporte)|procesando( lo que vimos| la informaci[oó]n)|informe t[eé]cnico detallado|informe.*generado|reporte.*generado|generando.*(informe|reporte)|(informe|reporte).*creado)/i;
-            const shouldGenerateReport = triggerRegex.test(currentAiText) || triggerRegex.test(this.aiTranscriptionBuffer);
-
-            logger.info(`[VoiceSession] Report trigger check. aiText: "${currentAiText.substring(0, 80)}", aiTranscription: "${this.aiTranscriptionBuffer.substring(0, 80)}", trigger: ${shouldGenerateReport}`);
-
-            // Reset transcription buffer for next turn
-            this.aiTranscriptionBuffer = '';
-
-            if (shouldGenerateReport) {
-                logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
-
-                // Notify client that report is being generated
-                this.sendToClient({
-                    type: 'report',
-                    data: { html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>' }
-                });
-
-                // Generate report asynchronously (don't block)
-                this.isGeneratingReport = true;
-                this.generateReport(this.config.conversationContext).finally(() => {
-                    this.isGeneratingReport = false;
-                });
             } else {
-                logger.info('[VoiceSession] Report generation NOT triggered (no keywords found).');
+                logger.warn(`[VoiceSession] No AI response text to save.`);
             }
-
 
             // Reset audio counter for next turn
             this.aiAudioChunkCount = 0;
@@ -1154,11 +1147,19 @@ class VoiceSession {
 
             return reportHtml;
         } catch (error) {
-            logger.error('[VoiceSession] Error generating report:', error);
-            // Send error state to client so it doesn't hang
+            logger.error('[VoiceSession] Error generating formal report:', error);
+            
+            // Critical fallback: Notify client that report generation failed so UI unfreezes!
             this.sendToClient({
                 type: 'report',
-                data: { html: `<p class="text-red-500">Error generando el informe: ${error.message}. Verifique los logs del servidor.</p>` }
+                data: { 
+                    html: `<div style="padding:24px; color:#d32f2f; background-color:#ffebee; border-radius:8px; border:1px solid #ef5350;">
+                        <h3 style="margin-top:0;">⚠️ Error de Generación</h3>
+                        <p>Ocurrió un error al generar el informe técnico con la Inteligencia Artificial. El sistema experimentó una falla interna: <strong>${error.message}</strong>.</p>
+                        <p>No te preocupes, el diagnóstico no se ha perdido. Por favor, vuelve a indicarle al asistente de voz que genere el informe.</p>
+                    </div>`,
+                    messageId: uuidv4()
+                }
             });
             return null;
         }

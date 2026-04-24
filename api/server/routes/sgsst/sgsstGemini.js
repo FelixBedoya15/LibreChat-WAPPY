@@ -184,6 +184,10 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
         const is503 = status === 503 || msg.includes('503') ||
           msg.includes('service unavailable') || msg.includes('overloaded');
 
+        // 404 model not found — unique to SGSST: rotate model so we don't freeze on deprecated experimental models
+        const is404 = status === 404 || msg.includes('404') ||
+          msg.includes('not found') || msg.includes('is not found for api version');
+
         if (isRateLimit || isQuotaExceeded || isInvalidKey) {
           logger.warn(
             `[SGSST Gemini] Clave #${keyIdx + 1} rechazada ` +
@@ -194,16 +198,16 @@ async function generateWithKeyRotation(modelInstance, userId, promptText, option
           continue; // next key, same model
         }
 
-        if (is503) {
+        if (is503 || is404) {
           logger.warn(
-            `[SGSST Gemini] Modelo "${currentModel}" sobrecargado (503). ` +
+            `[SGSST Gemini] Modelo "${currentModel}" falló (${is503 ? '503 Sobrecargado' : '404 No Encontrado'}). ` +
             `Rotando a modelo de respaldo...`
           );
           break; // break inner for → outer for advances modelIdx
         }
 
         // Any other error: fail fast
-        logger.error(`[SGSST Gemini] Error irrevocable con "${currentModel}": ${err.message}`);
+        logger.error(`[SGSST Gemini] Error irrevocable con "${currentModel}": ${status} - ${msg} - ${err.message}`);
         throw err;
       }
     } // end inner for (keys)
