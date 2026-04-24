@@ -316,7 +316,7 @@ const ResponsableSGSST = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContentRef.current}
+                hasContent={!!(generatedDoc || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Asignacion_Responsable_SGSST"
                 onDummy={handleDummyData}

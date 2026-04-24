@@ -734,6 +734,7 @@ const MatrizPeligrosGTC45 = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSaveReport}
+                hasContent={!!(generatedReport || editorContentRef.current)}
                 exportContent={editorContentRef.current || generatedReport || ''}
                 exportFileName="IPEVAR_Bio_Individual"
                 onDummy={handleDummyData}

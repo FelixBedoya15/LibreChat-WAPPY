@@ -342,7 +342,7 @@ const ReglamentoInterno = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={() => handleSave()}
                 onSave={handleSave}
-                hasContent={!!editorContentRef.current}
+                hasContent={!!(generatedDocument || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Reglamento_Interno_De_Trabajo"
                 onDummy={handleDummyData}

@@ -499,7 +499,7 @@ export default function AltaDireccionChecklist() {
                     onSelectModel={setSelectedModel}
                     onSaveLocal={handleSaveData}
                     onSave={handleSave}
-                    hasContent={!!editorContentRef.current}
+                    hasContent={!!(analysisReport || editorContentRef.current)}
                     exportContent={editorContentRef.current || ''}
                     exportFileName="Revision_Alta_Direccion"
                     customSections={[

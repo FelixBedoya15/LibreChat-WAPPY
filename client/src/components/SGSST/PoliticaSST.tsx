@@ -289,7 +289,7 @@ const PoliticaSST = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContentRef.current}
+                hasContent={!!(generatedPolicy || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Politica_SST"
                 onDummy={handleDummyData}

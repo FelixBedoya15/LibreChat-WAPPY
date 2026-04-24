@@ -267,7 +267,7 @@ const ObjetivosSST = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContentRef.current}
+                hasContent={!!(generatedObjectives || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Objetivos_SST"
                 onDummy={handleDummyData}

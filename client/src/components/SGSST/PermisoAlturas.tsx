@@ -522,7 +522,7 @@ const PermisoAlturas = () => {
                 onSelectModel={setSelectedModel}
                 onSaveLocal={handleSaveData}
                 onSave={handleSave}
-                hasContent={!!editorContentRef.current}
+                hasContent={!!(generatedObjectives || editorContentRef.current)}
                 exportContent={editorContentRef.current || ''}
                 exportFileName="Permiso_Alturas"
                 onDummy={handleDummyData}
