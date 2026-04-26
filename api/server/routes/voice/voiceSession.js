@@ -309,10 +309,22 @@ class VoiceSession {
                 if (shouldGenerateReport) {
                     logger.info('[VoiceSession] Report generation triggered by AI response keywords.');
                     
+                    // Get the frames we will evaluate
+                    let evalFrames = [];
+                    if (this.frameBuffer && this.frameBuffer.length > 0) {
+                        evalFrames = [...this.frameBuffer];
+                    } else if (this.latestFrame) {
+                        evalFrames = [this.latestFrame];
+                    }
+                    
                     // Notify client IMMEDIATELY so they don't disconnect while waiting
+                    // Include the frames we are analyzing so the frontend can render them perfectly in sync
                     this.sendToClient({
                         type: 'report',
-                        data: { html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>' }
+                        data: { 
+                            html: '<p class="text-gray-500 italic animate-pulse">Generando informe técnico detallado...</p>',
+                            evaluatedFrames: evalFrames
+                        }
                     });
 
                     // Generate report asynchronously in the background
@@ -440,6 +452,17 @@ class VoiceSession {
                 if (data && data.image) {
                     logger.debug(`[VoiceSession] Received video frame (${data.image.length} chars)`);
                     this.latestFrame = data.image; // Guarda el último frame capturado para el análisis
+                    
+                    // Keep a rolling buffer of up to 4 sampled frames for the report generator
+                    if (!this.frameBuffer) this.frameBuffer = [];
+                    this.frameCount = (this.frameCount || 0) + 1;
+                    if (this.frameCount % 2 === 0) { // Sample every 2nd frame received (roughly 1 frame per 2 seconds)
+                        this.frameBuffer.push(data.image);
+                        if (this.frameBuffer.length > 4) {
+                            this.frameBuffer.shift();
+                        }
+                    }
+
                     if (this.geminiClient) {
                         this.geminiClient.sendVideo(data.image);
                     } else {
@@ -843,9 +866,9 @@ class VoiceSession {
             1. **IDIOMA:** OBLIGATORIAMENTE EN ESPAÑOL TÉCNICO Y FORMAL.
             2. **FECHA:** Usa esta fecha: ${currentDate}.
             3. **FORMATO:** Solo HTML limpio. CERO bloques de código markdown (\`\`\`html). 
-            4. **VERACIDAD:** Basa el informe en lo observado. Si hay poca información, extrapola los riesgos probables del entorno descrito con justificación técnica.
-            5. **EXTENSIÓN:** El informe debe ser EXTREMADAMENTE EXTENSO Y DETALLADO. Mínimo 3.000 palabras en español. Cada sección debe desarrollarse con profundidad técnica, sin omitir ningún detalle relevante. No uses frases cortas ni listas escuetas; desarrolla SIEMPRE con párrafos completos y justificación técnica.
-            6. **MATRIZ DE RIESGOS:** OBLIGATORIO un mínimo de 5 peligros identificados. Siempre busca identificar todos los posibles peligros del entorno observado aunque no se hayan mencionado explícitamente (aplica tu conocimiento de auditor experto: biomecánicos, psicosociales, físicos, químicos, eléctricos, locativos, de tráfico, etc.).
+            4. **VERACIDAD VISUAL Y CONTEXTUAL:** Analiza PROFUNDAMENTE las imágenes fotográficas incluidas en este prompt y lee la conversación transcrita. El informe debe basarse en lo que VES en las imágenes y escuchas en la conversación. NO asumas que es una bodega de carga o planta industrial si las imágenes revelan una oficina (o unas gafas, por ejemplo). Adapta tu análisis a la evidencia real proporcionada.
+            5. **EXTENSIÓN:** El informe debe ser EXTREMADAMENTE EXTENSO Y DETALLADO. Mínimo 3.000 palabras en español. Cada sección debe desarrollarse con profundidad técnica experta. Usa párrafos exhaustivamente justificados.
+            6. **MATRIZ DE RIESGOS:** Mantén OBLIGATORIAMENTE un mínimo de 5 peligros. Deduce 5 riesgos especializados basados directamente en LAS IMÁGENES adjuntas y el tema de la conversación. JAMÁS inventes peligros genéricos "de almacén" si no encajan con la evidencia fotográfica enviada.
 
             ESTRUCTURA HTML OBLIGATORIA:
 
@@ -961,9 +984,38 @@ class VoiceSession {
             `;
 
 
-            logger.info(`[VoiceSession] Sending prompt to model: ${reportModelName} (via rotation)`);
+            logger.info(`[VoiceSession] Sending multimodal prompt to model: ${reportModelName} (via rotation)`);
+            
+            // Multimodal Array of Parts
+            const promptParts = [
+                { text: prompt }
+            ];
 
-            const result = await generateWithKeyRotation(reportModelName, this.userId, prompt);
+            // Inject the recent visual frames into the prompt boundaries
+            let injectedFrames = 0;
+            if (this.frameBuffer && this.frameBuffer.length > 0) {
+                for (const b64 of this.frameBuffer) {
+                    promptParts.push({
+                        inlineData: {
+                            data: b64,
+                            mimeType: "image/jpeg"
+                        }
+                    });
+                    injectedFrames++;
+                }
+            } else if (this.latestFrame) {
+                promptParts.push({
+                    inlineData: {
+                        data: this.latestFrame,
+                        mimeType: "image/jpeg"
+                    }
+                });
+                injectedFrames++;
+            }
+            logger.info(`[VoiceSession] Injected ${injectedFrames} visual frames into report prompt.`);
+
+            // Call API with the multimodal array
+            const result = await generateWithKeyRotation(reportModelName, this.userId, promptParts);
             const response = result.response;
             let reportHtml = response.text().replace(/```html/g, '').replace(/```/g, '').trim();
 
@@ -1136,10 +1188,22 @@ class VoiceSession {
                 }
             }
 
+            // Get the frames evaluated
+            let evalFrames = [];
+            if (this.frameBuffer && this.frameBuffer.length > 0) {
+                evalFrames = [...this.frameBuffer];
+            } else if (this.latestFrame) {
+                evalFrames = [this.latestFrame];
+            }
+
             // Notify client with HTML (for rich rendering in Live editor) AND messageId
             this.sendToClient({
                 type: 'report',
-                data: { html: reportHtml, messageId: messageId }
+                data: {
+                    html: reportHtml,
+                    messageId: messageId,
+                    evaluatedFrames: evalFrames
+                }
             });
 
             return reportHtml;

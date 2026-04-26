@@ -97,14 +97,20 @@ const LiveAnalysisModal: FC<LiveAnalysisModalProps> = ({ isOpen, onClose, conver
         onTextReceived: (text: string) => {
             onTextReceived?.(text);
         },
-        onReportReceived: (html: string, messageId?: string) => {
+        onReportReceived: (html: string, messageId?: string, evaluatedFrames?: string[]) => {
             setHasReceivedReport(true); // Toast is triggered by useEffect watching this
 
             const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             const timeStr = new Date().toLocaleTimeString('es-ES');
-            const snapshots = snapshotsRef.current;
+            
+            // Prefer the EXACT frames the AI evaluated. Provide the base64 prefix so the <img> tag works.
+            let snapshots = snapshotsRef.current;
+            if (evaluatedFrames && evaluatedFrames.length > 0) {
+                // Backend sends raw base64. Frontend needs the data URL scheme to render in <img>
+                snapshots = evaluatedFrames.map(b64 => `data:image/jpeg;base64,${b64}`);
+            }
 
-            // Build evidence gallery (up to 3 images)
+            // Build evidence gallery (up to 4 images if backend evaluated them)
             let evidenceSection = '';
             if (snapshots.length > 0) {
                 const imgItems = snapshots.map((src, idx) => `

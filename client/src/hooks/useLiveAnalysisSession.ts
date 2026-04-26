@@ -9,7 +9,7 @@ interface VoiceMessage {
 interface UseLiveAnalysisSessionOptions {
     onAudioReceived?: (audioData: string) => void;
     onTextReceived?: (text: string) => void;
-    onReportReceived?: (html: string, messageId?: string) => void;
+    onReportReceived?: (html: string, messageId?: string, evaluatedFrames?: string[]) => void;
     onStatusChange?: (status: string) => void;
     onError?: (error: string) => void;
     conversationId?: string;
@@ -343,7 +343,11 @@ export const useLiveAnalysisSession = (options: UseLiveAnalysisSessionOptions = 
             case 'report':
                 if (message.data.html) {
                     console.log('[LiveAnalysisSession] Report received');
-                    optionsRef.current.onReportReceived?.(message.data.html, message.data.messageId);
+                    optionsRef.current.onReportReceived?.(
+                        message.data.html, 
+                        message.data.messageId, 
+                        message.data.evaluatedFrames
+                    );
                     
                     // Force state back to ready to unfreeze the UI from "Generando Reporte..."
                     setStatus('ready');
