@@ -30,7 +30,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
             companyName, nit, legalRepresentative, workerCount,
             arl, economicActivity, riskLevel, ciiu,
             address, city, phone, email,
-            generalActivities, sector, responsibleSST,
+            generalActivities, sector, responsibleSST, responsibleSSTPhone,
             formationLevel, licenseNumber, courseStatus, licenseExpiry,
             legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
         } = req.body;
@@ -42,7 +42,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
                 companyName, nit, legalRepresentative, workerCount,
                 arl, economicActivity, riskLevel, ciiu,
                 address, city, phone, email,
-                generalActivities, sector, responsibleSST,
+                generalActivities, sector, responsibleSST, responsibleSSTPhone,
                 formationLevel, licenseNumber, courseStatus, licenseExpiry,
                 legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
             },
