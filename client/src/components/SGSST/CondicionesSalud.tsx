@@ -867,20 +867,20 @@ const CondicionesSalud = () => {
                             return (
                             <div key={w.id} className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden border-l-4 border-l-teal-500 transition-all">
                                 {/* Worker Header */}
-                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer" onClick={() => toggleWorker(w.id)}>
-                                    <div className="flex flex-wrap items-center gap-3 w-full">
-                                        <div className="text-teal-500">
+                                <div className="flex items-center justify-between p-4 bg-surface-tertiary/30 cursor-pointer gap-4" onClick={() => toggleWorker(w.id)}>
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className="text-teal-500 shrink-0">
                                             {expandedWorkers.has(w.id) ? <AnimatedIcon name="chevron-down" size={20} /> : <AnimatedIcon name="chevron-right" size={20} />}
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-text-primary text-base">
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="font-bold text-text-primary text-base truncate">
                                                 {wIdx + 1}. {w.nombre || 'Nuevo Trabajador'}
                                                 <span className="ml-2 text-xs font-normal text-text-secondary">— {w.cargo || 'Sin cargo asignado'}</span>
                                             </h3>
-                                            <p className="text-xs text-text-secondary mt-0.5">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
+                                            <p className="text-xs text-text-secondary mt-0.5 truncate">CC: {w.identificacion || 'N/A'} | {w.genero || '—'} | {w.edad ? `${w.edad} años` : '—'}</p>
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 w-full">
+                                    <div className="flex items-center gap-2 shrink-0">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setSelectedQrWorker(w); }}
                                             className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 transition-colors">
