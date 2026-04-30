@@ -96,6 +96,7 @@ class MatrizIPEVAR extends Tool {
                      codigo_ciiu: companyConf.ciiu || 'N/A',
                      sector: companyConf.sector || 'N/A',
                      descripcion_actividades: companyConf.generalActivities || 'N/A',
+                     sedes_adicionales: companyConf.sedes || [],
                      nivel_riesgo: companyConf.riskLevel || 'N/A',
                      arl: companyConf.arl || 'N/A',
                      numero_trabajadores: companyConf.workerCount || 'N/A',

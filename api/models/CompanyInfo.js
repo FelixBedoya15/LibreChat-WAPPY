@@ -122,6 +122,17 @@ const companyInfoSchema = new mongoose.Schema({
         type: String,
         default: 'No',
     },
+    sedes: {
+        type: [{
+            nombre: { type: String, trim: true, default: '' },
+            address: { type: String, trim: true, default: '' },
+            city: { type: String, trim: true, default: '' },
+            phone: { type: String, trim: true, default: '' },
+            email: { type: String, trim: true, default: '' },
+            generalActivities: { type: String, trim: true, default: '' },
+        }],
+        default: [],
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('CompanyInfo', companyInfoSchema);

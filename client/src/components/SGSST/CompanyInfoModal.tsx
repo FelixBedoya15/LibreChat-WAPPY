@@ -14,6 +14,16 @@ import { AnimatedIcon } from '~/components/ui/AnimatedIcon';
 import SignaturePad from './SignaturePad';
 import { PenTool } from 'lucide-react';
 import SingleSelect from './SingleSelect';
+import { Plus, Trash2 } from 'lucide-react';
+
+export interface SedeData {
+    nombre: string;
+    address: string;
+    city: string;
+    phone: string;
+    email: string;
+    generalActivities: string;
+}
 
 interface CompanyInfoData {
     companyName: string;
@@ -40,6 +50,7 @@ interface CompanyInfoData {
     legalRepConsent: string;
     sstRespSignature: string | null;
     sstRespConsent: string;
+    sedes: SedeData[];
 }
 
 
@@ -68,6 +79,7 @@ const INITIAL_DATA: CompanyInfoData = {
     legalRepConsent: 'No',
     sstRespSignature: null,
     sstRespConsent: 'No',
+    sedes: [],
 };
 
 
@@ -141,6 +153,28 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
     const handleChange = useCallback((field: keyof CompanyInfoData, value: string | number | null) => {
         setData(prev => ({ ...prev, [field]: value }));
+    }, []);
+
+    const handleAddSede = useCallback(() => {
+        setData(prev => ({
+            ...prev,
+            sedes: [...prev.sedes, { nombre: '', address: '', city: '', phone: '', email: '', generalActivities: '' }]
+        }));
+    }, []);
+
+    const handleSedeChange = useCallback((index: number, field: keyof SedeData, value: string) => {
+        setData(prev => {
+            const newSedes = [...prev.sedes];
+            newSedes[index] = { ...newSedes[index], [field]: value };
+            return { ...prev, sedes: newSedes };
+        });
+    }, []);
+
+    const handleRemoveSede = useCallback((index: number) => {
+        setData(prev => ({
+            ...prev,
+            sedes: prev.sedes.filter((_, i) => i !== index)
+        }));
     }, []);
 
     const handleFirmaUpload = useCallback((field: 'legalRepSignature' | 'sstRespSignature', e: React.ChangeEvent<HTMLInputElement>) => {
@@ -459,6 +493,75 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Sedes Adicionales */}
+                            <div>
+                                <div className="mb-3 flex items-center justify-between">
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                                        <Building2 className="h-4 w-4" /> Sedes Adicionales
+                                    </h3>
+                                    <button
+                                        onClick={handleAddSede}
+                                        className="flex items-center gap-1.5 rounded-lg bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-600 transition-colors hover:bg-teal-500/20"
+                                    >
+                                        <Plus className="h-3 w-3" /> Agregar Sede
+                                    </button>
+                                </div>
+                                
+                                {data.sedes.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-border-medium bg-surface-primary/50 p-6 text-center">
+                                        <p className="text-sm text-text-secondary">No hay sedes adicionales registradas.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {data.sedes.map((sede, idx) => (
+                                            <div key={idx} className="relative rounded-xl border border-border-medium bg-surface-primary p-4 shadow-sm">
+                                                <button
+                                                    onClick={() => handleRemoveSede(idx)}
+                                                    className="absolute right-3 top-3 rounded-full bg-red-50 p-1.5 text-red-500 hover:bg-red-100 transition-colors"
+                                                    title="Eliminar Sede"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                                
+                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
+                                                    <div>
+                                                        <label className={labelClass}>Nombre de la Sede</label>
+                                                        <input className={inputClass} value={sede.nombre} onChange={e => handleSedeChange(idx, 'nombre', e.target.value)} placeholder="Ej. Sede Norte" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Dirección</label>
+                                                        <input className={inputClass} value={sede.address} onChange={e => handleSedeChange(idx, 'address', e.target.value)} placeholder="Dirección de la sede" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Ciudad</label>
+                                                        <input className={inputClass} value={sede.city} onChange={e => handleSedeChange(idx, 'city', e.target.value)} placeholder="Ciudad" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Teléfono</label>
+                                                        <input className={inputClass} value={sede.phone} onChange={e => handleSedeChange(idx, 'phone', e.target.value)} placeholder="Teléfono" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Correo Electrónico</label>
+                                                        <input className={inputClass} type="email" value={sede.email} onChange={e => handleSedeChange(idx, 'email', e.target.value)} placeholder="correo@sede.com" />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label className={labelClass}>Actividades de la Sede</label>
+                                                        <textarea
+                                                            className={cn(inputClass, 'min-h-[60px] resize-y')}
+                                                            value={sede.generalActivities}
+                                                            onChange={e => handleSedeChange(idx, 'generalActivities', e.target.value)}
+                                                            placeholder="Describa las actividades específicas de esta sede..."
+                                                            rows={2}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     )}
                 </div>

@@ -33,6 +33,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
             generalActivities, sector, responsibleSST, responsibleSSTPhone,
             formationLevel, licenseNumber, courseStatus, licenseExpiry,
             legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
+            sedes,
         } = req.body;
 
         const info = await CompanyInfo.findOneAndUpdate(
@@ -45,6 +46,7 @@ router.put('/', requireJwtAuth, async (req, res) => {
                 generalActivities, sector, responsibleSST, responsibleSSTPhone,
                 formationLevel, licenseNumber, courseStatus, licenseExpiry,
                 legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
+                sedes,
             },
             { upsert: true, new: true },
         );
@@ -66,10 +68,20 @@ Nivel de Formación SST: ${formationLevel || 'N/A'}
 Número de Licencia SST: ${licenseNumber || 'N/A'}
 Vigencia de Licencia: ${licenseExpiry || 'N/A'}
 Actualización Curso 50/20H: ${courseStatus || 'N/A'}
-Descripción General de Actividades: ${generalActivities || 'N/A'}`;
+Descripción General de Actividades (Sede Principal): ${generalActivities || 'N/A'}`;
+
+            let sedesStr = '';
+            if (sedes && Array.isArray(sedes) && sedes.length > 0) {
+                sedesStr = '\n\nOtras Sedes:\n' + sedes.map(s => `- Sede: ${s.nombre || 'N/A'}
+  Dirección: ${s.address || 'N/A'} (${s.city || 'N/A'})
+  Teléfono: ${s.phone || 'N/A'} - Correo: ${s.email || 'N/A'}
+  Actividades de Sede: ${s.generalActivities || 'N/A'}`).join('\n');
+            }
+            
+            const memoryContentFinal = memoryContent + sedesStr;
             
             const memoryKey = 'empresa_sgsst';
-            const tokenCount = Tokenizer.getTokenCount(memoryContent, 'o200k_base') || 0;
+            const tokenCount = Tokenizer.getTokenCount(memoryContentFinal, 'o200k_base') || 0;
             
             const memories = await getAllUserMemories(req.user.id);
             const existingMemory = memories.find((m) => m.key === memoryKey);
@@ -78,14 +90,14 @@ Descripción General de Actividades: ${generalActivities || 'N/A'}`;
                 await setMemory({
                     userId: req.user.id,
                     key: memoryKey,
-                    value: memoryContent,
+                    value: memoryContentFinal,
                     tokenCount,
                 });
             } else {
                 await createMemory({
                     userId: req.user.id,
                     key: memoryKey,
-                    value: memoryContent,
+                    value: memoryContentFinal,
                     tokenCount,
                 });
             }
