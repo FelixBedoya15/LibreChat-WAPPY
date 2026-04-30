@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, Tag, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock, X, ZoomIn, Download } from 'lucide-react';
+import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock, X, ZoomIn, Download } from 'lucide-react';
 import { ThemeSelector } from '@librechat/client';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -1327,7 +1327,7 @@ export default function PlansPage() {
                             <div className="mb-8 flex items-center gap-4">
                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-medium/50 to-border-medium/50" />
                                 <div className="flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2">
-                                    <Tag className="h-5 w-5 text-emerald-500" />
+                                    <PricingSVG className="h-5 w-5 text-emerald-500" />
                                     <span className="text-sm font-semibold text-text-primary">Planes por Aplicativos</span>
                                 </div>
                                 <div className="h-px flex-1 bg-gradient-to-l from-transparent via-border-medium/50 to-border-medium/50" />
@@ -1343,16 +1343,16 @@ export default function PlansPage() {
 
                                     // For APP_PLANS we force 'annual' pricing visually
                                     const fixedInterval = 'annual';
-                                    let rawPrice = 0;
+                                    let rawPrice = 250000;
                                     let displayPrice = '$250.000';
                                     let promotion: any = null;
 
-                                    if (fetchedConfig) {
-                                        rawPrice = fetchedConfig.prices?.[fixedInterval] || 0;
-                                        displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
-                                        if (fetchedConfig.promotions?.[fixedInterval]?.active) {
-                                            promotion = fetchedConfig.promotions[fixedInterval];
-                                        }
+                                    if (fetchedConfig && fetchedConfig.prices?.[fixedInterval]) {
+                                        rawPrice = fetchedConfig.prices[fixedInterval];
+                                        displayPrice = '$' + rawPrice.toLocaleString('es-CO');
+                                    }
+                                    if (fetchedConfig && fetchedConfig.promotions?.[fixedInterval]?.active) {
+                                        promotion = fetchedConfig.promotions[fixedInterval];
                                     }
 
                                     let discountedPrice = 0;
