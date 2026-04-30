@@ -568,68 +568,71 @@ const CondicionesSalud = () => {
         const cargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
         if (!cargo) return { score: 0, alerts: ['No hay rol asignado'], isLethal: false };
 
-        // Física
-        if (cargo.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) {
+        // 1. Factores Clínicos y Fisiológicos Base
+        if (w.imc) {
+            const imc = parseFloat(w.imc);
+            if (imc >= 30) { score -= 10; alerts.push('Alerta Metabólica: Riesgo cardiovascular por Obesidad detectado'); }
+            else if (imc < 18.5) { score -= 5; alerts.push('Alerta Nutricional: Índice de masa corporal por debajo del umbral saludable'); }
+        }
+
+        if (w.presionArterial) {
+            const [sisStr, diaStr] = w.presionArterial.split('/');
+            const sis = parseInt(sisStr || '0');
+            const dia = parseInt(diaStr || '0');
+            if (sis >= 135 || dia >= 90) {
                 score -= 15;
-                alerts.push('Edad avanzada para Alta Exigencia Física');
-            }
-            if (w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun')) {
-                score -= 20;
-                alerts.push('Enfermedad detectada en rol de alta carga física');
-            }
-            if (w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun')) {
-                score -= 30;
-                alerts.push('Alerta Biomecánica: Restricción incompatible con alta exigencia de carga/esfuerzo');
-            }
-            if (w.presionArterial) {
-                const sis = parseInt(w.presionArterial.split('/')[0]);
-                if (sis >= 135) {
-                    score -= 25;
-                    alerts.push('Alerta Cardiovascular: Hipertensión reportada frente a rol de alto impacto físico');
-                }
+                alerts.push('Alerta Cardiovascular: Hipertensión. Se requiere seguimiento estricto');
             }
         }
 
-        // Químico / Alergias
-        if (w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun')) {
-             score -= 15;
-             alerts.push('Alerta Inmunológica: Sensibilidad química reportada. Aislar de exposición cruzada');
+        if (w.fuma === 'Sí, diario') { score -= 10; alerts.push('Alerta Respiratoria: Tabaquismo diario reduce la capacidad aeróbica'); }
+        if (w.alcohol === 'Sí (Frecuente)') { score -= 15; alerts.push('Alerta Psicosocial: Etilismo frecuente (Riesgo de accidentabilidad)'); }
+
+        const hasEnfermedad = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun');
+        if (hasEnfermedad) { score -= 10; alerts.push('Patología base registrada (Requiere control)'); }
+
+        const hasBiomecanica = w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun');
+        if (hasBiomecanica) { score -= 10; alerts.push('Limitación osteomuscular / biomecánica reportada'); }
+
+        const hasAlergia = w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun');
+        if (hasAlergia) { score -= 10; alerts.push('Alerta Inmunológica: Sensibilidad química. Aislar de exposición cruzada'); }
+
+        // 2. Cruce de Variables vs. Exigencias del Cargo
+        if (cargo.exigenciaFisica === 'Alta') {
+            if (w.edad && Number(w.edad) > 55) { score -= 10; alerts.push('Edad avanzada para nivel de exigencia física del rol'); }
+            if (hasEnfermedad) { score -= 10; alerts.push('Patología incompatible o agravada por alta carga física'); }
+            if (hasBiomecanica) { score -= 20; alerts.push('CRÍTICO: Restricción biomecánica frente a esfuerzo pesado'); }
+            if (w.presionArterial && parseInt(w.presionArterial.split('/')[0]) >= 135) {
+                score -= 15; alerts.push('CRÍTICO: Hipertensión incompatible con rol de alto impacto físico');
+            }
         }
 
-        // Mental/Psicosocial
         if (cargo.exigenciaMental === 'Alta') {
-            if (w.terapiaPsicologica === 'Sí') {
-                score -= 10;
-                alerts.push('Alerta de Burnout: Rol de alta demanda mental + Terapia reportada');
-            }
+            if (w.terapiaPsicologica === 'Sí') { score -= 10; alerts.push('Alerta de Burnout: Rol de alta demanda mental + Terapia clínica activa'); }
             if (w.personasCargo && Number(w.personasCargo) >= 3 && ['1', '2'].includes(w.estrato)) {
-                score -= 10;
-                alerts.push('Alerta Psicosocial: Alta carga familiar/económica y rol estresante');
+                score -= 5; alerts.push('Vulnerabilidad Psicosocial: Alta carga económica/familiar + rol estresante');
             }
         }
 
-        // Maquinaria (Lethal)
         if (cargo.operaMaquinaria === 'Sí') {
-            if (w.medicamentos?.toLowerCase().includes('psiquiátrico') || 
-                w.medicamentos?.toLowerCase().includes('dormir') ||
-                w.alcohol === 'Sí (Frecuente)') {
-                score -= 50;
+            const hasMedsLethal = w.medicamentos?.toLowerCase().includes('psiquiátrico') || w.medicamentos?.toLowerCase().includes('dormir');
+            if (hasMedsLethal || w.alcohol === 'Sí (Frecuente)') {
+                score -= 40;
                 isLethal = true;
-                alerts.push('BLOQUEO PREVENTIVO: Sustancias/Medicamentos + Maquinaria Peligrosa');
+                alerts.push('🛑 BLOQUEO PREVENTIVO: Uso de medicamentos sedantes o sustancias + Maquinaria Peligrosa');
             }
         }
 
-        // Brechas de Entrenamiento
+        // 3. Brechas de Entrenamiento y Capacitación
         if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
-            const missing = cargo.entrenamientosSeleccionados.length; // Simplification for now
-            if (missing > 0 && !w.curso50h && !w.curso20h) {
+            const req = cargo.entrenamientosSeleccionados.length;
+            if (req > 0 && !w.curso50h && !w.curso20h) {
                 score -= 5;
-                alerts.push('Brecha de Entrenamiento detectada');
+                alerts.push('Brecha de Entrenamiento detectada: Cursos obligatorios SGSST vencidos o no reportados');
             }
         }
 
-        return { score: Math.max(0, score), alerts, isLethal };
+        return { score: Math.max(0, score), alerts: Array.from(new Set(alerts)), isLethal };
     };
 
     // ─── Render ──────────────────────────────────────────────────
