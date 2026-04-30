@@ -108,12 +108,6 @@ const AnnexCSelector = ({
   const [psiDominio, setPsiDominio] = useState<string>(row.psicosocial_dominio || '');
   const ref = useRef<HTMLDivElement>(null);
   const typeKey = detectAnnexCType(row.peligro_clasificacion, row.peligro_descripcion);
-  if (!typeKey) return null;
-  const entry = ANNEX_C_CRITERIA[typeKey];
-  const selected = entry.criteria.find(c => c.value === row.nd_cualitativo);
-  const isPsicosocial = typeKey === 'psicosocial';
-
-  const selectedDominioObj = PSICOSOCIAL_BATTERY.find(d => d.id === (psiDominio || row.psicosocial_dominio));
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -125,6 +119,13 @@ const AnnexCSelector = ({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  if (!typeKey) return null;
+  const entry = ANNEX_C_CRITERIA[typeKey];
+  const selected = entry.criteria.find(c => c.value === row.nd_cualitativo);
+  const isPsicosocial = typeKey === 'psicosocial';
+
+  const selectedDominioObj = PSICOSOCIAL_BATTERY.find(d => d.id === (psiDominio || row.psicosocial_dominio));
 
   const handleSelectDimension = (dim: { id: string; label: string; description: string }) => {
     const domObj = selectedDominioObj;

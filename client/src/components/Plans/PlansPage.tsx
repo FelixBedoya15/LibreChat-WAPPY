@@ -700,12 +700,16 @@ export default function PlansPage() {
                                         )}
                                     </div>
                                     <div className="border-t border-border-light pt-4 grid grid-cols-1 gap-1.5">
-                                        {checkoutPlan.planObj.features?.map((f: string) => (
-                                            <div key={f} className="flex items-center gap-2 text-sm text-text-secondary">
-                                                <Check className="h-4 w-4 flex-shrink-0 text-green-500" />
-                                                {f}
-                                            </div>
-                                        ))}
+                                        {checkoutPlan.planObj.features?.map((f: string) => {
+                                            const isHighlighted = f.includes('**');
+                                            const text = f.replace(/\*\*/g, '');
+                                            return (
+                                                <div key={f} className={`flex items-center gap-2 text-sm ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}>
+                                                    <Check className={`h-4 w-4 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`} />
+                                                    {text}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
