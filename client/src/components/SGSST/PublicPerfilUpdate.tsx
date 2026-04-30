@@ -17,6 +17,14 @@ interface WorkerData {
     estrato: string; vivienda: string; soatVencimiento: string;
     tecnicomecanicaVencimiento: string; licenciaSST: string;
     licenciaVencimiento: string; curso50h: string; curso20h: string;
+    
+    // New fields
+    fechaNacimiento?: string; lugarNacimiento?: string; barrio?: string; municipioDomicilio?: string; correoElectronico?: string;
+    licenciaConduccion?: string; licenciaConduccionVencimiento?: string;
+    esCopasst?: string; esComiteConvivencia?: string; esBrigadista?: string; esComiteSeguridadVial?: string;
+    deporte?: string; alimentacion?: string;
+    peso?: string; talla?: string; imc?: string; presionArterial?: string; frecuenciaCardiaca?: string;
+    diagnosticoMedico?: string; limitacionesBiomecanicas?: string; alergiasQuimicas?: string; riesgoCardiovascular?: string;
 }
 
 // ─── Section component ─────────────────────────────────────────────
@@ -110,6 +118,15 @@ export default function PublicPerfilUpdate() {
                 soatVencimiento: w.soatVencimiento, tecnicomecanicaVencimiento: w.tecnicomecanicaVencimiento,
                 licenciaSST: w.licenciaSST, licenciaVencimiento: w.licenciaVencimiento,
                 curso50h: w.curso50h, curso20h: w.curso20h,
+                
+                // New fields mapping
+                fechaNacimiento: w.fechaNacimiento, lugarNacimiento: w.lugarNacimiento, barrio: w.barrio, 
+                municipioDomicilio: w.municipioDomicilio, correoElectronico: w.correoElectronico,
+                licenciaConduccion: w.licenciaConduccion, licenciaConduccionVencimiento: w.licenciaConduccionVencimiento,
+                esCopasst: w.esCopasst, esComiteConvivencia: w.esComiteConvivencia, esBrigadista: w.esBrigadista, esComiteSeguridadVial: w.esComiteSeguridadVial,
+                deporte: w.deporte, alimentacion: w.alimentacion,
+                peso: w.peso, talla: w.talla, imc: w.imc, presionArterial: w.presionArterial, frecuenciaCardiaca: w.frecuenciaCardiaca,
+                diagnosticoMedico: w.diagnosticoMedico, limitacionesBiomecanicas: w.limitacionesBiomecanicas, alergiasQuimicas: w.alergiasQuimicas, riesgoCardiovascular: w.riesgoCardiovascular
             });
             setStep(2);
         } catch (err: any) {
@@ -308,10 +325,112 @@ export default function PublicPerfilUpdate() {
                                 </Field>
                             </div>
 
+                            {/* Datos de Origen y Contacto Adicional */}
+                            <SectionTitle icon={Home} label="Origen, Residencia y Contacto" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Fecha de Nacimiento">
+                                    <Input type="date" value={formData.fechaNacimiento || ''} onChange={e => upd('fechaNacimiento', e.target.value)} />
+                                </Field>
+                                <Field label="Lugar de Nacimiento">
+                                    <Input value={formData.lugarNacimiento || ''} onChange={e => upd('lugarNacimiento', e.target.value)} placeholder="Ej: Medellín" />
+                                </Field>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Barrio">
+                                    <Input value={formData.barrio || ''} onChange={e => upd('barrio', e.target.value)} placeholder="Ej: El Poblado" />
+                                </Field>
+                                <Field label="Municipio">
+                                    <Input value={formData.municipioDomicilio || ''} onChange={e => upd('municipioDomicilio', e.target.value)} placeholder="Ej: Medellín" />
+                                </Field>
+                            </div>
+                            <Field label="Correo Electrónico">
+                                <Input type="email" value={formData.correoElectronico || ''} onChange={e => upd('correoElectronico', e.target.value)} placeholder="correo@ejemplo.com" />
+                            </Field>
+
+                            {/* Hábitos adicionales */}
+                            <SectionTitle icon={Activity} label="Hábitos de Vida y Bienestar" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Actividad Física (Deporte)">
+                                    <SingleSelect value={formData.deporte || ''} onChange={val => upd('deporte', val)} placeholder="Seleccionar" options={['No practica', 'Ocasional (1x/sem)', 'Regular (2–3x/sem)', 'Frecuente (4+x/sem)']} />
+                                </Field>
+                                <Field label="Calidad de Alimentación">
+                                    <SingleSelect value={formData.alimentacion || ''} onChange={val => upd('alimentacion', val)} placeholder="Seleccionar" options={['Muy mala', 'Regular', 'Buena', 'Muy buena']} />
+                                </Field>
+                            </div>
+
+                            {/* Biometría y constantes vitales */}
+                            <SectionTitle icon={Heart} label="Biometría y Constantes Vitales" />
+                            <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 mb-1">
+                                <p className="text-[11px] text-blue-600 font-medium">Completa estos datos si cuentas con los resultados de tu último examen médico o valoración en la empresa.</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <Field label="Peso (kg)">
+                                    <Input type="number" value={formData.peso || ''} onChange={e => upd('peso', e.target.value)} placeholder="Ej: 70" />
+                                </Field>
+                                <Field label="Talla (cm)">
+                                    <Input type="number" value={formData.talla || ''} onChange={e => upd('talla', e.target.value)} placeholder="Ej: 170" />
+                                </Field>
+                                <Field label="IMC">
+                                    <Input type="number" value={formData.imc || ''} onChange={e => upd('imc', e.target.value)} placeholder="Ej: 24.2" />
+                                </Field>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Presión Arterial">
+                                    <Input value={formData.presionArterial || ''} onChange={e => upd('presionArterial', e.target.value)} placeholder="Ej: 120/80" />
+                                </Field>
+                                <Field label="Frecuencia Cardíaca">
+                                    <Input value={formData.frecuenciaCardiaca || ''} onChange={e => upd('frecuenciaCardiaca', e.target.value)} placeholder="Ej: 72 bpm" />
+                                </Field>
+                            </div>
+
+                            {/* Alertas médicas */}
+                            <SectionTitle icon={AlertTriangle} label="Alertas Médicas" />
+                            <Field label="Diagnóstico Médico">
+                                <Input value={formData.diagnosticoMedico || ''} onChange={e => upd('diagnosticoMedico', e.target.value)} placeholder="Ej: Hernia discal L4-L5" />
+                            </Field>
+                            <Field label="Limitaciones Biomecánicas">
+                                <Input value={formData.limitacionesBiomecanicas || ''} onChange={e => upd('limitacionesBiomecanicas', e.target.value)} placeholder="Ej: No levantar >10 kg" />
+                            </Field>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Alergias Químicas">
+                                    <Input value={formData.alergiasQuimicas || ''} onChange={e => upd('alergiasQuimicas', e.target.value)} placeholder="Ej: Látex, Penicilina" />
+                                </Field>
+                                <Field label="Riesgo Cardiovascular">
+                                    <SingleSelect value={formData.riesgoCardiovascular || ''} onChange={val => upd('riesgoCardiovascular', val)} placeholder="Seleccionar" options={['Bajo', 'Moderado', 'Alto', 'Muy Alto']} />
+                                </Field>
+                            </div>
+
+                            {/* Comités SGSST */}
+                            <SectionTitle icon={Users} label="Participación en Comités SG-SST" />
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Copasst">
+                                    <SingleSelect value={formData.esCopasst || ''} onChange={val => upd('esCopasst', val)} placeholder="Seleccionar" options={['No', 'Sí (Principal)', 'Sí (Suplente)']} />
+                                </Field>
+                                <Field label="Comité Convivencia">
+                                    <SingleSelect value={formData.esComiteConvivencia || ''} onChange={val => upd('esComiteConvivencia', val)} placeholder="Seleccionar" options={['No', 'Sí (Principal)', 'Sí (Suplente)']} />
+                                </Field>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Field label="Brigadista">
+                                    <SingleSelect value={formData.esBrigadista || ''} onChange={val => upd('esBrigadista', val)} placeholder="Seleccionar" options={['No', 'Sí']} />
+                                </Field>
+                                <Field label="Comité Seg. Vial">
+                                    <SingleSelect value={formData.esComiteSeguridadVial || ''} onChange={val => upd('esComiteSeguridadVial', val)} placeholder="Seleccionar" options={['No', 'Sí (Principal)', 'Sí (Suplente)']} />
+                                </Field>
+                            </div>
+
                             {/* Driver section */}
                             {isDriver(workerData.cargo) && (
                                 <>
                                     <SectionTitle icon={Briefcase} label="Conductor — Documentos" />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Field label="N° Licencia de Conducción">
+                                            <Input value={formData.licenciaConduccion || ''} onChange={e => upd('licenciaConduccion', e.target.value)} placeholder="Ej: 1234567" />
+                                        </Field>
+                                        <Field label="Venc. Licencia Conducción">
+                                            <Input type="date" value={formData.licenciaConduccionVencimiento || ''} onChange={e => upd('licenciaConduccionVencimiento', e.target.value)} />
+                                        </Field>
+                                    </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <Field label="Venc. SOAT">
                                             <Input type="date" value={formData.soatVencimiento || ''} onChange={e => upd('soatVencimiento', e.target.value)} />

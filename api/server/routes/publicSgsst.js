@@ -570,8 +570,19 @@ router.post('/perfil-update/:companyId/:workerId?', async (req, res) => {
         const workerId = worker.id; // Use the real ID found
 
         // Separate fields into Social and Health categories
-        const socialKeys = ['edad', 'genero', 'estadoCivil', 'nivelEscolaridad', 'direccion', 'telefono', 'emergenciaContacto', 'personasCargo', 'estrato', 'vivienda', 'soatVencimiento', 'tecnicomecanicaVencimiento', 'licenciaSST', 'licenciaVencimiento', 'curso50h', 'curso20h'];
-        const healthKeys = ['tipoSangre', 'enfermedades', 'medicamentos', 'fuma', 'alcohol', 'terapiaPsicologica'];
+        const socialKeys = [
+            'edad', 'genero', 'estadoCivil', 'nivelEscolaridad', 'direccion', 'telefono', 
+            'emergenciaContacto', 'personasCargo', 'estrato', 'vivienda', 'soatVencimiento', 
+            'tecnicomecanicaVencimiento', 'licenciaSST', 'licenciaVencimiento', 'curso50h', 'curso20h',
+            'licenciaConduccion', 'licenciaConduccionVencimiento', 'esCopasst', 'esComiteConvivencia', 
+            'esBrigadista', 'esComiteSeguridadVial', 'fechaNacimiento', 'lugarNacimiento', 
+            'barrio', 'municipioDomicilio', 'correoElectronico'
+        ];
+        const healthKeys = [
+            'tipoSangre', 'rh', 'enfermedades', 'medicamentos', 'fuma', 'alcohol', 'terapiaPsicologica',
+            'deporte', 'alimentacion', 'peso', 'talla', 'imc', 'presionArterial', 'frecuenciaCardiaca', 
+            'diagnosticoMedico', 'limitacionesBiomecanicas', 'alergiasQuimicas', 'riesgoCardiovascular'
+        ];
 
         const socialUpdates = {};
         const healthUpdates = {};
