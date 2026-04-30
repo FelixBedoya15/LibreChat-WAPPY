@@ -1080,7 +1080,7 @@ const CondicionesSalud = () => {
                                                 </div>
                                                 
                                                 <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider">Acompañamiento Psicológico</label>
+                                                    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider whitespace-nowrap truncate block" title="Acompañamiento Psicológico">Acompañ. Psicológico</label>
                                                     <div className="[&>div>div]:border-indigo-200/50 [&>div>div]:bg-indigo-50/30 dark:[&>div>div]:border-indigo-900/30  dark:[&>div>div]:bg-indigo-900/10">
                                                         <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Indicador de Burnout..." options={['No', 'Sí', 'Anteriormente']} />
                                                     </div>
