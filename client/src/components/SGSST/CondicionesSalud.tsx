@@ -33,6 +33,7 @@ import { useAutoLoadReport } from './useAutoLoadReport';
 import SGSSTToolbar, { ToolbarButton } from './SGSSTToolbar';
 import cn from '~/utils/cn';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import BioFitAuditModal from './BioFitAuditModal';
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface WorkerEntry {
@@ -150,6 +151,7 @@ const CondicionesSalud = () => {
     // QR Code Modal State
     const [selectedQrWorker, setSelectedQrWorker] = useState<WorkerEntry | null>(null);
     const [qrTab, setQrTab] = useState<'profile' | 'update'>('profile');
+    const [activeAuditWorker, setActiveAuditWorker] = useState<WorkerEntry | null>(null);
 
     // Inbox: pending profile updates from workers
     const [showInboxPerfil, setShowInboxPerfil] = useState(false);
@@ -564,75 +566,106 @@ const CondicionesSalud = () => {
         let score = 100;
         let alerts: string[] = [];
         let isLethal = false;
+        const auditItems: { category: string, title: string, description: string, pointsDeducted: number, severity: 'info'|'warning'|'critical' }[] = [];
+
+        const addAudit = (cat: string, title: string, desc: string, pts: number, sev: 'info'|'warning'|'critical') => {
+            score -= pts;
+            alerts.push(title);
+            auditItems.push({ category: cat, title, description: desc, pointsDeducted: pts, severity: sev });
+        };
 
         const cargo = cargosDisponibles.find(c => c.nombreCargo === w.cargo);
-        if (!cargo) return { score: 0, alerts: ['No hay rol asignado'], isLethal: false };
+        if (!cargo) return { score: 0, alerts: ['No hay rol asignado'], auditItems: [], isLethal: false };
 
-        // 1. Factores Clínicos y Fisiológicos Base
+        // 1. Biometría y Signos Vitales
         if (w.imc) {
             const imc = parseFloat(w.imc);
-            if (imc >= 30) { score -= 10; alerts.push('Alerta Metabólica: Riesgo cardiovascular por Obesidad detectado'); }
-            else if (imc < 18.5) { score -= 5; alerts.push('Alerta Nutricional: Índice de masa corporal por debajo del umbral saludable'); }
+            if (imc >= 30) addAudit('Clínico', 'Obesidad detectada', `El IMC de ${imc} indica obesidad, aumentando el riesgo cardiovascular y metabólico.`, 10, 'warning');
+            else if (imc < 18.5) addAudit('Clínico', 'Bajo peso', `El IMC de ${imc} sugiere déficit nutricional o patología subyacente.`, 5, 'info');
         }
 
         if (w.presionArterial) {
             const [sisStr, diaStr] = w.presionArterial.split('/');
             const sis = parseInt(sisStr || '0');
             const dia = parseInt(diaStr || '0');
-            if (sis >= 135 || dia >= 90) {
-                score -= 15;
-                alerts.push('Alerta Cardiovascular: Hipertensión. Se requiere seguimiento estricto');
-            }
+            if (sis >= 135 || dia >= 90) addAudit('Clínico', 'Riesgo de Hipertensión', `Presión de ${w.presionArterial} por encima de rangos óptimos. Requiere seguimiento médico.`, 15, 'warning');
         }
 
-        if (w.fuma === 'Sí, diario') { score -= 10; alerts.push('Alerta Respiratoria: Tabaquismo diario reduce la capacidad aeróbica'); }
-        if (w.alcohol === 'Sí (Frecuente)') { score -= 15; alerts.push('Alerta Psicosocial: Etilismo frecuente (Riesgo de accidentabilidad)'); }
+        if (w.frecuenciaCardiaca) {
+            const fc = parseInt(w.frecuenciaCardiaca);
+            if (fc > 100) addAudit('Clínico', 'Taquicardia en reposo', `Frecuencia cardíaca de ${fc} lpm indica posible estrés cardiovascular o metabólico.`, 10, 'warning');
+            else if (fc < 50) addAudit('Clínico', 'Bradicardia', `Frecuencia inusualmente baja (${fc} lpm), puede requerir valoración cardiológica.`, 5, 'info');
+        }
 
+        // 2. Hábitos
+        if (w.fuma === 'Sí, diario') addAudit('Clínico', 'Tabaquismo Activo', 'Consumo diario de tabaco impacta la capacidad pulmonar y oxigenación celular.', 10, 'warning');
+        if (w.alcohol === 'Sí (Frecuente)') addAudit('Psicosocial', 'Etilismo Frecuente', 'Aumenta significativamente la accidentabilidad y vulnerabilidad hepática.', 15, 'warning');
+
+        // 3. Patologías y Restricciones
         const hasEnfermedad = w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun');
-        if (hasEnfermedad) { score -= 10; alerts.push('Patología base registrada (Requiere control)'); }
+        if (hasEnfermedad) addAudit('Clínico', 'Patología Base', `Condición reportada: ${w.enfermedades}. Requiere matriz de compatibilidad con el rol.`, 10, 'warning');
+
+        const hasDiagnostico = w.diagnosticoMedico?.trim() && !w.diagnosticoMedico.toLowerCase().includes('ningun');
+        if (hasDiagnostico && !hasEnfermedad) addAudit('Clínico', 'Diagnóstico Médico Reciente', `Se ha emitido un diagnóstico que amerita vigilancia médica.`, 5, 'info');
 
         const hasBiomecanica = w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun');
-        if (hasBiomecanica) { score -= 10; alerts.push('Limitación osteomuscular / biomecánica reportada'); }
+        if (hasBiomecanica) addAudit('Físico', 'Limitación Biomecánica', `Restricción reportada: ${w.limitacionesBiomecanicas}.`, 10, 'warning');
 
         const hasAlergia = w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun');
-        if (hasAlergia) { score -= 10; alerts.push('Alerta Inmunológica: Sensibilidad química. Aislar de exposición cruzada'); }
+        if (hasAlergia) addAudit('Clínico', 'Sensibilidad Inmunológica', `Alergia a químicos/elementos detectada. Peligro de anafilaxia o dermatitis.`, 10, 'warning');
 
-        // 2. Cruce de Variables vs. Exigencias del Cargo
+        // 4. Vulnerabilidad Sociodemográfica y Psicosocial
+        let vulnerabilidadSocial = 0;
+        let socialDesc = [];
+        if (['1', '2'].includes(w.estrato)) { vulnerabilidadSocial++; socialDesc.push('estrato socioeconómico bajo'); }
+        if (w.personasCargo && Number(w.personasCargo) >= 3) { vulnerabilidadSocial++; socialDesc.push('alta carga de dependientes'); }
+        if (w.estadoCivil?.toLowerCase().includes('solter') || w.estadoCivil?.toLowerCase().includes('viud') || w.estadoCivil?.toLowerCase().includes('divorciad')) {
+            if (w.personasCargo && Number(w.personasCargo) > 0) { vulnerabilidadSocial++; socialDesc.push('monoparentalidad'); }
+        }
+        if (w.vivienda?.toLowerCase().includes('arrendada') || w.vivienda?.toLowerCase().includes('invasión')) { vulnerabilidadSocial++; socialDesc.push('inestabilidad habitacional'); }
+        
+        if (vulnerabilidadSocial >= 3) {
+            addAudit('Psicosocial', 'Alta Vulnerabilidad Sociodemográfica', `Factores estresores crónicos: ${socialDesc.join(', ')}. Disminuye la resiliencia psicológica.`, 15, 'warning');
+        } else if (vulnerabilidadSocial >= 2) {
+            addAudit('Psicosocial', 'Riesgo Psicosocial Moderado', `Presencia de múltiples factores de presión externa.`, 5, 'info');
+        }
+
+        if (w.nivelEscolaridad?.toLowerCase().includes('primaria')) {
+            addAudit('Sociodemográfico', 'Escolaridad Básica', 'Puede requerir métodos de capacitación más visuales y acompañamiento cercano en SST.', 5, 'info');
+        }
+
+        // 5. Cruce vs. Exigencias del Cargo
         if (cargo.exigenciaFisica === 'Alta') {
-            if (w.edad && Number(w.edad) > 55) { score -= 10; alerts.push('Edad avanzada para nivel de exigencia física del rol'); }
-            if (hasEnfermedad) { score -= 10; alerts.push('Patología incompatible o agravada por alta carga física'); }
-            if (hasBiomecanica) { score -= 20; alerts.push('CRÍTICO: Restricción biomecánica frente a esfuerzo pesado'); }
+            if (w.edad && Number(w.edad) > 55) addAudit('Operativo', 'Desajuste Etario', 'La edad avanzada es factor de riesgo ante altas exigencias de carga física.', 10, 'warning');
+            if (hasEnfermedad || hasDiagnostico) addAudit('Operativo', 'Patología en Rol Exigente', 'La carga física intensa puede agravar la patología base.', 10, 'critical');
+            if (hasBiomecanica) addAudit('Operativo', 'Restricción Biomecánica Crítica', 'Peligro inminente de lesión osteomuscular por incompatibilidad con el esfuerzo.', 20, 'critical');
             if (w.presionArterial && parseInt(w.presionArterial.split('/')[0]) >= 135) {
-                score -= 15; alerts.push('CRÍTICO: Hipertensión incompatible con rol de alto impacto físico');
+                addAudit('Operativo', 'Hipertensión en Esfuerzo', 'Riesgo agudo de evento cardiovascular durante el esfuerzo físico intenso.', 15, 'critical');
             }
         }
 
         if (cargo.exigenciaMental === 'Alta') {
-            if (w.terapiaPsicologica === 'Sí') { score -= 10; alerts.push('Alerta de Burnout: Rol de alta demanda mental + Terapia clínica activa'); }
-            if (w.personasCargo && Number(w.personasCargo) >= 3 && ['1', '2'].includes(w.estrato)) {
-                score -= 5; alerts.push('Vulnerabilidad Psicosocial: Alta carga económica/familiar + rol estresante');
-            }
+            if (w.terapiaPsicologica === 'Sí') addAudit('Psicosocial', 'Alerta de Burnout', 'Rol de alta tensión mental sumado a necesidad clínica de psicoterapia.', 15, 'critical');
+            if (vulnerabilidadSocial >= 2) addAudit('Psicosocial', 'Sobrecarga Cognitiva', 'La vulnerabilidad social severa sumada al rol estresante aumenta el riesgo de error humano.', 10, 'warning');
         }
 
         if (cargo.operaMaquinaria === 'Sí') {
             const hasMedsLethal = w.medicamentos?.toLowerCase().includes('psiquiátrico') || w.medicamentos?.toLowerCase().includes('dormir');
             if (hasMedsLethal || w.alcohol === 'Sí (Frecuente)') {
-                score -= 40;
                 isLethal = true;
-                alerts.push('🛑 BLOQUEO PREVENTIVO: Uso de medicamentos sedantes o sustancias + Maquinaria Peligrosa');
+                addAudit('Operativo', '🛑 BLOQUEO PREVENTIVO', 'Uso de sustancias depresoras del SNC es incompatible con operación de maquinaria.', 40, 'critical');
             }
         }
 
-        // 3. Brechas de Entrenamiento y Capacitación
+        // 6. Entrenamiento y Formación Legal
         if (cargo.entrenamientosSeleccionados && cargo.entrenamientosSeleccionados.length > 0) {
             const req = cargo.entrenamientosSeleccionados.length;
             if (req > 0 && !w.curso50h && !w.curso20h) {
-                score -= 5;
-                alerts.push('Brecha de Entrenamiento detectada: Cursos obligatorios SGSST vencidos o no reportados');
+                addAudit('Entrenamiento', 'Brecha Formativa SST', 'Ausencia de certificados obligatorios exigidos por el perfil de cargo.', 5, 'warning');
             }
         }
 
-        return { score: Math.max(0, score), alerts: Array.from(new Set(alerts)), isLethal };
+        return { score: Math.max(0, score), alerts: Array.from(new Set(alerts)), auditItems, isLethal };
     };
 
     // ─── Render ──────────────────────────────────────────────────
@@ -875,8 +908,12 @@ const CondicionesSalud = () => {
 
                                                     <div className="flex flex-col md:flex-row items-center justify-between gap-8 pl-4">
                                                         <div className="flex flex-col md:flex-row items-center gap-6 w-full md:w-auto">
-                                                            <div className="relative group-hover:scale-105 transition-transform duration-500">
-                                                                <svg className="w-28 h-28 transform -rotate-90">
+                                                            <div 
+                                                                className="relative group-hover:scale-110 transition-transform duration-500 cursor-pointer"
+                                                                onClick={() => setActiveAuditWorker(w)}
+                                                                title="Ver Auditoría Detallada"
+                                                            >
+                                                                <svg className="w-28 h-28 transform -rotate-90 filter drop-shadow-md">
                                                                     <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" className="text-border-light dark:text-white/5" />
                                                                     <circle cx="56" cy="56" r="50" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="314.159" strokeDashoffset={314.159 - (fitData.score / 100) * 314.159} className={`transition-all duration-1000 ease-out ${scoreColor}`} strokeLinecap="round" />
                                                                 </svg>
@@ -886,8 +923,8 @@ const CondicionesSalud = () => {
                                                                 </div>
                                                             </div>
 
-                                                            <div className="text-center md:text-left">
-                                                                <h4 className="text-lg font-black text-text-primary uppercase tracking-wider mb-2 flex items-center justify-center md:justify-start gap-2">
+                                                            <div className="text-center md:text-left cursor-pointer" onClick={() => setActiveAuditWorker(w)}>
+                                                                <h4 className="text-lg font-black text-text-primary uppercase tracking-wider mb-2 flex items-center justify-center md:justify-start gap-2 hover:text-teal-600 transition-colors">
                                                                     <Activity className="w-5 h-5 text-teal-600 dark:text-teal-400 animate-pulse"/> Índice Biocéntrico Integral
                                                                 </h4>
                                                                 <p className="text-sm font-medium text-text-secondary leading-relaxed max-w-sm">Evaluación clínica vs exigencias del rol: <span className="font-bold text-text-primary p-1 bg-surface-secondary rounded-md border border-border-light">{w.cargo}</span>.</p>
@@ -1276,6 +1313,15 @@ const CondicionesSalud = () => {
                         updateWorkerField(activeSignatureWorkerId, 'firmaDigital', base64);
                     }
                 }}
+            />
+
+            <BioFitAuditModal 
+                isOpen={!!activeAuditWorker}
+                onClose={() => setActiveAuditWorker(null)}
+                workerName={activeAuditWorker?.nombre || 'Trabajador'}
+                cargoName={activeAuditWorker?.cargo || 'Sin cargo'}
+                score={activeAuditWorker ? calculateBiocentricFit(activeAuditWorker).score : 100}
+                auditItems={activeAuditWorker ? calculateBiocentricFit(activeAuditWorker).auditItems : []}
             />
         </div>
     );
