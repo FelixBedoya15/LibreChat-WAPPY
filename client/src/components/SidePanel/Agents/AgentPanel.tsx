@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Copy } from 'lucide-react';
 import React, { useMemo, useCallback, useRef } from 'react';
 import { Button, useToastContext } from '@librechat/client';
 import { useWatch, useForm, FormProvider } from 'react-hook-form';
@@ -311,6 +311,31 @@ export default function AgentPanel() {
                   localize('com_ui_new') +
                   ' ' +
                   localize('com_ui_agent')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center"
+                onClick={() => {
+                  const currentValues = methods.getValues();
+                  const newValues = {
+                    ...currentValues,
+                    id: '',
+                    agent: {
+                      ...currentValues.agent,
+                      value: '',
+                      label: `${currentValues.name} (Copia)`,
+                    },
+                    name: `${currentValues.name} (Copia)`,
+                  };
+                  reset(newValues);
+                  setCurrentAgentId(undefined);
+                }}
+                disabled={agentQuery.isInitialLoading}
+                aria-label="Duplicar agente"
+              >
+                <Copy className="mr-1 h-4 w-4" />
+                Duplicar Agente
               </Button>
               <Button
                 variant="submit"
