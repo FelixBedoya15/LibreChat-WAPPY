@@ -1270,9 +1270,25 @@ const PerfilSociodemografico = () => {
                                     <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                         <QRCodeSVG value={getQrValue(selectedQrWorker)} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
                                     </div>
-                                    <div className="text-center text-gray-600 dark:text-gray-400 space-y-1">
-                                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Identificación (CC)</p>
-                                        <p className="text-base font-bold text-gray-700 dark:text-gray-200">{selectedQrWorker.identificacion || 'N/A'}</p>
+                                    <div className="w-full space-y-2">
+                                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 text-center">Enlace de acceso al perfil</p>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                readOnly
+                                                value={getQrValue(selectedQrWorker)}
+                                                className="flex-1 text-xs px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-gray-600 dark:text-gray-300"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(getQrValue(selectedQrWorker));
+                                                    showToast({ message: 'Enlace copiado al portapapeles', status: 'success', severity: 'success' });
+                                                }}
+                                                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-900 text-white text-xs font-bold rounded-xl transition-colors shadow-sm shrink-0"
+                                            >
+                                                Copiar
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 text-center">Identificación (CC): {selectedQrWorker.identificacion || 'N/A'}</p>
                                     </div>
                                 </>
                             ) : (
