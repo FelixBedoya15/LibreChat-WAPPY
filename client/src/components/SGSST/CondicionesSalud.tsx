@@ -1066,30 +1066,30 @@ const CondicionesSalud = () => {
                                                 </div>
 
                                                 <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">Tabaquismo</label>
+                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Tabaquismo</label>
                                                     <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/30 dark:[&>div>div]:border-amber-900/30  dark:[&>div>div]:bg-amber-900/10">
                                                         <SingleSelect value={w.fuma || ''} onChange={val => updateWorkerField(w.id, 'fuma', val)} placeholder="Seleccione..." options={['No', 'Sí, diario', 'Ocasional']} />
                                                     </div>
                                                 </div>
                                                 
                                                 <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider">Etilismo (Alcohol)</label>
+                                                    <label className="text-[11px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-wider block truncate">Etilismo (Alcohol)</label>
                                                     <div className="[&>div>div]:border-amber-200/50 [&>div>div]:bg-amber-50/30 dark:[&>div>div]:border-amber-900/30  dark:[&>div>div]:bg-amber-900/10">
                                                         <SingleSelect value={w.alcohol || ''} onChange={val => updateWorkerField(w.id, 'alcohol', val)} placeholder="Anotador de Riesgo Letal..." options={['No', 'Mensual', 'Semanal', 'Sí (Frecuente)']} />
                                                     </div>
                                                 </div>
                                                 
                                                 <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider whitespace-nowrap truncate block" title="Acompañamiento Psicológico">Acompañ. Psicológico</label>
+                                                    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-wider block truncate" title="Acompañamiento Psicológico">Acompañ. Psicológico</label>
                                                     <div className="[&>div>div]:border-indigo-200/50 [&>div>div]:bg-indigo-50/30 dark:[&>div>div]:border-indigo-900/30  dark:[&>div>div]:bg-indigo-900/10">
                                                         <SingleSelect value={w.terapiaPsicologica || ''} onChange={val => updateWorkerField(w.id, 'terapiaPsicologica', val)} placeholder="Indicador de Burnout..." options={['No', 'Sí', 'Anteriormente']} />
                                                     </div>
                                                 </div>
                                                 
                                                 <div className="space-y-1.5 lg:col-span-1">
-                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Próximo Segumiento</label>
+                                                    <label className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block truncate">Próximo Segumiento</label>
                                                     <input type="date" value={w.fechaSeguimiento} onChange={e => updateWorkerField(w.id, 'fechaSeguimiento', e.target.value)}
-                                                        className="w-full text-sm py-[9px] px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
+                                                        className="w-full text-sm py-2 px-3 rounded-xl border border-border-medium bg-surface-secondary focus:border-teal-400 focus:ring-2 focus:ring-teal-400/20 text-text-primary outline-none" />
                                                 </div>
 
                                             </div>
