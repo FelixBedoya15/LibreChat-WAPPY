@@ -416,9 +416,6 @@ const PerfilSociodemografico = () => {
     // ─── Save & Generate ────────────────────────────────────────
     const handleDummyData = () => {
         const dummyWorkers = generateDummyData.perfilSociodemografico();
-        if (cargosDisponibles.length > 0) {
-            dummyWorkers.forEach(w => w.cargo = cargosDisponibles[0].nombreCargo);
-        }
         setTrabajadores(prev => [...prev, ...dummyWorkers]);
         showToast({ message: `${dummyWorkers.length} trabajadores simulados generados con éxito`, status: 'success', severity: 'success' });
     };

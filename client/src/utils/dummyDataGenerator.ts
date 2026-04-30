@@ -4,187 +4,187 @@ export const generateDummyData = {
         const now = new Date();
         const past = (months: number) => { const d = new Date(now); d.setMonth(d.getMonth() - months); return d.toISOString().split('T')[0]; };
         const base = {
-            emergenciaContacto: '', tipoSangre: '', enfermedades: '', medicamentos: '',
+            emergenciaContacto: 'Pendiente - No reportado', tipoSangre: 'O+', enfermedades: 'Ninguna conocida', medicamentos: 'Ninguno',
             fuma: 'No', alcohol: 'No', terapiaPsicologica: 'No', personasCargo: 0 as any,
-            estrato: '', vivienda: '', soatVencimiento: '', tecnicomecanicaVencimiento: '',
+            estrato: '3', vivienda: 'Familiar', soatVencimiento: '', tecnicomecanicaVencimiento: '',
             licenciaConduccion: '', licenciaConduccionVencimiento: '',
             licenciaSST: '', licenciaVencimiento: '', curso50h: '', curso20h: '',
             esCopasst: 'No', esComiteConvivencia: 'No', esBrigadista: 'No', esComiteSeguridadVial: 'No',
-            formacion: [], peso: '', talla: '', imc: '', presionArterial: '', frecuenciaCardiaca: '',
-            limitacionesBiomecanicas: '', alergiasQuimicas: '',
+            formacion: [], peso: '70', talla: '1.70', imc: '24.2', presionArterial: '120/80', frecuenciaCardiaca: '75',
+            limitacionesBiomecanicas: 'Ninguna', alergiasQuimicas: 'Ninguna reportada',
             completedByAI: false, consentimientoFirmaDigital: 'Sí', firmaDigital: null,
             fechaCursoAlturasAutorizado: '', fechaCursoAlturasCoordinador: '',
         };
         return [
             // 1. Gerente General
             {
-                id: crypto.randomUUID(), nombre: 'Carlos Alberto Ramírez Torres', identificacion: '79845123',
+                ...base, id: crypto.randomUUID(), nombre: 'Carlos Alberto Ramírez Torres', identificacion: '79845123',
                 edad: 48, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Especialización',
                 direccion: 'Carrera 7 # 156-20, Bogotá', telefono: '3104567890', cargo: 'Gerente General',
                 fechaExamenMedico: past(6), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Pausas activas visuales cada 2 horas.', fechaSeguimiento: past(-6),
                 emergenciaContacto: 'Esposa - 3154567890', tipoSangre: 'O+', estrato: '5', vivienda: 'Propia', personasCargo: 3,
-                peso: '82', talla: '1.78', imc: '25.9', presionArterial: '125/85', esCopasst: 'Sí', esComiteConvivencia: 'Sí', ...base
+                peso: '82', talla: '1.78', imc: '25.9', presionArterial: '125/85', esCopasst: 'Sí', esComiteConvivencia: 'Sí'
             },
             {
-                id: crypto.randomUUID(), nombre: 'Valeria Cárdenas Silva', identificacion: '1012345678',
+                ...base, id: crypto.randomUUID(), nombre: 'Valeria Cárdenas Silva', identificacion: '1012345678',
                 edad: 42, genero: 'Femenino', estadoCivil: 'Unión Libre', nivelEscolaridad: 'Maestría',
                 direccion: 'Calle 93 # 12-45, Bogotá', telefono: '3112233445', cargo: 'Gerente General',
                 fechaExamenMedico: past(3), diagnosticoMedico: 'Apto con restricciones', recomendacionesMedicas: 'Control oftalmológico anual. Pausas visuales.', fechaSeguimiento: past(-9),
                 emergenciaContacto: 'Esposo - 3001122334', tipoSangre: 'A+', estrato: '5', vivienda: 'Propia', personasCargo: 1,
-                peso: '64', talla: '1.65', imc: '23.5', presionArterial: '110/70', ...base
+                peso: '64', talla: '1.65', imc: '23.5', presionArterial: '110/70'
             },
             // 2. Profesional SISO / Líder SST
             {
-                id: crypto.randomUUID(), nombre: 'Ana María Gómez Pérez', identificacion: '52418790',
+                ...base, id: crypto.randomUUID(), nombre: 'Ana María Gómez Pérez', identificacion: '52418790',
                 edad: 32, genero: 'Femenino', estadoCivil: 'Soltero/a', nivelEscolaridad: 'Profesional',
                 direccion: 'Calle 100 # 15-40, Bogotá', telefono: '3209876543', cargo: 'Profesional SISO / Líder SST',
                 fechaExamenMedico: past(2), diagnosticoMedico: 'Visual - Vicios de refracción', recomendacionesMedicas: 'Uso de lentes de descanso en pantalla.', fechaSeguimiento: past(-10),
                 emergenciaContacto: 'Mamá - 3011112222', tipoSangre: 'A+', estrato: '3', vivienda: 'Arrendada', personasCargo: 0,
-                licenciaSST: 'LIC-SST-12345', licenciaVencimiento: past(-24), curso50h: past(-18), curso20h: past(-12), alergiasQuimicas: 'Sensibilidad a solventes orgánicos', peso: '60', talla: '1.62', imc: '22.9', esBrigadista: 'Sí', ...base, fechaCursoAlturasCoordinador: past(12)
+                licenciaSST: 'LIC-SST-12345', licenciaVencimiento: past(-24), curso50h: past(-18), curso20h: past(-12), alergiasQuimicas: 'Sensibilidad a solventes orgánicos', peso: '60', talla: '1.62', imc: '22.9', esBrigadista: 'Sí', fechaCursoAlturasCoordinador: past(12)
             },
             {
-                id: crypto.randomUUID(), nombre: 'Diego Fernando Suárez', identificacion: '1098123456',
+                ...base, id: crypto.randomUUID(), nombre: 'Diego Fernando Suárez', identificacion: '1098123456',
                 edad: 35, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Especialización',
                 direccion: 'Av 68 # 22-10, Bogotá', telefono: '3156677889', cargo: 'Profesional SISO / Líder SST',
                 fechaExamenMedico: past(5), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Uso estricto de bloqueador solar en campo.', fechaSeguimiento: past(-7),
                 emergenciaContacto: 'Esposa - 3145556677', tipoSangre: 'O+', estrato: '4', vivienda: 'Propia', personasCargo: 2,
-                licenciaSST: 'LIC-SST-98765', licenciaVencimiento: past(-15), curso50h: past(-20), curso20h: past(-8), peso: '75', talla: '1.72', imc: '25.4', esCopasst: 'Sí', ...base, fechaCursoAlturasCoordinador: past(10)
+                licenciaSST: 'LIC-SST-98765', licenciaVencimiento: past(-15), curso50h: past(-20), curso20h: past(-8), peso: '75', talla: '1.72', imc: '25.4', esCopasst: 'Sí', fechaCursoAlturasCoordinador: past(10)
             },
             // 3. Ingeniero Residente de Obra
             {
-                id: crypto.randomUUID(), nombre: 'Jorge Enrique Pineda', identificacion: '80123456',
+                ...base, id: crypto.randomUUID(), nombre: 'Jorge Enrique Pineda', identificacion: '80123456',
                 edad: 39, genero: 'Masculino', estadoCivil: 'Separado/a', nivelEscolaridad: 'Profesional',
                 direccion: 'Calle 134 # 45-20, Bogotá', telefono: '3123456789', cargo: 'Ingeniero Residente de Obra',
                 fechaExamenMedico: past(8), diagnosticoMedico: 'Osteomuscular - Leve', recomendacionesMedicas: 'Precaución en desplazamientos por terrenos irregulares.', fechaSeguimiento: past(-4),
                 emergenciaContacto: 'Hermano - 3201122334', tipoSangre: 'B+', estrato: '4', vivienda: 'Arrendada', personasCargo: 1,
-                peso: '80', talla: '1.76', imc: '25.8', presionArterial: '130/85', fuma: 'Ocasional', ...base
+                peso: '80', talla: '1.76', imc: '25.8', presionArterial: '130/85', fuma: 'Ocasional'
             },
             {
-                id: crypto.randomUUID(), nombre: 'Laura Marcela Ríos', identificacion: '1032456789',
+                ...base, id: crypto.randomUUID(), nombre: 'Laura Marcela Ríos', identificacion: '1032456789',
                 edad: 34, genero: 'Femenino', estadoCivil: 'Unión Libre', nivelEscolaridad: 'Profesional',
                 direccion: 'Transversal 30 # 40-50, Bogotá', telefono: '3009988776', cargo: 'Ingeniero Residente de Obra',
                 fechaExamenMedico: past(4), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Hidratación constante en campo.', fechaSeguimiento: past(-8),
                 emergenciaContacto: 'Pareja - 3112233445', tipoSangre: 'O+', estrato: '3', vivienda: 'Propia', personasCargo: 0,
-                peso: '65', talla: '1.68', imc: '23.0', presionArterial: '115/75', esBrigadista: 'Sí', ...base
+                peso: '65', talla: '1.68', imc: '23.0', presionArterial: '115/75', esBrigadista: 'Sí'
             },
             // 4. Conductor de Volqueta y Maquinaria
             {
-                id: crypto.randomUUID(), nombre: 'Luis Fernando Rodríguez', identificacion: '1098765432',
+                ...base, id: crypto.randomUUID(), nombre: 'Luis Fernando Rodríguez', identificacion: '1098765432',
                 edad: 28, genero: 'Masculino', estadoCivil: 'Unión Libre', nivelEscolaridad: 'Bachiller',
                 direccion: 'Transversal 91 # 120-10, Bogotá', telefono: '3001234567', cargo: 'Conductor de Volqueta y Maquinaria',
                 fechaExamenMedico: past(1), diagnosticoMedico: 'Osteomuscular - Espalda', recomendacionesMedicas: 'Evitar levantamiento de cargas mayores a 15kg. Terapia física.', fechaSeguimiento: past(-1),
                 emergenciaContacto: 'Compañera - 3023334455', tipoSangre: 'B+', enfermedades: 'Lumbalgia crónica', fuma: 'Sí, diario', alcohol: 'Semanal', estrato: '2', vivienda: 'Arrendada', personasCargo: 2,
-                peso: '98', talla: '1.70', imc: '33.9', presionArterial: '145/95', limitacionesBiomecanicas: 'Hernia discal en proceso de valoración.', licenciaConduccion: '1098765432', licenciaConduccionVencimiento: past(-36), soatVencimiento: past(-12), tecnicomecanicaVencimiento: past(-12), esComiteSeguridadVial: 'Sí', ...base
+                peso: '98', talla: '1.70', imc: '33.9', presionArterial: '145/95', limitacionesBiomecanicas: 'Hernia discal en proceso de valoración.', licenciaConduccion: '1098765432', licenciaConduccionVencimiento: past(-36), soatVencimiento: past(-12), tecnicomecanicaVencimiento: past(-12), esComiteSeguridadVial: 'Sí'
             },
             {
-                id: crypto.randomUUID(), nombre: 'Pedro Pablo Gómez', identificacion: '79111222',
+                ...base, id: crypto.randomUUID(), nombre: 'Pedro Pablo Gómez', identificacion: '79111222',
                 edad: 45, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Básica Secundaria',
                 direccion: 'Calle 70 Sur # 12-30, Bogotá', telefono: '3157788990', cargo: 'Conductor de Volqueta y Maquinaria',
                 fechaExamenMedico: past(10), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Higiene postural en silla de conducción.', fechaSeguimiento: past(-2),
                 emergenciaContacto: 'Hijo - 3004455667', tipoSangre: 'O+', estrato: '2', vivienda: 'Familiar', personasCargo: 4,
-                peso: '85', talla: '1.69', imc: '29.8', presionArterial: '135/85', licenciaConduccion: '79111222', licenciaConduccionVencimiento: past(-24), ...base
+                peso: '85', talla: '1.69', imc: '29.8', presionArterial: '135/85', licenciaConduccion: '79111222', licenciaConduccionVencimiento: past(-24)
             },
             // 5. Oficial de Obra Blanca y Fachadas
             {
-                id: crypto.randomUUID(), nombre: 'Héctor Fabio Castaño', identificacion: '1122334455',
+                ...base, id: crypto.randomUUID(), nombre: 'Héctor Fabio Castaño', identificacion: '1122334455',
                 edad: 38, genero: 'Masculino', estadoCivil: 'Soltero/a', nivelEscolaridad: 'Técnico',
                 direccion: 'Carrera 15 # 20-30 Sur, Bogotá', telefono: '3201112233', cargo: 'Oficial de Obra Blanca y Fachadas',
                 fechaExamenMedico: past(7), diagnosticoMedico: 'Apto para trabajo en alturas', recomendacionesMedicas: 'Uso riguroso de protección respiratoria por polvo y solventes.', fechaSeguimiento: past(-5),
                 emergenciaContacto: 'Madre - 3114445566', tipoSangre: 'A-', estrato: '2', vivienda: 'Arrendada', personasCargo: 1,
-                peso: '72', talla: '1.71', imc: '24.6', alergiasQuimicas: 'Irritación leve por polvo de cemento', fechaCursoAlturasAutorizado: past(6), ...base
+                peso: '72', talla: '1.71', imc: '24.6', alergiasQuimicas: 'Irritación leve por polvo de cemento', fechaCursoAlturasAutorizado: past(6)
             },
             {
-                id: crypto.randomUUID(), nombre: 'Milton José Rivas', identificacion: '1045678901',
+                ...base, id: crypto.randomUUID(), nombre: 'Milton José Rivas', identificacion: '1045678901',
                 edad: 41, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Básica Secundaria',
                 direccion: 'Calle 12 # 5-60, Bogotá', telefono: '3012223344', cargo: 'Oficial de Obra Blanca y Fachadas',
                 fechaExamenMedico: past(2), diagnosticoMedico: 'Apto con restricciones biomecánicas', recomendacionesMedicas: 'Pausas activas para miembros superiores. Evitar sobreesfuerzo en hombros.', fechaSeguimiento: past(-10),
                 emergenciaContacto: 'Esposa - 3156667788', tipoSangre: 'O+', estrato: '2', vivienda: 'Propia', personasCargo: 3,
-                peso: '76', talla: '1.68', imc: '26.9', limitacionesBiomecanicas: 'Tendinitis leve hombro derecho', fechaCursoAlturasAutorizado: past(8), ...base
+                peso: '76', talla: '1.68', imc: '26.9', limitacionesBiomecanicas: 'Tendinitis leve hombro derecho', fechaCursoAlturasAutorizado: past(8)
             },
             // 6. Ayudante de Excavación y Redes
             {
-                id: crypto.randomUUID(), nombre: 'Brayan Steven López', identificacion: '1023456789',
+                ...base, id: crypto.randomUUID(), nombre: 'Brayan Steven López', identificacion: '1023456789',
                 edad: 24, genero: 'Masculino', estadoCivil: 'Soltero/a', nivelEscolaridad: 'Básica Secundaria',
                 direccion: 'Carrera 80 # 65-12 Sur, Bogotá', telefono: '3145556677', cargo: 'Ayudante de Excavación y Redes',
                 fechaExamenMedico: past(4), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Capacitación en manejo manual de cargas.', fechaSeguimiento: past(-8),
                 emergenciaContacto: 'Hermana - 3209998877', tipoSangre: 'O+', estrato: '1', vivienda: 'Familiar', personasCargo: 0,
-                peso: '68', talla: '1.75', imc: '22.2', ...base
+                peso: '68', talla: '1.75', imc: '22.2'
             },
             {
-                id: crypto.randomUUID(), nombre: 'José Manuel Díaz', identificacion: '1078901234',
+                ...base, id: crypto.randomUUID(), nombre: 'José Manuel Díaz', identificacion: '1078901234',
                 edad: 52, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Básica Primaria',
                 direccion: 'Calle 80 Sur # 14-20, Bogotá', telefono: '3102223344', cargo: 'Ayudante de Excavación y Redes',
                 fechaExamenMedico: past(11), diagnosticoMedico: 'Apto con restricciones', recomendacionesMedicas: 'Control de presión arterial. Evitar cargas superiores a 20kg.', fechaSeguimiento: past(-1),
                 emergenciaContacto: 'Hija - 3113334455', tipoSangre: 'B+', enfermedades: 'Hipertensión controlada', medicamentos: 'Losartán 50mg', estrato: '2', vivienda: 'Propia', personasCargo: 2,
-                peso: '84', talla: '1.65', imc: '30.8', presionArterial: '140/90', ...base
+                peso: '84', talla: '1.65', imc: '30.8', presionArterial: '140/90'
             },
             // 7. Técnico Electricista / Liniero
             {
-                id: crypto.randomUUID(), nombre: 'Esteban Darío Morales', identificacion: '1055667788',
+                ...base, id: crypto.randomUUID(), nombre: 'Esteban Darío Morales', identificacion: '1055667788',
                 edad: 36, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Tecnólogo',
                 direccion: 'Carrera 50 # 100-22, Bogotá', telefono: '3158889900', cargo: 'Técnico Electricista / Liniero',
                 fechaExamenMedico: past(5), diagnosticoMedico: 'Apto para trabajo en alturas y riesgo eléctrico', recomendacionesMedicas: 'Uso estricto de guantes dieléctricos.', fechaSeguimiento: past(-7),
                 emergenciaContacto: 'Esposa - 3007778899', tipoSangre: 'O+', estrato: '3', vivienda: 'Arrendada', personasCargo: 2,
-                peso: '74', talla: '1.73', imc: '24.7', fechaCursoAlturasAutorizado: past(10), ...base
+                peso: '74', talla: '1.73', imc: '24.7', fechaCursoAlturasAutorizado: past(10)
             },
             {
-                id: crypto.randomUUID(), nombre: 'Andrés Camilo Rojas', identificacion: '1099887766',
+                ...base, id: crypto.randomUUID(), nombre: 'Andrés Camilo Rojas', identificacion: '1099887766',
                 edad: 30, genero: 'Masculino', estadoCivil: 'Unión Libre', nivelEscolaridad: 'Técnico',
                 direccion: 'Calle 170 # 55-40, Bogotá', telefono: '3204445566', cargo: 'Técnico Electricista / Liniero',
                 fechaExamenMedico: past(2), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Pausas activas visuales y osteomusculares.', fechaSeguimiento: past(-10),
                 emergenciaContacto: 'Pareja - 3142223344', tipoSangre: 'A+', estrato: '3', vivienda: 'Propia', personasCargo: 1,
-                peso: '70', talla: '1.70', imc: '24.2', fechaCursoAlturasAutorizado: past(4), ...base
+                peso: '70', talla: '1.70', imc: '24.2', fechaCursoAlturasAutorizado: past(4)
             },
             // 8. Soldador Estructural Homologado
             {
-                id: crypto.randomUUID(), nombre: 'Wilmer Alirio Buitrago', identificacion: '79555444',
+                ...base, id: crypto.randomUUID(), nombre: 'Wilmer Alirio Buitrago', identificacion: '79555444',
                 edad: 44, genero: 'Masculino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Técnico',
                 direccion: 'Carrera 20 # 40-50 Sur, Bogotá', telefono: '3115556677', cargo: 'Soldador Estructural Homologado',
                 fechaExamenMedico: past(6), diagnosticoMedico: 'Apto con hallazgos auditivos', recomendacionesMedicas: 'Uso doble protección auditiva. Control espirometría.', fechaSeguimiento: past(-6),
                 emergenciaContacto: 'Hijo - 3154443322', tipoSangre: 'O+', enfermedades: 'Hipoacusia leve inducida por ruido', estrato: '2', vivienda: 'Propia', personasCargo: 3,
-                peso: '82', talla: '1.72', imc: '27.7', fechaCursoAlturasAutorizado: past(11), ...base
+                peso: '82', talla: '1.72', imc: '27.7', fechaCursoAlturasAutorizado: past(11)
             },
             {
-                id: crypto.randomUUID(), nombre: 'Jhon Alexander Marín', identificacion: '1088776655',
+                ...base, id: crypto.randomUUID(), nombre: 'Jhon Alexander Marín', identificacion: '1088776655',
                 edad: 33, genero: 'Masculino', estadoCivil: 'Separado/a', nivelEscolaridad: 'Técnico',
                 direccion: 'Calle 68 # 80-10, Bogotá', telefono: '3016667788', cargo: 'Soldador Estructural Homologado',
                 fechaExamenMedico: past(3), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Uso riguroso de careta fotosensible y respirador para humos metálicos.', fechaSeguimiento: past(-9),
                 emergenciaContacto: 'Madre - 3205554433', tipoSangre: 'AB+', estrato: '3', vivienda: 'Arrendada', personasCargo: 1,
-                peso: '78', talla: '1.76', imc: '25.2', fechaCursoAlturasAutorizado: past(7), ...base
+                peso: '78', talla: '1.76', imc: '25.2', fechaCursoAlturasAutorizado: past(7)
             },
             // 9. Auxiliar de Almacén y Bodega
             {
-                id: crypto.randomUUID(), nombre: 'Cristian David Ortiz', identificacion: '1011223344',
+                ...base, id: crypto.randomUUID(), nombre: 'Cristian David Ortiz', identificacion: '1011223344',
                 edad: 26, genero: 'Masculino', estadoCivil: 'Soltero/a', nivelEscolaridad: 'Bachiller',
                 direccion: 'Carrera 10 # 2-30 Sur, Bogotá', telefono: '3128889900', cargo: 'Auxiliar de Almacén y Bodega',
                 fechaExamenMedico: past(1), diagnosticoMedico: 'Apto / Sin Hallazgos', recomendacionesMedicas: 'Higiene postural en levantamiento de cargas.', fechaSeguimiento: past(-11),
                 emergenciaContacto: 'Padre - 3003332211', tipoSangre: 'A-', estrato: '2', vivienda: 'Familiar', personasCargo: 0,
-                peso: '65', talla: '1.70', imc: '22.5', esBrigadista: 'Sí', ...base
+                peso: '65', talla: '1.70', imc: '22.5', esBrigadista: 'Sí'
             },
             {
-                id: crypto.randomUUID(), nombre: 'Marcela Patricia Vergara', identificacion: '52666777',
+                ...base, id: crypto.randomUUID(), nombre: 'Marcela Patricia Vergara', identificacion: '52666777',
                 edad: 37, genero: 'Femenino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Técnico',
                 direccion: 'Calle 13 # 65-20, Bogotá', telefono: '3152223344', cargo: 'Auxiliar de Almacén y Bodega',
                 fechaExamenMedico: past(9), diagnosticoMedico: 'Osteomuscular - Leve', recomendacionesMedicas: 'Pausas activas. Rotación de tareas repetitivas.', fechaSeguimiento: past(-3),
                 emergenciaContacto: 'Esposo - 3105556677', tipoSangre: 'O+', estrato: '3', vivienda: 'Propia', personasCargo: 2,
-                peso: '68', talla: '1.60', imc: '26.6', limitacionesBiomecanicas: 'Síndrome de túnel carpiano bilateral leve', ...base
+                peso: '68', talla: '1.60', imc: '26.6', limitacionesBiomecanicas: 'Síndrome de túnel carpiano bilateral leve'
             },
             // 10. Auxiliar Contable y Administrativa
             {
-                id: crypto.randomUUID(), nombre: 'Diana Carolina Salazar', identificacion: '1033445566',
+                ...base, id: crypto.randomUUID(), nombre: 'Diana Carolina Salazar', identificacion: '1033445566',
                 edad: 29, genero: 'Femenino', estadoCivil: 'Soltero/a', nivelEscolaridad: 'Tecnólogo',
                 direccion: 'Carrera 50 # 22-10, Bogotá', telefono: '3201112233', cargo: 'Auxiliar Contable y Administrativa',
                 fechaExamenMedico: past(4), diagnosticoMedico: 'Visual - Leve', recomendacionesMedicas: 'Pausas visuales. Corrección óptica.', fechaSeguimiento: past(-8),
                 emergenciaContacto: 'Madre - 3118889900', tipoSangre: 'B+', estrato: '3', vivienda: 'Arrendada', personasCargo: 0,
-                peso: '58', talla: '1.64', imc: '21.6', esComiteConvivencia: 'Sí', ...base
+                peso: '58', talla: '1.64', imc: '21.6', esComiteConvivencia: 'Sí'
             },
             {
-                id: crypto.randomUUID(), nombre: 'Luz Marina Vargas', identificacion: '51999888',
+                ...base, id: crypto.randomUUID(), nombre: 'Luz Marina Vargas', identificacion: '51999888',
                 edad: 46, genero: 'Femenino', estadoCivil: 'Casado/a', nivelEscolaridad: 'Profesional',
                 direccion: 'Calle 153 # 100-20, Bogotá', telefono: '3104445566', cargo: 'Auxiliar Contable y Administrativa',
                 fechaExamenMedico: past(11), diagnosticoMedico: 'Apto con restricciones', recomendacionesMedicas: 'Manejo de estrés. Ejercicio cardiovascular regular.', fechaSeguimiento: past(-1),
                 emergenciaContacto: 'Esposo - 3159998877', tipoSangre: 'O+', enfermedades: 'Migraña tensional, Gastritis', medicamentos: 'Omeprazol 20mg', estrato: '4', vivienda: 'Propia', personasCargo: 2,
-                peso: '70', talla: '1.58', imc: '28.0', presionArterial: '120/80', terapiaPsicologica: 'Sí', ...base
+                peso: '70', talla: '1.58', imc: '28.0', presionArterial: '120/80', terapiaPsicologica: 'Sí'
             }
         ];
     },
