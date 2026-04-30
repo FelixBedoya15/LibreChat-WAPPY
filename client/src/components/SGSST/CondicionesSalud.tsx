@@ -574,11 +574,11 @@ const CondicionesSalud = () => {
                 score -= 15;
                 alerts.push('Edad avanzada para Alta Exigencia Física');
             }
-            if (w.enfermedades?.trim()) {
+            if (w.enfermedades?.trim() && !w.enfermedades.toLowerCase().includes('ningun')) {
                 score -= 20;
                 alerts.push('Enfermedad detectada en rol de alta carga física');
             }
-            if (w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && w.limitacionesBiomecanicas.toLowerCase() !== 'ninguna') {
+            if (w.limitacionesBiomecanicas && w.limitacionesBiomecanicas.length > 2 && !w.limitacionesBiomecanicas.toLowerCase().includes('ningun')) {
                 score -= 30;
                 alerts.push('Alerta Biomecánica: Restricción incompatible con alta exigencia de carga/esfuerzo');
             }
@@ -592,7 +592,7 @@ const CondicionesSalud = () => {
         }
 
         // Químico / Alergias
-        if (w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && w.alergiasQuimicas.toLowerCase() !== 'ninguna') {
+        if (w.alergiasQuimicas && w.alergiasQuimicas.length > 2 && !w.alergiasQuimicas.toLowerCase().includes('ningun')) {
              score -= 15;
              alerts.push('Alerta Inmunológica: Sensibilidad química reportada. Aislar de exposición cruzada');
         }
