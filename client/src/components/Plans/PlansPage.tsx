@@ -682,7 +682,7 @@ export default function PlansPage() {
                                             <p className="text-sm text-text-secondary mt-0.5">{checkoutPlan.planObj.tagline}</p>
                                         </div>
                                         <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${checkoutPlan.planObj.iconBg}`}>
-                                            {React.createElement(PLAN_ICON_MAP[checkoutPlan.planKey], { className: `h-6 w-6 ${checkoutPlan.planObj.iconColor}` })}
+                                            {React.createElement(PLAN_ICON_MAP[checkoutPlan.planKey] || APP_ICON_MAP[checkoutPlan.planKey], { className: `h-6 w-6 ${checkoutPlan.planObj.iconColor}` })}
                                         </div>
                                     </div>
                                     <div className="flex items-end gap-1 mb-4">
