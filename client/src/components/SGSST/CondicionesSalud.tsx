@@ -1143,7 +1143,7 @@ const CondicionesSalud = () => {
                     className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
                     onClick={() => { setSelectedQrWorker(null); setQrTab('profile'); }}>
                     <div
-                        className="bg-surface-primary w-full max-w-[280px] rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
+                        className="bg-surface-primary w-full max-w-xs rounded-2xl shadow-2xl overflow-hidden border border-border-medium"
                         onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
