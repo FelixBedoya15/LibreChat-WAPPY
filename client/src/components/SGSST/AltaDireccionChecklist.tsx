@@ -527,7 +527,7 @@ export default function AltaDireccionChecklist() {
             {/* ─── QR Modal ─────────────────────────────────────────────── */}
             {showQrModal && ReactDOM.createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowQrModal(false)}>
-                    <div className="bg-surface-primary w-full max-w-xs rounded-2xl shadow-2xl overflow-hidden border border-border-medium animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-primary w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-border-medium animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-teal-700 to-teal-900 text-white p-4 text-center relative">
                             <button onClick={() => setShowQrModal(false)} className="absolute top-3 right-3 text-teal-100 hover:text-white transition-colors">
