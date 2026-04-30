@@ -712,7 +712,7 @@ export default function PlansPage() {
                                 {/* Promo code box */}
                                 <div className="rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
                                     <h4 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-                                        <Tag className="h-4 w-4" />
+                                        <PricingSVG className="h-4 w-4" />
                                         ¿Tienes un código de descuento?
                                     </h4>
                                     <div className="flex gap-2">
