@@ -58,6 +58,11 @@ const WorkerEntrySchema = new mongoose.Schema({
   limitacionesBiomecanicas: { type: String, default: '' },
   alergiasQuimicas: { type: String, default: '' },
 
+  // Bio-Fit Engine (Índice Biocéntrico Integral)
+  biocentricScore: { type: Number, default: 100 },
+  biocentricAlerts: { type: Array, default: [] },
+  biocentricIsLethal: { type: Boolean, default: false },
+
   // Conducción
   licenciaConduccion: { type: String, default: '' },
   licenciaConduccionVencimiento: { type: String, default: '' },
