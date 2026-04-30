@@ -202,7 +202,14 @@ const createTransaction = async (req, res) => {
         const userId = req.user._id || req.user.id;
 
         // Fetch dynamic plan config to calculate real price
-        const planDoc = await Plan.findOne({ planId }).lean();
+        let planDoc = await Plan.findOne({ planId }).lean();
+        
+        if (!planDoc && planId === 'ipevar') {
+            // Auto-seed ipevar if missing
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            planDoc = await Plan.findOne({ planId }).lean();
+        }
+
         if (!planDoc) {
             return res.status(500).json({ error: `Configuración para el plan ${planId} no encontrada en DB` });
         }
@@ -516,7 +523,14 @@ const createManualTransaction = async (req, res) => {
         }
 
         const userId = req.user._id || req.user.id;
-        const planDoc = await Plan.findOne({ planId }).lean();
+        let planDoc = await Plan.findOne({ planId }).lean();
+        
+        if (!planDoc && planId === 'ipevar') {
+            // Auto-seed ipevar if missing
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            planDoc = await Plan.findOne({ planId }).lean();
+        }
+
         if (!planDoc) {
             return res.status(500).json({ error: `Configuración para el plan ${planId} no encontrada` });
         }
