@@ -547,7 +547,7 @@ const PerfilSociodemografico = () => {
     // (data:URI era demasiado grande — QR tiene límite ~4KB)
     const getQrValue = (w: WorkerEntry) => {
         const base = window.location.origin;
-        return `${base}/api/sgsst/perfil-sociodemografico/profile/${w.id}`;
+        return `${base}/api/sgsst/perfil-sociodemografico/profile/${w.id}?type=health`;
     };
 
     // ─── QR: Portal de auto-actualización por el propio trabajador ───────
@@ -1265,7 +1265,7 @@ const PerfilSociodemografico = () => {
                             {qrTab === 'profile' ? (
                                 <>
                                     <p className="text-sm text-center text-gray-600 dark:text-gray-300 leading-relaxed max-w-[260px]">
-                                        Escanea este código para ver el perfil público del trabajador.
+                                        Escanea para ver la <strong>Tarjeta de Emergencia</strong> del trabajador.
                                     </p>
                                     <div className="p-3 border-4 border-gray-100 dark:border-gray-700 rounded-2xl shadow-inner bg-white">
                                         <QRCodeSVG value={getQrValue(selectedQrWorker)} size={120} style={{ width: '120px', height: '120px' }} className="mx-auto" level="L" includeMargin={false} />
