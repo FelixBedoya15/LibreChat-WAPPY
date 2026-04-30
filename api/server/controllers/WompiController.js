@@ -103,7 +103,7 @@ const validatePromoCode = async (req, res) => {
 };
 
 /** Plan display names */
-const PLAN_NAMES = { go: 'Go', plus: 'Plus', pro: 'Pro' };
+const PLAN_NAMES = { go: 'Go', plus: 'Plus', pro: 'Pro', ipevar: 'Plan IPEVAR' };
 
 /**
  * GET /api/wompi/plan
@@ -360,7 +360,7 @@ const handleWebhook = async (req, res) => {
             // Also update User role for full platform compatibility
             const User = mongoose.model('User');
             let newRole = 'USER';
-            if (wompiTx.planId === 'go') newRole = 'USER_GO';
+            if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
             else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
             else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
@@ -443,7 +443,7 @@ const verifyTransaction = async (req, res) => {
 
                 const User = mongoose.model('User');
                 let newRole = 'USER';
-                if (wompiTx.planId === 'go') newRole = 'USER_GO';
+                if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
                 else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 

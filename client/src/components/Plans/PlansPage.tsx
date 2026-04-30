@@ -158,6 +158,29 @@ const ENTERPRISE_PLANS = [
     },
 ];
 
+/* ─── App Plan Definitions ─────────────────────────────────────────── */
+const APP_PLANS = [
+    {
+        key: 'ipevar',
+        name: 'Plan IPEVAR',
+        tagline: 'Gestión ágil de riesgos con IA',
+        accentColor: 'text-emerald-500',
+        iconColor: 'text-emerald-500',
+        gradientBg: 'from-emerald-500/5 to-teal-500/10',
+        borderColor: 'border-emerald-500/20',
+        iconBg: 'bg-emerald-500/10',
+        features: [
+            '**Agente Matriz IPEVAR**',
+            'Todo lo del plan Gratis',
+            'Blog WAPPY',
+            'Hasta 30 conversaciones abiertas',
+            'Podrá ingresar 4 claves API de Gemini',
+        ],
+        notIncluded: ['Somos SST completo', 'Editor de Archivos con IA'],
+        popular: true,
+    }
+];
+
 /* ─── Animated SVGs ─────────────────────────────────────────────────── */
 const FreeSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none">
@@ -275,6 +298,19 @@ const AsesoresSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
     </svg>
 );
 
+const IpevarSVG = ({ className = 'h-5 w-5' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none">
+        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5">
+            <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="2s" fill="freeze" />
+        </rect>
+        <path d="M3 9H21M9 21V9" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
+        <path d="M13 13L17 17M17 13L13 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="15" cy="15" r="5" stroke="currentColor" strokeWidth="1.5" opacity="0.2">
+            <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
+        </circle>
+    </svg>
+);
+
 const PLAN_ICON_MAP: Record<string, React.ElementType> = {
     free: FreeSVG,
     go: GoSVG,
@@ -286,6 +322,10 @@ const ENTERPRISE_ICON_MAP: Record<string, React.ElementType> = {
     riesgos: RiesgosLaboralesSVG,
     empresas: EmpresasSVG,
     asesores: AsesoresSVG,
+};
+
+const APP_ICON_MAP: Record<string, React.ElementType> = {
+    ipevar: IpevarSVG,
 };
 
 /* ─── Main Page ─────────────────────────────────────────────────────── */
@@ -396,6 +436,9 @@ export default function PlansPage() {
                 setPendingSubscribe(subObj);
                 setShowRegister(true);
                 return;
+            }
+            if (planKey === 'ipevar') {
+                setBillingInterval('annual');
             }
             setPromoCodeInput('');
             setPromoValidated(null);
@@ -1276,6 +1319,137 @@ export default function PlansPage() {
                                     </div>
                                 );
                             })}
+                        </div>
+
+                        {/* ── App Plans Section ──────────────────────── */}
+                        <div className="mt-16">
+                            {/* Section divider */}
+                            <div className="mb-8 flex items-center gap-4">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-medium/50 to-border-medium/50" />
+                                <div className="flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2">
+                                    <Tag className="h-5 w-5 text-emerald-500" />
+                                    <span className="text-sm font-semibold text-text-primary">Planes por Aplicativos</span>
+                                </div>
+                                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-border-medium/50 to-border-medium/50" />
+                            </div>
+
+                            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 justify-center">
+                                {APP_PLANS.map((plan) => {
+                                    const Icon = APP_ICON_MAP[plan.key];
+                                    const isUserAdmin = !loading && activePlan === 'admin';
+                                    const isActive = !loading && activePlan === plan.key;
+                                    const isLoadingThis = checkoutLoading === plan.key;
+                                    const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
+
+                                    // For APP_PLANS we force 'annual' pricing visually
+                                    const fixedInterval = 'annual';
+                                    let rawPrice = 0;
+                                    let displayPrice = '$250.000';
+                                    let promotion: any = null;
+
+                                    if (fetchedConfig) {
+                                        rawPrice = fetchedConfig.prices?.[fixedInterval] || 0;
+                                        displayPrice = rawPrice > 0 ? '$' + rawPrice.toLocaleString('es-CO') : '$0';
+                                        if (fetchedConfig.promotions?.[fixedInterval]?.active) {
+                                            promotion = fetchedConfig.promotions[fixedInterval];
+                                        }
+                                    }
+
+                                    let discountedPrice = 0;
+                                    if (promotion && rawPrice > 0) {
+                                        discountedPrice = rawPrice - (rawPrice * (promotion.discountPercentage / 100));
+                                    }
+
+                                    const totalToBill = (promotion && promotion.discountPercentage > 0) ? discountedPrice : rawPrice;
+
+                                    return (
+                                        <div
+                                            key={plan.key}
+                                            className={`group relative flex flex-col rounded-3xl border bg-gradient-to-b p-6 transition-all duration-300 ${plan.gradientBg} ${isActive
+                                                ? `${plan.borderColor} shadow-lg ring-1 ring-inset ${plan.borderColor}`
+                                                : `border-border-medium/40 hover:${plan.borderColor.replace('border-', '')} hover:shadow-md`
+                                                } bg-surface-primary/60 backdrop-blur-sm lg:col-start-2`}
+                                        >
+                                            {plan.popular && !isActive && (
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-0.5 text-xs font-bold text-white shadow">
+                                                    ⭐ Destacado
+                                                </div>
+                                            )}
+                                            {isActive && (
+                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-bold text-white shadow bg-gradient-to-r from-emerald-500 to-teal-600">
+                                                    ✓ Plan actual
+                                                </div>
+                                            )}
+                                            {promotion && promotion.discountPercentage > 0 && (
+                                                <div className="absolute top-5 right-5 whitespace-nowrap rounded-full bg-[#ccff00] px-3 py-1 text-xs font-black text-black shadow-sm border border-[#aadd00]/30 z-10">
+                                                    -{promotion.discountPercentage}%
+                                                </div>
+                                            )}
+
+                                            <div className={`mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl ${plan.iconBg}`}>
+                                                <Icon className={`h-5 w-5 ${plan.iconColor}`} />
+                                            </div>
+
+                                            <h2 className="text-xl font-bold text-text-primary">{plan.name}</h2>
+                                            <p className="mb-4 h-10 text-xs text-text-secondary">{plan.tagline}</p>
+
+                                            <div className="mb-5 flex flex-col items-start gap-1">
+                                                {promotion && promotion.discountPercentage > 0 && (
+                                                    <span className="text-sm font-semibold text-text-tertiary line-through decoration-red-500 decoration-2">
+                                                        {displayPrice}
+                                                    </span>
+                                                )}
+
+                                                <div className="flex items-end gap-1">
+                                                    <span className={`text-4xl font-black tracking-tight ${plan.accentColor}`}>
+                                                        ${Math.round(totalToBill).toLocaleString('es-CO')}
+                                                    </span>
+                                                    <span className="mb-1 text-xs font-semibold text-text-secondary">
+                                                        /año
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-auto pt-2">
+                                                <button
+                                                    onClick={() => handleSubscribe(plan.key, plan, displayPrice, discountedPrice, rawPrice, promotion)}
+                                                    disabled={isLoadingThis || loading}
+                                                    className={`mb-5 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:opacity-90 hover:shadow-md`}
+                                                >
+                                                    {isLoadingThis ? (
+                                                        <>
+                                                            <Loader2 className="h-4 w-4 animate-spin" /> Redirigiendo...
+                                                        </>
+                                                    ) : isActive ? (
+                                                        'Renovar o Ampliar'
+                                                    ) : (
+                                                        `Comenzar con ${plan.name}`
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            <ul className="mt-5 flex-1 space-y-2">
+                                                {plan.features.map((f) => {
+                                                    const isHighlighted = f.includes('**');
+                                                    const text = f.replace(/\*\*/g, '');
+                                                    return (
+                                                        <li key={f} className={`flex items-start gap-2 text-xs ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}>
+                                                            <Check className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`} />
+                                                            {text}
+                                                        </li>
+                                                    );
+                                                })}
+                                                {plan.notIncluded.map((f) => (
+                                                    <li key={f} className="flex items-start gap-2 text-xs text-text-tertiary opacity-40 line-through">
+                                                        <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">✕</span>
+                                                        {f}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {/* ── Enterprise Plans Section ──────────────────────── */}
