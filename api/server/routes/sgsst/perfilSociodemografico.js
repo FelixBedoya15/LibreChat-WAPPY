@@ -176,74 +176,112 @@ router.get('/profile/:workerId', async (req, res) => {
   </div>
 
   ${isHealth ? `
-  <!-- ================= VISTA SALUD ================= -->
+  <!-- ================= TARJETA DE EMERGENCIA ================= -->
+
+  <!-- ALERTA CRÍTICA DE EMERGENCIA -->
+  <div style="background: linear-gradient(135deg, #dc2626, #b91c1c); border-radius: 14px; padding: 16px; margin-bottom: 18px; color: white;">
+    <div style="font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85; margin-bottom: 10px;">⚠️ Información de Emergencia</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div>
+        <div style="font-size: 10px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Tipo de Sangre</div>
+        <div style="font-size: 22px; font-weight: 900;">${worker.tipoSangre || '—'}</div>
+      </div>
+      <div>
+        <div style="font-size: 10px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">Teléfono</div>
+        <div style="font-size: 16px; font-weight: 800;">${worker.telefono || '—'}</div>
+      </div>
+    </div>
+    ${worker.emergenciaContacto ? `
+    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.25);">
+      <div style="font-size: 10px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">📞 Contacto de Emergencia</div>
+      <div style="font-size: 15px; font-weight: 800;">${worker.emergenciaContacto}</div>
+    </div>` : ''}
+  </div>
+
+  <!-- ALERTAS MÉDICAS -->
+  ${(worker.alergiasQuimicas || worker.limitacionesBiomecanicas || worker.enfermedades || worker.medicamentos) ? `
   <div class="section">
-    <div class="section-title">Línea Base Fisiológica</div>
+    <div class="section-title" style="color: #dc2626;">🚨 Alertas Médicas</div>
     <div class="grid">
-      <div class="field"><span class="label">Peso</span><span class="value">${worker.peso ? worker.peso + ' kg' : '—'}</span></div>
-      <div class="field"><span class="label">Talla</span><span class="value">${worker.talla ? worker.talla + ' m' : '—'}</span></div>
-      <div class="field"><span class="label">IMC</span><span class="value">${worker.imc || '—'}</span></div>
-      <div class="field"><span class="label">Tipo Sangre</span><span class="value">${worker.tipoSangre || '—'}</span></div>
-      <div class="field"><span class="label">Presión Art.</span><span class="value">${worker.presionArterial || '—'}</span></div>
-      <div class="field"><span class="label">Frec. Cardiaca</span><span class="value">${worker.frecuenciaCardiaca || '—'}</span></div>
+      ${worker.alergiasQuimicas ? `
+      <div class="field-full" style="background:#fff1f2; border: 1px solid #fecdd3;">
+        <span class="label" style="color:#e11d48;">Alergias Químicas</span>
+        <span class="value" style="color:#9f1239;">${worker.alergiasQuimicas}</span>
+      </div>` : ''}
+      ${worker.limitacionesBiomecanicas ? `
+      <div class="field-full" style="background:#fff7ed; border: 1px solid #fed7aa;">
+        <span class="label" style="color:#c2410c;">Restricciones / Limitaciones</span>
+        <span class="value" style="color:#9a3412;">${worker.limitacionesBiomecanicas}</span>
+      </div>` : ''}
+      ${worker.enfermedades ? `
+      <div class="field-full">
+        <span class="label">Enfermedades Preexistentes</span>
+        <span class="value">${worker.enfermedades}</span>
+      </div>` : ''}
+      ${worker.medicamentos ? `
+      <div class="field-full">
+        <span class="label">Medicamentos de Consumo</span>
+        <span class="value">${worker.medicamentos}</span>
+      </div>` : ''}
+    </div>
+  </div>` : ''}
+
+  <!-- CARGO Y PROFESION -->
+  <div class="section">
+    <div class="section-title">💼 Cargo y Perfil Profesional</div>
+    <div class="grid">
+      <div class="field-full"><span class="label">Cargo</span><span class="value">${worker.cargo || '—'}</span></div>
+      <div class="field"><span class="label">Cédula</span><span class="value">${worker.identificacion || '—'}</span></div>
+      <div class="field"><span class="label">Dirección Domicilio</span><span class="value">${worker.direccion || '—'}</span></div>
     </div>
   </div>
 
+  <!-- CAPACITACIONES Y CERTIFICACIONES -->
   <div class="section">
-    <div class="section-title">Condiciones Patológicas y Riesgo</div>
-    <div class="grid">
-        <div class="field-full" style="background:#fff1f2; border: 1px solid #ffe4e6;">
-            <span class="label" style="color:#e11d48;">Alergias Químicas / Asma</span>
-            <span class="value" style="color:#9f1239;">${worker.alergiasQuimicas || 'Negativo / No Reporta'}</span>
-        </div>
-        <div class="field-full" style="background:#fff1f2; border: 1px solid #ffe4e6;">
-            <span class="label" style="color:#e11d48;">Limitaciones Biomecánicas</span>
-            <span class="value" style="color:#9f1239;">${worker.limitacionesBiomecanicas || 'Negativo'}</span>
-        </div>
-        <div class="field-full">
-            <span class="label">Enfermedades Preexistentes</span>
-            <span class="value">${worker.enfermedades || 'Ninguna diagnosticada'}</span>
-        </div>
-        <div class="field-full">
-            <span class="label">Medicamentos de Consumo</span>
-            <span class="value">${worker.medicamentos || 'Ninguno'}</span>
-        </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Gestión Clínica Ocupacional</div>
+    <div class="section-title">🎓 Capacitaciones y Certificaciones</div>
     <div class="dates-box">
       <div class="date-row">
-        <span class="date-label">Examen Médico Ocupacional</span>
-        <span class="date-value">${worker.fechaExamenMedico || 'No registrado'}</span>
+        <span class="date-label">Alturas — Trab. Autorizado</span>
+        <span class="date-value">${worker.fechaCursoAlturasAutorizado || 'N/A'}</span>
       </div>
-      ${worker.diagnosticoMedico ? `
       <div class="date-row">
-        <span class="date-label" style="color: #9f1239;">Diagnóstico Dictamen</span>
-        <span class="date-value" style="color: #9f1239; white-space: normal; text-align: right;">${worker.diagnosticoMedico}</span>
-      </div>` : ''}
-      ${worker.recomendacionesMedicas ? `
+        <span class="date-label">Alturas — Coordinador</span>
+        <span class="date-value">${worker.fechaCursoAlturasCoordinador || 'N/A'}</span>
+      </div>
+      ${worker.fechaExamenMedico ? `
       <div class="date-row">
-        <span class="date-label" style="color: #9f1239;">Recomendaciones</span>
-        <span class="date-value" style="font-size: 11px; white-space: normal; text-align: right; color: #9f1239;">${worker.recomendacionesMedicas}</span>
+        <span class="date-label">Examen Médico Ocupacional</span>
+        <span class="date-value">${worker.fechaExamenMedico}</span>
       </div>` : ''}
-      ${worker.fechaSeguimiento ? `
-      <div class="date-row" style="border-top: 1px dashed #fecdd3; padding-top:12px; margin-top:4px;">
-        <span class="date-label">Próximo Seguimiento</span>
-        <span class="date-value">${worker.fechaSeguimiento}</span>
+      ${worker.licenciaSST ? `
+      <div class="date-row">
+        <span class="date-label">Licencia SST</span>
+        <span class="date-value">${worker.licenciaSST}</span>
+      </div>` : ''}
+      ${worker.curso50h ? `
+      <div class="date-row">
+        <span class="date-label">Curso 50 Horas</span>
+        <span class="date-value">${worker.curso50h}</span>
+      </div>` : ''}
+      ${worker.curso20h ? `
+      <div class="date-row">
+        <span class="date-label">Curso 20 Horas</span>
+        <span class="date-value">${worker.curso20h}</span>
       </div>` : ''}
     </div>
   </div>
 
+  <!-- COMITÉS SGSST -->
+  ${(worker.esCopasst && worker.esCopasst !== 'No') || (worker.esComiteConvivencia && worker.esComiteConvivencia !== 'No') || (worker.esBrigadista && worker.esBrigadista !== 'No') || (worker.esComiteSeguridadVial && worker.esComiteSeguridadVial !== 'No') ? `
   <div class="section">
-    <div class="section-title">Salud Mental y Hábitos</div>
+    <div class="section-title">🛡️ Participación en Comités SG-SST</div>
     <div class="grid">
-      <div class="field"><span class="label">Tabaquismo</span><span class="value">${worker.fuma || '—'}</span></div>
-      <div class="field"><span class="label">Alcohol</span><span class="value">${worker.alcohol || '—'}</span></div>
-      <div class="field-full"><span class="label">Terapia Psicológica / Burnout</span><span class="value">${worker.terapiaPsicologica || '—'}</span></div>
+      ${(worker.esCopasst && worker.esCopasst !== 'No') ? `<div class="field"><span class="label">COPASST</span><span class="value" style="color:#0f766e;">${worker.esCopasst}</span></div>` : ''}
+      ${(worker.esComiteConvivencia && worker.esComiteConvivencia !== 'No') ? `<div class="field"><span class="label">Comité Convivencia</span><span class="value" style="color:#0f766e;">${worker.esComiteConvivencia}</span></div>` : ''}
+      ${(worker.esBrigadista && worker.esBrigadista !== 'No') ? `<div class="field"><span class="label">Brigadista</span><span class="value" style="color:#0f766e;">${worker.esBrigadista}</span></div>` : ''}
+      ${(worker.esComiteSeguridadVial && worker.esComiteSeguridadVial !== 'No') ? `<div class="field"><span class="label">Comité Seg. Vial</span><span class="value" style="color:#0f766e;">${worker.esComiteSeguridadVial}</span></div>` : ''}
     </div>
-  </div>
+  </div>` : ''}
   ` : `
   <!-- ================= VISTA SOCIODEMOGRÁFICA ================= -->
   <div class="section">
