@@ -376,6 +376,12 @@ export default function PlansPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [pendingSubscribe, setPendingSubscribe] = useState<any>(null);
 
+    // Guest Checkout (unauthenticated user wants to pay directly)
+    const [showGuestForm, setShowGuestForm] = useState(false);
+    const [guestLoading, setGuestLoading] = useState(false);
+    const [guestData, setGuestData] = useState({ name: '', email: '', password: '' });
+    const [guestError, setGuestError] = useState('');
+
     const params = new URLSearchParams(window.location.search);
     const successPlan = params.get('success') ? params.get('plan') : null;
     const wasCancelled = params.get('cancelled') === '1';
@@ -528,9 +534,9 @@ export default function PlansPage() {
 
     const handleConfirmPayment = useCallback(async () => {
         if (!checkoutPlan) return;
-        // If user is not logged in, redirect to login and come back after
+        // If user is not logged in, show the inline guest form instead of redirecting
         if (!isAuthenticated) {
-            navigate('/login?redirect=/planes');
+            setShowGuestForm(true);
             return;
         }
         setCheckoutLoading(checkoutPlan.planKey);
@@ -588,7 +594,87 @@ export default function PlansPage() {
             showToast({ message: err?.response?.data?.error || 'Error iniciando el pago con Wompi', status: 'error' });
             setCheckoutLoading(null);
         }
-    }, [checkoutPlan, billingInterval, promoValidated, showToast, authUser, isAuthenticated, navigate]);
+    }, [checkoutPlan, billingInterval, promoValidated, showToast, authUser, isAuthenticated]);
+
+    /**
+     * Guest Checkout: creates account + initiates payment in one go.
+     * Called when an unauthenticated user submits the inline guest form.
+     */
+    const handleGuestCheckout = useCallback(async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!checkoutPlan) return;
+        if (!guestData.name.trim() || !guestData.email.trim() || guestData.password.length < 8) {
+            setGuestError('Por favor completa todos los campos (mínimo 8 caracteres en contraseña).');
+            return;
+        }
+        setGuestLoading(true);
+        setGuestError('');
+        try {
+            // 1. Create account using email as username base
+            const username = guestData.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20) + Math.floor(Math.random() * 900 + 100);
+            await axios.post('/api/auth/register', {
+                name: guestData.name,
+                username,
+                email: guestData.email,
+                password: guestData.password,
+                confirm_password: guestData.password,
+            });
+
+            // 2. Login with the new account
+            await new Promise<void>((resolve, reject) => {
+                try {
+                    login({ email: guestData.email, password: guestData.password });
+                    // Give auth context time to hydrate
+                    setTimeout(resolve, 1500);
+                } catch (err) {
+                    reject(err);
+                }
+            });
+
+            // 3. Proceed with Wompi payment using the now-authenticated session
+            setShowGuestForm(false);
+            setCheckoutLoading(checkoutPlan.planKey);
+            const { data } = await axios.post('/api/wompi/create-transaction', {
+                plan: checkoutPlan.planKey + '|' + billingInterval,
+                promoCode: promoValidated?.code || undefined,
+            });
+
+            const script = document.createElement('script');
+            script.src = 'https://checkout.wompi.co/widget.js';
+            script.onload = () => {
+                const checkout = new (window as any).WidgetCheckout({
+                    currency: data.currency,
+                    amountInCents: data.amountInCents,
+                    reference: data.reference,
+                    publicKey: data.publicKey,
+                    signature: data.signature ? { integrity: data.signature } : undefined,
+                });
+                checkout.open((result: any) => {
+                    const transaction = result.transaction;
+                    if (transaction.status === 'APPROVED') {
+                        axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id })
+                            .then(() => { window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`; })
+                            .catch(() => { window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}&fallback=1`; });
+                    } else if (transaction.status === 'PENDING') {
+                        axios.post('/api/wompi/register-pending', { reference: data.reference, transactionId: transaction.id }).catch(() => {});
+                        setPendingPaymentInfo({ planName: checkoutPlan.planObj.name, email: guestData.email });
+                        setCheckoutPlan(null);
+                        setCheckoutLoading(null);
+                    } else {
+                        showToast({ message: 'El pago no fue exitoso o fue cancelado', status: 'warning' });
+                        setCheckoutLoading(null);
+                    }
+                });
+            };
+            document.body.appendChild(script);
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.response?.data?.error || 'Error al crear tu cuenta. ¿Ya tienes una? Inicia sesión primero.';
+            setGuestError(msg);
+            setCheckoutLoading(null);
+        } finally {
+            setGuestLoading(false);
+        }
+    }, [checkoutPlan, billingInterval, promoValidated, guestData, login, showToast]);
 
     const handleManageSubscription = useCallback(async () => {
         showToast({ message: 'Para modificar o cancelar tu plan, comunícate con soporte@wappy.co', status: 'info' });
@@ -872,18 +958,81 @@ export default function PlansPage() {
 
                                     {paymentMethod === 'wompi' ? (
                                         <>
-                                            <button
-                                                onClick={handleConfirmPayment}
-                                                disabled={!!checkoutLoading || !termsAccepted}
-                                                className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
-                                            >
-                                                {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
-                                                Continuar al pago
-                                            </button>
-                                            <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
-                                                <ShieldCheck className="h-3.5 w-3.5" />
-                                                Pago seguro con Wompi y tu banco
-                                            </div>
+                                            {/* Guest checkout form: shown inline when user is not logged in */}
+                                            {showGuestForm && !isAuthenticated ? (
+                                                <form onSubmit={handleGuestCheckout} className="mt-2 space-y-3 rounded-2xl border border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-900/20 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                                    <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                                                        <User className="h-3.5 w-3.5" />
+                                                        Crea tu cuenta para continuar con el pago
+                                                    </p>
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        placeholder="Nombre completo"
+                                                        value={guestData.name}
+                                                        onChange={e => setGuestData(d => ({ ...d, name: e.target.value }))}
+                                                        className="w-full rounded-xl border border-border-light bg-surface-primary px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                                                    />
+                                                    <input
+                                                        type="email"
+                                                        required
+                                                        placeholder="Correo electrónico"
+                                                        value={guestData.email}
+                                                        onChange={e => setGuestData(d => ({ ...d, email: e.target.value }))}
+                                                        className="w-full rounded-xl border border-border-light bg-surface-primary px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                                                    />
+                                                    <input
+                                                        type="password"
+                                                        required
+                                                        minLength={8}
+                                                        placeholder="Contraseña (mín. 8 caracteres)"
+                                                        value={guestData.password}
+                                                        onChange={e => setGuestData(d => ({ ...d, password: e.target.value }))}
+                                                        className="w-full rounded-xl border border-border-light bg-surface-primary px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                                                    />
+                                                    {guestError && (
+                                                        <p className="text-xs text-red-500 font-medium">{guestError}</p>
+                                                    )}
+                                                    <p className="text-[10px] text-text-tertiary">
+                                                        Se creará una cuenta con estos datos para gestionar tu suscripción.{' '}
+                                                        <button type="button" onClick={() => navigate('/login?redirect=/planes')} className="text-indigo-600 font-semibold hover:underline">
+                                                            ¿Ya tienes cuenta? Inicia sesión
+                                                        </button>
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowGuestForm(false)}
+                                                            className="flex-1 rounded-xl border border-border-light py-2.5 text-xs font-semibold text-text-secondary hover:bg-surface-hover transition-colors"
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                        <button
+                                                            type="submit"
+                                                            disabled={guestLoading}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+                                                        >
+                                                            {guestLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                                                            Crear cuenta e ir al pago
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        onClick={handleConfirmPayment}
+                                                        disabled={!!checkoutLoading || !termsAccepted}
+                                                        className={`w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white transition-all shadow-md ${checkoutPlan.planObj.key === 'go' ? 'bg-blue-600 hover:bg-blue-700' : checkoutPlan.planObj.key === 'pro' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-600 hover:bg-green-700'}`}
+                                                    >
+                                                        {checkoutLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
+                                                        {isAuthenticated ? 'Continuar al pago' : 'Continuar al pago →'}
+                                                    </button>
+                                                    <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
+                                                        <ShieldCheck className="h-3.5 w-3.5" />
+                                                        Pago seguro con Wompi y tu banco
+                                                    </div>
+                                                </>
+                                            )}
                                         </>
                                     ) : (
                                         <div className="mt-4 flex flex-col gap-4 border-t border-border-light pt-4">
