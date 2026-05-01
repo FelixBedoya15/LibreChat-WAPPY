@@ -616,6 +616,183 @@ const createManualTransaction = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/wompi/guest-checkout  (NO auth required)
+ * Registers a new user (or finds existing) + creates a Wompi transaction in one step.
+ * Returns transaction data + a short-lived guestToken for post-payment verification.
+ */
+const guestCheckout = async (req, res) => {
+    try {
+        const jwt = require('jsonwebtoken');
+        const bcrypt = require('bcryptjs');
+        const { name, email, password, plan: planString, promoCode } = req.body;
+
+        if (!name || !email || !password || !planString) {
+            return res.status(400).json({ error: 'Faltan campos: name, email, password, plan' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+        }
+
+        const [planId, interval] = planString.split('|');
+        if (!PLAN_NAMES[planId] || !['monthly', 'quarterly', 'semiannual', 'annual'].includes(interval)) {
+            return res.status(400).json({ error: 'Plan o intervalo inválido' });
+        }
+
+        // ── 1. Find or create user ────────────────────────────────────────
+        const User = mongoose.model('User');
+        let user = await User.findOne({ email: email.toLowerCase().trim() });
+
+        if (!user) {
+            const hashedPassword = await bcrypt.hash(password, 12);
+            const baseUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18);
+            const username = baseUser + Math.floor(Math.random() * 9000 + 1000);
+            user = new User({
+                name,
+                username,
+                email: email.toLowerCase().trim(),
+                password: hashedPassword,
+                role: 'USER',
+            });
+            await user.save();
+            console.log(`[GuestCheckout] Created new user ${user._id} for ${email}`);
+        } else {
+            console.log(`[GuestCheckout] Found existing user ${user._id} for ${email}`);
+        }
+
+        // ── 2. Calculate price (same logic as createTransaction) ──────────
+        let planDoc = await Plan.findOne({ planId }).lean();
+        if (!planDoc && planId === 'ipevar') {
+            await Plan.create({ planId: 'ipevar', name: 'IPEVAR', prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 250000 } });
+            planDoc = await Plan.findOne({ planId }).lean();
+        }
+        if (!planDoc) return res.status(500).json({ error: `Plan ${planId} no configurado en DB` });
+
+        let rawPrice = planDoc.prices?.[interval] || 0;
+        if (rawPrice === 0) return res.status(500).json({ error: 'Monto base no configurado' });
+
+        let finalPrice = rawPrice;
+        let appliedDiscount = 0;
+
+        if (promoCode && planId !== 'ipevar') {
+            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+            if (codeDoc && codeDoc.active) appliedDiscount = codeDoc.discountPercentage;
+        } else if (planDoc.promotions?.[interval]?.active) {
+            appliedDiscount = planDoc.promotions[interval].discountPercentage;
+        }
+
+        if (appliedDiscount > 0) {
+            finalPrice = rawPrice - (rawPrice * Math.min(appliedDiscount, 100) / 100);
+        }
+
+        // ── 3. Create transaction record ──────────────────────────────────
+        const reference = `WAPPY-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const amountInCents = Math.round(finalPrice * 100);
+
+        await WompiTransaction.create({
+            userId: user._id,
+            planId,
+            interval,
+            reference,
+            amountInCents,
+            status: 'PENDING',
+        });
+
+        // ── 4. Wompi integrity signature ──────────────────────────────────
+        const publicKey = process.env.WOMPI_PUBLIC_KEY;
+        if (!publicKey) return res.status(500).json({ error: 'WOMPI_PUBLIC_KEY no configurada' });
+
+        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        let signature = '';
+        if (integritySecret) {
+            const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
+            signature = crypto.createHash('sha256').update(stringToSign, 'utf-8').digest('hex');
+        }
+
+        // ── 5. Short-lived JWT for post-payment verification ──────────────
+        const jwtSecret = process.env.JWT_SECRET;
+        const guestToken = jwt.sign({ id: user._id.toString(), role: user.role }, jwtSecret, { expiresIn: '2h' });
+
+        console.log(`[GuestCheckout] Transaction ${reference} created for user ${user._id}, plan ${planId}|${interval}`);
+
+        return res.json({ publicKey, reference, amountInCents, currency: 'COP', signature, guestToken });
+    } catch (error) {
+        console.error('[Wompi] guestCheckout error:', error);
+        return res.status(500).json({ error: 'Error en guest checkout', details: error.message });
+    }
+};
+
+/**
+ * POST /api/wompi/guest-verify  (NO auth required)
+ * Verifies a Wompi transaction using a guestToken issued by guestCheckout.
+ */
+const guestVerifyTransaction = async (req, res) => {
+    try {
+        const jwt = require('jsonwebtoken');
+        const { transactionId, guestToken } = req.body;
+        if (!transactionId || !guestToken) {
+            return res.status(400).json({ error: 'Faltan transactionId o guestToken' });
+        }
+
+        // Validate guest token
+        let decoded;
+        try {
+            decoded = jwt.verify(guestToken, process.env.JWT_SECRET);
+        } catch {
+            return res.status(401).json({ error: 'guestToken inválido o expirado' });
+        }
+
+        // Use same logic as verifyTransaction but with userId from token
+        const isSandbox = process.env.WOMPI_PUBLIC_KEY?.startsWith('pub_test_');
+        const wompiDomain = isSandbox ? 'sandbox.wompi.co' : 'production.wompi.co';
+        const response = await fetch(`https://${wompiDomain}/v1/transactions/${transactionId}`);
+        const result = await response.json();
+        const txData = result.data;
+        if (!txData) return res.status(404).json({ error: 'Transacción no encontrada en Wompi' });
+
+        if (txData.status !== 'APPROVED') {
+            return res.json({ status: txData.status });
+        }
+
+        const wompiTx = await WompiTransaction.findOne({ reference: txData.reference });
+        if (!wompiTx) return res.json({ status: 'UNKNOWN_REFERENCE' });
+
+        if (wompiTx.status !== 'APPROVED') {
+            wompiTx.status = 'APPROVED';
+            wompiTx.transactionId = transactionId;
+            await wompiTx.save();
+
+            const planDoc = await Plan.findOne({ planId: wompiTx.planId }).lean();
+            if (planDoc) {
+                let userPlan = await UserPlan.findOne({ userId: wompiTx.userId });
+                const expiryDate = await calculateProratedExpiry(wompiTx.planId, wompiTx.interval, userPlan);
+
+                if (!userPlan) userPlan = new UserPlan({ userId: wompiTx.userId });
+                userPlan.plan = wompiTx.planId;
+                userPlan.planExpiresAt = expiryDate;
+                await userPlan.save();
+
+                const User = mongoose.model('User');
+                let newRole = 'USER';
+                if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+                else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
+                else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
+
+                await User.updateOne(
+                    { _id: wompiTx.userId },
+                    { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
+                );
+                console.log(`[GuestVerify] Plan ${wompiTx.planId} activated for user ${wompiTx.userId}`);
+            }
+        }
+
+        return res.json({ success: true, status: 'APPROVED' });
+    } catch (err) {
+        console.error('[Wompi] guestVerifyTransaction error:', err);
+        return res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getPublicPlansConfig,
     validatePromoCode,
@@ -625,4 +802,6 @@ module.exports = {
     verifyTransaction,
     registerPendingTransaction,
     createManualTransaction,
+    guestCheckout,
+    guestVerifyTransaction,
 };
