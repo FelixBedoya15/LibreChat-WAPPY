@@ -222,8 +222,8 @@ const createTransaction = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
-        // Apply promo Code if provided
-        if (promoCode) {
+        // Apply promo Code if provided — NOT allowed for IPEVAR plan
+        if (promoCode && planId !== 'ipevar') {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
             if (codeDoc && codeDoc.active) {
                 appliedDiscount = codeDoc.discountPercentage;
@@ -543,7 +543,8 @@ const createManualTransaction = async (req, res) => {
         let finalPrice = rawPrice;
         let appliedDiscount = 0;
 
-        if (promoCode) {
+        // Promo codes are NOT allowed for IPEVAR plan
+        if (promoCode && planId !== 'ipevar') {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
             if (codeDoc && codeDoc.active) {
                 appliedDiscount = codeDoc.discountPercentage;

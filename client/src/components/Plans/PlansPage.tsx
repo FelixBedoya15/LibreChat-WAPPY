@@ -432,11 +432,7 @@ export default function PlansPage() {
         (planKey: string, planObj: any, displayPrice: string, discountedPrice: number, rawPrice: number, promotion: any) => {
             if (planKey === 'free') return;
             const subObj = { planKey, planObj, displayPrice, discountedPrice, rawPrice, promotion };
-            if (!isAuthenticated) {
-                setPendingSubscribe(subObj);
-                setShowRegister(true);
-                return;
-            }
+            // Go directly to checkout — authentication is only required at the moment of payment
             if (planKey === 'ipevar') {
                 setBillingInterval('annual');
             }
@@ -444,12 +440,12 @@ export default function PlansPage() {
             setPromoValidated(null);
             setPromoError('');
             setPaymentMethod('wompi');
-        setIsQRModalOpen(false);
-        setTermsAccepted(false);
+            setIsQRModalOpen(false);
+            setTermsAccepted(false);
             setReceiptFile(null);
             setCheckoutPlan(subObj);
         },
-        [isAuthenticated],
+        [],
     );
 
     const handleRegister = async (e: React.FormEvent) => {
@@ -465,6 +461,7 @@ export default function PlansPage() {
                 username: regData.username,
                 email: regData.email,
                 password: regData.password,
+                confirm_password: regData.confirmPassword,
             });
             
             // Login
@@ -531,6 +528,11 @@ export default function PlansPage() {
 
     const handleConfirmPayment = useCallback(async () => {
         if (!checkoutPlan) return;
+        // If user is not logged in, redirect to login and come back after
+        if (!isAuthenticated) {
+            navigate('/login?redirect=/planes');
+            return;
+        }
         setCheckoutLoading(checkoutPlan.planKey);
         try {
             const { data } = await axios.post('/api/wompi/create-transaction', {
@@ -586,7 +588,7 @@ export default function PlansPage() {
             showToast({ message: err?.response?.data?.error || 'Error iniciando el pago con Wompi', status: 'error' });
             setCheckoutLoading(null);
         }
-    }, [checkoutPlan, billingInterval, promoValidated, showToast, authUser]);
+    }, [checkoutPlan, billingInterval, promoValidated, showToast, authUser, isAuthenticated, navigate]);
 
     const handleManageSubscription = useCallback(async () => {
         showToast({ message: 'Para modificar o cancelar tu plan, comunícate con soporte@wappy.co', status: 'info' });
@@ -714,44 +716,46 @@ export default function PlansPage() {
                                 </div>
 
                                 {/* Promo code box */}
-                                <div className="rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
-                                    <h4 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-                                        <PricingSVG className="h-4 w-4" />
-                                        ¿Tienes un código de descuento?
-                                    </h4>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={promoCodeInput}
-                                            onChange={(e) => {
-                                                setPromoCodeInput(e.target.value.toUpperCase());
-                                                setPromoValidated(null);
-                                                setPromoError('');
-                                            }}
-                                            placeholder="Ej. WAPPY50"
-                                            className="flex-1 rounded-xl border border-border-light bg-surface-secondary px-4 py-2.5 text-sm font-mono uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
-                                        />
-                                        <button
-                                            onClick={handleValidatePromo}
-                                            disabled={promoLoading || !promoCodeInput.trim() || !!promoValidated}
-                                            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-                                        >
-                                            {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
-                                        </button>
+                                {checkoutPlan.planKey !== 'ipevar' && (
+                                    <div className="rounded-2xl border border-border-light bg-surface-primary p-5 shadow-sm">
+                                        <h4 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                                            <PricingSVG className="h-4 w-4" />
+                                            ¿Tienes un código de descuento?
+                                        </h4>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={promoCodeInput}
+                                                onChange={(e) => {
+                                                    setPromoCodeInput(e.target.value.toUpperCase());
+                                                    setPromoValidated(null);
+                                                    setPromoError('');
+                                                }}
+                                                placeholder="Ej. WAPPY50"
+                                                className="flex-1 rounded-xl border border-border-light bg-surface-secondary px-4 py-2.5 text-sm font-mono uppercase focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                                            />
+                                            <button
+                                                onClick={handleValidatePromo}
+                                                disabled={promoLoading || !promoCodeInput.trim() || !!promoValidated}
+                                                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                            >
+                                                {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aplicar'}
+                                            </button>
+                                        </div>
+                                        {promoValidated && (
+                                            <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-500/10 px-3.5 py-2.5 text-sm font-semibold text-green-600">
+                                                <Check className="h-4 w-4" />
+                                                Código <strong>{promoValidated.code}</strong> aplicado — {promoValidated.discountPercentage}% de descuento adicional
+                                            </div>
+                                        )}
+                                        {promoError && (
+                                            <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3.5 py-2.5 text-sm font-semibold text-red-500">
+                                                <AlertCircle className="h-4 w-4" />
+                                                {promoError}
+                                            </div>
+                                        )}
                                     </div>
-                                    {promoValidated && (
-                                        <div className="mt-3 flex items-center gap-2 rounded-lg bg-green-500/10 px-3.5 py-2.5 text-sm font-semibold text-green-600">
-                                            <Check className="h-4 w-4" />
-                                            Código <strong>{promoValidated.code}</strong> aplicado — {promoValidated.discountPercentage}% de descuento adicional
-                                        </div>
-                                    )}
-                                    {promoError && (
-                                        <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-500/10 px-3.5 py-2.5 text-sm font-semibold text-red-500">
-                                            <AlertCircle className="h-4 w-4" />
-                                            {promoError}
-                                        </div>
-                                    )}
-                                </div>
+                                )}
 
                                 {/* Compra y Paga Después Info Box */}
                                 <div className="rounded-2xl border border-blue-500/20 bg-blue-50/50 dark:bg-blue-900/10 p-5 shadow-sm mt-6 relative overflow-hidden group">
