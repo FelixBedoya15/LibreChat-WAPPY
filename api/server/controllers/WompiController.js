@@ -376,6 +376,7 @@ const handleWebhook = async (req, res) => {
                 {
                     $set: {
                         role: newRole,
+                        accountStatus: 'active',
                         activeAt: new Date(),
                         inactiveAt: expiryDate
                     }
@@ -456,7 +457,7 @@ const verifyTransaction = async (req, res) => {
 
                 await User.updateOne(
                     { _id: wompiTx.userId },
-                    { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
+                    { $set: { role: newRole, accountStatus: 'active', activeAt: new Date(), inactiveAt: expiryDate } }
                 );
                 console.log(`[Wompi VerifyTransaction] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), expiry ${expiryDate.toISOString()} for user ${wompiTx.userId}`);
                 
@@ -653,6 +654,7 @@ const guestCheckout = async (req, res) => {
                 email: email.toLowerCase().trim(),
                 password: hashedPassword,
                 role: 'USER',
+                accountStatus: 'active',
             });
             await user.save();
             console.log(`[GuestCheckout] Created new user ${user._id} for ${email}`);
@@ -780,9 +782,16 @@ const guestVerifyTransaction = async (req, res) => {
 
                 await User.updateOne(
                     { _id: wompiTx.userId },
-                    { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
+                    { $set: { role: newRole, accountStatus: 'active', activeAt: new Date(), inactiveAt: expiryDate } }
                 );
                 console.log(`[GuestVerify] Plan ${wompiTx.planId} activated for user ${wompiTx.userId}`);
+                
+                try {
+                    const userDoc = await User.findById(wompiTx.userId).lean();
+                    await notifyAdminsOfPayment(wompiTx, userDoc, false);
+                } catch (e) {
+                    console.error('[Wompi GuestVerifyTransaction] Error fetching user for notification', e);
+                }
             }
         }
 
