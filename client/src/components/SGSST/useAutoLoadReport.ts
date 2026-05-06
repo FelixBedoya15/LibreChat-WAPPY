@@ -26,7 +26,7 @@ export function useAutoLoadReport({
         const autoLoad = async () => {
             hasAttempted.current = true;
             try {
-                // 1. First resolve the active company to filter correctly
+                // 1. Optionally resolve active company (non-blocking: continues even if this fails)
                 let companyId: string | null = null;
                 try {
                     const companyRes = await fetch('/api/sgsst/company-info', {
@@ -34,42 +34,52 @@ export function useAutoLoadReport({
                     });
                     if (companyRes.ok) {
                         const companyData = await companyRes.json();
-                        if (companyData && companyData._id) {
-                            companyId = companyData._id;
-                        }
+                        if (companyData && companyData._id) companyId = companyData._id;
                     }
-                } catch (e) {
-                    console.error('[useAutoLoadReport] Could not fetch company', e);
-                }
+                } catch (_) { /* non-fatal */ }
 
                 if (!isMounted) return;
 
-                // 2. Build query — include company tag if we have one
-                const effectiveTags = companyId 
-                    ? [...tags, `company-${companyId}`] 
-                    : tags;
-                const queryStr = effectiveTags.map(tag => `tags=${encodeURIComponent(tag)}`).join('&');
-                const res = await fetch(`/api/convos?limit=5&order=desc&${queryStr}`, {
+                // 2. Fetch recent reports using ONLY the module tag (always works, including legacy reports)
+                const queryStr = tags.map(tag => `tags=${encodeURIComponent(tag)}`).join('&');
+                const res = await fetch(`/api/convos?limit=10&order=desc&${queryStr}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (!res.ok) return;
+                if (!res.ok || !isMounted) return;
                 const data = await res.json();
 
-                if (!isMounted) return;
+                if (!data || !data.conversations || data.conversations.length === 0) return;
 
-                if (data && data.conversations && data.conversations.length > 0) {
-                    // 3. Client-side double-check: pick the first convo that belongs to the active company
-                    const match = companyId 
-                        ? data.conversations.find((c: any) => 
-                            (c.tags || []).includes(`company-${companyId}`))
-                        : data.conversations[0];
-                    
-                    if (match && match.conversationId) {
-                        await handleSelectReportRef.current(match.conversationId);
+                // 3. Smart client-side selection:
+                //    - Prefer the most recent report tagged with the active company
+                //    - Fall back to the most recent legacy report (no company tag) — these
+                //      belong to the primary company before migration ran
+                const companyTag = companyId ? `company-${companyId}` : null;
+
+                let match = null;
+                if (companyTag) {
+                    // First try: find a report explicitly tagged for this company
+                    match = data.conversations.find((c: any) =>
+                        (c.tags || []).includes(companyTag)
+                    );
+
+                    // Second try: find a legacy report (no company tag at all)
+                    // This allows primary company users to still see their old reports
+                    if (!match) {
+                        match = data.conversations.find((c: any) =>
+                            !(c.tags || []).some((t: string) => t.startsWith('company-'))
+                        );
                     }
+                } else {
+                    // No company context — just load the most recent report
+                    match = data.conversations[0];
+                }
+
+                if (match && match.conversationId && isMounted) {
+                    await handleSelectReportRef.current(match.conversationId);
                 }
             } catch (err) {
-                console.error("Auto load failed", err);
+                console.error('[useAutoLoadReport] Auto load failed', err);
             }
         };
         autoLoad();
