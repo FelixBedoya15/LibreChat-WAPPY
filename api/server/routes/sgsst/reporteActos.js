@@ -11,9 +11,17 @@ const router = express.Router();
 const mongoose = require('mongoose');
 
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
 const ReporteActosDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
     formData: { type: Object, default: {} },
     trabajadoresList: { type: Array, default: [] },
     responsablesList: { type: Array, default: [] },
@@ -23,14 +31,15 @@ const ReporteActosDataSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
-ReporteActosDataSchema.index({ user: 1 }, { unique: true });
+ReporteActosDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const ReporteActosData = mongoose.models.ReporteActosData || mongoose.model('ReporteActosData', ReporteActosDataSchema);
 
 // ─── GET /data — Load saved reporte data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
-        const data = await ReporteActosData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const data = await ReporteActosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (data) {
             return res.json({
                 formData: data.formData || {},
@@ -52,9 +61,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { formData, trabajadoresList, responsablesList, images, video } = req.body;
+        const companyId = await getActiveCompanyId(req.user.id);
         await ReporteActosData.findOneAndUpdate(
-            { user: req.user.id },
-            { $set: { formData, trabajadoresList, responsablesList, images, video, updatedAt: Date.now() } },
+            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { $set: { formData, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -68,7 +78,8 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body; // Using a timestamp or specific ID
-        const doc = await ReporteActosData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (doc && doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));
             await doc.save();
@@ -84,7 +95,8 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
 router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body;
-        const doc = await ReporteActosData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (doc && doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.map(item => {
                 if (String(item.id) === String(reportId)) {

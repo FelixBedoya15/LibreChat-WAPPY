@@ -7,6 +7,13 @@ const CompanyInfo = require('../../../models/CompanyInfo');
 
 const router = express.Router();
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 const SesionCapacitacionSchema = new mongoose.Schema({
   id: { type: String, required: true },
   tema: { type: String, required: true },
@@ -23,18 +30,20 @@ const SesionCapacitacionSchema = new mongoose.Schema({
 
 const ProgramaCapacitacionesDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
   sesiones: [SesionCapacitacionSchema],
   updatedAt: { type: Date, default: Date.now },
 });
 
-ProgramaCapacitacionesDataSchema.index({ user: 1 }, { unique: true });
+ProgramaCapacitacionesDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const ProgramaCapacitacionesData = mongoose.models.ProgramaCapacitacionesData || 
   mongoose.model('ProgramaCapacitacionesData', ProgramaCapacitacionesDataSchema);
 
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const data = await ProgramaCapacitacionesData.findOne({ user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    const data = await ProgramaCapacitacionesData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
     if (data) {
       return res.json({ sesiones: data.sesiones || [] });
     }
@@ -48,9 +57,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
     const { sesiones } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
     await ProgramaCapacitacionesData.findOneAndUpdate(
-      { user: req.user.id },
-      { $set: { sesiones: sesiones || [], updatedAt: Date.now() } },
+      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { $set: { sesiones: sesiones || [], companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
     res.json({ success: true });

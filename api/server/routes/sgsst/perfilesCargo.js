@@ -10,14 +10,22 @@ const { logger } = require('~/config');
 const router = express.Router();
 const mongoose = require('mongoose');
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── Mongoose Schema ──────────────────────────────────────────────────────
 const PerfilCargoDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
   perfilesList: { type: Array, default: [] },
   updatedAt: { type: Date, default: Date.now },
 });
 
-PerfilCargoDataSchema.index({ user: 1 }, { unique: true });
+PerfilCargoDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const PerfilCargoData =
   mongoose.models.PerfilCargoData ||
@@ -26,7 +34,8 @@ const PerfilCargoData =
 // ─── GET /data ─────────────────────────────────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const data = await PerfilCargoData.findOne({ user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    const data = await PerfilCargoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
     if (data) {
       return res.json({ perfilesList: data.perfilesList || [] });
     }
@@ -41,9 +50,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
     const { perfilesList } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
     await PerfilCargoData.findOneAndUpdate(
-      { user: req.user.id },
-      { $set: { perfilesList, updatedAt: Date.now() } },
+      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { $set: { perfilesList, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true },
     );
     res.json({ success: true });

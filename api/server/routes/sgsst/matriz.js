@@ -11,9 +11,17 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── Mongoose Schema for Raw Data ──────────────────────────────────────
 const MatrizLegalDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
     statuses: { type: Array, default: [] },
     seguimientos: { type: Object, default: {} },
     activity: { type: String, default: '' },
@@ -22,7 +30,7 @@ const MatrizLegalDataSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
-MatrizLegalDataSchema.index({ user: 1 }, { unique: true });
+MatrizLegalDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const MatrizLegalData = mongoose.models.MatrizLegalData || mongoose.model('MatrizLegalData', MatrizLegalDataSchema);
 
@@ -42,7 +50,8 @@ const mapRiskToLabel = (risk) => {
 // ─── GET /data — Load saved matriz legal data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
-        const data = await MatrizLegalData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const data = await MatrizLegalData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (data) {
             return res.json({
                 statuses: data.statuses || [],
@@ -63,10 +72,11 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { statuses, seguimientos, activity, location, entityType } = req.body;
+        const companyId = await getActiveCompanyId(req.user.id);
 
         await MatrizLegalData.findOneAndUpdate(
-            { user: req.user.id },
-            { $set: { statuses, seguimientos, activity, location, entityType, updatedAt: new Date() } },
+            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { $set: { statuses, seguimientos, activity, location, entityType, companyId, updatedAt: new Date() } },
             { upsert: true, new: true }
         );
 

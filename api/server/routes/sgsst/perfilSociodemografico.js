@@ -11,6 +11,13 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const WorkerEntrySchema = new mongoose.Schema({
   id: String,
@@ -79,13 +86,14 @@ const WorkerEntrySchema = new mongoose.Schema({
 
 const PerfilSociodemograficoDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
   trabajadores: [WorkerEntrySchema],
   actualizacionesPendientes: { type: Array, default: [] },
   actualizacionesPendientesSalud: { type: Array, default: [] },
   updatedAt: { type: Date, default: Date.now },
 });
 
-PerfilSociodemograficoDataSchema.index({ user: 1 }, { unique: true });
+PerfilSociodemograficoDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const PerfilSociodemograficoData = mongoose.models.PerfilSociodemograficoData || mongoose.model('PerfilSociodemograficoData', PerfilSociodemograficoDataSchema);
 
@@ -368,7 +376,8 @@ router.get('/profile/:workerId', async (req, res) => {
 // ─── GET /data — Load saved worker data ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const data = await PerfilSociodemograficoData.findOne({ user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    const data = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
     if (data) {
       return res.json({
         trabajadores: data.trabajadores || [],
@@ -392,9 +401,11 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       return res.status(400).json({ error: 'Datos requeridos' });
     }
 
+    const companyId = await getActiveCompanyId(req.user.id);
+
     await PerfilSociodemograficoData.findOneAndUpdate(
-      { user: req.user.id },
-      { $set: { trabajadores, updatedAt: new Date() } },
+      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { $set: { trabajadores, companyId, updatedAt: new Date() } },
       { upsert: true, new: true }
     );
 
@@ -411,7 +422,8 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     const { updateId, workerId, changes, inboxType } = req.body;
     if (!updateId || !workerId || !changes || !inboxType) return res.status(400).json({ error: 'Faltan parámetros' });
 
-    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
     if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
 
     // Encontrar y actualizar el trabajador
@@ -443,7 +455,8 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     const { updateId, inboxType } = req.body;
     if (!updateId || !inboxType) return res.status(400).json({ error: 'Faltan parámetros' });
 
-    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
     if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
 
     if (inboxType === 'social') {
