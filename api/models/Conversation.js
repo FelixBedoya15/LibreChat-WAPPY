@@ -167,7 +167,11 @@ module.exports = {
     }
 
     if (Array.isArray(tags) && tags.length > 0) {
-      filters.push({ tags: { $in: tags } });
+      if (tags.some(t => t.startsWith('company-'))) {
+        filters.push({ tags: { $all: tags } });
+      } else {
+        filters.push({ tags: { $in: tags } });
+      }
     } else {
       // Exclude internal tool conversations from the main sidebar
       const internalTags = [

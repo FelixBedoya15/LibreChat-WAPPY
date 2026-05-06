@@ -43,6 +43,29 @@ async function migrateLegacyData(userId, firstCompanyId) {
             }
         }
     }
+    
+    // Migrate legacy report conversations
+    try {
+        const ConversationModel = mongoose.models.Conversation || require('~/db/models').Conversation;
+        if (ConversationModel) {
+            const internalTagsRegex = /^sgsst-/;
+            const companyTagRegex = /^company-/;
+            
+            const legacyReports = await ConversationModel.find({
+                user: userId,
+                tags: { $regex: internalTagsRegex, $not: companyTagRegex }
+            });
+            
+            for (const report of legacyReports) {
+                if (report.tags && !report.tags.some(t => t.startsWith('company-'))) {
+                    report.tags.push(`company-${firstCompanyId}`);
+                    await report.save();
+                }
+            }
+        }
+    } catch (err) {
+        // Ignore errors if Conversation model fails to load or update
+    }
 }
 
 /**

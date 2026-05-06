@@ -108,18 +108,45 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
     // Removed dependency on global search state to prevent filtering issues
     const [showLoading, setShowLoading] = useState(false);
 
+    const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (!isAuthenticated || !isOpen) return;
+        let isMounted = true;
+        const fetchCompany = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                const res = await fetch('/api/sgsst/company-info', { headers });
+                if (res.ok && isMounted) {
+                    const data = await res.json();
+                    if (data && data._id) {
+                        setActiveCompanyId(data._id);
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchCompany();
+        return () => { isMounted = false; };
+    }, [isAuthenticated, isOpen]);
+
+    const queryTags = useMemo(() => {
+        if (!activeCompanyId) return tags;
+        return [...tags, `company-${activeCompanyId}`];
+    }, [tags, activeCompanyId]);
 
     const queryClient = useQueryClient();
 
-    // Fetch conversations tagged as 'report' - No search filter
+    // Fetch conversations tagged as 'report' AND active company
     const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
         useConversationsInfiniteQuery(
             {
-                tags,
+                tags: queryTags,
             },
             {
-                enabled: isAuthenticated,
+                enabled: isAuthenticated && !!activeCompanyId,
                 staleTime: 0,
                 refetchOnMount: true,
             },
@@ -127,9 +154,9 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
 
     const refreshHistory = useCallback(() => {
         // Invalidate to force a hard refresh from server
-        queryClient.invalidateQueries(['conversations', { tags }]);
+        queryClient.invalidateQueries(['conversations', { tags: queryTags }]);
         refetch();
-    }, [queryClient, refetch, tags]);
+    }, [queryClient, refetch, queryTags]);
 
     // Refresh when trigger changes with a small delay to ensure backend indexing
     useEffect(() => {

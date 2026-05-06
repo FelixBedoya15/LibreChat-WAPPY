@@ -563,6 +563,16 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
         const dateStr = new Date().toLocaleString('es-CO');
         const reportTitle = title || `Diagnóstico SGSST - ${dateStr}`;
         const reportTags = tags || ['sgsst-diagnostico'];
+        
+        try {
+            let activeCompany = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+            if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            if (activeCompany && activeCompany._id) {
+                reportTags.push(`company-${activeCompany._id.toString()}`);
+            }
+        } catch (e) {
+            logger.warn('[SGSST] Could not append company tag to report', e);
+        }
 
         // 1. Save conversation
         await saveConvo(req, {
