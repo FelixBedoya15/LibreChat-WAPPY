@@ -694,21 +694,17 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   };
 
   // ── Excel export ─────────────────────────────────────────────────────────
-  const handleExportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(matrixRows.map(r => ({
-      'Proceso': r.proceso, 'Zona': r.zona, 'Actividad': r.actividad, 'Tareas': r.tareas,
-      'Rutinaria': r.rutinaria, 'Descripción del Peligro': r.peligro_descripcion,
-      'Clasificación': r.peligro_clasificacion, 'Efectos Posibles': r.efectos_posibles,
-      'Ctrl. Fuente': r.controles_fuente, 'Ctrl. Medio': r.controles_medio, 'Ctrl. Individuo': r.controles_individuo,
-      'ND': r.nd, 'NE': r.ne, 'NP': r.np, 'NC': r.nc, 'NR': r.nr,
-      'Interpretación NR': r.interpretacion_nr, 'Aceptabilidad': r.aceptabilidad,
-      'Eliminación': r.medida_eliminacion, 'Sustitución': r.medida_sustitucion,
-      'Ingeniería': r.medida_ingenieria, 'Administrativos': r.medida_administrativa, 'EPP': r.medida_eppu,
-      'Factores Reducción (Anexo E)': r.factores_reduccion,
-    })));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Matriz IPEVAR');
-    XLSX.writeFile(wb, `Matriz_IPEVAR_GTC45_${new Date().toISOString().slice(0,10)}.xlsx`);
+  const handleExportExcel = async () => {
+    try {
+      setIsLoading(true);
+      const { exportMatrizIPEVARToExcel } = await import('./exportIPEVAR');
+      await exportMatrizIPEVARToExcel(matrixRows);
+    } catch (e) {
+      console.error('[Matriz] Export error:', e);
+      alert('Error al exportar la matriz. Por favor, inténtelo de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ── Filtered + Sorted display rows ───────────────────────────────────────
