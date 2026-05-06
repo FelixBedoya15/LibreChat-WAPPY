@@ -80,41 +80,16 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     wsDash.getCell(`C${row}`).alignment = { horizontal: 'center' };
     wsDash.getCell(`C${row}`).font = { bold: true, size: 12, color: { argb: colorArgb }, name: 'Segoe UI' };
     
-    // NATIVE EXCEL DATA BAR SOURCE (Duplicate value so DataBar can render over it)
     wsDash.getCell(`D${row}`).value = { formula: countFormula };
-    // Make text transparent so we only see the bar (White on White is a trick, but data bar goes over it)
-    // Actually, letting the number show inside the Data Bar looks highly professional, so we use Slate color.
     wsDash.getCell(`D${row}`).font = { color: { argb: 'FF94A3B8' }, name: 'Segoe UI' }; 
   };
 
 
-  // --- CARD 1: Riesgos por Nivel de Consecuencia ---
+  // --- CARD 1: Riesgos por Aceptabilidad ---
   let dashRow = 7;
-  dashRow = createCardHeader(dashRow, 'Riesgos por Nivel de Consecuencia (Interpretación NR)');
-  const nrLevels = ['I', 'II', 'III', 'IV'];
-  const colorsNR = ['FFEF4444', 'FFEAB308', 'FF22C55E', 'FF3B82F6']; // Red, Yellow, Green, Blue
-  const startCard1 = dashRow;
-
-  nrLevels.forEach((nivel, idx) => {
-    const label = `Nivel ${nivel} (${nivel === 'I' ? 'No Aceptable' : nivel === 'II' ? 'No Acpt. o Acpt. con Ctrl' : nivel === 'III' ? 'Mejorable' : 'Aceptable'})`;
-    addCardRow(dashRow, label, `COUNTIF('Matriz IPEVAR'!P2:P${totalRows}, "${nivel}")`, idx === nrLevels.length - 1, colorsNR[idx]);
-    dashRow++;
-  });
-
-  // Apply Native DataBars to Card 1
-  wsDash.addConditionalFormatting({
-    ref: `D${startCard1}:D${dashRow - 1}`,
-    rules: [
-      { type: 'dataBar', gradient: true, color: { argb: 'FF94A3B8' }, cfvo: [{ type: 'min' }, { type: 'max' }] }
-    ]
-  });
-
-
-  // --- CARD 2: Riesgos por Aceptabilidad ---
-  dashRow += 3;
   dashRow = createCardHeader(dashRow, 'Riesgos por Aceptabilidad GTC-45');
   const aceptabilidades = ['NO ACEPTABLE', 'NO ACEPTABLE O ACEPTABLE CON CONTROL ESPECIFICO', 'ACEPTABLE', 'MEJORABLE'];
-  const startCard2 = dashRow;
+  const startCard1 = dashRow;
 
   aceptabilidades.forEach((ac, idx) => {
     addCardRow(dashRow, ac, `COUNTIF('Matriz IPEVAR'!R2:R${totalRows}, "${ac}")`, idx === aceptabilidades.length - 1, 'FF0F172A');
@@ -122,19 +97,19 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   });
 
   wsDash.addConditionalFormatting({
-    ref: `D${startCard2}:D${dashRow - 1}`,
+    ref: `D${startCard1}:D${dashRow - 1}`,
     rules: [
       { type: 'dataBar', gradient: true, color: { argb: 'FF6366F1' }, cfvo: [{ type: 'min' }, { type: 'max' }] } // Indigo Data Bar
     ]
   });
 
 
-  // --- CARD 3: Riesgos por Proceso ---
+  // --- CARD 2: Riesgos por Proceso ---
   dashRow += 3;
   dashRow = createCardHeader(dashRow, 'Top Riesgos por Proceso');
   const procesos = [...new Set(matrixRows.map(r => r.proceso).filter(Boolean))];
   if (procesos.length === 0) procesos.push('Sin Datos');
-  const startCard3 = dashRow;
+  const startCard2 = dashRow;
 
   procesos.forEach((proc, idx) => {
     addCardRow(dashRow, proc, `COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, "${proc}")`, idx === procesos.length - 1, 'FF0F172A');
@@ -142,19 +117,19 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   });
 
   wsDash.addConditionalFormatting({
-    ref: `D${startCard3}:D${dashRow - 1}`,
+    ref: `D${startCard2}:D${dashRow - 1}`,
     rules: [
       { type: 'dataBar', gradient: true, color: { argb: 'FF14B8A6' }, cfvo: [{ type: 'min' }, { type: 'max' }] } // Teal Data Bar
     ]
   });
 
 
-  // --- CARD 4: Riesgos por Clasificación de Peligro ---
+  // --- CARD 3: Riesgos por Clasificación de Peligro ---
   dashRow += 3;
   dashRow = createCardHeader(dashRow, 'Riesgos por Clasificación de Peligro');
   const clasificaciones = [...new Set(matrixRows.map(r => r.peligro_clasificacion).filter(Boolean))];
   if (clasificaciones.length === 0) clasificaciones.push('Sin Datos');
-  const startCard4 = dashRow;
+  const startCard3 = dashRow;
 
   clasificaciones.forEach((clasif, idx) => {
     addCardRow(dashRow, clasif, `COUNTIF('Matriz IPEVAR'!G2:G${totalRows}, "${clasif}")`, idx === clasificaciones.length - 1, 'FF0F172A');
@@ -162,7 +137,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   });
 
   wsDash.addConditionalFormatting({
-    ref: `D${startCard4}:D${dashRow - 1}`,
+    ref: `D${startCard3}:D${dashRow - 1}`,
     rules: [
       { type: 'dataBar', gradient: true, color: { argb: 'FF8B5CF6' }, cfvo: [{ type: 'min' }, { type: 'max' }] } // Violet Data Bar
     ]
@@ -215,8 +190,8 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     headerRow: true,
     totalsRow: false,
     style: {
-      theme: 'TableStyleMedium4', // Medium Green/Teal Professional Theme
-      showRowStripes: true,
+      theme: null, // Removed native theme to avoid unwanted green/blue rows
+      showRowStripes: false, // Turn off zebra striping completely
     },
     columns: [
       { name: 'Proceso', filterButton: true },
@@ -248,7 +223,8 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   });
 
   // Apply Specific Column Widths & Alignments Over the Table
-  const colWidths = [28, 22, 28, 35, 12, 50, 22, 35, 22, 22, 22, 10, 10, 10, 10, 12, 22, 40, 25, 25, 25, 30, 30, 28];
+  // Increased width of 'Factores de Reducción' (index 23) from 28 to 65
+  const colWidths = [28, 22, 28, 35, 12, 50, 22, 35, 22, 22, 22, 10, 10, 10, 10, 12, 22, 40, 25, 25, 25, 30, 30, 65];
   
   colWidths.forEach((width, index) => {
     const colNumber = index + 1;
@@ -258,8 +234,14 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     // Apply alignment to all cells in the column (skipping header)
     col.eachCell({ includeEmpty: true }, (cell, rowNum) => {
       if (rowNum === 1) {
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        // Manually style the header with the platform Teal color
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D9488' } }; 
         cell.font = { name: 'Segoe UI', bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF115E59' } }, left: { style: 'thin', color: { argb: 'FF115E59' } },
+          bottom: { style: 'medium', color: { argb: 'FF115E59' } }, right: { style: 'thin', color: { argb: 'FF115E59' } }
+        };
       } else {
         cell.alignment = { vertical: 'top', wrapText: true };
         cell.font = { name: 'Segoe UI', size: 10 };
@@ -267,6 +249,14 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
         if (colNumber === 5 || (colNumber >= 12 && colNumber <= 17)) {
           cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
         }
+        
+        // Add a subtle border to data cells for structure
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
       }
     });
   });
