@@ -208,8 +208,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   // HOJA 2: MATRIZ GTC-45 (DATOS)
   // ============================================================================
   const wsMatriz = wb.addWorksheet('Matriz IPEVAR', {
-
-    views: [{ state: 'frozen', ySplit: 1, xSplit: 2 }]
+    views: [{ state: 'frozen', ySplit: 1, xSplit: 2, showGridLines: false }]
   });
 
   // Activar Filtros Automáticos sin usar addTable para no perder control del color de cabecera
@@ -247,14 +246,13 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   wsMatriz.getRow(1).eachCell((cell) => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua', size: 12 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D9488' } }; // Teal exacto de la plataforma
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // Darker elegant Teal
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = {
-      top: { style: 'thin', color: { argb: 'FF115E59' } }, left: { style: 'thin', color: { argb: 'FF115E59' } },
-      bottom: { style: 'medium', color: { argb: 'FF115E59' } }, right: { style: 'thin', color: { argb: 'FF115E59' } }
+      bottom: { style: 'medium', color: { argb: 'FF042F2E' } } 
     };
   });
-  wsMatriz.getRow(1).height = 45;
+  wsMatriz.getRow(1).height = 55;
 
   matrixRows.forEach((row, index) => {
     const rowNumber = index + 2;
@@ -285,20 +283,22 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
       factores_reduccion: row.factores_reduccion,
     });
 
+    addedRow.height = 40; // Fila muy alta para respirar (Card style)
+    const isEven = rowNumber % 2 === 0;
+    const rowBgColor = isEven ? 'FFFFFFFF' : 'FFF8FAFC'; // Blanco y Slate 50 (Gris hiper suave)
+
     addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      cell.font = { name: 'Book Antiqua', size: 11, color: { argb: 'FF1E293B' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // Filas blancas, sin colores
-      cell.alignment = { vertical: 'top', wrapText: true };
+      cell.font = { name: 'Book Antiqua', size: 11, color: { argb: 'FF334155' } }; // Gris oscuro elegante
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBgColor } };
+      cell.alignment = { vertical: 'top', wrapText: true, indent: 1 }; // Indentación ligera
       
       if (colNumber === 5 || (colNumber >= 12 && colNumber <= 17)) {
         cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
       }
       
+      // SOLO borde inferior muy tenue (Estilo Web)
       cell.border = {
-        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } }
       };
     });
   });
