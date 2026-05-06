@@ -701,7 +701,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       await exportMatrizIPEVARToExcel(matrixRows);
     } catch (e) {
       console.error('[Matriz] Export error:', e);
-      alert('Error al exportar la matriz. Por favor, inténtelo de nuevo.');
+      alert(`Error al exportar la matriz: ${e instanceof Error ? e.message : JSON.stringify(e)}`);
     } finally {
       setIsLoading(false);
     }
