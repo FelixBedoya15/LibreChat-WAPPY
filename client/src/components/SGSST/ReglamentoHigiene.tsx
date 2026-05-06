@@ -319,6 +319,8 @@ const ReglamentoHigiene = () => {
             </div>
 
                 <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                     title="Reglamento de Higiene y Seguridad Industrial"
                     icon={<ShieldAlert className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={

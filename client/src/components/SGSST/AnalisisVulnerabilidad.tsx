@@ -733,6 +733,8 @@ const AnalisisVulnerabilidad = () => {
       {/* Generated report editor */}
       <div className="mt-4">
           <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
               title="Análisis de Vulnerabilidad"
               icon={<Shield className="h-5 w-5 text-teal-700" />}
               actions={

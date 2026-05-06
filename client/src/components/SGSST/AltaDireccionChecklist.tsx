@@ -829,6 +829,8 @@ export default function AltaDireccionChecklist() {
             {/* ─── Analysis Report ──────────────────────────────────────── */}
                 <div className="mt-4">
                     <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title="Revisión Alta Dirección"
                         icon={<FileText className="h-5 w-5 text-text-secondary" />}
                         actions={

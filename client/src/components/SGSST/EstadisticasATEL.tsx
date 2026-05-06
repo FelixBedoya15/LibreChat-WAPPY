@@ -551,6 +551,8 @@ const EstadisticasATEL = () => {
             {/* Generated Report - LiveEditor */}
             <div className="mt-4">
                     <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title={`Estadísticas ATEL — ${MONTHS[currentMonthIndex]}`}
                         icon={<BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={

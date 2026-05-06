@@ -772,6 +772,8 @@ const AnalisisTrabajoSeguro = () => {
 
             {/* Generated ATS Editor */}
             <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                     title="Análisis de Trabajo Seguro (ATS)"
                     icon={<ShieldCheck className="h-5 w-5" />}
                     actions={

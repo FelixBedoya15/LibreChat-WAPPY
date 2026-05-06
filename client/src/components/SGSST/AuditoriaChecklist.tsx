@@ -666,6 +666,8 @@ const AuditoriaChecklist: React.FC<AuditoriaChecklistProps> = ({ onAnalysisCompl
             {analysisReport && (
                 <div className="mt-4">
                     <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title="Auditoría Interna"
                         icon={<FileText className="h-5 w-5 text-teal-700" />}
                         actions={

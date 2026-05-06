@@ -381,6 +381,8 @@ const PoliticaSST = () => {
 
             {/* Generated Policy - LiveEditor */}
                 <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                     title="Política SST"
                     icon={<ScrollText className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                     actions={

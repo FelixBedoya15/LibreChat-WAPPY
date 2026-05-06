@@ -1218,6 +1218,8 @@ const PerfilSociodemografico = () => {
              {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
              <div className="mt-8">
                     <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title="Perfil Sociodemográfico"
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
                     actions={

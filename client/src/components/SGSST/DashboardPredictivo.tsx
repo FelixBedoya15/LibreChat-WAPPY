@@ -551,6 +551,8 @@ const DashboardPredictivo = () => {
             {/* ═══ Generated Report ═══ */}
             <div className="mt-4">
                     <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title="Gestión Predictiva SST"
                         icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
                         actions={

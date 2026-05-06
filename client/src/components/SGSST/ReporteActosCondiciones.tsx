@@ -1059,6 +1059,8 @@ const ReporteActosCondiciones = () => {
 
             {/* Generated Report Editor */}
                 <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                     title="Reporte de Actos y Condiciones Inseguras"
                     icon={<AlertTriangle className="h-5 w-5" />}
                     actions={

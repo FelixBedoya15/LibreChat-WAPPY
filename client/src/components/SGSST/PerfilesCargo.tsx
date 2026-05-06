@@ -1149,6 +1149,8 @@ const PerfilesCargo = () => {
 
             {/* Generated Report View */}
                 <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                     title="Perfil de Cargos"
                     icon={<FileText className="h-5 w-5" />}
                     actions={

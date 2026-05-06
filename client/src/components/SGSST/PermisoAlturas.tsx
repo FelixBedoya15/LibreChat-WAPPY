@@ -877,6 +877,8 @@ const PermisoAlturas = () => {
             </div>
 
                 <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title="Permiso de Trabajo en Alturas"
                         icon={<FileText className="h-5 w-5 text-teal-600" />}
                         actions={

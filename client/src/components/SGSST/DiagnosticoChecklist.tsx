@@ -747,6 +747,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
             </div>
             {/* Analysis Report - Editable */}
                 <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                     title="Diagnóstico SGSST"
                     icon={<FileText className="h-5 w-5" />}
                     actions={

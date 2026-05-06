@@ -1207,6 +1207,8 @@ const MatrizPeligrosGTC45 = () => {
 
             <div className="mt-8 space-y-4">
                     <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
                         title="Matriz Resumen de Recomendaciones IPEVAR"
                         icon={<AlertTriangle className="h-5 w-5" />}
                     actions={

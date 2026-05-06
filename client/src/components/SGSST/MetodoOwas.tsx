@@ -744,6 +744,8 @@ const MetodoOwas = () => {
 
       {/* Generated report editor */}
         <CollapsibleReportBox
+                        onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
+                        isHistoryOpen={isHistoryOpen}
             title="Método OWAS"
             icon={<Activity className="h-5 w-5 text-purple-700" />}
             actions={
