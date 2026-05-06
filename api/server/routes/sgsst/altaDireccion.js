@@ -41,7 +41,7 @@ router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const userId = new mongoose.Types.ObjectId(req.user.id);
         const companyId = await getActiveCompanyId(req.user.id);
-        const data = await AltaDireccionData.findOne({ user: userId, companyId: { $in: [companyId, null] } }).lean();
+        const data = await AltaDireccionData.findOne({ user: userId, companyId: companyId }).lean();
         if (data) {
             return res.json({
                 statusData: data.statusData || [],
@@ -63,7 +63,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const userId = new mongoose.Types.ObjectId(req.user.id);
         const companyId = await getActiveCompanyId(req.user.id);
         await AltaDireccionData.findOneAndUpdate(
-            { user: userId, companyId: { $in: [companyId, null] } },
+            { user: userId, companyId: companyId },
             { $set: { statusData: statusData || [], reviewerInfo: reviewerInfo || {}, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -80,7 +80,7 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
         const { reportId } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user.id);
         const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await AltaDireccionData.findOne({ user: userId, companyId: { $in: [companyId, null] } });
+        const doc = await AltaDireccionData.findOne({ user: userId, companyId: companyId });
         if (!doc) return res.status(404).json({ error: 'No se encontraron datos' });
 
         const item = (doc.inboxPublico || []).find(i => String(i.id) === String(reportId));
@@ -128,7 +128,7 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
         const { reportId } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user.id);
         const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await AltaDireccionData.findOne({ user: userId, companyId: { $in: [companyId, null] } });
+        const doc = await AltaDireccionData.findOne({ user: userId, companyId: companyId });
         if (!doc) return res.status(404).json({ error: 'No se encontraron datos' });
         if (doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));

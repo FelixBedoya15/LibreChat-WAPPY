@@ -38,7 +38,7 @@ const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData || mongo
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const data = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const data = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId: companyId });
         if (data) {
             return res.json({
                 area: data.area || '',
@@ -64,7 +64,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const companyId = await getActiveCompanyId(req.user.id);
 
         await ParticipacionIpevarData.findOneAndUpdate(
-            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { user: req.user.id, companyId: companyId },
             { $set: { area, proceso, fecha, responsableSST, riesgosIdentificados, asistentes, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );

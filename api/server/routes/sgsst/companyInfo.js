@@ -5,6 +5,45 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const CompanyInfo = require('~/models/CompanyInfo');
 const { getAllUserMemories, createMemory, setMemory, deleteMemory } = require('~/models');
 const { Tokenizer } = require('@librechat/api');
+const mongoose = require('mongoose');
+
+/**
+ * Helper to migrate legacy data (companyId: null) to the user's oldest company.
+ * This runs automatically in the background when companies are loaded.
+ */
+async function migrateLegacyData(userId, firstCompanyId) {
+    const models = [
+        mongoose.models.PerfilCargoData,
+        mongoose.models.PerfilSociodemograficoData,
+        mongoose.models.ProgramaCapacitacionesData,
+        mongoose.models.MatrizLegalData,
+        mongoose.models.ReporteActosData,
+        mongoose.models.AnalisisVulnerabilidadData,
+        mongoose.models.ParticipacionIpevarData,
+        mongoose.models.AnalisisTrabajoSeguroData,
+        mongoose.models.MetodoOwasData,
+        mongoose.models.PermisoAlturasData,
+        mongoose.models.MatrizPeligrosData,
+        mongoose.models.AltaDireccionData,
+        mongoose.models.ATELAnnualData,
+        mongoose.models.InvestigacionAtelData,
+        mongoose.models.LiveEditorSession,
+        mongoose.models.GTC45WorkspaceSession
+    ];
+    
+    for (const model of models) {
+        if (model) {
+            try {
+                await model.updateMany(
+                    { user: userId, $or: [{ companyId: null }, { companyId: { $exists: false } }] },
+                    { $set: { companyId: firstCompanyId } }
+                );
+            } catch (err) {
+                // Ignore errors if model is not yet initialized or collection missing
+            }
+        }
+    }
+}
 
 /**
  * Syncs the AI automated memory for a given company data.
@@ -68,6 +107,12 @@ router.get('/', requireJwtAuth, async (req, res) => {
                 info.isActive = true;
             }
         }
+        
+        if (info) {
+            // Background migration for backward compatibility
+            migrateLegacyData(req.user.id, info._id).catch(e => logger.error('[SGSST] Migration error:', e));
+        }
+        
         res.json(info || {});
     } catch (error) {
         logger.error('[SGSST CompanyInfo] GET error:', error);
@@ -82,6 +127,12 @@ router.get('/', requireJwtAuth, async (req, res) => {
 router.get('/all', requireJwtAuth, async (req, res) => {
     try {
         const companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        
+        if (companies && companies.length > 0) {
+            // Background migration: assign any null companyId data to the oldest company
+            migrateLegacyData(req.user.id, companies[0]._id).catch(e => logger.error('[SGSST] Migration error:', e));
+        }
+
         res.json(companies);
     } catch (error) {
         logger.error('[SGSST CompanyInfo] GET /all error:', error);

@@ -38,7 +38,7 @@ const PermisoAlturasData = mongoose.models.PermisoAlturasData || mongoose.model(
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const data = await PermisoAlturasData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const data = await PermisoAlturasData.findOne({ user: req.user.id, companyId: companyId });
         if (data) {
             return res.json({
                 formData: data.formData || {},
@@ -61,7 +61,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const { formData, trabajadoresList, responsablesList, images, video } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
         await PermisoAlturasData.findOneAndUpdate(
-            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { user: req.user.id, companyId: companyId },
             { $set: { formData, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );

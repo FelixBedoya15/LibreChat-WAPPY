@@ -26,7 +26,7 @@ async function getActiveCompanyId(userId) {
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const stored = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } }).lean();
+        const stored = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: companyId }).lean();
         if (stored) {
             return res.json({
                 formData: stored.formData || {},
@@ -50,7 +50,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const companyId = await getActiveCompanyId(req.user.id);
         const { formData, equipoList, testigosList, images, video } = req.body;
         await InvestigacionAtelData.findOneAndUpdate(
-            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { user: req.user.id, companyId: companyId },
             { $set: { companyId, formData, equipoList, testigosList, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -67,7 +67,7 @@ router.post('/inbox/testimonio/dismiss', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
         const { reportId } = req.body;
-        const doc = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const doc = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: companyId });
         if (doc && doc.inboxTestimonios) {
             doc.inboxTestimonios = doc.inboxTestimonios.filter(item => String(item.id) !== String(reportId));
             await doc.save();

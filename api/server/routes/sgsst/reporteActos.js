@@ -39,7 +39,7 @@ const ReporteActosData = mongoose.models.ReporteActosData || mongoose.model('Rep
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const data = await ReporteActosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const data = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
         if (data) {
             return res.json({
                 formData: data.formData || {},
@@ -63,7 +63,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const { formData, trabajadoresList, responsablesList, images, video } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
         await ReporteActosData.findOneAndUpdate(
-            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { user: req.user.id, companyId: companyId },
             { $set: { formData, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
@@ -79,7 +79,7 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body; // Using a timestamp or specific ID
         const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
         if (doc && doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));
             await doc.save();
@@ -96,7 +96,7 @@ router.post('/inbox/mark-processed', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
-        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const doc = await ReporteActosData.findOne({ user: req.user.id, companyId: companyId });
         if (doc && doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.map(item => {
                 if (String(item.id) === String(reportId)) {

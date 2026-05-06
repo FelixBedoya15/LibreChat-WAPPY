@@ -710,7 +710,7 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const data = await MatrizPeligrosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const data = await MatrizPeligrosData.findOne({ user: req.user.id, companyId: companyId });
         if (data && data.procesos?.length) {
             return res.json({ procesos: data.procesos });
         }
@@ -734,7 +734,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const companyId = await getActiveCompanyId(req.user.id);
 
         await MatrizPeligrosData.findOneAndUpdate(
-            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { user: req.user.id, companyId: companyId },
             { $set: { procesos, companyId, updatedAt: new Date() } },
             { upsert: true, new: true }
         );

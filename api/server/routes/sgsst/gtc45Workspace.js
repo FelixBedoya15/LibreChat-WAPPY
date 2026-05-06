@@ -25,7 +25,7 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 
     const companyId = await getActiveCompanyId(userId);
 
-    let session = await GTC45WorkspaceSession.findOne({ conversationId, user: userId, companyId: { $in: [companyId, null] } });
+    let session = await GTC45WorkspaceSession.findOne({ conversationId, user: userId, companyId: companyId });
     logger.info(`[GTC45Workspace GET] primary lookup result: ${session ? `found (rows=${session.matrixRows?.length})` : 'NOT FOUND'}`);
 
     if (!session) {
@@ -61,7 +61,7 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(userId);
 
     let session = await GTC45WorkspaceSession.findOneAndUpdate(
-      { conversationId, companyId: { $in: [companyId, null] } },
+      { conversationId, companyId: companyId },
       {
         $set: { matrixRows: matrixRows || [], companyId },
         $setOnInsert: { user: userId },

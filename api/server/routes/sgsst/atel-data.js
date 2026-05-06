@@ -69,7 +69,7 @@ router.get('/:year', requireJwtAuth, async (req, res) => {
         const userId = req.user.id;
         const companyId = await getActiveCompanyId(userId);
 
-        const data = await ATELAnnualData.findOne({ user: userId, companyId: { $in: [companyId, null] }, year: Number(year) });
+        const data = await ATELAnnualData.findOne({ user: userId, companyId: companyId, year: Number(year) });
 
         if (!data) {
             // Return empty structure if not found
@@ -97,7 +97,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 
         // Upsert
         const result = await ATELAnnualData.findOneAndUpdate(
-            { user: userId, companyId: { $in: [companyId, null] }, year: Number(year) },
+            { user: userId, companyId: companyId, year: Number(year) },
             {
                 $set: {
                     months: annualData,

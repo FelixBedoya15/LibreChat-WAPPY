@@ -34,7 +34,7 @@ const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData ||
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    const data = await AnalisisVulnerabilidadData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const data = await AnalisisVulnerabilidadData.findOne({ user: req.user.id, companyId: companyId });
     if (data) {
       return res.json({
         amenazasList: data.formData?.amenazasList || [],
@@ -56,7 +56,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     const { amenazasList, evaluadoresList, images, video } = req.body;
     const companyId = await getActiveCompanyId(req.user.id);
     await AnalisisVulnerabilidadData.findOneAndUpdate(
-      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { user: req.user.id, companyId: companyId },
       { $set: { "formData.amenazasList": amenazasList, evaluadoresList, images, video, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );

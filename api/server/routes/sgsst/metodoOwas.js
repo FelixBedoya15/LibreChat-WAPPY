@@ -80,7 +80,7 @@ const MetodoOwasData = mongoose.models.MetodoOwasData || mongoose.model('MetodoO
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    const data = await MetodoOwasData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const data = await MetodoOwasData.findOne({ user: req.user.id, companyId: companyId });
     if (data) {
       return res.json({
         formData: data.formData || {},
@@ -104,7 +104,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     const { formData, observaciones, trabajadoresList, responsablesList, images, video } = req.body;
     const companyId = await getActiveCompanyId(req.user.id);
     await MetodoOwasData.findOneAndUpdate(
-      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { user: req.user.id, companyId: companyId },
       { $set: { formData, observaciones, trabajadoresList, responsablesList, images, video, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );

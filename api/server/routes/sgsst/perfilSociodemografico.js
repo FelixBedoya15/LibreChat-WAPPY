@@ -377,7 +377,7 @@ router.get('/profile/:workerId', async (req, res) => {
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    const data = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const data = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: companyId });
     if (data) {
       return res.json({
         trabajadores: data.trabajadores || [],
@@ -404,7 +404,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     const companyId = await getActiveCompanyId(req.user.id);
 
     await PerfilSociodemograficoData.findOneAndUpdate(
-      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { user: req.user.id, companyId: companyId },
       { $set: { trabajadores, companyId, updatedAt: new Date() } },
       { upsert: true, new: true }
     );
@@ -423,7 +423,7 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     if (!updateId || !workerId || !changes || !inboxType) return res.status(400).json({ error: 'Faltan parámetros' });
 
     const companyId = await getActiveCompanyId(req.user.id);
-    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: companyId });
     if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
 
     // Encontrar y actualizar el trabajador
@@ -456,7 +456,7 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     if (!updateId || !inboxType) return res.status(400).json({ error: 'Faltan parámetros' });
 
     const companyId = await getActiveCompanyId(req.user.id);
-    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const doc = await PerfilSociodemograficoData.findOne({ user: req.user.id, companyId: companyId });
     if (!doc) return res.status(404).json({ error: 'No se encontró la empresa' });
 
     if (inboxType === 'social') {

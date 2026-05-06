@@ -23,7 +23,7 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const companyId = await getActiveCompanyId(userId);
 
-    let session = await LiveEditorSession.findOne({ conversationId, user: userId, companyId: { $in: [companyId, null] } });
+    let session = await LiveEditorSession.findOne({ conversationId, user: userId, companyId: companyId });
 
     // Fallback: buscar sin userId (sesiones heredadas)
     if (!session) {
@@ -72,7 +72,7 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
     };
 
     const session = await LiveEditorSession.findOneAndUpdate(
-      { conversationId, companyId: { $in: [companyId, null] } },
+      { conversationId, companyId: companyId },
       update,
       { upsert: true, new: true },
     );
@@ -92,7 +92,7 @@ router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const companyId = await getActiveCompanyId(req.user.id);
-    await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id, companyId: { $in: [companyId, null] } });
+    await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id, companyId: companyId });
     res.json({ success: true });
   } catch (error) {
     logger.error('[LiveEditor DELETE] Error:', error);

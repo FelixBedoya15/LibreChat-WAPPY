@@ -35,7 +35,7 @@ const PerfilCargoData =
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    const data = await PerfilCargoData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const data = await PerfilCargoData.findOne({ user: req.user.id, companyId: companyId });
     if (data) {
       return res.json({ perfilesList: data.perfilesList || [] });
     }
@@ -52,7 +52,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     const { perfilesList } = req.body;
     const companyId = await getActiveCompanyId(req.user.id);
     await PerfilCargoData.findOneAndUpdate(
-      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { user: req.user.id, companyId: companyId },
       { $set: { perfilesList, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true },
     );

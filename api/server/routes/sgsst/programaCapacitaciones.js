@@ -43,7 +43,7 @@ const ProgramaCapacitacionesData = mongoose.models.ProgramaCapacitacionesData ||
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
     const companyId = await getActiveCompanyId(req.user.id);
-    const data = await ProgramaCapacitacionesData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+    const data = await ProgramaCapacitacionesData.findOne({ user: req.user.id, companyId: companyId });
     if (data) {
       return res.json({ sesiones: data.sesiones || [] });
     }
@@ -59,7 +59,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     const { sesiones } = req.body;
     const companyId = await getActiveCompanyId(req.user.id);
     await ProgramaCapacitacionesData.findOneAndUpdate(
-      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { user: req.user.id, companyId: companyId },
       { $set: { sesiones: sesiones || [], companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );

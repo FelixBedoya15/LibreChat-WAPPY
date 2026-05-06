@@ -51,7 +51,7 @@ const mapRiskToLabel = (risk) => {
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
-        const data = await MatrizLegalData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
+        const data = await MatrizLegalData.findOne({ user: req.user.id, companyId: companyId });
         if (data) {
             return res.json({
                 statuses: data.statuses || [],
@@ -75,7 +75,7 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         const companyId = await getActiveCompanyId(req.user.id);
 
         await MatrizLegalData.findOneAndUpdate(
-            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { user: req.user.id, companyId: companyId },
             { $set: { statuses, seguimientos, activity, location, entityType, companyId, updatedAt: new Date() } },
             { upsert: true, new: true }
         );
