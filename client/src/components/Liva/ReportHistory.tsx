@@ -113,8 +113,12 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
     const [companyResolved, setCompanyResolved] = useState(false);
 
     useEffect(() => {
-        if (!isAuthenticated) return;
+        // Re-fetch active company every time the modal OPENS, not just once on mount.
+        // This ensures the filter is always correct after switching companies.
+        if (!isAuthenticated || !isOpen) return;
         let isMounted = true;
+        setCompanyResolved(false); // reset so filter shows spinner while resolving
+        setActiveCompanyId(null);
         const fetchCompany = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -133,10 +137,10 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
             }
         };
         fetchCompany();
-        // Timeout fallback: if company fetch takes too long, still show results
+        // Timeout fallback: if company fetch takes too long, unblock with no company filter
         const timeout = setTimeout(() => { if (isMounted) setCompanyResolved(true); }, 3000);
         return () => { isMounted = false; clearTimeout(timeout); };
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isOpen]);
 
     const queryClient = useQueryClient();
 
@@ -189,20 +193,25 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
         isFetchingNext: isFetchingNextPage,
     });
 
-    // Client-side filter: once company is resolved, only show reports for active company.
-    // Reports without any company tag are treated as legacy (primary company only).
+    // Client-side filter: STRICT company isolation.
+    // Only show reports that are explicitly tagged with the active company.
+    // Legacy reports (no company tag) are NEVER shown to prevent cross-company bleeding.
+    // If company is not yet resolved, show nothing (spinner already visible via isLoading).
     const conversations = useMemo(() => {
         const all = data ? data.pages.flatMap((page) => page.conversations) : [];
-        if (!companyResolved || !activeCompanyId) {
-            // Company not yet known — show everything to avoid blank state
+        if (!companyResolved) {
+            // Still resolving — show nothing to avoid leaking wrong company data
+            return [];
+        }
+        if (!activeCompanyId) {
+            // Company fetch failed or user has no company — show all (single-company fallback)
             return all;
         }
         const companyTag = `company-${activeCompanyId}`;
         return all.filter((c: any) => {
             const cTags: string[] = c.tags || [];
-            const hasAnyCompanyTag = cTags.some(t => t.startsWith('company-'));
-            // Show if it belongs to the active company, OR if it has no company tag at all (legacy)
-            return cTags.includes(companyTag) || !hasAnyCompanyTag;
+            // STRICT: only show reports explicitly tagged for this company
+            return cTags.includes(companyTag);
         });
     }, [data, activeCompanyId, companyResolved]);
 

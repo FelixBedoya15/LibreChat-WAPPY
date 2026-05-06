@@ -62,20 +62,22 @@ const CollapsibleReportBox = ({
                     className="flex flex-nowrap items-center gap-2 shrink-0 overflow-visible"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* History button — shown only when onHistory is provided */}
+                    {/* History button — same style as SGSSTToolbar ToolbarButton */}
                     {onHistory && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onHistory(); }}
                             title="Historial de informes"
                             className={cn(
-                                "flex items-center gap-1.5 h-8 px-3 rounded-xl border text-xs font-bold transition-all duration-200 shadow-sm",
+                                "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
                                 isHistoryOpen
-                                    ? "bg-teal-100 text-teal-700 border-teal-400 dark:bg-teal-900/30 dark:text-teal-300"
-                                    : "bg-surface-primary text-text-primary border-border-medium hover:bg-surface-hover hover:border-teal-400 hover:text-teal-700"
+                                    ? "bg-teal-100 text-teal-700 dark:bg-teal-900/10 border-teal-400"
+                                    : "bg-surface-primary text-text-primary hover:bg-surface-hover hover:border-teal-400 border-border-medium"
                             )}
                         >
-                            <History className="h-4 w-4" />
-                            <span className="hidden sm:inline">Historial</span>
+                            <History className="h-5 w-5 shrink-0" />
+                            <div className="hidden sm:flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap">
+                                <span className="text-sm font-bold tracking-wide">Historial</span>
+                            </div>
                         </button>
                     )}
 
