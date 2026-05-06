@@ -16,7 +16,6 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     views: [{ showGridLines: false }]
   });
 
-  // Background color for the whole dashboard (Slate 50)
   for (let r = 1; r <= 80; r++) {
     for (let c = 1; c <= 10; c++) {
       wsDash.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -28,29 +27,28 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getColumn('C').width = 15;
   wsDash.getColumn('D').width = 40;
   
-  // Hero Header (Dark Slate / Teal)
+  // Hero Header
   wsDash.mergeCells('A1:E4');
   const heroCell = wsDash.getCell('A1');
   heroCell.value = '   📊 DASHBOARD EJECUTIVO — IPEVAR GTC-45';
-  heroCell.font = { size: 24, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Segoe UI' };
-  heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate 900
+  heroCell.font = { size: 28, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
+  heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; 
   heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
   for (let c = 1; c <= 5; c++) {
-    wsDash.getCell(4, c).border = { bottom: { style: 'thick', color: { argb: 'FF0D9488' } } }; // Teal border
+    wsDash.getCell(4, c).border = { bottom: { style: 'thick', color: { argb: 'FF0D9488' } } };
   }
 
   const totalRows = matrixRows.length > 0 ? matrixRows.length + 1 : 2;
 
-  // Function to create a styled card header
   const createCardHeader = (row: number, title: string) => {
     wsDash.getCell(`B${row}`).value = title;
-    wsDash.getCell(`B${row}`).font = { size: 14, bold: true, color: { argb: 'FF0F172A' }, name: 'Segoe UI' };
+    wsDash.getCell(`B${row}`).font = { size: 16, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' };
     
     const hRow = row + 1;
     ['B', 'C', 'D'].forEach(col => {
       const cell = wsDash.getCell(`${col}${hRow}`);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Slate 100
-      cell.font = { bold: true, color: { argb: 'FF475569' }, name: 'Segoe UI' };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; 
+      cell.font = { bold: true, color: { argb: 'FF475569' }, name: 'Book Antiqua' };
       cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
       if (col === 'B') cell.border.left = { style: 'thin', color: { argb: 'FFCBD5E1' } };
       if (col === 'D') cell.border.right = { style: 'thin', color: { argb: 'FFCBD5E1' } };
@@ -61,11 +59,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     return hRow + 1;
   };
 
-  // Function to add a row to a card
   const addCardRow = (row: number, label: string, countFormula: string, isLast: boolean, colorArgb: string) => {
     ['B', 'C', 'D'].forEach(col => {
       const cell = wsDash.getCell(`${col}${row}`);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; 
       let borders: any = {};
       if (col === 'B') borders.left = { style: 'thin', color: { argb: 'FFCBD5E1' } };
       if (col === 'D') borders.right = { style: 'thin', color: { argb: 'FFCBD5E1' } };
@@ -74,18 +71,17 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     });
 
     wsDash.getCell(`B${row}`).value = ` ${label}`;
-    wsDash.getCell(`B${row}`).font = { name: 'Segoe UI', color: { argb: 'FF334155' } };
+    wsDash.getCell(`B${row}`).font = { name: 'Book Antiqua', color: { argb: 'FF334155' } };
     
     wsDash.getCell(`C${row}`).value = { formula: countFormula };
     wsDash.getCell(`C${row}`).alignment = { horizontal: 'center' };
-    wsDash.getCell(`C${row}`).font = { bold: true, size: 12, color: { argb: colorArgb }, name: 'Segoe UI' };
+    wsDash.getCell(`C${row}`).font = { bold: true, size: 12, color: { argb: colorArgb }, name: 'Book Antiqua' };
     
     wsDash.getCell(`D${row}`).value = { formula: countFormula };
-    wsDash.getCell(`D${row}`).font = { color: { argb: 'FF94A3B8' }, name: 'Segoe UI' }; 
+    wsDash.getCell(`D${row}`).font = { color: { argb: 'FF94A3B8' }, name: 'Book Antiqua' }; 
   };
 
 
-  // --- CARD 1: Riesgos por Aceptabilidad ---
   let dashRow = 7;
   dashRow = createCardHeader(dashRow, 'Riesgos por Aceptabilidad GTC-45');
   const aceptabilidades = ['NO ACEPTABLE', 'NO ACEPTABLE O ACEPTABLE CON CONTROL ESPECIFICO', 'ACEPTABLE', 'MEJORABLE'];
@@ -98,13 +94,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   wsDash.addConditionalFormatting({
     ref: `D${startCard1}:D${dashRow - 1}`,
-    rules: [
-      { type: 'dataBar', gradient: true, color: { argb: 'FF6366F1' }, cfvo: [{ type: 'min' }, { type: 'max' }] } // Indigo Data Bar
-    ]
+    rules: [{ type: 'dataBar', gradient: true, color: { argb: 'FF6366F1' }, cfvo: [{ type: 'min' }, { type: 'max' }] }]
   });
 
 
-  // --- CARD 2: Riesgos por Proceso ---
   dashRow += 3;
   dashRow = createCardHeader(dashRow, 'Top Riesgos por Proceso');
   const procesos = [...new Set(matrixRows.map(r => r.proceso).filter(Boolean))];
@@ -118,13 +111,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   wsDash.addConditionalFormatting({
     ref: `D${startCard2}:D${dashRow - 1}`,
-    rules: [
-      { type: 'dataBar', gradient: true, color: { argb: 'FF14B8A6' }, cfvo: [{ type: 'min' }, { type: 'max' }] } // Teal Data Bar
-    ]
+    rules: [{ type: 'dataBar', gradient: true, color: { argb: 'FF14B8A6' }, cfvo: [{ type: 'min' }, { type: 'max' }] }]
   });
 
 
-  // --- CARD 3: Riesgos por Clasificación de Peligro ---
   dashRow += 3;
   dashRow = createCardHeader(dashRow, 'Riesgos por Clasificación de Peligro');
   const clasificaciones = [...new Set(matrixRows.map(r => r.peligro_clasificacion).filter(Boolean))];
@@ -138,142 +128,118 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   wsDash.addConditionalFormatting({
     ref: `D${startCard3}:D${dashRow - 1}`,
-    rules: [
-      { type: 'dataBar', gradient: true, color: { argb: 'FF8B5CF6' }, cfvo: [{ type: 'min' }, { type: 'max' }] } // Violet Data Bar
-    ]
+    rules: [{ type: 'dataBar', gradient: true, color: { argb: 'FF8B5CF6' }, cfvo: [{ type: 'min' }, { type: 'max' }] }]
   });
 
 
-
   // ============================================================================
-  // HOJA 2: MATRIZ GTC-45 (NATIVE EXCEL TABLE)
+  // HOJA 2: MATRIZ GTC-45 (DATOS)
   // ============================================================================
   const wsMatriz = wb.addWorksheet('Matriz IPEVAR', {
-    views: [{ state: 'frozen', ySplit: 1, xSplit: 2 }] // Freeze headers and first 2 columns (Proceso, Zona)
+    views: [{ state: 'frozen', ySplit: 1, xSplit: 2 }]
   });
 
-  // Prepare Data Rows for Native Table
-  const tableRows = matrixRows.map((row, index) => {
-    const rNum = index + 2;
-    return [
-      row.proceso || '',
-      row.zona || '',
-      row.actividad || '',
-      row.tareas || '',
-      row.rutinaria || '',
-      row.peligro_descripcion || '',
-      row.peligro_clasificacion || '',
-      row.efectos_posibles || '',
-      row.controles_fuente || '',
-      row.controles_medio || '',
-      row.controles_individuo || '',
-      Number(row.nd) || 0,
-      Number(row.ne) || 0,
-      { formula: `L${rNum}*M${rNum}`, result: row.np }, // NP
-      Number(row.nc) || 0,
-      { formula: `N${rNum}*O${rNum}`, result: row.nr }, // NR
-      row.interpretacion_nr || '',
-      row.aceptabilidad || '',
-      row.medida_eliminacion || '',
-      row.medida_sustitucion || '',
-      row.medida_ingenieria || '',
-      row.medida_administrativa || '',
-      row.medida_eppu || '',
-      row.factores_reduccion || '',
-    ];
-  });
+  // Activar Filtros Automáticos sin usar addTable para no perder control del color de cabecera
+  wsMatriz.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: totalRows, column: 24 }
+  };
 
-  // Add Native Excel Table (List Object)
-  wsMatriz.addTable({
-    name: 'TablaMatrizIPEVAR',
-    ref: 'A1',
-    headerRow: true,
-    totalsRow: false,
-    style: {
-      theme: null, // Removed native theme to avoid unwanted green/blue rows
-      showRowStripes: false, // Turn off zebra striping completely
-    },
-    columns: [
-      { name: 'Proceso', filterButton: true },
-      { name: 'Zona / Lugar', filterButton: true },
-      { name: 'Actividad', filterButton: true },
-      { name: 'Tareas', filterButton: true },
-      { name: 'Rutinaria', filterButton: true },
-      { name: 'Descripción del Peligro', filterButton: true },
-      { name: 'Clasificación', filterButton: true },
-      { name: 'Efectos Posibles', filterButton: true },
-      { name: 'Ctrl. Fuente', filterButton: true },
-      { name: 'Ctrl. Medio', filterButton: true },
-      { name: 'Ctrl. Individuo', filterButton: true },
-      { name: 'ND', filterButton: true },
-      { name: 'NE', filterButton: true },
-      { name: 'NP', filterButton: true },
-      { name: 'NC', filterButton: true },
-      { name: 'NR (Nivel)', filterButton: true },
-      { name: 'Interpretación NR', filterButton: true },
-      { name: 'Aceptabilidad del Riesgo', filterButton: true },
-      { name: 'Eliminación', filterButton: true },
-      { name: 'Sustitución', filterButton: true },
-      { name: 'Ctrl. Ingeniería', filterButton: true },
-      { name: 'Ctrl. Administrativos', filterButton: true },
-      { name: 'Equipos/EPP', filterButton: true },
-      { name: 'Factores de Reducción', filterButton: true },
-    ],
-    rows: tableRows.length > 0 ? tableRows : [['', '', '', '', '', '', '', '', '', '', '', 0, 0, 0, 0, 0, '', '', '', '', '', '', '', '']]
-  });
+  wsMatriz.columns = [
+    { header: 'Proceso', key: 'proceso', width: 28 },
+    { header: 'Zona / Lugar', key: 'zona', width: 22 },
+    { header: 'Actividad', key: 'actividad', width: 28 },
+    { header: 'Tareas', key: 'tareas', width: 35 },
+    { header: 'Rutinaria', key: 'rutinaria', width: 12 },
+    { header: 'Descripción del Peligro', key: 'peligro_descripcion', width: 50 },
+    { header: 'Clasificación', key: 'peligro_clasificacion', width: 22 },
+    { header: 'Efectos Posibles', key: 'efectos_posibles', width: 35 },
+    { header: 'Ctrl. Fuente', key: 'controles_fuente', width: 22 },
+    { header: 'Ctrl. Medio', key: 'controles_medio', width: 22 },
+    { header: 'Ctrl. Individuo', key: 'controles_individuo', width: 22 },
+    { header: 'ND', key: 'nd', width: 10 },
+    { header: 'NE', key: 'ne', width: 10 },
+    { header: 'NP', key: 'np', width: 10 },
+    { header: 'NC', key: 'nc', width: 10 },
+    { header: 'NR (Nivel)', key: 'nr', width: 12 },
+    { header: 'Interpretación NR', key: 'interpretacion_nr', width: 22 },
+    { header: 'Aceptabilidad del Riesgo', key: 'aceptabilidad', width: 40 },
+    { header: 'Eliminación', key: 'medida_eliminacion', width: 25 },
+    { header: 'Sustitución', key: 'medida_sustitucion', width: 25 },
+    { header: 'Ctrl. Ingeniería', key: 'medida_ingenieria', width: 25 },
+    { header: 'Ctrl. Administrativos', key: 'medida_administrativa', width: 30 },
+    { header: 'Equipos/EPP', key: 'medida_eppu', width: 30 },
+    { header: 'Factores de Reducción', key: 'factores_reduccion', width: 65 }, // Mucho más ancho
+  ];
 
-  // Apply Specific Column Widths & Alignments Over the Table
-  // Increased width of 'Factores de Reducción' (index 23) from 28 to 65
-  const colWidths = [28, 22, 28, 35, 12, 50, 22, 35, 22, 22, 22, 10, 10, 10, 10, 12, 22, 40, 25, 25, 25, 30, 30, 65];
-  
-  colWidths.forEach((width, index) => {
-    const colNumber = index + 1;
-    const col = wsMatriz.getColumn(colNumber);
-    col.width = width;
-    
-    // Apply alignment to all cells in the column (skipping header)
-    col.eachCell({ includeEmpty: true }, (cell, rowNum) => {
-      if (rowNum === 1) {
-        // Manually style the header with the platform Teal color
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D9488' } }; 
-        cell.font = { name: 'Segoe UI', bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF115E59' } }, left: { style: 'thin', color: { argb: 'FF115E59' } },
-          bottom: { style: 'medium', color: { argb: 'FF115E59' } }, right: { style: 'thin', color: { argb: 'FF115E59' } }
-        };
-      } else {
-        cell.alignment = { vertical: 'top', wrapText: true };
-        cell.font = { name: 'Segoe UI', size: 10 };
-        // Center numeric columns (ND, NE, NP, NC, NR) and Rutinaria
-        if (colNumber === 5 || (colNumber >= 12 && colNumber <= 17)) {
-          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
-        }
-        
-        // Add a subtle border to data cells for structure
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-        };
+  wsMatriz.getRow(1).eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua', size: 12 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D9488' } }; // Teal exacto de la plataforma
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF115E59' } }, left: { style: 'thin', color: { argb: 'FF115E59' } },
+      bottom: { style: 'medium', color: { argb: 'FF115E59' } }, right: { style: 'thin', color: { argb: 'FF115E59' } }
+    };
+  });
+  wsMatriz.getRow(1).height = 45;
+
+  matrixRows.forEach((row, index) => {
+    const rowNumber = index + 2;
+    const addedRow = wsMatriz.addRow({
+      proceso: row.proceso,
+      zona: row.zona,
+      actividad: row.actividad,
+      tareas: row.tareas,
+      rutinaria: row.rutinaria,
+      peligro_descripcion: row.peligro_descripcion,
+      peligro_clasificacion: row.peligro_clasificacion,
+      efectos_posibles: row.efectos_posibles,
+      controles_fuente: row.controles_fuente,
+      controles_medio: row.controles_medio,
+      controles_individuo: row.controles_individuo,
+      nd: Number(row.nd) || 0,
+      ne: Number(row.ne) || 0,
+      np: { formula: `L${rowNumber}*M${rowNumber}`, result: row.np },
+      nc: Number(row.nc) || 0,
+      nr: { formula: `N${rowNumber}*O${rowNumber}`, result: row.nr },
+      interpretacion_nr: row.interpretacion_nr,
+      aceptabilidad: row.aceptabilidad,
+      medida_eliminacion: row.medida_eliminacion,
+      medida_sustitucion: row.medida_sustitucion,
+      medida_ingenieria: row.medida_ingenieria,
+      medida_administrativa: row.medida_administrativa,
+      medida_eppu: row.medida_eppu,
+      factores_reduccion: row.factores_reduccion,
+    });
+
+    addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      cell.font = { name: 'Book Antiqua', size: 11, color: { argb: 'FF1E293B' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // Filas blancas, sin colores
+      cell.alignment = { vertical: 'top', wrapText: true };
+      
+      if (colNumber === 5 || (colNumber >= 12 && colNumber <= 17)) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; 
       }
+      
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+      };
     });
   });
-  
-  wsMatriz.getRow(1).height = 45; // Make header taller
 
-
-  // -- Formato Condicional (Semaforización Nativa) --
-  const finalTotalRows = tableRows.length > 0 ? tableRows.length + 1 : 2;
+  // -- Formato Condicional (Semaforización Nativa para TODAS las casillas de calificación) --
+  const finalTotalRows = matrixRows.length > 0 ? matrixRows.length + 1 : 2;
 
   // NP (Columna N)
   wsMatriz.addConditionalFormatting({
     ref: `N2:N${finalTotalRows}`,
     rules: [
-      { type: 'cellIs', operator: 'between', formulae: ['24', '40'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
-      { type: 'cellIs', operator: 'between', formulae: ['10', '20'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Amarillo
-      { type: 'cellIs', operator: 'between', formulae: ['2', '8'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } } // Verde
+      { type: 'cellIs', operator: 'between', formulae: ['24', '40'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'between', formulae: ['10', '20'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+      { type: 'cellIs', operator: 'between', formulae: ['2', '8'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
     ]
   });
 
@@ -281,15 +247,43 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsMatriz.addConditionalFormatting({
     ref: `P2:P${finalTotalRows}`,
     rules: [
-      { type: 'cellIs', operator: 'between', formulae: ['600', '4000'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Nivel I
-      { type: 'cellIs', operator: 'between', formulae: ['150', '500'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Nivel II
-      { type: 'cellIs', operator: 'between', formulae: ['40', '120'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Nivel III
-      { type: 'cellIs', operator: 'between', formulae: ['0', '20'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF3B82F6' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } } // Nivel IV
+      { type: 'cellIs', operator: 'between', formulae: ['600', '4000'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'between', formulae: ['150', '500'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+      { type: 'cellIs', operator: 'between', formulae: ['40', '120'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'between', formulae: ['0', '20'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF3B82F6' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }
     ]
   });
 
+  // Interpretación NR (Columna Q)
+  wsMatriz.addConditionalFormatting({
+    ref: `Q2:Q${finalTotalRows}`,
+    rules: [
+      { type: 'containsText', operator: 'containsText', text: 'I', style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // El orden importa, 'III' contiene 'I', pero ExcelJS usa containsText de manera básica. Es mejor usar equal.
+    ]
+  });
+  // Es mejor limpiar y rehacer para evitar problemas de "contains"
+  wsMatriz.removeConditionalFormatting(`Q2:Q${finalTotalRows}`);
+  wsMatriz.addConditionalFormatting({
+    ref: `Q2:Q${finalTotalRows}`,
+    rules: [
+      { type: 'cellIs', operator: 'equal', formulae: ['"I"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"II"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"III"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"IV"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF3B82F6' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+    ]
+  });
 
-  // Generar y Descargar
+  // Aceptabilidad (Columna R)
+  wsMatriz.addConditionalFormatting({
+    ref: `R2:R${finalTotalRows}`,
+    rules: [
+      { type: 'cellIs', operator: 'equal', formulae: ['"NO ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"NO ACEPTABLE O ACEPTABLE CON CONTROL ESPECIFICO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"MEJORABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+      { type: 'cellIs', operator: 'equal', formulae: ['"ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF3B82F6' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } },
+    ]
+  });
+
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, `Matriz_IPEVAR_GTC45_PRO_${new Date().toISOString().slice(0, 10)}.xlsx`);
