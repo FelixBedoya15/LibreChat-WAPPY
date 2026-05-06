@@ -85,7 +85,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     dashRow++;
   });
   // Close card 1 bottom border
-  ['B', 'C', 'D'].forEach(col => { wsDash.getCell(`${col}${dashRow-1}`).border.bottom = { style: 'thin', color: { argb: 'FFCBD5E1' } }; });
+  ['B', 'C', 'D'].forEach(col => { 
+    const cell = wsDash.getCell(`${col}${dashRow-1}`);
+    cell.border = { ...(cell.border || {}), bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } }; 
+  });
 
 
   // --- CARD 2: Riesgos por Clasificación de Peligro ---
@@ -134,7 +137,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     dashRow++;
   });
   // Close card 2 bottom border
-  ['B', 'C', 'D'].forEach(col => { wsDash.getCell(`${col}${dashRow-1}`).border.bottom = { style: 'thin', color: { argb: 'FFCBD5E1' } }; });
+  ['B', 'C', 'D'].forEach(col => { 
+    const cell = wsDash.getCell(`${col}${dashRow-1}`);
+    cell.border = { ...(cell.border || {}), bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } }; 
+  });
 
 
   // ============================================================================
