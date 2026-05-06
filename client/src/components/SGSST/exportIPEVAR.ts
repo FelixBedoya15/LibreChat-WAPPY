@@ -18,10 +18,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     views: [{ showGridLines: false }]
   });
 
-  // Dark Theme Background
+  // Light Theme Background
   for (let r = 1; r <= 80; r++) {
     for (let c = 1; c <= 10; c++) {
-      wsDash.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate 900
+      wsDash.getCell(r, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }; // Slate 50
     }
   }
 
@@ -35,10 +35,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const heroCell = wsDash.getCell('A1');
   heroCell.value = '   ⚡ DASHBOARD INTERACTIVO — IPEVAR GTC-45';
   heroCell.font = { size: 28, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
-  heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF020617' } }; // Slate 950
+  heroCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; // Dark Teal (Matches Table Header)
   heroCell.alignment = { vertical: 'middle', horizontal: 'left' };
   for (let c = 1; c <= 5; c++) {
-    wsDash.getCell(4, c).border = { bottom: { style: 'thick', color: { argb: 'FF14B8A6' } } }; // Teal 500 neon
+    wsDash.getCell(4, c).border = { bottom: { style: 'thick', color: { argb: 'FF042F2E' } } }; // Very Dark Teal
   }
 
   // --- INTERACTIVE SLICER (DROPDOWN) ---
@@ -52,16 +52,16 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const numProcesos = procesos.length + 1;
 
   wsDash.getCell('B6').value = ' 🔍 FILTRO MAESTRO (PROCESO):';
-  wsDash.getCell('B6').font = { size: 14, bold: true, color: { argb: 'FF94A3B8' }, name: 'Book Antiqua' };
+  wsDash.getCell('B6').font = { size: 14, bold: true, color: { argb: 'FF334155' }, name: 'Book Antiqua' }; // Slate 700
   wsDash.getCell('B6').alignment = { vertical: 'middle', horizontal: 'right' };
 
   const filterCell = wsDash.getCell('C6');
   filterCell.value = 'TODOS';
-  filterCell.font = { size: 14, bold: true, color: { argb: 'FF14B8A6' }, name: 'Book Antiqua' }; // Teal Text
-  filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }; // Slate 800
+  filterCell.font = { size: 14, bold: true, color: { argb: 'FF0F766E' }, name: 'Book Antiqua' }; // Teal Text
+  filterCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
   filterCell.border = {
-    top: { style: 'medium', color: { argb: 'FF14B8A6' } }, left: { style: 'medium', color: { argb: 'FF14B8A6' } },
-    bottom: { style: 'medium', color: { argb: 'FF14B8A6' } }, right: { style: 'medium', color: { argb: 'FF14B8A6' } }
+    top: { style: 'medium', color: { argb: 'FF0D9488' } }, left: { style: 'medium', color: { argb: 'FF0D9488' } },
+    bottom: { style: 'medium', color: { argb: 'FF0D9488' } }, right: { style: 'medium', color: { argb: 'FF0D9488' } }
   };
   filterCell.alignment = { vertical: 'middle', horizontal: 'center' };
   filterCell.dataValidation = {
@@ -80,26 +80,26 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   kpiHeaders.forEach(kpi => {
     const headerCell = wsDash.getCell(`${kpi.col}8`);
     headerCell.value = kpi.title;
-    headerCell.font = { size: 12, bold: true, color: { argb: 'FF94A3B8' }, name: 'Book Antiqua' };
-    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+    headerCell.font = { size: 12, bold: true, color: { argb: 'FF334155' }, name: 'Book Antiqua' }; // Slate 700
+    headerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Slate 100
     headerCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    headerCell.border = { top: { style: 'thin', color: { argb: 'FF334155' } }, left: { style: 'thin', color: { argb: 'FF334155' } }, right: { style: 'thin', color: { argb: 'FF334155' } } };
+    headerCell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
 
     const valueCell = wsDash.getCell(`${kpi.col}9`);
-    valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+    valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
     valueCell.alignment = { horizontal: 'center', vertical: 'middle' };
-    valueCell.border = { bottom: { style: 'thin', color: { argb: 'FF334155' } }, left: { style: 'thin', color: { argb: 'FF334155' } }, right: { style: 'thin', color: { argb: 'FF334155' } } };
+    valueCell.border = { bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } }, left: { style: 'thin', color: { argb: 'FFCBD5E1' } }, right: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
   });
 
   // KPI Formulas (Dynamic with C6)
   wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
-  wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
+  wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' }; // Slate 900
 
   wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!R2:R${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!R2:R${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
-  wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' }; // Rojo neon
+  wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' }; // Rojo
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
-  wsDash.getCell('D9').font = { size: 24, bold: true, color: { argb: 'FFF97316' }, name: 'Book Antiqua' }; // Naranja neon
+  wsDash.getCell('D9').font = { size: 24, bold: true, color: { argb: 'FFF97316' }, name: 'Book Antiqua' }; // Naranja
   wsDash.getCell('D9').numFmt = '0.00%';
   wsDash.getRow(9).height = 40;
 
@@ -111,16 +111,16 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
 
   const createCardHeader = (row: number, title: string) => {
     wsDash.getCell(`B${row}`).value = title;
-    wsDash.getCell(`B${row}`).font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' }; // White
+    wsDash.getCell(`B${row}`).font = { size: 16, bold: true, color: { argb: 'FF0F172A' }, name: 'Book Antiqua' }; // Slate 900
     
     const hRow = row + 1;
     ['B', 'C', 'D'].forEach(col => {
       const cell = wsDash.getCell(`${col}${hRow}`);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }; // Slate 800
-      cell.font = { bold: true, color: { argb: 'FF94A3B8' }, name: 'Book Antiqua' }; // Slate 400
-      cell.border = { top: { style: 'thin', color: { argb: 'FF334155' } }, bottom: { style: 'thin', color: { argb: 'FF334155' } } };
-      if (col === 'B') cell.border.left = { style: 'thin', color: { argb: 'FF334155' } };
-      if (col === 'D') cell.border.right = { style: 'thin', color: { argb: 'FF334155' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }; // Slate 100
+      cell.font = { bold: true, color: { argb: 'FF475569' }, name: 'Book Antiqua' }; // Slate 600
+      cell.border = { top: { style: 'thin', color: { argb: 'FFCBD5E1' } }, bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } } };
+      if (col === 'B') cell.border.left = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+      if (col === 'D') cell.border.right = { style: 'thin', color: { argb: 'FFCBD5E1' } };
     });
     wsDash.getCell(`B${hRow}`).value = ' Categoría';
     wsDash.getCell(`C${hRow}`).value = 'Cantidad';
@@ -131,23 +131,23 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   const addCardRow = (row: number, label: string, countFormula: string, isLast: boolean, colorArgb: string) => {
     ['B', 'C', 'D'].forEach(col => {
       const cell = wsDash.getCell(`${col}${row}`);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } }; // Slate 900
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }; // White
       let borders: any = {};
-      if (col === 'B') borders.left = { style: 'thin', color: { argb: 'FF334155' } };
-      if (col === 'D') borders.right = { style: 'thin', color: { argb: 'FF334155' } };
-      if (isLast) borders.bottom = { style: 'thin', color: { argb: 'FF334155' } };
+      if (col === 'B') borders.left = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+      if (col === 'D') borders.right = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+      if (isLast) borders.bottom = { style: 'thin', color: { argb: 'FFCBD5E1' } };
       cell.border = { ...(cell.border || {}), ...borders };
     });
 
     wsDash.getCell(`B${row}`).value = ` ${label}`;
-    wsDash.getCell(`B${row}`).font = { name: 'Book Antiqua', color: { argb: 'FFF8FAFC' } }; // White
+    wsDash.getCell(`B${row}`).font = { name: 'Book Antiqua', color: { argb: 'FF334155' } }; // Slate 700
     
     wsDash.getCell(`C${row}`).value = { formula: countFormula };
     wsDash.getCell(`C${row}`).alignment = { horizontal: 'center' };
     wsDash.getCell(`C${row}`).font = { bold: true, size: 12, color: { argb: colorArgb }, name: 'Book Antiqua' };
     
     wsDash.getCell(`D${row}`).value = { formula: countFormula };
-    wsDash.getCell(`D${row}`).font = { color: { argb: 'FF0F172A' }, name: 'Book Antiqua' }; // Hide text, just show bar
+    wsDash.getCell(`D${row}`).font = { color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' }; // Hide text (blend with white background)
   };
 
 
