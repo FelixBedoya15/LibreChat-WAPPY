@@ -1205,8 +1205,7 @@ const MatrizPeligrosGTC45 = () => {
                 </button>
             </div>
 
-            {generatedReport && (
-                <div className="mt-8 space-y-4">
+            <div className="mt-8 space-y-4">
                     <CollapsibleReportBox
                         title="Matriz Resumen de Recomendaciones IPEVAR"
                         icon={<AlertTriangle className="h-5 w-5" />}
@@ -1250,8 +1249,7 @@ const MatrizPeligrosGTC45 = () => {
                             }
                         `}</style>
                     </CollapsibleReportBox>
-                </div>
-            )}
+            </div>
         </div>
     );
 };

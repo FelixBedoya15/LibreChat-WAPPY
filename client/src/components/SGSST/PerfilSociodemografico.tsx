@@ -1215,9 +1215,8 @@ const PerfilSociodemografico = () => {
                 )}
             </div>
 
-            {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
-            {generatedReport && (
-                <div className="mt-8">
+             {/* ═══ Report Viewer (inline, igual que ResponsableSGSST) ═══ */}
+             <div className="mt-8">
                     <CollapsibleReportBox
                         title="Perfil Sociodemográfico"
                         icon={<AnimatedIcon name="file-text" size={16} className="text-indigo-500" />}
@@ -1239,8 +1238,7 @@ const PerfilSociodemografico = () => {
                             />
                         </div>
                     </CollapsibleReportBox>
-                </div>
-            )}
+             </div>
 
             {/* ═══ QR Modal ═══ */}
             {selectedQrWorker && ReactDOM.createPortal(

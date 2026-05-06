@@ -731,8 +731,7 @@ const AnalisisVulnerabilidad = () => {
       </div>
 
       {/* Generated report editor */}
-      {generatedReport && (
-        <div className="mt-4">
+      <div className="mt-4">
           <CollapsibleReportBox
               title="Análisis de Vulnerabilidad"
               icon={<Shield className="h-5 w-5 text-teal-700" />}
@@ -758,8 +757,7 @@ const AnalisisVulnerabilidad = () => {
               </div>
             </div>
           </CollapsibleReportBox>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

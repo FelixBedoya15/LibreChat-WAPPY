@@ -549,8 +549,7 @@ const EstadisticasATEL = () => {
             </div>
 
             {/* Generated Report - LiveEditor */}
-            {generatedReport && (
-                <div className="mt-4">
+            <div className="mt-4">
                     <CollapsibleReportBox
                         title={`Estadísticas ATEL — ${MONTHS[currentMonthIndex]}`}
                         icon={<BarChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
@@ -602,8 +601,7 @@ const EstadisticasATEL = () => {
                             `}</style>
                         </div>
                     </CollapsibleReportBox>
-                </div>
-            )}
+            </div>
         </div>
     );
 };

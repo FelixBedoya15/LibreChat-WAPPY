@@ -771,8 +771,7 @@ const AnalisisTrabajoSeguro = () => {
             </div>
 
             {/* Generated ATS Editor */}
-            {generatedReport && (
-                <CollapsibleReportBox
+            <CollapsibleReportBox
                     title="Análisis de Trabajo Seguro (ATS)"
                     icon={<ShieldCheck className="h-5 w-5" />}
                     actions={
@@ -795,7 +794,6 @@ const AnalisisTrabajoSeguro = () => {
                         </div>
                     </div>
                 </CollapsibleReportBox>
-            )}
         </div>
     );
 };

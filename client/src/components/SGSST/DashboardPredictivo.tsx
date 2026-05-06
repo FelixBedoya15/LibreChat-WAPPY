@@ -549,8 +549,7 @@ const DashboardPredictivo = () => {
                 </div>
             </div>
             {/* ═══ Generated Report ═══ */}
-            {generatedReport && (
-                <div className="mt-4">
+            <div className="mt-4">
                     <CollapsibleReportBox
                         title="Gestión Predictiva SST"
                         icon={<LineChart className="h-5 w-5 text-teal-600 dark:text-teal-400" />}
@@ -572,8 +571,7 @@ const DashboardPredictivo = () => {
                             />
                         </div>
                     </CollapsibleReportBox>
-                </div>
-            )}
+            </div>
         </div>
     );
 };
