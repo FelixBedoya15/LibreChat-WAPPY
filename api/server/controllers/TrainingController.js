@@ -1,15 +1,23 @@
 const { Course } = require('../../models/Course');
 const { UserProgress } = require('../../models/UserProgress');
+const CompanyInfo = require('../../models/CompanyInfo');
+
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
 
 const getCourses = async (req, res) => {
     try {
         const userId = req.user._id || req.user.id;
+        const companyId = await getActiveCompanyId(userId);
 
         // Fetch all published courses
         const courses = await Course.find({ isPublished: true }).select('-lessons.content').lean();
 
         // Fetch progress for this user
-        const progressList = await UserProgress.find({ user: userId }).lean();
+        const progressList = await UserProgress.find({ user: userId, companyId: { $in: [companyId, null] } }).lean();
 
         // Map progress to courses
         const coursesWithProgress = courses.map(course => {
@@ -39,13 +47,14 @@ const getCourseById = async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user._id || req.user.id;
+        const companyId = await getActiveCompanyId(userId);
 
         const course = await Course.findById(id).lean();
         if (!course) {
             return res.status(404).json({ message: 'Course not found' });
         }
 
-        const progress = await UserProgress.findOne({ user: userId, course: id }).lean();
+        const progress = await UserProgress.findOne({ user: userId, course: id, companyId: { $in: [companyId, null] } }).lean();
 
         const responseData = {
             ...course,
@@ -66,6 +75,7 @@ const markLessonComplete = async (req, res) => {
     try {
         const { courseId, lessonId } = req.body;
         const userId = req.user._id || req.user.id;
+        const companyId = await getActiveCompanyId(userId);
 
         if (!courseId || !lessonId) {
             return res.status(400).json({ message: 'Missing courseId or lessonId' });
@@ -82,11 +92,12 @@ const markLessonComplete = async (req, res) => {
             return res.status(404).json({ message: 'Lesson not found in this course' });
         }
 
-        let progress = await UserProgress.findOne({ user: userId, course: courseId });
+        let progress = await UserProgress.findOne({ user: userId, course: courseId, companyId: { $in: [companyId, null] } });
 
         if (!progress) {
             progress = new UserProgress({
                 user: userId,
+                companyId: companyId,
                 course: courseId,
                 completedLessons: [lessonId]
             });

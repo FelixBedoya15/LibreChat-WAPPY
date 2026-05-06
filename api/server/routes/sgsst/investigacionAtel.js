@@ -16,10 +16,17 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 // ─── DB Model Import ─────────────────────────────────────────────────────────
 const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
 
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── GET /api/sgsst/investigacion-atel/data ───────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
-        const stored = await InvestigacionAtelData.findOne({ user: req.user.id }).lean();
+        const companyId = await getActiveCompanyId(req.user.id);
+        const stored = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } }).lean();
         if (stored) {
             return res.json({
                 formData: stored.formData || {},
@@ -40,10 +47,11 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /api/sgsst/investigacion-atel/save ─────────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
+        const companyId = await getActiveCompanyId(req.user.id);
         const { formData, equipoList, testigosList, images, video } = req.body;
         await InvestigacionAtelData.findOneAndUpdate(
-            { user: req.user.id },
-            { $set: { formData, equipoList, testigosList, images, video, updatedAt: Date.now() } },
+            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { $set: { companyId, formData, equipoList, testigosList, images, video, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -57,8 +65,9 @@ router.post('/save', requireJwtAuth, async (req, res) => {
 // ─── POST /api/sgsst/investigacion-atel/inbox/testimonio/dismiss ──────────
 router.post('/inbox/testimonio/dismiss', requireJwtAuth, async (req, res) => {
     try {
+        const companyId = await getActiveCompanyId(req.user.id);
         const { reportId } = req.body;
-        const doc = await InvestigacionAtelData.findOne({ user: req.user.id });
+        const doc = await InvestigacionAtelData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (doc && doc.inboxTestimonios) {
             doc.inboxTestimonios = doc.inboxTestimonios.filter(item => String(item.id) !== String(reportId));
             await doc.save();

@@ -6,6 +6,11 @@ const userProgressSchema = mongoose.Schema({
         ref: 'User',
         required: true,
     },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CompanyInfo',
+        required: false,
+    },
     course: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Course',
@@ -24,8 +29,8 @@ const userProgressSchema = mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Ensure one progress record per user per course
-userProgressSchema.index({ user: 1, course: 1 }, { unique: true });
+// Ensure one progress record per user per course per company
+userProgressSchema.index({ user: 1, course: 1, companyId: 1 }, { unique: true });
 
 const UserProgress = mongoose.models.UserProgress || mongoose.model('UserProgress', userProgressSchema);
 

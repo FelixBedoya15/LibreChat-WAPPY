@@ -23,8 +23,12 @@ const liveDocumentSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
-      index: true
+      required: false,
+    },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CompanyInfo',
+      required: false,
     }
   },
   {

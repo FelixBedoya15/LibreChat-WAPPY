@@ -7,12 +7,67 @@ const { getAllUserMemories, createMemory, setMemory, deleteMemory } = require('~
 const { Tokenizer } = require('@librechat/api');
 
 /**
+ * Syncs the AI automated memory for a given company data.
+ */
+async function syncCompanyMemory(userId, companyData) {
+    try {
+        const memoryContent = `Razón Social: ${companyData.companyName || 'N/A'}
+NIT: ${companyData.nit || 'N/A'}
+Representante Legal: ${companyData.legalRepresentative || 'N/A'}
+Número de Trabajadores: ${companyData.workerCount || 'N/A'}
+ARL: ${companyData.arl || 'N/A'}
+Nivel de Riesgo (ARL): ${companyData.riskLevel || 'N/A'}
+Actividad Económica: ${companyData.economicActivity || 'N/A'}
+Código CIIU: ${companyData.ciiu || 'N/A'}
+Sector: ${companyData.sector || 'N/A'}
+Dirección: ${companyData.address || 'N/A'} (Ciudad: ${companyData.city || 'N/A'})
+Responsable SG-SST: ${companyData.responsibleSST || 'N/A'}
+Nivel de Formación SST: ${companyData.formationLevel || 'N/A'}
+Número de Licencia SST: ${companyData.licenseNumber || 'N/A'}
+Vigencia de Licencia: ${companyData.licenseExpiry || 'N/A'}
+Actualización Curso 50/20H: ${companyData.courseStatus || 'N/A'}
+Descripción General de Actividades (Sede Principal): ${companyData.generalActivities || 'N/A'}`;
+
+        let sedesStr = '';
+        if (companyData.sedes && Array.isArray(companyData.sedes) && companyData.sedes.length > 0) {
+            sedesStr = '\n\nOtras Sedes:\n' + companyData.sedes.map(s => `- Sede: ${s.nombre || 'N/A'}
+  Dirección: ${s.address || 'N/A'} (${s.city || 'N/A'})
+  Teléfono: ${s.phone || 'N/A'} - Correo: ${s.email || 'N/A'}
+  Actividades de Sede: ${s.generalActivities || 'N/A'}`).join('\n');
+        }
+        
+        const memoryContentFinal = memoryContent + sedesStr;
+        const memoryKey = 'empresa_sgsst';
+        const tokenCount = Tokenizer.getTokenCount(memoryContentFinal, 'o200k_base') || 0;
+        
+        const memories = await getAllUserMemories(userId);
+        const existingMemory = memories.find((m) => m.key === memoryKey);
+
+        if (existingMemory) {
+            await setMemory({ userId, key: memoryKey, value: memoryContentFinal, tokenCount });
+        } else {
+            await createMemory({ userId, key: memoryKey, value: memoryContentFinal, tokenCount });
+        }
+    } catch (memError) {
+        logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
+    }
+}
+
+/**
  * GET /api/sgsst/company-info
- * Returns the company info for the authenticated user.
+ * Returns the currently ACTIVE company info. Falls back to first if none active.
  */
 router.get('/', requireJwtAuth, async (req, res) => {
     try {
-        const info = await CompanyInfo.findOne({ user: req.user.id }).lean();
+        let info = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+        if (!info) {
+            info = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            if (info) {
+                // Auto-activate the first one found for legacy support
+                await CompanyInfo.updateOne({ _id: info._id }, { isActive: true });
+                info.isActive = true;
+            }
+        }
         res.json(info || {});
     } catch (error) {
         logger.error('[SGSST CompanyInfo] GET error:', error);
@@ -21,95 +76,123 @@ router.get('/', requireJwtAuth, async (req, res) => {
 });
 
 /**
- * PUT /api/sgsst/company-info
- * Creates or updates company info for the authenticated user.
+ * GET /api/sgsst/company-info/all
+ * Returns all companies for the authenticated user.
  */
-router.put('/', requireJwtAuth, async (req, res) => {
+router.get('/all', requireJwtAuth, async (req, res) => {
     try {
-        const {
-            companyName, nit, legalRepresentative, workerCount,
-            arl, economicActivity, riskLevel, ciiu,
-            address, city, phone, email,
-            generalActivities, sector, responsibleSST, responsibleSSTPhone,
-            formationLevel, licenseNumber, courseStatus, licenseExpiry,
-            legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
-            sedes,
-        } = req.body;
+        const companies = await CompanyInfo.find({ user: req.user.id }).sort({ createdAt: 1 }).lean();
+        res.json(companies);
+    } catch (error) {
+        logger.error('[SGSST CompanyInfo] GET /all error:', error);
+        res.status(500).json({ error: 'Error loading all companies' });
+    }
+});
 
+/**
+ * POST /api/sgsst/company-info
+ * Creates a new company profile (Max 3).
+ */
+router.post('/', requireJwtAuth, async (req, res) => {
+    try {
+        const count = await CompanyInfo.countDocuments({ user: req.user.id });
+        if (count >= 3) {
+            return res.status(400).json({ error: 'Límite máximo de 3 empresas alcanzado.' });
+        }
+
+        // Deactivate others
+        await CompanyInfo.updateMany({ user: req.user.id }, { isActive: false });
+
+        const newCompany = new CompanyInfo({
+            ...req.body,
+            user: req.user.id,
+            isActive: true,
+        });
+
+        await newCompany.save();
+        await syncCompanyMemory(req.user.id, newCompany);
+
+        res.json(newCompany);
+    } catch (error) {
+        logger.error('[SGSST CompanyInfo] POST error:', error);
+        res.status(500).json({ error: 'Error creating company info' });
+    }
+});
+
+/**
+ * PUT /api/sgsst/company-info/:id
+ * Updates a specific company info.
+ */
+router.put('/:id', requireJwtAuth, async (req, res) => {
+    try {
+        // Enforce user ownership
         const info = await CompanyInfo.findOneAndUpdate(
-            { user: req.user.id },
-            {
-                user: req.user.id,
-                companyName, nit, legalRepresentative, workerCount,
-                arl, economicActivity, riskLevel, ciiu,
-                address, city, phone, email,
-                generalActivities, sector, responsibleSST, responsibleSSTPhone,
-                formationLevel, licenseNumber, courseStatus, licenseExpiry,
-                legalRepSignature, legalRepConsent, sstRespSignature, sstRespConsent,
-                sedes,
-            },
-            { upsert: true, new: true },
+            { _id: req.params.id, user: req.user.id },
+            req.body,
+            { new: true }
         );
 
-        try {
-            // Generar contenido para la memoria de IA automatizada
-            const memoryContent = `Razón Social: ${companyName || 'N/A'}
-NIT: ${nit || 'N/A'}
-Representante Legal: ${legalRepresentative || 'N/A'}
-Número de Trabajadores: ${workerCount || 'N/A'}
-ARL: ${arl || 'N/A'}
-Nivel de Riesgo (ARL): ${riskLevel || 'N/A'}
-Actividad Económica: ${economicActivity || 'N/A'}
-Código CIIU: ${ciiu || 'N/A'}
-Sector: ${sector || 'N/A'}
-Dirección: ${address || 'N/A'} (Ciudad: ${city || 'N/A'})
-Responsable SG-SST: ${responsibleSST || 'N/A'}
-Nivel de Formación SST: ${formationLevel || 'N/A'}
-Número de Licencia SST: ${licenseNumber || 'N/A'}
-Vigencia de Licencia: ${licenseExpiry || 'N/A'}
-Actualización Curso 50/20H: ${courseStatus || 'N/A'}
-Descripción General de Actividades (Sede Principal): ${generalActivities || 'N/A'}`;
+        if (!info) return res.status(404).json({ error: 'Company not found' });
 
-            let sedesStr = '';
-            if (sedes && Array.isArray(sedes) && sedes.length > 0) {
-                sedesStr = '\n\nOtras Sedes:\n' + sedes.map(s => `- Sede: ${s.nombre || 'N/A'}
-  Dirección: ${s.address || 'N/A'} (${s.city || 'N/A'})
-  Teléfono: ${s.phone || 'N/A'} - Correo: ${s.email || 'N/A'}
-  Actividades de Sede: ${s.generalActivities || 'N/A'}`).join('\n');
-            }
-            
-            const memoryContentFinal = memoryContent + sedesStr;
-            
-            const memoryKey = 'empresa_sgsst';
-            const tokenCount = Tokenizer.getTokenCount(memoryContentFinal, 'o200k_base') || 0;
-            
-            const memories = await getAllUserMemories(req.user.id);
-            const existingMemory = memories.find((m) => m.key === memoryKey);
-
-            if (existingMemory) {
-                await setMemory({
-                    userId: req.user.id,
-                    key: memoryKey,
-                    value: memoryContentFinal,
-                    tokenCount,
-                });
-            } else {
-                await createMemory({
-                    userId: req.user.id,
-                    key: memoryKey,
-                    value: memoryContentFinal,
-                    tokenCount,
-                });
-            }
-        } catch (memError) {
-            logger.error('[SGSST CompanyInfo] Error syncing automatic memory:', memError);
-            // Non-critical, so we don't throw HTTP error just for memory failure
+        if (info.isActive) {
+            await syncCompanyMemory(req.user.id, info);
         }
 
         res.json(info);
     } catch (error) {
-        logger.error('[SGSST CompanyInfo] PUT error:', error);
+        logger.error('[SGSST CompanyInfo] PUT /:id error:', error);
         res.status(500).json({ error: 'Error saving company info' });
+    }
+});
+
+/**
+ * PUT /api/sgsst/company-info
+ * Legacy fallback for updating the active company (Backwards compatibility).
+ */
+router.put('/', requireJwtAuth, async (req, res) => {
+    try {
+        let active = await CompanyInfo.findOne({ user: req.user.id, isActive: true });
+        if (!active) active = await CompanyInfo.findOne({ user: req.user.id });
+
+        if (!active) {
+            // Forward to POST if none exists
+            req.url = '/';
+            return router.handle(req, res);
+        }
+
+        const info = await CompanyInfo.findOneAndUpdate(
+            { _id: active._id },
+            req.body,
+            { new: true }
+        );
+
+        await syncCompanyMemory(req.user.id, info);
+        res.json(info);
+    } catch (error) {
+        logger.error('[SGSST CompanyInfo] PUT (Legacy) error:', error);
+        res.status(500).json({ error: 'Error saving company info' });
+    }
+});
+
+/**
+ * PUT /api/sgsst/company-info/:id/activate
+ * Switches the active context.
+ */
+router.put('/:id/activate', requireJwtAuth, async (req, res) => {
+    try {
+        const target = await CompanyInfo.findOne({ _id: req.params.id, user: req.user.id });
+        if (!target) return res.status(404).json({ error: 'Company not found' });
+
+        await CompanyInfo.updateMany({ user: req.user.id }, { isActive: false });
+        target.isActive = true;
+        await target.save();
+
+        await syncCompanyMemory(req.user.id, target);
+
+        res.json(target);
+    } catch (error) {
+        logger.error('[SGSST CompanyInfo] PUT activate error:', error);
+        res.status(500).json({ error: 'Error activating company' });
     }
 });
 

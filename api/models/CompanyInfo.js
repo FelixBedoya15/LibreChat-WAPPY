@@ -5,7 +5,10 @@ const companyInfoSchema = new mongoose.Schema({
         type: String,
         required: true,
         index: true,
-        unique: true,
+    },
+    isActive: {
+        type: Boolean,
+        default: false,
     },
     companyName: {
         type: String,

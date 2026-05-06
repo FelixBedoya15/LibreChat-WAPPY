@@ -5,6 +5,13 @@ const router = express.Router();
 const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const LiveEditorSession = require('~/models/LiveEditorSession');
+const CompanyInfo = require('~/models/CompanyInfo');
+
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
 
 /**
  * GET /api/live-editor/:conversationId
@@ -14,8 +21,9 @@ router.get('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
 
-    let session = await LiveEditorSession.findOne({ conversationId, user: userId });
+    let session = await LiveEditorSession.findOne({ conversationId, user: userId, companyId: { $in: [companyId, null] } });
 
     // Fallback: buscar sin userId (sesiones heredadas)
     if (!session) {
@@ -51,18 +59,20 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
     const { conversationId } = req.params;
     const { content, fileName } = req.body;
     const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
 
     const update = {
       $set: {
         content: content ?? '',
         contentUpdatedAt: new Date(),
+        companyId,
         ...(fileName ? { fileName } : {}),
       },
       $setOnInsert: { user: userId },
     };
 
     const session = await LiveEditorSession.findOneAndUpdate(
-      { conversationId },
+      { conversationId, companyId: { $in: [companyId, null] } },
       update,
       { upsert: true, new: true },
     );
@@ -81,7 +91,8 @@ router.put('/:conversationId', requireJwtAuth, async (req, res) => {
 router.delete('/:conversationId', requireJwtAuth, async (req, res) => {
   try {
     const { conversationId } = req.params;
-    await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    await LiveEditorSession.findOneAndDelete({ conversationId, user: req.user.id, companyId: { $in: [companyId, null] } });
     res.json({ success: true });
   } catch (error) {
     logger.error('[LiveEditor DELETE] Error:', error);

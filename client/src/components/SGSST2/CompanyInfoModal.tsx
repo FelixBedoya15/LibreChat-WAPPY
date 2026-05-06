@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import {
     X, Building2, Save, User, MapPin, Phone, Mail,
     Briefcase, Shield, Hash, FileText, Users, Activity,
-    Award, Calendar, UserCheck, Image as ImageIcon
+    Award, Calendar, UserCheck, Image as ImageIcon,
+    Plus, Trash2, CheckCircle
 } from 'lucide-react';
 
 import { useAuthContext } from '~/hooks';
@@ -15,7 +16,18 @@ import SignaturePad from './SignaturePad';
 import { PenTool } from 'lucide-react';
 import SingleSelect from './SingleSelect';
 
+export interface SedeData {
+    nombre: string;
+    address: string;
+    city: string;
+    phone: string;
+    email: string;
+    generalActivities: string;
+}
+
 interface CompanyInfoData {
+    _id?: string;
+    isActive?: boolean;
     companyName: string;
     nit: string;
     legalRepresentative: string;
@@ -40,6 +52,7 @@ interface CompanyInfoData {
     legalRepConsent: string;
     sstRespSignature: string | null;
     sstRespConsent: string;
+    sedes: SedeData[];
 }
 
 
@@ -68,6 +81,7 @@ const INITIAL_DATA: CompanyInfoData = {
     legalRepConsent: 'No',
     sstRespSignature: null,
     sstRespConsent: 'No',
+    sedes: [],
 };
 
 
@@ -93,54 +107,88 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const { t } = useTranslation();
     const { token } = useAuthContext();
     const { showToast } = useToastContext();
+    const [companies, setCompanies] = useState<CompanyInfoData[]>([]);
     const [data, setData] = useState<CompanyInfoData>(INITIAL_DATA);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [activeSignatureField, setActiveSignatureField] = useState<'legalRepSignature' | 'sstRespSignature' | null>(null);
 
-    // Load data on open
-    useEffect(() => {
-        if (!isOpen || !token) return;
+    const loadCompanies = useCallback(async () => {
+        if (!token) return;
         setLoading(true);
-        fetch('/api/sgsst/company-info', {
-            headers: { 'Authorization': `Bearer ${token}` },
-        })
-            .then(res => res.json())
-            .then(info => {
-                if (info && info.companyName !== undefined) {
-                    setData(prev => ({ ...prev, ...info }));
+        try {
+            const res = await fetch('/api/sgsst/company-info/all', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const dataArr = await res.json();
+            if (Array.isArray(dataArr) && dataArr.length > 0) {
+                setCompanies(dataArr);
+                const active = dataArr.find(c => c.isActive) || dataArr[0];
+                setData(active);
+                syncSignaturesToLocal(active);
+            } else {
+                setCompanies([]);
+                setData(INITIAL_DATA);
+            }
+        } catch (err) {
+            console.error('Error loading companies:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [token]);
 
-                    // Sync loaded signatures to localStorage for LiveEditor auto-injector
-                    try {
-                        const namedSigsStr = localStorage.getItem('wappy_signatures');
-                        const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
-                        let updated = false;
+    useEffect(() => {
+        if (isOpen) {
+            loadCompanies();
+        }
+    }, [isOpen, loadCompanies]);
 
-                        if (info.legalRepConsent === 'Sí' && info.legalRepSignature && info.legalRepresentative) {
-                            namedSignatures[info.legalRepresentative.trim().toUpperCase()] = info.legalRepSignature;
-                            updated = true;
-                        }
-                        if (info.sstRespConsent === 'Sí' && info.sstRespSignature && info.responsibleSST) {
-                            namedSignatures[info.responsibleSST.trim().toUpperCase()] = info.sstRespSignature;
-                            updated = true;
-                        }
+    const syncSignaturesToLocal = (info: CompanyInfoData) => {
+        try {
+            const namedSigsStr = localStorage.getItem('wappy_signatures');
+            const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
+            let updated = false;
 
-                        if (updated) {
-                            localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
-                            // Dispatch event if we want LiveEditor to know immediately
-                            window.dispatchEvent(new Event('storage'));
-                        }
-                    } catch (err) {
-                        console.error('Error syncing signatures to local storage:', err);
-                    }
-                }
-            })
-            .catch(err => console.error('Error loading company info:', err))
-            .finally(() => setLoading(false));
-    }, [isOpen, token]);
+            if (info.legalRepConsent === 'Sí' && info.legalRepSignature && info.legalRepresentative) {
+                namedSignatures[info.legalRepresentative.trim().toUpperCase()] = info.legalRepSignature;
+                updated = true;
+            }
+            if (info.sstRespConsent === 'Sí' && info.sstRespSignature && info.responsibleSST) {
+                namedSignatures[info.responsibleSST.trim().toUpperCase()] = info.sstRespSignature;
+                updated = true;
+            }
+
+            if (updated) {
+                localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
+                window.dispatchEvent(new Event('storage'));
+            }
+        } catch (err) { }
+    };
 
     const handleChange = useCallback((field: keyof CompanyInfoData, value: string | number | null) => {
         setData(prev => ({ ...prev, [field]: value }));
+    }, []);
+
+    const handleAddSede = useCallback(() => {
+        setData(prev => ({
+            ...prev,
+            sedes: [...(prev.sedes || []), { nombre: '', address: '', city: '', phone: '', email: '', generalActivities: '' }]
+        }));
+    }, []);
+
+    const handleSedeChange = useCallback((index: number, field: keyof SedeData, value: string) => {
+        setData(prev => {
+            const newSedes = [...(prev.sedes || [])];
+            newSedes[index] = { ...newSedes[index], [field]: value };
+            return { ...prev, sedes: newSedes };
+        });
+    }, []);
+
+    const handleRemoveSede = useCallback((index: number) => {
+        setData(prev => ({
+            ...prev,
+            sedes: (prev.sedes || []).filter((_, i) => i !== index)
+        }));
     }, []);
 
     const handleFirmaUpload = useCallback((field: 'legalRepSignature' | 'sstRespSignature', e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,48 +203,60 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         e.target.value = '';
     }, [handleChange]);
 
+    const handleSelectCompany = (comp: CompanyInfoData) => {
+        setData(comp);
+    };
+
+    const handleNewCompany = () => {
+        setData(INITIAL_DATA);
+    };
+
+    const handleActivateCompany = async (id: string) => {
+        if (!token) return;
+        try {
+            const res = await fetch(`/api/sgsst/company-info/${id}/activate`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                showToast({ message: 'Empresa activada correctamente', status: 'success' });
+                await loadCompanies();
+                // We don't close the modal, just refresh state
+            }
+        } catch (err) {
+            showToast({ message: 'Error al activar empresa', status: 'error' });
+        }
+    };
+
     const handleSave = useCallback(async () => {
         if (!token) return;
         setSaving(true);
         try {
-            // First sync to localStorage for the AI editor
-            try {
-                const namedSigsStr = localStorage.getItem('wappy_signatures');
-                const namedSignatures: Record<string, string> = namedSigsStr ? JSON.parse(namedSigsStr) : {};
-                let updated = false;
+            syncSignaturesToLocal(data);
 
-                if (data.legalRepConsent === 'Sí' && data.legalRepSignature && data.legalRepresentative) {
-                    namedSignatures[data.legalRepresentative.trim().toUpperCase()] = data.legalRepSignature;
-                    updated = true;
-                }
-                if (data.sstRespConsent === 'Sí' && data.sstRespSignature && data.responsibleSST) {
-                    namedSignatures[data.responsibleSST.trim().toUpperCase()] = data.sstRespSignature;
-                    updated = true;
-                }
+            const isNew = !data._id;
+            const url = isNew ? '/api/sgsst/company-info' : `/api/sgsst/company-info/${data._id}`;
+            const method = isNew ? 'POST' : 'PUT';
 
-                if (updated) {
-                    localStorage.setItem('wappy_signatures', JSON.stringify(namedSignatures));
-                    window.dispatchEvent(new Event('storage'));
-                }
-            } catch (e) { }
-
-            const res = await fetch('/api/sgsst/company-info', {
-                method: 'PUT',
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(data),
             });
+            
             if (res.ok) {
-                showToast({ message: 'Información de la empresa guardada', status: 'success' });
-                onClose();
+                showToast({ message: 'Información de la empresa guardada', status: 'success', severity: 'success' });
+                await loadCompanies();
             } else {
-                showToast({ message: 'Error al guardar', status: 'error' });
+                const errData = await res.json();
+                showToast({ message: errData.error || 'Error al guardar', status: 'error' });
             }
         } catch (err) {
             showToast({ message: 'Error de red al guardar', status: 'error' });
         } finally {
             setSaving(false);
         }
-    }, [data, token, showToast, onClose]);
+    }, [data, token, showToast, loadCompanies]);
 
     if (!isOpen) return null;
 
@@ -217,28 +277,68 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         return val !== undefined && val !== null && val !== 0 && !isNaN(val as number);
     });
 
-
     const inputClass = 'w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500';
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
-    const selectClass = cn(inputClass, 'appearance-none cursor-pointer');
 
     return ReactDOM.createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="relative mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-2xl">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-border-medium px-6 py-4">
-                    <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-teal-500/10 p-2">
-                            <Building2 className="h-5 w-5 text-teal-500" />
+            <div className="relative mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border-medium bg-surface-secondary shadow-2xl">
+                
+                {/* Header with Company Switcher */}
+                <div className="border-b border-border-medium px-6 py-4 bg-surface-tertiary">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-full bg-teal-500/10 p-2">
+                                <Building2 className="h-5 w-5 text-teal-500" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-text-primary">{t('com_ui_company_info_title', 'Perfiles de Empresa (Multi-Empresa)')}</h2>
+                                <p className="text-xs text-text-secondary">Gestiona hasta 3 empresas de forma aislada. La empresa Activa será utilizada por la IA.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-text-primary">{t('com_ui_company_info_title', 'Información de la Empresa')}</h2>
-                            <p className="text-xs text-text-secondary">{t('com_ui_company_info_desc', 'Estos datos se usarán en todos los informes generados por IA')}</p>
-                        </div>
+                        <button onClick={onClose} className="rounded-xl p-1.5 text-text-secondary hover:bg-surface-hover">
+                            <X className="h-5 w-5" />
+                        </button>
                     </div>
-                    <button onClick={onClose} className="rounded-xl p-1.5 text-text-secondary hover:bg-surface-hover">
-                        <X className="h-5 w-5" />
-                    </button>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        {companies.map(c => (
+                            <div 
+                                key={c._id}
+                                onClick={() => handleSelectCompany(c)}
+                                className={cn(
+                                    "flex flex-col px-4 py-2 rounded-xl border cursor-pointer transition-all min-w-[160px]",
+                                    data._id === c._id 
+                                        ? "border-teal-500 bg-teal-500/5 shadow-sm" 
+                                        : "border-border-medium bg-surface-primary hover:border-teal-400"
+                                )}
+                            >
+                                <span className="text-sm font-bold text-text-primary truncate" title={c.companyName}>{c.companyName || 'Sin Nombre'}</span>
+                                <div className="flex items-center justify-between mt-1">
+                                    <span className="text-xs text-text-secondary">NIT: {c.nit || 'N/A'}</span>
+                                    {c.isActive && (
+                                        <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-100 dark:bg-teal-900/30 px-1.5 py-0.5 rounded-full">
+                                            <CheckCircle className="h-3 w-3" /> Activa
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {companies.length < 3 && (
+                            <button 
+                                onClick={handleNewCompany}
+                                className={cn(
+                                    "flex items-center justify-center gap-2 px-4 py-4 rounded-xl border border-dashed cursor-pointer transition-all min-w-[160px]",
+                                    !data._id && companies.length > 0 
+                                        ? "border-teal-500 bg-teal-500/5 text-teal-600" 
+                                        : "border-border-medium text-text-secondary hover:border-teal-400 hover:text-teal-500"
+                                )}
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="text-sm font-semibold">Nueva Empresa</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Body */}
@@ -248,13 +348,32 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                             <div className="h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
                         </div>
                     ) : (
-                        <div className="space-y-5">
+                        <div className="space-y-6">
+                            
+                            {data._id && !data.isActive && (
+                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-3 text-amber-800 dark:text-amber-200">
+                                        <Shield className="h-5 w-5" />
+                                        <div>
+                                            <p className="font-bold text-sm">Esta empresa NO es la activa</p>
+                                            <p className="text-xs opacity-90">Debes activarla para que el sistema y los agentes de IA comiencen a trabajar con su Matriz IPEVAR, Hitos y Documentos.</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleActivateCompany(data._id!)}
+                                        className="bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors whitespace-nowrap"
+                                    >
+                                        Activar esta Empresa
+                                    </button>
+                                </div>
+                            )}
+
                             {/* General Info */}
                             <div>
                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
                                     <Building2 className="h-4 w-4" /> {t('com_ui_company_data_general', 'Datos Generales')}
                                 </h3>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                                     <div className="md:col-span-2">
                                         <label className={labelClass}><Building2 className="h-3 w-3" />{t('com_ui_company_name', 'Razón Social')}</label>
                                         <input className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
@@ -263,7 +382,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <label className={labelClass}><Hash className="h-3 w-3" />NIT</label>
                                         <input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder="123456789-0" />
                                     </div>
-                                    <div>
+                                    <div className="md:col-span-2">
                                         <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
                                         <input className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
                                     </div>
@@ -271,7 +390,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
                                         <input className={inputClass} type="number" min="0" value={data.workerCount || ''} onChange={e => handleChange('workerCount', parseInt(e.target.value) || 0)} placeholder="0" />
                                     </div>
-                                    <div>
+                                    <div className="md:col-span-3">
                                         <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_company_sector', 'Sector')}</label>
                                         <SingleSelect value={data.sector} onChange={val => handleChange('sector', val)} placeholder={t('com_ui_select_sector', 'Seleccionar sector')} options={SECTOR_OPTIONS} />
                                     </div>
@@ -283,7 +402,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
                                     <Shield className="h-4 w-4" /> {t('com_ui_company_sst_info', 'Información SST')}
                                 </h3>
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                                     <div>
                                         <label className={labelClass}><Shield className="h-3 w-3" />ARL</label>
                                         <SingleSelect value={data.arl} onChange={val => handleChange('arl', val)} placeholder={t('com_ui_select_arl', 'Seleccionar ARL')} options={ARL_OPTIONS} />
@@ -293,12 +412,12 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <SingleSelect value={data.riskLevel} onChange={val => handleChange('riskLevel', val)} placeholder={t('com_ui_select_level', 'Seleccionar nivel')} options={RISK_LEVELS} />
                                     </div>
                                     <div>
-                                        <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_economic_activity', 'Actividad Económica')}</label>
-                                        <input className={inputClass} value={data.economicActivity} onChange={e => handleChange('economicActivity', e.target.value)} placeholder={t('com_ui_economic_activity_placeholder', 'Descripción de la actividad')} />
-                                    </div>
-                                    <div>
                                         <label className={labelClass}><Hash className="h-3 w-3" />Código CIIU</label>
                                         <input className={inputClass} value={data.ciiu} onChange={e => handleChange('ciiu', e.target.value)} placeholder="Ej: 4711" />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <label className={labelClass}><Briefcase className="h-3 w-3" />{t('com_ui_economic_activity', 'Actividad Económica')}</label>
+                                        <input className={inputClass} value={data.economicActivity} onChange={e => handleChange('economicActivity', e.target.value)} placeholder={t('com_ui_economic_activity_placeholder', 'Descripción de la actividad')} />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className={labelClass}><UserCheck className="h-3 w-3" />{t('com_ui_sst_responsible', 'Responsable del SG-SST')}</label>
@@ -320,7 +439,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <label className={labelClass}><Calendar className="h-3 w-3" />Vigencia de Licencia</label>
                                         <input type="date" className={inputClass} value={data.licenseExpiry} onChange={e => handleChange('licenseExpiry', e.target.value)} />
                                     </div>
-                                    <div>
+                                    <div className="md:col-span-3">
                                         <label className={labelClass}><FileText className="h-3 w-3" />Curso 50H / Actualización 20H</label>
                                         <input type="date" className={inputClass} value={data.courseStatus} onChange={e => handleChange('courseStatus', e.target.value)} />
                                     </div>
@@ -459,27 +578,101 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Sedes Adicionales */}
+                            <div>
+                                <div className="mb-3 flex items-center justify-between">
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                                        <Building2 className="h-4 w-4" /> Sedes Adicionales
+                                    </h3>
+                                    <button
+                                        onClick={handleAddSede}
+                                        className="flex items-center gap-1.5 rounded-lg bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-600 transition-colors hover:bg-teal-500/20"
+                                    >
+                                        <Plus className="h-3 w-3" /> Agregar Sede
+                                    </button>
+                                </div>
+                                
+                                {(!data.sedes || data.sedes.length === 0) ? (
+                                    <div className="rounded-xl border border-dashed border-border-medium bg-surface-primary/50 p-6 text-center">
+                                        <p className="text-sm text-text-secondary">No hay sedes adicionales registradas.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {data.sedes.map((sede, idx) => (
+                                            <div key={idx} className="relative rounded-xl border border-border-medium bg-surface-primary p-4 shadow-sm">
+                                                <button
+                                                    onClick={() => handleRemoveSede(idx)}
+                                                    className="absolute right-3 top-3 rounded-full bg-red-50 p-1.5 text-red-500 hover:bg-red-100 transition-colors"
+                                                    title="Eliminar Sede"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                                
+                                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 mt-2">
+                                                    <div>
+                                                        <label className={labelClass}>Nombre de la Sede</label>
+                                                        <input className={inputClass} value={sede.nombre} onChange={e => handleSedeChange(idx, 'nombre', e.target.value)} placeholder="Ej. Sede Norte" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Dirección</label>
+                                                        <input className={inputClass} value={sede.address} onChange={e => handleSedeChange(idx, 'address', e.target.value)} placeholder="Dirección de la sede" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Ciudad</label>
+                                                        <input className={inputClass} value={sede.city} onChange={e => handleSedeChange(idx, 'city', e.target.value)} placeholder="Ciudad" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Teléfono</label>
+                                                        <input className={inputClass} value={sede.phone} onChange={e => handleSedeChange(idx, 'phone', e.target.value)} placeholder="Teléfono" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Correo Electrónico</label>
+                                                        <input className={inputClass} type="email" value={sede.email} onChange={e => handleSedeChange(idx, 'email', e.target.value)} placeholder="correo@sede.com" />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label className={labelClass}>Actividades de la Sede</label>
+                                                        <textarea
+                                                            className={cn(inputClass, 'min-h-[60px] resize-y')}
+                                                            value={sede.generalActivities}
+                                                            onChange={e => handleSedeChange(idx, 'generalActivities', e.target.value)}
+                                                            placeholder="Describa las actividades específicas de esta sede..."
+                                                            rows={2}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 border-t border-border-medium px-6 py-4">
-                    <button
-                        onClick={onClose}
-                        className="rounded-xl border border-border-medium px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
-                    >
-                        {t('com_ui_cancel', 'Cancelar')}
-                    </button>
-                    <button
-                        onClick={() => handleSave()}
-                        disabled={saving || !isFormValid}
-                        title={!isFormValid ? "Debe completar todos los campos obligatorios (*)" : ""}
-                        className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <Save className="h-4 w-4" />
-                        {saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar')}
-                    </button>
+                <div className="flex items-center justify-between border-t border-border-medium px-6 py-4">
+                    <div className="text-xs text-text-secondary">
+                        {data._id ? `Editando: ${data.companyName || 'Sin Nombre'}` : 'Creando Nueva Empresa'}
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="rounded-xl border border-border-medium px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-hover"
+                        >
+                            {t('com_ui_cancel', 'Cancelar')}
+                        </button>
+                        <button
+                            onClick={() => handleSave()}
+                            disabled={saving || !isFormValid}
+                            title={!isFormValid ? "Debe completar todos los campos obligatorios (*)" : ""}
+                            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Save className="h-4 w-4" />
+                            {saving ? t('com_ui_saving', 'Guardando...') : t('com_ui_save', 'Guardar Empresa')}
+                        </button>
+                    </div>
                 </div>
             </div>
 

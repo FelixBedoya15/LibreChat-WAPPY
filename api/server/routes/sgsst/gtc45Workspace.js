@@ -9,6 +9,12 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
 
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // GET matrix for a conversation
 router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
   try {
@@ -17,7 +23,9 @@ router.get('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 
     logger.info(`[GTC45Workspace GET] conversationId=${conversationId} | userId=${userId}`);
 
-    let session = await GTC45WorkspaceSession.findOne({ conversationId, user: userId });
+    const companyId = await getActiveCompanyId(userId);
+
+    let session = await GTC45WorkspaceSession.findOne({ conversationId, user: userId, companyId: { $in: [companyId, null] } });
     logger.info(`[GTC45Workspace GET] primary lookup result: ${session ? `found (rows=${session.matrixRows?.length})` : 'NOT FOUND'}`);
 
     if (!session) {
@@ -50,11 +58,12 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
     const { conversationId } = req.params;
     const { matrixRows } = req.body;
     const userId = req.user.id;
+    const companyId = await getActiveCompanyId(userId);
 
     let session = await GTC45WorkspaceSession.findOneAndUpdate(
-      { conversationId },
+      { conversationId, companyId: { $in: [companyId, null] } },
       {
-        $set: { matrixRows: matrixRows || [] },
+        $set: { matrixRows: matrixRows || [], companyId },
         $setOnInsert: { user: userId },
       },
       { upsert: true, new: true },

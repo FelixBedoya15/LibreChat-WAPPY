@@ -7,6 +7,11 @@ const liveEditorSessionSchema = new mongoose.Schema(
       ref: 'User',
       required: false,
     },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CompanyInfo',
+      required: false,
+    },
     conversationId: {
       type: String,
       required: true,

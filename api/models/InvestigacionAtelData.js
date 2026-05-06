@@ -6,6 +6,11 @@ const InvestigacionAtelDataSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    companyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CompanyInfo',
+        required: false
+    },
     formData: {
         type: Object,
         default: {}
@@ -36,7 +41,7 @@ const InvestigacionAtelDataSchema = new mongoose.Schema({
     }
 });
 
-InvestigacionAtelDataSchema.index({ user: 1 }, { unique: true });
+InvestigacionAtelDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const InvestigacionAtelData = mongoose.models.InvestigacionAtelData || mongoose.model('InvestigacionAtelData', InvestigacionAtelDataSchema);
 
