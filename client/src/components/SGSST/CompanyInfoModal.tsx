@@ -219,9 +219,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
-                showToast({ message: 'Empresa activada correctamente', status: 'success' });
-                await loadCompanies();
-                // We don't close the modal, just refresh state
+                showToast({ message: 'Empresa activada correctamente. Recargando el sistema...', status: 'success' });
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             }
         } catch (err) {
             showToast({ message: 'Error al activar empresa', status: 'error' });
