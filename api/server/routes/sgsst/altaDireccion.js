@@ -2,12 +2,21 @@ const express = require('express');
 const mongoose = require('mongoose');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { logger } = require('~/config');
+const CompanyInfo = require('../../../models/CompanyInfo');
 
 const router = express.Router();
+
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
 
 // ─── Mongoose Schema for Alta Dirección Review  ──────────────────────────────
 const AltaDireccionDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
     // Array of { itemId, status ('cumple'|'no_cumple'|'parcial'|'no_aplica'|'pendiente'), observation }
     statusData: { type: Array, default: [] },
     // Reviewer information
@@ -22,7 +31,7 @@ const AltaDireccionDataSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
-AltaDireccionDataSchema.index({ user: 1 }, { unique: true });
+AltaDireccionDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const AltaDireccionData = mongoose.models.AltaDireccionData
     || mongoose.model('AltaDireccionData', AltaDireccionDataSchema);
@@ -31,7 +40,8 @@ const AltaDireccionData = mongoose.models.AltaDireccionData
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
         const userId = new mongoose.Types.ObjectId(req.user.id);
-        const data = await AltaDireccionData.findOne({ user: userId }).lean();
+        const companyId = await getActiveCompanyId(req.user.id);
+        const data = await AltaDireccionData.findOne({ user: userId, companyId: { $in: [companyId, null] } }).lean();
         if (data) {
             return res.json({
                 statusData: data.statusData || [],
@@ -51,9 +61,10 @@ router.post('/save', requireJwtAuth, async (req, res) => {
     try {
         const { statusData, reviewerInfo } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user.id);
+        const companyId = await getActiveCompanyId(req.user.id);
         await AltaDireccionData.findOneAndUpdate(
-            { user: userId },
-            { $set: { statusData: statusData || [], reviewerInfo: reviewerInfo || {}, updatedAt: Date.now() } },
+            { user: userId, companyId: { $in: [companyId, null] } },
+            { $set: { statusData: statusData || [], reviewerInfo: reviewerInfo || {}, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
@@ -68,7 +79,8 @@ router.post('/inbox/approve', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user.id);
-        const doc = await AltaDireccionData.findOne({ user: userId });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await AltaDireccionData.findOne({ user: userId, companyId: { $in: [companyId, null] } });
         if (!doc) return res.status(404).json({ error: 'No se encontraron datos' });
 
         const item = (doc.inboxPublico || []).find(i => String(i.id) === String(reportId));
@@ -115,7 +127,8 @@ router.post('/inbox/dismiss', requireJwtAuth, async (req, res) => {
     try {
         const { reportId } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user.id);
-        const doc = await AltaDireccionData.findOne({ user: userId });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const doc = await AltaDireccionData.findOne({ user: userId, companyId: { $in: [companyId, null] } });
         if (!doc) return res.status(404).json({ error: 'No se encontraron datos' });
         if (doc.inboxPublico) {
             doc.inboxPublico = doc.inboxPublico.filter(item => String(item.id) !== String(reportId));

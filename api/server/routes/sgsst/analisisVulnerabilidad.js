@@ -10,22 +10,31 @@ const { logger } = require('~/config');
 const router = express.Router();
 const mongoose = require('mongoose');
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── Mongoose Schema ─────────────────────────────────────────────────────
 const AnalisisVulnerabilidadDataSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
   formData: { type: Object, default: {} },
   evaluadoresList: { type: Array, default: [] },
   images: { type: Object, default: {} },
   video: { type: String, default: null },
   updatedAt: { type: Date, default: Date.now },
 });
-AnalisisVulnerabilidadDataSchema.index({ user: 1 }, { unique: true });
+AnalisisVulnerabilidadDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 const AnalisisVulnerabilidadData = mongoose.models.AnalisisVulnerabilidadData || mongoose.model('AnalisisVulnerabilidadData', AnalisisVulnerabilidadDataSchema);
 
 // ─── GET /data ────────────────────────────────────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
   try {
-    const data = await AnalisisVulnerabilidadData.findOne({ user: req.user.id });
+    const companyId = await getActiveCompanyId(req.user.id);
+    const data = await AnalisisVulnerabilidadData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
     if (data) {
       return res.json({
         amenazasList: data.formData?.amenazasList || [],
@@ -45,9 +54,10 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 router.post('/save', requireJwtAuth, async (req, res) => {
   try {
     const { amenazasList, evaluadoresList, images, video } = req.body;
+    const companyId = await getActiveCompanyId(req.user.id);
     await AnalisisVulnerabilidadData.findOneAndUpdate(
-      { user: req.user.id },
-      { $set: { "formData.amenazasList": amenazasList, evaluadoresList, images, video, updatedAt: Date.now() } },
+      { user: req.user.id, companyId: { $in: [companyId, null] } },
+      { $set: { "formData.amenazasList": amenazasList, evaluadoresList, images, video, companyId, updatedAt: Date.now() } },
       { upsert: true, new: true }
     );
     res.json({ success: true });

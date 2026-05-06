@@ -10,39 +10,47 @@ const { logger } = require('~/config');
 
 const router = express.Router();
 
-// ─── Mongoose Schema for Participacion IPEVAR Trabajadores  ──────────────────
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
+// ─── Mongoose Schema for Raw Data ───────────────────────────────────────
 const ParticipacionIpevarDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    formData: { type: Object, default: {} },
-    trabajadoresList: { type: Array, default: [] },
-    responsablesList: { type: Array, default: [] },
-    images: { type: Object, default: {} },
-    video: { type: String, default: null },
-    inboxPublico: { type: Array, default: [] },
-    consolidadoReport: { type: String, default: '' },
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
+    area: { type: String, default: '' },
+    proceso: { type: String, default: '' },
+    fecha: { type: String, default: '' },
+    responsableSST: { type: String, default: '' },
+    riesgosIdentificados: { type: Array, default: [] },
+    asistentes: { type: Array, default: [] },
     updatedAt: { type: Date, default: Date.now },
 });
 
-ParticipacionIpevarDataSchema.index({ user: 1 }, { unique: true });
+ParticipacionIpevarDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData || mongoose.model('ParticipacionIpevarData', ParticipacionIpevarDataSchema);
 
 // ─── GET /data — Load saved data and inbox ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
-        const data = await ParticipacionIpevarData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const data = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (data) {
             return res.json({
-                formData: data.formData || {},
-                trabajadoresList: data.trabajadoresList || [],
-                responsablesList: data.responsablesList || [],
-                images: data.images || {},
-                video: data.video || null,
-                inboxPublico: data.inboxPublico || [],
-                consolidadoReport: data.consolidadoReport || '',
+                area: data.area || '',
+                proceso: data.proceso || '',
+                fecha: data.fecha || '',
+                responsableSST: data.responsableSST || '',
+                riesgosIdentificados: data.riesgosIdentificados || [],
+                asistentes: data.asistentes || [],
+                updatedAt: data.updatedAt,
             });
         }
-        res.json({ formData: {}, trabajadoresList: [], responsablesList: [], images: {}, inboxPublico: [], consolidadoReport: '' });
+        res.json({ area: '', proceso: '', fecha: '', responsableSST: '', riesgosIdentificados: [], asistentes: [] });
     } catch (error) {
         logger.error('[SGSST ParticipacionIPEVAR] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
@@ -52,10 +60,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save — Save current form ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { formData, trabajadoresList, responsablesList, images, video } = req.body;
+        const { area, proceso, fecha, responsableSST, riesgosIdentificados, asistentes } = req.body;
+        const companyId = await getActiveCompanyId(req.user.id);
+
         await ParticipacionIpevarData.findOneAndUpdate(
-            { user: req.user.id },
-            { $set: { formData, trabajadoresList, responsablesList, images, video, updatedAt: Date.now() } },
+            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { $set: { area, proceso, fecha, responsableSST, riesgosIdentificados, asistentes, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });

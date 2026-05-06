@@ -11,6 +11,13 @@ const CompanyInfo = require('~/models/CompanyInfo');
 const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } = require('./reportHeader');
 
 
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
+
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 const PeligroItemSchema = new mongoose.Schema({
     id: String,
@@ -73,11 +80,12 @@ const ProcesoEntrySchema = new mongoose.Schema({
 
 const MatrizPeligrosDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
     procesos: [ProcesoEntrySchema],
     updatedAt: { type: Date, default: Date.now },
 });
 
-MatrizPeligrosDataSchema.index({ user: 1 }, { unique: true });
+MatrizPeligrosDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
 
 const MatrizPeligrosData = mongoose.models.MatrizPeligrosData || mongoose.model('MatrizPeligrosData', MatrizPeligrosDataSchema);
 
@@ -701,7 +709,8 @@ Esquema JSON Requerido (DEBE responder solo con JSON puro, sin markdown):
 // ─── GET /data — Load saved hazard matrix ─────────────────────────────
 router.get('/data', requireJwtAuth, async (req, res) => {
     try {
-        const data = await MatrizPeligrosData.findOne({ user: req.user.id });
+        const companyId = await getActiveCompanyId(req.user.id);
+        const data = await MatrizPeligrosData.findOne({ user: req.user.id, companyId: { $in: [companyId, null] } });
         if (data && data.procesos?.length) {
             return res.json({ procesos: data.procesos });
         }
@@ -721,10 +730,12 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         if (!procesos) {
             return res.status(400).json({ error: 'Datos requeridos' });
         }
+        
+        const companyId = await getActiveCompanyId(req.user.id);
 
         await MatrizPeligrosData.findOneAndUpdate(
-            { user: req.user.id },
-            { $set: { procesos, updatedAt: new Date() } },
+            { user: req.user.id, companyId: { $in: [companyId, null] } },
+            { $set: { procesos, companyId, updatedAt: new Date() } },
             { upsert: true, new: true }
         );
 

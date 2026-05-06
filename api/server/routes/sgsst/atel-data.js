@@ -3,6 +3,14 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const { logger } = require('~/config');
+const CompanyInfo = require('~/models/CompanyInfo');
+
+// ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
+async function getActiveCompanyId(userId) {
+    let active = await CompanyInfo.findOne({ user: userId, isActive: true });
+    if (!active) active = await CompanyInfo.findOne({ user: userId });
+    return active ? active._id : null;
+}
 
 // ─── Mongoose Schema ─────────────────────────────────────────────────
 // We use a flexible schema for MonthData to avoid strict validation issues with dynamic fields
@@ -28,6 +36,11 @@ const ATELAnnualDataSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    companyId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'CompanyInfo', 
+        required: false 
+    },
     year: {
         type: Number,
         required: true
@@ -42,6 +55,7 @@ const ATELAnnualDataSchema = new mongoose.Schema({
         default: Date.now
     }
 });
+ATELAnnualDataSchema.index({ user: 1, companyId: 1, year: 1 }, { unique: true });
 
 // Create model (or retrieve if exists to avoid overwrite error in HMR)
 const ATELAnnualData = mongoose.models.ATELAnnualData || mongoose.model('ATELAnnualData', ATELAnnualDataSchema);
@@ -53,8 +67,9 @@ router.get('/:year', requireJwtAuth, async (req, res) => {
     try {
         const { year } = req.params;
         const userId = req.user.id;
+        const companyId = await getActiveCompanyId(userId);
 
-        const data = await ATELAnnualData.findOne({ user: userId, year: Number(year) });
+        const data = await ATELAnnualData.findOne({ user: userId, companyId: { $in: [companyId, null] }, year: Number(year) });
 
         if (!data) {
             // Return empty structure if not found
@@ -77,13 +92,16 @@ router.post('/save', requireJwtAuth, async (req, res) => {
         if (!year || !annualData) {
             return res.status(400).json({ error: 'Año y datos requeridos' });
         }
+        
+        const companyId = await getActiveCompanyId(userId);
 
         // Upsert
         const result = await ATELAnnualData.findOneAndUpdate(
-            { user: userId, year: Number(year) },
+            { user: userId, companyId: { $in: [companyId, null] }, year: Number(year) },
             {
                 $set: {
                     months: annualData,
+                    companyId,
                     updatedAt: new Date()
                 }
             },
