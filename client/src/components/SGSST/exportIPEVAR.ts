@@ -284,6 +284,20 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
     ]
   });
 
+  // Lista Desplegable (Data Validation) para Rutinaria (Columna E)
+  const validationRows = Math.max(finalTotalRows + 50, 100); // Aplicar a más filas por si el usuario añade nuevas
+  for (let r = 2; r <= validationRows; r++) {
+    wsMatriz.getCell(`E${r}`).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"Sí,No"'],
+      showErrorMessage: true,
+      errorStyle: 'error',
+      errorTitle: 'Valor inválido',
+      error: 'Por favor, seleccione "Sí" o "No" de la lista desplegable.'
+    };
+  }
+
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, `Matriz_IPEVAR_GTC45_PRO_${new Date().toISOString().slice(0, 10)}.xlsx`);
