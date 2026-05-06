@@ -108,10 +108,12 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
     // Removed dependency on global search state to prevent filtering issues
     const [showLoading, setShowLoading] = useState(false);
 
+    // activeCompanyId: resolved async, starts null — query runs immediately without it
     const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+    const [companyResolved, setCompanyResolved] = useState(false);
 
     useEffect(() => {
-        if (!isAuthenticated || !isOpen) return;
+        if (!isAuthenticated) return;
         let isMounted = true;
         const fetchCompany = async () => {
             try {
@@ -125,38 +127,34 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
                     }
                 }
             } catch (e) {
-                console.error(e);
+                console.error('[ReportHistory] Could not fetch company', e);
+            } finally {
+                if (isMounted) setCompanyResolved(true);
             }
         };
         fetchCompany();
-        return () => { isMounted = false; };
-    }, [isAuthenticated, isOpen]);
-
-    const queryTags = useMemo(() => {
-        if (!activeCompanyId) return tags;
-        return [...tags, `company-${activeCompanyId}`];
-    }, [tags, activeCompanyId]);
+        // Timeout fallback: if company fetch takes too long, still show results
+        const timeout = setTimeout(() => { if (isMounted) setCompanyResolved(true); }, 3000);
+        return () => { isMounted = false; clearTimeout(timeout); };
+    }, [isAuthenticated]);
 
     const queryClient = useQueryClient();
 
-    // Fetch conversations tagged as 'report' AND active company
+    // Always fetch using the module tag alone — filtering by company is done client-side
     const { data, fetchNextPage, isFetchingNextPage, isLoading, refetch } =
         useConversationsInfiniteQuery(
+            { tags },
             {
-                tags: queryTags,
-            },
-            {
-                enabled: isAuthenticated && !!activeCompanyId,
+                enabled: isAuthenticated,
                 staleTime: 0,
                 refetchOnMount: true,
             },
         );
 
     const refreshHistory = useCallback(() => {
-        // Invalidate to force a hard refresh from server
-        queryClient.invalidateQueries(['conversations', { tags: queryTags }]);
+        queryClient.invalidateQueries(['conversations', { tags }]);
         refetch();
-    }, [queryClient, refetch, queryTags]);
+    }, [queryClient, refetch, tags]);
 
     // Refresh when trigger changes with a small delay to ensure backend indexing
     useEffect(() => {
@@ -191,9 +189,22 @@ const ReportHistory = ({ onSelectReport, isOpen, toggleOpen, refreshTrigger, tag
         isFetchingNext: isFetchingNextPage,
     });
 
+    // Client-side filter: once company is resolved, only show reports for active company.
+    // Reports without any company tag are treated as legacy (primary company only).
     const conversations = useMemo(() => {
-        return data ? data.pages.flatMap((page) => page.conversations) : [];
-    }, [data]);
+        const all = data ? data.pages.flatMap((page) => page.conversations) : [];
+        if (!companyResolved || !activeCompanyId) {
+            // Company not yet known — show everything to avoid blank state
+            return all;
+        }
+        const companyTag = `company-${activeCompanyId}`;
+        return all.filter((c: any) => {
+            const cTags: string[] = c.tags || [];
+            const hasAnyCompanyTag = cTags.some(t => t.startsWith('company-'));
+            // Show if it belongs to the active company, OR if it has no company tag at all (legacy)
+            return cTags.includes(companyTag) || !hasAnyCompanyTag;
+        });
+    }, [data, activeCompanyId, companyResolved]);
 
     if (!isOpen) return null;
 

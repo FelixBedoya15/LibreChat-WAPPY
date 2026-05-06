@@ -26,17 +26,46 @@ export function useAutoLoadReport({
         const autoLoad = async () => {
             hasAttempted.current = true;
             try {
-                const queryStr = tags.map(tag => `tags=${encodeURIComponent(tag)}`).join('&');
-                const res = await fetch(`/api/convos?limit=1&order=desc&${queryStr}`, {
+                // 1. First resolve the active company to filter correctly
+                let companyId: string | null = null;
+                try {
+                    const companyRes = await fetch('/api/sgsst/company-info', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (companyRes.ok) {
+                        const companyData = await companyRes.json();
+                        if (companyData && companyData._id) {
+                            companyId = companyData._id;
+                        }
+                    }
+                } catch (e) {
+                    console.error('[useAutoLoadReport] Could not fetch company', e);
+                }
+
+                if (!isMounted) return;
+
+                // 2. Build query — include company tag if we have one
+                const effectiveTags = companyId 
+                    ? [...tags, `company-${companyId}`] 
+                    : tags;
+                const queryStr = effectiveTags.map(tag => `tags=${encodeURIComponent(tag)}`).join('&');
+                const res = await fetch(`/api/convos?limit=5&order=desc&${queryStr}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!res.ok) return;
                 const data = await res.json();
 
-                if (isMounted && data && data.conversations && data.conversations.length > 0) {
-                    const latestConvoId = data.conversations[0].conversationId;
-                    if (latestConvoId) {
-                        await handleSelectReportRef.current(latestConvoId);
+                if (!isMounted) return;
+
+                if (data && data.conversations && data.conversations.length > 0) {
+                    // 3. Client-side double-check: pick the first convo that belongs to the active company
+                    const match = companyId 
+                        ? data.conversations.find((c: any) => 
+                            (c.tags || []).includes(`company-${companyId}`))
+                        : data.conversations[0];
+                    
+                    if (match && match.conversationId) {
+                        await handleSelectReportRef.current(match.conversationId);
                     }
                 }
             } catch (err) {
