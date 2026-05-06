@@ -95,7 +95,7 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsDash.getCell('B9').value = { formula: `IF($C$6="TODOS", COUNTA('Matriz IPEVAR'!A2:A${totalRows}), COUNTIF('Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('B9').font = { size: 24, bold: true, color: { argb: 'FFFFFFFF' }, name: 'Book Antiqua' };
 
-  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!R2:R${totalRows}, "NO ACEPTABLE"), COUNTIFS('Matriz IPEVAR'!R2:R${totalRows}, "NO ACEPTABLE", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
+  wsDash.getCell('C9').value = { formula: `IF($C$6="TODOS", COUNTIF('Matriz IPEVAR'!R2:R${totalRows}, "No Aceptable"), COUNTIFS('Matriz IPEVAR'!R2:R${totalRows}, "No Aceptable", 'Matriz IPEVAR'!A2:A${totalRows}, $C$6))` };
   wsDash.getCell('C9').font = { size: 24, bold: true, color: { argb: 'FFEF4444' }, name: 'Book Antiqua' }; // Rojo neon
 
   wsDash.getCell('D9').value = { formula: `IF(B9=0, 0, C9/B9)` };
@@ -154,10 +154,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   let dashRow = 12;
   dashRow = createCardHeader(dashRow, 'Riesgos por Aceptabilidad GTC-45');
   const aceptabilidades = [
-    { name: 'NO ACEPTABLE', color: 'FFEF4444' }, // Rojo
-    { name: 'NO ACEPTABLE O ACEPTABLE CON CONTROL ESPECIFICO', color: 'FFF97316' }, // Naranja
-    { name: 'MEJORABLE', color: 'FF22C55E' }, // Verde
-    { name: 'ACEPTABLE', color: 'FFEAB308' } // Amarillo
+    { name: 'No Aceptable', color: 'FFEF4444' }, // Rojo
+    { name: 'No Aceptable o Aceptable con Control Específico', color: 'FFF97316' }, // Naranja
+    { name: 'Mejorable', color: 'FF22C55E' }, // Verde
+    { name: 'Aceptable', color: 'FFEAB308' } // Amarillo
   ];
   const startCard1 = dashRow;
 
@@ -343,10 +343,10 @@ export const exportMatrizIPEVARToExcel = async (matrixRows: MatrixRow[]) => {
   wsMatriz.addConditionalFormatting({
     ref: `R2:R${finalTotalRows}`,
     rules: [
-      { type: 'cellIs', operator: 'equal', formulae: ['"NO ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
-      { type: 'cellIs', operator: 'equal', formulae: ['"NO ACEPTABLE O ACEPTABLE CON CONTROL ESPECIFICO"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
-      { type: 'cellIs', operator: 'equal', formulae: ['"MEJORABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Verde
-      { type: 'cellIs', operator: 'equal', formulae: ['"ACEPTABLE"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Amarillo
+      { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEF4444' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Rojo
+      { type: 'cellIs', operator: 'equal', formulae: ['"No Aceptable o Aceptable con Control Específico"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFF97316' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Naranja
+      { type: 'cellIs', operator: 'equal', formulae: ['"Mejorable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF22C55E' } }, font: { color: { argb: 'FFFFFFFF' }, bold: true } } }, // Verde
+      { type: 'cellIs', operator: 'equal', formulae: ['"Aceptable"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFEAB308' } }, font: { color: { argb: 'FF1E293B' }, bold: true } } }, // Amarillo
     ]
   });
 
