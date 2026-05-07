@@ -59,11 +59,11 @@ const PLANS = [
         borderColor: 'border-green-500/20',
         iconBg: 'bg-green-500/10',
         features: [
+            '**Agente Matriz IPEVAR**',
             'Todo lo del plan Go',
             'Conversaciones ilimitadas',
             'Podrá ingresar 10 claves API de Gemini',
             'Somos SST completo',
-            '**Agente Matriz IPEVAR**',
         ],
         notIncluded: ['Editor de Archivos con IA'],
         popular: false,
@@ -79,13 +79,13 @@ const PLANS = [
         borderColor: 'border-amber-500/20',
         iconBg: 'bg-amber-500/10',
         features: [
+            '**Agente Matriz IPEVAR**',
             'Todo lo del plan Plus',
             'Análisis en Vivo',
             'Centro de Inteligencia Predictiva',
             'Crea tus propios Agentes de IA',
             'Editor de Archivos con IA',
             'Acceso anticipado a nuevas funciones',
-            '**Agente Matriz IPEVAR**',
         ],
         notIncluded: [],
         popular: true,
@@ -1459,12 +1459,16 @@ export default function PlansPage() {
 
                                         {/* Features */}
                                         <ul className="mt-5 flex-1 space-y-2">
-                                            {plan.features.map((f) => (
-                                                <li key={f} className="flex items-start gap-2 text-xs text-text-secondary">
-                                                    <Check className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-green-500" />
-                                                    {f}
-                                                </li>
-                                            ))}
+                                            {plan.features.map((f) => {
+                                                const isHighlighted = f.includes('**');
+                                                const text = f.replace(/\*\*/g, '');
+                                                return (
+                                                    <li key={f} className={`flex items-start gap-2 text-xs ${isHighlighted ? 'font-bold text-text-primary' : 'text-text-secondary'}`}>
+                                                        <Check className={`mt-0.5 h-3.5 w-3.5 flex-shrink-0 ${isHighlighted ? 'text-emerald-500' : 'text-green-500'}`} />
+                                                        {text}
+                                                    </li>
+                                                );
+                                            })}
                                             {plan.notIncluded.map((f) => (
                                                 <li key={f} className="flex items-start gap-2 text-xs text-text-tertiary opacity-40 line-through">
                                                     <span className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-center">✕</span>
