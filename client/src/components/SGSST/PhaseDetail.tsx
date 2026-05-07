@@ -396,7 +396,19 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                         )}
 
                                         {!hasAccessToSGSST ? (
-                                            <UpgradeWall plan={user?.role === 'USER' ? 'USER_GO' : user?.role} />
+                                            <UpgradeWall
+                                                plan="USER_PLUS"
+                                                planBTitle="Plan Pro"
+                                                planBItems={[
+                                                    '**Agente Matriz IPEVAR**',
+                                                    'Todo lo del plan Plus',
+                                                    'Análisis en Vivo',
+                                                    'Centro de Inteligencia Predictiva',
+                                                    'Crea tus propios Agentes de IA',
+                                                    'Editor de Archivos con IA',
+                                                    'Acceso anticipado a nuevas funciones',
+                                                ]}
+                                            />
                                         ) : (
                                             <>
                                                 {/* Show DiagnosticoChecklist for diagnostico category */}

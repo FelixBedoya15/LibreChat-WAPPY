@@ -72,7 +72,7 @@ const DocumentEditorView = () => {
   if (!isPro) {
     return (
       <div className="flex h-full w-full flex-col bg-surface-secondary">
-        <div className="w-full overflow-y-auto bg-surface-secondary flex justify-center px-4 py-8">
+        <div className="flex-1 overflow-y-auto bg-surface-secondary flex justify-center items-start px-4 py-8">
           <UpgradeWall
             title="Plan Premium Exclusivo"
             description="El Editor de Archivos enriquecido es una herramienta exclusiva para planes PREMIUM. Aprovecha todo su potencial al ascender tu plan."

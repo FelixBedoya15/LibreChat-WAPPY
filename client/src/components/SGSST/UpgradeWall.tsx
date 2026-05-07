@@ -94,6 +94,8 @@ export const UpgradeWall = ({
     description = 'Sube de nivel para acceder a todas las funcionalidades y eliminar los límites de tu cuenta.',
     plan: planOverride,
     isCompact = false,
+    planBTitle,
+    planBItems,
 }: {
     title?: string;
     description?: string;
@@ -101,6 +103,10 @@ export const UpgradeWall = ({
     plan?: string;
     /** Compact mode for narrow side panels */
     isCompact?: boolean;
+    /** Optional second column title (e.g. 'Plan Pro') rendered with checkmarks instead of X */
+    planBTitle?: string;
+    /** Optional second column items rendered with checkmarks instead of X */
+    planBItems?: string[];
 }) => {
     const { user } = useAuthContext();
     // Prefer the explicit override; fall back to the session role
@@ -144,24 +150,46 @@ export const UpgradeWall = ({
 
             {/* Features List — rendered dynamically from plan features */}
             <div className={`flex justify-center z-10 font-medium text-left ${isCompact ? 'flex-col gap-2 mb-6 text-xs' : 'flex-col md:flex-row gap-6 md:gap-12 mb-10 text-sm'}`}>
-                <ul className="space-y-2">
-                    {features.included.map((item) => {
-                        const isHighlighted = item.includes('**');
-                        const text = item.replace(/\*\*/g, '');
-                        return (
-                            <li key={item} className={`flex items-start gap-2 ${isHighlighted ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                                <Check className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} ${isHighlighted ? 'text-emerald-500' : 'text-green-500'} shrink-0 mt-0.5`} /> <span>{text}</span>
+                <div>
+                    {planBTitle && (
+                        <p className="text-[10px] font-black uppercase tracking-widest text-green-600 dark:text-green-400 mb-2">Plan Plus</p>
+                    )}
+                    <ul className="space-y-2">
+                        {features.included.map((item) => {
+                            const isHighlighted = item.includes('**');
+                            const text = item.replace(/\*\*/g, '');
+                            return (
+                                <li key={item} className={`flex items-start gap-2 ${isHighlighted ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                                    <Check className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} ${isHighlighted ? 'text-emerald-500' : 'text-green-500'} shrink-0 mt-0.5`} /> <span>{text}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+                {planBTitle && planBItems ? (
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400 mb-2">{planBTitle}</p>
+                        <ul className="space-y-2">
+                            {planBItems.map((item) => {
+                                const isHighlighted = item.includes('**');
+                                const text = item.replace(/\*\*/g, '');
+                                return (
+                                    <li key={item} className={`flex items-start gap-2 ${isHighlighted ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                                        <Check className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} ${isHighlighted ? 'text-amber-500' : 'text-amber-400'} shrink-0 mt-0.5`} /> <span>{text}</span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                ) : (
+                    <ul className="space-y-2">
+                        {features.excluded.map((item) => (
+                            <li key={item} className="flex items-start gap-2 text-gray-500 dark:text-gray-400 opacity-80">
+                                <X className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} text-red-500 shrink-0 mt-0.5`} /> <span>{item}</span>
                             </li>
-                        );
-                    })}
-                </ul>
-                <ul className="space-y-2">
-                    {features.excluded.map((item) => (
-                        <li key={item} className="flex items-start gap-2 text-gray-500 dark:text-gray-400 opacity-80">
-                            <X className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} text-red-500 shrink-0 mt-0.5`} /> <span>{item}</span>
-                        </li>
-                    ))}
-                </ul>
+                        ))}
+                    </ul>
+                )}
             </div>
 
             {/* Upgrade Button */}

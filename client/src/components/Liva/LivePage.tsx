@@ -531,7 +531,7 @@ const LivePage = () => {
             />
 
             {!isPro ? (
-                <div className="w-full overflow-y-auto bg-surface-secondary flex justify-center px-4 py-8">
+                <div className="flex-1 overflow-y-auto bg-surface-secondary flex justify-center items-start px-4 py-8">
                     <UpgradeWall
                         title="Plan Premium Exclusivo"
                         description="Esta sección requiere un plan PRO. El módulo de Análisis en Vivo te permite realizar inspecciones y auditorías en tiempo real con IA de forma predictiva a través de la cámara de tu dispositivo."
