@@ -23,6 +23,8 @@ const PLANS = [
             'Aula de estudio',
             'Máximo 10 conversaciones abiertas',
             'Podrá ingresar 1 clave API de Gemini',
+            '+ de 15 Agentes Expertos en SST',
+            'Sin caducidad – no necesita renovación',
         ],
         notIncluded: ['Blog', 'Somos SST', 'Editor de Archivos con IA'],
         popular: false,
@@ -61,6 +63,7 @@ const PLANS = [
             'Conversaciones ilimitadas',
             'Podrá ingresar 10 claves API de Gemini',
             'Somos SST completo',
+            '**Agente Matriz IPEVAR**',
         ],
         notIncluded: ['Editor de Archivos con IA'],
         popular: false,
@@ -82,6 +85,7 @@ const PLANS = [
             'Crea tus propios Agentes de IA',
             'Editor de Archivos con IA',
             'Acceso anticipado a nuevas funciones',
+            '**Agente Matriz IPEVAR**',
         ],
         notIncluded: [],
         popular: true,
@@ -1705,7 +1709,7 @@ export default function PlansPage() {
                                 </a>
                             </div>
                             <p className="mt-3 text-xs text-text-tertiary">
-                                WAPPY LTDA · NIT 901437310-3 · Todos los derechos reservados © {new Date().getFullYear()}
+                                WAPPY LTDA · NIT 901437310-3 · Todos los derechos reservados ©
                             </p>
                         </div>
                     </>

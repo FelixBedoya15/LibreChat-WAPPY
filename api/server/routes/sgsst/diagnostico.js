@@ -649,4 +649,100 @@ router.get('/checklist', (req, res) => {
     });
 });
 
+/**
+ * GET /api/sgsst/diagnostico/report-history
+ * Returns report conversations for the ACTIVE company only.
+ * Bypasses React Query cache by being a dedicated endpoint.
+ * Migrates legacy (untagged) reports to the active company synchronously.
+ *
+ * Query params:
+ *   tags (string | string[]) — module tag(s), e.g. sgsst-perfil-sociodemografico
+ */
+router.get('/report-history', requireJwtAuth, async (req, res) => {
+    try {
+        const mongoose = require('mongoose');
+        const ConversationModel = mongoose.models.Conversation;
+
+        if (!ConversationModel) {
+            return res.status(500).json({ error: 'Conversation model not available' });
+        }
+
+        // 1. Resolve active company for this user
+        let company = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
+        if (!company) {
+            company = await CompanyInfo.findOne({ user: req.user.id }).lean();
+            if (company) {
+                await CompanyInfo.updateOne({ _id: company._id }, { isActive: true });
+            }
+        }
+
+        const companyId = company?._id?.toString() ?? null;
+
+        // 2. Parse module tags from query
+        const rawTags = req.query.tags;
+        const moduleTags = rawTags
+            ? (Array.isArray(rawTags) ? rawTags : [rawTags]).filter(Boolean)
+            : [];
+
+        if (moduleTags.length === 0) {
+            return res.status(400).json({ error: 'At least one tag is required' });
+        }
+
+        // 3. Synchronously migrate legacy reports (no company tag) → assign to active company
+        if (companyId) {
+            try {
+                const companyTag = `company-${companyId}`;
+                const legacyReports = await ConversationModel.find({
+                    user: req.user.id,
+                    tags: { $in: moduleTags },
+                    $and: [
+                        { tags: { $not: /^company-/ } },
+                    ],
+                }).select('_id tags').lean();
+
+                if (legacyReports.length > 0) {
+                    const ids = legacyReports.map(r => r._id);
+                    await ConversationModel.updateMany(
+                        { _id: { $in: ids } },
+                        { $addToSet: { tags: companyTag } },
+                    );
+                    logger.info(`[report-history] Migrated ${legacyReports.length} legacy reports → ${companyTag}`);
+                }
+            } catch (migrateErr) {
+                logger.warn('[report-history] Migration error (non-fatal):', migrateErr.message);
+            }
+        }
+
+        // 4. Build strict filter: module tag(s) AND company tag
+        const searchTags = companyId
+            ? [...moduleTags, `company-${companyId}`]
+            : moduleTags;
+
+        const filterOp = companyId
+            ? { $all: searchTags }   // AND — must have every tag
+            : { $in: searchTags };   // fallback if no company
+
+        const conversations = await ConversationModel.find({
+            user: req.user.id,
+            tags: filterOp,
+            $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+            $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }],
+        })
+            .select('conversationId title updatedAt tags')
+            .sort({ updatedAt: -1 })
+            .limit(100)
+            .lean();
+
+        return res.json({
+            conversations,
+            companyId,
+            count: conversations.length,
+        });
+    } catch (error) {
+        logger.error('[report-history] Error:', error);
+        return res.status(500).json({ error: 'Error fetching report history' });
+    }
+});
+
 module.exports = router;
+
