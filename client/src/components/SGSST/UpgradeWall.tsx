@@ -48,6 +48,8 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Aula de estudio',
             'Máximo 10 conversaciones abiertas',
             'Podrá ingresar 1 clave API de Gemini',
+            '+ de 15 Agentes Expertos en SST',
+            'Sin caducidad – no necesita renovación',
         ],
         excluded: ['Blog WAPPY', 'Gestor SGSST', 'Editor de Archivos con IA'],
     },
@@ -64,6 +66,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
     USER_PLUS: {
         badge: 'Actualiza al Plan Pro',
         included: [
+            '**Agente Matriz IPEVAR**',
             'Todo lo del plan Go',
             'Gestor SGSST Completo',
             'Conversaciones Ilimitadas',
@@ -129,11 +132,15 @@ export const UpgradeWall = ({
             {/* Features List — rendered dynamically from plan features */}
             <div className={`flex justify-center z-10 font-medium text-left ${isCompact ? 'flex-col gap-2 mb-6 text-xs' : 'flex-col md:flex-row gap-6 md:gap-12 mb-10 text-sm'}`}>
                 <ul className="space-y-2">
-                    {features.included.map((item) => (
-                        <li key={item} className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
-                            <Check className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} text-green-500 shrink-0 mt-0.5`} /> <span>{item}</span>
-                        </li>
-                    ))}
+                    {features.included.map((item) => {
+                        const isHighlighted = item.includes('**');
+                        const text = item.replace(/\*\*/g, '');
+                        return (
+                            <li key={item} className={`flex items-start gap-2 ${isHighlighted ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                                <Check className={`${isCompact ? 'w-3 h-3' : 'w-5 h-5'} ${isHighlighted ? 'text-emerald-500' : 'text-green-500'} shrink-0 mt-0.5`} /> <span>{text}</span>
+                            </li>
+                        );
+                    })}
                 </ul>
                 <ul className="space-y-2">
                     {features.excluded.map((item) => (
