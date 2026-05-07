@@ -51,7 +51,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             '+ de 15 Agentes Expertos en SST',
             'Sin caducidad – no necesita renovación',
         ],
-        excluded: ['Blog WAPPY', 'Gestor SGSST', 'Editor de Archivos con IA'],
+        excluded: ['Blog', 'Somos SST', 'Editor de Archivos con IA'],
     },
     USER_GO: {
         badge: 'Actualiza al Plan Plus o Pro',
@@ -61,18 +61,18 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Hasta 30 conversaciones abiertas',
             'Podrá ingresar 4 claves API de Gemini',
         ],
-        excluded: ['Gestor SGSST', 'Editor de Archivos con IA'],
+        excluded: ['Somos SST', 'Editor de Archivos con IA'],
     },
     USER_PLUS: {
         badge: 'Actualiza al Plan Pro',
         included: [
             '**Agente Matriz IPEVAR**',
             'Todo lo del plan Go',
-            'Gestor SGSST Completo',
-            'Conversaciones Ilimitadas',
+            'Conversaciones ilimitadas',
             'Podrá ingresar 10 claves API de Gemini',
+            'Somos SST completo',
         ],
-        excluded: ['Editor de Archivos con IA', 'Análisis en Vivo', 'Inteligencia Predictiva'],
+        excluded: ['Editor de Archivos con IA', 'Análisis en Vivo', 'Centro de Inteligencia Predictiva'],
     },
 };
 
