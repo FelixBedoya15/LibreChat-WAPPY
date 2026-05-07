@@ -69,22 +69,22 @@ export default function Personalization({
   useEffect(() => {
     if (user?.personalization?.geminiModels) {
       setGeminiModels({
-        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.1-flash-lite-preview',
-        agents: user.personalization.geminiModels.agents || 'gemini-3.1-flash-lite-preview',
-        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.1-flash-lite-preview',
+        generalChat: user.personalization.geminiModels.generalChat || 'gemini-3.1-flash-lite',
+        agents: user.personalization.geminiModels.agents || 'gemini-3.1-flash-lite',
+        sstManagement: user.personalization.geminiModels.sstManagement || 'gemini-3.1-flash-lite',
         liveAnalysis: user.personalization.geminiModels.liveAnalysis || 'gemini-2.5-flash-native-audio-preview-09-2025',
         textCorrection: user.personalization.geminiModels.textCorrection || 'gemini-2.5-flash',
-        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.1-flash-lite-preview',
+        reportGeneration: user.personalization.geminiModels.reportGeneration || 'gemini-3.1-flash-lite',
       });
     } else {
       // Set defaults if no data exists
       setGeminiModels({
-        generalChat: 'gemini-3.1-flash-lite-preview',
-        agents: 'gemini-3.1-flash-lite-preview',
-        sstManagement: 'gemini-3.1-flash-lite-preview',
+        generalChat: 'gemini-3.1-flash-lite',
+        agents: 'gemini-3.1-flash-lite',
+        sstManagement: 'gemini-3.1-flash-lite',
         liveAnalysis: 'gemini-2.5-flash-native-audio-preview-09-2025',
         textCorrection: 'gemini-2.5-flash',
-        reportGeneration: 'gemini-3.1-flash-lite-preview',
+        reportGeneration: 'gemini-3.1-flash-lite',
       });
     }
   }, [user?.personalization?.geminiModels]);
@@ -107,7 +107,7 @@ export default function Personalization({
     // Fallback to explicitly defined GOOGLE_MODELS if backend omits them
     if (googleModels.length === 0) {
       googleModels = [
-        'gemini-3.1-flash-lite-preview',
+        'gemini-3.1-flash-lite',
         'gemini-3-flash-preview',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',

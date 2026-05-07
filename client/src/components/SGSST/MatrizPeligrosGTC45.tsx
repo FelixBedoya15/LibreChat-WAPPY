@@ -191,7 +191,7 @@ const MatrizPeligrosGTC45 = () => {
     const { showToast } = useToastContext();
 
     const [procesos, setProcesos] = useState<ProcesoEntry[]>([]);
-    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite');
     const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
     const [expandedProcesos, setExpandedProcesos] = useState<Set<string>>(new Set());
     const [expandedPeligros, setExpandedPeligros] = useState<Set<string>>(new Set());

@@ -757,7 +757,7 @@ class VoiceSession {
             logger.info(`[VoiceSession] Starting transcription correction for: "${userText}"`);
 
             // Use the same first model as SGSST apps, with full key+model rotation
-            const correctionModelName = SGSST_FALLBACK_MODELS[0]; // gemini-3.1-flash-lite-preview
+            const correctionModelName = SGSST_FALLBACK_MODELS[0]; // gemini-3.1-flash-lite
             logger.info(`[VoiceSession] Correction model (with rotation): ${correctionModelName}`);
 
             const prompt = `
@@ -844,7 +844,7 @@ class VoiceSession {
             });
 
             // Use first SGSST model with full key+model rotation (matches sgsstGemini.js pattern)
-            // Priority: SGSST_FALLBACK_MODELS[0] = gemini-3.1-flash-lite-preview (per user's model list order)
+            // Priority: SGSST_FALLBACK_MODELS[0] = gemini-3.1-flash-lite (per user's model list order)
             const reportModelName = SGSST_FALLBACK_MODELS[0];
             logger.info(`[VoiceSession] Report model (with key+model rotation): ${reportModelName}`);
 

@@ -214,12 +214,12 @@ endpoints:
     apiKey: "${GOOGLE_KEY}"
     models:
       default:
-        - "gemini-3.1-flash-lite-preview"
+        - "gemini-3.1-flash-lite"
         - "gemini-3-flash-preview"
         - "gemini-2.5-flash"
         - "gemini-2.5-flash-lite"
       fetch: false
-    titleModel: "gemini-3.1-flash-lite-preview"
+    titleModel: "gemini-3.1-flash-lite"
   # assistants:
   #   disableBuilder: false # Disable Assistants Builder Interface by setting to `true`
   #   pollIntervalMs: 3000  # Polling interval for checking assistant updates
@@ -251,7 +251,7 @@ endpoints:
   #   # (optional) Agent Capabilities available to all users. Omit the ones you wish to exclude. Defaults to list below.
       capabilities: ["execute_code", "file_search", "actions", "tools", "artifacts", "context", "ocr", "chain", "web_search"]
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite-preview"
+      titleModel: "gemini-3.1-flash-lite"
   custom:
     - name: "Ollama"
       apiKey: "ollama"
@@ -268,7 +268,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite-preview"
+      titleModel: "gemini-3.1-flash-lite"
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
@@ -292,7 +292,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite-preview"
+      titleModel: "gemini-3.1-flash-lite"
       summarize: false
       summaryModel: "current_model"
       forcePrompt: false
@@ -327,7 +327,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite-preview"
+      titleModel: "gemini-3.1-flash-lite"
       modelDisplayLabel: 'Groq'
 
     # Mistral AI Example
@@ -394,7 +394,7 @@ endpoints:
         fetch: true
       titleConvo: true
       titleEndpoint: "google"
-      titleModel: "gemini-3.1-flash-lite-preview"
+      titleModel: "gemini-3.1-flash-lite"
       modelDisplayLabel: "NVIDIA"
       iconURL: "https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo_image.png"
       dropParams: ["user", "frequency_penalty", "presence_penalty", "stop"]
@@ -547,6 +547,6 @@ memory:
   # Memory agent configuration - using Google Gemini inline (no separate agent needed)
   agent:
     provider: "google"
-    model: "gemini-3.1-flash-lite-preview"
+    model: "gemini-3.1-flash-lite"
     model_parameters:
       temperature: 0.1

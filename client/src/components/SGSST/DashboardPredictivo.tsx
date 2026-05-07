@@ -149,7 +149,7 @@ const DashboardPredictivo = () => {
     const liveEditorRef = useRef<LiveEditorHandle>(null);
 
     // UI State
-    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite-preview');
+    const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite');
 
     useEffect(() => {
         if (user?.personalization?.geminiModels?.sstManagement) {
