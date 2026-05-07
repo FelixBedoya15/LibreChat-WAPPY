@@ -396,7 +396,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                         )}
 
                                         {!hasAccessToSGSST ? (
-                                            <UpgradeWall plan={user?.role} />
+                                            <UpgradeWall plan={user?.role === 'USER' ? 'USER_GO' : user?.role} />
                                         ) : (
                                             <>
                                                 {/* Show DiagnosticoChecklist for diagnostico category */}

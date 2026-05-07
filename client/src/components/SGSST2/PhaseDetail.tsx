@@ -359,7 +359,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                 {isExpanded && (
                                     <div className="p-4 border-t-4" style={{ borderColor: retro.accent, backgroundColor: '#0d0d0d' }}>
                                         {!hasAccessToSGSST ? (
-                                            <UpgradeWall plan={user?.role} />
+                                            <UpgradeWall plan={user?.role === 'USER' ? 'USER_GO' : user?.role} />
                                         ) : (
                                             <>
                                                 {/* Show DiagnosticoChecklist for diagnostico category */}

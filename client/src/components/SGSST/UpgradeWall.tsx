@@ -64,7 +64,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
         excluded: ['Somos SST', 'Editor de Archivos con IA'],
     },
     USER_PLUS: {
-        badge: 'Actualiza al Plan Pro',
+        badge: 'Actualiza al Plan Plus o Pro',
         included: [
             '**Agente Matriz IPEVAR**',
             'Todo lo del plan Go',
@@ -73,6 +73,19 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
             'Somos SST completo',
         ],
         excluded: ['Editor de Archivos con IA', 'Análisis en Vivo', 'Centro de Inteligencia Predictiva'],
+    },
+    USER_PRO: {
+        badge: 'Actualiza al Plan Pro',
+        included: [
+            '**Agente Matriz IPEVAR**',
+            'Todo lo del plan Plus',
+            'Análisis en Vivo',
+            'Centro de Inteligencia Predictiva',
+            'Crea tus propios Agentes de IA',
+            'Editor de Archivos con IA',
+            'Acceso anticipado a nuevas funciones',
+        ],
+        excluded: [],
     },
 };
 

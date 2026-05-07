@@ -125,11 +125,11 @@ const EditorArchivosDashboard = () => {
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary dark:bg-gray-900">
       {!isPro ? (
-        <div className="flex-1 flex flex-col justify-center items-center p-8 h-full bg-surface-secondary">
+        <div className="w-full overflow-y-auto bg-surface-secondary flex justify-center px-4 py-8">
           <UpgradeWall
             title="Plan Premium Exclusivo"
             description="El Editor de Archivos es una poderosa herramienta exclusiva para planes PREMIUM. Permite importar documentos Word y PDF extrayendo todo el texto y formato para ser editado con nuestra IA predictiva."
-            plan="USER_PLUS"
+            plan="USER_PRO"
           />
         </div>
       ) : (

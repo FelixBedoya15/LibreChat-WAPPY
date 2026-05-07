@@ -531,11 +531,11 @@ const LivePage = () => {
             />
 
             {!isPro ? (
-                <div className="flex-1 flex flex-col justify-center items-center p-8 h-full bg-surface-secondary">
+                <div className="w-full overflow-y-auto bg-surface-secondary flex justify-center px-4 py-8">
                     <UpgradeWall
                         title="Plan Premium Exclusivo"
                         description="Esta sección requiere un plan PRO. El módulo de Análisis en Vivo te permite realizar inspecciones y auditorías en tiempo real con IA de forma predictiva a través de la cámara de tu dispositivo."
-                        plan="USER_PLUS"
+                        plan="USER_PRO"
                     />
                 </div>
             ) : (
