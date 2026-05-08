@@ -1,17 +1,47 @@
 module.exports = `
 <div class="rit-document">
   <h1>REGLAMENTO INTERNO DE TRABAJO</h1>
-  <div class="rit-header">
-    <p><strong>Razón Social:</strong> {{empresa_nombre}}</p>
-    <p><strong>NIT:</strong> {{empresa_nit}}</p>
-    <p><strong>Representante Legal:</strong> {{representante_legal}}</p>
-    <p><strong>Domicilio:</strong> {{ciudad_domicilio}}, {{departamento}} - {{direccion}}</p>
-    <p><strong>Actividad Económica:</strong> {{actividad_economica}}</p>
-    <p><strong>Código CIIU:</strong> {{codigo_ciiu}}</p>
-    <p><strong>Tipo de Empresa:</strong> {{tipo_empresa}}</p>
-    <p><strong>N.° de trabajadores:</strong> {{numero_trabajadores}}</p>
-    <p><strong>ARL:</strong> {{arl}} - Riesgo {{nivel_riesgo}}</p>
-  </div>
+  <table style="width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; font-family: Arial, sans-serif; margin-bottom: 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <thead>
+      <tr>
+        <th colspan="4" style="background-color: #0e7460; color: white; padding: 12px; text-align: left; font-size: 14px; font-weight: bold; text-transform: uppercase;">
+          INFORMACIÓN GENERAL DE LA EMPRESA
+        </th>
+      </tr>
+    </thead>
+    <tbody style="font-size: 13px; color: #333;">
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; width: 20%; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Razón Social:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; width: 30%; border-right: 1px solid #e0e0e0;">{{empresa_nombre}}</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; width: 20%; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">NIT:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; width: 30%;">{{empresa_nit}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Representante:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">{{representante_legal}}</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">N° Trabajadores:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">{{numero_trabajadores}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Nivel de Riesgo:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">{{nivel_riesgo}}</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">ARL:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">{{arl}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Domicilio:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">{{ciudad_domicilio}}, {{departamento}} - {{direccion}}</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Tipo de Empresa:</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0;">{{tipo_empresa}}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-right: 1px solid #e0e0e0;">Actividad Económica:</td>
+        <td style="padding: 10px; border-right: 1px solid #e0e0e0;">{{actividad_economica}}</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-right: 1px solid #e0e0e0;">Código CIIU:</td>
+        <td style="padding: 10px;">{{codigo_ciiu}}</td>
+      </tr>
+    </tbody>
+  </table>
 
   <h2>PREÁMBULO</h2>
   <p>Este Reglamento Interno de Trabajo, prescrito por {{empresa_nombre}}, domiciliada en {{ciudad_domicilio}}, rige las relaciones laborales entre la empresa y sus trabajadores, de conformidad con lo establecido en los artículos 104 a 125 del Código Sustantivo del Trabajo y la legislación colombiana vigente, incluyendo la Ley 2466 de 2025.</p>
