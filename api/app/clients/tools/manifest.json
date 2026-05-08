@@ -216,6 +216,13 @@
     "authConfig": []
   },
   {
+    "name": "Editor RIT",
+    "pluginKey": "editor_rit",
+    "description": "Editor específico para el Reglamento Interno de Trabajo (RIT). Trae inmediatamente un formato precargado con todos los capítulos y artículos. El agente solo debe editar la información solicitada usando buscar_reemplazar o editar_seccion.",
+    "icon": "https://cdn-icons-png.flaticon.com/512/6195/6195700.png",
+    "authConfig": []
+  },
+  {
     "name": "Somos SST (Ruta Bienestar)",
     "pluginKey": "somos_sst",
     "description": "Permite al agente consultar y cruzar expedientes integrales de los trabajadores (Perfil Sociodemográfico, Condiciones de Salud, Perfil del Cargo y Peligros aplicables de la Matriz IPEVAR GTC-45 en cascada).",
