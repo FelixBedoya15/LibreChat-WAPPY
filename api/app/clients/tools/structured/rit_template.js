@@ -382,4 +382,4 @@ module.exports = `
   <p>Representante Legal</p>
   <p><strong>{{empresa_nombre}}</strong></p>
 </div>
-\`;
+`;
