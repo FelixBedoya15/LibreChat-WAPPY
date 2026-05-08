@@ -1125,7 +1125,9 @@ class AgentClient extends BaseClient {
             // (e.g., "Duplicate function declaration") and should NOT be retried as a key error.
             const isInvalidKey = err?.message?.includes('API_KEY_INVALID') || err?.message?.includes('API key not valid');
             const isServiceUnavailable = err?.status === 503 || err?.message?.includes('503') ||
-              err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') || err?.message?.includes('UNAVAILABLE');
+              err?.message?.includes('overloaded') || err?.message?.includes('Service Unavailable') ||
+              err?.message?.includes('UNAVAILABLE') || err?.message?.includes('Failed to parse stream') ||
+              err?.message?.includes('parse stream') || err?.message?.includes('Failed to parse');
 
 
             attemptErrors.push(`[Key ${i + 1}]: ` + (err?.message || 'Error'));

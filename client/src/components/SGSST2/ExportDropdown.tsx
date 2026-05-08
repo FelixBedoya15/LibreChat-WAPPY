@@ -55,7 +55,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     }, [isOpen]);
 
     /**
-     * Build a full HTML document with inline styles for export.
+     * Build a full HTML document with inline styles for browser/HTML export.
      */
     const buildFullHtml = (): string => {
         return `<!DOCTYPE html>
@@ -68,7 +68,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
         @media print {
             body { margin: 0; padding: 0; background: #fff; }
             .report-wrapper { padding: 0; width: 100%; border: none !important; box-shadow: none !important; }
-            @page { margin: 1cm; size: A4; }
+            @page { margin: 1.5cm; size: A4; }
+            table { page-break-inside: avoid; }
+            h1, h2, h3 { page-break-after: avoid; }
         }
         html, body {
             margin: 0;
@@ -89,33 +91,29 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             box-sizing: border-box;
         }
         @media screen and (max-width: 600px) {
-            .report-wrapper {
-                padding: 15px 10px;
-            }
+            .report-wrapper { padding: 15px 10px; }
         }
         h1 { color: #004d99; text-align: center; margin-bottom: 5px; font-size: 1.8em; }
         h2 { color: #004d99; border-bottom: 2px solid #004d99; padding-bottom: 5px; font-size: 1.4em; }
         h3 { color: #333; font-size: 1.2em; }
         table {
             width: 100%;
-            border-collapse: separate;
+            border-collapse: collapse;
             border-spacing: 0;
-            margin: 0;
+            margin: 15px 0;
             font-size: 0.9em;
-            table-layout: auto; /* Changed to auto for responsiveness */
+            table-layout: auto;
         }
         .table-responsive {
             width: 100%;
             overflow-x: auto;
-            border-radius: 12px;
+            border-radius: 8px;
             border: 1px solid #ddd;
             margin: 15px 0;
             -webkit-overflow-scrolling: touch;
         }
         @media screen and (max-width: 600px) {
-            table {
-                min-width: 600px; /* Force minimum width to trigger scroll on mobile */
-            }
+            table { min-width: 600px; }
         }
         th {
             background-color: #004d99;
@@ -123,34 +121,148 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             padding: 10px 8px;
             text-align: left;
             font-weight: 600;
-            border-bottom: 1px solid #ddd;
-            border-right: 1px solid rgba(255,255,255,0.15);
+            border: 1px solid #003580;
         }
-        /* Specific column widths for SGSST Reports */
-        .checklist-mode th:nth-child(1) { width: 38px; } /* # - Narrowest */
-        .checklist-mode th:nth-child(2) { width: 14%; } /* Requisito / Norma */
-        .checklist-mode th:nth-child(3) { width: 44%; } /* Hallazgo (Evidencia) */
-        .checklist-mode th:nth-child(4) { width: 10%; } /* Tipo */
-        .checklist-mode th:nth-child(5) { width: 15%; } /* Responsable */
-
-        th:last-child { border-right: none; }
+        .checklist-mode th:nth-child(1) { width: 38px; }
+        .checklist-mode th:nth-child(2) { width: 14%; }
+        .checklist-mode th:nth-child(3) { width: 44%; }
+        .checklist-mode th:nth-child(4) { width: 10%; }
+        .checklist-mode th:nth-child(5) { width: 15%; }
         td {
             padding: 10px 8px;
-            border-bottom: 1px solid #ddd;
-            border-right: 1px solid #eee;
+            border: 1px solid #ddd;
             vertical-align: top;
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
-        td:last-child { border-right: none; }
-        tr:last-child td { border-bottom: none; }
         tr:nth-child(even) { background-color: #f8f9fa; }
-        tr:hover { background-color: #e8f0fe; }
     </style>
 </head>
 <body class="${reportType === 'checklist' ? 'checklist-mode' : ''}">
     <div class="report-wrapper">
         ${content.replace(/<table/g, '<div class="table-responsive"><table').replace(/<\/table>/g, '</table></div>')}
+    </div>
+</body>
+</html>`;
+    };
+
+    /**
+     * Builds a Word-optimized HTML document.
+     * Word requires:
+     *  - xmlns:o and xmlns:w XML namespaces
+     *  - ALL styles inlined on each element (Word ignores <style> sheets)
+     *  - mso-* specific CSS for proper Word rendering
+     *  - border-collapse on tables (not border-spacing)
+     */
+    const buildWordHtml = (): string => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<div>${content}</div>`, 'text/html');
+        const root = doc.body.firstElementChild!;
+
+        root.querySelectorAll('h1').forEach(el => {
+            el.setAttribute('style', [
+                'color:#004d99', 'text-align:center', 'font-size:22pt',
+                'font-family:Calibri,Arial,sans-serif', 'font-weight:bold',
+                'margin:12pt 0 6pt 0', 'mso-style-name:Heading1',
+            ].join(';'));
+        });
+        root.querySelectorAll('h2').forEach(el => {
+            el.setAttribute('style', [
+                'color:#004d99', 'font-size:16pt',
+                'font-family:Calibri,Arial,sans-serif', 'font-weight:bold',
+                'border-bottom:2px solid #004d99', 'padding-bottom:4pt',
+                'margin:10pt 0 4pt 0',
+            ].join(';'));
+        });
+        root.querySelectorAll('h3').forEach(el => {
+            el.setAttribute('style', [
+                'color:#333333', 'font-size:13pt',
+                'font-family:Calibri,Arial,sans-serif', 'font-weight:bold',
+                'margin:8pt 0 4pt 0',
+            ].join(';'));
+        });
+        root.querySelectorAll('p').forEach(el => {
+            if (!el.getAttribute('style')) {
+                el.setAttribute('style', 'font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:4pt 0;line-height:1.5;');
+            }
+        });
+        root.querySelectorAll('table').forEach(table => {
+            table.setAttribute('style', [
+                'width:100%', 'border-collapse:collapse',
+                'mso-border-alt:solid #DDDDDD .5pt',
+                'font-family:Calibri,Arial,sans-serif',
+                'font-size:10pt', 'margin:8pt 0',
+            ].join(';'));
+            table.setAttribute('border', '1');
+            table.setAttribute('cellspacing', '0');
+            table.setAttribute('cellpadding', '0');
+        });
+        root.querySelectorAll('th').forEach(th => {
+            th.setAttribute('style', [
+                'background-color:#004d99', 'color:#FFFFFF', 'font-weight:bold',
+                'padding:6pt 8pt', 'border:1pt solid #003580', 'text-align:left',
+                'font-family:Calibri,Arial,sans-serif', 'font-size:10pt',
+                'mso-background-source:auto', 'mso-pattern:auto', 'vertical-align:middle',
+            ].join(';'));
+        });
+        root.querySelectorAll('td').forEach((td) => {
+            const row = td.closest('tr');
+            const rowIndex = row ? Array.from(row.parentElement?.children || []).indexOf(row) : 0;
+            const isEven = rowIndex % 2 === 0;
+            const existing = td.getAttribute('style') || '';
+            const hasBg = existing.includes('background');
+            td.setAttribute('style', [
+                'padding:5pt 8pt', 'border:1pt solid #DDDDDD', 'vertical-align:top',
+                'font-family:Calibri,Arial,sans-serif', 'font-size:10pt', 'word-wrap:break-word',
+                hasBg ? existing : (isEven ? 'background-color:#F8F9FA' : 'background-color:#FFFFFF'),
+            ].join(';'));
+        });
+        root.querySelectorAll('li').forEach(el => {
+            el.setAttribute('style', 'font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:2pt 0;');
+        });
+        root.querySelectorAll('strong, b').forEach(el => { el.setAttribute('style', 'font-weight:bold;'); });
+        root.querySelectorAll('em, i').forEach(el => { el.setAttribute('style', 'font-style:italic;'); });
+
+        const styledContent = root.innerHTML;
+
+        return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+    <meta charset="UTF-8">
+    <meta name="ProgId" content="Word.Document">
+    <meta name="Generator" content="Microsoft Word 15">
+    <meta name="Originator" content="Microsoft Word 15">
+    <title>${fileName}</title>
+    <!--[if gte mso 9]>
+    <xml>
+        <o:OfficeDocumentSettings><o:AllowPNG/></o:OfficeDocumentSettings>
+    </xml>
+    <xml>
+        <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <style>
+        @page WordSection1 {
+            size: 21cm 29.7cm;
+            margin: 2cm 2.5cm 2cm 2.5cm;
+            mso-header-margin: 1cm;
+            mso-footer-margin: 1cm;
+            mso-paper-source: 0;
+        }
+        body { font-family:Calibri,Arial,sans-serif; font-size:11pt; color:#222222; line-height:1.5; background:#ffffff; div:WordSection1; }
+        table { border-collapse:collapse !important; width:100% !important; }
+        th { background-color:#004d99 !important; color:#ffffff !important; }
+    </style>
+</head>
+<body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;background:#ffffff;">
+    <div style="max-width:100%;padding:0;margin:0;" class="WordSection1">
+        ${styledContent}
     </div>
 </body>
 </html>`;
@@ -216,21 +328,28 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     };
 
     /**
-     * Export as Word (.doc) — uses MHTML format which Word can open with full styling.
-     * This preserves tables, colors, fonts, and layout.
+     * Export as Word (.doc) — uses Word XML HTML with fully inlined styles.
+     * Word requires xmlns:o and xmlns:w namespaces, inline styles, and mso-* properties.
      */
     const handleExportWord = () => {
-        const fullHtml = buildFullHtml();
+        const wordHtml = buildWordHtml();
 
-        // Word-compatible MHTML wrapper
-        const header = `MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="----=_NextBoundary"\r\n\r\n------=_NextBoundary\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n`;
-        const footer = `\r\n------=_NextBoundary--`;
+        const boundary = '----=_NextPart_000_0000_01D00000.00000000';
+        const mhtml = [
+            'MIME-Version: 1.0',
+            `Content-Type: multipart/related; type="text/html"; boundary="${boundary}"`,
+            '',
+            `--${boundary}`,
+            'Content-Type: text/html; charset="utf-8"',
+            'Content-Transfer-Encoding: 8bit',
+            'Content-Location: file:///document.htm',
+            '',
+            wordHtml,
+            '',
+            `--${boundary}--`,
+        ].join('\r\n');
 
-        const mhtmlContent = header + fullHtml + footer;
-
-        const blob = new Blob(['\ufeff' + mhtmlContent], {
-            type: 'application/msword'
-        });
+        const blob = new Blob([mhtml], { type: 'application/msword' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -243,24 +362,34 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     };
 
     /**
-     * Export as PDF — opens HTML in a new window and triggers print dialog.
+     * Export as PDF — opens a styled print window and triggers print dialog.
+     * Waits for fonts/images to load before printing to ensure fidelity.
      */
     const handleExportPdf = () => {
         const fullHtml = buildFullHtml();
         const printWindow = window.open('', '_blank');
         if (printWindow) {
+            printWindow.document.open();
             printWindow.document.write(fullHtml);
             printWindow.document.close();
-            // Wait for content to render before printing
-            printWindow.onload = () => {
+
+            const triggerPrint = () => {
                 setTimeout(() => {
-                    printWindow.print();
-                }, 500);
+                    try {
+                        printWindow.focus();
+                        printWindow.print();
+                    } catch (e) {
+                        console.warn('Print failed:', e);
+                    }
+                }, 600);
             };
-            // Fallback if onload doesn't trigger (already loaded)
-            setTimeout(() => {
-                printWindow.print();
-            }, 1500);
+
+            if (printWindow.document.readyState === 'complete') {
+                triggerPrint();
+            } else {
+                printWindow.onload = triggerPrint;
+                setTimeout(triggerPrint, 2000);
+            }
         }
         setIsOpen(false);
     };
