@@ -85,7 +85,7 @@ function ChatView({ index = 0 }: { index?: number }) {
   // ── EDITOR LIVE: open only when user explicitly toggles it ON ────────────
   const isEditorLiveActive = React.useMemo(() => {
     const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
-    return tools.includes('editor_live');
+    return tools.includes('editor_live') || tools.includes('editor_rit');
   }, [ephemeralAgent]);
 
 
