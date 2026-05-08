@@ -148,80 +148,132 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
 
     /**
      * Builds a Word-optimized HTML document.
-     * Word requires:
-     *  - xmlns:o and xmlns:w XML namespaces
-     *  - ALL styles inlined on each element (Word ignores <style> sheets)
-     *  - mso-* specific CSS for proper Word rendering
-     *  - border-collapse on tables (not border-spacing)
+     *
+     * KEY STRATEGY: PRESERVE all existing inline styles from the editor (colors, widths,
+     * backgrounds) and MERGE Word-specific properties on top. Editor styles always win
+     * for visual appearance. Only adds missing Word/mso-* properties.
      */
     const buildWordHtml = (): string => {
+        const parseStyle = (style: string): Record<string, string> => {
+            const result: Record<string, string> = {};
+            style.split(';').forEach(part => {
+                const idx = part.indexOf(':');
+                if (idx === -1) return;
+                const key = part.slice(0, idx).trim().toLowerCase();
+                const val = part.slice(idx + 1).trim();
+                if (key && val) result[key] = val;
+            });
+            return result;
+        };
+        const serializeStyle = (map: Record<string, string>): string =>
+            Object.entries(map).map(([k, v]) => `${k}:${v}`).join(';');
+        const mergeStyles = (base: Record<string, string>, override: Record<string, string>): Record<string, string> =>
+            ({ ...base, ...override });
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(`<div>${content}</div>`, 'text/html');
         const root = doc.body.firstElementChild!;
 
         root.querySelectorAll('h1').forEach(el => {
-            el.setAttribute('style', [
-                'color:#004d99', 'text-align:center', 'font-size:22pt',
-                'font-family:Calibri,Arial,sans-serif', 'font-weight:bold',
-                'margin:12pt 0 6pt 0', 'mso-style-name:Heading1',
-            ].join(';'));
+            const existing = parseStyle(el.getAttribute('style') || '');
+            const merged = mergeStyles({ color: '#004d99', 'text-align': 'center', 'font-size': '22pt', 'font-weight': 'bold', 'margin': '12pt 0 6pt 0' }, existing);
+            merged['font-family'] = 'Calibri,Arial,sans-serif';
+            merged['mso-style-name'] = 'Heading1';
+            el.setAttribute('style', serializeStyle(merged));
         });
         root.querySelectorAll('h2').forEach(el => {
-            el.setAttribute('style', [
-                'color:#004d99', 'font-size:16pt',
-                'font-family:Calibri,Arial,sans-serif', 'font-weight:bold',
-                'border-bottom:2px solid #004d99', 'padding-bottom:4pt',
-                'margin:10pt 0 4pt 0',
-            ].join(';'));
+            const existing = parseStyle(el.getAttribute('style') || '');
+            const merged = mergeStyles({ color: '#004d99', 'font-size': '16pt', 'font-weight': 'bold', 'border-bottom': '2pt solid #004d99', 'padding-bottom': '4pt', 'margin': '10pt 0 4pt 0' }, existing);
+            merged['font-family'] = 'Calibri,Arial,sans-serif';
+            el.setAttribute('style', serializeStyle(merged));
         });
         root.querySelectorAll('h3').forEach(el => {
-            el.setAttribute('style', [
-                'color:#333333', 'font-size:13pt',
-                'font-family:Calibri,Arial,sans-serif', 'font-weight:bold',
-                'margin:8pt 0 4pt 0',
-            ].join(';'));
+            const existing = parseStyle(el.getAttribute('style') || '');
+            const merged = mergeStyles({ color: '#333333', 'font-size': '13pt', 'font-weight': 'bold', 'margin': '8pt 0 4pt 0' }, existing);
+            merged['font-family'] = 'Calibri,Arial,sans-serif';
+            el.setAttribute('style', serializeStyle(merged));
         });
         root.querySelectorAll('p').forEach(el => {
-            if (!el.getAttribute('style')) {
-                el.setAttribute('style', 'font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:4pt 0;line-height:1.5;');
-            }
+            const existing = parseStyle(el.getAttribute('style') || '');
+            const merged = mergeStyles({ 'font-family': 'Calibri,Arial,sans-serif', 'font-size': '11pt', 'margin': '4pt 0', 'line-height': '1.5' }, existing);
+            el.setAttribute('style', serializeStyle(merged));
         });
+
         root.querySelectorAll('table').forEach(table => {
-            table.setAttribute('style', [
-                'width:100%', 'border-collapse:collapse',
-                'mso-border-alt:solid #DDDDDD .5pt',
-                'font-family:Calibri,Arial,sans-serif',
-                'font-size:10pt', 'margin:8pt 0',
-            ].join(';'));
+            const existing = parseStyle(table.getAttribute('style') || '');
+            const forced: Record<string, string> = {
+                'width': '100%', 'border-collapse': 'collapse', 'border-spacing': '0',
+                'font-family': 'Calibri,Arial,sans-serif', 'font-size': '10pt',
+                'margin': '8pt 0', 'mso-border-alt': 'solid #CCCCCC .5pt',
+            };
+            const merged = mergeStyles(existing, forced);
+            delete merged['border-radius']; delete merged['border-spacing'];
+            delete merged['box-shadow']; delete merged['overflow'];
+            table.setAttribute('style', serializeStyle(merged));
             table.setAttribute('border', '1');
             table.setAttribute('cellspacing', '0');
             table.setAttribute('cellpadding', '0');
         });
+
+        // TH: preserve editor colors (teal, navy, etc.), only add Word-specific props
         root.querySelectorAll('th').forEach(th => {
-            th.setAttribute('style', [
-                'background-color:#004d99', 'color:#FFFFFF', 'font-weight:bold',
-                'padding:6pt 8pt', 'border:1pt solid #003580', 'text-align:left',
-                'font-family:Calibri,Arial,sans-serif', 'font-size:10pt',
-                'mso-background-source:auto', 'mso-pattern:auto', 'vertical-align:middle',
-            ].join(';'));
+            const existing = parseStyle(th.getAttribute('style') || '');
+            const wordAdditions: Record<string, string> = {
+                'font-family': 'Calibri,Arial,sans-serif', 'font-weight': 'bold',
+                'padding': '6pt 8pt', 'border': '1pt solid #CCCCCC',
+                'mso-background-source': 'auto', 'mso-pattern': 'auto',
+                'vertical-align': 'middle', 'text-align': 'left',
+            };
+            const merged = mergeStyles(wordAdditions, existing); // editor wins
+            if (!merged['font-family']) merged['font-family'] = 'Calibri,Arial,sans-serif';
+            if (!merged['mso-background-source']) merged['mso-background-source'] = 'auto';
+            if (!merged['mso-pattern']) merged['mso-pattern'] = 'auto';
+            delete merged['border-radius']; delete merged['box-shadow'];
+            th.setAttribute('style', serializeStyle(merged));
         });
-        root.querySelectorAll('td').forEach((td) => {
-            const row = td.closest('tr');
-            const rowIndex = row ? Array.from(row.parentElement?.children || []).indexOf(row) : 0;
-            const isEven = rowIndex % 2 === 0;
-            const existing = td.getAttribute('style') || '';
-            const hasBg = existing.includes('background');
-            td.setAttribute('style', [
-                'padding:5pt 8pt', 'border:1pt solid #DDDDDD', 'vertical-align:top',
-                'font-family:Calibri,Arial,sans-serif', 'font-size:10pt', 'word-wrap:break-word',
-                hasBg ? existing : (isEven ? 'background-color:#F8F9FA' : 'background-color:#FFFFFF'),
-            ].join(';'));
+
+        // TD: preserve editor colors, widths, backgrounds
+        root.querySelectorAll('td').forEach(td => {
+            const existing = parseStyle(td.getAttribute('style') || '');
+            const wordAdditions: Record<string, string> = {
+                'font-family': 'Calibri,Arial,sans-serif', 'font-size': '10pt',
+                'padding': '5pt 8pt', 'border': '1pt solid #DDDDDD',
+                'vertical-align': 'top', 'word-wrap': 'break-word',
+            };
+            const merged = mergeStyles(wordAdditions, existing); // editor wins
+            delete merged['border-radius']; delete merged['box-shadow']; delete merged['transition'];
+            td.setAttribute('style', serializeStyle(merged));
         });
+
+        root.querySelectorAll('tr').forEach(tr => {
+            const existing = parseStyle(tr.getAttribute('style') || '');
+            delete existing['border-radius']; delete existing['box-shadow']; delete existing['transition'];
+            if (Object.keys(existing).length > 0) tr.setAttribute('style', serializeStyle(existing));
+        });
+
         root.querySelectorAll('li').forEach(el => {
-            el.setAttribute('style', 'font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:2pt 0;');
+            const existing = parseStyle(el.getAttribute('style') || '');
+            const merged = mergeStyles({ 'font-family': 'Calibri,Arial,sans-serif', 'font-size': '11pt', 'margin': '2pt 0' }, existing);
+            el.setAttribute('style', serializeStyle(merged));
         });
-        root.querySelectorAll('strong, b').forEach(el => { el.setAttribute('style', 'font-weight:bold;'); });
-        root.querySelectorAll('em, i').forEach(el => { el.setAttribute('style', 'font-style:italic;'); });
+        root.querySelectorAll('strong, b').forEach(el => {
+            const existing = parseStyle(el.getAttribute('style') || '');
+            existing['font-weight'] = 'bold';
+            el.setAttribute('style', serializeStyle(existing));
+        });
+        root.querySelectorAll('em, i').forEach(el => {
+            const existing = parseStyle(el.getAttribute('style') || '');
+            existing['font-style'] = 'italic';
+            el.setAttribute('style', serializeStyle(existing));
+        });
+        root.querySelectorAll('div').forEach(div => {
+            const existing = parseStyle(div.getAttribute('style') || '');
+            delete existing['border-radius']; delete existing['box-shadow'];
+            delete existing['overflow']; delete existing['transition'];
+            delete existing['-webkit-overflow-scrolling'];
+            if (!existing['font-family']) existing['font-family'] = 'Calibri,Arial,sans-serif';
+            if (Object.keys(existing).length > 0) div.setAttribute('style', serializeStyle(existing));
+        });
 
         const styledContent = root.innerHTML;
 
@@ -237,7 +289,10 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
     <title>${fileName}</title>
     <!--[if gte mso 9]>
     <xml>
-        <o:OfficeDocumentSettings><o:AllowPNG/></o:OfficeDocumentSettings>
+        <o:OfficeDocumentSettings>
+            <o:AllowPNG/>
+            <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
     </xml>
     <xml>
         <w:WordDocument>
@@ -255,9 +310,9 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             mso-footer-margin: 1cm;
             mso-paper-source: 0;
         }
-        body { font-family:Calibri,Arial,sans-serif; font-size:11pt; color:#222222; line-height:1.5; background:#ffffff; div:WordSection1; }
-        table { border-collapse:collapse !important; width:100% !important; }
-        th { background-color:#004d99 !important; color:#ffffff !important; }
+        body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #222222; line-height: 1.5; background: #ffffff; }
+        div.WordSection1 { page: WordSection1; }
+        table { border-collapse: collapse !important; width: 100% !important; }
     </style>
 </head>
 <body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222222;background:#ffffff;">
@@ -267,6 +322,7 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
 </body>
 </html>`;
     };
+
 
     /**
      * Export as HTML — opens in a new browser tab with full styling.
