@@ -44,368 +44,432 @@ module.exports = `
   </table>
 
   <h2>PREÁMBULO</h2>
-  <p>Este Reglamento Interno de Trabajo, prescrito por {{empresa_nombre}}, domiciliada en {{ciudad_domicilio}}, rige las relaciones laborales entre la empresa y sus trabajadores, de conformidad con lo establecido en los artículos 104 a 125 del Código Sustantivo del Trabajo y la legislación colombiana vigente, incluyendo la Ley 2466 de 2025.</p>
+  <p>El presente Reglamento Interno de Trabajo, prescrito por <strong>{{empresa_nombre}}</strong>, empresa legalmente constituida en Colombia e identificada con NIT <strong>{{empresa_nit}}</strong>, domiciliada en <strong>{{ciudad_domicilio}}, {{departamento}}</strong>, hace parte integral de los contratos de trabajo individuales, verbales o escritos, celebrados o que se celebren con todos sus trabajadores. El empleador y el trabajador se someten estrictamente a las disposiciones de este reglamento, así como al Código Sustantivo del Trabajo (CST), sus decretos reglamentarios, las leyes 1010 de 2006, 2191 de 2022, 2365 de 2024, 2396 de 2024, y la Ley 2466 de 2025 (Reforma Laboral), en todo lo que no resulte contrario a los derechos mínimos e irrenunciables de los trabajadores garantizados por la Constitución Política de Colombia.</p>
+  <p>Este documento tiene como finalidad fundamental regular y definir las condiciones que deben sujetar al empleador y a los trabajadores en el desempeño de las labores, promoviendo el respeto, la sana convivencia, la prevención del acoso laboral y sexual, y el desarrollo de un entorno de trabajo digno y justo, en consonancia con los principios de la Organización Internacional del Trabajo (OIT).</p>
 
   <h2>CAPÍTULO I — DEL EMPLEADOR, TRABAJADORES Y TIPOS DE CONTRATO</h2>
   <h3>Art. 1° Identificación del empleador, domicilio y actividad</h3>
-  <p>[El empleador es {{empresa_nombre}} con NIT {{empresa_nit}} y domicilio en {{ciudad_domicilio}} dedicada a {{actividad_economica}}]</p>
-  
+  <p>El empleador de las personas que prestan sus servicios a la empresa es <strong>{{empresa_nombre}}</strong>, identificada con NIT <strong>{{empresa_nit}}</strong>, constituida como una sociedad comercial de tipo <strong>{{tipo_empresa}}</strong>. El domicilio principal de la empresa es <strong>{{ciudad_domicilio}}, {{departamento}}</strong> en la dirección <strong>{{direccion}}</strong>. La actividad económica principal de la compañía es <strong>{{actividad_economica}}</strong>, bajo el Código CIIU <strong>{{codigo_ciiu}}</strong>. Las disposiciones de este reglamento aplican tanto para los trabajadores del domicilio principal como para las sucursales, agencias o dependencias que operen a nivel nacional o internacional donde presten servicio los empleados de la misma.</p>
+
   <h3>Art. 2° Ámbito de aplicación del reglamento</h3>
-  <p>[Aplica a todos los trabajadores de la empresa independientemente de su tipo de contrato o modalidad de trabajo]</p>
-  
+  <p>El presente Reglamento se aplica y resulta de obligatorio cumplimiento para todos los trabajadores que se encuentren vinculados o se vinculen en el futuro a la empresa, sin importar el tipo de contrato (término fijo, término indefinido, obra o labor, aprendizaje, accidental), la modalidad de prestación del servicio (presencial, teletrabajo, trabajo remoto, trabajo en casa, trabajo a domicilio) ni la jerarquía que ocupen dentro de la organización.</p>
+
   <h3>Art. 3° Condiciones de admisión de nuevos trabajadores</h3>
-  <p>[Requisitos y documentos necesarios para el ingreso a la empresa]</p>
-  
+  <p>Quien aspire a desempeñar un cargo en <strong>{{empresa_nombre}}</strong> deberá someterse al proceso de selección establecido por la compañía. Para su admisión, deberá presentar los siguientes documentos: 1. Hoja de vida actualizada. 2. Copia del documento de identidad. 3. Soportes de estudios, certificaciones académicas y experiencia laboral. 4. Examen médico ocupacional de ingreso con concepto de aptitud expedido por el médico especialista en SST designado por la empresa. 5. Certificado de afiliación a EPS y Fondo de Pensiones a los cuales se encontraba afiliado o desea afiliarse. 6. Referencias personales y laborales. La empresa se reserva el derecho de admitir o rechazar al aspirante basado en la comprobación y veracidad de estos requisitos.</p>
+
   <h3>Art. 4° Período de prueba</h3>
-  <p>[El período de prueba será máximo de 2 meses. No aplica para contratos inferiores a 1 año sin proporción]</p>
-  
+  <p>El período de prueba tiene por objeto apreciar por parte de la empresa las aptitudes del trabajador, y por parte de este, las conveniencias de las condiciones de trabajo (Art. 76 CST). El período de prueba se estipulará siempre por escrito y en ningún caso excederá de dos (2) meses. Tratándose de contratos a término fijo cuya duración sea inferior a un (1) año, el período de prueba no podrá ser superior a la quinta parte (1/5) del término inicialmente pactado para el respectivo contrato, sin que pueda exceder de dos meses (Art. 78 CST). Durante el período de prueba, el contrato puede darse por terminado unilateralmente por cualquiera de las partes sin previo aviso ni pago de indemnización alguna.</p>
+
   <h3>Art. 5° Trabajadores accidentales o transitorios</h3>
-  <p>[Definición y derechos de trabajadores accidentales o transitorios]</p>
-  
+  <p>Son trabajadores accidentales o transitorios aquellos que se contratan para la ejecución de labores de corta duración, no mayores de un (1) mes, que se refieren a actividades distintas de las actividades normales o misionales del empleador (Art. 6 CST). Estos trabajadores gozarán de todos los derechos fundamentales laborales mínimos de ley mientras presten su servicio a la empresa.</p>
+
   <h3>Art. 6° Contrato de aprendizaje SENA</h3>
-  <p>[Condiciones según Ley 2466/2025, apoyo de sostenimiento, seguridad social y prestaciones plenas en etapa práctica]</p>
-  
+  <p>La relación de aprendizaje es una forma especial de vinculación laboral conforme a lo estipulado por la Ley 2466 de 2025. Los aprendices vinculados mediante contrato de aprendizaje tendrán pleno derecho a la afiliación en salud y riesgos laborales en su fase lectiva, y en la fase práctica contarán además con derecho al pago de todas las prestaciones sociales de ley, cotización al sistema integral de seguridad social sobre un valor no inferior a un (1) SMMLV, o la proporción correspondiente, reconociéndose así la existencia de una vinculación de tipo laboral en condiciones de protección bajo el marco de la reforma laboral vigente.</p>
+
   <h3>Art. 7° Teletrabajo, trabajo remoto y trabajo en casa</h3>
-  <p>[Disposiciones sobre Ley 1221/2008 y Ley 2121/2021]</p>
-  
+  <p>La empresa, conforme a la Ley 1221 de 2008, la Ley 2088 de 2021 y la Ley 2121 de 2021, podrá acordar modalidades de prestación del servicio a distancia. El trabajador remoto, teletrabajador o quien trabaje en casa, deberá cumplir a cabalidad con sus responsabilidades, atender los requerimientos en su jornada ordinaria y velar por el correcto mantenimiento de las herramientas de trabajo proporcionadas por el empleador, si las hubiere. Se garantizará plenamente el principio de igualdad y no discriminación frente a los trabajadores presenciales, preservando la desconexión laboral y las medidas de SST.</p>
+
   <h3>Art. 8° Trabajo en plataformas digitales</h3>
-  <p>[Disposiciones sobre formalización laboral Ley 2466/2025, si aplica]</p>
-  
+  <p>En el evento en que la empresa opere a través de plataformas digitales de reparto o servicios similares, se dará estricto cumplimiento a las disposiciones de formalización laboral establecidas en la Ley 2466 de 2025. Se reconocerá el vínculo laboral de los trabajadores, su afiliación al Sistema de Seguridad Social Integral y los derechos de sindicalización y negociación colectiva.</p>
+
   <h3>Art. 9° Orden jerárquico del personal</h3>
-  <p>[Orden jerárquico a definir en las preguntas interactivas]</p>
+  <p>A nivel de dirección, control y ejecución, la organización administrativa de <strong>{{empresa_nombre}}</strong> comprende el siguiente orden jerárquico general, desde los cargos de mayor a menor autoridad:</p>
+  <ul>
+    <li>Representante Legal / Gerencia General</li>
+    <li>Direcciones de Área</li>
+    <li>Coordinaciones / Jefaturas</li>
+    <li>Supervisores</li>
+    <li>Profesionales, Técnicos, Operativos y Auxiliares</li>
+  </ul>
+  <p><strong>Cadena de mando específica:</strong><br>
+  {{orden_jerarquico}}</p>
 
   <h2>CAPÍTULO II — JORNADA DE TRABAJO</h2>
   <h3>Art. 10° Jornada ordinaria</h3>
-  <p>[La jornada será la máxima legal (42 horas desde 15 jul. 2026) o menor según acuerdo]</p>
-  
+  <p>La jornada ordinaria de trabajo es la que convengan las partes, o a falta de convenio, la jornada máxima legal. Conforme a lo dispuesto en la Ley 2101 de 2021 y reforzado en la legislación laboral vigente (Ley 2466 de 2025), la jornada máxima de trabajo a partir de julio de 2026 será de cuarenta y dos (42) horas semanales. Esta jornada podrá ser distribuida en mutuo acuerdo, en 5 o 6 días a la semana garantizando el día de descanso. Aquellos trabajadores de dirección, confianza y manejo están excluidos de la jornada máxima legal de acuerdo con el Art. 162 del CST.</p>
+
   <h3>Art. 11° Horarios de entrada y salida / Turnos rotativos</h3>
-  <p>[Horarios específicos de la empresa]</p>
-  
+  <p>El empleador podrá establecer y modificar los horarios y turnos de trabajo según las necesidades operativas, respetando la jornada máxima, mediante un preaviso razonable a los trabajadores. Los horarios de entrada y salida, así como los descansos, se definirán de forma específica en cada dependencia. Cuando la naturaleza de la labor lo requiera, la empresa podrá implementar sistemas de turnos de trabajo sucesivos y rotativos.</p>
+
   <h3>Art. 12° Jornada nocturna</h3>
-  <p>[Inicia a las 7:00 p.m. y termina a las 6:00 a.m. vigente desde 25 dic. 2025 según Ley 2466/2025]</p>
-  
+  <p>Conforme a la Ley 2466 de 2025, el trabajo diurno está comprendido entre las seis horas (6:00 a.m.) y las diecinueve horas (7:00 p.m.). El trabajo nocturno es aquel que se realiza entre las diecinueve horas (7:00 p.m.) y las seis horas (6:00 a.m.) del día siguiente. El trabajo nocturno generará los recargos legales correspondientes sobre el valor ordinario de la hora.</p>
+
   <h3>Art. 13° Períodos para comidas y descansos dentro de la jornada</h3>
-  <p>[Tiempos de descanso y alimentación]</p>
-  
+  <p>Durante cada jornada de trabajo, la empresa otorgará los tiempos de descanso necesarios que exija la naturaleza de la labor. Se dispondrá de un período no inferior a treinta (30) minutos continuos para que los trabajadores tomen sus alimentos y descansen, tiempo que en ningún caso se computará como parte integral de la jornada de trabajo (Art. 167 CST), a menos que por acuerdo previo se establezca lo contrario.</p>
+
   <h3>Art. 14° Horas extras y trabajo suplementario</h3>
-  <p>[Autorización, límites diarios/semanales y recargos aplicables]</p>
-  
+  <p>Trabajo suplementario o de horas extras es aquel que excede de la jornada ordinaria o de la máxima legal. No se reconocerá pago de horas extras que no hayan sido previa y expresamente autorizadas por escrito por el jefe inmediato. El empleador solo podrá exigir la prestación de servicios en tiempo suplementario dentro de los límites establecidos en la ley (no más de dos horas diarias ni doce semanales). El pago se realizará con los recargos correspondientes de acuerdo con la hora diurna o nocturna.</p>
+
   <h3>Art. 15° Recargos nocturnos, dominicales y festivos</h3>
-  <p>[Escala gradual Ley 2466/2025: 80% en 2025, 90% en jul. 2026, 100% en 2027]</p>
-  
-  <h3>Art. 16° Trabajadoras domésticas</h3>
-  <p>[Derecho pleno a jornada máxima, recargos nocturnos, dominicales y festivos]</p>
-  
+  <p>El trabajo realizado en domingo o en día de fiesta de descanso obligatorio, generará un recargo sobre el salario ordinario en proporción a las horas laboradas, de conformidad con la implementación progresiva dispuesta por la Ley 2466 de 2025 (80% a partir de julio 2025; 90% a partir de julio de 2026; 100% a partir de julio de 2027). El trabajo que combine horas extras con recargo dominical/festivo o nocturno se pagará liquidando los recargos de forma acumulativa conforme a la ley.</p>
+
+  <h3>Art. 16° Trabajadores del servicio doméstico y cuidado</h3>
+  <p>Todo el personal contratado por la empresa que ejerza labores de servicio doméstico o cuidado tendrá plenos derechos respecto a la jornada máxima legal vigente, reconocimiento de horas extras y recargos por trabajo nocturno, dominical y festivo, equiparándose sus derechos laborales a los del resto de los trabajadores de la empresa, de conformidad con la Ley 2466 de 2025.</p>
+
   <h3>Art. 17° Registro y control de asistencia</h3>
-  <p>[Mecanismos de control de ingresos y salidas]</p>
+  <p>Todos los trabajadores están obligados a registrar personal e intransferiblemente su asistencia al iniciar y finalizar su jornada laboral mediante los mecanismos dispuestos por la empresa (biométricos, aplicaciones, planillas, etc.). El incumplimiento de esta obligación sin causa justificada o la alteración de los registros de asistencia constituirán falta disciplinaria.</p>
 
   <h2>CAPÍTULO III — DESCONEXIÓN LABORAL DIGITAL (Ley 2191/2022)</h2>
   <h3>Art. 18° Derecho a la desconexión laboral</h3>
-  <p>[Garantía de no contacto fuera de la jornada ordinaria salvo fuerza mayor]</p>
-  
+  <p>Se garantiza el legítimo derecho de los trabajadores a la desconexión laboral digital. Una vez finalizada la jornada ordinaria de trabajo y durante los períodos de descanso remunerado, licencias, vacaciones y festivos, el trabajador tiene el derecho a no tener contacto laboral, no responder comunicaciones o requerimientos relacionados con su empleo, y a que la empresa respete su tiempo de descanso y vida familiar o personal.</p>
+
   <h3>Art. 19° Protocolo de desconexión</h3>
-  <p>[Canales de comunicación permitidos y horarios de respuesta]</p>
-  
+  <p>El empleador, los jefes inmediatos y supervisores deberán abstenerse de enviar correos electrónicos, mensajes de WhatsApp u otras aplicaciones de mensajería, o realizar llamadas fuera del horario laboral. Si por automatización de correos algún mensaje es recibido fuera de horario, el trabajador no estará en la obligación de leerlo ni responderlo hasta el inicio de su siguiente jornada hábil. No podrá haber ninguna repercusión negativa o sanción por no responder requerimientos fuera del horario.</p>
+
   <h3>Art. 20° Excepciones de fuerza mayor o caso fortuito</h3>
-  <p>[Definición de situaciones excepcionales]</p>
-  
+  <p>Quedan exceptuados del derecho a la desconexión laboral estricta: 1) Los trabajadores que desempeñen cargos de dirección, confianza y manejo. 2) Quienes, por la naturaleza de su actividad o soporte técnico urgente, deban tener disponibilidad (soportes pagados mediante acuerdos de disponibilidad). 3) Situaciones inminentes de fuerza mayor o caso fortuito que pongan en peligro inminente la operación de la empresa, bienes o la salud de las personas. En estos últimos casos, el contacto debe limitarse estrictamente a lo necesario para solucionar la emergencia y el tiempo dedicado deberá compensarse o pagarse como jornada suplementaria si corresponde.</p>
+
   <h3>Art. 21° Medidas frente a la vulneración del derecho a la desconexión</h3>
-  <p>[Mecanismos de reporte y atención de vulneraciones]</p>
+  <p>Las vulneraciones reiteradas y comprobadas al derecho a la desconexión laboral podrán ser consideradas como conducta constitutiva de acoso laboral ante las autoridades competentes. Cualquier trabajador que vea vulnerado este derecho de manera constante podrá elevar su queja ante el Comité de Convivencia Laboral de la empresa para que este inicie el procedimiento conciliatorio correspondiente.</p>
 
   <h2>CAPÍTULO IV — DESCANSOS, VACACIONES Y LICENCIAS</h2>
   <h3>Art. 22° Descanso dominical remunerado</h3>
-  <p>[Condiciones para el descanso dominical remunerado]</p>
-  
+  <p>El empleador está obligado a dar descanso dominical remunerado a todos sus trabajadores. El descanso tendrá una duración mínima de veinticuatro (24) horas. Para tener derecho al descanso dominical remunerado el trabajador debe haber laborado todos los días de su jornada semanal, o haber faltado por justa causa, culpa o disposición del empleador. Quien trabaje habitualmente u ocasionalmente en domingos, tendrá derecho a un descanso compensatorio o pago extraordinario según disponga el Código Sustantivo del Trabajo.</p>
+
   <h3>Art. 23° Descanso en días festivos</h3>
-  <p>[Condiciones para el descanso en festivos]</p>
-  
+  <p>Serán días de descanso obligatorio remunerado aquellos estipulados por la ley colombiana como festivos civiles o religiosos. Si por necesidades del servicio el trabajador debe laborar en un día festivo, tendrá derecho a la respectiva remuneración con los recargos previstos por la Ley 2466 de 2025 para el momento en que se cause.</p>
+
   <h3>Art. 24° Vacaciones anuales</h3>
-  <p>[15 días hábiles remunerados por cada año de servicio]</p>
-  
+  <p>Los trabajadores que hubieren prestado sus servicios durante un (1) año consecutivo tienen derecho a quince (15) días hábiles consecutivos de vacaciones remuneradas. La época de disfrute de las vacaciones deberá ser señalada por el empleador, a más tardar dentro del año subsiguiente, concediéndolas de forma oficiosa o por petición del trabajador, con una antelación no menor a quince (15) días. El trabajador debe disfrutar mínimo seis (6) días continuos al año.</p>
+
   <h3>Art. 25° Compensación de vacaciones en dinero</h3>
-  <p>[Condiciones para compensar hasta la mitad de las vacaciones]</p>
-  
+  <p>Queda prohibido compensar totalmente las vacaciones en dinero. Sin embargo, a petición escrita del trabajador, el empleador podrá autorizar la compensación en dinero de hasta la mitad (7.5 días) de las vacaciones a que tiene derecho cada año. A la terminación del contrato de trabajo se liquidarán y pagarán en dinero las vacaciones pendientes proporcionalmente al tiempo laborado.</p>
+
   <h3>Art. 26° Licencia de maternidad</h3>
-  <p>[18 semanas según Ley 1822/2017]</p>
-  
+  <p>Toda trabajadora en estado de embarazo tiene derecho a una licencia de dieciocho (18) semanas en la época de parto, remunerada con el salario que devengue al entrar a disfrutar del descanso. Al menos una (1) o dos (2) semanas deberán tomarse de forma preparto. Esta licencia se extenderá también a las madres adoptantes y a los casos de aborto no provocado conforme a lo estipulado por la Ley 1822 de 2017.</p>
+
   <h3>Art. 27° Licencia de paternidad</h3>
-  <p>[2 semanas según Ley 2114/2021]</p>
-  
+  <p>El padre trabajador tiene derecho a dos (2) semanas de licencia remunerada de paternidad conforme a la Ley 2114 de 2021. La licencia opera por los hijos nacidos de su cónyuge o de su compañera permanente, y en casos de adopción. La licencia de paternidad se hará efectiva mediante la presentación del Registro Civil de Nacimiento en un plazo no mayor a 30 días posteriores a su expedición.</p>
+
   <h3>Art. 28° Licencia remunerada por luto</h3>
-  <p>[5 días hábiles según Ley 1280/2009]</p>
-  
+  <p>En caso de fallecimiento de su cónyuge, compañero o compañera permanente o de un familiar hasta el segundo grado de consanguinidad, primero de afinidad y primero civil, la empresa concederá una licencia remunerada por luto de cinco (5) días hábiles, de acuerdo con la Ley 1280 de 2009. El trabajador deberá presentar ante Recursos Humanos el certificado de defunción y documentos que demuestren el parentesco en los siguientes 30 días al hecho.</p>
+
   <h3>Art. 29° Licencia por endometriosis y condiciones de salud menstrual</h3>
-  <p>[Con certificación médica según Ley 2466/2025]</p>
-  
+  <p>De conformidad con la Ley 2466 de 2025, la empresa concederá permiso o licencia remunerada a las trabajadoras que sufran ciclos menstruales incapacitantes, endometriosis o síntomas severos, siempre y cuando esto sea certificado por un profesional médico o la entidad de salud prestadora (EPS). Esta licencia protegerá el derecho fundamental a la salud menstrual, impidiendo cualquier represalia o descuento.</p>
+
   <h3>Art. 30° Licencia para acompañamiento escolar obligatorio</h3>
-  <p>[Licencia como acudiente según Ley 2466/2025]</p>
-  
+  <p>La empresa concederá el tiempo necesario y prudencial como permiso remunerado, a los trabajadores que deban asistir a citaciones obligatorias escolares, reuniones de padres de familia y acompañamiento frente a procesos pedagógicos ineludibles de sus hijos menores de edad. Estos permisos deben ser acordados y demostrados oportunamente con la dirección de la empresa según la reforma laboral (Ley 2466/2025).</p>
+
   <h3>Art. 31° Permisos remunerados</h3>
-  <p>[Calamidad doméstica comprobada, comisiones sindicales, entierro de compañeros]</p>
-  
+  <p>La empresa concederá los permisos necesarios y remunerados en los siguientes eventos: 1) Calamidad doméstica debidamente comprobada. 2) Para concurrir al servicio médico de la EPS y ARL (tiempo estricto para cita y traslados). 3) Para desempeñar cargos oficiales transitorios de forzosa aceptación (ej: jurados de votación). 4) Para ejercer el derecho al sufragio en elecciones democráticas. 5) Para comisiones sindicales.</p>
+
   <h3>Art. 32° Permisos no remunerados y su procedimiento de solicitud</h3>
-  <p>[Procedimiento para solicitar permisos no remunerados]</p>
+  <p>El empleador podrá otorgar, a su arbitrio y previa solicitud escrita, licencias no remuneradas para atender asuntos personales del trabajador que no estén contemplados en la ley como de forzosa concesión. La solicitud deberá presentarse con al menos cuarenta y ocho (48) horas de anticipación ante el superior inmediato, salvo fuerza mayor, quien aprobará según la necesidad del servicio. Durante estas licencias, el trabajador no devengará salario, no aportará el trabajador a salud, pero la empresa y el empleado continuarán pagando los aportes pensionales proporcionales si hubiere lugar a ello.</p>
 
   <h2>CAPÍTULO V — SALARIOS, PAGOS Y PRESTACIONES</h2>
   <h3>Art. 33° Salario mínimo legal vigente y salario convencional</h3>
-  <p>[Disposiciones sobre el salario base]</p>
-  
+  <p>El salario mínimo de los trabajadores será el establecido anualmente por el Gobierno Nacional de Colombia. Si existiere pacto colectivo o convención colectiva, regirán los mínimos allí establecidos. Constituye salario no solo la remuneración ordinaria fija o variable, sino todo lo que recibe el trabajador en dinero o en especie como contraprestación directa del servicio. Los viáticos accidentales, gastos de representación, beneficios extralegales estipulados por mero acto de liberalidad o con cláusula de no salarización, no constituyen salario.</p>
+
   <h3>Art. 34° Lugar, día, hora y período de pago</h3>
-  <p>[El pago se realizará mediante {{forma_pago}} con periodicidad {{periodicidad_pago}}]</p>
-  
+  <p>El pago de salarios se efectuará de manera puntual, sin excepción, a todos los trabajadores mediante <strong>{{forma_pago}}</strong> con una periodicidad de <strong>{{periodicidad_pago}}</strong>. El pago se hará directamente al trabajador o a quien él autorice por escrito. Cuando el día de pago pactado sea festivo o no laborable, el pago se anticipará al último día hábil anterior. La empresa deberá entregar el desprendible de pago detallando ingresos y deducciones.</p>
+
   <h3>Art. 35° Deducciones legalmente permitidas</h3>
-  <p>[Retenciones y deducciones autorizadas por ley y por el trabajador]</p>
-  
+  <p>La empresa solo podrá deducir, retener o compensar suma alguna del salario del trabajador por orden suscrita, escrita y expresa del trabajador, o por mandamiento judicial emitido por juez competente, o por mandato legal. Son retenciones obligatorias: los aportes del trabajador al Sistema de Seguridad Social Integral (Salud y Pensión), retención en la fuente (si aplica), multas disciplinarias legalmente impuestas por atrasos u omisiones al trabajo sin justificación, cuotas sindicales y cuotas alimentarias debidamente embargadas por un juez. En ningún caso las deducciones y embargos podrán afectar el salario mínimo legal, salvo por pensiones alimenticias o deudas con cooperativas, en cuyo caso solo se podrá afectar hasta el 50% de este.</p>
+
   <h3>Art. 36° Auxilio de transporte</h3>
-  <p>[Pago del auxilio de transporte para quienes devenguen hasta 2 SMMLV]</p>
-  
+  <p>Los trabajadores que devenguen hasta dos (2) veces el Salario Mínimo Mensual Legal Vigente (SMMLV) tendrán derecho al pago del auxilio de transporte fijado por el Gobierno Nacional, a menos que la empresa suministre el transporte de manera completa o que el trabajador resida en el lugar de trabajo, realice sus labores exclusivamente bajo modalidades de trabajo remoto (donde aplica auxilio de conectividad si corresponde), o cuando no trabaje por incapacidad médica o permisos personales continuados.</p>
+
   <h3>Art. 37° Cesantías, intereses y prima de servicios</h3>
-  <p>[Liquidación y pago de prestaciones sociales de ley]</p>
-  
+  <p>La empresa reconocerá y liquidará las prestaciones sociales legales conforme a la norma: 1. **Cesantías**: un mes de salario por cada año de servicios y proporcional, consignadas al Fondo de Cesantías escogido por el trabajador a más tardar el 14 de febrero del año siguiente. 2. **Intereses sobre cesantías**: 12% anual sobre el saldo de las cesantías a diciembre 31, a pagar directo al trabajador a más tardar el 31 de enero del año siguiente. 3. **Prima de servicios**: correspondiente a un mes de salario anual, pagadero por mitades (hasta el 30 de junio y hasta el 20 de diciembre).</p>
+
   <h3>Art. 38° Prestaciones adicionales a las legales</h3>
-  <p>[Beneficios extralegales, si los hubiere]</p>
+  <p>Cualquier beneficio que la empresa entregue por mero acto de liberalidad, como bonificaciones ocasionales, auxilios para estudio, vivienda o transporte distinto al de ley, planes de medicina prepagada, primas extralegales, participaciones de utilidades, no constituyen factor salarial para la liquidación de prestaciones sociales ni seguridad social, de conformidad con el Art. 128 del CST.</p>
 
   <h2>CAPÍTULO VI — SEGURIDAD Y SALUD EN EL TRABAJO</h2>
   <h3>Art. 39° Política de SST</h3>
-  <p>[Declaración de la política del Sistema de Gestión de SST]</p>
-  
+  <p>La empresa declara su férreo compromiso con el diseño, implementación, mantenimiento y mejora continua del Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST), de conformidad con el Decreto 1072 de 2015, Resolución 0312 de 2019 y leyes subsiguientes. El bienestar físico, mental y social de nuestros trabajadores es el principal activo de nuestra operación. Las normativas sobre SST son de obligatorio cumplimiento por parte de todos los contratistas, personal interno y visitantes.</p>
+
   <h3>Art. 40° Obligaciones del empleador en SST</h3>
-  <p>[Proveer condiciones seguras, EPP, capacitación, etc.]</p>
-  
+  <p>Son obligaciones irrenunciables del empleador: 1. Procurar el cuidado integral de la salud de los trabajadores y los ambientes de trabajo. 2. Afiliar obligatoriamente a todos los trabajadores a la ARL, EPS y Fondo de Pensiones, asumiendo su costo conforme a la ley. 3. Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVAR) y establecer los controles para mitigarlos. 4. Suministrar y reponer oportunamente todos los Elementos de Protección Personal (EPP) y ropa de trabajo. 5. Garantizar las inducciones y reinducciones en materia de prevención de riesgos. 6. Diseñar y ensayar los planes de emergencia y brigadas.</p>
+
   <h3>Art. 41° Obligaciones del trabajador en SST</h3>
-  <p>[Cumplir normas, usar EPP, reportar peligros]</p>
-  
+  <p>El trabajador está legalmente obligado a: 1. Procurar el cuidado integral de su salud. 2. Suministrar información clara, veraz y completa sobre su estado de salud. 3. Cumplir celosamente con las normas, reglamentos e instrucciones del SG-SST. 4. Informar oportunamente al empleador acerca de los peligros y riesgos latentes en su puesto de trabajo. 5. Participar proactivamente en las actividades de capacitación en SST. 6. Utilizar adecuada y obligatoriamente las dotaciones, maquinaria y los EPP asignados. El incumplimiento de estas normas se califica como falta grave y puede ser justa causa de terminación del contrato.</p>
+
   <h3>Art. 42° Elementos de Protección Personal (EPP)</h3>
-  <p>[Entrega, uso obligatorio y reposición de EPP]</p>
-  
+  <p>La empresa hará entrega sin costo alguno para el trabajador de todos los Elementos de Protección Personal de acuerdo con la labor a realizar y la Matriz IPEVAR del cargo. El trabajador deberá utilizarlos obligatoriamente en todas las zonas o actividades de riesgo, mantenerlos aseados, no sacarlos del recinto laboral injustificadamente, solicitar su reemplazo por daño o desgaste natural, y devolverlos a la terminación del contrato.</p>
+
   <h3>Art. 43° Indicaciones para evitar riesgos profesionales</h3>
-  <p>[Prevención de accidentes y enfermedades laborales]</p>
-  
+  <p>Los trabajadores deben evitar acciones temerarias como operar equipos para los cuales no estén capacitados ni autorizados, retirar guardas de seguridad, hacer mantenimiento a máquinas en movimiento, correr por escaleras o pasillos, obstruir salidas de emergencia, realizar maniobras eléctricas sin autorización o laborar bajo influjo del alcohol o medicamentos sedantes sin informar. Ante el riesgo inminente, el trabajador tiene el derecho y deber de detener la labor y notificar al empleador.</p>
+
   <h3>Art. 44° Instrucciones para primeros auxilios</h3>
-  <p>[Manejo de emergencias y primeros auxilios básicos]</p>
-  
+  <p>En caso de accidente o emergencia de salud, el accidentado o quien presencie el hecho deberá comunicar de inmediato a la Brigada de Emergencia, Jefe Inmediato o Responsable de SST. Únicamente el personal con entrenamiento está autorizado a brindar primeros auxilios. La empresa dispondrá de botiquines dotados con los elementos exigidos por la norma y rutas de evacuación claras. Todo trabajador está en obligación de conocer y actuar según el Plan Escrito de Prevención, Preparación y Respuesta ante Emergencias de la empresa.</p>
+
   <h3>Art. 45° Reporte de accidentes de trabajo y enfermedades laborales</h3>
-  <p>[Obligación de reporte inmediato según Ley 1562/2012]</p>
-  
+  <p>El trabajador que sufra un accidente de trabajo, por leve que sea, debe reportarlo inmediatamente a su superior para que la empresa diligencie el reporte ante la ARL (FURAT) dentro de los dos (2) días hábiles siguientes al hecho, conforme a la Ley 1562 de 2012. La omisión del trabajador en el reporte oportuno acarreará procesos disciplinarios. En el caso de sospecha de enfermedad laboral, el trabajador debe informar el dictamen médico apenas le sea entregado por su EPS o ARL.</p>
+
   <h3>Art. 46° COPASST — Comité Paritario de SST</h3>
-  <p>[Conformación y funciones del COPASST o Vigía de SST]</p>
-  
+  <p>Dependiendo de la cantidad de trabajadores, la empresa garantizará la conformación del Comité Paritario de Seguridad y Salud en el Trabajo (COPASST), o designará al Vigía en SST, quienes vigilarán la normativa y promoción de la salud. La empresa otorgará a los representantes del comité un (1) hora semanal dentro de la jornada ordinaria para sus funciones, y las reuniones tendrán carácter de obligatorio cumplimiento y se llevarán bajo actas formales.</p>
+
   <h3>Art. 47° Exámenes médicos</h3>
-  <p>[Exámenes de ingreso, periódicos y de egreso]</p>
-  
+  <p>El empleador tiene el deber y el trabajador la obligación de someterse a los exámenes médicos ocupacionales de ingreso, periódicos, por cambio de ocupación, de egreso, post-incapacidad, y aquellos exigidos por la vigilancia epidemiológica que la empresa determine pertinentes con cargo exclusivo al empleador. La negativa del trabajador de practicarse el examen se considera insubordinación grave.</p>
+
   <h3>Art. 48° Política de prevención del consumo de alcohol, tabaco y sustancias psicoactivas</h3>
-  <p>[Prohibición de presentarse bajo efectos y consumo en instalaciones]</p>
-  
+  <p>Con el fin de garantizar condiciones de trabajo seguras, está terminantemente prohibido para todo el personal, directivo, operativo y subcontratistas, presentarse al lugar de trabajo bajo el efecto del alcohol, sustancias psicoactivas ilícitas o medicamentos que afecten el desempeño seguro, y consumir, poseer o comercializar los mismos durante la jornada laboral o dentro de las instalaciones. La empresa se reserva el derecho de realizar pruebas de alcoholimetría o sustancias de manera preventiva o aleatoria garantizando la dignidad del trabajador.</p>
+
   <h3>Art. 49° Espacios libres de humo de tabaco</h3>
-  <p>[Prohibición total en instalaciones cerradas Ley 1335/2009]</p>
+  <p>En estricto cumplimiento de la Ley 1335 de 2009, todas las instalaciones de la empresa bajo techo, lugares cerrados, áreas de almacenamiento, bodegas y vehículos corporativos son declarados Áreas 100% Libres de Humo. Ningún trabajador o visitante podrá encender cigarrillos o emplear vapeadores en dichas áreas. Quien desee fumar deberá hacerlo en el exterior de la empresa o en áreas designadas específicamente a la intemperie (si existieren), durante los periodos de descanso.</p>
 
   <h2>CAPÍTULO VII — NORMAS DE CONVIVENCIA Y CONDUCTA</h2>
   <h3>Art. 50° Protección especial a la mujer embarazada y madre lactante</h3>
-  <p>[Estabilidad laboral reforzada Art. 239 CST]</p>
-  
+  <p>De conformidad con el Código Sustantivo del Trabajo y la Constitución Política, la empresa garantiza la estabilidad laboral reforzada de la mujer embarazada o en estado de lactancia. Ninguna trabajadora puede ser despedida por motivo de embarazo o lactancia. El despido requiere obligatoriamente autorización del Inspector del Trabajo. Adicionalmente, se prohibirá exigir a mujeres gestantes o lactantes realizar tareas de levantamiento de cargas pesadas o que pongan en peligro el normal desarrollo del feto o al recién nacido.</p>
+
   <h3>Art. 51° Normas para trabajadores menores de edad</h3>
-  <p>[Disposiciones para trabajadores menores, si los hubiere]</p>
-  
+  <p>La contratación de menores de edad (de 15 a 17 años) requerirá de manera indelegable autorización por escrito y fundamentada del Inspector de Trabajo o el ente territorial (ICBF/Comisaría de Familia). Estará estrictamente prohibido que desempeñen labores nocturnas, trabajo en minas, labores peligrosas, manipulación de sustancias tóxicas o maquinaria pesada, o que superen las jornadas limitadas dispuestas en la Ley de Infancia y Adolescencia.</p>
+
   <h3>Art. 52° Manejo de activos, equipos y herramientas corporativas</h3>
-  <p>[Responsabilidad y buen uso de bienes de la empresa]</p>
-  
+  <p>Todos los equipos de oficina, computadores, teléfonos, maquinaria, vehículos y demás herramientas suministradas por la empresa a los trabajadores son de uso estrictamente laboral y de propiedad de la compañía. El trabajador es responsable por su cuidado, conservación y debida utilización. Deberá reportar inmediatamente su daño, deterioro o pérdida justificada. En caso de daño por negligencia severa comprobada, dolo o pérdida, la empresa podrá tomar acciones resarcitorias mediante las deducciones autorizadas y ejecutar el proceso disciplinario.</p>
+
   <h3>Art. 53° Uso de tecnología y comunicaciones corporativas</h3>
-  <p>[Uso adecuado de internet, correo y equipos en horas laborales]</p>
-  
+  <p>El acceso a internet corporativo, correo electrónico, redes de datos e información institucional y sistemas de información es para uso exclusivo del desempeño de las labores asignadas. La empresa podrá monitorear el tráfico, las redes y la metadata generada a través de estos sistemas. Está prohibida la instalación de software no autorizado, el uso del correo institucional para fines de acoso laboral/sexual, pornografía, proselitismo político, el envío de cadenas de correos ajenos a la actividad laboral, y el hurto y la exposición indebida de la propiedad intelectual empresarial.</p>
+
   <h3>Art. 54° Protección de datos personales</h3>
-  <p>[Tratamiento de datos personales de los trabajadores Ley 1581/2012]</p>
-  
+  <p>La recolección y tratamiento de los datos personales de los trabajadores estará ceñida a lo dispuesto en la Ley Estatutaria 1581 de 2012 (Hábeas Data). La información suministrada se tratará bajo absoluta reserva, en especial el diagnóstico de condiciones de salud y datos de menores. Asimismo, el trabajador que en ejercicio de su rol tenga acceso a datos personales de clientes y terceros deberá mantener confidencialidad irrestricta de acuerdo a los protocolos empresariales.</p>
+
   <h3>Art. 55° Presentación personal y porte del carné o uniforme</h3>
-  <p>[Normas de presentación, uniforme y distintivos]</p>
+  <p>Si la empresa suministra uniformes o dotación, su uso es obligatorio, completo e inalterado durante la totalidad de la jornada laboral. En todo caso, los trabajadores deben presentarse a sus labores vestidos de forma adecuada, limpia, guardando las normas mínimas de decoro o el código de vestimenta (dress code) expedido por la compañía, portando siempre en lugar visible su carné de identificación corporativa por motivos de seguridad.</p>
 
   <h2>CAPÍTULO VIII — OBLIGACIONES Y PROHIBICIONES</h2>
   <h3>Art. 56° Obligaciones especiales del EMPLEADOR</h3>
-  <p>[Lista de obligaciones según Art. 57 CST]</p>
-  
+  <p>Son obligaciones especiales del empleador (Art. 57 CST):
+  1. Poner a disposición los instrumentos y materias primas necesarios.
+  2. Proveer locales apropiados y elementos contra accidentes.
+  3. Prestar primeros auxilios.
+  4. Pagar el salario, prestaciones y aportes a seguridad social a tiempo.
+  5. Guardar absoluto respeto a la dignidad del trabajador, sus creencias y sentimientos.
+  6. Conceder las licencias necesarias remuneradas y no remuneradas de ley.
+  7. Cumplir el reglamento interno y garantizar la desconexión laboral, y prevenir acoso laboral, acoso sexual, garantizando la salud mental de todos.
+  </p>
+
   <h3>Art. 57° Prohibiciones especiales al EMPLEADOR</h3>
-  <p>[Lista de prohibiciones según Art. 59 CST]</p>
-  
+  <p>El empleador tiene prohibido (Art. 59 CST):
+  1. Deducir, retener o compensar sumas de salarios sin autorización clara del trabajador.
+  2. Obligar a compras de mercancías o alimentos de comercios del empleador.
+  3. Exigir dinero o regalos para ser admitido o promocionado en el cargo.
+  4. Limitar el derecho a asociarse o pertenecer a sindicatos (Pacto Colectivo forzado).
+  5. Imponer a los trabajadores obligaciones religiosas o políticas.
+  6. Autorizar o tolerar el porte o uso de drogas y alcohol durante el trabajo, coaccionar, o generar acoso en cualquiera de sus manifestaciones.
+  7. Desconocer el derecho a la desconexión digital de sus subordinados.</p>
+
   <h3>Art. 58° Obligaciones especiales de LOS TRABAJADORES</h3>
-  <p>[Lista de obligaciones según Art. 58 CST]</p>
-  
+  <p>Son deberes del trabajador (Art. 58 CST):
+  1. Cumplir estrictamente sus obligaciones y el presente reglamento.
+  2. Guardar rigurosa moral en todas sus relaciones con sus superiores y compañeros.
+  3. Conservar y restituir en buen estado las herramientas, maquinaria e instrumentos asignados.
+  4. Prestar la colaboración posible en casos de siniestro o riesgo inminente.
+  5. Guardar el secreto y confidencialidad comercial e industrial y de los asuntos estrictamente técnicos o que puedan causar perjuicios.
+  6. Acatar las órdenes y medidas dadas para la seguridad y la prevención en SST.
+  7. Respetar y velar por los derechos a la desconexión digital de sus pares y subordinados.</p>
+
   <h3>Art. 59° Prohibiciones especiales a LOS TRABAJADORES</h3>
-  <p>[Lista de prohibiciones según Art. 60 CST]</p>
+  <p>Está estrictamente prohibido a los trabajadores (Art. 60 CST y demás):
+  1. Sustraer de las instalaciones útiles, materia prima o productos sin permiso.
+  2. Presentarse al trabajo en estado de embriaguez o bajo el efecto de sustancias narcóticas.
+  3. Portar armas de cualquier especie durante el trabajo.
+  4. Disminuir intencionalmente el ritmo de trabajo o promover huelgas ilegales.
+  5. Faltar al trabajo sin justa causa de impedimento o sin permiso del empleador.
+  6. Usar los útiles de la empresa en asuntos distintos al trabajo asignado.
+  7. Incurrir en conductas que representen acoso laboral, discriminación de género o cualquier modalidad de acoso sexual sobre compañeros o terceros.</p>
 
   <h2>CAPÍTULO IX — RÉGIMEN DISCIPLINARIO</h2>
   <h3>Art. 60° Principios rectores</h3>
-  <p>[Legalidad, proporcionalidad, tipicidad, no doble sanción y debido proceso]</p>
-  
+  <p>El régimen disciplinario está basado en el respeto del Debido Proceso Constitucional en los términos señalados en la Ley 2466 de 2025. Toda investigación y sanción interna estará orientada por los principios de: Dignidad Humana, Imparcialidad, Legalidad (la falta debe estar claramente descrita en este reglamento o en el contrato), Tipicidad, Proporcionalidad a la gravedad de la falta, y Non bis in ídem (nadie puede ser sancionado dos veces por el mismo hecho).</p>
+
   <h3>Art. 61° Escala de FALTAS LEVES</h3>
-  <p>[Retardos injustificados, ausencias cortas, incumplimiento leve, etc.]</p>
-  
+  <p>Constituyen faltas de menor magnitud e impacto, que entorpecen la operación pero no destruyen la confianza del empleador, tales como:
+  1. Retardos injustificados inferiores a 15 minutos al iniciar la jornada.
+  2. Fallar por primera vez en la utilización completa de los elementos de dotación (sin ser EPP crítico).
+  3. Errores operativos leves y corregibles que no generen pérdidas económicas notables.
+  4. Exceder los tiempos fijados para descansos sin autorización.
+  5. Distraer a sus compañeros de labores y conversar en exceso afectando el rendimiento.</p>
+
   <h3>Art. 62° Escala de FALTAS GRAVES</h3>
-  <p>[Causales de despido con justa causa según Art. 62 CST, acoso comprobado, etc.]</p>
-  
+  <p>Se considerarán faltas graves todas las enumeradas en el Art. 62 del CST como justas causas para terminación de contrato, y de manera enunciativa:
+  1. La ausencia injustificada o abandono de labores, por uno o más días continuos o fraccionados en el mismo mes calendario.
+  2. Fraude, falsificación de firmas o manipulación de registros y certificados (incapacidades falsas, marcaciones de tiempos inexistentes).
+  3. Violación del secreto industrial y de la confidencialidad de la información (Ley 1581/2012).
+  4. Negativa obstinada a someterse a medidas preventivas, normas SST, realización de evaluaciones médicas y el no uso de EPP para actividades de alto riesgo (ej. alturas).
+  5. Consumir licor o drogas en horas y espacios de trabajo.
+  6. Cualquier manifestación o queja ratificada de acoso sexual o acoso laboral con componente lesivo, acoso digital y agresión física, o cualquier forma de maltrato a la mujer o a las comunidades diversas.
+  7. Usar los vehículos y propiedad de la compañía sin autorización.
+  8. La desobediencia manifiesta al derecho a la desconexión laboral de sus subordinados causando coacción y hostigamiento.</p>
+
   <h3>Art. 63° Escala de SANCIONES DISCIPLINARIAS</h3>
-  <p>[Llamado de atención verbal, amonestación escrita, multa, suspensión, terminación]</p>
-  
+  <p>Dependiendo de la gravedad de la falta y los agravantes o atenuantes hallados en la investigación, la empresa podrá imponer progresivamente las siguientes sanciones:
+  1. Llamado de atención verbal y orientación (solo para el expediente general y feedback).
+  2. Amonestación escrita con anotación en la hoja de vida.
+  3. Multa monetaria, aplicable exclusivamente a faltas asociadas con retardos o ausencias injustificadas.
+  4. Suspensión temporal en la prestación de los servicios y del pago del salario, la cual, por la primera vez de una falta determinada, no excederá de ocho (8) días; en caso de reincidencia repetida de la misma clase de falta, no excederá de dos (2) meses.
+  5. Despido con Justa Causa Legal (previsto como falta grave que resquebraja irremediablemente la confianza y causa el retiro amparado en el CST y en los estipulados de este Reglamento).</p>
+
   <h3>Art. 64° Límites a las multas</h3>
-  <p>[Máximo 1/8 del salario diario según Art. 113 CST]</p>
-  
+  <p>De conformidad con el Artículo 113 del CST, las multas se aplicarán exclusivamente cuando el trabajador, sin excusa suficiente, llegue tarde a sus labores, o falte al trabajo (ausentismo). Esta multa no puede en ningún caso, ni en repetidas oportunidades, exceder de la quinta (1/5) parte del salario de un (1) día de la cuota ordinaria de nómina; y la suma recaudada se destinará exclusivamente al rubro de bienestar o estímulo que beneficie a todos los trabajadores.</p>
+
   <h3>Art. 65° PROCEDIMIENTO DISCIPLINARIO CON GARANTÍA DE DEBIDO PROCESO</h3>
-  <p>[Procedimiento detallado según Ley 2466/2025: citación, descargos, pruebas, decisión, recurso]</p>
-  
+  <p>De acuerdo con la nueva legislación laboral colombiana y sentencias vinculantes, para aplicar cualquier sanción la empresa debe garantizar obligatoriamente el siguiente protocolo:
+  1. <strong>Citación a diligencia de descargos:</strong> Se notificará por escrito y de forma presencial o electrónica al trabajador de la falta cometida, su fecha, su calificación y pruebas, con al menos 48 horas de antelación.
+  2. <strong>Audiencia y acompañamiento:</strong> El trabajador expondrá su versión y pruebas de defensa; para ello tiene el derecho a ser asistido por dos (2) compañeros de trabajo y/o un (1) representante del sindicato al cual pertenezca.
+  3. <strong>Toma de decisión debidamente motivada:</strong> El ente sancionador o superior directo redactará un fallo con las pruebas recabadas en que se determinará la absolución o aplicación de la sanción proporcional.
+  4. <strong>Recurso de reposición / reconsideración:</strong> Conforme al Debido Proceso y Ley 2466 de 2025, el trabajador tendrá un plazo no mayor a cinco (5) días hábiles tras ser notificado, para elevar recurso de reconsideración, que deberá ser fallado por el ente superior a quien impuso la sanción.</p>
+
   <h3>Art. 66° Cargos con facultad sancionatoria</h3>
-  <p>[Cargos con facultad sancionatoria a definir en las preguntas interactivas]</p>
-  
+  <p>Estarán facultados directa y expresamente para citar a descargos, dirigir la audiencia y resolver la imposición de las sanciones disciplinarias hasta por despido de justa causa, los siguientes cargos dentro de la estructura empresarial:</p>
+  <p><strong>Cargos facultados:</strong><br>
+  {{cargos_sancionatorios}}</p>
+  <p>Toda sanción superior a amonestación verbal deberá constar en copia en el expediente laboral del trabajador reposado en Gestión Humana o la dependencia correspondiente.</p>
+
   <h3>Art. 67° Término de prescripción para aplicar sanciones</h3>
-  <p>[Máximo 3 meses desde el conocimiento del hecho Art. 115 CST]</p>
+  <p>El empleador perderá toda facultad y caducará la potestad disciplinaria para investigar y sancionar faltas de los trabajadores, si dentro de los tres (3) meses siguientes al conocimiento efectivo de la ocurrencia del hecho, no ha citado formalmente a descargos o impuesto la sanción correspondiente, tal como lo regula el Código Sustantivo del Trabajo.</p>
 
   <h2>CAPÍTULO X — PREVENCIÓN DEL ACOSO LABORAL (Ley 1010/2006)</h2>
   <h3>Art. 68° Política de cero tolerancia al acoso laboral</h3>
-  <p>[Declaración formal de la política de convivencia]</p>
-  
+  <p>En concordancia con la Constitución Política, la Ley 1010 de 2006 y normativas vigentes del Ministerio del Trabajo, la empresa adopta una política de cero tolerancia frente a toda práctica de acoso laboral, discriminación y maltrato. Garantizamos a todos los trabajadores el derecho a un ambiente libre de violencia en el que se respete la salud mental, la dignidad y el derecho al trabajo en condiciones justas.</p>
+
   <h3>Art. 69° Definición, modalidades y conductas constitutivas de acoso laboral</h3>
-  <p>[Maltrato, persecución, discriminación, entorpecimiento, inequidad, desprotección]</p>
-  
+  <p>Se entiende por Acoso Laboral toda conducta persistente y demostrable, ejercida sobre un empleado por parte de un empleador, un jefe o superior jerárquico inmediato o mediato, un compañero de trabajo o un subalterno, encaminada a infundir miedo, intimidación, terror y angustia, a causar perjuicio laboral, generar desmotivación en el trabajo, o inducir la renuncia del mismo. Sus modalidades incluyen: maltrato, persecución, discriminación, entorpecimiento, inequidad y desprotección laboral.</p>
+
   <h3>Art. 70° Comité de Convivencia Laboral</h3>
-  <p>[Conformación, funciones y períodos según Resolución 3461/2025]</p>
-  
+  <p>Para la prevención y atención integral del acoso laboral y de factores de riesgo psicosocial intra-laboral, la empresa, siguiendo los mandatos de la Resolución 3461 de 2025 y Resolución 652 de 2012, instalará un Comité de Convivencia Laboral (COCOLAB) bipartito compuesto por igual número de representantes del empleador y de los trabajadores. Sesionará ordinariamente de forma trimestral y extraordinariamente ante quejas graves y urgentes, custodiando las actas y manteniendo reserva absoluta.</p>
+
   <h3>Art. 71° Procedimiento confidencial de quejas por acoso laboral</h3>
-  <p>[Mecanismo para recepción de quejas ante el Comité]</p>
-  
+  <p>La presunta víctima podrá presentar su queja escrita con evidencias sumarias al correo o buzón confidencial dispuesto para el COCOLAB, detallando los hechos, modo, tiempo y lugar, así como testigos o soportes. El Comité iniciará el protocolo conciliatorio en término expedito convocando a las partes y agotará todos los canales del diálogo constructivo. Si no hay acuerdo o si se incumple la conciliación, el caso será remitido al fuero disciplinario de la empresa y/o Ministerio de Trabajo.</p>
+
   <h3>Art. 72° Sanciones disciplinarias internas por acoso laboral</h3>
-  <p>[Sanciones aplicables si se comprueba el acoso]</p>
-  
+  <p>Cuando un proceso disciplinario logre demostrar, previa conciliación fallida o por reiteración comprobada, que un empleado en su trato hostil y deliberado incurre en Acoso Laboral, la empresa, en estricto cumplimiento del Código Sustantivo del Trabajo, y de acuerdo con el impacto sobre el clima organizacional, impondrá las medidas correctivas aplicables desde la amonestación escrita hasta la terminación de contrato con Justa Causa (Falta Grave), previo dictamen garantizado con el debido proceso.</p>
+
   <h3>Art. 73° Mecanismos de protección al denunciante</h3>
-  <p>[Garantías contra represalias]</p>
+  <p>Conforme a la ley, a fin de evitar represalias contra quienes formulen peticiones, quejas y reclamos de Acoso Laboral o sirvan de testigos en dichos procedimientos, no podrá terminarse el contrato de trabajo ni rebajar los salarios, desmejorar sus labores o aplicar traslados intempestivos sin justa causa comprobada del trabajador quejoso en los seis (6) meses siguientes a la presentación de la queja debidamente fundamentada.</p>
 
   <h2>CAPÍTULO XI — PREVENCIÓN DEL ACOSO SEXUAL (Ley 2365/2024)</h2>
   <h3>Art. 74° Política de prevención y cero tolerancia al acoso sexual</h3>
-  <p>[Declaración formal de rechazo al acoso sexual]</p>
-  
+  <p>De conformidad con los mandatos de la Ley 2365 de 2024 y convenios internacionales OIT ratificados, la empresa manifiesta el rechazo absoluto frente a cualquier manifestación de acoso sexual laboral, hostigamiento con fines no consentidos de orden sexual y toda forma de agresión o violencia de género. El entorno de trabajo se regirá por la total indemnidad sexual y el respeto integral de los derechos humanos y sexuales de la planta de personal.</p>
+
   <h3>Art. 75° Definición de acoso sexual</h3>
-  <p>[Connotación sexual, lasciva o libidinosa en contexto laboral, presencial o digital]</p>
-  
+  <p>El acoso sexual consiste en todo acto, conducta o comportamiento no deseado de naturaleza o connotación sexual que cause incomodidad, humillación o intimidación a quien lo recibe, cuando dicho acto ocurra en el marco o con ocasión del trabajo, bien sea de forma verbal, física, visual, no verbal, a través de plataformas digitales o fuera de las instalaciones si existe conexión laboral, sea o no ejercido bajo asimetrías de poder.</p>
+
   <h3>Art. 76° Alcance</h3>
-  <p>[Aplica a empleados, contratistas, aprendices, pasantes y practicantes]</p>
-  
+  <p>Las disposiciones y protecciones de este capítulo y de las rutas de prevención de Acoso Sexual aplican imperativamente sobre la totalidad de empleados formales, practicantes, contratistas de prestación de servicios, trabajadores en misión, aprendices SENA, proveedores regulares y pasantes, sin perjuicio de la tercerización e intermediación.</p>
+
   <h3>Art. 77° Protocolo de denuncia</h3>
-  <p>[Canal confidencial, sin revictimización, protección inmediata]</p>
-  
+  <p>Se dispondrá de un canal especializado y reservado que garantice el anonimato si lo desea la víctima. En ninguna circunstancia se podrá citar a la víctima y al presunto agresor a escenarios de careo o conciliación para casos de acoso sexual. El protocolo actuará con celeridad aislando a la víctima de espacios o cercanía directa con el presunto acosador dictando medidas de urgencia preventivas sin vulnerar su dignidad.</p>
+
   <h3>Art. 78° Protección al denunciante</h3>
-  <p>[Ineficacia del despido dentro de los 6 meses siguientes a la queja]</p>
-  
+  <p>Las víctimas de presunto acoso sexual laboral gozan de estabilidad laboral reforzada temporal garantizada por la ineficacia del despido que ocurra en los seis (6) meses posteriores a la queja. Adicionalmente, el empleador está en la obligación de no aplicar descuentos, suspensiones, cambios intempestivos de sede o de subordinación que menoscaben sus derechos mientras se emita una decisión o investigación penal en curso.</p>
+
   <h3>Art. 79° Obligación de reporte semestral al SIVIGE</h3>
-  <p>[Reporte estadístico semestral al Sistema Integrado de Información de Violencias de Género]</p>
-  
+  <p>La empresa, bajo su deber estatutario derivado de la Ley 2365 de 2024, deberá rendir informes y reportes semestrales y estadísticos rigurosos sobre quejas y atenciones de presuntos casos de Acoso Sexual Laboral al Sistema Integrado de Información de Violencias de Género (SIVIGE) conservando el blindaje e intimidad de la identidad de la víctima, cumpliendo las inspecciones y auditorías requeridas por el Ministerio del Trabajo.</p>
+
   <h3>Art. 80° Sanciones por acoso sexual comprobado</h3>
-  <p>[Falta grave — causal de despido con justa causa]</p>
+  <p>Una vez agotado el trámite investigativo disciplinario con plena garantía constitucional, en caso de dictamen contundente por materialidad probatoria e indicial en actos de Acoso Sexual Laboral, se aplicará invariablemente la sanción máxima correspondiente a Despido Unilateral y Directo por Justa Causa legal tipificado como Falta Grave, sin desmedro del traslado del caso a las autoridades de justicia penal ordinaria (Fiscalía General de la Nación).</p>
 
   <h2>CAPÍTULO XII — MECANISMOS DE RECLAMO Y PETICIONES</h2>
   <h3>Art. 81° Persona(s) designada(s) para recibir reclamos</h3>
-  <p>[Canales de comunicación para reclamos laborales ordinarios]</p>
-  
+  <p>Cualquier reclamo o petición no asociada con procesos de acoso, concerniente a dotaciones, cálculos de liquidación, clima o procesos administrativos debe dirigirse al superior inmediato, y si la complejidad lo amerita, al responsable de Gestión Humana o en su defecto a la Gerencia General de la empresa. Ninguna otra instancia carente de autorización tiene poder vinculante para recibir u otorgar respuestas jurídicas a solicitudes laborales.</p>
+
   <h3>Art. 82° Procedimiento de atención a reclamos</h3>
-  <p>[Presentación escrita, respuesta en 15 días hábiles]</p>
-  
+  <p>El reclamo deberá presentarse preferiblemente de forma escrita y razonada, anexando las pruebas o justificaciones. El área encargada tendrá la obligación de dictar respuesta de fondo, integral, y congruente dentro del término máximo de quince (15) días hábiles siguientes a la radicación. Aquellos casos atípicos podrán solicitar al trabajador una prórroga por escrito antes del vencimiento del primer lapso, que no excederá el doble del mismo.</p>
+
   <h3>Art. 83° Derecho a asesorarse del sindicato respectivo</h3>
-  <p>[Derecho de representación sindical]</p>
-  
+  <p>En garantía del derecho de asociación y fuero sindical consagrados legalmente en los casos en los que opere una asociación de trabajadores formal dentro de la empresa, todo empleado que eleve o adelante un proceso de queja, petición o proceso disciplinario y que haga parte oficial del sindicato tendrá derecho a solicitar el acompañamiento expreso de los directivos sindicales para velar por su debido proceso sin lugar a rechazo de la compañía.</p>
+
   <h3>Art. 84° Quejas ante el Inspector de Trabajo</h3>
-  <p>[Instancia ante el Ministerio de Trabajo si no se resuelve internamente]</p>
+  <p>Cualquier trabajador que considere que tras haber agotado el conducto regular y las instancias corporativas de respuesta y reclamo interno, subsisten violaciones directas a sus fueros y garantías sustantivas contempladas en la Constitución o el contrato, podrá, sin recibir sanción posterior de esta corporación por ese hecho, dirigirse a las inspecciones del Ministerio del Trabajo para intermediación y querella de sus derechos irrenunciables.</p>
 
   <h2>CAPÍTULO XIII — PROTECCIÓN A GRUPOS CON ESTABILIDAD REFORZADA</h2>
   <h3>Art. 85° Mujer embarazada y madre lactante</h3>
-  <p>[Protección especial Art. 239 CST, Ley 1822/2017]</p>
-  
+  <p>Como mecanismo garantista frente a la discriminación laboral, se protege la especial maternidad. Se requiere calificación del Inspector del Trabajo con justa causa previamente valorada si se pretendiese dar de baja del cuadro de empleados a trabajadoras gestantes y en periodo de lactancia. La empresa acondicionará un espacio privado e higiénico como "Sala Amiga de la Familia Lactante" aplicable si fuere pertinente según los aforos, la ley o convenios, así como pausas de descanso especiales.</p>
+
   <h3>Art. 86° Trabajadores con discapacidad</h3>
-  <p>[Protección especial Ley 361/1997, Ley 1618/2013]</p>
-  
+  <p>Es política expresa y constitucional la no discriminación del ingreso a personas por motivo de su discapacidad física o mental dictaminada, debiendo el empleador garantizar los ajustes razonables requeridos para desarrollar la actividad del empleado. Queda proscrito el despido motivado exclusivamente por una discapacidad, ya que el mismo generaría como corolario legal la ineficacia del despido, el reintegro, y el resarcimiento indemnizatorio punitivo de 180 días de salario mínimo exigido por la Ley 361 de 1997 y 1618 de 2013.</p>
+
   <h3>Art. 87° Cuota de vinculación de personas con discapacidad</h3>
-  <p>[Aplica según el tamaño de la empresa, mínimo 2% si > 100 trabajadores]</p>
-  
+  <p>Las empresas, dependiendo de la cantidad total de su nómina, se obligarán formalmente, amparados por los estatutos de igualdad de oportunidades y vinculación equitativa para la inclusión laboral que demanda la normativa, a cumplir imperativamente con los porcentajes y cuotas legales de contratación para la empleabilidad del talento diverso, favoreciendo preferentemente el mérito.</p>
+
   <h3>Art. 88° Fuero sindical</h3>
-  <p>[Garantías para directivos sindicales]</p>
-  
+  <p>Garantía de la cual gozan ciertos trabajadores a no ser despedidos ni desmejorados en sus condiciones de trabajo, ni trasladados a otros establecimientos de la misma empresa sin justa causa debidamente comprobada y autorizada por la autoridad u órgano competente. La protección del fuero abarca fundadores, adherentes, miembros y la junta directiva o subdirectiva de acuerdo con las cifras y porcentajes avalados en el CST y la Ley.</p>
+
   <h3>Art. 89° Personas próximas a pensionarse (prepensionados)</h3>
-  <p>[Estabilidad laboral para quienes están a 3 años o menos de la pensión]</p>
-  
+  <p>Todo servidor corporativo o colaborador del que conste fehacientemente y certifique a la compañía estar en el rango máximo de 36 meses previos de causar las edades, semanas y requerimientos pensionales dictaminados en los fondos formales del Estado, ostentará estabilidad laboral reforzada (fuero de prepensionados). La compañía blindará su contrato como garantía para el acceso al derecho vital que materializará su jubilación sin interrumpir los aportes definitivos.</p>
+
   <h3>Art. 90° Víctimas del conflicto armado</h3>
-  <p>[Disposiciones de protección laboral]</p>
+  <p>El empleador velará por las garantías legales de empleo formal, de conformidad con lo instituido por el gobierno nacional, otorgando prioridad, no discriminación en procesos de selección y apoyo psicosocial e incentivos tributarios para los colombianos reportados y ratificados con el certificado de inscripción en el Registro Único de Víctimas (RUV), implementando espacios de memoria constructiva en la política corporativa de sostenibilidad y convivencia.</p>
 
   <h2>CAPÍTULO XIV — POLÍTICA DE SALUD MENTAL</h2>
   <h3>Art. 91° Declaración de compromiso con la salud mental</h3>
-  <p>[Salud mental como derecho fundamental en el trabajo]</p>
-  
+  <p>La empresa comprende la salud mental como el estado de bienestar integral donde el empleado es consciente de sus capacidades laborales, afronta el estrés natural del trabajo, contribuye productivamente y actúa constructivamente de acuerdo a la Ley 1616 de 2013 y Resolución 2404 de 2019. Declaramos la salud mental como un eje fundamental, promoviendo espacios sin saturación emocional y la erradicación de conductas nocivas.</p>
+
   <h3>Art. 92° Programa de Bienestar Mental</h3>
-  <p>[Aplicación de Batería de Riesgo Psicosocial, prevención del burnout]</p>
-  
+  <p>Como cumplimiento a la Ley 2396 de 2024, implementamos campañas y espacios del programa de Bienestar Mental intra-laboral para la prevención del estrés crónico, el 'Síndrome de Burnout', y los conflictos humanos interpersonales. Se priorizarán las pausas activas físicas y cognitivas obligatorias y talleres de capacitación para directivos que aborden inteligencia emocional y fortalecimiento de liderazgos humanos sin violencia.</p>
+
   <h3>Art. 93° Factores de riesgo psicosocial a controlar</h3>
-  <p>[Carga laboral, ambigüedad, violencia, aislamiento]</p>
-  
+  <p>El empleador asume el deber de aplicar anualmente (o según la periodicidad impuesta por resultados previos de alto o mediano riesgo) la Batería de Instrumentos para la Evaluación de Factores de Riesgo Psicosocial exigida por la normatividad del Ministerio. Las conclusiones permitirán que el empleador ajuste las demandas ambientales y carga física, mejore las recompensas organizacionales, flexibilice liderazgos autoritarios e incremente la participación de los empleados en la gestión del cambio.</p>
+
   <h3>Art. 94° Confidencialidad del diagnóstico</h3>
-  <p>[Prohibición de uso del diagnóstico para despido]</p>
-  
+  <p>Ningún empleado puede ser presionado a revelar sus antecedentes terapéuticos en salud mental o terapias y asistencia psicológica salvo para trámites debidos de licencias incapacitantes radicadas vía EPS y la reserva de su historia ocupacional, de modo que queda estrictamente tipificado como falta calificada muy grave a quienes divulguen diagnósticos de salud mental para acoso sistemático, burlas, o ser usados como argumentos dolosos de despido encubierto.</p>
+
   <h3>Art. 95° Articulación con el SG-SST</h3>
-  <p>[Integración al Plan de Trabajo Anual]</p>
+  <p>Los programas, la vigilancia epidemiológica psicosocial (SVE), encuestas cualitativas, atención inicial, derivación, y control de las patologías conexas al desgaste corporativo y mental serán plenamente abarcados por el presupuesto y metas exigibles desde la Responsabilidad de la dirección técnica del Sistema de Gestión de SST con el pleno auxilio científico o financiero y en acompañamiento concurrente con las administradoras de riesgos laborales (ARL).</p>
 
   <h2>CAPÍTULO XV — PROTOCOLO DE ACOSO LABORAL — RUTA COMPLETA</h2>
   <h3>Art. 96° Definición y modalidades de acoso laboral</h3>
-  <p>[Contexto de la Ley 1010/2006]</p>
-  
+  <p>Según lo reglado, todo trabajador que considere ser afectado por agresiones sistemáticas que entorpezcan sus labores y dañen su patrimonio psicológico, en los términos estipulados de la Ley 1010 de 2006, interpondrá y accionará el siguiente protocolo especial de solución diseñado de manera neutral.</p>
+
   <h3>Art. 97° El Comité de Convivencia Laboral (COCOLAB)</h3>
-  <p>[Enfoque preventivo, orientador y conciliador]</p>
-  
+  <p>Para activar el protocolo será receptora de la querella directa el COCOLAB, ente autónomo al interior de la compañía constituido equitativamente por actores, el cual tendrá independencia procedimental, que de forma neutral buscará con enfoque conciliatorio e instructivo desescalar el conflicto sin llegar a imposiciones sancionatorias o coacciones de fondo que no rebasen su propio fuero estipulado para la convivencia y amparo social.</p>
+
   <h3>Art. 98° RUTA INTERNA — Protocolo paso a paso</h3>
-  <p>[Recepción, Admisión, Audiencias, Conciliación, Seguimiento, Cierre/Traslado]</p>
-  
+  <p><strong>1. Recepción y Admisión:</strong> Llegada de queja o remisión directa para análisis preliminar; <strong>2. Audiencias aisladas:</strong> Escucha confidencial, privada e imparcial en sesión del comité tanto al presunto agresor como al querellante; <strong>3. Conciliación y Pacto:</strong> Audiencia conjunta dirigida por un mediador (del comité) tendiente a construir espacios de perdón, no repetición y acuerdos; <strong>4. Seguimiento:</strong> Monitoreo de cumplimiento del pacto y evaluación bimestral; <strong>5. Traslado:</strong> En el escenario del fracaso total del diálogo, remisión directa del caso a Gerencia, o entes de fuero disciplinario corporativo e inspectores del Ministerio para aplicación de medidas sancionatorias a los culpables.</p>
+
   <h3>Art. 99° Prohibición de represalias</h3>
-  <p>[Protección de 6 meses contra sanciones/despido al quejoso]</p>
-  
+  <p>Los trabajadores denunciantes y todos aquellos que presten auxilio testifical al proceso de comité o querellas oficiales y sean citados a rendir testimonio de acoso estarán protegidos por una garantía ineludible de indemnidad. Cualquier venganza, destitución, presión o censura se declarará inválida frente al código sustantivo por el término mínimo legal de los seis (6) meses post-queja.</p>
+
   <h3>Art. 100° Medidas de protección inmediata</h3>
-  <p>[Traslado de área, cambio de turno, etc.]</p>
+  <p>El comité u órgano evaluador de contingencia recomendará como carácter perentorio suspender de las dependencias, reubicar puestos, variar horarios de servicio, alternar esquemas del sistema o teletrabajo de urgencia a las víctimas a fin de extinguir inminentes acercamientos nocivos y salvaguardar la vida y sanidad integral del afectado, evitando revictimización bajo escenarios adversos prolongados.</p>
 
   <h2>CAPÍTULO XVI — PROTOCOLO DE ACOSO SEXUAL — RUTA COMPLETA</h2>
   <h3>Art. 101° Definición legal de acoso sexual</h3>
-  <p>[Asedio de carácter sexual bajo cualquier relación de poder]</p>
-  
+  <p>Es acoso sexual toda aproximación forzosa, solicitudes de favores carnales y sexuales o asedios indeseados y graves. Para que se consolide, según las pautas formales legales, su naturaleza será repetitiva, en un ejercicio perverso del poder (horizontal o vertical) que amilane e indigne, condicionando decisiones vinculantes del puesto o generando un ambiente grosero.</p>
+
   <h3>Art. 102° Conductas constitutivas de acoso sexual</h3>
-  <p>[Proposiciones, comentarios, contacto no consentido]</p>
-  
+  <p>Expresamente a nivel laboral comprende pero no se limita a: chantajes de ascensos o conservaciones de vacantes supeditadas al sometimiento erótico; roces corporales no solicitados; tocamientos; acoso digital o cibernético; envío de imágenes con contenido gráfico explícito o chistes humillantes, invitaciones obsesivas denegadas explícitamente y acosos sistemáticos sexistas que rompan barreras sanas de la inter-relación corporativa general.</p>
+
   <h3>Art. 103° Inconciliabilidad del acoso sexual</h3>
-  <p>[El acoso sexual no se concilia en el COCOLAB según Res. 3461/2025]</p>
-  
+  <p>En acatamiento irrestricto de la resolución marco 3461 de 2025 de las autoridades ministeriales del trabajo y sentencias supremas jurisprudenciales, el ACOSO SEXUAL es delito de carácter reprochable y un factor lesivo mayúsculo que <strong>NUNCA ES SUSCEPTIBLE DE CONCILIACIÓN</strong> ni abordaje en procesos paritarios ante el COCOLAB, o amigables componedores, pasando su conocimiento de forma prioritaria al resorte gerencial sancionador supremo, entidades de género y fiscales.</p>
+
   <h3>Art. 104° RUTA INTERNA DE ATENCIÓN — Protocolo paso a paso</h3>
-  <p>[Recepción, Medidas de protección, Investigación, Decisión, Reporte a Fiscalía]</p>
-  
+  <p><strong>1. Prevención e Inicio rápido:</strong> Alerta confidencial reportada al alto mando con copia a SST o dependencia habilitada en la empresa; <strong>2. Separación Cautelar de Riesgo:</strong> Concesión de permiso remunerado y distanciamiento preventivo al denunciante y presunto asaltante; <strong>3. Trámite de Averiguación Disciplinaria Expedita:</strong> Evaluación rigurosa sin confrontar a la presunta víctima con el ofensor; <strong>4. Decisión Plena Causal:</strong> Expulsión y desvinculación justificada inminente en caso de confirmación fáctica y sólida. <strong>5. Copia Penal:</strong> Traspaso inmediato del historial sin ocultamientos para denuncia penal del implicado ante la Fiscalía y sus dependencias.</p>
+
   <h3>Art. 105° REPORTE AL SIVIGE</h3>
-  <p>[Obligación semestral estadística según Ley 2365/2024]</p>
-  
+  <p>El área de Talento Humano o la Gerencia informará debida, formal, estadística y documentadamente mediante la estructura, codificación de causas, cargos y atenuantes, exigida bajo control perentorio semestral a las plataformas en línea impuestas por la legislación de la república como el Sistema Integrado SIVIGE y otros canales, para los rastreos macro del observatorio gubernamental que compila los incidentes de violencia y equidad de género.</p>
+
   <h3>Art. 106° Protección reforzada a la víctima</h3>
-  <p>[Presunción de ineficacia de despido en los 6 meses siguientes]</p>
-  
+  <p>Todo el andamiaje del resorte legal garantiza, en favor indiscutible del afectado que interpone de manera fundamentada, creíble y diligente la queja grave en mención, un fuero total o impedimento que acarrea presunción legal de ilegalidad y nulidad sobre el despido en represalia o las reducciones salariales acometidas a manera de reprimenda bajo la sombrilla y lapso restrictivo que delimitan las directrices estatales impuestas hasta superar los seis (6) meses dictados por normativa a partir del requerimiento y más, si persiste el litigio.</p>
+
   <h3>Art. 107° Prohibición de revictimización</h3>
-  <p>[Prohibición de censura o cuestionamiento]</p>
-  
+  <p>Cualquier directivo corporativo que, notificado del flagelo de acoso denunciado por uno de sus subordinados o de una empresa temporal adjunta, asuma roles sesgados para cuestionar o estigmatizar el relato de quien sufre la vejación, lo confronte cara a cara con su violador laboral, impida su acceso a medidas temporales, y divulgue su nombre causando maltrato social en pasillos incurrirá de hecho grave e imputable por tolerancia complaciente, cómplice e ignorancia de protocolos rectores.</p>
+
   <h3>Art. 108° Reporte al Ministerio del Trabajo</h3>
-  <p>[Formulario oficial y reserva de identidad]</p>
+  <p>Sin demérito de actuar simultáneamente mediante querellas judiciales u ordinarias y el aparato de justicia colombiano, la parte agraviada podrá y estará en franco derecho de formalizar e instaurar denuncia a través de la herramienta especial dispuesta en la sede electrónica del Ministerio del Trabajo garantizando total anonimato en una reserva de sumario incólume del funcionario receptor de turno.</p>
 
   <h2>CAPÍTULO XVII — DISPOSICIONES FINALES</h2>
   <h3>Art. 109° Publicación del reglamento</h3>
-  <p>[El RIT se publicará en {{medios_publicacion}}]</p>
-  
-  <h3>Art. 110° Vigencia y entrada en fuerza</h3>
-  <p>[Entra en vigencia el {{fecha_publicacion}}]</p>
-  
-  <h3>Art. 111° Disposiciones supletorias</h3>
-  <p>[Lo no previsto se rige por el CST y normas vigentes]</p>
-  
-  <h3>Art. 112° Modificaciones</h3>
-  <p>[Se publicarán con 8 días de antelación]</p>
-  
-  <h3>Art. 113° Consecuencias del incumplimiento</h3>
-  <p>[Sanciones de hasta 5.000 SMMLV e invalidez de procesos]</p>
-  
-  <h3>Art. 114° Firma del Representante Legal</h3>
-  <p>En constancia de lo anterior, firma el Representante Legal de la empresa a los {{current_date}}.</p>
+  <p>Este Reglamento será dado a conocer y publicado masivamente a los trabajadores mediante de fijación física y de divulgación electrónica formal según lo reglado por la ley en los siguientes <strong>{{medios_publicacion}}</strong>. Adicional a esto, una copia física auténtica de libre acceso reposará permanentemente a disposición de los empleados en todas las sedes principales de la compañía y anexado a los contratos en el folio laboral general respectivo de cada quien.</p>
 
-  <br/><br/>
+  <h3>Art. 110° Vigencia y entrada en fuerza</h3>
+  <p>Este cuerpo normativo interno empezará a regir plenamente sobre los designios corporativos de modo oficial y unificado en fecha <strong>{{fecha_publicacion}}</strong>. Toda regla, directiva, circular, cláusula transitoria o pacto contractual pretérito que vulnere y contradiga las presentes normativas será subsumido bajo este reglamento y resultará en anulación tacita por pérdida de vigor jurídico vinculante prevaleciente.</p>
+
+  <h3>Art. 111° Disposiciones supletorias</h3>
+  <p>Cualquier condición normativa referente al vínculo del trabajo legal que no hubiera sido descrita taxativamente e incluida exhaustivamente entre el presente estipulado, se ceñirá y solucionará única y llanamente por mandatos, alcances o lagunas supletorias avalados mediante la sombrilla y cobertura general del Código Sustantivo del Trabajo de Colombia y las leyes reformistas conexas, decretos reglamentarios vigentes o por las dictaminaciones supremas ratificadas constitucionalmente.</p>
+
+  <h3>Art. 112° Modificaciones</h3>
+  <p>Cuando la dirección y patronato corporativo disponga legítimamente añadir de manera integral y unilateral, o a través de mesa representativa y por fuerza legal externa, algún tipo de adecuación, revisión y reforma capitulada o normativa especial con rango a este cuerpo reglamentario, deberá notificarse y someterse a escrutinio formal y publicación anticipada mínima de ocho (8) días calendario hábiles a todos los niveles empresariales a fin de surtir formal y plenos efectos.</p>
+
+  <h3>Art. 113° Consecuencias del incumplimiento</h3>
+  <p>La compañía es consciente que bajo las exigencias formales y sancionatorias tipificadas expresamente por los entes inspectivos y de acuerdo a las directrices que impone legalmente la legislación nacional como el Artículo 114 y 120 (CST) o la Reforma 2466 de 2025, el negarse a disponer, redactar legalmente, y publicitar o faltar a implementar formal y periódicamente el presente compendio RIT en los fueros correctos acarreará al ente patronal multas onerosas desde las mínimas vigentes a castigos pecuniarios supremos del orden de hasta 5.000 (Cinco mil) SMMLV e invalidez de los ceses unilaterales pactados frente a litigios corporativos.</p>
+
+  <h3>Art. 114° Firma del Representante Legal</h3>
+  <p>En constancia unánime de expedición plena y publicación ratificada de lo anterior y para los fines rectores de fuerza de vigencia frente a la autoridad del trabajo nacional, avala, suscribe y firma en original con validez el preclaro Representante Legal de la empresa expidiendo y promulgando lo dictado, a los <strong>{{current_date}}</strong>.</p>
+
+  <br/><br/><br/>
   <p>______________________________________</p>
   <p><strong>{{representante_legal}}</strong></p>
   <p>C.C. [Número de documento]</p>
