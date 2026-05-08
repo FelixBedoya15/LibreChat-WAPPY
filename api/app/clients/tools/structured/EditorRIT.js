@@ -55,12 +55,22 @@ class EditorRIT extends Tool {
       buscar: z
         .string()
         .optional()
-        .describe('Texto exacto o variable a buscar (ej: "{{empresa_nombre}}"). Requerido para accion="buscar_reemplazar".'),
+        .describe('Texto exacto o variable a buscar (ej: "{{empresa_nombre}}").'),
 
       reemplazar: z
         .string()
         .optional()
-        .describe('Texto que reemplazará al encontrado. Requerido para accion="buscar_reemplazar".'),
+        .describe('Texto que reemplazará al encontrado.'),
+
+      reemplazos_multiples: z
+        .array(
+          z.object({
+            buscar: z.string(),
+            reemplazar: z.string(),
+          })
+        )
+        .optional()
+        .describe('Lista de reemplazos a realizar en lote. Útil para reemplazar múltiples variables a la vez.'),
 
       reemplazar_todo: z
         .boolean()
@@ -212,23 +222,34 @@ class EditorRIT extends Tool {
 
       // ── BUSCAR Y REEMPLAZAR ───────────────────────────────────────────────
       if (accion === 'buscar_reemplazar') {
-        if (!input.buscar || input.reemplazar === undefined) {
-          return JSON.stringify({ error: 'Se requieren "buscar" y "reemplazar".' });
+        if (!input.buscar && (!input.reemplazos_multiples || input.reemplazos_multiples.length === 0)) {
+          return JSON.stringify({ error: 'Se requieren "buscar" y "reemplazar" o un arreglo en "reemplazos_multiples".' });
         }
+        
         const session = await LiveEditorSession.findOne({ conversationId });
         if (!session || !session.content) {
           return JSON.stringify({ error: 'El documento está vacío. Usa accion="cargar_plantilla" primero.' });
         }
 
+        let updatedContent = session.content;
+        let totalMatches = 0;
         const flags = input.reemplazar_todo !== false ? 'g' : '';
-        const searchRegex = new RegExp(input.buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
-        const matches = (session.content.match(searchRegex) || []).length;
+        
+        const reemplazos = input.reemplazos_multiples || [{ buscar: input.buscar, reemplazar: input.reemplazar }];
 
-        if (matches === 0) {
-          return JSON.stringify({ error: `No se encontró el texto "${input.buscar}" en el documento.` });
+        for (const item of reemplazos) {
+          if (!item.buscar || item.reemplazar === undefined) continue;
+          const searchRegex = new RegExp(item.buscar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+          const matches = (updatedContent.match(searchRegex) || []).length;
+          totalMatches += matches;
+          if (matches > 0) {
+            updatedContent = updatedContent.replace(searchRegex, item.reemplazar);
+          }
         }
 
-        const updatedContent = session.content.replace(searchRegex, input.reemplazar);
+        if (totalMatches === 0) {
+          return JSON.stringify({ error: `No se encontraron coincidencias para los textos buscados.` });
+        }
 
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },
@@ -237,8 +258,8 @@ class EditorRIT extends Tool {
 
         return JSON.stringify({
           success: true,
-          mensaje: `Se reemplazaron ${matches} ocurrencia(s) de "${input.buscar}" por "${input.reemplazar}".`,
-          reemplazos: matches,
+          mensaje: `Se realizaron reemplazos múltiples exitosamente. Total ocurrencias cambiadas: ${totalMatches}.`,
+          reemplazos_totales: totalMatches,
         });
       }
 
