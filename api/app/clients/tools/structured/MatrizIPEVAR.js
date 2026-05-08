@@ -249,7 +249,9 @@ class MatrizIPEVAR extends Tool {
         const targetIndex = session.matrixRows.findIndex(r => 
           r.proceso?.toLowerCase() === riesgo.proceso?.toLowerCase() &&
           r.actividad?.toLowerCase() === riesgo.actividad?.toLowerCase() &&
-          r.peligro_clasificacion?.toLowerCase() === riesgo.peligro_clasificacion?.toLowerCase()
+          r.tareas?.toLowerCase() === riesgo.tareas?.toLowerCase() &&
+          r.peligro_clasificacion?.toLowerCase() === riesgo.peligro_clasificacion?.toLowerCase() &&
+          r.peligro_descripcion?.toLowerCase() === riesgo.peligro_descripcion?.toLowerCase()
         );
 
         if (targetIndex !== -1) {
