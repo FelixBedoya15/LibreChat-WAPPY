@@ -357,6 +357,51 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             }
         });
 
+        // --- IMGs: Word ignores max-width/max-height, must use explicit width/height attributes ---
+        root.querySelectorAll('img').forEach(img => {
+            const existing = parseStyle(img.getAttribute('style') || '');
+
+            // Parse max-height and max-width hints to determine intended display size
+            const maxHeightStr = existing['max-height'] || '';
+            const maxWidthStr = existing['max-width'] || '';
+            const hasMaxHeight = maxHeightStr && maxHeightStr !== 'none';
+            const maxHeightPx = hasMaxHeight ? parseInt(maxHeightStr, 10) : null;
+
+            // Detect signature images: they use max-height ≤ 100px to stay compact
+            const isSignature = maxHeightPx !== null && maxHeightPx <= 100;
+
+            // Remove all CSS Word cannot handle
+            delete existing['max-width'];
+            delete existing['max-height'];
+            delete existing['object-fit'];
+            delete existing['border-radius'];
+            delete existing['transition'];
+
+            if (isSignature) {
+                // Signatures: fixed small size matching editor appearance (~150x75pt)
+                existing['width'] = '150pt';
+                existing['height'] = '75pt';
+                existing['display'] = 'block';
+                img.setAttribute('width', '150');
+                img.setAttribute('height', '75');
+            } else if (maxWidthStr && maxWidthStr !== '100%' && maxWidthStr !== 'none') {
+                // Evidence/content images with an explicit max-width cap (e.g. 300px)
+                const capPx = parseInt(maxWidthStr, 10);
+                if (!isNaN(capPx)) {
+                    const capPt = Math.round(capPx * 0.75); // px → pt conversion
+                    existing['width'] = `${capPt}pt`;
+                    existing['height'] = 'auto';
+                    img.setAttribute('width', String(capPx));
+                }
+            } else {
+                // Generic images: cap at page width (460pt ≈ content area at 2.5cm margins)
+                existing['max-width'] = '460pt';
+                existing['width'] = existing['width'] || '100%';
+            }
+
+            img.setAttribute('style', serializeStyle(existing));
+        });
+
         // Fix th variable reference (el was used instead of th in loop)
         const styledContent = root.innerHTML;
 

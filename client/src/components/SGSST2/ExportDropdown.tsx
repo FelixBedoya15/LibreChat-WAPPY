@@ -275,6 +275,45 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({ content, fileName, repo
             if (Object.keys(existing).length > 0) div.setAttribute('style', serializeStyle(existing));
         });
 
+        // --- IMGs: Word ignores max-width/max-height, must use explicit width/height attributes ---
+        root.querySelectorAll('img').forEach(img => {
+            const existing = parseStyle(img.getAttribute('style') || '');
+
+            const maxHeightStr = existing['max-height'] || '';
+            const maxWidthStr = existing['max-width'] || '';
+            const hasMaxHeight = maxHeightStr && maxHeightStr !== 'none';
+            const maxHeightPx = hasMaxHeight ? parseInt(maxHeightStr, 10) : null;
+
+            const isSignature = maxHeightPx !== null && maxHeightPx <= 100;
+
+            delete existing['max-width'];
+            delete existing['max-height'];
+            delete existing['object-fit'];
+            delete existing['border-radius'];
+            delete existing['transition'];
+
+            if (isSignature) {
+                existing['width'] = '150pt';
+                existing['height'] = '75pt';
+                existing['display'] = 'block';
+                img.setAttribute('width', '150');
+                img.setAttribute('height', '75');
+            } else if (maxWidthStr && maxWidthStr !== '100%' && maxWidthStr !== 'none') {
+                const capPx = parseInt(maxWidthStr, 10);
+                if (!isNaN(capPx)) {
+                    const capPt = Math.round(capPx * 0.75);
+                    existing['width'] = `${capPt}pt`;
+                    existing['height'] = 'auto';
+                    img.setAttribute('width', String(capPx));
+                }
+            } else {
+                existing['max-width'] = '460pt';
+                existing['width'] = existing['width'] || '100%';
+            }
+
+            img.setAttribute('style', serializeStyle(existing));
+        });
+
         const styledContent = root.innerHTML;
 
         return `<!DOCTYPE html>
