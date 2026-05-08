@@ -24,6 +24,9 @@ import store from '~/store';
 
 interface LiveEditorPanelProps {
   conversationId: string | null;
+  title?: string;
+  emptyStateTitle?: string;
+  emptyStateMessage?: React.ReactNode;
 }
 
 const POLL_INTERVAL_MS = 2500;
@@ -81,7 +84,14 @@ async function tagConversation(conversationId: string, tag: string, token: strin
   }
 }
 
-const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => {
+const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
+  conversationId,
+  title = 'Editor Live',
+  emptyStateTitle = 'Sin documento activo',
+  emptyStateMessage = (
+    <>Pídele al agente que <span className="font-bold text-blue-600">cree un documento</span> (ej: "Crea la Política SST de mi empresa"), o sube un archivo Word o PDF.</>
+  )
+}) => {
   const { token } = useAuthContext();
 
   const [content, setContent] = useState<string>('');
@@ -310,7 +320,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             <FileEdit className="h-5 w-5" />
           </div>
           <div className="min-w-0 overflow-hidden">
-            <h2 className="text-sm font-semibold text-text-primary truncate">Editor Live</h2>
+            <h2 className="text-sm font-semibold text-text-primary truncate">{title}</h2>
             <div className="flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isSubmitting ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`} />
               <span className="text-xs text-text-secondary truncate">{fileName}</span>
@@ -407,10 +417,10 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({ conversationId }) => 
             </div>
             <div>
               <h3 className="text-base font-semibold text-text-primary mb-1">
-                Sin documento activo
+                {emptyStateTitle}
               </h3>
               <p className="text-sm text-text-secondary max-w-xs">
-                Pídele al agente que <span className="font-bold text-blue-600">cree un documento</span> (ej: "Crea la Política SST de mi empresa"), o sube un archivo Word o PDF.
+                {emptyStateMessage}
               </p>
             </div>
             <div className="flex gap-3">

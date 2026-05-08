@@ -88,6 +88,11 @@ function ChatView({ index = 0 }: { index?: number }) {
     return tools.includes('editor_live') || tools.includes('editor_rit');
   }, [ephemeralAgent]);
 
+  const isEditorRITActive = React.useMemo(() => {
+    const tools: string[] = (ephemeralAgent as any)?.tools ?? [];
+    return tools.includes('editor_rit');
+  }, [ephemeralAgent]);
+
 
   // ── Sync active state to global Recoil atom (used by Header) ──────────────
   const setIsIPEVARActive = useSetRecoilState(store.isIPEVARActive);
@@ -170,7 +175,15 @@ function ChatView({ index = 0 }: { index?: number }) {
                           : 'hidden'
                         : 'w-1/2',
                     )}>
-                      <LiveEditorPanel key={conversationId ?? 'new'} conversationId={conversationId ?? null} />
+                      <LiveEditorPanel 
+                        key={conversationId ?? 'new'} 
+                        conversationId={conversationId ?? null}
+                        title={isEditorRITActive ? 'Editor RIT' : 'Editor Live'}
+                        emptyStateTitle={isEditorRITActive ? 'Editor RIT en espera' : 'Sin documento activo'}
+                        emptyStateMessage={isEditorRITActive ? (
+                          <>Pídele al agente que proceda a <span className="font-bold text-blue-600">cargar la plantilla del RIT</span> para comenzar a editarlo.</>
+                        ) : undefined}
+                      />
                     </div>
                   )}
                 </div>
