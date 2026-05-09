@@ -4,6 +4,7 @@ import UserManagementTable from './UserApprovalTable';
 import RolePermissionsTable from './RolePermissionsTable';
 import SubscriptionPlansTable from './SubscriptionPlansTable';
 import PromoCodesTable from './PromoCodesTable';
+import PaymentAnalyticsDashboard from './PaymentAnalyticsDashboard';
 // import TicketManagement from '~/components/Tickets/TicketManagement';
 import { cn } from '~/utils';
 
@@ -82,6 +83,17 @@ export default function Admin() {
                         >
                             Códigos Promo
                         </button>
+                        <button
+                            onClick={() => setActiveTab('analytics')}
+                            className={cn(
+                                "pb-2 px-1 text-sm font-medium transition-colors duration-200",
+                                activeTab === 'analytics'
+                                    ? "border-b-2 border-purple-500 text-purple-600 dark:text-purple-400"
+                                    : "text-text-secondary hover:text-text-primary"
+                            )}
+                        >
+                            Analítica Pagos
+                        </button>
                     </div>
                 </div>
             </div>
@@ -94,6 +106,8 @@ export default function Admin() {
                     <RolePermissionsTable />
                 ) : activeTab === 'plans' ? (
                     <SubscriptionPlansTable />
+                ) : activeTab === 'analytics' ? (
+                    <PaymentAnalyticsDashboard />
                 ) : (
                     <PromoCodesTable />
                 )}

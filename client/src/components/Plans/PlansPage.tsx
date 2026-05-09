@@ -386,6 +386,28 @@ export default function PlansPage() {
     const [guestData, setGuestData] = useState({ name: '', email: '', password: '' });
     const [guestError, setGuestError] = useState('');
 
+    // Tracking Analytics
+    const getSessionId = useCallback(() => {
+        let sid = sessionStorage.getItem('checkout_session_id');
+        if (!sid) {
+            sid = crypto.randomUUID();
+            sessionStorage.setItem('checkout_session_id', sid);
+        }
+        return sid;
+    }, []);
+
+    const trackCheckoutEvent = useCallback((event: string, payload: any = {}) => {
+        try {
+            axios.post('/api/analytics/checkout-event', {
+                sessionId: getSessionId(),
+                event,
+                ...payload
+            }).catch(() => {});
+        } catch (e) {
+            // silent fail
+        }
+    }, [getSessionId]);
+
     const params = new URLSearchParams(window.location.search);
     const successPlan = params.get('success') ? params.get('plan') : null;
     const wasCancelled = params.get('cancelled') === '1';
@@ -435,12 +457,15 @@ export default function PlansPage() {
         if (wasCancelled) {
             showToast({ message: 'Pago cancelado. Tu plan no ha cambiado.', status: 'warning' });
         }
+        
+        trackCheckoutEvent('page_view');
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSubscribe = useCallback(
         (planKey: string, planObj: any, displayPrice: string, discountedPrice: number, rawPrice: number, promotion: any) => {
             if (planKey === 'free') return;
+            trackCheckoutEvent('plan_selected', { planId: planKey, interval: planKey === 'ipevar' ? 'annual' : 'monthly' });
             const subObj = { planKey, planObj, displayPrice, discountedPrice, rawPrice, promotion };
             // Go directly to checkout — authentication is only required at the moment of payment
             if (planKey === 'ipevar') {
@@ -561,9 +586,20 @@ export default function PlansPage() {
                     signature: data.signature ? { integrity: data.signature } : undefined,
                 });
 
+                trackCheckoutEvent('payment_started', {
+                    planId: checkoutPlan.planKey,
+                    interval: billingInterval,
+                    amountInCents: data.amountInCents,
+                });
+
                 checkout.open((result: any) => {
                     const transaction = result.transaction;
                     if (transaction.status === 'APPROVED') {
+                        trackCheckoutEvent('payment_approved', {
+                            planId: checkoutPlan.planKey,
+                            interval: billingInterval,
+                            amountInCents: data.amountInCents,
+                        });
                         // Immediate approval (card, Nequi, PSE resolved, etc.)
                         axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id })
                             .then(() => {
@@ -587,6 +623,11 @@ export default function PlansPage() {
                         setCheckoutPlan(null);
                         setCheckoutLoading(null);
                     } else {
+                        trackCheckoutEvent('payment_failed', {
+                            planId: checkoutPlan.planKey,
+                            interval: billingInterval,
+                            amountInCents: data.amountInCents,
+                        });
                         showToast({ message: 'El pago no fue exitoso o fue cancelado', status: 'warning' });
                         setCheckoutLoading(null);
                     }
@@ -631,6 +672,13 @@ export default function PlansPage() {
 
             // Load Wompi widget and launch payment
             const launchWompi = () => {
+                trackCheckoutEvent('payment_started', {
+                    planId: checkoutPlan.planKey,
+                    interval: billingInterval,
+                    amountInCents: wompiData.amountInCents,
+                    email: guestData.email,
+                });
+
                 const checkout = new (window as any).WidgetCheckout({
                     currency: wompiData.currency,
                     amountInCents: wompiData.amountInCents,
@@ -641,6 +689,12 @@ export default function PlansPage() {
                 checkout.open((result: any) => {
                     const transaction = result.transaction;
                     if (transaction.status === 'APPROVED') {
+                        trackCheckoutEvent('payment_approved', {
+                            planId: checkoutPlan.planKey,
+                            interval: billingInterval,
+                            amountInCents: wompiData.amountInCents,
+                            email: guestData.email,
+                        });
                         // Use guest-verify (no auth required) with the guestToken from backend
                         axios.post('/api/wompi/guest-verify', { transactionId: transaction.id, guestToken })
                             .then(() => { window.location.href = `/planes?success=1&plan=${checkoutPlan.planKey}`; })
@@ -651,6 +705,12 @@ export default function PlansPage() {
                         setCheckoutPlan(null);
                         setCheckoutLoading(null);
                     } else {
+                        trackCheckoutEvent('payment_failed', {
+                            planId: checkoutPlan.planKey,
+                            interval: billingInterval,
+                            amountInCents: wompiData.amountInCents,
+                            email: guestData.email,
+                        });
                         showToast({ message: 'El pago no fue exitoso o fue cancelado', status: 'warning' });
                         setCheckoutLoading(null);
                     }
