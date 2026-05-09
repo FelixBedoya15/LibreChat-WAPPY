@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Loader2, TrendingUp, Users, ShoppingCart, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
-import { useToastContext } from '~/Providers';
+import { useToastContext } from '@librechat/client';
 
 interface AnalyticsData {
     period: string;
