@@ -276,14 +276,42 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
         'formationLevel', 'licenseNumber', 'courseStatus', 'licenseExpiry',
     ] as const;
 
-    const isFormValid = REQUIRED_FIELDS.every(field => {
+    const FIELD_LABELS: Record<string, string> = {
+        companyName: 'Razón Social',
+        companyType: 'Tipo de Empresa',
+        nit: 'NIT / Cédula',
+        legalRepresentative: 'Representante Legal',
+        legalRepresentativeId: 'Cédula del Representante Legal',
+        workerCount: 'Número de Trabajadores',
+        arl: 'ARL',
+        economicActivity: 'Actividad Económica',
+        riskLevel: 'Nivel de Riesgo',
+        ciiu: 'Código CIIU',
+        address: 'Dirección',
+        city: 'Ciudad',
+        departamento: 'Departamento',
+        phone: 'Teléfono',
+        email: 'Correo Electrónico',
+        sector: 'Sector',
+        responsibleSST: 'Responsable SG-SST',
+        responsibleSSTPhone: 'Contacto del Responsable',
+        generalActivities: 'Descripción de Actividades',
+        formationLevel: 'Nivel de Formación',
+        licenseNumber: 'Número de Licencia SST',
+        courseStatus: 'Fecha Curso 50/20H',
+        licenseExpiry: 'Vigencia de Licencia',
+    };
+
+    const missingFields = REQUIRED_FIELDS.filter(field => {
         const val = data[field as keyof CompanyInfoData];
         if (typeof val === 'string') {
-            const t = val.trim();
-            return t !== '' && t !== 'N/A' && t !== 'No registrado';
+            const v = val.trim();
+            return v === '' || v === 'N/A' || v === 'No registrado';
         }
-        return val !== undefined && val !== null && val !== 0 && !isNaN(val as number);
+        return val === undefined || val === null || val === 0 || isNaN(val as number);
     });
+
+    const isFormValid = missingFields.length === 0;
 
     const inputClass = 'w-full rounded-xl border border-border-medium bg-surface-primary px-3 py-2 text-sm text-text-primary focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500';
     const labelClass = 'mb-1 flex items-center gap-1.5 text-xs font-medium text-text-secondary after:content-["*"] after:ml-0.5 after:text-red-500';
@@ -677,8 +705,16 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
 
                 {/* Footer */}
                 <div className="flex items-center justify-between border-t border-border-medium px-6 py-4">
-                    <div className="text-xs text-text-secondary">
-                        {data._id ? `Editando: ${data.companyName || 'Sin Nombre'}` : 'Creando Nueva Empresa'}
+                    <div className="flex-1 mr-4">
+                        <div className="text-xs text-text-secondary">
+                            {data._id ? `Editando: ${data.companyName || 'Sin Nombre'}` : 'Creando Nueva Empresa'}
+                        </div>
+                        {!isFormValid && missingFields.length > 0 && (
+                            <div className="mt-1 text-xs text-red-500">
+                                <span className="font-semibold">Faltan:</span>{' '}
+                                {missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}
+                            </div>
+                        )}
                     </div>
                     <div className="flex gap-3">
                         <button
@@ -690,7 +726,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                         <button
                             onClick={() => handleSave()}
                             disabled={saving || !isFormValid}
-                            title={!isFormValid ? "Debe completar todos los campos obligatorios (*)" : ""}
+                            title={!isFormValid ? `Faltan: ${missingFields.map(f => FIELD_LABELS[f] || f).join(', ')}` : ''}
                             className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Save className="h-4 w-4" />

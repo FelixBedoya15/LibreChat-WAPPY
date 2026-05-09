@@ -114,7 +114,7 @@ const VALID_CUSTOM_TOOLS = ['blog', 'somos_sst', 'editor_archivos', 'analisis_vi
  * Calculate price for a custom plan based on selected tools and interval
  */
 const calculateCustomPrice = (customPlanDoc, selectedTools, interval) => {
-    const toolPrices = customPlanDoc.toolPrices || { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 };
+    const toolPrices = customPlanDoc.toolPrices || { blog: 5000, somos_sst: 35000, editor_archivos: 5000, analisis_vivo: 15000 };
     const basePriceMonthly = customPlanDoc.basePriceMonthly || 12000;
     const timeDiscounts = customPlanDoc.timeDiscounts || { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 };
 
@@ -874,9 +874,9 @@ const getCustomPlanConfig = async (req, res) => {
                 name: 'Plan a la Medida',
                 prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 0 },
                 toolPrices: {
-                    blog: 12000,
-                    somos_sst: 18000,
-                    editor_archivos: 15000,
+                    blog: 5000,
+                    somos_sst: 35000,
+                    editor_archivos: 5000,
                     analisis_vivo: 15000,
                 },
                 basePriceMonthly: 12000,
@@ -929,7 +929,7 @@ const createCustomTransaction = async (req, res) => {
                 planId: 'custom',
                 name: 'Plan a la Medida',
                 prices: { monthly: 0 },
-                toolPrices: { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 },
+                toolPrices: { blog: 5000, somos_sst: 35000, editor_archivos: 5000, analisis_vivo: 15000 },
                 basePriceMonthly: 12000,
                 timeDiscounts: { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 },
             });
@@ -1038,7 +1038,7 @@ const guestCustomCheckout = async (req, res) => {
         if (!customPlan) {
             customPlan = await Plan.create({
                 planId: 'custom', name: 'Plan a la Medida', prices: { monthly: 0 },
-                toolPrices: { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 },
+                toolPrices: { blog: 5000, somos_sst: 35000, editor_archivos: 5000, analisis_vivo: 15000 },
                 basePriceMonthly: 12000,
                 timeDiscounts: { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 },
             });

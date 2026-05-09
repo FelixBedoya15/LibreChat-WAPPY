@@ -34,9 +34,9 @@ const planSchema = new mongoose.Schema({
     },
     // Custom plan configuration (only used for planId: 'custom')
     toolPrices: {
-        blog: { type: Number, default: 12000 },
-        somos_sst: { type: Number, default: 18000 },
-        editor_archivos: { type: Number, default: 15000 },
+        blog: { type: Number, default: 5000 },
+        somos_sst: { type: Number, default: 35000 },
+        editor_archivos: { type: Number, default: 5000 },
         analisis_vivo: { type: Number, default: 15000 },
     },
     basePriceMonthly: { type: Number, default: 12000 },

@@ -1703,7 +1703,7 @@ export default function PlansPage() {
                             </p>
 
                             {customPlanConfig ? (() => {
-                                const tp = customPlanConfig.toolPrices || { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 };
+                                const tp = customPlanConfig.toolPrices || { blog: 5000, somos_sst: 35000, editor_archivos: 5000, analisis_vivo: 15000 };
                                 const basePM = customPlanConfig.basePriceMonthly || 12000;
                                 const td = customPlanConfig.timeDiscounts || { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 };
 
