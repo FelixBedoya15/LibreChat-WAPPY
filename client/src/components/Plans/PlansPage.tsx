@@ -398,7 +398,7 @@ export default function PlansPage() {
 
     const trackCheckoutEvent = useCallback((event: string, payload: any = {}) => {
         try {
-            axios.post('/api/analytics/checkout-event', {
+            axios.post('/api/admin/checkout-event', {
                 sessionId: getSessionId(),
                 event,
                 ...payload
@@ -593,7 +593,7 @@ export default function PlansPage() {
                 });
 
                 checkout.open((result: any) => {
-                    const transaction = result.transaction;
+                    const transaction = result?.transaction || {};
                     if (transaction.status === 'APPROVED') {
                         trackCheckoutEvent('payment_approved', {
                             planId: checkoutPlan.planKey,
@@ -687,7 +687,7 @@ export default function PlansPage() {
                     signature: wompiData.signature ? { integrity: wompiData.signature } : undefined,
                 });
                 checkout.open((result: any) => {
-                    const transaction = result.transaction;
+                    const transaction = result?.transaction || {};
                     if (transaction.status === 'APPROVED') {
                         trackCheckoutEvent('payment_approved', {
                             planId: checkoutPlan.planKey,
