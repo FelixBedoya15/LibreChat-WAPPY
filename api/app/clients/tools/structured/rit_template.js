@@ -47,6 +47,74 @@ module.exports = `
   <p>El presente Reglamento Interno de Trabajo, prescrito por <strong>{{empresa_nombre}}</strong>, empresa legalmente constituida en Colombia e identificada con NIT <strong>{{empresa_nit}}</strong>, domiciliada en <strong>{{ciudad_domicilio}}, {{departamento}}</strong>, hace parte integral de los contratos de trabajo individuales, verbales o escritos, celebrados o que se celebren con todos sus trabajadores. El empleador y el trabajador se someten estrictamente a las disposiciones de este reglamento, así como al Código Sustantivo del Trabajo (CST), sus decretos reglamentarios, las leyes 1010 de 2006, 2191 de 2022, 2365 de 2024, 2396 de 2024, y la Ley 2466 de 2025 (Reforma Laboral), en todo lo que no resulte contrario a los derechos mínimos e irrenunciables de los trabajadores garantizados por la Constitución Política de Colombia.</p>
   <p>Este documento tiene como finalidad fundamental regular y definir las condiciones que deben sujetar al empleador y a los trabajadores en el desempeño de las labores, promoviendo el respeto, la sana convivencia, la prevención del acoso laboral y sexual, y el desarrollo de un entorno de trabajo digno y justo, en consonancia con los principios de la Organización Internacional del Trabajo (OIT).</p>
 
+  <h3>Marco Normativo y Legal Aplicable</h3>
+  <table style="width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; font-family: Arial, sans-serif; margin-bottom: 25px; margin-top: 15px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+    <thead>
+      <tr>
+        <th style="background-color: #0e7460; color: white; padding: 12px; text-align: left; font-size: 14px; font-weight: bold; width: 25%; border-right: 1px solid #0b5c4d;">Normatividad Aplicable</th>
+        <th style="background-color: #0e7460; color: white; padding: 12px; text-align: left; font-size: 14px; font-weight: bold; width: 75%;">Descripción y Aplicación en el Reglamento</th>
+      </tr>
+    </thead>
+    <tbody style="font-size: 13px; color: #333;">
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Código Sustantivo del Trabajo (CST)</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Norma matriz que rige y estructura las relaciones laborales individuales, los contratos, derechos mínimos e irrenunciables, y obligaciones entre el empleador y los trabajadores.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 2466 de 2025<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Reforma Laboral)</span></td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Regula la reducción definitiva de la jornada laboral máxima (42 horas semanales), modificaciones en recargos nocturnos (iniciando desde las 7:00 p.m.), nuevas directrices en contratos de aprendizaje, estabilidad laboral reforzada y exigencia de publicación digital del RIT.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Sentencia C-593 de 2014<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Corte Constitucional)</span></td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Jurisprudencia que exige un estricto <strong>"Blindaje del Debido Proceso"</strong>. Ordena que el trabajador sea informado claramente de las faltas, se le garantice el traslado formal de pruebas antes de descargos y la posibilidad de doble instancia ante una sanción.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 1010 de 2006</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Define y establece las medidas para prevenir, corregir y sancionar el acoso laboral y otras modalidades de hostigamiento en las relaciones de trabajo, incluyendo la creación del Comité de Convivencia Laboral.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 2365 de 2024</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Estructura de prevención y sanción del acoso sexual laboral. Impone la creación de rutas de atención específicas, garantías de no revictimización y la obligatoriedad del reporte semestral ante el Sistema de Información de Violencias de Género (SIVIGE).</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 2191 de 2022</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Garantiza el derecho a la desconexión laboral, salvaguardando el tiempo de descanso, licencias, permisos, vacaciones y la vida personal y familiar de los trabajadores fuera de su jornada ordinaria.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Decreto 1072 de 2015</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Decreto Único Reglamentario del Sector Trabajo. Establece la obligatoriedad, estructura y directrices para la implementación del Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST).</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Resolución 0312 de 2019 / SST</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Estándares Mínimos del Sistema de Gestión de Seguridad y Salud en el Trabajo (SG-SST), que fundamentan las obligaciones de autocuidado, uso de EPP y reporte inmediato de incidentes, accidentes o condiciones de salud preexistentes por parte de los trabajadores.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 1562 de 2012</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Modifica el Sistema de Riesgos Laborales. Define integralmente los conceptos de accidente de trabajo y enfermedad laboral para garantizar su reporte oportuno.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley Estatutaria 1581 de 2012</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Ley de Protección de Datos Personales (Hábeas Data). Regula la privacidad, recolección y tratamiento confidencial de la información, expedientes médicos y bases de datos de los trabajadores.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Leyes 1221 (2008), 2088 y 2121 (2021)</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Marcos regulatorios para las modalidades de trabajo a distancia: Teletrabajo, Trabajo en Casa y Trabajo Remoto, garantizando la igualdad de derechos y obligaciones.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 2101 de 2021</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Establece los lineamientos originales para la reducción gradual de la jornada laboral máxima legal sin afectar los salarios ni los derechos adquiridos.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Resolución 089 y Ley 1335 (2009)</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Prevención de adicciones y políticas de salud pública: prohíbe el consumo de alcohol, sustancias psicoactivas y declara las instalaciones corporativas como espacios 100% Libres de Humo (incluyendo vapeadores).</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-right: 1px solid #e0e0e0;">Leyes 1822, 2114, 1280, 1811 y 163</td>
+        <td style="padding: 10px; line-height: 1.5;">Conjunto normativo que amplía y asegura las licencias y permisos remunerados irrenunciables: Maternidad y aborto (1822), Paternidad (2114), Luto (1280), incentivo de transporte en bicicleta (1811) y fuero electoral por sufragio o jurado (163).</td>
+      </tr>
+    </tbody>
+  </table>
+
   <h2>CAPÍTULO I — DEL EMPLEADOR, TRABAJADORES Y TIPOS DE CONTRATO</h2>
   <h3>Art. 1° Identificación del empleador, domicilio y actividad</h3>
   <p>El empleador de las personas que prestan sus servicios a la empresa es <strong>{{empresa_nombre}}</strong>, identificada con NIT <strong>{{empresa_nit}}</strong>, constituida como una sociedad comercial de tipo <strong>{{tipo_empresa}}</strong>. El domicilio principal de la empresa es <strong>{{ciudad_domicilio}}, {{departamento}}</strong> en la dirección <strong>{{direccion}}</strong>. La actividad económica principal de la compañía es <strong>{{actividad_economica}}</strong>, bajo el Código CIIU <strong>{{codigo_ciiu}}</strong>. Las disposiciones de este reglamento aplican tanto para los trabajadores del domicilio principal como para las sucursales, agencias o dependencias que operen a nivel nacional o internacional donde presten servicio los empleados de la misma.</p>
@@ -166,13 +234,14 @@ module.exports = `
   <p>La empresa concederá el tiempo necesario y prudencial como permiso remunerado, a los trabajadores que deban asistir a citaciones obligatorias escolares, reuniones de padres de familia y acompañamiento frente a procesos pedagógicos ineludibles de sus hijos menores de edad. Estos permisos deben ser acordados y demostrados oportunamente con la dirección de la empresa según la reforma laboral (Ley 2466/2025).</p>
 
   <h3>Art. 31° Permisos remunerados</h3>
-  <p>La empresa concederá los permisos necesarios y remunerados en los siguientes eventos:</p>
+  <p>En estricto cumplimiento de la ley laboral vigente y la Reforma Laboral (Ley 2466 de 2025), la empresa concederá obligatoriamente los permisos necesarios y remunerados en los siguientes eventos:</p>
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
     <li>Calamidad doméstica debidamente comprobada.</li>
-    <li>Para concurrir al servicio médico de la EPS y ARL (tiempo estricto para cita y traslados).</li>
+    <li>Para asistir a <strong>citas médicas programadas</strong> (EPS, ARL, medicina prepagada, especialistas) y atención de urgencias médicas (tiempo estricto para cita y traslados).</li>
+    <li>Para atender de forma ineludible <strong>diligencias judiciales o administrativas</strong>, o rendir declaratoria cuando sea requerido por autoridades competentes.</li>
     <li>Para desempeñar cargos oficiales transitorios de forzosa aceptación (ej: jurados de votación, el cual otorga 1 día compensatorio remunerado - Ley 163 de 1994).</li>
     <li>Para ejercer el derecho al sufragio en elecciones democráticas (otorga medio día compensatorio remunerado en los 30 días siguientes - Ley 163 de 1994).</li>
-    <li>Para comisiones sindicales.</li>
+    <li>Para el cabal cumplimiento de comisiones sindicales (si aplica).</li>
     <li>Por contraer matrimonio (licencia de cinco (5) días hábiles remunerados, en concordancia con la protección a la familia avalada jurisprudencialmente).</li>
     <li>Por llegar al trabajo en bicicleta (otorga medio día remunerado por cada 30 veces certificadas, hasta 8 al año - Ley 1811 de 2016).</li>
   </ol>
@@ -304,7 +373,8 @@ module.exports = `
   <p>Son deberes del trabajador (Art. 58 CST):</p>
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
     <li>Cumplir estrictamente sus obligaciones y el presente reglamento.</li>
-    <li>Guardar rigurosa moral en todas sus relaciones con sus superiores y compañeros.</li>
+    <li>Suministrar información clara, veraz y completa sobre su estado de salud, tanto en los exámenes médicos ocupacionales de ingreso como en los periódicos, sin ocultar condiciones preexistentes que puedan agravarse o ser incompatibles con su labor (Decreto 1072/2015).</li>
+    <li>Guardar rigurosa moral y absoluto respeto en todas sus relaciones con sus superiores y compañeros, absteniéndose de cualquier acto de violencia o riña.</li>
     <li>Conservar y restituir en buen estado las herramientas, maquinaria e instrumentos asignados.</li>
     <li>Prestar la colaboración posible en casos de siniestro o riesgo inminente.</li>
     <li>Guardar el secreto y confidencialidad comercial e industrial y de los asuntos estrictamente técnicos o que puedan causar perjuicios.</li>
@@ -316,17 +386,18 @@ module.exports = `
   <p>Está estrictamente prohibido a los trabajadores (Art. 60 CST y demás):</p>
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
     <li>Sustraer de las instalaciones útiles, materia prima o productos sin permiso.</li>
-    <li>Presentarse al trabajo en estado de embriaguez o bajo el efecto de sustancias narcóticas.</li>
+    <li>Presentarse al trabajo bajo el influjo de alcohol, sustancias psicoactivas o estupefacientes, así como consumirlos dentro de las instalaciones o durante el desarrollo de sus funciones.</li>
+    <li>Promover o participar en riñas, peleas, agresiones físicas o verbales contra compañeros de trabajo, superiores, subalternos o terceros dentro o fuera de las instalaciones si afecta la imagen corporativa.</li>
     <li>Portar armas de cualquier especie durante el trabajo.</li>
     <li>Disminuir intencionalmente el ritmo de trabajo o promover huelgas ilegales.</li>
-    <li>Faltar al trabajo sin justa causa de impedimento o sin permiso del empleador.</li>
+    <li>Faltar al trabajo, llegar reiteradamente tarde o abandonar el cargo en horas de servicio sin justa causa comprobada o sin permiso expreso del empleador.</li>
     <li>Usar los útiles de la empresa en asuntos distintos al trabajo asignado.</li>
     <li>Incurrir en conductas que representen acoso laboral, discriminación de género o cualquier modalidad de acoso sexual sobre compañeros o terceros.</li>
   </ol>
 
   <h2>CAPÍTULO IX — RÉGIMEN DISCIPLINARIO</h2>
   <h3>Art. 60° Principios rectores</h3>
-  <p>El régimen disciplinario está basado en el respeto del Debido Proceso Constitucional en los términos señalados en la Ley 2466 de 2025. Toda investigación y sanción interna estará orientada por los principios de: Dignidad Humana, Imparcialidad, Legalidad (la falta debe estar claramente descrita en este reglamento o en el contrato), Tipicidad, Proporcionalidad a la gravedad de la falta, y Non bis in ídem (nadie puede ser sancionado dos veces por el mismo hecho).</p>
+  <p>El régimen disciplinario está basado en el respeto del Debido Proceso Constitucional y las garantías estipuladas en la Reforma Laboral (Ley 2466 de 2025). Toda investigación y sanción interna estará orientada por los principios ineludibles de: Dignidad Humana, Presunción de Inocencia, <em>In dubio pro disciplinado</em> (toda duda razonable favorecerá al trabajador), Imparcialidad, Legalidad (la falta debe estar expresamente descrita), Tipicidad, Proporcionalidad a la gravedad de la falta, y Non bis in ídem (nadie puede ser sancionado dos veces por el mismo hecho).</p>
 
   <h3>Art. 61° Escala de FALTAS LEVES</h3>
   <p>Constituyen faltas de menor magnitud e impacto, que entorpecen la operación pero no destruyen la confianza del empleador, tales como:</p>
@@ -356,14 +427,18 @@ module.exports = `
       </tr>
     </thead>
     <tbody>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">1</td><td style="padding: 10px; border: 1px solid #e0e0e0;">La ausencia injustificada o abandono de labores, por uno o más días continuos o fraccionados en el mismo mes calendario.</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">2</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Fraude, falsificación de firmas o manipulación de registros y certificados (incapacidades falsas, marcaciones de tiempos inexistentes).</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">3</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Violación del secreto industrial y de la confidencialidad de la información (Ley 1581/2012).</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">4</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Negativa obstinada a someterse a medidas preventivas, normas SST, realización de evaluaciones médicas y el no uso de EPP para actividades de alto riesgo (ej. alturas).</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">5</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Consumir licor o drogas en horas y espacios de trabajo, o negarse injustificadamente a practicarse pruebas de alcoholemia.</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">6</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Cualquier manifestación o queja ratificada de acoso sexual o acoso laboral con componente lesivo, acoso digital y agresión física, o maltrato a la mujer o comunidades diversas.</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">7</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Usar los vehículos y propiedad de la compañía sin autorización para fines personales.</td></tr>
-      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">8</td><td style="padding: 10px; border: 1px solid #e0e0e0;">La desobediencia manifiesta al derecho a la desconexión laboral de sus subordinados causando coacción y hostigamiento.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">1</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Abandono de cargo y ausentismo:</strong> Faltar al trabajo sin justa causa o permiso previo, constituyendo falta grave desde el primer evento o la sumatoria de fracciones de jornada.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">2</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Sustancias psicoactivas y alcohol:</strong> Presentarse a laborar bajo el influjo de alcohol, sustancias psicoactivas o medicamentos no formulados que alteren el desempeño, así como consumirlos durante la jornada o negarse injustificadamente a una prueba de tamizaje, por la afectación directa a la seguridad industrial.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">3</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Agresiones y riñas:</strong> Promover, participar o incitar riñas, peleas, agresiones físicas, verbales, insultos o alteraciones graves del orden público dentro de las instalaciones contra compañeros, superiores o terceros.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">4</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Ocultamiento de estado de salud:</strong> La omisión dolosa, falsedad o el ocultamiento intencional de información sobre el estado real de salud preexistente durante exámenes médicos ocupacionales de ingreso o periódicos, cuando dicha condición sea incompatible con el cargo o ponga en riesgo la operación.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">5</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Reincidencia y mala fe:</strong> La acumulación sistemática de tres (3) o más faltas leves (llamados de atención o amonestaciones) en un período de seis (6) meses, tipificándose automáticamente como indisciplina grave reiterativa que resquebraja la confianza.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">6</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Fraude, falsificación de firmas o manipulación de registros y certificados (incapacidades falsas, marcaciones de tiempos inexistentes).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">7</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Violación del secreto industrial y de la confidencialidad de la información (Ley 1581/2012).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">8</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Negativa obstinada a someterse a medidas preventivas, normas SST y el no uso de EPP para actividades de alto riesgo (ej. alturas).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">9</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Cualquier manifestación o queja ratificada de acoso sexual o acoso laboral con componente lesivo, acoso digital y agresión física, o maltrato a la mujer o comunidades diversas.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">10</td><td style="padding: 10px; border: 1px solid #e0e0e0;">La desobediencia manifiesta al derecho a la desconexión laboral de sus subordinados causando coacción y hostigamiento.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">11</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Uso indebido de TIC:</strong> Utilizar los recursos tecnológicos, correos electrónicos, redes o internet de la empresa para fines ilícitos, acceder a contenido inapropiado, descargar software no licenciado (pirata) o malicioso que comprometa la seguridad de la información corporativa.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">12</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Conflicto de intereses y Competencia Desleal:</strong> Realizar, directa o indirectamente, actividades paralelas o negocios personales que compitan con la empresa durante la vigencia del contrato, así como usar su tiempo de la jornada laboral para lucrarse externamente.</td></tr>
     </tbody>
   </table>
 
@@ -388,13 +463,16 @@ module.exports = `
   <h3>Art. 64° Límites a las multas</h3>
   <p>De conformidad con el Artículo 113 del CST, las multas se aplicarán exclusivamente cuando el trabajador, sin excusa suficiente, llegue tarde a sus labores, o falte al trabajo (ausentismo). Esta multa no puede en ningún caso, ni en repetidas oportunidades, exceder de la quinta (1/5) parte del salario de un (1) día de la cuota ordinaria de nómina; y la suma recaudada se destinará exclusivamente al rubro de bienestar o estímulo que beneficie a todos los trabajadores.</p>
 
-  <h3>Art. 65° PROCEDIMIENTO DISCIPLINARIO CON GARANTÍA DE DEBIDO PROCESO</h3>
-  <p>De acuerdo con la Sentencia C-593 de 2014 de la Corte Constitucional y la jurisprudencia reciente de la Corte Suprema de Justicia, para aplicar cualquier sanción o despido con justa causa, la empresa garantiza el siguiente protocolo ineludible:</p>
+  <h3>Art. 65° PROCEDIMIENTO DISCIPLINARIO (BLINDAJE DEL DEBIDO PROCESO)</h3>
+  <p>En estricto apego a la Reforma Laboral (Ley 2466 de 2025) que modifica el Artículo 115 del CST, y la Sentencia C-593 de 2014, para evitar nulidades sancionatorias la empresa garantiza el siguiente protocolo ineludible de siete (7) pasos:</p>
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
-    <li style="margin-bottom: 10px;"><strong>Citación a descargos y traslado de pruebas:</strong> Se notificará por escrito al trabajador (presencial o electrónicamente) de la falta cometida, su fecha, su posible calificación y, obligatoriamente, se le hará entrega de copia de todas las pruebas que obran en su contra para que pueda defenderse, con al menos 48 horas de antelación a la audiencia.</li>
-    <li style="margin-bottom: 10px;"><strong>Audiencia y acompañamiento:</strong> El trabajador expondrá su versión, controvertirá las pruebas de la empresa y aportará sus pruebas de defensa; para ello tiene el derecho a ser asistido por dos (2) compañeros de trabajo y/o un (1) representante del sindicato al cual pertenezca.</li>
-    <li style="margin-bottom: 10px;"><strong>Toma de decisión debidamente motivada:</strong> El ente sancionador o superior directo redactará un fallo estructurado que evalúe los descargos, determine la absolución o aplique la sanción de forma proporcional.</li>
-    <li><strong>Recurso de reposición y apelación:</strong> Conforme al Debido Proceso y Ley 2466 de 2025, el trabajador tendrá un plazo no mayor a cinco (5) días hábiles tras ser notificado para elevar recurso de reconsideración, que deberá ser fallado garantizando la doble instancia (por un ente superior a quien impuso la sanción, si la estructura corporativa lo permite).</li>
+    <li style="margin-bottom: 10px;"><strong>Apertura Formal e Investigación:</strong> Recolección imparcial de pruebas (documentales, testimoniales, cámaras de seguridad o auditorías TIC) antes de tomar cualquier decisión.</li>
+    <li style="margin-bottom: 10px;"><strong>Citación a Descargos:</strong> Notificación formal y escrita al trabajador indicando de manera expresa y detallada los hechos, conductas u omisiones investigadas, así como las normas del RIT o CST posiblemente infringidas.</li>
+    <li style="margin-bottom: 10px;"><strong>Traslado de Pruebas y Plazo de Defensa:</strong> Con la citación, se entregará copia íntegra de todas las pruebas que obran en su contra. Se le otorgará al trabajador un período no inferior a <strong>cinco (5) días</strong> para preparar y presentar su defensa, controvertir las pruebas allegadas y aportar las suyas.</li>
+    <li style="margin-bottom: 10px;"><strong>Audiencia de Descargos y Acompañamiento:</strong> El trabajador expondrá su versión verbal o escrita. Tiene derecho a ser asistido por dos (2) compañeros de trabajo o representante del sindicato. Si los descargos son verbales, se levantará obligatoriamente un acta que transcriba lo expresado, la cual será firmada por los asistentes.</li>
+    <li style="margin-bottom: 10px;"><strong>Valoración Imparcial:</strong> El ente encargado analizará las pruebas y descargos basándose en el principio de <em>in dubio pro disciplinado</em> y la proporcionalidad de la sanción.</li>
+    <li style="margin-bottom: 10px;"><strong>Fallo Motivado y Notificación:</strong> Comunicación escrita fundamentando de manera clara, fáctica y jurídica la decisión de absolución, sanción menor o despido con justa causa.</li>
+    <li><strong>Doble Instancia (Recursos de Ley):</strong> Se otorgará un plazo de cinco (5) días hábiles tras la notificación del fallo para que el trabajador interponga los recursos de reposición y apelación. La apelación será resuelta por el superior jerárquico de quien impuso la sanción, garantizando la doble instancia constitucional.</li>
   </ol>
 
   <h3>Art. 66° Cargos con facultad sancionatoria</h3>
@@ -565,13 +643,6 @@ module.exports = `
   <p>La compañía es consciente que bajo las exigencias formales y sancionatorias tipificadas expresamente por los entes inspectivos y de acuerdo a las directrices que impone legalmente la legislación nacional como el Artículo 114 y 120 (CST) o la Reforma 2466 de 2025, el negarse a disponer, redactar legalmente, y publicitar o faltar a implementar formal y periódicamente el presente compendio RIT en los fueros correctos acarreará al ente patronal multas onerosas desde las mínimas vigentes a castigos pecuniarios supremos del orden de hasta 5.000 (Cinco mil) SMMLV e invalidez de los ceses unilaterales pactados frente a litigios corporativos.</p>
 
   <h3>Art. 114° Firma del Representante Legal</h3>
-  <p>En constancia unánime de expedición plena y publicación ratificada de lo anterior y para los fines rectores de fuerza de vigencia frente a la autoridad del trabajo nacional, avala, suscribe y firma en original con validez el preclaro Representante Legal de la empresa expidiendo y promulgando lo dictado, a los <strong>{{current_date}}</strong>.</p>
-
-  <br/><br/><br/>
-  <p>______________________________________</p>
-  <p><strong>{{representante_legal}}</strong></p>
-  <p>C.C. [Número de documento]</p>
-  <p>Representante Legal</p>
-  <p><strong>{{empresa_nombre}}</strong></p>
+  <p>En constancia unánime de expedición plena y publicación ratificada de lo anterior y para los fines rectores de fuerza de vigencia frente a la autoridad del trabajo nacional, avala, suscribe y firma en original con validez legal el/la representante legal <strong>{{representante_legal}}</strong> en nombre y representación de la empresa <strong>{{empresa_nombre}}</strong>, expidiendo y promulgando lo dictado a los <strong>{{current_date}}</strong>.</p>
 </div>
 `;
