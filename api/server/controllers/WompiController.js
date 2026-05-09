@@ -17,6 +17,7 @@ const getIntervalDays = (interval) => {
     if (interval === 'quarterly') return 90;
     if (interval === 'semiannual') return 180;
     if (interval === 'annual') return 365;
+    if (interval === 'lifetime') return 36500; // ~100 años
     return 30; // monthly default
 };
 
@@ -107,7 +108,7 @@ const validatePromoCode = async (req, res) => {
 /** Plan display names */
 const PLAN_NAMES = { go: 'Go', plus: 'Plus', pro: 'Pro', ipevar: 'Plan IPEVAR', custom: 'Plan a la Medida' };
 
-const VALID_INTERVALS = ['daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual'];
+const VALID_INTERVALS = ['daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual', 'lifetime'];
 const VALID_CUSTOM_TOOLS = ['blog', 'somos_sst', 'editor_archivos', 'analisis_vivo'];
 
 /**
@@ -151,6 +152,7 @@ const getUserPlan = async (req, res) => {
             else if (role === 'USER_PLUS') plan = 'plus';
             else if (role === 'USER_GO') plan = 'go';
             else if (role === 'USER_CUSTOM') plan = 'custom';
+            else if (role === 'USER_IPEVAR') plan = 'ipevar';
             else plan = 'free';
         }
 
@@ -399,7 +401,8 @@ const handleWebhook = async (req, res) => {
             const User = mongoose.model('User');
             let newRole = 'USER';
             if (wompiTx.planId === 'custom') newRole = 'USER_CUSTOM';
-            else if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+            else if (wompiTx.planId === 'ipevar') newRole = 'USER_IPEVAR';
+            else if (wompiTx.planId === 'go') newRole = 'USER_GO';
             else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
             else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
@@ -492,7 +495,8 @@ const verifyTransaction = async (req, res) => {
                 const User = mongoose.model('User');
                 let newRole = 'USER';
                 if (wompiTx.planId === 'custom') newRole = 'USER_CUSTOM';
-                else if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+                else if (wompiTx.planId === 'ipevar') newRole = 'USER_IPEVAR';
+                else if (wompiTx.planId === 'go') newRole = 'USER_GO';
                 else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
@@ -826,7 +830,8 @@ const guestVerifyTransaction = async (req, res) => {
                 const User = mongoose.model('User');
                 let newRole = 'USER';
                 if (wompiTx.planId === 'custom') newRole = 'USER_CUSTOM';
-                else if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+                else if (wompiTx.planId === 'ipevar') newRole = 'USER_IPEVAR';
+                else if (wompiTx.planId === 'go') newRole = 'USER_GO';
                 else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 

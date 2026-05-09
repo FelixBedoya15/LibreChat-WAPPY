@@ -46,6 +46,10 @@ export enum SystemRoles {
    * The User Custom (Plan a la Medida) role
    */
   USER_CUSTOM = 'USER_CUSTOM',
+  /**
+   * The User IPEVAR role — lifetime single payment, IPEVAR risk matrix access
+   */
+  USER_IPEVAR = 'USER_IPEVAR',
 }
 
 export const roleSchema = z.object({
@@ -151,6 +155,10 @@ const defaultRolesSchema = z.object({
   }),
   [SystemRoles.USER_CUSTOM]: roleSchema.extend({
     name: z.literal(SystemRoles.USER_CUSTOM),
+    permissions: permissionsSchema,
+  }),
+  [SystemRoles.USER_IPEVAR]: roleSchema.extend({
+    name: z.literal(SystemRoles.USER_IPEVAR),
     permissions: permissionsSchema,
   }),
 });
@@ -399,6 +407,41 @@ export const roleDefaults = defaultRolesSchema.parse({
       [PermissionTypes.MARKETPLACE]: {
         [Permissions.USE]: false,
       },
+      [PermissionTypes.FILE_SEARCH]: {},
+      [PermissionTypes.FILE_CITATIONS]: {},
+      [PermissionTypes.LIVE_CHAT]: { [Permissions.USE]: true },
+      [PermissionTypes.LIVE_ANALYSIS]: { [Permissions.USE]: false },
+      [PermissionTypes.ARTIFACTS]: { [Permissions.USE]: false },
+      [PermissionTypes.ENDPOINTS]: {
+        [Permissions.USE]: true,
+        'openAI': true,
+        'google': true,
+        'anthropic': true,
+        'wappy': true,
+        'agents': true,
+      },
+      [PermissionTypes.ATTACHMENTS]: { [Permissions.USE]: true },
+      [PermissionTypes.PARAMETERS]: { [Permissions.USE]: true },
+      [PermissionTypes.SGSST]: { [Permissions.USE]: false },
+    },
+  },
+  [SystemRoles.USER_IPEVAR]: {
+    name: SystemRoles.USER_IPEVAR,
+    permissions: {
+      [PermissionTypes.PROMPTS]: {},
+      [PermissionTypes.BOOKMARKS]: {},
+      [PermissionTypes.MEMORIES]: {},
+      [PermissionTypes.AGENTS]: { [Permissions.CREATE]: false },
+      [PermissionTypes.MULTI_CONVO]: {},
+      [PermissionTypes.TEMPORARY_CHAT]: {},
+      [PermissionTypes.RUN_CODE]: {},
+      [PermissionTypes.WEB_SEARCH]: {},
+      [PermissionTypes.PEOPLE_PICKER]: {
+        [Permissions.VIEW_USERS]: false,
+        [Permissions.VIEW_GROUPS]: false,
+        [Permissions.VIEW_ROLES]: false,
+      },
+      [PermissionTypes.MARKETPLACE]: { [Permissions.USE]: false },
       [PermissionTypes.FILE_SEARCH]: {},
       [PermissionTypes.FILE_CITATIONS]: {},
       [PermissionTypes.LIVE_CHAT]: { [Permissions.USE]: true },

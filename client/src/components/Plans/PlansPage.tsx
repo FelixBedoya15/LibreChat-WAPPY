@@ -176,11 +176,10 @@ const APP_PLANS = [
         features: [
             '**Agente Matriz IPEVAR**',
             'Todo lo del plan Gratis',
-            'Blog WAPPY',
             'Hasta 30 conversaciones abiertas',
             'Podrá ingresar 4 claves API de Gemini',
         ],
-        notIncluded: ['Somos SST completo', 'Editor de Archivos con IA'],
+        notIncluded: ['Blog WAPPY', 'Somos SST completo', 'Editor de Archivos con IA'],
         popular: true,
     }
 ];
@@ -478,11 +477,11 @@ export default function PlansPage() {
     const handleSubscribe = useCallback(
         (planKey: string, planObj: any, displayPrice: string, discountedPrice: number, rawPrice: number, promotion: any) => {
             if (planKey === 'free') return;
-            trackCheckoutEvent('plan_selected', { planId: planKey, interval: planKey === 'ipevar' ? 'annual' : 'monthly' });
+            trackCheckoutEvent('plan_selected', { planId: planKey, interval: planKey === 'ipevar' ? 'lifetime' : 'monthly' });
             const subObj = { planKey, planObj, displayPrice, discountedPrice, rawPrice, promotion };
             // Go directly to checkout — authentication is only required at the moment of payment
             if (planKey === 'ipevar') {
-                setBillingInterval('annual');
+                setBillingInterval('lifetime');
             }
             setPromoCodeInput('');
             setPromoValidated(null);
@@ -848,14 +847,14 @@ export default function PlansPage() {
                                     <div className="flex items-end gap-1 mb-4">
                                         {checkoutPlan.discountedPrice > 0 ? (
                                             <>
-                                                <span className={`text-4xl font-black ${checkoutPlan.planObj.accentColor}`}>${checkoutPlan.discountedPrice.toLocaleString('es-CO')}</span>
-                                                <span className="text-sm text-text-secondary mb-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
+                                                <span className={`text-4xl font-black ${checkoutPlan.planObj.accentColor}`}>{checkoutPlan.discountedPrice.toLocaleString('es-CO')}</span>
+                                                <span className="text-sm text-text-secondary mb-1">/{billingInterval === 'lifetime' ? 'Pago único' : billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
                                                 <span className="ml-2 text-sm text-text-tertiary line-through decoration-red-400">{checkoutPlan.displayPrice}</span>
                                             </>
                                         ) : (
                                             <>
                                                 <span className={`text-4xl font-black ${checkoutPlan.planObj.accentColor}`}>{checkoutPlan.displayPrice}</span>
-                                                <span className="text-sm text-text-secondary mb-1">/{billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
+                                                <span className="text-sm text-text-secondary mb-1">/{billingInterval === 'lifetime' ? 'Pago único' : billingInterval === 'monthly' ? 'mes' : billingInterval === 'quarterly' ? 'trim.' : billingInterval === 'semiannual' ? 'sem.' : 'año'}</span>
                                             </>
                                         )}
                                     </div>
@@ -1574,8 +1573,8 @@ export default function PlansPage() {
                                     const isLoadingThis = checkoutLoading === plan.key;
                                     const fetchedConfig = fetchedPlans.find(p => p.planId === plan.key);
 
-                                    // For APP_PLANS we force 'annual' pricing visually
-                                    const fixedInterval = 'annual';
+                                    // Plan IPEVAR: pago único vitalicio
+                                    const fixedInterval = plan.key === 'ipevar' ? 'lifetime' : 'annual';
                                     let rawPrice = 250000;
                                     let displayPrice = '$250.000';
                                     let promotion: any = null;
@@ -1638,7 +1637,7 @@ export default function PlansPage() {
                                                         ${Math.round(totalToBill).toLocaleString('es-CO')}
                                                     </span>
                                                     <span className="mb-1 text-xs font-semibold text-text-secondary">
-                                                        /año
+                                                        {plan.key === 'ipevar' ? 'Pago único vitalicio' : '/año'}
                                                     </span>
                                                 </div>
                                             </div>

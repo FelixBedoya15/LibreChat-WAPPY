@@ -55,6 +55,7 @@ const runPollCycle = async () => {
             if (interval === 'quarterly') return 90;
             if (interval === 'semiannual') return 180;
             if (interval === 'annual') return 365;
+            if (interval === 'lifetime') return 36500;
             return 30;
         };
 
@@ -125,6 +126,7 @@ const runPollCycle = async () => {
 
                     let newRole = 'USER';
                     if (tx.planId === 'custom') newRole = 'USER_CUSTOM';
+                    else if (tx.planId === 'ipevar') newRole = 'USER_IPEVAR';
                     else if (tx.planId === 'go') newRole = 'USER_GO';
                     else if (tx.planId === 'plus') newRole = 'USER_PLUS';
                     else if (tx.planId === 'pro') newRole = 'USER_PRO';
