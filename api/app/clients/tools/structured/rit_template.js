@@ -65,16 +65,24 @@ module.exports = `
         <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Regula la reducción definitiva de la jornada laboral máxima (42 horas semanales), modificaciones en recargos nocturnos (iniciando desde las 7:00 p.m.), nuevas directrices en contratos de aprendizaje, estabilidad laboral reforzada y exigencia de publicación digital del RIT.</td>
       </tr>
       <tr>
-        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Sentencia C-593 de 2014<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Corte Constitucional)</span></td>
-        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Jurisprudencia que exige un estricto <strong>"Blindaje del Debido Proceso"</strong>. Ordena que el trabajador sea informado claramente de las faltas, se le garantice el traslado formal de pruebas antes de descargos y la posibilidad de doble instancia ante una sanción.</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Sentencia C-593 de 2014 y T-329 de 2021<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Corte Constitucional)</span></td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Jurisprudencia que exige un estricto <strong>"Blindaje del Debido Proceso"</strong>. Definen los requisitos mínimos: comunicación formal, formulación de cargos, traslado ineludible de pruebas, y garantía integral de defensa y doble instancia.</td>
       </tr>
       <tr>
-        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 1010 de 2006</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Define y establece las medidas para prevenir, corregir y sancionar el acoso laboral y otras modalidades de hostigamiento en las relaciones de trabajo, incluyendo la creación del Comité de Convivencia Laboral.</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Sentencia SU-111 de 2025<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Corte Constitucional)</span></td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Reitera la ineficacia de conciliaciones que violen derechos ciertos e indiscutibles y garantiza la estabilidad laboral reforzada para trabajadores por motivos de salud y fuero médico.</td>
       </tr>
       <tr>
-        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 2365 de 2024</td>
-        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Estructura de prevención y sanción del acoso sexual laboral. Impone la creación de rutas de atención específicas, garantías de no revictimización y la obligatoriedad del reporte semestral ante el Sistema de Información de Violencias de Género (SIVIGE).</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Sentencia C-038 de 2021<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Corte Constitucional)</span></td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Refuerza el mandato de igualdad material, declarando inconstitucional cualquier limitación de labores u ocupaciones para las mujeres fundamentada en su género o supuesta protección desproporcionada, prohibiendo la discriminación en el RIT.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Sentencia SL155-2022<br/><span style="font-size:11px; font-weight:normal; color:#666;">(Corte Suprema de Justicia)</span></td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Subraya la obligación de democratizar las relaciones laborales, garantizando que el empleador deba escuchar y considerar las objeciones de los trabajadores durante la etapa de publicación del RIT, particularmente frente a la escala de sanciones.</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Leyes 1010/2006 y 2365/2024, con Sentencia T-104 de 2025</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Marco integral para prevenir, investigar y sancionar todo acto de acoso laboral y sexual. Impone rutas de atención, reporte semestral ante el SIVIGE, prevención de revictimización, y extiende la obligación de protección a la víctima incluso tras su desvinculación laboral.</td>
       </tr>
       <tr>
         <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Ley 2191 de 2022</td>
