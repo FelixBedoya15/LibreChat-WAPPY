@@ -18,13 +18,17 @@
 function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, responsibleName }) {
   const ci = companyInfo || {};
   const empresa = ci.companyName || 'EMPRESA';
-  const nit = ci.nit || 'NIT';
+  const companyType = ci.companyType || 'Persona Jurídica';
+  const nitLabel = companyType === 'Persona Natural' ? 'C.C.' : 'NIT';
+  const nit = ci.nit || 'N/A';
   const representante = ci.legalRepresentative || responsibleName || 'No registrado';
+  const representanteId = ci.legalRepresentativeId ? ` (C.C. ${ci.legalRepresentativeId})` : '';
   const trabajadores = ci.workerCount || 'N/A';
   const riesgo = riskLevel || ci.riskLevel || 'N/A';
   const arl = ci.arl || 'N/A';
   const norma = norm || 'Resolución 0312 de 2019 / Resolución 908 de 2025';
   const fecha = date || new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+  const ciudad = ci.city ? `${ci.city}${ci.departamento ? ', ' + ci.departamento : ''}` : 'N/A';
 
   return `
 <div style="text-align: center; margin-bottom: 24px;">
@@ -46,27 +50,31 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
   <tbody style="font-size: 14px; color: #1e293b;">
     <tr>
       <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">Empresa:</td>
-      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${empresa}</td>
-      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">NIT:</td>
+      <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${empresa} <span style="font-size:11px;color:#64748b;">(${companyType})</span></td>
+      <td style="padding: 10px 14px; font-weight: 700; width: 20%; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">${nitLabel}:</td>
       <td style="padding: 10px 14px; width: 30%; border-bottom: 1px solid #ddd;">${nit}</td>
     </tr>
     <tr>
       <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">Representante:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${representante}</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${representante}${representanteId}</td>
       <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">N° Trabajadores:</td>
       <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${trabajadores}</td>
     </tr>
     <tr>
       <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">Nivel de Riesgo:</td>
       <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${riesgo}</td>
-      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">Fecha de Emisión:</td>
-      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${fecha}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">Ciudad / Depto:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${ciudad}</td>
     </tr>
     <tr>
-      <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee; background-color: #f8fafc;">ARL:</td>
-      <td style="padding: 10px 14px; border-right: 1px solid #eee;">${arl}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">Fecha de Emisión:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;">${fecha}</td>
+      <td style="padding: 10px 14px; font-weight: 700; border-bottom: 1px solid #ddd; border-right: 1px solid #eee; background-color: #f8fafc;">ARL:</td>
+      <td style="padding: 10px 14px; border-bottom: 1px solid #ddd;">${arl}</td>
+    </tr>
+    <tr>
       <td style="padding: 10px 14px; font-weight: 700; border-right: 1px solid #eee; background-color: #f8fafc;">Norma:</td>
-      <td style="padding: 10px 14px;">${norma}</td>
+      <td colspan="3" style="padding: 10px 14px;">${norma}</td>
     </tr>
   </tbody>
 </table>
@@ -82,18 +90,24 @@ function buildStandardHeader({ title, companyInfo, date, norm, riskLevel, respon
 function buildCompanyContextString(companyInfo) {
   if (!companyInfo || !companyInfo.companyName) return '';
 
+  const companyType = companyInfo.companyType || 'Persona Jurídica';
+  const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
+  const ubicacion = [companyInfo.address, companyInfo.city, companyInfo.departamento].filter(Boolean).join(', ');
+
   return `
 **Datos Registrados de la Organización:**
-- Razón Social: ${companyInfo.companyName || 'No registrado'}
-- NIT: ${companyInfo.nit || 'No registrado'}
+- Razón Social / Nombre: ${companyInfo.companyName || 'No registrado'}
+- Tipo de Empresa: ${companyType}
+- ${nitLabel}: ${companyInfo.nit || 'No registrado'}
 - Representante Legal: ${companyInfo.legalRepresentative || 'No registrado'}
+- Cédula Representante Legal: ${companyInfo.legalRepresentativeId || 'No registrado'}
 - Número de Trabajadores: ${companyInfo.workerCount || 'No registrado'}
 - ARL: ${companyInfo.arl || 'No registrada'}
 - Actividad Económica: ${companyInfo.economicActivity || 'No registrada'}
 - Código CIIU: ${companyInfo.ciiu || 'No registrado'}
 - Nivel de Riesgo: ${companyInfo.riskLevel || 'No registrado'}
 - Sector Económico: ${companyInfo.sector || 'No registrado'}
-- Dirección: ${companyInfo.address || 'No registrada'}, ${companyInfo.city || ''}
+- Ubicación: ${ubicacion || 'No registrada'}
 - Responsable SG-SST: ${companyInfo.responsibleSST || 'No registrado'}
 - Nivel de Formación: ${companyInfo.formationLevel || 'No registrado'}
 - Licencia SST: ${companyInfo.licenseNumber || 'No registrado'} (Vence: ${companyInfo.licenseExpiry || 'N/A'})

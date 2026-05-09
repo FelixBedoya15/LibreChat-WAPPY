@@ -73,16 +73,18 @@ async function migrateLegacyData(userId, firstCompanyId) {
  */
 async function syncCompanyMemory(userId, companyData) {
     try {
-        const memoryContent = `Razón Social: ${companyData.companyName || 'N/A'}
-NIT: ${companyData.nit || 'N/A'}
+        const memoryContent = `Razón Social / Nombre: ${companyData.companyName || 'N/A'}
+Tipo de Empresa: ${companyData.companyType || 'Persona Jurídica'}
+Documento de Identidad (NIT / CC): ${companyData.nit || 'N/A'}
 Representante Legal: ${companyData.legalRepresentative || 'N/A'}
+Cédula del Representante Legal: ${companyData.legalRepresentativeId || 'N/A'}
 Número de Trabajadores: ${companyData.workerCount || 'N/A'}
 ARL: ${companyData.arl || 'N/A'}
 Nivel de Riesgo (ARL): ${companyData.riskLevel || 'N/A'}
 Actividad Económica: ${companyData.economicActivity || 'N/A'}
 Código CIIU: ${companyData.ciiu || 'N/A'}
 Sector: ${companyData.sector || 'N/A'}
-Dirección: ${companyData.address || 'N/A'} (Ciudad: ${companyData.city || 'N/A'})
+Dirección: ${companyData.address || 'N/A'} (Ciudad: ${companyData.city || 'N/A'}, Departamento: ${companyData.departamento || 'N/A'})
 Responsable SG-SST: ${companyData.responsibleSST || 'N/A'}
 Nivel de Formación SST: ${companyData.formationLevel || 'N/A'}
 Número de Licencia SST: ${companyData.licenseNumber || 'N/A'}
@@ -93,7 +95,7 @@ Descripción General de Actividades (Sede Principal): ${companyData.generalActiv
         let sedesStr = '';
         if (companyData.sedes && Array.isArray(companyData.sedes) && companyData.sedes.length > 0) {
             sedesStr = '\n\nOtras Sedes:\n' + companyData.sedes.map(s => `- Sede: ${s.nombre || 'N/A'}
-  Dirección: ${s.address || 'N/A'} (${s.city || 'N/A'})
+  Dirección: ${s.address || 'N/A'} (Ciudad: ${s.city || 'N/A'}, Departamento: ${s.departamento || 'N/A'})
   Teléfono: ${s.phone || 'N/A'} - Correo: ${s.email || 'N/A'}
   Actividades de Sede: ${s.generalActivities || 'N/A'}`).join('\n');
         }

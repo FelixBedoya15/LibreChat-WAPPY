@@ -15,12 +15,22 @@ const companyInfoSchema = new mongoose.Schema({
         trim: true,
         default: '',
     },
+    companyType: {
+        type: String,
+        trim: true,
+        default: 'Persona Jurídica',
+    },
     nit: {
         type: String,
         trim: true,
         default: '',
     },
     legalRepresentative: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    legalRepresentativeId: {
         type: String,
         trim: true,
         default: '',
@@ -55,6 +65,11 @@ const companyInfoSchema = new mongoose.Schema({
         default: '',
     },
     city: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    departamento: {
         type: String,
         trim: true,
         default: '',
@@ -130,6 +145,7 @@ const companyInfoSchema = new mongoose.Schema({
             nombre: { type: String, trim: true, default: '' },
             address: { type: String, trim: true, default: '' },
             city: { type: String, trim: true, default: '' },
+            departamento: { type: String, trim: true, default: '' },
             phone: { type: String, trim: true, default: '' },
             email: { type: String, trim: true, default: '' },
             generalActivities: { type: String, trim: true, default: '' },

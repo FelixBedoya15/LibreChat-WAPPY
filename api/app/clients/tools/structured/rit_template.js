@@ -57,7 +57,7 @@ module.exports = `
     </thead>
     <tbody style="font-size: 13px; color: #333;">
       <tr>
-        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Código Sustantivo del Trabajo (CST)</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Código Sustantivo del Trabajo (CST) de 1950</td>
         <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Norma matriz que rige y estructura las relaciones laborales individuales, los contratos, derechos mínimos e irrenunciables, y obligaciones entre el empleador y los trabajadores.</td>
       </tr>
       <tr>
@@ -113,11 +113,11 @@ module.exports = `
         <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Establece los lineamientos originales para la reducción gradual de la jornada laboral máxima legal sin afectar los salarios ni los derechos adquiridos.</td>
       </tr>
       <tr>
-        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Resolución 089 y Ley 1335 (2009)</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #f9f9f9; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">Resolución 089 de 2019 y Ley 1335 de 2009</td>
         <td style="padding: 10px; border-bottom: 1px solid #e0e0e0; line-height: 1.5;">Prevención de adicciones y políticas de salud pública: prohíbe el consumo de alcohol, sustancias psicoactivas y declara las instalaciones corporativas como espacios 100% Libres de Humo (incluyendo vapeadores).</td>
       </tr>
       <tr>
-        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-right: 1px solid #e0e0e0;">Leyes 1822, 2114, 1280, 1811 y 163</td>
+        <td style="padding: 10px; font-weight: bold; background-color: #ffffff; border-right: 1px solid #e0e0e0;">Leyes 1822 de 2017, 2114 de 2021, 1280 de 2009, 1811 de 2016 y 163 de 1994</td>
         <td style="padding: 10px; line-height: 1.5;">Conjunto normativo que amplía y asegura las licencias y permisos remunerados irrenunciables: Maternidad y aborto (1822), Paternidad (2114), Luto (1280), incentivo de transporte en bicicleta (1811) y fuero electoral por sufragio o jurado (163).</td>
       </tr>
     </tbody>
@@ -651,6 +651,6 @@ module.exports = `
   <p>La compañía es consciente que bajo las exigencias formales y sancionatorias tipificadas expresamente por los entes inspectivos y de acuerdo a las directrices que impone legalmente la legislación nacional como el Artículo 114 y 120 (CST) o la Reforma 2466 de 2025, el negarse a disponer, redactar legalmente, y publicitar o faltar a implementar formal y periódicamente el presente compendio RIT en los fueros correctos acarreará al ente patronal multas onerosas desde las mínimas vigentes a castigos pecuniarios supremos del orden de hasta 5.000 (Cinco mil) SMMLV e invalidez de los ceses unilaterales pactados frente a litigios corporativos.</p>
 
   <h3>Art. 114° Firma del Representante Legal</h3>
-  <p>En constancia unánime de expedición plena y publicación ratificada de lo anterior y para los fines rectores de fuerza de vigencia frente a la autoridad del trabajo nacional, avala, suscribe y firma en original con validez legal el/la representante legal <strong>{{representante_legal}}</strong> en nombre y representación de la empresa <strong>{{empresa_nombre}}</strong>, expidiendo y promulgando lo dictado a los <strong>{{current_date}}</strong>.</p>
+  <p>En constancia unánime de expedición plena y publicación ratificada de lo anterior y para los fines rectores de fuerza de vigencia frente a la autoridad del trabajo nacional, avala, suscribe y firma en original con validez legal el/la representante legal <strong>{{representante_legal}}</strong> identificado(a) con C.C. <strong>{{cedula_representante_legal}}</strong> en nombre y representación de la empresa <strong>{{empresa_nombre}}</strong>, expidiendo y promulgando lo dictado a los <strong>{{fecha_publicacion}}</strong>.</p>
 </div>
 `;

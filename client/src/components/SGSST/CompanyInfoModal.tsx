@@ -20,6 +20,7 @@ export interface SedeData {
     nombre: string;
     address: string;
     city: string;
+    departamento: string;
     phone: string;
     email: string;
     generalActivities: string;
@@ -29,8 +30,10 @@ interface CompanyInfoData {
     _id?: string;
     isActive?: boolean;
     companyName: string;
+    companyType: string;
     nit: string;
     legalRepresentative: string;
+    legalRepresentativeId: string;
     workerCount: number;
     arl: string;
     economicActivity: string;
@@ -38,6 +41,7 @@ interface CompanyInfoData {
     ciiu: string;
     address: string;
     city: string;
+    departamento: string;
     phone: string;
     email: string;
     generalActivities: string;
@@ -58,8 +62,10 @@ interface CompanyInfoData {
 
 const INITIAL_DATA: CompanyInfoData = {
     companyName: '',
+    companyType: 'Persona Jurídica',
     nit: '',
     legalRepresentative: '',
+    legalRepresentativeId: '',
     workerCount: 0,
     arl: '',
     economicActivity: '',
@@ -67,6 +73,7 @@ const INITIAL_DATA: CompanyInfoData = {
     ciiu: '',
     address: '',
     city: '',
+    departamento: '',
     phone: '',
     email: '',
     generalActivities: '',
@@ -172,7 +179,7 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     const handleAddSede = useCallback(() => {
         setData(prev => ({
             ...prev,
-            sedes: [...(prev.sedes || []), { nombre: '', address: '', city: '', phone: '', email: '', generalActivities: '' }]
+            sedes: [...(prev.sedes || []), { nombre: '', address: '', city: '', departamento: '', phone: '', email: '', generalActivities: '' }]
         }));
     }, []);
 
@@ -262,9 +269,9 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
     if (!isOpen) return null;
 
     const REQUIRED_FIELDS = [
-        'companyName', 'nit', 'legalRepresentative', 'workerCount',
+        'companyName', 'companyType', 'nit', 'legalRepresentative', 'legalRepresentativeId', 'workerCount',
         'arl', 'economicActivity', 'riskLevel', 'ciiu',
-        'address', 'city', 'phone', 'email',
+        'address', 'city', 'departamento', 'phone', 'email',
         'sector', 'responsibleSST', 'responsibleSSTPhone', 'generalActivities',
         'formationLevel', 'licenseNumber', 'courseStatus', 'licenseExpiry',
     ] as const;
@@ -380,12 +387,20 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <input className={inputClass} value={data.companyName} onChange={e => handleChange('companyName', e.target.value)} placeholder={t('com_ui_company_name_placeholder', 'Nombre de la empresa')} />
                                     </div>
                                     <div>
-                                        <label className={labelClass}><Hash className="h-3 w-3" />NIT</label>
-                                        <input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder="123456789-0" />
+                                        <label className={labelClass}><Building2 className="h-3 w-3" />Tipo de Empresa</label>
+                                        <SingleSelect value={data.companyType || 'Persona Jurídica'} onChange={val => handleChange('companyType', val)} placeholder="Seleccione..." options={['Persona Jurídica', 'Persona Natural']} />
                                     </div>
-                                    <div className="md:col-span-2">
+                                    <div>
+                                        <label className={labelClass}><Hash className="h-3 w-3" />{data.companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT'}</label>
+                                        <input className={inputClass} value={data.nit} onChange={e => handleChange('nit', e.target.value)} placeholder={data.companyType === 'Persona Natural' ? 'Ej. 123456789' : '123456789-0'} />
+                                    </div>
+                                    <div>
                                         <label className={labelClass}><User className="h-3 w-3" />{t('com_ui_company_legal_rep', 'Representante Legal')}</label>
                                         <input className={inputClass} value={data.legalRepresentative} onChange={e => handleChange('legalRepresentative', e.target.value)} placeholder={t('com_ui_company_legal_rep_placeholder', 'Nombre completo')} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}><Hash className="h-3 w-3" />Cédula Rep. Legal</label>
+                                        <input className={inputClass} value={data.legalRepresentativeId || ''} onChange={e => handleChange('legalRepresentativeId', e.target.value)} placeholder="Ej. 12345678" />
                                     </div>
                                     <div>
                                         <label className={labelClass}><Users className="h-3 w-3" />{t('com_ui_company_workers', 'Número de Trabajadores')}</label>
@@ -550,6 +565,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                         <input className={inputClass} value={data.city} onChange={e => handleChange('city', e.target.value)} placeholder={t('com_ui_city', 'Ciudad')} />
                                     </div>
                                     <div>
+                                        <label className={labelClass}><MapPin className="h-3 w-3" />Departamento</label>
+                                        <input className={inputClass} value={data.departamento || ''} onChange={e => handleChange('departamento', e.target.value)} placeholder="Ej. Antioquia" />
+                                    </div>
+                                    <div>
                                         <label className={labelClass}><Phone className="h-3 w-3" />{t('com_ui_phone', 'Teléfono')}</label>
                                         <input className={inputClass} value={data.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="+57 300 123 4567" />
                                     </div>
@@ -622,6 +641,10 @@ const CompanyInfoModal: React.FC<CompanyInfoModalProps> = ({ isOpen, onClose }) 
                                                     <div>
                                                         <label className={labelClass}>Ciudad</label>
                                                         <input className={inputClass} value={sede.city} onChange={e => handleSedeChange(idx, 'city', e.target.value)} placeholder="Ciudad" />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelClass}>Departamento</label>
+                                                        <input className={inputClass} value={sede.departamento || ''} onChange={e => handleSedeChange(idx, 'departamento', e.target.value)} placeholder="Ej. Cundinamarca" />
                                                     </div>
                                                     <div>
                                                         <label className={labelClass}>Teléfono</label>

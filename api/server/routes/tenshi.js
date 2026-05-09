@@ -152,17 +152,22 @@ router.post('/chat', requireJwtAuth, async (req, res) => {
         // Fetch user company info
         let companyInfoStr = 'El usuario no ha registrado la información de su empresa en el Gestor SG-SST.';
         try {
-            const companyInfo = await CompanyInfo.findOne({ user: req.user.id });
+            const companyInfo = await CompanyInfo.findOne({ user: req.user.id, isActive: true })
+                || await CompanyInfo.findOne({ user: req.user.id });
             if (companyInfo) {
+                const companyType = companyInfo.companyType || 'Persona Jurídica';
+                const nitLabel = companyType === 'Persona Natural' ? 'Cédula de Ciudadanía' : 'NIT';
                 companyInfoStr = `INFORMACIÓN DE LA EMPRESA DEL USUARIO:\n` +
-                    `- Razón social: ${companyInfo.companyName || 'N/A'}\n` +
-                    `- NIT: ${companyInfo.nit || 'N/A'}\n` +
+                    `- Razón Social / Nombre: ${companyInfo.companyName || 'N/A'}\n` +
+                    `- Tipo de Empresa: ${companyType}\n` +
+                    `- ${nitLabel}: ${companyInfo.nit || 'N/A'}\n` +
                     `- Representante Legal: ${companyInfo.legalRepresentative || 'N/A'}\n` +
+                    `- Cédula del Representante Legal: ${companyInfo.legalRepresentativeId || 'N/A'}\n` +
                     `- Número de Trabajadores: ${companyInfo.workerCount || 'N/A'}\n` +
                     `- ARL: ${companyInfo.arl || 'N/A'}\n` +
                     `- Actividad Económica: ${companyInfo.economicActivity || 'N/A'}\n` +
                     `- Nivel de Riesgo: ${companyInfo.riskLevel || 'N/A'}\n` +
-                    `- Ciudad: ${companyInfo.city || 'N/A'}\n` +
+                    `- Ciudad: ${companyInfo.city || 'N/A'}, Departamento: ${companyInfo.departamento || 'N/A'}\n` +
                     `- Responsable SG-SST: ${companyInfo.responsibleSST || 'N/A'}`;
             }
         } catch (e) {
