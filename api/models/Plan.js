@@ -32,6 +32,22 @@ const planSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    // Custom plan configuration (only used for planId: 'custom')
+    toolPrices: {
+        blog: { type: Number, default: 12000 },
+        somos_sst: { type: Number, default: 18000 },
+        editor_archivos: { type: Number, default: 15000 },
+        analisis_vivo: { type: Number, default: 15000 },
+    },
+    basePriceMonthly: { type: Number, default: 12000 },
+    timeDiscounts: {
+        daily: { type: Number, default: 0 },
+        weekly: { type: Number, default: 0 },
+        monthly: { type: Number, default: 0 },
+        quarterly: { type: Number, default: 5 },
+        semiannual: { type: Number, default: 10 },
+        annual: { type: Number, default: 15 },
+    },
 }, { timestamps: true });
 
 const Plan = mongoose.models.Plan || mongoose.model('Plan', planSchema);

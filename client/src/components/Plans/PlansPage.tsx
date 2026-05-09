@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock, X, ZoomIn, Download } from 'lucide-react';
+import { Check, Crown, ArrowLeft, Loader2, CreditCard, AlertCircle, ShieldCheck, Building2, Users, Eye, EyeOff, User, Mail, Lock, X, ZoomIn, Download, Puzzle } from 'lucide-react';
 import { ThemeSelector } from '@librechat/client';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
@@ -386,6 +386,12 @@ export default function PlansPage() {
     const [guestData, setGuestData] = useState({ name: '', email: '', password: '' });
     const [guestError, setGuestError] = useState('');
 
+    // Custom Plan Builder State
+    const [customPlanConfig, setCustomPlanConfig] = useState<any>(null);
+    const [selectedTools, setSelectedTools] = useState<string[]>([]);
+    const [customInterval, setCustomInterval] = useState<string>('monthly');
+    const [customCheckoutLoading, setCustomCheckoutLoading] = useState(false);
+
     // Tracking Analytics
     const getSessionId = useCallback(() => {
         let sid = sessionStorage.getItem('checkout_session_id');
@@ -437,6 +443,13 @@ export default function PlansPage() {
 
         fetchInitialData();
     }, [isAuthenticated]);
+
+    // Fetch custom plan config
+    useEffect(() => {
+        axios.get('/api/wompi/custom-plan-config')
+            .then(({ data }) => setCustomPlanConfig(data))
+            .catch(() => console.error('Error fetching custom plan config'));
+    }, []);
 
     // Effect to handle redirection after login during checkout
     useEffect(() => {
@@ -1670,6 +1683,295 @@ export default function PlansPage() {
                                     );
                                 })}
                             </div>
+                        </div>
+
+                        {/* ── Custom Plan Builder Section ("Arma tu Plan") ──────────────── */}
+                        <div className="mt-16">
+                            {/* Section divider */}
+                            <div className="mb-8 flex items-center gap-4">
+                                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-border-medium/50 to-border-medium/50" />
+                                <div className="flex items-center gap-3 rounded-full border border-border-medium/60 bg-surface-primary px-5 py-2">
+                                    <Puzzle className="h-5 w-5 text-fuchsia-500" />
+                                    <span className="text-sm font-semibold text-text-primary">Arma tu Plan a la Medida</span>
+                                </div>
+                                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-border-medium/50 to-border-medium/50" />
+                            </div>
+
+                            <p className="mb-8 text-center text-sm text-text-secondary">
+                                Selecciona solo las herramientas que necesitas y el periodo que prefieras.{' '}
+                                <span className="font-semibold text-text-primary">Siempre incluye Chat con IA y Aula de Estudio.</span>
+                            </p>
+
+                            {customPlanConfig ? (() => {
+                                const tp = customPlanConfig.toolPrices || { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 };
+                                const basePM = customPlanConfig.basePriceMonthly || 12000;
+                                const td = customPlanConfig.timeDiscounts || { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 };
+
+                                const tools = [
+                                    { key: 'blog', name: 'Blog WAPPY', desc: 'Contenido y artículos', price: tp.blog, emoji: '📝' },
+                                    { key: 'somos_sst', name: 'Somos SST', desc: 'Gamificación SST completa', price: tp.somos_sst, emoji: '🎮' },
+                                    { key: 'editor_archivos', name: 'Editor de Archivos', desc: 'Editor documental con IA', price: tp.editor_archivos, emoji: '📄' },
+                                    { key: 'analisis_vivo', name: 'Análisis en Vivo', desc: 'Análisis en tiempo real', price: tp.analisis_vivo, emoji: '📊' },
+                                ];
+
+                                const intervals = [
+                                    { key: 'daily', label: '1 Día', discount: td.daily },
+                                    { key: 'weekly', label: '1 Semana', discount: td.weekly },
+                                    { key: 'monthly', label: '1 Mes', discount: td.monthly },
+                                    { key: 'quarterly', label: 'Trimestre', discount: td.quarterly },
+                                    { key: 'semiannual', label: 'Semestre', discount: td.semiannual },
+                                    { key: 'annual', label: 'Anual', discount: td.annual },
+                                ];
+
+                                // Calculate price
+                                let monthlyTotal = basePM;
+                                for (const t of selectedTools) {
+                                    monthlyTotal += (tp[t] || 0);
+                                }
+                                const multipliers: Record<string, number> = { daily: 1/30, weekly: 7/30, monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
+                                const rawTotal = monthlyTotal * (multipliers[customInterval] || 1);
+                                const discount = td[customInterval] || 0;
+                                const finalCustomPrice = Math.round(rawTotal * (1 - discount / 100));
+
+                                const handleCustomCheckout = async () => {
+                                    if (selectedTools.length === 0) return;
+                                    if (!isAuthenticated) {
+                                        setShowGuestForm(true);
+                                        return;
+                                    }
+                                    setCustomCheckoutLoading(true);
+                                    try {
+                                        const { data } = await axios.post('/api/wompi/create-custom-transaction', {
+                                            tools: selectedTools,
+                                            interval: customInterval,
+                                        });
+
+                                        const script = document.createElement('script');
+                                        script.src = 'https://checkout.wompi.co/widget.js';
+                                        script.onload = () => {
+                                            const checkout = new (window as any).WidgetCheckout({
+                                                currency: data.currency,
+                                                amountInCents: data.amountInCents,
+                                                reference: data.reference,
+                                                publicKey: data.publicKey,
+                                                signature: data.signature ? { integrity: data.signature } : undefined,
+                                            });
+                                            checkout.open((result: any) => {
+                                                const transaction = result?.transaction || {};
+                                                if (transaction.status === 'APPROVED') {
+                                                    axios.post('/api/wompi/verify-transaction', { transactionId: transaction.id })
+                                                        .then(() => { window.location.href = '/planes?success=1&plan=custom'; })
+                                                        .catch(() => { window.location.href = '/planes?success=1&plan=custom&fallback=1'; });
+                                                } else if (transaction.status === 'PENDING') {
+                                                    setPendingPaymentInfo({ planName: 'Plan a la Medida', email: authUser?.email || '' });
+                                                    setCustomCheckoutLoading(false);
+                                                } else {
+                                                    showToast({ message: 'El pago no fue exitoso o fue cancelado', status: 'warning' });
+                                                    setCustomCheckoutLoading(false);
+                                                }
+                                            });
+                                        };
+                                        document.body.appendChild(script);
+                                    } catch (err: any) {
+                                        showToast({ message: err?.response?.data?.error || 'Error iniciando pago', status: 'error' });
+                                        setCustomCheckoutLoading(false);
+                                    }
+                                };
+
+                                return (
+                                    <div className="mx-auto max-w-4xl">
+                                        <div className="grid md:grid-cols-5 gap-6">
+                                            {/* LEFT: Tool Selector */}
+                                            <div className="md:col-span-3 space-y-4">
+                                                {/* Base always included */}
+                                                <div className="rounded-2xl border border-fuchsia-500/20 bg-gradient-to-b from-fuchsia-500/5 to-purple-500/5 p-5">
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <div>
+                                                            <h3 className="text-lg font-extrabold text-text-primary">Base incluida</h3>
+                                                            <p className="text-xs text-text-secondary">Chat con IA + Aula de Estudio</p>
+                                                        </div>
+                                                        <span className="text-lg font-black text-fuchsia-500">${basePM.toLocaleString('es-CO')}<span className="text-xs font-semibold text-text-tertiary">/mes</span></span>
+                                                    </div>
+                                                    <div className="flex gap-3">
+                                                        <div className="flex items-center gap-2 rounded-lg bg-fuchsia-500/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-400">
+                                                            <Check className="h-3.5 w-3.5" /> Chat con IA
+                                                        </div>
+                                                        <div className="flex items-center gap-2 rounded-lg bg-fuchsia-500/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-400">
+                                                            <Check className="h-3.5 w-3.5" /> Aula de Estudio
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Tool toggles */}
+                                                <h4 className="text-sm font-bold text-text-primary">Agrega herramientas:</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    {tools.map((tool) => {
+                                                        const isSelected = selectedTools.includes(tool.key);
+                                                        return (
+                                                            <button
+                                                                key={tool.key}
+                                                                onClick={() => {
+                                                                    setSelectedTools(prev =>
+                                                                        isSelected
+                                                                            ? prev.filter(t => t !== tool.key)
+                                                                            : [...prev, tool.key]
+                                                                    );
+                                                                }}
+                                                                className={`relative flex items-center gap-4 rounded-2xl border p-4 transition-all duration-200 text-left ${
+                                                                    isSelected
+                                                                        ? 'border-fuchsia-500 bg-fuchsia-50/50 dark:bg-fuchsia-500/10 shadow-md ring-1 ring-fuchsia-500/30'
+                                                                        : 'border-border-medium/40 bg-surface-primary hover:border-fuchsia-500/40 hover:shadow-sm'
+                                                                }`}
+                                                            >
+                                                                <div className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl ${
+                                                                    isSelected ? 'bg-fuchsia-500/20' : 'bg-surface-tertiary'
+                                                                }`}>
+                                                                    {tool.emoji}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-sm font-bold text-text-primary">{tool.name}</div>
+                                                                    <div className="text-xs text-text-secondary">{tool.desc}</div>
+                                                                    <div className={`text-xs font-bold mt-0.5 ${isSelected ? 'text-fuchsia-600 dark:text-fuchsia-400' : 'text-text-tertiary'}`}>
+                                                                        +${tool.price.toLocaleString('es-CO')}/mes
+                                                                    </div>
+                                                                </div>
+                                                                <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${
+                                                                    isSelected
+                                                                        ? 'border-fuchsia-500 bg-fuchsia-500'
+                                                                        : 'border-border-medium bg-surface-secondary'
+                                                                }`}>
+                                                                    {isSelected && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Period selector */}
+                                                <h4 className="text-sm font-bold text-text-primary mt-6">Elige tu periodo:</h4>
+                                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                                    {intervals.map((iv) => (
+                                                        <button
+                                                            key={iv.key}
+                                                            onClick={() => setCustomInterval(iv.key)}
+                                                            className={`relative flex flex-col items-center justify-center rounded-xl border-2 px-2 py-3 transition-all duration-200 ${
+                                                                customInterval === iv.key
+                                                                    ? 'border-fuchsia-500 bg-fuchsia-50/50 dark:bg-fuchsia-500/10 shadow-sm'
+                                                                    : 'border-border-light bg-surface-primary hover:border-fuchsia-500/40'
+                                                            }`}
+                                                        >
+                                                            <span className={`text-xs font-bold ${customInterval === iv.key ? 'text-fuchsia-700 dark:text-fuchsia-400' : 'text-text-primary'}`}>
+                                                                {iv.label}
+                                                            </span>
+                                                            {iv.discount > 0 && (
+                                                                <span className={`mt-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                                                                    customInterval === iv.key
+                                                                        ? 'bg-fuchsia-500 text-white'
+                                                                        : 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-400'
+                                                                }`}>
+                                                                    -{iv.discount}%
+                                                                </span>
+                                                            )}
+                                                            {customInterval === iv.key && (
+                                                                <div className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-fuchsia-500 text-white shadow">
+                                                                    <Check strokeWidth={3} className="h-3 w-3" />
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* RIGHT: Summary */}
+                                            <div className="md:col-span-2">
+                                                <div className="rounded-2xl border border-fuchsia-500/20 bg-gradient-to-b from-fuchsia-500/5 to-purple-500/10 p-6 shadow-sm sticky top-24">
+                                                    <h3 className="text-base font-bold text-text-primary mb-4 flex items-center gap-2">
+                                                        <Puzzle className="h-4 w-4 text-fuchsia-500" />
+                                                        Tu Plan a la Medida
+                                                    </h3>
+
+                                                    <div className="space-y-2 text-sm">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-text-secondary">Base (Chat + Aula)</span>
+                                                            <span className="font-semibold text-text-primary">${basePM.toLocaleString('es-CO')}</span>
+                                                        </div>
+                                                        {selectedTools.map(tk => {
+                                                            const t = tools.find(x => x.key === tk);
+                                                            return t ? (
+                                                                <div key={tk} className="flex justify-between">
+                                                                    <span className="text-text-secondary">{t.emoji} {t.name}</span>
+                                                                    <span className="font-semibold text-text-primary">+${t.price.toLocaleString('es-CO')}</span>
+                                                                </div>
+                                                            ) : null;
+                                                        })}
+                                                        <div className="border-t border-border-light pt-2 mt-2">
+                                                            <div className="flex justify-between">
+                                                                <span className="text-text-secondary">Subtotal mensual</span>
+                                                                <span className="font-bold text-text-primary">${monthlyTotal.toLocaleString('es-CO')}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-text-secondary">Periodo</span>
+                                                            <span className="font-medium text-text-primary">
+                                                                {intervals.find(i => i.key === customInterval)?.label || 'Mensual'}
+                                                            </span>
+                                                        </div>
+                                                        {discount > 0 && (
+                                                            <div className="flex justify-between text-fuchsia-600 dark:text-fuchsia-400">
+                                                                <span>Descuento ({discount}%)</span>
+                                                                <span className="font-semibold">-${Math.round(rawTotal * discount / 100).toLocaleString('es-CO')}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="my-4 border-t border-border-light" />
+
+                                                    <div className="flex justify-between text-lg font-black text-text-primary">
+                                                        <span>Total</span>
+                                                        <div className="text-right">
+                                                            <span className="text-fuchsia-600 dark:text-fuchsia-400">
+                                                                ${finalCustomPrice.toLocaleString('es-CO')}
+                                                            </span>
+                                                            <span className="text-xs font-medium text-text-tertiary ml-1 block">
+                                                                /{customInterval === 'daily' ? 'día' : customInterval === 'weekly' ? 'semana' : customInterval === 'monthly' ? 'mes' : customInterval === 'quarterly' ? 'trim.' : customInterval === 'semiannual' ? 'sem.' : 'año'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={handleCustomCheckout}
+                                                        disabled={selectedTools.length === 0 || customCheckoutLoading}
+                                                        className="mt-5 w-full flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {customCheckoutLoading ? (
+                                                            <><Loader2 className="h-5 w-5 animate-spin" /> Procesando...</>
+                                                        ) : selectedTools.length === 0 ? (
+                                                            'Selecciona al menos una herramienta'
+                                                        ) : (
+                                                            <><CreditCard className="h-5 w-5" /> Continuar al pago</>
+                                                        )}
+                                                    </button>
+
+                                                    {selectedTools.length === 0 && (
+                                                        <p className="mt-3 text-center text-xs text-text-tertiary">
+                                                            Agrega herramientas para ver el precio
+                                                        </p>
+                                                    )}
+
+                                                    <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
+                                                        <ShieldCheck className="h-3.5 w-3.5" />
+                                                        Pago seguro con Wompi
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })() : (
+                                <div className="flex justify-center py-12">
+                                    <Loader2 className="h-8 w-8 animate-spin text-fuchsia-500" />
+                                </div>
+                            )}
                         </div>
 
                         {/* ── Enterprise Plans Section ──────────────────────── */}

@@ -12,6 +12,8 @@ const { getAppConfig } = require('~/server/services/Config');
 
 // ─── Helpers for Plan Interval ─────────────────────────────────────────────
 const getIntervalDays = (interval) => {
+    if (interval === 'daily') return 1;
+    if (interval === 'weekly') return 7;
     if (interval === 'quarterly') return 90;
     if (interval === 'semiannual') return 180;
     if (interval === 'annual') return 365;
@@ -103,7 +105,33 @@ const validatePromoCode = async (req, res) => {
 };
 
 /** Plan display names */
-const PLAN_NAMES = { go: 'Go', plus: 'Plus', pro: 'Pro', ipevar: 'Plan IPEVAR' };
+const PLAN_NAMES = { go: 'Go', plus: 'Plus', pro: 'Pro', ipevar: 'Plan IPEVAR', custom: 'Plan a la Medida' };
+
+const VALID_INTERVALS = ['daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual'];
+const VALID_CUSTOM_TOOLS = ['blog', 'somos_sst', 'editor_archivos', 'analisis_vivo'];
+
+/**
+ * Calculate price for a custom plan based on selected tools and interval
+ */
+const calculateCustomPrice = (customPlanDoc, selectedTools, interval) => {
+    const toolPrices = customPlanDoc.toolPrices || { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 };
+    const basePriceMonthly = customPlanDoc.basePriceMonthly || 12000;
+    const timeDiscounts = customPlanDoc.timeDiscounts || { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 };
+
+    let monthlyTotal = basePriceMonthly;
+    for (const tool of selectedTools) {
+        monthlyTotal += (toolPrices[tool] || 0);
+    }
+
+    const multipliers = {
+        daily: 1 / 30, weekly: 7 / 30, monthly: 1,
+        quarterly: 3, semiannual: 6, annual: 12,
+    };
+
+    const rawTotal = monthlyTotal * (multipliers[interval] || 1);
+    const discount = timeDiscounts[interval] || 0;
+    return Math.round(rawTotal * (1 - discount / 100));
+};
 
 /**
  * GET /api/wompi/plan
@@ -122,6 +150,7 @@ const getUserPlan = async (req, res) => {
             else if (role === 'USER_PRO') plan = 'pro';
             else if (role === 'USER_PLUS') plan = 'plus';
             else if (role === 'USER_GO') plan = 'go';
+            else if (role === 'USER_CUSTOM') plan = 'custom';
             else plan = 'free';
         }
 
@@ -129,6 +158,8 @@ const getUserPlan = async (req, res) => {
             plan: plan,
             status: 'active', // Derived for UI
             currentPeriodEnd: userPlan?.planExpiresAt || null,
+            customTools: userPlan?.customTools || [],
+            customInterval: userPlan?.customInterval || null,
         });
     } catch (error) {
         console.error('[Wompi] getUserPlan error:', error);
@@ -195,7 +226,7 @@ const createTransaction = async (req, res) => {
         if (!planString) return res.status(400).json({ error: 'Faltan parámetros' });
 
         const [planId, interval] = planString.split('|');
-        if (!PLAN_NAMES[planId] || !['monthly', 'quarterly', 'semiannual', 'annual'].includes(interval)) {
+        if (!PLAN_NAMES[planId] || !VALID_INTERVALS.includes(interval)) {
             return res.status(400).json({ error: 'Plan o intervalo inválido' });
         }
 
@@ -367,21 +398,30 @@ const handleWebhook = async (req, res) => {
             // Also update User role for full platform compatibility
             const User = mongoose.model('User');
             let newRole = 'USER';
-            if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+            if (wompiTx.planId === 'custom') newRole = 'USER_CUSTOM';
+            else if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
             else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
             else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
+            const updateFields = {
+                role: newRole,
+                accountStatus: 'active',
+                activeAt: new Date(),
+                inactiveAt: expiryDate
+            };
+
             await User.updateOne(
                 { _id: wompiTx.userId },
-                {
-                    $set: {
-                        role: newRole,
-                        accountStatus: 'active',
-                        activeAt: new Date(),
-                        inactiveAt: expiryDate
-                    }
-                }
+                { $set: updateFields }
             );
+
+            // If custom plan, also store custom tools in UserPlan
+            if (wompiTx.planId === 'custom' && wompiTx.customTools?.length > 0) {
+                await UserPlan.updateOne(
+                    { userId: wompiTx.userId },
+                    { $set: { customTools: wompiTx.customTools, customInterval: wompiTx.interval } }
+                );
+            }
 
             console.log(`[Wompi Webhook] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), role ${newRole}, expiry ${expiryDate.toISOString()} for user ${wompiTx.userId} via tx ${transactionId}`);
             
@@ -451,7 +491,8 @@ const verifyTransaction = async (req, res) => {
 
                 const User = mongoose.model('User');
                 let newRole = 'USER';
-                if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+                if (wompiTx.planId === 'custom') newRole = 'USER_CUSTOM';
+                else if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
                 else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
@@ -459,6 +500,14 @@ const verifyTransaction = async (req, res) => {
                     { _id: wompiTx.userId },
                     { $set: { role: newRole, accountStatus: 'active', activeAt: new Date(), inactiveAt: expiryDate } }
                 );
+
+                // If custom plan, also store custom tools in UserPlan
+                if (wompiTx.planId === 'custom' && wompiTx.customTools?.length > 0) {
+                    await UserPlan.updateOne(
+                        { userId: wompiTx.userId },
+                        { $set: { customTools: wompiTx.customTools, customInterval: wompiTx.interval } }
+                    );
+                }
                 console.log(`[Wompi VerifyTransaction] Provisioned plan ${wompiTx.planId} (${wompiTx.interval}), expiry ${expiryDate.toISOString()} for user ${wompiTx.userId}`);
                 
                 try {
@@ -519,7 +568,7 @@ const createManualTransaction = async (req, res) => {
         }
 
         const [planId, interval] = planString.split('|');
-        if (!PLAN_NAMES[planId] || !['monthly', 'quarterly', 'semiannual', 'annual'].includes(interval)) {
+        if (!PLAN_NAMES[planId] || !VALID_INTERVALS.includes(interval)) {
             return res.status(400).json({ error: 'Plan o intervalo inválido' });
         }
 
@@ -636,7 +685,7 @@ const guestCheckout = async (req, res) => {
         }
 
         const [planId, interval] = planString.split('|');
-        if (!PLAN_NAMES[planId] || !['monthly', 'quarterly', 'semiannual', 'annual'].includes(interval)) {
+        if (!PLAN_NAMES[planId] || !VALID_INTERVALS.includes(interval)) {
             return res.status(400).json({ error: 'Plan o intervalo inválido' });
         }
 
@@ -776,7 +825,8 @@ const guestVerifyTransaction = async (req, res) => {
 
                 const User = mongoose.model('User');
                 let newRole = 'USER';
-                if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
+                if (wompiTx.planId === 'custom') newRole = 'USER_CUSTOM';
+                else if (wompiTx.planId === 'go' || wompiTx.planId === 'ipevar') newRole = 'USER_GO';
                 else if (wompiTx.planId === 'plus') newRole = 'USER_PLUS';
                 else if (wompiTx.planId === 'pro') newRole = 'USER_PRO';
 
@@ -784,6 +834,14 @@ const guestVerifyTransaction = async (req, res) => {
                     { _id: wompiTx.userId },
                     { $set: { role: newRole, accountStatus: 'active', activeAt: new Date(), inactiveAt: expiryDate } }
                 );
+
+                // If custom plan, also store custom tools in UserPlan
+                if (wompiTx.planId === 'custom' && wompiTx.customTools?.length > 0) {
+                    await UserPlan.updateOne(
+                        { userId: wompiTx.userId },
+                        { $set: { customTools: wompiTx.customTools, customInterval: wompiTx.interval } }
+                    );
+                }
                 console.log(`[GuestVerify] Plan ${wompiTx.planId} activated for user ${wompiTx.userId}`);
                 
                 try {
@@ -802,6 +860,237 @@ const guestVerifyTransaction = async (req, res) => {
     }
 };
 
+/**
+ * GET /api/wompi/custom-plan-config
+ * Returns the custom plan configuration (tool prices, base price, discounts)
+ */
+const getCustomPlanConfig = async (req, res) => {
+    try {
+        let customPlan = await Plan.findOne({ planId: 'custom' }).lean();
+        if (!customPlan) {
+            // Auto-seed custom plan config
+            customPlan = await Plan.create({
+                planId: 'custom',
+                name: 'Plan a la Medida',
+                prices: { monthly: 0, quarterly: 0, semiannual: 0, annual: 0 },
+                toolPrices: {
+                    blog: 12000,
+                    somos_sst: 18000,
+                    editor_archivos: 15000,
+                    analisis_vivo: 15000,
+                },
+                basePriceMonthly: 12000,
+                timeDiscounts: {
+                    daily: 0,
+                    weekly: 0,
+                    monthly: 0,
+                    quarterly: 5,
+                    semiannual: 10,
+                    annual: 15,
+                },
+            });
+            customPlan = customPlan.toObject();
+        }
+        return res.json(customPlan);
+    } catch (error) {
+        console.error('[Wompi] getCustomPlanConfig error:', error);
+        return res.status(500).json({ error: 'Error obteniendo configuración del plan personalizado' });
+    }
+};
+
+/**
+ * POST /api/wompi/create-custom-transaction
+ * Expects { tools: ['blog', 'somos_sst'], interval: 'monthly', promoCode?: 'X' }
+ * Calculates price from tool selections and creates a Wompi transaction.
+ */
+const createCustomTransaction = async (req, res) => {
+    try {
+        const { tools, interval, promoCode } = req.body;
+        if (!tools || !Array.isArray(tools) || tools.length === 0) {
+            return res.status(400).json({ error: 'Debes seleccionar al menos una herramienta' });
+        }
+        if (!VALID_INTERVALS.includes(interval)) {
+            return res.status(400).json({ error: 'Intervalo inválido' });
+        }
+
+        // Validate all tools
+        const invalidTools = tools.filter(t => !VALID_CUSTOM_TOOLS.includes(t));
+        if (invalidTools.length > 0) {
+            return res.status(400).json({ error: `Herramientas inválidas: ${invalidTools.join(', ')}` });
+        }
+
+        const userId = req.user._id || req.user.id;
+
+        // Get custom plan config
+        let customPlan = await Plan.findOne({ planId: 'custom' }).lean();
+        if (!customPlan) {
+            // Auto-seed
+            customPlan = await Plan.create({
+                planId: 'custom',
+                name: 'Plan a la Medida',
+                prices: { monthly: 0 },
+                toolPrices: { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 },
+                basePriceMonthly: 12000,
+                timeDiscounts: { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 },
+            });
+            customPlan = customPlan.toObject();
+        }
+
+        let finalPrice = calculateCustomPrice(customPlan, tools, interval);
+
+        // Apply promo code if provided
+        if (promoCode) {
+            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+            if (codeDoc && codeDoc.active) {
+                finalPrice = finalPrice - (finalPrice * Math.min(codeDoc.discountPercentage, 100) / 100);
+                finalPrice = Math.round(finalPrice);
+            }
+        }
+
+        if (finalPrice <= 0) {
+            return res.status(400).json({ error: 'El precio calculado es inválido' });
+        }
+
+        const reference = `WAPPY-C-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const amountInCents = Math.round(finalPrice * 100);
+
+        await WompiTransaction.create({
+            userId,
+            planId: 'custom',
+            interval,
+            reference,
+            amountInCents,
+            status: 'PENDING',
+            customTools: tools,
+        });
+
+        const publicKey = process.env.WOMPI_PUBLIC_KEY;
+        if (!publicKey) throw new Error('WOMPI_PUBLIC_KEY no configurada');
+
+        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        let signature = '';
+        if (integritySecret) {
+            const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
+            signature = crypto.createHash('sha256').update(stringToSign, 'utf-8').digest('hex');
+        }
+
+        console.log(`[Wompi Custom] Transaction ${reference}: tools=[${tools}], interval=${interval}, price=$${finalPrice}`);
+
+        return res.json({
+            publicKey,
+            reference,
+            amountInCents,
+            currency: 'COP',
+            signature,
+        });
+    } catch (error) {
+        console.error('[Wompi] createCustomTransaction error:', error);
+        return res.status(500).json({ error: 'Error creando transacción personalizada', details: error.message });
+    }
+};
+
+/**
+ * POST /api/wompi/guest-custom-checkout  (NO auth required)
+ * Like guestCheckout but for custom plans.
+ */
+const guestCustomCheckout = async (req, res) => {
+    try {
+        const jwt = require('jsonwebtoken');
+        const bcrypt = require('bcryptjs');
+        const { name, email, password, tools, interval, promoCode } = req.body;
+
+        if (!name || !email || !password || !tools || !Array.isArray(tools) || tools.length === 0) {
+            return res.status(400).json({ error: 'Faltan campos: name, email, password, tools' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+        }
+        if (!VALID_INTERVALS.includes(interval)) {
+            return res.status(400).json({ error: 'Intervalo inválido' });
+        }
+
+        const invalidTools = tools.filter(t => !VALID_CUSTOM_TOOLS.includes(t));
+        if (invalidTools.length > 0) {
+            return res.status(400).json({ error: `Herramientas inválidas: ${invalidTools.join(', ')}` });
+        }
+
+        // Find or create user
+        const User = mongoose.model('User');
+        let user = await User.findOne({ email: email.toLowerCase().trim() });
+
+        if (!user) {
+            const hashedPassword = await bcrypt.hash(password, 12);
+            const baseUser = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').slice(0, 18);
+            const username = baseUser + Math.floor(Math.random() * 9000 + 1000);
+            user = new User({
+                name,
+                username,
+                email: email.toLowerCase().trim(),
+                password: hashedPassword,
+                role: 'USER',
+                accountStatus: 'active',
+            });
+            await user.save();
+        }
+
+        // Calculate price
+        let customPlan = await Plan.findOne({ planId: 'custom' }).lean();
+        if (!customPlan) {
+            customPlan = await Plan.create({
+                planId: 'custom', name: 'Plan a la Medida', prices: { monthly: 0 },
+                toolPrices: { blog: 12000, somos_sst: 18000, editor_archivos: 15000, analisis_vivo: 15000 },
+                basePriceMonthly: 12000,
+                timeDiscounts: { daily: 0, weekly: 0, monthly: 0, quarterly: 5, semiannual: 10, annual: 15 },
+            });
+            customPlan = customPlan.toObject();
+        }
+
+        let finalPrice = calculateCustomPrice(customPlan, tools, interval);
+
+        if (promoCode) {
+            const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+            if (codeDoc && codeDoc.active) {
+                finalPrice = Math.round(finalPrice - (finalPrice * Math.min(codeDoc.discountPercentage, 100) / 100));
+            }
+        }
+
+        if (finalPrice <= 0) {
+            return res.status(400).json({ error: 'El precio calculado es inválido' });
+        }
+
+        const reference = `WAPPY-C-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const amountInCents = Math.round(finalPrice * 100);
+
+        await WompiTransaction.create({
+            userId: user._id,
+            planId: 'custom',
+            interval,
+            reference,
+            amountInCents,
+            status: 'PENDING',
+            customTools: tools,
+        });
+
+        const publicKey = process.env.WOMPI_PUBLIC_KEY;
+        if (!publicKey) return res.status(500).json({ error: 'WOMPI_PUBLIC_KEY no configurada' });
+
+        const integritySecret = process.env.WOMPI_INTEGRITY_SECRET || '';
+        let signature = '';
+        if (integritySecret) {
+            const stringToSign = `${reference}${amountInCents}COP${integritySecret}`;
+            signature = crypto.createHash('sha256').update(stringToSign, 'utf-8').digest('hex');
+        }
+
+        const jwtSecret = process.env.JWT_SECRET;
+        const guestToken = jwt.sign({ id: user._id.toString(), role: user.role }, jwtSecret, { expiresIn: '2h' });
+
+        return res.json({ publicKey, reference, amountInCents, currency: 'COP', signature, guestToken });
+    } catch (error) {
+        console.error('[Wompi] guestCustomCheckout error:', error);
+        return res.status(500).json({ error: 'Error en guest custom checkout', details: error.message });
+    }
+};
+
 module.exports = {
     getPublicPlansConfig,
     validatePromoCode,
@@ -813,4 +1102,7 @@ module.exports = {
     createManualTransaction,
     guestCheckout,
     guestVerifyTransaction,
+    getCustomPlanConfig,
+    createCustomTransaction,
+    guestCustomCheckout,
 };

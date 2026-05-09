@@ -16,7 +16,7 @@ const UserPlanSchema = new mongoose.Schema(
         },
         plan: {
             type: String,
-            enum: ['free', 'go', 'plus', 'pro', 'admin'],
+            enum: ['free', 'go', 'plus', 'pro', 'admin', 'custom'],
             default: 'free',
         },
         stripeCustomerId: { type: String, default: null },
@@ -24,6 +24,16 @@ const UserPlanSchema = new mongoose.Schema(
         stripePriceId: { type: String, default: null },
         planExpiresAt: { type: Date, default: null },
         cancelAtPeriodEnd: { type: Boolean, default: false },
+        // Custom plan fields
+        customTools: {
+            type: [String], // e.g. ['blog', 'somos_sst', 'editor_archivos', 'analisis_vivo']
+            default: [],
+        },
+        customInterval: {
+            type: String,
+            enum: ['daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'annual', null],
+            default: null,
+        },
     },
     { timestamps: true },
 );

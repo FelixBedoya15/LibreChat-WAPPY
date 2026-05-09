@@ -50,6 +50,8 @@ const runPollCycle = async () => {
 
         // ── Inline proration helper (same logic as WompiController) ──────────────
         const getIntervalDays = (interval) => {
+            if (interval === 'daily') return 1;
+            if (interval === 'weekly') return 7;
             if (interval === 'quarterly') return 90;
             if (interval === 'semiannual') return 180;
             if (interval === 'annual') return 365;
@@ -122,7 +124,8 @@ const runPollCycle = async () => {
                     await userPlan.save();
 
                     let newRole = 'USER';
-                    if (tx.planId === 'go') newRole = 'USER_GO';
+                    if (tx.planId === 'custom') newRole = 'USER_CUSTOM';
+                    else if (tx.planId === 'go') newRole = 'USER_GO';
                     else if (tx.planId === 'plus') newRole = 'USER_PLUS';
                     else if (tx.planId === 'pro') newRole = 'USER_PRO';
 
@@ -130,6 +133,14 @@ const runPollCycle = async () => {
                         { _id: tx.userId },
                         { $set: { role: newRole, activeAt: new Date(), inactiveAt: expiryDate } }
                     );
+
+                    // If custom plan, store tools
+                    if (tx.planId === 'custom' && tx.customTools?.length > 0) {
+                        await UserPlan.updateOne(
+                            { userId: tx.userId },
+                            { $set: { customTools: tx.customTools, customInterval: tx.interval } }
+                        );
+                    }
 
                     console.log(`[WompiPoller] ✅ APPROVED (async): plan ${tx.planId} provisioned for user ${tx.userId}. Expiry: ${expiryDate.toISOString()}`);
                 } else {

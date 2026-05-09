@@ -7,11 +7,13 @@ const fs = require('fs');
 
 // Public endpoints (no auth needed)
 router.get('/configured-plans', wompiController.getPublicPlansConfig);
+router.get('/custom-plan-config', wompiController.getCustomPlanConfig);
 router.get('/promocode/:code', wompiController.validatePromoCode);
 
 // Guest checkout: register user + create transaction without login
 router.post('/guest-checkout', wompiController.guestCheckout);
 router.post('/guest-verify', wompiController.guestVerifyTransaction);
+router.post('/guest-custom-checkout', wompiController.guestCustomCheckout);
 
 // Webhook for Wompi transactions
 router.post('/webhook', express.json(), wompiController.handleWebhook);
@@ -31,6 +33,7 @@ createMulterInstance().then(upload => {
 
 router.get('/plan', wompiController.getUserPlan);
 router.post('/create-transaction', wompiController.createTransaction);
+router.post('/create-custom-transaction', wompiController.createCustomTransaction);
 router.post('/verify-transaction', wompiController.verifyTransaction);
 router.post('/register-pending', wompiController.registerPendingTransaction);
 

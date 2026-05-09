@@ -10,6 +10,7 @@ const wompiTransactionSchema = new mongoose.Schema({
     transactionId: { type: String }, // Provided by Wompi upon webhook/success
     paymentMethod: { type: String, enum: ['WOMPI', 'NEQUI_QR'], default: 'WOMPI' },
     receiptUrl: { type: String }, // URL array or string for manual payment receipts
+    customTools: { type: [String], default: [] }, // Tools selected for custom plan
 }, { timestamps: true });
 
 const WompiTransaction = mongoose.models.WompiTransaction || mongoose.model('WompiTransaction', wompiTransactionSchema);
