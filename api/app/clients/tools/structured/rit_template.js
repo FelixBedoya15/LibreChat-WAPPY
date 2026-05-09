@@ -55,7 +55,16 @@ module.exports = `
   <p>El presente Reglamento se aplica y resulta de obligatorio cumplimiento para todos los trabajadores que se encuentren vinculados o se vinculen en el futuro a la empresa, sin importar el tipo de contrato (término fijo, término indefinido, obra o labor, aprendizaje, accidental), la modalidad de prestación del servicio (presencial, teletrabajo, trabajo remoto, trabajo en casa, trabajo a domicilio) ni la jerarquía que ocupen dentro de la organización.</p>
 
   <h3>Art. 3° Condiciones de admisión de nuevos trabajadores</h3>
-  <p>Quien aspire a desempeñar un cargo en <strong>{{empresa_nombre}}</strong> deberá someterse al proceso de selección establecido por la compañía. Para su admisión, deberá presentar los siguientes documentos: 1. Hoja de vida actualizada. 2. Copia del documento de identidad. 3. Soportes de estudios, certificaciones académicas y experiencia laboral. 4. Examen médico ocupacional de ingreso con concepto de aptitud expedido por el médico especialista en SST designado por la empresa. 5. Certificado de afiliación a EPS y Fondo de Pensiones a los cuales se encontraba afiliado o desea afiliarse. 6. Referencias personales y laborales. La empresa se reserva el derecho de admitir o rechazar al aspirante basado en la comprobación y veracidad de estos requisitos.</p>
+  <p>Quien aspire a desempeñar un cargo en <strong>{{empresa_nombre}}</strong> deberá someterse al proceso de selección establecido por la compañía. Para su admisión, deberá presentar los siguientes documentos:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Hoja de vida actualizada.</li>
+    <li>Copia del documento de identidad.</li>
+    <li>Soportes de estudios, certificaciones académicas y experiencia laboral.</li>
+    <li>Examen médico ocupacional de ingreso con concepto de aptitud expedido por el médico especialista en SST designado por la empresa.</li>
+    <li>Certificado de afiliación a EPS y Fondo de Pensiones a los cuales se encontraba afiliado o desea afiliarse.</li>
+    <li>Referencias personales y laborales.</li>
+  </ol>
+  <p>La empresa se reserva el derecho de admitir o rechazar al aspirante basado en la comprobación y veracidad de estos requisitos.</p>
 
   <h3>Art. 4° Período de prueba</h3>
   <p>El período de prueba tiene por objeto apreciar por parte de la empresa las aptitudes del trabajador, y por parte de este, las conveniencias de las condiciones de trabajo (Art. 76 CST). El período de prueba se estipulará siempre por escrito y en ningún caso excederá de dos (2) meses. Tratándose de contratos a término fijo cuya duración sea inferior a un (1) año, el período de prueba no podrá ser superior a la quinta parte (1/5) del término inicialmente pactado para el respectivo contrato, sin que pueda exceder de dos meses (Art. 78 CST). Durante el período de prueba, el contrato puede darse por terminado unilateralmente por cualquiera de las partes sin previo aviso ni pago de indemnización alguna.</p>
@@ -117,7 +126,13 @@ module.exports = `
   <p>El empleador, los jefes inmediatos y supervisores deberán abstenerse de enviar correos electrónicos, mensajes de WhatsApp u otras aplicaciones de mensajería, o realizar llamadas fuera del horario laboral. Si por automatización de correos algún mensaje es recibido fuera de horario, el trabajador no estará en la obligación de leerlo ni responderlo hasta el inicio de su siguiente jornada hábil. No podrá haber ninguna repercusión negativa o sanción por no responder requerimientos fuera del horario.</p>
 
   <h3>Art. 20° Excepciones de fuerza mayor o caso fortuito</h3>
-  <p>Quedan exceptuados del derecho a la desconexión laboral estricta: 1) Los trabajadores que desempeñen cargos de dirección, confianza y manejo. 2) Quienes, por la naturaleza de su actividad o soporte técnico urgente, deban tener disponibilidad (soportes pagados mediante acuerdos de disponibilidad). 3) Situaciones inminentes de fuerza mayor o caso fortuito que pongan en peligro inminente la operación de la empresa, bienes o la salud de las personas. En estos últimos casos, el contacto debe limitarse estrictamente a lo necesario para solucionar la emergencia y el tiempo dedicado deberá compensarse o pagarse como jornada suplementaria si corresponde.</p>
+  <p>Quedan exceptuados del derecho a la desconexión laboral estricta:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Los trabajadores que desempeñen cargos de dirección, confianza y manejo.</li>
+    <li>Quienes, por la naturaleza de su actividad o soporte técnico urgente, deban tener disponibilidad (soportes pagados mediante acuerdos de disponibilidad).</li>
+    <li>Situaciones inminentes de fuerza mayor o caso fortuito que pongan en peligro inminente la operación de la empresa, bienes o la salud de las personas.</li>
+  </ol>
+  <p>En estos últimos casos, el contacto debe limitarse estrictamente a lo necesario para solucionar la emergencia y el tiempo dedicado deberá compensarse o pagarse como jornada suplementaria si corresponde.</p>
 
   <h3>Art. 21° Medidas frente a la vulneración del derecho a la desconexión</h3>
   <p>Las vulneraciones reiteradas y comprobadas al derecho a la desconexión laboral podrán ser consideradas como conducta constitutiva de acoso laboral ante las autoridades competentes. Cualquier trabajador que vea vulnerado este derecho de manera constante podrá elevar su queja ante el Comité de Convivencia Laboral de la empresa para que este inicie el procedimiento conciliatorio correspondiente.</p>
@@ -151,7 +166,14 @@ module.exports = `
   <p>La empresa concederá el tiempo necesario y prudencial como permiso remunerado, a los trabajadores que deban asistir a citaciones obligatorias escolares, reuniones de padres de familia y acompañamiento frente a procesos pedagógicos ineludibles de sus hijos menores de edad. Estos permisos deben ser acordados y demostrados oportunamente con la dirección de la empresa según la reforma laboral (Ley 2466/2025).</p>
 
   <h3>Art. 31° Permisos remunerados</h3>
-  <p>La empresa concederá los permisos necesarios y remunerados en los siguientes eventos: 1) Calamidad doméstica debidamente comprobada. 2) Para concurrir al servicio médico de la EPS y ARL (tiempo estricto para cita y traslados). 3) Para desempeñar cargos oficiales transitorios de forzosa aceptación (ej: jurados de votación). 4) Para ejercer el derecho al sufragio en elecciones democráticas. 5) Para comisiones sindicales.</p>
+  <p>La empresa concederá los permisos necesarios y remunerados en los siguientes eventos:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Calamidad doméstica debidamente comprobada.</li>
+    <li>Para concurrir al servicio médico de la EPS y ARL (tiempo estricto para cita y traslados).</li>
+    <li>Para desempeñar cargos oficiales transitorios de forzosa aceptación (ej: jurados de votación).</li>
+    <li>Para ejercer el derecho al sufragio en elecciones democráticas.</li>
+    <li>Para comisiones sindicales.</li>
+  </ol>
 
   <h3>Art. 32° Permisos no remunerados y su procedimiento de solicitud</h3>
   <p>El empleador podrá otorgar, a su arbitrio y previa solicitud escrita, licencias no remuneradas para atender asuntos personales del trabajador que no estén contemplados en la ley como de forzosa concesión. La solicitud deberá presentarse con al menos cuarenta y ocho (48) horas de anticipación ante el superior inmediato, salvo fuerza mayor, quien aprobará según la necesidad del servicio. Durante estas licencias, el trabajador no devengará salario, no aportará el trabajador a salud, pero la empresa y el empleado continuarán pagando los aportes pensionales proporcionales si hubiere lugar a ello.</p>
@@ -170,7 +192,12 @@ module.exports = `
   <p>Los trabajadores que devenguen hasta dos (2) veces el Salario Mínimo Mensual Legal Vigente (SMMLV) tendrán derecho al pago del auxilio de transporte fijado por el Gobierno Nacional, a menos que la empresa suministre el transporte de manera completa o que el trabajador resida en el lugar de trabajo, realice sus labores exclusivamente bajo modalidades de trabajo remoto (donde aplica auxilio de conectividad si corresponde), o cuando no trabaje por incapacidad médica o permisos personales continuados.</p>
 
   <h3>Art. 37° Cesantías, intereses y prima de servicios</h3>
-  <p>La empresa reconocerá y liquidará las prestaciones sociales legales conforme a la norma: 1. <strong>Cesantías</strong>: un mes de salario por cada año de servicios y proporcional, consignadas al Fondo de Cesantías escogido por el trabajador a más tardar el 14 de febrero del año siguiente. 2. <strong>Intereses sobre cesantías</strong>: 12% anual sobre el saldo de las cesantías a diciembre 31, a pagar directo al trabajador a más tardar el 31 de enero del año siguiente. 3. <strong>Prima de servicios</strong>: correspondiente a un mes de salario anual, pagadero por mitades (hasta el 30 de junio y hasta el 20 de diciembre).</p>
+  <p>La empresa reconocerá y liquidará las prestaciones sociales legales conforme a la norma:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li><strong>Cesantías</strong>: un mes de salario por cada año de servicios y proporcional, consignadas al Fondo de Cesantías escogido por el trabajador a más tardar el 14 de febrero del año siguiente.</li>
+    <li><strong>Intereses sobre cesantías</strong>: 12% anual sobre el saldo de las cesantías a diciembre 31, a pagar directo al trabajador a más tardar el 31 de enero del año siguiente.</li>
+    <li><strong>Prima de servicios</strong>: correspondiente a un mes de salario anual, pagadero por mitades (hasta el 30 de junio y hasta el 20 de diciembre).</li>
+  </ol>
 
   <h3>Art. 38° Prestaciones adicionales a las legales</h3>
   <p>Cualquier beneficio que la empresa entregue por mero acto de liberalidad, como bonificaciones ocasionales, auxilios para estudio, vivienda o transporte distinto al de ley, planes de medicina prepagada, primas extralegales, participaciones de utilidades, no constituyen factor salarial para la liquidación de prestaciones sociales ni seguridad social, de conformidad con el Art. 128 del CST.</p>
@@ -180,10 +207,27 @@ module.exports = `
   <p>La empresa declara su férreo compromiso con el diseño, implementación, mantenimiento y mejora continua del Sistema de Gestión de la Seguridad y Salud en el Trabajo (SG-SST), de conformidad con el Decreto 1072 de 2015, Resolución 0312 de 2019 y leyes subsiguientes. El bienestar físico, mental y social de nuestros trabajadores es el principal activo de nuestra operación. Las normativas sobre SST son de obligatorio cumplimiento por parte de todos los contratistas, personal interno y visitantes.</p>
 
   <h3>Art. 40° Obligaciones del empleador en SST</h3>
-  <p>Son obligaciones irrenunciables del empleador: 1. Procurar el cuidado integral de la salud de los trabajadores y los ambientes de trabajo. 2. Afiliar obligatoriamente a todos los trabajadores a la ARL, EPS y Fondo de Pensiones, asumiendo su costo conforme a la ley. 3. Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVAR) y establecer los controles para mitigarlos. 4. Suministrar y reponer oportunamente todos los Elementos de Protección Personal (EPP) y ropa de trabajo. 5. Garantizar las inducciones y reinducciones en materia de prevención de riesgos. 6. Diseñar y ensayar los planes de emergencia y brigadas.</p>
+  <p>Son obligaciones irrenunciables del empleador:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Procurar el cuidado integral de la salud de los trabajadores y los ambientes de trabajo.</li>
+    <li>Afiliar obligatoriamente a todos los trabajadores a la ARL, EPS y Fondo de Pensiones, asumiendo su costo conforme a la ley.</li>
+    <li>Identificar peligros, evaluar y valorar los riesgos (Matriz IPEVAR) y establecer los controles para mitigarlos.</li>
+    <li>Suministrar y reponer oportunamente todos los Elementos de Protección Personal (EPP) y ropa de trabajo.</li>
+    <li>Garantizar las inducciones y reinducciones en materia de prevención de riesgos.</li>
+    <li>Diseñar y ensayar los planes de emergencia y brigadas.</li>
+  </ol>
 
   <h3>Art. 41° Obligaciones del trabajador en SST</h3>
-  <p>El trabajador está legalmente obligado a: 1. Procurar el cuidado integral de su salud. 2. Suministrar información clara, veraz y completa sobre su estado de salud. 3. Cumplir celosamente con las normas, reglamentos e instrucciones del SG-SST. 4. Informar oportunamente al empleador acerca de los peligros y riesgos latentes en su puesto de trabajo. 5. Participar proactivamente en las actividades de capacitación en SST. 6. Utilizar adecuada y obligatoriamente las dotaciones, maquinaria y los EPP asignados. El incumplimiento de estas normas se califica como falta grave y puede ser justa causa de terminación del contrato.</p>
+  <p>El trabajador está legalmente obligado a:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Procurar el cuidado integral de su salud.</li>
+    <li>Suministrar información clara, veraz y completa sobre su estado de salud.</li>
+    <li>Cumplir celosamente con las normas, reglamentos e instrucciones del SG-SST.</li>
+    <li>Informar oportunamente al empleador acerca de los peligros y riesgos latentes en su puesto de trabajo.</li>
+    <li>Participar proactivamente en las actividades de capacitación en SST.</li>
+    <li>Utilizar adecuada y obligatoriamente las dotaciones, maquinaria y los EPP asignados.</li>
+  </ol>
+  <p>El incumplimiento de estas normas se califica como falta grave y puede ser justa causa de terminación del contrato.</p>
 
   <h3>Art. 42° Elementos de Protección Personal (EPP)</h3>
   <p>La empresa hará entrega sin costo alguno para el trabajador de todos los Elementos de Protección Personal de acuerdo con la labor a realizar y la Matriz IPEVAR del cargo. El trabajador deberá utilizarlos obligatoriamente en todas las zonas o actividades de riesgo, mantenerlos aseados, no sacarlos del recinto laboral injustificadamente, solicitar su reemplazo por daño o desgaste natural, y devolverlos a la terminación del contrato.</p>
@@ -230,86 +274,125 @@ module.exports = `
 
   <h2>CAPÍTULO VIII — OBLIGACIONES Y PROHIBICIONES</h2>
   <h3>Art. 56° Obligaciones especiales del EMPLEADOR</h3>
-  <p>Son obligaciones especiales del empleador (Art. 57 CST):
-  1. Poner a disposición los instrumentos y materias primas necesarios.
-  2. Proveer locales apropiados y elementos contra accidentes.
-  3. Prestar primeros auxilios.
-  4. Pagar el salario, prestaciones y aportes a seguridad social a tiempo.
-  5. Guardar absoluto respeto a la dignidad del trabajador, sus creencias y sentimientos.
-  6. Conceder las licencias necesarias remuneradas y no remuneradas de ley.
-  7. Cumplir el reglamento interno y garantizar la desconexión laboral, y prevenir acoso laboral, acoso sexual, garantizando la salud mental de todos.
-  </p>
+  <p>Son obligaciones especiales del empleador (Art. 57 CST):</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Poner a disposición los instrumentos y materias primas necesarios.</li>
+    <li>Proveer locales apropiados y elementos contra accidentes.</li>
+    <li>Prestar primeros auxilios.</li>
+    <li>Pagar el salario, prestaciones y aportes a seguridad social a tiempo.</li>
+    <li>Guardar absoluto respeto a la dignidad del trabajador, sus creencias y sentimientos.</li>
+    <li>Conceder las licencias necesarias remuneradas y no remuneradas de ley.</li>
+    <li>Cumplir el reglamento interno y garantizar la desconexión laboral, y prevenir acoso laboral, acoso sexual, garantizando la salud mental de todos.</li>
+  </ol>
 
   <h3>Art. 57° Prohibiciones especiales al EMPLEADOR</h3>
-  <p>El empleador tiene prohibido (Art. 59 CST):
-  1. Deducir, retener o compensar sumas de salarios sin autorización clara del trabajador.
-  2. Obligar a compras de mercancías o alimentos de comercios del empleador.
-  3. Exigir dinero o regalos para ser admitido o promocionado en el cargo.
-  4. Limitar el derecho a asociarse o pertenecer a sindicatos (Pacto Colectivo forzado).
-  5. Imponer a los trabajadores obligaciones religiosas o políticas.
-  6. Autorizar o tolerar el porte o uso de drogas y alcohol durante el trabajo, coaccionar, o generar acoso en cualquiera de sus manifestaciones.
-  7. Desconocer el derecho a la desconexión digital de sus subordinados.</p>
+  <p>El empleador tiene prohibido (Art. 59 CST):</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Deducir, retener o compensar sumas de salarios sin autorización clara del trabajador.</li>
+    <li>Obligar a compras de mercancías o alimentos de comercios del empleador.</li>
+    <li>Exigir dinero o regalos para ser admitido o promocionado en el cargo.</li>
+    <li>Limitar el derecho a asociarse o pertenecer a sindicatos (Pacto Colectivo forzado).</li>
+    <li>Imponer a los trabajadores obligaciones religiosas o políticas.</li>
+    <li>Autorizar o tolerar el porte o uso de drogas y alcohol durante el trabajo, coaccionar, o generar acoso en cualquiera de sus manifestaciones.</li>
+    <li>Desconocer el derecho a la desconexión digital de sus subordinados.</li>
+  </ol>
 
   <h3>Art. 58° Obligaciones especiales de LOS TRABAJADORES</h3>
-  <p>Son deberes del trabajador (Art. 58 CST):
-  1. Cumplir estrictamente sus obligaciones y el presente reglamento.
-  2. Guardar rigurosa moral en todas sus relaciones con sus superiores y compañeros.
-  3. Conservar y restituir en buen estado las herramientas, maquinaria e instrumentos asignados.
-  4. Prestar la colaboración posible en casos de siniestro o riesgo inminente.
-  5. Guardar el secreto y confidencialidad comercial e industrial y de los asuntos estrictamente técnicos o que puedan causar perjuicios.
-  6. Acatar las órdenes y medidas dadas para la seguridad y la prevención en SST.
-  7. Respetar y velar por los derechos a la desconexión digital de sus pares y subordinados.</p>
+  <p>Son deberes del trabajador (Art. 58 CST):</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Cumplir estrictamente sus obligaciones y el presente reglamento.</li>
+    <li>Guardar rigurosa moral en todas sus relaciones con sus superiores y compañeros.</li>
+    <li>Conservar y restituir en buen estado las herramientas, maquinaria e instrumentos asignados.</li>
+    <li>Prestar la colaboración posible en casos de siniestro o riesgo inminente.</li>
+    <li>Guardar el secreto y confidencialidad comercial e industrial y de los asuntos estrictamente técnicos o que puedan causar perjuicios.</li>
+    <li>Acatar las órdenes y medidas dadas para la seguridad y la prevención en SST.</li>
+    <li>Respetar y velar por los derechos a la desconexión digital de sus pares y subordinados.</li>
+  </ol>
 
   <h3>Art. 59° Prohibiciones especiales a LOS TRABAJADORES</h3>
-  <p>Está estrictamente prohibido a los trabajadores (Art. 60 CST y demás):
-  1. Sustraer de las instalaciones útiles, materia prima o productos sin permiso.
-  2. Presentarse al trabajo en estado de embriaguez o bajo el efecto de sustancias narcóticas.
-  3. Portar armas de cualquier especie durante el trabajo.
-  4. Disminuir intencionalmente el ritmo de trabajo o promover huelgas ilegales.
-  5. Faltar al trabajo sin justa causa de impedimento o sin permiso del empleador.
-  6. Usar los útiles de la empresa en asuntos distintos al trabajo asignado.
-  7. Incurrir en conductas que representen acoso laboral, discriminación de género o cualquier modalidad de acoso sexual sobre compañeros o terceros.</p>
+  <p>Está estrictamente prohibido a los trabajadores (Art. 60 CST y demás):</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li>Sustraer de las instalaciones útiles, materia prima o productos sin permiso.</li>
+    <li>Presentarse al trabajo en estado de embriaguez o bajo el efecto de sustancias narcóticas.</li>
+    <li>Portar armas de cualquier especie durante el trabajo.</li>
+    <li>Disminuir intencionalmente el ritmo de trabajo o promover huelgas ilegales.</li>
+    <li>Faltar al trabajo sin justa causa de impedimento o sin permiso del empleador.</li>
+    <li>Usar los útiles de la empresa en asuntos distintos al trabajo asignado.</li>
+    <li>Incurrir en conductas que representen acoso laboral, discriminación de género o cualquier modalidad de acoso sexual sobre compañeros o terceros.</li>
+  </ol>
 
   <h2>CAPÍTULO IX — RÉGIMEN DISCIPLINARIO</h2>
   <h3>Art. 60° Principios rectores</h3>
   <p>El régimen disciplinario está basado en el respeto del Debido Proceso Constitucional en los términos señalados en la Ley 2466 de 2025. Toda investigación y sanción interna estará orientada por los principios de: Dignidad Humana, Imparcialidad, Legalidad (la falta debe estar claramente descrita en este reglamento o en el contrato), Tipicidad, Proporcionalidad a la gravedad de la falta, y Non bis in ídem (nadie puede ser sancionado dos veces por el mismo hecho).</p>
 
   <h3>Art. 61° Escala de FALTAS LEVES</h3>
-  <p>Constituyen faltas de menor magnitud e impacto, que entorpecen la operación pero no destruyen la confianza del empleador, tales como:
-  1. Retardos injustificados inferiores a 15 minutos al iniciar la jornada.
-  2. Fallar por primera vez en la utilización completa de los elementos de dotación (sin ser EPP crítico).
-  3. Errores operativos leves y corregibles que no generen pérdidas económicas notables.
-  4. Exceder los tiempos fijados para descansos sin autorización.
-  5. Distraer a sus compañeros de labores y conversar en exceso afectando el rendimiento.</p>
+  <p>Constituyen faltas de menor magnitud e impacto, que entorpecen la operación pero no destruyen la confianza del empleador, tales como:</p>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px;">
+    <thead>
+      <tr style="background-color: #f2f2f2;">
+        <th style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; width: 10%;">#</th>
+        <th style="padding: 10px; border: 1px solid #e0e0e0; text-align: left;">Descripción de la Falta Leve</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">1</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Retardos injustificados inferiores a 15 minutos al iniciar la jornada.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">2</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Fallar por primera vez en la utilización completa de los elementos de dotación (sin ser EPP crítico).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">3</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Errores operativos leves y corregibles que no generen pérdidas económicas notables.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">4</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Exceder los tiempos fijados para descansos sin autorización.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">5</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Distraer a sus compañeros de labores y conversar en exceso afectando el rendimiento.</td></tr>
+    </tbody>
+  </table>
 
   <h3>Art. 62° Escala de FALTAS GRAVES</h3>
-  <p>Se considerarán faltas graves todas las enumeradas en el Art. 62 del CST como justas causas para terminación de contrato, y de manera enunciativa:
-  1. La ausencia injustificada o abandono de labores, por uno o más días continuos o fraccionados en el mismo mes calendario.
-  2. Fraude, falsificación de firmas o manipulación de registros y certificados (incapacidades falsas, marcaciones de tiempos inexistentes).
-  3. Violación del secreto industrial y de la confidencialidad de la información (Ley 1581/2012).
-  4. Negativa obstinada a someterse a medidas preventivas, normas SST, realización de evaluaciones médicas y el no uso de EPP para actividades de alto riesgo (ej. alturas).
-  5. Consumir licor o drogas en horas y espacios de trabajo.
-  6. Cualquier manifestación o queja ratificada de acoso sexual o acoso laboral con componente lesivo, acoso digital y agresión física, o cualquier forma de maltrato a la mujer o a las comunidades diversas.
-  7. Usar los vehículos y propiedad de la compañía sin autorización.
-  8. La desobediencia manifiesta al derecho a la desconexión laboral de sus subordinados causando coacción y hostigamiento.</p>
+  <p>Se considerarán faltas graves todas las enumeradas en el Art. 62 del CST como justas causas para terminación de contrato, y de manera enunciativa:</p>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px;">
+    <thead>
+      <tr style="background-color: #fff0f0;">
+        <th style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; width: 10%;">#</th>
+        <th style="padding: 10px; border: 1px solid #e0e0e0; text-align: left;">Descripción de la Falta Grave (Causal de Despido)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">1</td><td style="padding: 10px; border: 1px solid #e0e0e0;">La ausencia injustificada o abandono de labores, por uno o más días continuos o fraccionados en el mismo mes calendario.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">2</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Fraude, falsificación de firmas o manipulación de registros y certificados (incapacidades falsas, marcaciones de tiempos inexistentes).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">3</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Violación del secreto industrial y de la confidencialidad de la información (Ley 1581/2012).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">4</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Negativa obstinada a someterse a medidas preventivas, normas SST, realización de evaluaciones médicas y el no uso de EPP para actividades de alto riesgo (ej. alturas).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">5</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Consumir licor o drogas en horas y espacios de trabajo, o negarse injustificadamente a practicarse pruebas de alcoholemia.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">6</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Cualquier manifestación o queja ratificada de acoso sexual o acoso laboral con componente lesivo, acoso digital y agresión física, o maltrato a la mujer o comunidades diversas.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">7</td><td style="padding: 10px; border: 1px solid #e0e0e0;">Usar los vehículos y propiedad de la compañía sin autorización para fines personales.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center;">8</td><td style="padding: 10px; border: 1px solid #e0e0e0;">La desobediencia manifiesta al derecho a la desconexión laboral de sus subordinados causando coacción y hostigamiento.</td></tr>
+    </tbody>
+  </table>
 
   <h3>Art. 63° Escala de SANCIONES DISCIPLINARIAS</h3>
-  <p>Dependiendo de la gravedad de la falta y los agravantes o atenuantes hallados en la investigación, la empresa podrá imponer progresivamente las siguientes sanciones:
-  1. Llamado de atención verbal y orientación (solo para el expediente general y feedback).
-  2. Amonestación escrita con anotación en la hoja de vida.
-  3. Multa monetaria, aplicable exclusivamente a faltas asociadas con retardos o ausencias injustificadas.
-  4. Suspensión temporal en la prestación de los servicios y del pago del salario, la cual, por la primera vez de una falta determinada, no excederá de ocho (8) días; en caso de reincidencia repetida de la misma clase de falta, no excederá de dos (2) meses.
-  5. Despido con Justa Causa Legal (previsto como falta grave que resquebraja irremediablemente la confianza y causa el retiro amparado en el CST y en los estipulados de este Reglamento).</p>
+  <p>Dependiendo de la gravedad de la falta y los agravantes o atenuantes hallados en la investigación, la empresa podrá imponer progresivamente las siguientes sanciones:</p>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px;">
+    <thead>
+      <tr style="background-color: #fff3cd;">
+        <th style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; width: 10%;">Nivel</th>
+        <th style="padding: 10px; border: 1px solid #e0e0e0; text-align: left;">Sanción Disciplinaria Aplicable</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; font-weight: bold;">1</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Llamado de atención verbal y orientación</strong> (solo para el expediente general y feedback).</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; font-weight: bold;">2</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Amonestación escrita</strong> con anotación en la hoja de vida.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; font-weight: bold;">3</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Multa monetaria</strong>, aplicable exclusivamente a faltas asociadas con retardos o ausencias injustificadas.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; font-weight: bold;">4</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Suspensión temporal</strong> en la prestación de los servicios y del pago del salario, la cual, por la primera vez de una falta determinada, no excederá de ocho (8) días; en caso de reincidencia repetida de la misma clase de falta, no excederá de dos (2) meses.</td></tr>
+      <tr><td style="padding: 10px; border: 1px solid #e0e0e0; text-align: center; font-weight: bold; color: #d32f2f;">5</td><td style="padding: 10px; border: 1px solid #e0e0e0;"><strong>Despido con Justa Causa Legal</strong> (previsto como falta grave que resquebraja irremediablemente la confianza y causa el retiro amparado en el CST y en los estipulados de este Reglamento).</td></tr>
+    </tbody>
+  </table>
 
   <h3>Art. 64° Límites a las multas</h3>
   <p>De conformidad con el Artículo 113 del CST, las multas se aplicarán exclusivamente cuando el trabajador, sin excusa suficiente, llegue tarde a sus labores, o falte al trabajo (ausentismo). Esta multa no puede en ningún caso, ni en repetidas oportunidades, exceder de la quinta (1/5) parte del salario de un (1) día de la cuota ordinaria de nómina; y la suma recaudada se destinará exclusivamente al rubro de bienestar o estímulo que beneficie a todos los trabajadores.</p>
 
   <h3>Art. 65° PROCEDIMIENTO DISCIPLINARIO CON GARANTÍA DE DEBIDO PROCESO</h3>
-  <p>De acuerdo con la nueva legislación laboral colombiana y sentencias vinculantes, para aplicar cualquier sanción la empresa debe garantizar obligatoriamente el siguiente protocolo:
-  1. <strong>Citación a diligencia de descargos:</strong> Se notificará por escrito y de forma presencial o electrónica al trabajador de la falta cometida, su fecha, su calificación y pruebas, con al menos 48 horas de antelación.
-  2. <strong>Audiencia y acompañamiento:</strong> El trabajador expondrá su versión y pruebas de defensa; para ello tiene el derecho a ser asistido por dos (2) compañeros de trabajo y/o un (1) representante del sindicato al cual pertenezca.
-  3. <strong>Toma de decisión debidamente motivada:</strong> El ente sancionador o superior directo redactará un fallo con las pruebas recabadas en que se determinará la absolución o aplicación de la sanción proporcional.
-  4. <strong>Recurso de reposición / reconsideración:</strong> Conforme al Debido Proceso y Ley 2466 de 2025, el trabajador tendrá un plazo no mayor a cinco (5) días hábiles tras ser notificado, para elevar recurso de reconsideración, que deberá ser fallado por el ente superior a quien impuso la sanción.</p>
+  <p>De acuerdo con la nueva legislación laboral colombiana y sentencias vinculantes, para aplicar cualquier sanción la empresa debe garantizar obligatoriamente el siguiente protocolo:</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li style="margin-bottom: 10px;"><strong>Citación a diligencia de descargos:</strong> Se notificará por escrito y de forma presencial o electrónica al trabajador de la falta cometida, su fecha, su calificación y pruebas, con al menos 48 horas de antelación.</li>
+    <li style="margin-bottom: 10px;"><strong>Audiencia y acompañamiento:</strong> El trabajador expondrá su versión y pruebas de defensa; para ello tiene el derecho a ser asistido por dos (2) compañeros de trabajo y/o un (1) representante del sindicato al cual pertenezca.</li>
+    <li style="margin-bottom: 10px;"><strong>Toma de decisión debidamente motivada:</strong> El ente sancionador o superior directo redactará un fallo con las pruebas recabadas en que se determinará la absolución o aplicación de la sanción proporcional.</li>
+    <li><strong>Recurso de reposición / reconsideración:</strong> Conforme al Debido Proceso y Ley 2466 de 2025, el trabajador tendrá un plazo no mayor a cinco (5) días hábiles tras ser notificado, para elevar recurso de reconsideración, que deberá ser fallado por el ente superior a quien impuso la sanción.</li>
+  </ol>
 
   <h3>Art. 66° Cargos con facultad sancionatoria</h3>
   <p>Estarán facultados directa y expresamente para citar a descargos, dirigir la audiencia y resolver la imposición de las sanciones disciplinarias hasta por despido de justa causa, los siguientes cargos dentro de la estructura empresarial:</p>
@@ -417,7 +500,13 @@ module.exports = `
   <p>Para activar el protocolo será receptora de la querella directa el COCOLAB, ente autónomo al interior de la compañía constituido equitativamente por actores, el cual tendrá independencia procedimental, que de forma neutral buscará con enfoque conciliatorio e instructivo desescalar el conflicto sin llegar a imposiciones sancionatorias o coacciones de fondo que no rebasen su propio fuero estipulado para la convivencia y amparo social.</p>
 
   <h3>Art. 98° RUTA INTERNA — Protocolo paso a paso</h3>
-  <p><strong>1. Recepción y Admisión:</strong> Llegada de queja o remisión directa para análisis preliminar; <strong>2. Audiencias aisladas:</strong> Escucha confidencial, privada e imparcial en sesión del comité tanto al presunto agresor como al querellante; <strong>3. Conciliación y Pacto:</strong> Audiencia conjunta dirigida por un mediador (del comité) tendiente a construir espacios de perdón, no repetición y acuerdos; <strong>4. Seguimiento:</strong> Monitoreo de cumplimiento del pacto y evaluación bimestral; <strong>5. Traslado:</strong> En el escenario del fracaso total del diálogo, remisión directa del caso a Gerencia, o entes de fuero disciplinario corporativo e inspectores del Ministerio para aplicación de medidas sancionatorias a los culpables.</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li style="margin-bottom: 5px;"><strong>Recepción y Admisión:</strong> Llegada de queja o remisión directa para análisis preliminar.</li>
+    <li style="margin-bottom: 5px;"><strong>Audiencias aisladas:</strong> Escucha confidencial, privada e imparcial en sesión del comité tanto al presunto agresor como al querellante.</li>
+    <li style="margin-bottom: 5px;"><strong>Conciliación y Pacto:</strong> Audiencia conjunta dirigida por un mediador (del comité) tendiente a construir espacios de perdón, no repetición y acuerdos.</li>
+    <li style="margin-bottom: 5px;"><strong>Seguimiento:</strong> Monitoreo de cumplimiento del pacto y evaluación bimestral.</li>
+    <li><strong>Traslado:</strong> En el escenario del fracaso total del diálogo, remisión directa del caso a Gerencia, o entes de fuero disciplinario corporativo e inspectores del Ministerio para aplicación de medidas sancionatorias a los culpables.</li>
+  </ol>
 
   <h3>Art. 99° Prohibición de represalias</h3>
   <p>Los trabajadores denunciantes y todos aquellos que presten auxilio testifical al proceso de comité o querellas oficiales y sean citados a rendir testimonio de acoso estarán protegidos por una garantía ineludible de indemnidad. Cualquier venganza, destitución, presión o censura se declarará inválida frente al código sustantivo por el término mínimo legal de los seis (6) meses post-queja.</p>
@@ -436,7 +525,13 @@ module.exports = `
   <p>En acatamiento irrestricto de la resolución marco 3461 de 2025 de las autoridades ministeriales del trabajo y sentencias supremas jurisprudenciales, el ACOSO SEXUAL es delito de carácter reprochable y un factor lesivo mayúsculo que <strong>NUNCA ES SUSCEPTIBLE DE CONCILIACIÓN</strong> ni abordaje en procesos paritarios ante el COCOLAB, o amigables componedores, pasando su conocimiento de forma prioritaria al resorte gerencial sancionador supremo, entidades de género y fiscales.</p>
 
   <h3>Art. 104° RUTA INTERNA DE ATENCIÓN — Protocolo paso a paso</h3>
-  <p><strong>1. Prevención e Inicio rápido:</strong> Alerta confidencial reportada al alto mando con copia a SST o dependencia habilitada en la empresa; <strong>2. Separación Cautelar de Riesgo:</strong> Concesión de permiso remunerado y distanciamiento preventivo al denunciante y presunto asaltante; <strong>3. Trámite de Averiguación Disciplinaria Expedita:</strong> Evaluación rigurosa sin confrontar a la presunta víctima con el ofensor; <strong>4. Decisión Plena Causal:</strong> Expulsión y desvinculación justificada inminente en caso de confirmación fáctica y sólida. <strong>5. Copia Penal:</strong> Traspaso inmediato del historial sin ocultamientos para denuncia penal del implicado ante la Fiscalía y sus dependencias.</p>
+  <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
+    <li style="margin-bottom: 5px;"><strong>Prevención e Inicio rápido:</strong> Alerta confidencial reportada al alto mando con copia a SST o dependencia habilitada en la empresa.</li>
+    <li style="margin-bottom: 5px;"><strong>Separación Cautelar de Riesgo:</strong> Concesión de permiso remunerado y distanciamiento preventivo al denunciante y presunto asaltante.</li>
+    <li style="margin-bottom: 5px;"><strong>Trámite de Averiguación Disciplinaria Expedita:</strong> Evaluación rigurosa sin confrontar a la presunta víctima con el ofensor.</li>
+    <li style="margin-bottom: 5px;"><strong>Decisión Plena Causal:</strong> Expulsión y desvinculación justificada inminente en caso de confirmación fáctica y sólida.</li>
+    <li><strong>Copia Penal:</strong> Traspaso inmediato del historial sin ocultamientos para denuncia penal del implicado ante la Fiscalía y sus dependencias.</li>
+  </ol>
 
   <h3>Art. 105° REPORTE AL SIVIGE</h3>
   <p>El área de Talento Humano o la Gerencia informará debida, formal, estadística y documentadamente mediante la estructura, codificación de causas, cargos y atenuantes, exigida bajo control perentorio semestral a las plataformas en línea impuestas por la legislación de la república como el Sistema Integrado SIVIGE y otros canales, para los rastreos macro del observatorio gubernamental que compila los incidentes de violencia y equidad de género.</p>
