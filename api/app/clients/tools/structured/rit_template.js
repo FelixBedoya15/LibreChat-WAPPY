@@ -170,9 +170,11 @@ module.exports = `
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
     <li>Calamidad doméstica debidamente comprobada.</li>
     <li>Para concurrir al servicio médico de la EPS y ARL (tiempo estricto para cita y traslados).</li>
-    <li>Para desempeñar cargos oficiales transitorios de forzosa aceptación (ej: jurados de votación).</li>
-    <li>Para ejercer el derecho al sufragio en elecciones democráticas.</li>
+    <li>Para desempeñar cargos oficiales transitorios de forzosa aceptación (ej: jurados de votación, el cual otorga 1 día compensatorio remunerado - Ley 163 de 1994).</li>
+    <li>Para ejercer el derecho al sufragio en elecciones democráticas (otorga medio día compensatorio remunerado en los 30 días siguientes - Ley 163 de 1994).</li>
     <li>Para comisiones sindicales.</li>
+    <li>Por contraer matrimonio (licencia de cinco (5) días hábiles remunerados, en concordancia con la protección a la familia avalada jurisprudencialmente).</li>
+    <li>Por llegar al trabajo en bicicleta (otorga medio día remunerado por cada 30 veces certificadas, hasta 8 al año - Ley 1811 de 2016).</li>
   </ol>
 
   <h3>Art. 32° Permisos no remunerados y su procedimiento de solicitud</h3>
@@ -220,8 +222,9 @@ module.exports = `
   <h3>Art. 41° Obligaciones del trabajador en SST</h3>
   <p>El trabajador está legalmente obligado a:</p>
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
-    <li>Procurar el cuidado integral de su salud.</li>
-    <li>Suministrar información clara, veraz y completa sobre su estado de salud.</li>
+    <li>Procurar el cuidado integral de su salud en todo momento.</li>
+    <li>Suministrar información clara, veraz y completa sobre su estado de salud (tanto en el examen médico de ingreso, como en los periódicos y de egreso). Ocultar patologías preexistentes de mala fe constituirá falta disciplinaria grave.</li>
+    <li>Reportar inmediatamente (y a más tardar dentro del turno de trabajo en que ocurre) cualquier incidente o accidente de trabajo, y notificar las enfermedades laborales apenas sean dictaminadas, bajo pena de sanciones.</li>
     <li>Cumplir celosamente con las normas, reglamentos e instrucciones del SG-SST.</li>
     <li>Informar oportunamente al empleador acerca de los peligros y riesgos latentes en su puesto de trabajo.</li>
     <li>Participar proactivamente en las actividades de capacitación en SST.</li>
@@ -386,12 +389,12 @@ module.exports = `
   <p>De conformidad con el Artículo 113 del CST, las multas se aplicarán exclusivamente cuando el trabajador, sin excusa suficiente, llegue tarde a sus labores, o falte al trabajo (ausentismo). Esta multa no puede en ningún caso, ni en repetidas oportunidades, exceder de la quinta (1/5) parte del salario de un (1) día de la cuota ordinaria de nómina; y la suma recaudada se destinará exclusivamente al rubro de bienestar o estímulo que beneficie a todos los trabajadores.</p>
 
   <h3>Art. 65° PROCEDIMIENTO DISCIPLINARIO CON GARANTÍA DE DEBIDO PROCESO</h3>
-  <p>De acuerdo con la nueva legislación laboral colombiana y sentencias vinculantes, para aplicar cualquier sanción la empresa debe garantizar obligatoriamente el siguiente protocolo:</p>
+  <p>De acuerdo con la Sentencia C-593 de 2014 de la Corte Constitucional y la jurisprudencia reciente de la Corte Suprema de Justicia, para aplicar cualquier sanción o despido con justa causa, la empresa garantiza el siguiente protocolo ineludible:</p>
   <ol style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;">
-    <li style="margin-bottom: 10px;"><strong>Citación a diligencia de descargos:</strong> Se notificará por escrito y de forma presencial o electrónica al trabajador de la falta cometida, su fecha, su calificación y pruebas, con al menos 48 horas de antelación.</li>
-    <li style="margin-bottom: 10px;"><strong>Audiencia y acompañamiento:</strong> El trabajador expondrá su versión y pruebas de defensa; para ello tiene el derecho a ser asistido por dos (2) compañeros de trabajo y/o un (1) representante del sindicato al cual pertenezca.</li>
-    <li style="margin-bottom: 10px;"><strong>Toma de decisión debidamente motivada:</strong> El ente sancionador o superior directo redactará un fallo con las pruebas recabadas en que se determinará la absolución o aplicación de la sanción proporcional.</li>
-    <li><strong>Recurso de reposición / reconsideración:</strong> Conforme al Debido Proceso y Ley 2466 de 2025, el trabajador tendrá un plazo no mayor a cinco (5) días hábiles tras ser notificado, para elevar recurso de reconsideración, que deberá ser fallado por el ente superior a quien impuso la sanción.</li>
+    <li style="margin-bottom: 10px;"><strong>Citación a descargos y traslado de pruebas:</strong> Se notificará por escrito al trabajador (presencial o electrónicamente) de la falta cometida, su fecha, su posible calificación y, obligatoriamente, se le hará entrega de copia de todas las pruebas que obran en su contra para que pueda defenderse, con al menos 48 horas de antelación a la audiencia.</li>
+    <li style="margin-bottom: 10px;"><strong>Audiencia y acompañamiento:</strong> El trabajador expondrá su versión, controvertirá las pruebas de la empresa y aportará sus pruebas de defensa; para ello tiene el derecho a ser asistido por dos (2) compañeros de trabajo y/o un (1) representante del sindicato al cual pertenezca.</li>
+    <li style="margin-bottom: 10px;"><strong>Toma de decisión debidamente motivada:</strong> El ente sancionador o superior directo redactará un fallo estructurado que evalúe los descargos, determine la absolución o aplique la sanción de forma proporcional.</li>
+    <li><strong>Recurso de reposición y apelación:</strong> Conforme al Debido Proceso y Ley 2466 de 2025, el trabajador tendrá un plazo no mayor a cinco (5) días hábiles tras ser notificado para elevar recurso de reconsideración, que deberá ser fallado garantizando la doble instancia (por un ente superior a quien impuso la sanción, si la estructura corporativa lo permite).</li>
   </ol>
 
   <h3>Art. 66° Cargos con facultad sancionatoria</h3>
@@ -547,7 +550,7 @@ module.exports = `
 
   <h2>CAPÍTULO XVII — DISPOSICIONES FINALES</h2>
   <h3>Art. 109° Publicación del reglamento</h3>
-  <p>Este Reglamento será dado a conocer y publicado masivamente a los trabajadores mediante de fijación física y de divulgación electrónica formal según lo reglado por la ley en los siguientes <strong>{{medios_publicacion}}</strong>. Adicional a esto, una copia física auténtica de libre acceso reposará permanentemente a disposición de los empleados en todas las sedes principales de la compañía y anexado a los contratos en el folio laboral general respectivo de cada quien.</p>
+  <p>En estricto cumplimiento de la modificación al Artículo 120 del CST (Reforma Laboral 2025), este Reglamento se publicará mediante fijación física en dos (2) sitios distintos y visibles de la empresa. De manera obligatoria y concurrente, el RIT estará fijado permanentemente en el <strong>medio digital, intranet o plataforma de la compañía</strong> (<strong>{{medios_publicacion}}</strong>) garantizando que todos los trabajadores tengan acceso inmediato y remoto a él en cualquier momento para su lectura y consulta sin restricciones.</p>
 
   <h3>Art. 110° Vigencia y entrada en fuerza</h3>
   <p>Este cuerpo normativo interno empezará a regir plenamente sobre los designios corporativos de modo oficial y unificado en fecha <strong>{{fecha_publicacion}}</strong>. Toda regla, directiva, circular, cláusula transitoria o pacto contractual pretérito que vulnere y contradiga las presentes normativas será subsumido bajo este reglamento y resultará en anulación tacita por pérdida de vigor jurídico vinculante prevaleciente.</p>
