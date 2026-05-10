@@ -1,7 +1,8 @@
 const { z } = require('zod');
 const { Tool } = require('@langchain/core/tools');
 const LiveEditorSession = require('~/models/LiveEditorSession');
-const ritTemplate = require('./rit_template');
+const ritTemplateTradicional = require('./rit_template_tradicional');
+const ritTemplateHumanista = require('./rit_template_humanista');
 
 /**
  * EditorRIT Tool
@@ -21,6 +22,14 @@ class EditorRIT extends Tool {
         .enum(['cargar_plantilla', 'leer', 'escribir', 'editar_seccion', 'buscar_reemplazar', 'insertar'])
         .describe(
           'Acción a ejecutar: "cargar_plantilla" para inicializar el documento con el RIT preestablecido; "leer" para consultar; "buscar_reemplazar" para reemplazar variables (ej. {{empresa_nombre}} por "ACME"); "editar_seccion" para cambiar un bloque entero.',
+        ),
+
+      tono: z
+        .enum(['tradicional', 'humanista'])
+        .optional()
+        .default('tradicional')
+        .describe(
+          'El tono de la plantilla a cargar. Únicamente usado cuando accion="cargar_plantilla". "tradicional" es estricto y legal; "humanista" está centrado en el bienestar y el bioindividuo.',
         ),
 
       // Para accion="escribir"
@@ -113,11 +122,13 @@ class EditorRIT extends Tool {
       // ── CARGAR PLANTILLA ────────────────────────────────────────────────────
       if (accion === 'cargar_plantilla') {
         const fileName = input.fileName || 'Reglamento Interno de Trabajo';
+        const templateToUse = input.tono === 'humanista' ? ritTemplateHumanista : ritTemplateTradicional;
+
         await LiveEditorSession.findOneAndUpdate(
           { conversationId },
           {
             $set: {
-              content: ritTemplate,
+              content: templateToUse,
               contentUpdatedAt: new Date(),
               fileName: fileName,
             },
@@ -127,9 +138,9 @@ class EditorRIT extends Tool {
         );
         return JSON.stringify({
           success: true,
-          mensaje: `Plantilla del Reglamento Interno de Trabajo cargada exitosamente. Contiene la estructura completa. Ahora usa "buscar_reemplazar" para sustituir variables como {{empresa_nombre}}, etc.`,
+          mensaje: `Plantilla del Reglamento Interno de Trabajo (${input.tono || 'tradicional'}) cargada exitosamente. Contiene la estructura completa. Ahora usa "buscar_reemplazar" para sustituir variables como {{empresa_nombre}}, etc.`,
           fileName: fileName,
-          contentLength: ritTemplate.length,
+          contentLength: templateToUse.length,
         });
       }
 
