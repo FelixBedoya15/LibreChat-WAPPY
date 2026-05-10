@@ -120,6 +120,8 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
                                             <option value="USER_GO">Go</option>
                                             <option value="USER_PLUS">Plus</option>
                                             <option value="USER_PRO">Pro</option>
+                                            <option value="USER_IPEVAR">IPEVAR</option>
+                                            <option value="USER_CUSTOM">A la Medida</option>
                                             <option value="ADMIN">Admin</option>
                                         </select>
                                     </div>

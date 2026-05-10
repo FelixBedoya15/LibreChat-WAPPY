@@ -3,7 +3,7 @@ import { useToastContext } from '@librechat/client';
 import { SystemRoles, PermissionTypes, Permissions } from 'librechat-data-provider';
 import axios from 'axios';
 
-const ROLES = [SystemRoles.USER, SystemRoles.USER_GO, SystemRoles.USER_PLUS, SystemRoles.USER_PRO, SystemRoles.ADMIN];
+const ROLES = [SystemRoles.USER, SystemRoles.USER_GO, SystemRoles.USER_PLUS, SystemRoles.USER_PRO, 'USER_IPEVAR', 'USER_CUSTOM', SystemRoles.ADMIN];
 
 const renderRoleName = (role: string) => {
     return {
@@ -11,6 +11,8 @@ const renderRoleName = (role: string) => {
         [SystemRoles.USER_GO]: 'Go',
         [SystemRoles.USER_PLUS]: 'Plus',
         [SystemRoles.USER_PRO]: 'Pro',
+        'USER_IPEVAR': 'IPEVAR',
+        'USER_CUSTOM': 'A la Medida',
         [SystemRoles.ADMIN]: 'Admin',
     }[role] || role;
 };
