@@ -39,13 +39,16 @@ const useUserKey = (endpoint: string) => {
   }, [getExpiry]);
 
   const saveUserKey = useCallback(
-    (userKey: string, expiresAt: number | null) => {
+    (userKey: string, expiresAt: number | null, options?: any) => {
       const dateStr = expiresAt ? new Date(expiresAt).toISOString() : '';
-      updateKey.mutate({
-        name: keyName,
-        value: userKey,
-        expiresAt: dateStr,
-      });
+      updateKey.mutate(
+        {
+          name: keyName,
+          value: userKey,
+          expiresAt: dateStr,
+        },
+        options,
+      );
     },
     [updateKey, keyName],
   );

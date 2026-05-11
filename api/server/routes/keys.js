@@ -14,8 +14,15 @@ router.put('/', requireJwtAuth, async (req, res) => {
 
   // RBAC: Calculate max keys based on role
   if (name === 'google' && typeof value === 'string') {
-    // Only count non-empty keys
-    const keysCount = value.split(',').filter(k => k.trim().length > 0).length;
+    let keysCount = 0;
+    try {
+      const parsedValue = JSON.parse(value);
+      const apiKeys = parsedValue.GOOGLE_API_KEY || '';
+      keysCount = apiKeys.split(',').filter(k => k.trim().length > 0).length;
+    } catch (e) {
+      // Fallback for non-json values (legacy or simple strings)
+      keysCount = value.split(',').filter(k => k.trim().length > 0).length;
+    }
     let maxKeys = 1;
 
     if (role === 'USER_GO') maxKeys = 4;

@@ -222,21 +222,24 @@ const SetKeyDialog = ({
     }
 
     const saveKey = (key: string) => {
-      try {
-        saveUserKey(key, expiresAt);
-        localStorage.setItem(`librechat_user_key_${endpoint}`, key);
-        showToast({
-          message: localize('com_ui_save_key_success'),
-          status: NotificationSeverity.SUCCESS,
-        });
-        onOpenChange(false);
-      } catch (error) {
-        logger.error('Error saving user key:', error);
-        showToast({
-          message: localize('com_ui_save_key_error'),
-          status: NotificationSeverity.ERROR,
-        });
-      }
+      saveUserKey(key, expiresAt, {
+        onSuccess: () => {
+          localStorage.setItem(`librechat_user_key_${endpoint}`, key);
+          showToast({
+            message: localize('com_ui_save_key_success'),
+            status: NotificationSeverity.SUCCESS,
+          });
+          onOpenChange(false);
+        },
+        onError: (error) => {
+          logger.error('Error saving user key:', error);
+          const message = error?.response?.data?.error || error?.response?.data?.message || localize('com_ui_save_key_error');
+          showToast({
+            message,
+            status: NotificationSeverity.ERROR,
+          });
+        },
+      });
     };
 
     if (formSet.has(endpoint) || formSet.has(endpointType ?? '')) {
