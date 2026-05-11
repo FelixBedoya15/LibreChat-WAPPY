@@ -155,8 +155,8 @@ module.exports = `
   <h3>Art. 7° Teletrabajo, trabajo remoto y trabajo en casa</h3>
   <p>La empresa, conforme a la Ley 1221 de 2008, la Ley 2088 de 2021 y la Ley 2121 de 2021, podrá acordar modalidades de prestación del servicio a distancia. el colaborador (bioindividuo) remoto, teletrabajador o quien trabaje en casa, deberá cumplir a cabalidad con sus responsabilidades, atender los requerimientos en su jornada ordinaria y velar por el correcto mantenimiento de las herramientas de trabajo proporcionadas por la organización, si las hubiere. Se garantizará plenamente el principio de igualdad y no discriminación frente a los colaboradores presenciales, preservando la desconexión laboral y las medidas de SST.</p>
 
-  <h3>Art. 8° Trabajo en plataformas digitales</h3>
-  <p>Para la organización, ningún colaborador es invisible. Quienes presten servicios a través de plataformas digitales tienen plenos derechos laborales: afiliación al sistema de seguridad social, prestaciones de ley y libertad de asociación, conforme a la Ley 2466 de 2025.</p>
+  <h3>Art. 8° Privacidad, Cuidado Colectivo y Medios Tecnológicos</h3>
+  <p>La organización valora y protege la privacidad de cada colaborador en el marco de la Ley 1581 de 2012. Para garantizar la seguridad física de nuestro equipo y facilitar los controles de acceso, nuestras instalaciones pueden contar con sistemas de cuidado colectivo mediante videovigilancia y registro biométrico (huella o reconocimiento). El uso de estas tecnologías tiene un fin estrictamente preventivo, protector y operativo. Al hacer parte de este ecosistema, el colaborador autoriza el tratamiento de esta información, con la absoluta certeza de que la organización custodiará sus datos con el máximo rigor ético y confidencialidad, respetando siempre su derecho a la intimidad y al Habeas Data.</p>
 
   <h3>Art. 9° Orden jerárquico del personal</h3>
   <p>Nuestra estructura organizacional define los vínculos de liderazgo y trabajo colaborativo. Cada nivel es un puente de comunicación, no una barrera. La cadena de valor humano de <strong>{{empresa_nombre}}</strong> es la siguiente:</p>
