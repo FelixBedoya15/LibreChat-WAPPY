@@ -165,22 +165,39 @@ module.exports = `
 
   <h2>CAPÍTULO II — JORNADA DE TRABAJO</h2>
   <h3>Art. 10° Jornada ordinaria</h3>
-  <p>La jornada ordinaria de trabajo es la que convengan las partes, o a falta de convenio, la jornada máxima legal. Conforme a lo dispuesto en la Ley 2101 de 2021 y reforzado en la legislación laboral vigente (Ley 2466 de 2025), la jornada máxima de trabajo a partir de julio de 2026 será de cuarenta y dos (42) horas semanales. Esta jornada podrá ser distribuida en mutuo acuerdo, en 5 o 6 días a la semana garantizando el día de descanso. Aquellos trabajadores de dirección, confianza y manejo están excluidos de la jornada máxima legal de acuerdo con el Art. 162 del CST.</p>
+  <p>La jornada ordinaria de trabajo es la que convengan las partes, o a falta de convenio, la jornada máxima legal. Conforme a lo dispuesto en la Ley 2101 de 2021 y la Ley 2466 de 2025, la jornada máxima legal vigente a mayo de 2026 es de <strong>cuarenta y cuatro (44) horas semanales</strong>. Se informa que, en cumplimiento del cronograma legal de reducción, la jornada máxima pasará a ser de <strong>cuarenta y dos (42) horas semanales a partir del 15 de julio de 2026</strong>. Esta jornada podrá ser distribuida en mutuo acuerdo, en 5 o 6 días a la semana garantizando el día de descanso. Aquellos trabajadores de dirección, confianza y manejo están excluidos de la jornada máxima legal de acuerdo con el Art. 162 del CST.</p>
 
   <h3>Art. 11° Horarios de entrada y salida / Turnos rotativos</h3>
-  <p>el empleador podrá establecer y modificar los horarios y turnos de trabajo según las necesidades operativas, respetando la jornada máxima, mediante un preaviso razonable a los trabajadores. Los horarios de entrada y salida, así como los descansos, se definirán de forma específica en cada dependencia. Cuando la naturaleza de la labor lo requiera, la empresa podrá implementar sistemas de turnos de trabajo sucesivos y rotativos.</p>
+  <p>el empleador podrá establecer y modificar los horarios y turnos de trabajo según las necesidades operativas, respetando la jornada máxima, mediante un preaviso razonable a los trabajadores. Los horarios de entrada y salida, así como los descansos, se definen a continuación:<br><br>
+  {{horarios_trabajo}}<br><br>
+  Cuando la naturaleza de la labor lo requiera, la empresa podrá implementar sistemas de turnos de trabajo sucesivos y rotativos.</p>
 
   <h3>Art. 12° Jornada nocturna</h3>
-  <p>Conforme a la Ley 2466 de 2025, el trabajo diurno está comprendido entre las seis horas (6:00 a.m.) y las diecinueve horas (7:00 p.m.). A partir del 26 de diciembre de 2025, el horario nocturno debe iniciar obligatoriamente a las 7:00 p.m. y finalizar a las 6:00 a.m. del día siguiente. El trabajo nocturno generará los recargos legales correspondientes sobre el valor ordinario de la hora.</p>
+  <p>Conforme a la Ley 2466 de 2025, el trabajo diurno está comprendido entre las seis horas (6:00 a.m.) y las diecinueve horas (7:00 p.m.). A partir del 26 de diciembre de 2025, el horario nocturno inicia obligatoriamente a las <strong>7:00 p.m.</strong> y finaliza a las 6:00 a.m. del día siguiente. El trabajo nocturno generará los recargos legales correspondientes sobre el valor ordinario de la hora.</p>
 
   <h3>Art. 13° Períodos para comidas y descansos dentro de la jornada</h3>
   <p>Durante cada jornada de trabajo, la empresa otorgará los tiempos de descanso necesarios que exija la naturaleza de la labor. Se dispondrá de un período no inferior a treinta (30) minutos continuos para que los trabajadores tomen sus alimentos y descansen, tiempo que en ningún caso se computará como parte integral de la jornada de trabajo (Art. 167 CST), a menos que por acuerdo previo se establezca lo contrario.</p>
 
-  <h3>Art. 14° Horas extras y trabajo suplementario</h3>
-  <p>Trabajo suplementario o de horas extras es aquel que excede de la jornada ordinaria o de la máxima legal. No se reconocerá pago de horas extras que no hayan sido previa y expresamente autorizadas por escrito por el jefe inmediato. el empleador solo podrá exigir la prestación de servicios en tiempo suplementario dentro de los límites establecidos en la ley (no más de dos horas diarias ni doce semanales). El pago se realizará con los recargos correspondientes de ley: veinticinco por ciento (25%) sobre el valor de la hora ordinaria por el trabajo extra diurno, y setenta y cinco por ciento (75%) por el trabajo extra nocturno.</p>
+  <h3>Art. 14° Horas extras y trabajo suplementario (Explicación para todos)</h3>
+  <p>Trabajo suplementario o de horas extras es aquel que supera la jornada diaria pactada o la máxima legal. Para que se paguen, deben ser autorizadas por escrito. Aquí explicamos cómo se calculan de forma sencilla:</p>
+  <ul style="line-height: 1.6;">
+    <li><strong>Hora Extra Diurna (6:00 a.m. a 7:00 p.m.):</strong> Se paga con un recargo del <strong>25%</strong> sobre el valor de la hora normal. (Ej: Si tu hora vale $10.000, la extra diurna vale $12.500).</li>
+    <li><strong>Hora Extra Nocturna (7:00 p.m. a 6:00 a.m.):</strong> Se paga con un recargo del <strong>75%</strong> sobre el valor de la hora normal. (Ej: Si tu hora vale $10.000, la extra nocturna vale $17.500).</li>
+  </ul>
+  <p>Límite legal: Máximo 2 horas extras al día y 12 a la semana.</p>
 
-  <h3>Art. 15° Recargos nocturnos, dominicales y festivos</h3>
-  <p>El trabajo realizado en domingo o en día de fiesta de descanso obligatorio, generará un recargo sobre el salario ordinario en proporción a las horas laboradas, de conformidad con la implementación progresiva dispuesta por la Ley 2466 de 2025 (80% a partir de julio 2025; 90% a partir de julio de 2026; 100% a partir de julio de 2027). El solo hecho de laborar en jornada nocturna generará un recargo del treinta y cinco por ciento (35%) sobre la hora ordinaria. El trabajo que combine horas extras con recargo dominical/festivo o nocturno se pagará liquidando los recargos de forma acumulativa conforme a la ley.</p>
+  <h3>Art. 15° Recargos por trabajo Nocturno, Dominical y Festivo</h3>
+  <p>Cuando trabajas en horarios especiales, la ley exige pagos adicionales llamados "recargos":</p>
+  <ol style="line-height: 1.6;">
+    <li><strong>Recargo Nocturno (Ordinario):</strong> Si trabajas entre las 7:00 p.m. y las 6:00 a.m. dentro de tu turno normal, recibes un <strong>35% adicional</strong> por cada hora nocturna.</li>
+    <li><strong>Recargo Dominical o Festivo:</strong> Por laborar en días de descanso obligatorio (Domingos o Festivos), se paga un recargo sobre la hora ordinaria. Según la Ley 2466 de 2025, el porcentaje actual a mayo de 2026 es del <strong>80%</strong>.
+      <ul style="font-size: 0.9em; color: #555;">
+        <li>A partir del 1 de julio de 2026, este recargo subirá al <strong>90%</strong>.</li>
+        <li>A partir del 1 de julio de 2027, el recargo será del <strong>100%</strong>.</li>
+      </ul>
+    </li>
+    <li><strong>Combinaciones:</strong> Si haces horas extras en domingo o de noche, los recargos se suman según las fórmulas legales para asegurar tu justa remuneración.</li>
+  </ol>
 
   <h3>Art. 16° Trabajadores del servicio doméstico y cuidado</h3>
   <p>Todo el personal contratado por la empresa que ejerza labores de servicio doméstico o cuidado tendrá plenos derechos respecto a la jornada máxima legal vigente, reconocimiento de horas extras y recargos por trabajo nocturno, dominical y festivo, equiparándose sus derechos laborales a los del resto de los trabajadores de la empresa, de conformidad con la Ley 2466 de 2025.</p>
@@ -261,8 +278,13 @@ module.exports = `
   <h3>Art. 35° Deducciones legalmente permitidas</h3>
   <p>La empresa solo podrá deducir, retener o compensar suma alguna del salario del trabajador por orden suscrita, escrita y expresa del trabajador, o por mandamiento judicial emitido por juez competente, o por mandato legal. Son retenciones obligatorias: los aportes del trabajador al Sistema de Seguridad Social Integral (Salud y Pensión), retención en la fuente (si aplica), multas restaurativa y comportamentals legalmente impuestas por atrasos u omisiones al trabajo sin justificación, cuotas sindicales y cuotas alimentarias debidamente embargadas por un juez. En ningún caso las deducciones y embargos podrán afectar el salario mínimo legal, salvo por pensiones alimenticias o deudas con cooperativas, en cuyo caso solo se podrá afectar hasta el 50% de este.</p>
 
-  <h3>Art. 36° Auxilio de transporte</h3>
-  <p>los trabajadores que devenguen hasta dos (2) veces el Salario Mínimo Mensual Legal Vigente (SMMLV) tendrán derecho al pago del auxilio de transporte fijado por el Gobierno Nacional, a menos que la empresa suministre el transporte de manera completa o que el trabajador resida en el lugar de trabajo, realice sus labores exclusivamente bajo modalidades de trabajo remoto (donde aplica auxilio de conectividad si corresponde), o cuando no trabaje por incapacidad médica o permisos personales continuados.</p>
+  <h3>Art. 36° Auxilio de transporte y Conectividad Digital</h3>
+  <p>los trabajadores que devenguen hasta dos (2) veces el Salario Mínimo Mensual Legal Vigente (SMMLV) tendrán derecho a los siguientes beneficios según su modalidad:</p>
+  <ul style="line-height: 1.6;">
+    <li><strong>Auxilio de Transporte:</strong> Se pagará el monto legal vigente a los trabajadores que se desplacen físicamente al centro de trabajo.</li>
+    <li><strong>Auxilio de Conectividad Digital:</strong> De conformidad con la Ley 2088 de 2021, este auxilio sustituye al de transporte para los trabajadores que desempeñen sus funciones mediante Teletrabajo, Trabajo en Casa o Trabajo Remoto. Su valor será equivalente al auxilio de transporte vigente.</li>
+  </ul>
+  <p>No habrá lugar a estos auxilios en caso de suministro de transporte por el empleador, residencia en el lugar de trabajo, o durante periodos de suspensión del contrato, vacaciones o incapacidades.</p>
 
   <h3>Art. 37° Cesantías, intereses y prima de servicios</h3>
   <p>La empresa reconocerá y liquidará las prestaciones sociales legales conforme a la norma:</p>

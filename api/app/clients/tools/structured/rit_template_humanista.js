@@ -165,22 +165,39 @@ module.exports = `
 
   <h2>CAPÍTULO II — TIEMPOS DE VIDA Y PRODUCTIVIDAD CONSCIENTE (JORNADA)</h2>
   <h3>Art. 10° Jornada ordinaria</h3>
-  <p>La jornada de trabajo es un acuerdo de valor entre la organización y cada colaborador, construido con respeto por su tiempo vital. Conforme a lo dispuesto en la Ley 2101 de 2021 y reforzado en la legislación laboral vigente (Ley 2466 de 2025), la jornada máxima de trabajo a partir de julio de 2026 será de cuarenta y dos (42) horas semanales. Esta jornada podrá ser distribuida en mutuo acuerdo, en 5 o 6 días a la semana garantizando el día de descanso. Aquellos colaboradores de dirección, confianza y manejo están excluidos de la jornada máxima legal de acuerdo con el Art. 162 del CST.</p>
+  <p>La jornada de trabajo es un acuerdo de valor entre la organización y cada colaborador, construido con respeto por su tiempo vital. Conforme a lo dispuesto en la Ley 2101 de 2021 y la Ley 2466 de 2025, la jornada máxima legal vigente a mayo de 2026 es de <strong>cuarenta y cuatro (44) horas semanales</strong>. Es importante notar que, como parte de la transición hacia una mayor calidad de vida, esta jornada se reducirá definitivamente a <strong>cuarenta y dos (42) horas semanales a partir del 15 de julio de 2026</strong>. Esta jornada podrá ser distribuida en mutuo acuerdo, en 5 o 6 días a la semana garantizando el día de descanso. Aquellos colaboradores de dirección, confianza y manejo están excluidos de la jornada máxima legal de acuerdo con el Art. 162 del CST.</p>
 
   <h3>Art. 11° Horarios de entrada y salida / Turnos rotativos</h3>
-  <p>La organización, en diálogo y con preaviso razonable, podrá ajustar horarios y turnos según las necesidades del servicio, garantizando siempre el respeto por la jornada máxima y el descanso del colaborador. Los horarios de entrada y salida, así como los descansos, se definirán de forma específica en cada dependencia. Cuando la naturaleza de la labor lo requiera, la empresa podrá implementar sistemas de turnos de trabajo sucesivos y rotativos.</p>
+  <p>La organización, en diálogo y con preaviso razonable, podrá ajustar horarios y turnos según las necesidades del servicio, garantizando siempre el respeto por la jornada máxima y el descanso del colaborador. Los horarios específicos que rigen actualmente para nuestro equipo son los siguientes:<br><br>
+  {{horarios_trabajo}}<br><br>
+  Cuando la naturaleza de la labor lo requiera, la empresa podrá implementar sistemas de turnos de trabajo sucesivos y rotativos.</p>
 
   <h3>Art. 12° Jornada nocturna</h3>
-  <p>Conforme a la Ley 2466 de 2025, el trabajo diurno está comprendido entre las seis horas (6:00 a.m.) y las diecinueve horas (7:00 p.m.). A partir del 26 de diciembre de 2025, el horario nocturno debe iniciar obligatoriamente a las 7:00 p.m. y finalizar a las 6:00 a.m. del día siguiente. El trabajo nocturno generará los recargos legales correspondientes sobre el valor ordinario de la hora.</p>
+  <p>En nuestro ecosistema, honramos el ciclo de descanso natural. Conforme a la Ley 2466 de 2025, el trabajo diurno se comprende entre las 6:00 a.m. y las 7:00 p.m. Todo trabajo realizado entre las <strong>7:00 p.m. y las 6:00 a.m.</strong> se considera jornada nocturna y genera un reconocimiento económico adicional (recargo) por el esfuerzo de laborar en horarios de descanso social y familiar.</p>
 
   <h3>Art. 13° Períodos para comidas y descansos dentro de la jornada</h3>
   <p>Las pausas son parte esencial de una jornada saludable. La organización garantiza los tiempos de descanso que cada labor requiere. Se dispondrá de un período no inferior a treinta (30) minutos continuos para que los colaboradores tomen sus alimentos y descansen, tiempo que en ningún caso se computará como parte integral de la jornada de trabajo (Art. 167 CST), a menos que por acuerdo previo se establezca lo contrario.</p>
 
-  <h3>Art. 14° Horas extras y trabajo suplementario</h3>
-  <p>Las horas adicionales son un esfuerzo extraordinario que siempre será reconocido y compensado. Ninguna hora extra será válida sin la autorización previa y escrita del líder responsable. la organización solo podrá exigir la prestación de servicios en tiempo suplementario dentro de los límites establecidos en la ley (no más de dos horas diarias ni doce semanales). El pago se realizará con los recargos correspondientes de ley: veinticinco por ciento (25%) sobre el valor de la hora ordinaria por el trabajo extra diurno, y setenta y cinco por ciento (75%) por el trabajo extra nocturno.</p>
+  <h3>Art. 14° Horas extras y trabajo suplementario (Explicación para todos)</h3>
+  <p>Trabajo suplementario o de horas extras es aquel que supera la jornada diaria pactada o la máxima legal. Para que se paguen, deben ser autorizadas por escrito. Aquí explicamos cómo se calculan de forma sencilla:</p>
+  <ul style="line-height: 1.6;">
+    <li><strong>Hora Extra Diurna (6:00 a.m. a 7:00 p.m.):</strong> Se paga con un recargo del <strong>25%</strong> sobre el valor de la hora normal. (Ej: Si tu hora vale $10.000, la extra diurna vale $12.500).</li>
+    <li><strong>Hora Extra Nocturna (7:00 p.m. a 6:00 a.m.):</strong> Se paga con un recargo del <strong>75%</strong> sobre el valor de la hora normal. (Ej: Si tu hora vale $10.000, la extra nocturna vale $17.500).</li>
+  </ul>
+  <p>Límite legal: Máximo 2 horas extras al día y 12 a la semana.</p>
 
-  <h3>Art. 15° Recargos nocturnos, dominicales y festivos</h3>
-  <p>El trabajo realizado en domingo o en día de fiesta de descanso obligatorio, generará un recargo sobre el salario ordinario en proporción a las horas laboradas, de conformidad con la implementación progresiva dispuesta por la Ley 2466 de 2025 (80% a partir de julio 2025; 90% a partir de julio de 2026; 100% a partir de julio de 2027). El solo hecho de laborar en jornada nocturna generará un recargo del treinta y cinco por ciento (35%) sobre la hora ordinaria. El trabajo que combine horas extras con recargo dominical/festivo o nocturno se pagará liquidando los recargos de forma acumulativa conforme a la ley.</p>
+  <h3>Art. 15° Recargos por trabajo Nocturno, Dominical y Festivo</h3>
+  <p>Cuando trabajas en horarios especiales, la ley exige pagos adicionales llamados "recargos":</p>
+  <ol style="line-height: 1.6;">
+    <li><strong>Recargo Nocturno (Ordinario):</strong> Si trabajas entre las 7:00 p.m. y las 6:00 a.m. dentro de tu turno normal, recibes un <strong>35% adicional</strong> por cada hora nocturna.</li>
+    <li><strong>Recargo Dominical o Festivo:</strong> Por laborar en días de descanso obligatorio (Domingos o Festivos), se paga un recargo sobre la hora ordinaria. Según la Ley 2466 de 2025, el porcentaje actual a mayo de 2026 es del <strong>80%</strong>.
+      <ul style="font-size: 0.9em; color: #555;">
+        <li>A partir del 1 de julio de 2026, este recargo subirá al <strong>90%</strong>.</li>
+        <li>A partir del 1 de julio de 2027, el recargo será del <strong>100%</strong>.</li>
+      </ul>
+    </li>
+    <li><strong>Combinaciones:</strong> Si haces horas extras en domingo o de noche, los recargos se suman según las fórmulas legales para asegurar tu justa remuneración.</li>
+  </ol>
 
   <h3>Art. 16° Trabajadores del servicio doméstico y cuidado</h3>
   <p>Todo el personal contratado por la empresa que ejerza labores de servicio doméstico o cuidado tendrá plenos derechos respecto a la jornada máxima legal vigente, reconocimiento de horas extras y recargos por trabajo nocturno, dominical y festivo, equiparándose sus derechos laborales a los del resto de los colaboradores de la empresa, de conformidad con la Ley 2466 de 2025.</p>
@@ -261,8 +278,13 @@ module.exports = `
   <h3>Art. 35° Deducciones legalmente permitidas</h3>
   <p>La organización solo realizará deducciones al salario del colaborador bajo mandato expreso y escrito de este, o por disposición legal o judicial, escrita y expresa del colaborador (bioindividuo), o por mandamiento judicial emitido por juez competente, o por mandato legal. Son retenciones obligatorias: los aportes del colaborador (bioindividuo) al Sistema de Seguridad Social Integral (Salud y Pensión), retención en la fuente (si aplica), multas restaurativa y comportamentals legalmente impuestas por atrasos u omisiones al trabajo sin justificación, cuotas sindicales y cuotas alimentarias debidamente embargadas por un juez. En ningún caso las deducciones y embargos podrán afectar el salario mínimo legal, salvo por pensiones alimenticias o deudas con cooperativas, en cuyo caso solo se podrá afectar hasta el 50% de este.</p>
 
-  <h3>Art. 36° Auxilio de transporte</h3>
-  <p>La movilidad tiene un costo real. Los colaboradores que devenguen hasta dos (2) SMMLV recibirán el auxilio de transporte fijado por el Gobierno, como reconocimiento a ese esfuerzo cotidiano fijado por el Gobierno Nacional, a menos que la empresa suministre el transporte de manera completa o que el colaborador (bioindividuo) resida en el lugar de trabajo, realice sus labores exclusivamente bajo modalidades de trabajo remoto (donde aplica auxilio de conectividad si corresponde), o cuando no trabaje por incapacidad médica o permisos personales continuados.</p>
+  <h3>Art. 36° Auxilio de transporte y Conectividad Digital</h3>
+  <p>Para apoyar la movilidad y la labor de nuestro equipo, la organización reconoce los siguientes auxilios para quienes devengan hasta dos (2) SMMLV:</p>
+  <ul style="line-height: 1.6;">
+    <li><strong>Auxilio de Transporte:</strong> Para colaboradores que asisten presencialmente a nuestras sedes, se paga el valor fijado anualmente por el Gobierno Nacional.</li>
+    <li><strong>Auxilio de Conectividad Digital:</strong> Para quienes realizan sus labores bajo modalidades de Teletrabajo, Trabajo en Casa o Trabajo Remoto (Ley 2088 de 2021). Este auxilio reemplaza al de transporte y tiene el mismo valor mensual, destinado a compensar el uso de internet y energía en el hogar.</li>
+  </ul>
+  <p>Estos auxilios no se pagan durante vacaciones, incapacidades o licencias remuneradas superiores a un mes.</p>
 
   <h3>Art. 37° Cesantías, intereses y prima de servicios</h3>
   <p>Las prestaciones sociales son derechos, no favores. La organización los reconoce y liquida con exactitud y puntualidad:</p>
