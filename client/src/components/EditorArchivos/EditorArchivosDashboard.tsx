@@ -228,6 +228,7 @@ const EditorArchivosDashboard = () => {
                         description="Has importado tu documento de prueba gratuito. Adquiere Premium para importar más."
                         plan="USER_PRO"
                         isCompact={true}
+                        hideFeatures={true}
                     />
                 </div>
             </div>

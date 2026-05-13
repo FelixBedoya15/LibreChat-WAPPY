@@ -47,10 +47,6 @@ const DocumentEditorView = () => {
   };
 
   const handleSave = async () => {
-    if (!isPro) {
-        setShowUpgradeModal(true);
-        return;
-    }
     setIsSaving(true);
     try {
       const res = await fetch(`/api/live/documents/${id}`, {
@@ -135,6 +131,7 @@ const DocumentEditorView = () => {
                         description="El guardado y exportación de archivos enriquecidos por IA está reservado para cuentas PREMIUM."
                         plan="USER_PRO"
                         isCompact={true}
+                        hideFeatures={true}
                     />
                 </div>
             </div>

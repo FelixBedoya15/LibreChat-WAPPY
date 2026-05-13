@@ -652,6 +652,7 @@ const LivePage = () => {
                                 description="Adquiere Premium para redactar y guardar el informe."
                                 plan="USER_PRO"
                                 isCompact={true}
+                                hideFeatures={true}
                             />
                         </div>
                     </div>
