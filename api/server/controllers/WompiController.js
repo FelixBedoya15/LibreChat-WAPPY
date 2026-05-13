@@ -83,7 +83,7 @@ const calculateProratedExpiry = async (planId, interval, userPlan) => {
  */
 const getPublicPlansConfig = async (req, res) => {
     try {
-        const plans = await Plan.find().lean();
+        const plans = await Plan.find({ planId: { $ne: '__visibility__' } }).lean();
         return res.json(plans);
     } catch (error) {
         console.error('[Wompi] getPublicPlansConfig error:', error);
@@ -1096,6 +1096,29 @@ const guestCustomCheckout = async (req, res) => {
     }
 };
 
+/**
+ * GET /api/wompi/plans-visibility
+ * Publicly returns the plan page visibility settings
+ */
+const getPlansVisibility = async (req, res) => {
+    try {
+        const doc = await Plan.findOne({ planId: '__visibility__' }).lean();
+        const settings = doc?.visibility || {
+            showPlanFree: false,
+            showPlanGo: false,
+            showPlanPlus: false,
+            showPlanPro: true,
+            showSectionAppPlans: false,
+            showSectionCustomPlan: false,
+            showSectionEnterprise: false,
+        };
+        return res.json(settings);
+    } catch (error) {
+        console.error('[Wompi] getPlansVisibility error:', error);
+        return res.status(500).json({ error: 'Error obteniendo configuración de visibilidad' });
+    }
+};
+
 module.exports = {
     getPublicPlansConfig,
     validatePromoCode,
@@ -1110,4 +1133,5 @@ module.exports = {
     getCustomPlanConfig,
     createCustomTransaction,
     guestCustomCheckout,
+    getPlansVisibility,
 };

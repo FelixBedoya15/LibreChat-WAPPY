@@ -342,6 +342,17 @@ export default function PlansPage() {
     const [portalLoading, setPortalLoading] = useState(false);
     const [billingInterval, setBillingInterval] = useState<string>('monthly');
     const [fetchedPlans, setFetchedPlans] = useState<any[]>([]);
+
+    // Visibility config from admin panel
+    const [visibility, setVisibility] = useState({
+        showPlanFree: false,
+        showPlanGo: false,
+        showPlanPlus: false,
+        showPlanPro: true,
+        showSectionAppPlans: false,
+        showSectionCustomPlan: false,
+        showSectionEnterprise: false,
+    });
     // Checkout flow
     const [checkoutPlan, setCheckoutPlan] = useState<{ planKey: string; planObj: any; displayPrice: string; discountedPrice: number; rawPrice: number; promotion: any } | null>(null);
     const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -442,6 +453,13 @@ export default function PlansPage() {
 
         fetchInitialData();
     }, [isAuthenticated]);
+
+    // Fetch visibility settings (public endpoint)
+    useEffect(() => {
+        axios.get('/api/wompi/plans-visibility')
+            .then(({ data }) => setVisibility(prev => ({ ...prev, ...data })))
+            .catch(() => { /* keep defaults */ });
+    }, []);
 
     // Fetch custom plan config
     useEffect(() => {
@@ -1392,8 +1410,23 @@ export default function PlansPage() {
                         )}
 
                         {/* ── Plans grid (existing 4 plans) ── */}
-                        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                            {PLANS.map((plan) => {
+                        {/* Only show plans that are enabled in visibility config */}
+                        <div className={`mt-4 grid gap-5 ${
+                            [visibility.showPlanFree, visibility.showPlanGo, visibility.showPlanPlus, visibility.showPlanPro].filter(Boolean).length === 1
+                                ? 'sm:grid-cols-1 max-w-sm mx-auto'
+                                : [visibility.showPlanFree, visibility.showPlanGo, visibility.showPlanPlus, visibility.showPlanPro].filter(Boolean).length === 2
+                                    ? 'sm:grid-cols-2 max-w-2xl mx-auto'
+                                    : [visibility.showPlanFree, visibility.showPlanGo, visibility.showPlanPlus, visibility.showPlanPro].filter(Boolean).length === 3
+                                        ? 'sm:grid-cols-3'
+                                        : 'sm:grid-cols-2 lg:grid-cols-4'
+                        }`}>
+                            {PLANS.filter(plan => {
+                                if (plan.key === 'free') return visibility.showPlanFree;
+                                if (plan.key === 'go')   return visibility.showPlanGo;
+                                if (plan.key === 'plus') return visibility.showPlanPlus;
+                                if (plan.key === 'pro')  return visibility.showPlanPro;
+                                return true;
+                            }).map((plan) => {
                                 const Icon = PLAN_ICON_MAP[plan.key];
 
                                 const isUserAdmin = !loading && activePlan === 'admin';
@@ -1554,6 +1587,7 @@ export default function PlansPage() {
                         </div>
 
                         {/* ── App Plans Section ──────────────────────── */}
+                        {visibility.showSectionAppPlans && (
                         <div className="mt-16">
                             {/* Section divider */}
                             <div className="mb-8 flex items-center gap-4">
@@ -1683,8 +1717,10 @@ export default function PlansPage() {
                                 })}
                             </div>
                         </div>
+                        )}
 
                         {/* ── Custom Plan Builder Section ("Arma tu Plan") ──────────────── */}
+                        {visibility.showSectionCustomPlan && (
                         <div className="mt-16">
                             {/* Section divider */}
                             <div className="mb-8 flex items-center gap-4">
@@ -1972,8 +2008,10 @@ export default function PlansPage() {
                                 </div>
                             )}
                         </div>
+                        )}
 
                         {/* ── Enterprise Plans Section ──────────────────────── */}
+                        {visibility.showSectionEnterprise && (
                         <div className="mt-16">
                             {/* Section divider */}
                             <div className="mb-8 flex items-center gap-4">
@@ -2051,6 +2089,7 @@ export default function PlansPage() {
                                 })}
                             </div>
                         </div>
+                        )}
 
                         {/* Footer note */}
                         <div className="mt-12 rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 p-6 text-center">

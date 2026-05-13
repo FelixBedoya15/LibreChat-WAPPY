@@ -48,6 +48,16 @@ const planSchema = new mongoose.Schema({
         semiannual: { type: Number, default: 10 },
         annual: { type: Number, default: 15 },
     },
+    // Visibility settings (only used for planId: '__visibility__')
+    visibility: {
+        showPlanFree: { type: Boolean, default: false },
+        showPlanGo: { type: Boolean, default: false },
+        showPlanPlus: { type: Boolean, default: false },
+        showPlanPro: { type: Boolean, default: true },
+        showSectionAppPlans: { type: Boolean, default: false },
+        showSectionCustomPlan: { type: Boolean, default: false },
+        showSectionEnterprise: { type: Boolean, default: false },
+    },
 }, { timestamps: true });
 
 const Plan = mongoose.models.Plan || mongoose.model('Plan', planSchema);

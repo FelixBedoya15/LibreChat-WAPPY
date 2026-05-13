@@ -9,6 +9,7 @@ const fs = require('fs');
 router.get('/configured-plans', wompiController.getPublicPlansConfig);
 router.get('/custom-plan-config', wompiController.getCustomPlanConfig);
 router.get('/promocode/:code', wompiController.validatePromoCode);
+router.get('/plans-visibility', wompiController.getPlansVisibility);
 
 // Guest checkout: register user + create transaction without login
 router.post('/guest-checkout', wompiController.guestCheckout);

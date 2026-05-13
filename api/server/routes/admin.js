@@ -3,7 +3,7 @@ const router = express.Router();
 const { requireJwtAuth } = require('~/server/middleware');
 const { requireAdmin } = require('~/server/middleware/roles/admin');
 const { getAllUsers, createUser, updateUser, deleteUser, bulkUpdateUsers, getUserConversations, getConversationDetails, getAllCompanyInfo } = require('~/server/controllers/AdminController');
-const { getPlans, updatePlan } = require('~/server/controllers/AdminPlansController');
+const { getPlans, updatePlan, getVisibilitySettings, updateVisibilitySettings } = require('~/server/controllers/AdminPlansController');
 const { getPromoCodes, createPromoCode, deletePromoCode, togglePromoCode } = require('~/server/controllers/AdminPromoCodeController');
 const { recordEvent, getSummary, getRecentEvents } = require('~/server/controllers/CheckoutAnalyticsController');
 
@@ -17,6 +17,8 @@ router.get('/users/:userId/conversations', requireJwtAuth, requireAdmin, getUser
 router.get('/users/:userId/conversations/:conversationId', requireJwtAuth, requireAdmin, getConversationDetails);
 
 router.get('/plans', requireJwtAuth, requireAdmin, getPlans);
+router.get('/plans-visibility', requireJwtAuth, requireAdmin, getVisibilitySettings);
+router.put('/plans-visibility', requireJwtAuth, requireAdmin, updateVisibilitySettings);
 router.put('/plans/:planId', requireJwtAuth, requireAdmin, updatePlan);
 
 router.get('/promocodes', requireJwtAuth, requireAdmin, getPromoCodes);

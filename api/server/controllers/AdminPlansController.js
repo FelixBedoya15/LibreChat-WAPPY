@@ -1,5 +1,16 @@
 const Plan = require('~/models/Plan');
 
+// Default visibility config (all sections visible by default except we hide free/go/plus/enterprise/app/custom to show only Pro)
+const DEFAULT_VISIBILITY = {
+    showPlanFree: false,
+    showPlanGo: false,
+    showPlanPlus: false,
+    showPlanPro: true,
+    showSectionAppPlans: false,
+    showSectionCustomPlan: false,
+    showSectionEnterprise: false,
+};
+
 const getPlans = async (req, res) => {
     try {
         const plans = await Plan.find().lean();
@@ -49,7 +60,43 @@ const updatePlan = async (req, res) => {
     }
 };
 
+/**
+ * GET /api/admin/plans/visibility
+ * Returns the plan page visibility settings
+ */
+const getVisibilitySettings = async (req, res) => {
+    try {
+        const doc = await Plan.findOne({ planId: '__visibility__' }).lean();
+        const settings = doc?.visibility || DEFAULT_VISIBILITY;
+        res.status(200).json(settings);
+    } catch (error) {
+        console.error('Error in getVisibilitySettings:', error);
+        res.status(500).json({ message: 'Error fetching visibility settings' });
+    }
+};
+
+/**
+ * PUT /api/admin/plans/visibility
+ * Updates the plan page visibility settings
+ */
+const updateVisibilitySettings = async (req, res) => {
+    try {
+        const visibility = req.body;
+        await Plan.findOneAndUpdate(
+            { planId: '__visibility__' },
+            { $set: { planId: '__visibility__', name: '__visibility__', visibility } },
+            { upsert: true, new: true }
+        );
+        res.status(200).json({ success: true, visibility });
+    } catch (error) {
+        console.error('Error in updateVisibilitySettings:', error);
+        res.status(500).json({ message: 'Error updating visibility settings' });
+    }
+};
+
 module.exports = {
     getPlans,
     updatePlan,
+    getVisibilitySettings,
+    updateVisibilitySettings,
 };
