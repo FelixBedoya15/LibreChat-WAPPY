@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
@@ -16,8 +17,8 @@ import type { ContextType } from '~/common';
 const CourseModal = ({ course, onClose, navigate }: { course: any, onClose: () => void, navigate: any }) => {
     if (!course) return null;
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}>
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}>
             <div 
                 className="bg-surface-primary border border-border-light dark:border-white/10 rounded-2xl overflow-hidden w-full max-w-4xl shadow-2xl relative flex flex-col md:flex-row animate-fade-in scale-95 md:scale-100"
                 onClick={e => e.stopPropagation()}
@@ -80,7 +81,8 @@ const CourseModal = ({ course, onClose, navigate }: { course: any, onClose: () =
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
