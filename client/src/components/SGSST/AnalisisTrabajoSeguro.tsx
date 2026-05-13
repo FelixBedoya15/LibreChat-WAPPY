@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import {
     Loader2,
@@ -104,6 +105,8 @@ const AnalisisTrabajoSeguro = () => {
     const { t } = useTranslation();
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     const [formData, setFormData] = useState({
         actividadGlobal: '',
@@ -328,6 +331,19 @@ const AnalisisTrabajoSeguro = () => {
     };
 
     const handleGenerate = useCallback(async () => {
+
+        if (!isPro && (!conversationId || conversationId === 'new')) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-ats`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
         setIsGenerating(true);
         handleSaveData(true);
         try {
@@ -358,6 +374,21 @@ const AnalisisTrabajoSeguro = () => {
     const handleSave = useCallback(async () => {
         const contentToSave = editorContentRef.current || generatedReport;
         if (!contentToSave || !token) return;
+        
+        const isNew = !conversationId || conversationId === 'new';
+        if (!isPro && isNew) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-ats`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+        
         try {
             if (conversationId && conversationId !== 'new' && reportMessageId) {
                 const res = await fetch('/api/sgsst/diagnostico/save-report', {
@@ -796,6 +827,29 @@ const AnalisisTrabajoSeguro = () => {
                         </div>
                     </div>
                 </CollapsibleReportBox>
+        
+            {/* Upgrade Modal (Freemium Teaser) */}
+            {showUpgradeModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setShowUpgradeModal(false)} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+                            <UpgradeWall
+                                title="Límite Gratuito Alcanzado"
+                                description="Has alcanzado el límite para este módulo. Adquiere Premium para generar registros ilimitados."
+                                plan="USER_PRO"
+                                isCompact={true}
+                                hideFeatures={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

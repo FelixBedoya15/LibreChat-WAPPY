@@ -1,4 +1,5 @@
 import React, {  useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { UpgradeWall } from './UpgradeWall';
 import ReactDOM from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -45,6 +46,8 @@ export default function AltaDireccionChecklist() {
     const { t } = useTranslation();
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     // Checklist state
     const [statuses, setStatuses] = useState<AltaDireccionStatus[]>([]);
@@ -270,6 +273,19 @@ export default function AltaDireccionChecklist() {
 
     // AI analysis
     const handleAnalyze = useCallback(async () => {
+
+        if (!isPro && (!conversationId || conversationId === 'new')) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-alta-direccion`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
         if (completedCount === 0) {
             showToast({ message: 'Complete al menos un ítem antes de analizar', status: 'warning' });
             return;
@@ -337,6 +353,21 @@ export default function AltaDireccionChecklist() {
             showToast({ message: 'No hay informe para guardar', status: 'warning' });
             return;
         }
+        
+        const isNew = !conversationId || conversationId === 'new';
+        if (!isPro && isNew) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-alta-direccion`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+        
         try {
             if (conversationId && conversationId !== 'new' && reportMessageId) {
                 const res = await fetch('/api/sgsst/diagnostico/save-report', {

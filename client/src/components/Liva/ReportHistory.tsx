@@ -11,10 +11,10 @@ const DROPDOWN_Z = 100_000_000;
 
 // ─── Context menu for rename / delete ────────────────────────────────────────
 const MenuDropdown = ({
-    conversationId, title, onRename, onDelete,
+    conversationId, title, onRename, onDelete, isPro
 }: {
     conversationId: string; title: string;
-    onRename: (name: string) => void; onDelete: () => Promise<void>;
+    onRename: (name: string) => void; onDelete: () => Promise<void>; isPro?: boolean;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
@@ -49,6 +49,10 @@ const MenuDropdown = ({
     const handleDelete = async (e: React.MouseEvent) => {
         e.stopPropagation();
         setIsOpen(false);
+        if (isPro === false) {
+            alert("La opción de eliminar reportes es exclusiva del Plan Pro. Para generar múltiples reportes, adquiere Premium.");
+            return;
+        }
         if (!window.confirm(`¿Eliminar "${title}" del historial?\nEsta acción no borra la conversación.`)) return;
         setIsDeleting(true);
         await onDelete();
@@ -108,7 +112,8 @@ interface ReportHistoryProps {
 const ReportHistory = ({
     onSelectReport, isOpen, toggleOpen, refreshTrigger, tags = ['report'],
 }: ReportHistoryProps) => {
-    const { isAuthenticated } = useAuthContext();
+    const { isAuthenticated, user } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
     const localize = useLocalize();
 
     const [conversations, setConversations] = useState<ConvoItem[]>([]);
@@ -254,6 +259,7 @@ const ReportHistory = ({
                                 <MenuDropdown
                                     conversationId={convo.conversationId}
                                     title={convo.title || localize('com_ui_report')}
+                                    isPro={isPro}
                                     onRename={async (newName) => {
                                         try {
                                             await axios.post('/api/convos/update', {

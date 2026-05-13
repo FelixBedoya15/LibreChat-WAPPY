@@ -1,4 +1,5 @@
 import React, {  useState, useCallback, useMemo, useRef } from 'react';
+import { UpgradeWall } from './UpgradeWall';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import {
@@ -75,6 +76,8 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     const { t } = useTranslation();
     const { showToast } = useToastContext();
     const { user, token } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     // Filters
     const [companySize, setCompanySize] = useState<CompanySize>(CompanySize.SMALL);
@@ -236,6 +239,19 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
     };
 
     const handleAnalyze = useCallback(async () => {
+
+        if (!isPro && (!conversationId || conversationId === 'new')) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-diagnostico`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
         if (completedCount === 0) {
             showToast({ message: t('com_ui_complete_one_item', 'Complete al menos un ítem antes de analizar'), status: 'warning' });
             return;
@@ -333,6 +349,21 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
         contentToSave = contentToSave.replace(/<!-- SGSST_DATA_V1:.*? -->/g, '');
         contentToSave += stateString;
 
+        
+        const isNew = !conversationId || conversationId === 'new';
+        if (!isPro && isNew) {
+            try {
+                const resCount = await fetch(`/api/sgsst/diagnostico/report-history?tags=sgsst-diagnostico`, { headers: { Authorization: `Bearer ${token}` } });
+                if (resCount.ok) {
+                    const data = await resCount.json();
+                    if (data.conversations?.length >= 1) {
+                        setShowUpgradeModal(true);
+                        return;
+                    }
+                }
+            } catch (e) {}
+        }
+        
         try {
             // Update existing report
             if (conversationId && conversationId !== 'new' && reportMessageId) {
@@ -792,6 +823,29 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                 refreshTrigger={refreshTrigger}
                 tags={['sgsst-diagnostico']}
             />
+        
+            {/* Upgrade Modal (Freemium Teaser) */}
+            {showUpgradeModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setShowUpgradeModal(false)} 
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+                            <UpgradeWall
+                                title="Límite Gratuito Alcanzado"
+                                description="Has alcanzado el límite para este módulo. Adquiere Premium para generar registros ilimitados."
+                                plan="USER_PRO"
+                                isCompact={true}
+                                hideFeatures={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

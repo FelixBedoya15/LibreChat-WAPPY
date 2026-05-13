@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { UpgradeWall } from './UpgradeWall';
 import { useAuthContext } from '~/hooks';
 import { Button, useToastContext } from '@librechat/client';
 import { Plus, GraduationCap, Users, Calendar, Trash2, CheckCircle, Save, CalendarCheck, Loader2 } from 'lucide-react';
