@@ -330,7 +330,7 @@ export default function BlogDashboard() {
     return (
         <div className="flex flex-col h-full bg-surface-primary text-text-primary overflow-hidden">
             {/* Header / Nav Overlay */}
-            <div className="absolute top-0 left-0 right-0 z-50 p-4 sm:p-6 flex items-center justify-between pointer-events-none">
+            <div className="absolute top-0 left-0 right-0 z-50 p-4 pt-16 sm:p-6 flex items-center justify-between pointer-events-none">
                 <div className="flex items-center gap-3 sm:gap-4 pointer-events-auto">
                     {!navVisible && (
                         <div className="hidden md:block">
