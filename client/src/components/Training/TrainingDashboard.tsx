@@ -120,7 +120,7 @@ const FeaturedHero = ({ course, navigate }: { course: any, navigate: any }) => {
     if (!course) return null;
 
     return (
-        <div className="relative w-full h-[50vh] sm:h-[60vh] md:h-[80vh] overflow-hidden">
+        <div className="relative w-full min-h-[60vh] sm:min-h-[70vh] md:min-h-[85vh] overflow-hidden flex flex-col justify-end pb-16 sm:pb-24 md:pb-36">
             {/* Background Image */}
             <div className="absolute inset-0">
                 {course.thumbnail ? (
@@ -133,12 +133,12 @@ const FeaturedHero = ({ course, navigate }: { course: any, navigate: any }) => {
                     <div className="w-full h-full bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-primary" />
                 )}
                 {/* Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/80 sm:from-black via-black/30 sm:via-black/40 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-surface-primary via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/90 sm:from-black/80 via-black/50 sm:via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-primary via-surface-primary/20 to-transparent" />
             </div>
 
             {/* Content */}
-            <div className="relative h-full flex flex-col justify-center px-4 sm:px-6 md:px-12 max-w-4xl">
+            <div className="relative px-4 sm:px-6 md:px-12 max-w-4xl z-10 pt-24">
                 <div className="flex items-center gap-2 mb-3 sm:mb-4 animate-fade-in">
                     <span className="bg-[#10b981] text-white text-[8px] sm:text-[10px] md:text-xs font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase tracking-widest flex items-center gap-1 sm:gap-1.5 shadow-lg">
                         <Zap size={12} className="fill-white hidden sm:block" /> DESTACADO
@@ -288,7 +288,7 @@ export default function TrainingDashboard() {
                 <FeaturedHero course={featuredCourse} navigate={navigate} />
 
                 {/* Rows */}
-                <div className="relative -mt-12 sm:-mt-20 md:-mt-32 pb-24 z-30">
+                <div className="relative -mt-8 sm:-mt-16 md:-mt-24 pb-24 z-30">
                     <CourseRow title="Somos SST" courses={categorizedCourses['Somos SST']} navigate={navigate} />
                     <CourseRow title="Chat con IA" courses={categorizedCourses['Chat con IA']} navigate={navigate} />
                     <CourseRow title="Análisis en Vivo" courses={categorizedCourses['Análisis en Vivo']} navigate={navigate} />
