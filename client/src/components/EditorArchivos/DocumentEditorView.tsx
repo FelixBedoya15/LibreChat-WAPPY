@@ -118,7 +118,6 @@ const DocumentEditorView = () => {
           paperMode={false}
         />
       </div>
-      </div>
 
       {/* Upgrade Modal (Freemium Teaser) */}
       {showUpgradeModal && (
