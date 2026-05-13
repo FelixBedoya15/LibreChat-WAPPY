@@ -61,7 +61,7 @@ const PLANS = [
         borderColor: 'border-green-500/20',
         iconBg: 'bg-green-500/10',
         features: [
-            'Somos SST completo',
+            'Somos SST',
             'Chat con IA',
             'Conversaciones ilimitadas',
             '+ de 15 Agentes Expertos en SST',
@@ -84,7 +84,7 @@ const PLANS = [
         borderColor: 'border-amber-500/20',
         iconBg: 'bg-amber-500/10',
         features: [
-            'Somos SST completo',
+            'Somos SST',
             'Chat con IA',
             'Conversaciones ilimitadas',
             '+ de 15 Agentes Expertos en SST',
@@ -189,7 +189,7 @@ const APP_PLANS = [
             'Hasta 30 conversaciones abiertas',
             'Podrá ingresar 4 claves API de Gemini',
         ],
-        notIncluded: ['Blog WAPPY', 'Somos SST completo', 'Editor de Archivos con IA'],
+        notIncluded: ['Blog WAPPY', 'Somos SST', 'Editor de Archivos con IA'],
         popular: true,
     }
 ];
@@ -2035,7 +2035,7 @@ export default function PlansPage() {
 
                             <p className="mb-8 text-center text-sm text-text-secondary">
                                 Soluciones personalizadas para empresas, intermediadores ARL y asesores SST independientes.{' '}
-                                <span className="font-semibold text-text-primary">Incluye todas las ventajas del Plan Plus.</span>
+                                <span className="font-semibold text-text-primary">Incluye todas las ventajas del Plan Pro.</span>
                             </p>
 
                             {/* Enterprise plans grid */}

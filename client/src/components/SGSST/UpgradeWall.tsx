@@ -42,43 +42,53 @@ const ShieldSVGButton = () => (
 // ─── Feature lists per plan ───────────────────────────────────────
 const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; badge: string }> = {
     USER: {
-        badge: 'Actualiza al Plan Go o Plus',
+        badge: 'Adquirir Plan Pro',
         included: [
             'Chat con IA',
-            'Aula de estudio',
             'Máximo 10 conversaciones abiertas',
-            'Podrá ingresar 1 clave API de Gemini',
             '+ de 15 Agentes Expertos en SST',
+            'Aula de estudio',
+            'Podrá ingresar 1 clave API de Gemini',
             'Sin caducidad – no necesita renovación',
         ],
         excluded: ['Blog', 'Somos SST', 'Editor de Archivos con IA'],
     },
     USER_GO: {
-        badge: 'Actualiza al Plan Plus o Pro',
+        badge: 'Adquirir Plan Pro',
         included: [
-            'Todo lo del plan Gratis',
-            'Blog WAPPY',
+            'Chat con IA',
             'Hasta 30 conversaciones abiertas',
+            '+ de 15 Agentes Expertos en SST',
+            'Aula de estudio',
+            'Blog WAPPY',
             'Podrá ingresar 4 claves API de Gemini',
         ],
         excluded: ['Somos SST', 'Editor de Archivos con IA'],
     },
     USER_PLUS: {
-        badge: 'Actualiza al Plan Plus o Pro',
+        badge: 'Adquirir Plan Pro',
         included: [
-            '**Agente Matriz IPEVAR**',
-            'Todo lo del plan Go',
+            'Somos SST',
+            'Chat con IA',
             'Conversaciones ilimitadas',
+            '+ de 15 Agentes Expertos en SST',
+            '**Agente Matriz IPEVAR**',
+            'Aula de estudio',
+            'Blog WAPPY',
             'Podrá ingresar 10 claves API de Gemini',
-            'Somos SST completo',
         ],
         excluded: ['Editor de Archivos con IA', 'Análisis en Vivo', 'Centro de Inteligencia Predictiva'],
     },
     USER_PRO: {
-        badge: 'Actualiza al Plan Pro',
+        badge: 'Plan Pro Activo',
         included: [
+            'Somos SST',
+            'Chat con IA',
+            'Conversaciones ilimitadas',
+            '+ de 15 Agentes Expertos en SST',
             '**Agente Matriz IPEVAR**',
-            'Todo lo del plan Plus',
+            'Aula de estudio',
+            'Blog WAPPY',
             'Análisis en Vivo',
             'Centro de Inteligencia Predictiva',
             'Crea tus propios Agentes de IA',
@@ -90,8 +100,8 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
 };
 
 export const UpgradeWall = ({
-    title = 'Plan Premium Exclusivo',
-    description = 'Sube de nivel para acceder a todas las funcionalidades y eliminar los límites de tu cuenta.',
+    title = 'Adquirir Plan Pro',
+    description = 'Esta sección es exclusiva. Adquiere el Plan Pro para acceder a todas las funcionalidades avanzadas y eliminar los límites de tu cuenta.',
     plan: planOverride,
     isCompact = false,
     planBTitle,
@@ -152,7 +162,7 @@ export const UpgradeWall = ({
             <div className={`flex justify-center z-10 font-medium text-left ${isCompact ? 'flex-col gap-2 mb-6 text-xs' : 'flex-col md:flex-row gap-6 md:gap-12 mb-10 text-sm'}`}>
                 <div>
                     {planBTitle && (
-                        <p className="text-[10px] font-black uppercase tracking-widest text-green-600 dark:text-green-400 mb-2">Plan Plus</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-green-600 dark:text-green-400 mb-2">Tu Plan</p>
                     )}
                     <ul className="space-y-2">
                         {features.included.map((item) => {

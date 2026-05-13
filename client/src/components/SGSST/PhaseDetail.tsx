@@ -400,8 +400,13 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                 plan="USER_PLUS"
                                                 planBTitle="Plan Pro"
                                                 planBItems={[
+                                                    'Somos SST',
+                                                    'Chat con IA',
+                                                    'Conversaciones ilimitadas',
+                                                    '+ de 15 Agentes Expertos en SST',
                                                     '**Agente Matriz IPEVAR**',
-                                                    'Todo lo del plan Plus',
+                                                    'Aula de estudio',
+                                                    'Blog WAPPY',
                                                     'Análisis en Vivo',
                                                     'Centro de Inteligencia Predictiva',
                                                     'Crea tus propios Agentes de IA',

@@ -126,8 +126,8 @@ const errorMessages = {
       <div className="mt-4 w-full flex justify-center">
         <UpgradeWall
           isCompact
-          title="Límite de Chats Alcanzado"
-          description={json.message || 'Has alcanzado el límite de conversaciones de tu plan. Elimina chats antiguos o actualiza a un plan superior.'}
+          title="Adquirir Plan Pro"
+          description={json.message || 'Has alcanzado el límite de conversaciones de tu plan. Adquiere el Plan Pro para disfrutar de conversaciones ilimitadas y todas las herramientas de WAPPY IA.'}
         />
       </div>
     );

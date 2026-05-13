@@ -74,7 +74,7 @@ const DocumentEditorView = () => {
       <div className="flex h-full w-full flex-col bg-surface-secondary">
         <div className="flex-1 overflow-y-auto bg-surface-secondary flex justify-center items-start px-4 py-8">
           <UpgradeWall
-            title="Plan Premium Exclusivo"
+            title="Adquirir Plan Pro"
             description="El Editor de Archivos enriquecido es una herramienta exclusiva para planes PREMIUM. Aprovecha todo su potencial al ascender tu plan."
             plan="USER_PRO"
           />
