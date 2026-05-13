@@ -288,42 +288,42 @@ const Nav = memo(
                             </button>
                           }
                         />
-                        {/* Plans icon */}
-                        <Suspense fallback={null}>
-                          <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
                         {/* Bookmarks icon */}
                         {hasAccessToBookmarks && (
                           <Suspense fallback={null}>
                             <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
                           </Suspense>
                         )}
-                        {/* Camera icon */}
-                        {hasAccessToLiveAnalysis && (
-                          <Suspense fallback={null}>
-                            <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-                        )}
-                        <Suspense fallback={null}>
-                          <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
-                        {/* SG-SST icon */}
+                        {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
                             <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
+                        {/* Camera icon (Analisis en Vivo) */}
+                        {hasAccessToLiveAnalysis && (
+                          <Suspense fallback={null}>
+                            <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                          </Suspense>
+                        )}
+                        {/* Editor Archivos */}
+                        <Suspense fallback={null}>
+                          <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
+                        {/* Aula Estudio */}
+                        <Suspense fallback={null}>
+                          <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
+                        {/* Blog */}
+                        <Suspense fallback={null}>
+                          <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
+                        </Suspense>
+                        {/* Game SST */}
                         {hasAccessToSGSST2 && (
                           <Suspense fallback={null}>
                             <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                           </Suspense>
                         )}
-                        <Suspense fallback={null}>
-                          <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
-                        <Suspense fallback={null}>
-                          <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                        </Suspense>
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -356,12 +356,14 @@ const Nav = memo(
                                     <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
-                                <Suspense fallback={null}>
-                                  <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                </Suspense>
                                 {hasAccessToBookmarks && (
                                   <Suspense fallback={null}>
                                     <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
+                                  </Suspense>
+                                )}
+                                {hasAccessToSGSST && (
+                                  <Suspense fallback={null}>
+                                    <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                   </Suspense>
                                 )}
                                 {hasAccessToLiveAnalysis && (
@@ -372,22 +374,17 @@ const Nav = memo(
                                 <Suspense fallback={null}>
                                   <EditorArchivosButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
-                                {hasAccessToSGSST && (
-                                  <Suspense fallback={null}>
-                                    <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-                                {hasAccessToSGSST2 && (
-                                  <Suspense fallback={null}>
-                                    <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
                                 <Suspense fallback={null}>
                                   <AulaEstudioButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
                                 <Suspense fallback={null}>
                                   <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
+                                {hasAccessToSGSST2 && (
+                                  <Suspense fallback={null}>
+                                    <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
+                                  </Suspense>
+                                )}
                               </div>
                             </>
                           }

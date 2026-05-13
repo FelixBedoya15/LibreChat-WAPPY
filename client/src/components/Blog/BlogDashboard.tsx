@@ -8,6 +8,17 @@ import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 
+// --- Helpers ---
+const mapTag = (tag: string) => {
+    if (!tag) return '';
+    const mappings: Record<string, string> = {
+        'sst': 'Seguridad y Salud en el Trabajo',
+        'pesv': 'Seguridad Vial',
+    };
+    const normalized = tag.toLowerCase().trim();
+    return mappings[normalized] || (tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase());
+};
+
 // --- Sub-components ---
 
 const PostModal = ({ post, onClose, navigate }: { post: any, onClose: () => void, navigate: any }) => {
@@ -45,7 +56,7 @@ const PostModal = ({ post, onClose, navigate }: { post: any, onClose: () => void
                     <div className="flex flex-wrap items-center gap-2 mb-4 shrink-0">
                         {post.tags && post.tags.map((tag: string, i: number) => (
                             <span key={i} className="bg-[#10b981]/10 text-[#10b981] text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest border border-[#10b981]/20">
-                                {tag}
+                                {mapTag(tag)}
                             </span>
                         ))}
                     </div>
@@ -112,7 +123,7 @@ const PostCard = ({ post, navigate, onMoreInfo }: { post: any, navigate: any, on
                     </span>
                     {post.tags && post.tags[0] && (
                         <span className="bg-white/20 backdrop-blur-md text-white text-[7px] sm:text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                            {post.tags[0]}
+                            {mapTag(post.tags[0])}
                         </span>
                     )}
                 </div>
@@ -213,7 +224,7 @@ const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate:
                     </span>
                     {post.tags && post.tags[0] && (
                         <span className="bg-white/10 backdrop-blur-md text-white text-[8px] sm:text-[10px] md:text-xs font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded uppercase tracking-widest border border-white/10 shadow-lg">
-                            {post.tags[0]}
+                            {mapTag(post.tags[0])}
                         </span>
                     )}
                 </div>
@@ -277,11 +288,11 @@ export default function BlogDashboard() {
                 publishedPosts.forEach((post: any) => {
                     if (post.tags && post.tags.length > 0) {
                         post.tags.forEach((tag: string) => {
-                            const titleCaseTag = tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
-                            if (!categories[titleCaseTag]) {
-                                categories[titleCaseTag] = [];
+                            const mappedTag = mapTag(tag);
+                            if (!categories[mappedTag]) {
+                                categories[mappedTag] = [];
                             }
-                            categories[titleCaseTag].push(post);
+                            categories[mappedTag].push(post);
                         });
                     } else {
                         if (!categories['Otros']) categories['Otros'] = [];
