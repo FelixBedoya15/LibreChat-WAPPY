@@ -2,16 +2,89 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Activity, MessageSquare, Zap, FileEdit, GraduationCap } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Activity, MessageSquare, Zap, FileEdit, GraduationCap, X } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
 import type { ContextType } from '~/common';
 
 import type { ContextType } from '~/common';
 
+import type { ContextType } from '~/common';
+
 // --- Sub-components ---
 
-const CourseCard = ({ course, navigate }: { course: any, navigate: any }) => {
+const CourseModal = ({ course, onClose, navigate }: { course: any, onClose: () => void, navigate: any }) => {
+    if (!course) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm transition-opacity" onClick={onClose}>
+            <div 
+                className="bg-surface-primary border border-border-light dark:border-white/10 rounded-2xl overflow-hidden w-full max-w-4xl shadow-2xl relative flex flex-col md:flex-row animate-fade-in scale-95 md:scale-100"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Close Button */}
+                <button onClick={onClose} className="absolute top-4 right-4 z-20 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 backdrop-blur-md transition-colors">
+                    <X size={20} />
+                </button>
+
+                {/* Image Section */}
+                <div className="w-full md:w-2/5 h-56 md:h-auto relative bg-surface-tertiary flex-shrink-0">
+                    {course.thumbnail ? (
+                        <img 
+                            src={course.thumbnail.startsWith('http') || course.thumbnail.startsWith('/') ? course.thumbnail : `/images/${course.thumbnail.split('/').pop()}`} 
+                            alt={course.title} 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-tertiary to-surface-secondary">
+                            <BookOpen className="w-16 h-16 text-text-tertiary" />
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:to-surface-primary" />
+                </div>
+
+                {/* Content Section */}
+                <div className="w-full md:w-3/5 p-6 md:p-8 flex flex-col max-h-[80vh] md:max-h-[70vh]">
+                    <div className="flex flex-wrap items-center gap-2 mb-4 shrink-0">
+                        {course.tags && course.tags.map((tag: string, i: number) => (
+                            <span key={i} className="bg-[#10b981]/10 text-[#10b981] text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest border border-[#10b981]/20">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                    
+                    <h2 className="text-2xl md:text-3xl font-black text-text-primary mb-4 leading-tight shrink-0">
+                        {course.title}
+                    </h2>
+                    
+                    <div className="flex-1 overflow-y-auto pr-2 mb-6 no-scrollbar">
+                        <p className="text-sm md:text-base text-text-secondary leading-relaxed whitespace-pre-wrap">
+                            {course.description || 'Sin descripción detallada disponible para este curso. Explora el contenido para aprender más.'}
+                        </p>
+                    </div>
+
+                    <div className="mt-auto pt-5 border-t border-border-light dark:border-white/5 flex items-center justify-between shrink-0">
+                        <button 
+                            onClick={() => { onClose(); navigate(`/training/${course._id}`); }}
+                            className="flex items-center gap-2 bg-[#10b981] text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#059669] transition-all hover:scale-105 shadow-lg shadow-[#10b981]/20"
+                        >
+                            <Play size={18} className="fill-white" /> Iniciar Curso
+                        </button>
+                        
+                        {course.progress && course.progress.percentage > 0 && (
+                            <div className="text-right">
+                                <p className="text-[10px] text-text-tertiary font-black tracking-widest mb-0.5">PROGRESO</p>
+                                <p className="text-sm font-black text-[#10b981]">{course.progress.percentage}%</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CourseCard = ({ course, navigate, onMoreInfo }: { course: any, navigate: any, onMoreInfo?: () => void }) => {
     const progress = course.progress || { percentage: 0, isCompleted: false };
     
     return (
@@ -62,15 +135,22 @@ const CourseCard = ({ course, navigate }: { course: any, navigate: any }) => {
             
             {/* Hover Action Info */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-white/10 backdrop-blur-md p-1 rounded-full border border-white/20">
-                    <Play size={10} className="text-white fill-white" />
-                </div>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (onMoreInfo) onMoreInfo();
+                    }}
+                    className="bg-black/40 hover:bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/20 transition-colors"
+                    title="Más Información"
+                >
+                    <Info size={14} className="text-white" />
+                </button>
             </div>
         </div>
     );
 };
 
-const CourseRow = ({ title, courses, navigate }: { title: string, courses: any[], navigate: any }) => {
+const CourseRow = ({ title, courses, navigate, onMoreInfo }: { title: string, courses: any[], navigate: any, onMoreInfo?: (course: any) => void }) => {
     const rowRef = useRef<HTMLDivElement>(null);
 
     const scroll = (direction: 'left' | 'right') => {
@@ -93,30 +173,30 @@ const CourseRow = ({ title, courses, navigate }: { title: string, courses: any[]
             {/* Scroll Buttons - Hidden on small touch screens */}
             <button 
                 onClick={() => scroll('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-[calc(100%-2rem)] w-10 sm:w-12 bg-black/50 opacity-0 group-hover/row:opacity-100 transition-opacity hidden sm:flex items-center justify-center text-white"
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 opacity-0 group-hover/row:opacity-100 transition-all hover:bg-black/80 hover:scale-110 hidden sm:flex items-center justify-center text-white shadow-2xl"
             >
-                <ChevronLeft size={32} />
+                <ChevronLeft size={24} />
             </button>
             <button 
                 onClick={() => scroll('right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-[calc(100%-2rem)] w-10 sm:w-12 bg-black/50 opacity-0 group-hover/row:opacity-100 transition-opacity hidden sm:flex items-center justify-center text-white"
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-black/60 backdrop-blur-md border border-white/20 opacity-0 group-hover/row:opacity-100 transition-all hover:bg-black/80 hover:scale-110 hidden sm:flex items-center justify-center text-white shadow-2xl"
             >
-                <ChevronRight size={32} />
+                <ChevronRight size={24} />
             </button>
 
             <div 
                 ref={rowRef}
-                className="flex gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 md:px-12 pb-4 no-scrollbar scroll-smooth"
+                className="flex gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 md:px-12 pb-4 pt-2 no-scrollbar scroll-smooth"
             >
                 {courses.map(course => (
-                    <CourseCard key={course._id} course={course} navigate={navigate} />
+                    <CourseCard key={course._id} course={course} navigate={navigate} onMoreInfo={onMoreInfo ? () => onMoreInfo(course) : undefined} />
                 ))}
             </div>
         </div>
     );
 };
 
-const FeaturedHero = ({ course, navigate }: { course: any, navigate: any }) => {
+const FeaturedHero = ({ course, navigate, onMoreInfo }: { course: any, navigate: any, onMoreInfo: () => void }) => {
     if (!course) return null;
 
     return (
@@ -166,7 +246,7 @@ const FeaturedHero = ({ course, navigate }: { course: any, navigate: any }) => {
                         <Play size={18} className="fill-black" /> Iniciar Ahora
                     </button>
                     <button 
-                        onClick={() => navigate(`/training/${course._id}`)}
+                        onClick={onMoreInfo}
                         className="flex items-center justify-center gap-2 sm:gap-3 bg-gray-500/40 backdrop-blur-xl text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-black text-sm sm:text-lg hover:bg-gray-500/60 transition-all border border-white/10 active:scale-95 shadow-xl"
                     >
                         <Info size={18} /> Más Información
@@ -183,6 +263,7 @@ export default function TrainingDashboard() {
     const [courses, setCourses] = useState([]);
     const [categorizedCourses, setCategorizedCourses] = useState<Record<string, any[]>>({});
     const [featuredCourse, setFeaturedCourse] = useState<any>(null);
+    const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const { showToast } = useToastContext();
     const navigate = useNavigate();
@@ -285,19 +366,22 @@ export default function TrainingDashboard() {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
                 {/* Hero Section */}
-                <FeaturedHero course={featuredCourse} navigate={navigate} />
+                <FeaturedHero course={featuredCourse} navigate={navigate} onMoreInfo={() => setSelectedCourse(featuredCourse)} />
 
                 {/* Rows */}
                 <div className="relative -mt-8 sm:-mt-16 md:-mt-24 pb-24 z-30">
-                    <CourseRow title="Somos SST" courses={categorizedCourses['Somos SST']} navigate={navigate} />
-                    <CourseRow title="Chat con IA" courses={categorizedCourses['Chat con IA']} navigate={navigate} />
-                    <CourseRow title="Análisis en Vivo" courses={categorizedCourses['Análisis en Vivo']} navigate={navigate} />
-                    <CourseRow title="Centro de Inteligencia Predictiva" courses={categorizedCourses['Centro de Inteligencia Predictiva']} navigate={navigate} />
-                    <CourseRow title="Editor de Archivos con IA" courses={categorizedCourses['Editor de Archivos con IA']} navigate={navigate} />
-                    <CourseRow title="Seguridad y Salud en el Trabajo" courses={categorizedCourses['Seguridad y Salud en el Trabajo']} navigate={navigate} />
-                    <CourseRow title="Explora Más" courses={categorizedCourses['Otros']} navigate={navigate} />
+                    <CourseRow title="Somos SST" courses={categorizedCourses['Somos SST']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    <CourseRow title="Chat con IA" courses={categorizedCourses['Chat con IA']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    <CourseRow title="Análisis en Vivo" courses={categorizedCourses['Análisis en Vivo']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    <CourseRow title="Centro de Inteligencia Predictiva" courses={categorizedCourses['Centro de Inteligencia Predictiva']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    <CourseRow title="Editor de Archivos con IA" courses={categorizedCourses['Editor de Archivos con IA']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    <CourseRow title="Seguridad y Salud en el Trabajo" courses={categorizedCourses['Seguridad y Salud en el Trabajo']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    <CourseRow title="Explora Más" courses={categorizedCourses['Otros']} navigate={navigate} onMoreInfo={setSelectedCourse} />
                 </div>
             </div>
+
+            {/* Modals */}
+            <CourseModal course={selectedCourse} onClose={() => setSelectedCourse(null)} navigate={navigate} />
 
             {/* Global Styles */}
             <style dangerouslySetInnerHTML={{ __html: `
