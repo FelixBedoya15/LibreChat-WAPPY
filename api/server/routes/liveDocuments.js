@@ -23,7 +23,6 @@ const requireProAuth = (req, res, next) => {
   }
   next();
 };
-router.use(requireProAuth);
 
 // GET: Obtener historial de documentos del usuario
 router.get('/', async (req, res) => {
@@ -53,6 +52,12 @@ router.get('/:id', async (req, res) => {
 // POST: Crear un nuevo documento guardado
 router.post('/', async (req, res) => {
   try {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'USER_PRO') {
+      const count = await LiveDocument.countDocuments({ user: req.user.id });
+      if (count >= 1) {
+        return res.status(403).json({ error: 'Has alcanzado el límite gratuito de documentos.' });
+      }
+    }
     const { title, content, originalFileName, originalFileType } = req.body;
     const newDoc = new LiveDocument({
       title: title || 'Documento sin título',
@@ -69,8 +74,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT: Actualizar un documento
-router.put('/:id', async (req, res) => {
+// PUT: Actualizar un documento (Bloqueado para plan gratuito)
+router.put('/:id', requireProAuth, async (req, res) => {
   try {
     const { title, content } = req.body;
     const doc = await LiveDocument.findOneAndUpdate(
@@ -101,6 +106,13 @@ router.delete('/:id', async (req, res) => {
 // POST: Endpoint para extraer texto/html de un archivo subido
 router.post('/extract', upload.single('file'), async (req, res) => {
   try {
+    if (req.user?.role !== 'ADMIN' && req.user?.role !== 'USER_PRO') {
+      const count = await LiveDocument.countDocuments({ user: req.user.id });
+      if (count >= 1) {
+        return res.status(403).json({ error: 'Has alcanzado el límite gratuito de importación.' });
+      }
+    }
+
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'No se ha subido ningún archivo o excede el límite (15MB).' });
     if (!file.originalname) return res.status(400).json({ error: 'Archivo inválido.' });
