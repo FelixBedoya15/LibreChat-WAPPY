@@ -10,6 +10,7 @@ const DocumentEditorView = () => {
   const navigate = useNavigate();
   const { token, user } = useAuthContext();
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
   const [docTitle, setDocTitle] = useState('Cargando documento...');
   const [content, setContent] = useState('');
@@ -46,6 +47,10 @@ const DocumentEditorView = () => {
   };
 
   const handleSave = async () => {
+    if (!isPro) {
+        setShowUpgradeModal(true);
+        return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch(`/api/live/documents/${id}`, {
@@ -67,20 +72,6 @@ const DocumentEditorView = () => {
 
   if (isLoading) {
     return <div className="flex h-full w-full items-center justify-center p-8 bg-surface-primary"><span className="animate-spin text-3xl">⏳</span></div>;
-  }
-
-  if (!isPro) {
-    return (
-      <div className="flex h-full w-full flex-col bg-surface-secondary">
-        <div className="flex-1 overflow-y-auto bg-surface-secondary flex justify-center items-start px-4 py-8">
-          <UpgradeWall
-            title="Adquirir Plan Pro"
-            description="El Editor de Archivos enriquecido es una herramienta exclusiva para planes PREMIUM. Aprovecha todo su potencial al ascender tu plan."
-            plan="USER_PRO"
-          />
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -127,6 +118,26 @@ const DocumentEditorView = () => {
           paperMode={false}
         />
       </div>
+      </div>
+
+      {/* Upgrade Modal (Freemium Teaser) */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+            <div className="relative max-w-3xl w-full animate-in zoom-in-95 duration-300">
+                <button 
+                    onClick={() => setShowUpgradeModal(false)} 
+                    className="absolute -top-12 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-4 py-2 rounded-full backdrop-blur-md"
+                >
+                    Cerrar ✕
+                </button>
+                <UpgradeWall
+                    title="Exportación Bloqueada"
+                    description="El guardado y exportación de archivos enriquecidos por IA está reservado para cuentas PREMIUM. Adquiere el Plan Pro para descargar este documento y seguir editando sin límites."
+                    plan="USER_PRO"
+                />
+            </div>
+        </div>
+      )}
     </div>
   );
 };

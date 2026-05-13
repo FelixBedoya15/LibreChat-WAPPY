@@ -19,6 +19,7 @@ const EditorArchivosDashboard = () => {
   const navigate = useNavigate();
   const { token, user } = useAuthContext();
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const fetchDocuments = async () => {
     try {
@@ -40,6 +41,13 @@ const EditorArchivosDashboard = () => {
   }, [token]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isPro && documents.length >= 1) {
+        e.preventDefault();
+        setShowUpgradeModal(true);
+        e.target.value = '';
+        return;
+    }
+
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -124,15 +132,6 @@ const EditorArchivosDashboard = () => {
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-surface-primary dark:bg-gray-900">
-      {!isPro ? (
-        <div className="flex-1 overflow-y-auto bg-surface-secondary flex justify-center items-start px-4 py-8">
-          <UpgradeWall
-            title="Adquirir Plan Pro"
-            description="El Editor de Archivos es una poderosa herramienta exclusiva para planes PREMIUM. Permite importar documentos Word y PDF extrayendo todo el texto y formato para ser editado con nuestra IA predictiva."
-            plan="USER_PRO"
-          />
-        </div>
-      ) : (
         <div className="mx-auto w-full max-w-6xl p-4 md:p-8">
         
         <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -211,6 +210,24 @@ const EditorArchivosDashboard = () => {
           </div>
         )}
 
+        </div>
+
+      {/* Upgrade Modal (Freemium Teaser) */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+            <div className="relative max-w-3xl w-full animate-in zoom-in-95 duration-300">
+                <button 
+                    onClick={() => setShowUpgradeModal(false)} 
+                    className="absolute -top-12 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-4 py-2 rounded-full backdrop-blur-md"
+                >
+                    Cerrar ✕
+                </button>
+                <UpgradeWall
+                    title="Límite Gratuito Alcanzado"
+                    description="Has importado tu documento de prueba gratuito. Adquiere el Plan Pro para importar múltiples archivos, exportar tus ediciones y aprovechar el Editor con Inteligencia Artificial sin límites."
+                    plan="USER_PRO"
+                />
+            </div>
         </div>
       )}
     </div>

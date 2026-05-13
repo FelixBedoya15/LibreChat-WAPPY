@@ -23,6 +23,7 @@ const LivePage = () => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [conversationId, setConversationId] = useState('new');
     const [selectedModel, setSelectedModel] = useState('gemini-3-flash-preview');
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [reportSourceData, setReportSourceData] = useState<any>(null);
     // Imperative ref to push HTML content into the editor directly
     const editorRef = useRef<LiveEditorHandle>(null);
@@ -254,6 +255,10 @@ const LivePage = () => {
 </div>`;
 
     const handleSave = async () => {
+        if (!isPro) {
+            setShowUpgradeModal(true);
+            return;
+        }
         const contentToSave = editorContent || initialReportContent;
 
         if (!token) {
@@ -530,16 +535,8 @@ const LivePage = () => {
                 refreshTrigger={refreshTrigger}
             />
 
-            {!isPro ? (
-                <div className="flex-1 overflow-y-auto bg-surface-secondary flex justify-center items-start px-4 py-8">
-                    <UpgradeWall
-                        title="Adquirir Plan Pro"
-                        description="Esta sección requiere un plan PRO. El módulo de Análisis en Vivo te permite realizar inspecciones y auditorías en tiempo real con IA de forma predictiva a través de la cámara de tu dispositivo."
-                        plan="USER_PRO"
-                    />
-                </div>
-            ) : (
-                <>
+            {/* Live Analysis Content (Accessible to all) */}
+            <div className="flex-1 flex flex-col min-h-0">
                     {/* Toolbar / Header Actions */}
                     <div className="w-full p-4 pb-0">
                         <div className="max-w-5xl mx-auto bg-surface-primary rounded-xl shadow-lg border border-light p-4 flex items-center justify-between">
@@ -593,10 +590,18 @@ const LivePage = () => {
                                 <span className="text-sm font-bold tracking-wide">{localize('com_ui_save_report')}</span>
                             </div>
                         </button>
-                        <ExportDropdown
-                            content={editorContent || initialReportContent}
-                            fileName="Informe_Analisis_Riesgos"
-                        />
+                        <div onClickCapture={(e) => {
+                            if (!isPro) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowUpgradeModal(true);
+                            }
+                        }}>
+                            <ExportDropdown
+                                content={editorContent || initialReportContent}
+                                fileName="Informe_Analisis_Riesgos"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -629,7 +634,25 @@ const LivePage = () => {
                     selectedModel={selectedModel}
                 />
             )}
-                </>
+            </div>
+
+            {/* Upgrade Modal (Freemium Teaser) */}
+            {showUpgradeModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+                    <div className="relative max-w-3xl w-full animate-in zoom-in-95 duration-300">
+                        <button 
+                            onClick={() => setShowUpgradeModal(false)} 
+                            className="absolute -top-12 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-4 py-2 rounded-full backdrop-blur-md"
+                        >
+                            Cerrar ✕
+                        </button>
+                        <UpgradeWall
+                            title="Desbloquear Reportes IA"
+                            description="¡Excelente inspección! Has completado el análisis en vivo. Para que la IA redacte el informe final, estructure los hallazgos y lo guarde en tu nube corporativa, adquiere el Plan Pro."
+                            plan="USER_PRO"
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );
