@@ -74,8 +74,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT: Actualizar un documento (Bloqueado para plan gratuito)
-router.put('/:id', requireProAuth, async (req, res) => {
+// PUT: Actualizar un documento (Permitido para el primer documento gratuito)
+router.put('/:id', async (req, res) => {
   try {
     const { title, content } = req.body;
     const doc = await LiveDocument.findOneAndUpdate(
