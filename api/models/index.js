@@ -29,6 +29,28 @@ const seedDatabase = async () => {
   await methods.seedDefaultRoles();
   await methods.ensureDefaultCategories();
 
+  // Seed all custom roles so they appear in the DB (e.g. agent People Picker search)
+  try {
+    const { Role } = require('~/db/models');
+    const { roleDefaults, SystemRoles } = require('librechat-data-provider');
+    const customRoles = [
+      SystemRoles.USER_GO,
+      SystemRoles.USER_PLUS,
+      SystemRoles.USER_PRO,
+      SystemRoles.USER_CUSTOM,
+      SystemRoles.USER_IPEVAR,
+    ];
+    for (const roleName of customRoles) {
+      const exists = await Role.findOne({ name: roleName });
+      if (!exists) {
+        await new Role(roleDefaults[roleName]).save();
+        console.log(`Seeded missing role: ${roleName}`);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not seed custom roles on boot:', err.message);
+  }
+
   // Force update SGSST permissions for existing users (Migration)
   try {
     const { Role } = require('~/db/models');
