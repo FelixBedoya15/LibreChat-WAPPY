@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Save } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { useToastContext } from '@librechat/client';
 import LiveEditor, { LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
@@ -9,6 +10,7 @@ const DocumentEditorView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token, user } = useAuthContext();
+  const { showToast } = useToastContext();
   const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
@@ -58,9 +60,9 @@ const DocumentEditorView = () => {
         body: JSON.stringify({ title: docTitle, content }),
       });
       if (!res.ok) throw new Error('Error al guardar');
-      alert('Documento guardado correctamente.');
+      showToast({ message: 'Documento guardado correctamente.', status: 'success' });
     } catch (err) {
-      alert('Hubo un error al guardar el documento.');
+      showToast({ message: 'Hubo un error al guardar el documento.', status: 'error' });
     } finally {
       setIsSaving(false);
     }
