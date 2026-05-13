@@ -638,19 +638,22 @@ const LivePage = () => {
 
             {/* Upgrade Modal (Freemium Teaser) */}
             {showUpgradeModal && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-                    <div className="relative max-w-3xl w-full animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+                    <div className="relative max-w-sm w-full animate-in zoom-in-95 duration-300">
                         <button 
                             onClick={() => setShowUpgradeModal(false)} 
-                            className="absolute -top-12 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-4 py-2 rounded-full backdrop-blur-md"
+                            className="absolute -top-10 right-0 text-white hover:text-gray-300 font-bold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md text-sm"
                         >
                             Cerrar ✕
                         </button>
-                        <UpgradeWall
-                            title="Desbloquear Reportes IA"
-                            description="¡Excelente inspección! Has completado el análisis en vivo. Para que la IA redacte el informe final, estructure los hallazgos y lo guarde en tu nube corporativa, adquiere el Plan Pro."
-                            plan="USER_PRO"
-                        />
+                        <div className="bg-surface-primary rounded-3xl shadow-2xl overflow-hidden">
+                            <UpgradeWall
+                                title="Desbloquear Reportes"
+                                description="Adquiere Premium para redactar y guardar el informe."
+                                plan="USER_PRO"
+                                isCompact={true}
+                            />
+                        </div>
                     </div>
                 </div>
             )}
