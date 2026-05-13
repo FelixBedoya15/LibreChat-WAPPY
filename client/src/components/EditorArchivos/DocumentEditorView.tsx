@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Save } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
-import { useToastContext } from '@librechat/client';
+import { useToastContext, Spinner } from '@librechat/client';
 import LiveEditor, { LiveEditorHandle } from '~/components/Liva/Editor/LiveEditor';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
@@ -69,7 +69,11 @@ const DocumentEditorView = () => {
   };
 
   if (isLoading) {
-    return <div className="flex h-full w-full items-center justify-center p-8 bg-surface-primary"><span className="animate-spin text-3xl">⏳</span></div>;
+    return (
+      <div className="flex h-full w-full items-center justify-center p-8 bg-surface-primary">
+        <Spinner className="m-auto w-10 h-10 text-green-500" />
+      </div>
+    );
   }
 
   return (
@@ -99,7 +103,7 @@ const DocumentEditorView = () => {
             disabled={isSaving}
             className="flex items-center gap-2 rounded-xl bg-[#10b981] px-4 py-2 font-semibold text-white shadow-md transition-all sm:hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100"
           >
-            {isSaving ? <span className="animate-spin text-sm">⏳</span> : <Save size={18} />} 
+            {isSaving ? <Spinner className="w-5 h-5 text-white" /> : <Save size={18} />} 
             Guardar
           </button>
         </div>

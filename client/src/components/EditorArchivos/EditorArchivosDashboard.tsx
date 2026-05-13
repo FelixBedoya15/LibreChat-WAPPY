@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileUp, FileText, Plus, Trash2, Calendar, FileType } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
+import { Spinner } from '@librechat/client';
 import { UpgradeWall } from '~/components/SGSST/UpgradeWall';
 
 interface LiveDocument {
@@ -154,7 +155,7 @@ const EditorArchivosDashboard = () => {
         <div className="mb-10 w-full overflow-hidden rounded-2xl border-2 border-dashed border-[#10b981]/50 bg-surface-secondary transition-colors hover:bg-surface-hover">
           <label className="flex w-full cursor-pointer flex-col items-center justify-center p-12">
             <div className="mb-4 rounded-full bg-[#10b981]/20 p-4 text-[#10b981]">
-               {isUploading ? <span className="animate-spin text-2xl">⏳</span> : <FileUp size={40} />}
+               {isUploading ? <Spinner className="m-auto w-10 h-10 text-green-500" /> : <FileUp size={40} />}
             </div>
             <p className="mb-2 text-lg font-semibold text-text-primary">
               {isUploading ? 'Procesando archivo...' : 'Haz clic para cargar un nuevo archivo'}
