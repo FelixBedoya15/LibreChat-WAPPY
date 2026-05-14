@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Gift, Clock, Sparkles, ArrowRight, Tag } from 'lucide-react';
 import axios from 'axios';
-import { Button } from '~/components/ui';
+import { Button } from '@librechat/client';
 import { useNavigate } from 'react-router-dom';
 
 export default function WelcomePromoPopup() {
