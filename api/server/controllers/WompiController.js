@@ -10,6 +10,25 @@ const { getAppConfig } = require('~/server/services/Config');
 // We use crypto to safely create checksums for integrity if required,
 // but for standard Wompi widget, reference generation is sufficient until verification.
 
+
+// ── Helper: Check Welcome Code Expiry ──
+const checkWelcomeCodeExpiry = async (codeDoc, userOrId) => {
+    if (!codeDoc.isWelcomeCode) return true;
+    const mongoose = require('mongoose');
+    let userDate = null;
+    if (typeof userOrId === 'object' && userOrId.createdAt) {
+        userDate = userOrId.createdAt;
+    } else {
+        const User = mongoose.model('User');
+        const user = await User.findById(userOrId).lean();
+        if (user && user.createdAt) userDate = user.createdAt;
+    }
+    if (userDate && (Date.now() - new Date(userDate).getTime()) > 48 * 3600000) {
+        return false;
+    }
+    return true;
+};
+
 // ─── Helpers for Plan Interval ─────────────────────────────────────────────
 const getIntervalDays = (interval) => {
     if (interval === 'daily') return 1;
@@ -97,6 +116,14 @@ const validatePromoCode = async (req, res) => {
         const codeDoc = await PromoCode.findOne({ code: code.toUpperCase() });
         if (!codeDoc || !codeDoc.active) {
             return res.status(404).json({ error: 'Código promocional inválido o expirado' });
+        }
+        
+        // Ensure user is authenticated to check welcome code expiry
+        if (codeDoc.isWelcomeCode && req.user) {
+            const isValid = await checkWelcomeCodeExpiry(codeDoc, req.user._id || req.user.id);
+            if (!isValid) {
+                return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas).' });
+            }
         }
         return res.json({ discountPercentage: codeDoc.discountPercentage, code: codeDoc.code });
     } catch (error) {
@@ -259,6 +286,10 @@ const createTransaction = async (req, res) => {
         if (promoCode && planId !== 'ipevar') {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
             if (codeDoc && codeDoc.active) {
+                const isValid = await checkWelcomeCodeExpiry(codeDoc, userId || (user ? user._id : null));
+                if (!isValid) {
+                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+                }
                 appliedDiscount = codeDoc.discountPercentage;
             }
         }
@@ -601,6 +632,10 @@ const createManualTransaction = async (req, res) => {
         if (promoCode && planId !== 'ipevar') {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
             if (codeDoc && codeDoc.active) {
+                const isValid = await checkWelcomeCodeExpiry(codeDoc, userId || (user ? user._id : null));
+                if (!isValid) {
+                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+                }
                 appliedDiscount = codeDoc.discountPercentage;
             }
         } else if (planDoc.promotions?.[interval]?.active) {
@@ -731,7 +766,13 @@ const guestCheckout = async (req, res) => {
 
         if (promoCode && planId !== 'ipevar') {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
-            if (codeDoc && codeDoc.active) appliedDiscount = codeDoc.discountPercentage;
+            if (codeDoc && codeDoc.active) {
+                const isValid = await checkWelcomeCodeExpiry(codeDoc, user._id);
+                if (!isValid) {
+                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas tras el registro).' });
+                }
+                appliedDiscount = codeDoc.discountPercentage;
+            }
         } else if (planDoc.promotions?.[interval]?.active) {
             appliedDiscount = planDoc.promotions[interval].discountPercentage;
         }
@@ -1055,6 +1096,10 @@ const guestCustomCheckout = async (req, res) => {
         if (promoCode) {
             const codeDoc = await PromoCode.findOne({ code: promoCode.toUpperCase() });
             if (codeDoc && codeDoc.active) {
+                const isValid = await checkWelcomeCodeExpiry(codeDoc, userId);
+                if (!isValid) {
+                    return res.status(400).json({ error: 'El código de bienvenida ha expirado para tu cuenta (válido solo por 48 horas).' });
+                }
                 finalPrice = Math.round(finalPrice - (finalPrice * Math.min(codeDoc.discountPercentage, 100) / 100));
             }
         }
@@ -1119,7 +1164,42 @@ const getPlansVisibility = async (req, res) => {
     }
 };
 
+
+/**
+ * GET /api/wompi/welcome-promo
+ * Checks if there's an active welcome promo and if the current user is eligible (within 48h).
+ */
+const getWelcomePromo = async (req, res) => {
+    try {
+        const userId = req.user?._id || req.user?.id;
+        if (!userId) return res.json({ eligible: false });
+
+        const codeDoc = await PromoCode.findOne({ isWelcomeCode: true, active: true }).lean();
+        if (!codeDoc) return res.json({ eligible: false });
+
+        const User = mongoose.model('User');
+        const user = await User.findById(userId).select('createdAt').lean();
+        if (!user || !user.createdAt) return res.json({ eligible: false });
+
+        const hoursSinceRegistration = (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60);
+        if (hoursSinceRegistration > 48) {
+            return res.json({ eligible: false });
+        }
+
+        return res.json({
+            eligible: true,
+            code: codeDoc.code,
+            discountPercentage: codeDoc.discountPercentage,
+            expiresAt: new Date(new Date(user.createdAt).getTime() + 48 * 3600000).toISOString()
+        });
+    } catch (error) {
+        console.error('[Wompi] getWelcomePromo error:', error);
+        return res.status(500).json({ eligible: false });
+    }
+};
+
 module.exports = {
+    getWelcomePromo,
     getPublicPlansConfig,
     validatePromoCode,
     getUserPlan,

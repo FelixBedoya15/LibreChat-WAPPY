@@ -32,6 +32,7 @@ const SGSSTButton = lazy(() => import('./SGSSTButton'));
 const SGSST2Button = lazy(() => import('./SGSST2Button'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
 const BlogButton = lazy(() => import('./BlogButton'));
+const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
 
 const NAV_WIDTH_DESKTOP = '260px';
 const NAV_WIDTH_MOBILE = '320px';
@@ -419,6 +420,9 @@ const Nav = memo(
           </div>
         )}
         {isSmallScreen && <NavMask navVisible={navVisible} toggleNavVisible={() => setNavVisible(false)} />}
+        <Suspense fallback={null}>
+          <WelcomePromoPopup />
+        </Suspense>
       </>
     );
   },

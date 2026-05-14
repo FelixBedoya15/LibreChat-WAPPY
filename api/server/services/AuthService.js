@@ -223,6 +223,24 @@ const registerUser = async (user, additionalData = {}) => {
 
     const newUser = await createUser(newUserData, appConfig.balance, disableTTL, true);
     newUserId = newUser._id;
+    
+    // Inject Welcome Promo Notification if active
+    try {
+      const PromoCode = require('~/models/PromoCode');
+      const Notification = require('~/models/Notification');
+      const welcomeCode = await PromoCode.findOne({ isWelcomeCode: true, active: true }).lean();
+      if (welcomeCode) {
+        await Notification.create({
+          user: newUserId,
+          type: 'welcome_promo',
+          title: '¡Tienes un Regalo de Bienvenida!',
+          body: \`Utiliza el código \${welcomeCode.code} para obtener un \${welcomeCode.discountPercentage}% de descuento en cualquier plan. ¡Válido solo por tus primeras 48 horas!\`,
+        });
+      }
+    } catch (promoErr) {
+      logger.error('[registerUser] Error creating welcome notification:', promoErr);
+    }
+
     if (emailEnabled && !newUser.emailVerified) {
       await sendVerificationEmail({
         _id: newUserId,

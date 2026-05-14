@@ -11,27 +11,33 @@ const getPromoCodes = async (req, res) => {
     }
 };
 
-const createPromoCode = async (req, res) => {
-    try {
-        const { code, discountPercentage } = req.body;
-        if (!code || !discountPercentage) {
-            return res.status(400).json({ error: 'Faltan parámetros' });
-        }
+    const createPromoCode = async (req, res) => {
+        try {
+            const { code, discountPercentage, isWelcomeCode } = req.body;
+            if (!code || !discountPercentage) {
+                return res.status(400).json({ error: 'Faltan parámetros' });
+            }
 
-        // Check if exists locally first
-        const existing = await PromoCode.findOne({ code: code.toUpperCase() });
-        if (existing) {
-            return res.status(400).json({ error: 'El código promocional ya existe en la base de datos' });
-        }
+            // Check if exists locally first
+            const existing = await PromoCode.findOne({ code: code.toUpperCase() });
+            if (existing) {
+                return res.status(400).json({ error: 'El código promocional ya existe en la base de datos' });
+            }
 
-        const newPromoCode = new PromoCode({
-            code: code.toUpperCase(),
-            discountPercentage,
-            active: true
-        });
+            // If this is set as welcome code, unset all others
+            if (isWelcomeCode) {
+                await PromoCode.updateMany({}, { isWelcomeCode: false });
+            }
 
-        await newPromoCode.save();
-        res.json(newPromoCode);
+            const newPromoCode = new PromoCode({
+                code: code.toUpperCase(),
+                discountPercentage,
+                active: true,
+                isWelcomeCode: isWelcomeCode || false
+            });
+
+            await newPromoCode.save();
+            res.json(newPromoCode);
     } catch (error) {
         console.error('Create PromoCode Error:', error);
         res.status(500).json({ error: 'Internal server error' });

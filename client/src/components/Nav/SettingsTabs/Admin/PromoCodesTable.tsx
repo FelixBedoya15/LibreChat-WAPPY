@@ -9,6 +9,7 @@ interface PromoCode {
     code: string;
     discountPercentage: number;
     active: boolean;
+    isWelcomeCode: boolean;
     stripeCouponId?: string;
     createdAt: string;
 }
@@ -20,6 +21,7 @@ export default function PromoCodesTable() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newCode, setNewCode] = useState('');
     const [newDiscount, setNewDiscount] = useState<number>(10);
+    const [isWelcomeCode, setIsWelcomeCode] = useState(false);
 
     const fetchCodes = async () => {
         try {
@@ -48,11 +50,13 @@ export default function PromoCodesTable() {
         try {
             await axios.post('/api/admin/promocodes', {
                 code: newCode.trim(),
-                discountPercentage: newDiscount
+                discountPercentage: newDiscount,
+                isWelcomeCode: isWelcomeCode
             });
             showToast({ message: 'Código promocional creado exitosamente', status: 'success' });
             setNewCode('');
             setNewDiscount(10);
+            setIsWelcomeCode(false);
             fetchCodes();
         } catch (err: any) {
             showToast({ message: err?.response?.data?.error || 'Error creando código promocional', status: 'error' });
@@ -121,7 +125,19 @@ export default function PromoCodesTable() {
                             className="w-full rounded-lg border border-border-light bg-surface-secondary px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                         />
                     </div>
-                    <div>
+                    <div className="flex items-center gap-2 mb-2 md:mb-0">
+                        <input
+                            id="welcome-code-check"
+                            type="checkbox"
+                            checked={isWelcomeCode}
+                            onChange={(e) => setIsWelcomeCode(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-600"
+                        />
+                        <label htmlFor="welcome-code-check" className="text-sm text-text-secondary cursor-pointer">
+                            Es Código de Bienvenida (48h)
+                        </label>
+                    </div>
+                    <div className="md:col-span-1">
                         <Button
                             variant="default"
                             onClick={handleCreate}
@@ -149,7 +165,14 @@ export default function PromoCodesTable() {
                         {codes.map((codeItem) => (
                             <tr key={codeItem._id} className="hover:bg-surface-hover/50">
                                 <td className="px-6 py-4 font-mono font-bold text-text-primary">
-                                    {codeItem.code}
+                                    <div className="flex flex-col gap-1">
+                                        {codeItem.code}
+                                        {codeItem.isWelcomeCode && (
+                                            <span className="text-[9px] w-fit bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 px-1.5 py-0.5 rounded-full uppercase font-bold tracking-tight">
+                                                Bienvenida (48h)
+                                            </span>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 font-medium">
                                     <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-md">

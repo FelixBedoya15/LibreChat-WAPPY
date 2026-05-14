@@ -32,6 +32,7 @@ createMulterInstance().then(upload => {
   router.post('/manual-receipt', upload.single('receipt'), wompiController.createManualTransaction);
 }).catch(err => console.error('Error init multer for manual receipt:', err));
 
+router.get('/welcome-promo', wompiController.getWelcomePromo);
 router.get('/plan', wompiController.getUserPlan);
 router.post('/create-transaction', wompiController.createTransaction);
 router.post('/create-custom-transaction', wompiController.createCustomTransaction);

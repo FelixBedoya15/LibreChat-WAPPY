@@ -21,6 +21,10 @@ const promoCodeSchema = mongoose.Schema({
     stripeCouponId: {
         type: String,
         required: false
+    },
+    isWelcomeCode: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 
