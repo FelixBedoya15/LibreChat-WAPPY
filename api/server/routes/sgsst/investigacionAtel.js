@@ -593,25 +593,29 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
         const messageId = crypto.randomUUID();
         const dateStr = new Date().toLocaleString('es-CO');
         const reportTitle = title || `Investigación ATEL - ${dateStr}`;
-        const reportTags = tags || ['sgsst-investigacion-atel'];
-        
+        const reportTags = Array.isArray(tags) ? [...tags] : ['sgsst-investigacion-atel'];
+
+        // Append company tag so report-history can filter by company
         try {
             let activeCompany = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
             if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (activeCompany && activeCompany._id) {
+            if (activeCompany?._id) {
                 reportTags.push(`company-${activeCompany._id.toString()}`);
             }
         } catch (e) {
-            logger.warn('[SGSST] Could not append company tag to report', e);
+            logger.warn('[SGSST] Could not append company tag to ATEL report', e);
         }
 
+        // 1. Save conversation WITH tags atomically
         await saveConvo(req, {
             conversationId,
             title: reportTitle,
             endpoint: 'sgsst-investigacion-atel',
             model: 'sgsst-investigacion-atel',
+            tags: reportTags,
         }, { context: 'SGSST Investigacion ATEL Save' });
 
+        // 2. Save message with the report content
         await saveMessage(req, {
             messageId,
             conversationId,
@@ -621,9 +625,17 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
             parentMessageId: '00000000-0000-0000-0000-000000000000',
         }, { context: 'SGSST ATEL message' });
 
+        // 3. Belt-and-suspenders: ensure tags via direct model update
         try {
-            await updateTagsForConversation(req.user.id, conversationId, reportTags);
-        } catch (tagErr) { }
+            const { Conversation } = require('~/db/models');
+            await Conversation.findOneAndUpdate(
+                { conversationId, user: req.user.id },
+                { $addToSet: { tags: { $each: reportTags } } },
+                { new: true },
+            );
+        } catch (tagErr) {
+            logger.warn('[InvestigacionATEL] Error applying tags (non-fatal):', tagErr.message);
+        }
 
         res.status(201).json({ conversationId, messageId, title: reportTitle });
     } catch (error) {

@@ -562,24 +562,26 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
         const messageId = crypto.randomUUID();
         const dateStr = new Date().toLocaleString('es-CO');
         const reportTitle = title || `Diagnóstico SGSST - ${dateStr}`;
-        const reportTags = tags || ['sgsst-diagnostico'];
-        
+        const reportTags = Array.isArray(tags) ? [...tags] : ['sgsst-diagnostico'];
+
+        // Append company tag so report-history can filter by company
         try {
             let activeCompany = await CompanyInfo.findOne({ user: req.user.id, isActive: true }).lean();
             if (!activeCompany) activeCompany = await CompanyInfo.findOne({ user: req.user.id }).lean();
-            if (activeCompany && activeCompany._id) {
+            if (activeCompany?._id) {
                 reportTags.push(`company-${activeCompany._id.toString()}`);
             }
         } catch (e) {
             logger.warn('[SGSST] Could not append company tag to report', e);
         }
 
-        // 1. Save conversation
+        // 1. Save conversation WITH tags atomically (avoids race condition with updateTagsForConversation)
         await saveConvo(req, {
             conversationId,
             title: reportTitle,
             endpoint: 'sgsst-diagnostico',
             model: 'sgsst-diagnostico',
+            tags: reportTags,
         }, { context: 'SGSST save-report' });
 
         // 2. Save message with the report content
@@ -592,15 +594,16 @@ router.post('/save-report', requireJwtAuth, async (req, res) => {
             parentMessageId: '00000000-0000-0000-0000-000000000000',
         }, { context: 'SGSST save-report message' });
 
-        // 3. Tag the conversation
+        // 3. Ensure tags are set (belt-and-suspenders via direct model update)
         try {
-            await updateTagsForConversation(
-                req.user.id,
-                conversationId,
-                reportTags,
+            const { Conversation } = require('~/db/models');
+            await Conversation.findOneAndUpdate(
+                { conversationId, user: req.user.id },
+                { $addToSet: { tags: { $each: reportTags } } },
+                { new: true },
             );
         } catch (tagErr) {
-            logger.warn('[SGSST] Error tagging conversation:', tagErr);
+            logger.warn('[SGSST] Error applying tags via direct update (non-fatal):', tagErr.message);
         }
 
         res.status(201).json({
