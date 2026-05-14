@@ -66,7 +66,7 @@ const CollapsibleReportBox = ({
                     {onHistory && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onHistory(); }}
-                            title="Historial de informes"
+                            aria-label="Historial de informes"
                             className={cn(
                                 "group flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl sm:hover:-rotate-3 sm:hover:scale-105",
                                 isHistoryOpen

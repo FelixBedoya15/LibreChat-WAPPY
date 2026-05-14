@@ -720,7 +720,7 @@ const DiagnosticoChecklist: React.FC<DiagnosticoChecklistProps> = ({ onAnalysisC
                                                                                 'rounded-xl p-2 transition-all',
                                                                                 isSelected ? opt.color : 'text-text-tertiary hover:bg-surface-tertiary',
                                                                             )}
-                                                                            title={opt.label}
+                                                                            aria-label={opt.label}
                                                                         >
                                                                             <Icon className="h-5 w-5" />
                                                                         </button>

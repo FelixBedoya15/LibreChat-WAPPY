@@ -121,10 +121,10 @@ const DocumentTitleHeader: React.FC<{ fileName: string; onRename: (name: string)
               className="flex-1 text-xl font-bold text-text-primary bg-transparent border-b-2 border-blue-500 outline-none py-0.5"
               autoFocus
             />
-            <button onClick={commit} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors" title="Confirmar">
+            <button onClick={commit} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors" aria-label="Confirmar">
               <Check className="h-4 w-4" />
             </button>
-            <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-text-tertiary hover:bg-surface-hover transition-colors" title="Cancelar">
+            <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-text-tertiary hover:bg-surface-hover transition-colors" aria-label="Cancelar">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -136,7 +136,7 @@ const DocumentTitleHeader: React.FC<{ fileName: string; onRename: (name: string)
             <button
               onClick={() => setEditing(true)}
               className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-text-tertiary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all shrink-0"
-              title="Renombrar documento"
+              aria-label="Renombrar documento"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -400,7 +400,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           <button
             onClick={() => fileInputRef.current?.click()}
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
-            title="Subir DOCX o PDF"
+            aria-label="Subir DOCX o PDF"
           >
             <Upload className="h-4 w-4 shrink-0" />
             <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide">
@@ -426,38 +426,47 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           {/* History — ReportHistory handles its own portal at z-[99999999] */}
           <button
             onClick={() => setIsHistoryOpen(h => !h)}
-            className={`group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
+            className={`group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl ${
               isHistoryOpen
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-600'
                 : 'bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary'
             } hover:-rotate-3 hover:scale-105`}
-            title="Historial de documentos"
+            aria-label="Historial de documentos"
           >
             <History className="h-4 w-4 shrink-0" />
+            <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-teal-500/50">
+              <span className="text-[9px] font-bold uppercase tracking-wider">Historial</span>
+            </div>
           </button>
 
           {/* Clear */}
           {content && (
             <button
               onClick={handleClear}
-              className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:-rotate-3 hover:scale-105"
-              title="Eliminar documento"
+              className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-red-500/30 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 hover:-rotate-3 hover:scale-105"
+              aria-label="Eliminar documento"
             >
               <Trash2 className="h-4 w-4 shrink-0" />
+              <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-red-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-red-500/50">
+                <span className="text-[9px] font-bold uppercase tracking-wider">Eliminar</span>
+              </div>
             </button>
           )}
 
           {/* Maximize */}
           <button
             onClick={() => setIsMaximized((m) => !m)}
-            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
-            title={isMaximized ? 'Reducir panel' : 'Expandir panel'}
+            className="group relative flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm cursor-pointer border outline-none rounded-xl bg-surface-primary border-border-medium hover:bg-surface-hover text-text-primary hover:-rotate-3 hover:scale-105"
+            aria-label={isMaximized ? 'Reducir panel' : 'Expandir panel'}
           >
             {isMaximized ? (
               <Minimize2 className="h-4 w-4 shrink-0" />
             ) : (
               <Maximize2 className="h-4 w-4 shrink-0" />
             )}
+            <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-teal-500/50">
+              <span className="text-[9px] font-bold uppercase tracking-wider">{isMaximized ? 'Reducir' : 'Expandir'}</span>
+            </div>
           </button>
         </div>
       </div>

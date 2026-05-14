@@ -883,8 +883,8 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
             whileTap={{ scale: 0.95 }}
             onClick={onClick ? onClick : () => command && execCmd(command, value)}
             className="group relative flex items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border border-border-medium/50 rounded-xl sm:hover:bg-surface-hover sm:hover:border-teal-400 bg-surface-primary text-text-primary outline-none sm:hover:-rotate-3 sm:hover:scale-105"
-            title={label}
             type="button"
+            aria-label={label}
         >
             <Icon size={20} />
             <div className="hidden sm:flex absolute top-full mt-2 left-1/2 -translate-x-1/2 items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap bg-teal-600 text-white px-2 py-1 rounded-md shadow-xl pointer-events-none z-[110] border border-teal-500/50">
@@ -894,6 +894,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     );
 
     const editorGroups = [
+        { id: 'fontsize', buttons: [
+            { icon: AArrowUp, label: 'Aumentar texto', onClick: increaseFontSize },
+            { icon: AArrowDown, label: 'Reducir texto', onClick: decreaseFontSize },
+        ]},
         { id: 'format', buttons: [
             { icon: Bold, command: 'bold', label: localize('com_ui_bold') },
             { icon: Italic, command: 'italic', label: localize('com_ui_italic') },
@@ -915,10 +919,6 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         { id: 'media', buttons: [
             { icon: ImageIcon, label: "Imagen", onClick: () => fileInputRef.current?.click() },
             { icon: PenTool, label: "Firma", onClick: () => setIsSignatureModalOpen(true) }
-        ]},
-        { id: 'fontsize', buttons: [
-            { icon: AArrowUp, label: 'Aumentar texto', onClick: increaseFontSize },
-            { icon: AArrowDown, label: 'Reducir texto', onClick: decreaseFontSize },
         ]},
         { id: 'save', buttons: [
             ...(onHistory ? [{ icon: History, label: localize('com_ui_history') || "Historial", onClick: onHistory }] : []),
