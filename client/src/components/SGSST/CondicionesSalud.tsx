@@ -148,6 +148,7 @@ const CondicionesSalud = () => {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     // QR Code Modal State
     const [selectedQrWorker, setSelectedQrWorker] = useState<WorkerEntry | null>(null);

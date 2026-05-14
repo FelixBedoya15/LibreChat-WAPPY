@@ -160,6 +160,7 @@ const DashboardPredictivo = () => {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isReportCollapsed, setIsReportCollapsed] = useState(false);
 
     // ─── Fetch Forecast Data ─────────────────────────────────────────────

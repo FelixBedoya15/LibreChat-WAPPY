@@ -210,6 +210,7 @@ const MatrizPeligrosGTC45 = () => {
     const [conversationId, setConversationId] = useState('new');
     const [reportMessageId, setReportMessageId] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
     const [perfilesData, setPerfilesData] = useState<any[]>([]);
     const [cargosDisponibles, setCargosDisponibles] = useState<string[]>([]);

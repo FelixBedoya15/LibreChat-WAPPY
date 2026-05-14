@@ -207,6 +207,7 @@ const AnalisisVulnerabilidad = () => {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [reportMessageId, setReportMessageId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(true);
 
   // Set the first threat active on mount
