@@ -27,17 +27,16 @@ export default function AgentMarketplaceButton({
     permission: Permissions.USE,
   });
 
-  const hasAccessToMarketplace = useHasAccess({
-    permissionType: PermissionTypes.MARKETPLACE,
-    permission: Permissions.USE,
-  });
-
   const handleAgentMarketplace = useCallback(() => {
     navigate('/agents');
     if (isSmallScreen) {
       toggleNav();
     }
   }, [navigate, isSmallScreen, toggleNav]);
+
+  const authReady =
+    authContext?.isAuthenticated !== undefined &&
+    (authContext?.isAuthenticated === false || authContext?.user !== undefined);
 
   const showAgentMarketplace = authReady && hasAccessToAgents;
 
