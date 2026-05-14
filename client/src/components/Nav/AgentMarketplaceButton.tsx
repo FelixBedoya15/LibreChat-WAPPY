@@ -39,11 +39,7 @@ export default function AgentMarketplaceButton({
     }
   }, [navigate, isSmallScreen, toggleNav]);
 
-  const authReady =
-    authContext?.isAuthenticated !== undefined &&
-    (authContext?.isAuthenticated === false || authContext?.user !== undefined);
-
-  const showAgentMarketplace = authReady && hasAccessToAgents && hasAccessToMarketplace;
+  const showAgentMarketplace = authReady && hasAccessToAgents;
 
   if (!showAgentMarketplace) {
     return null;
