@@ -130,7 +130,7 @@ function AccountSettings({ isCollapsed }: { isCollapsed?: boolean }) {
            <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
                <span className="truncate font-bold text-text-primary text-sm tracking-tight">{user?.name ?? user?.username ?? localize('com_nav_user')}</span>
                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest group-hover:text-teal-600 transition-colors opacity-70">
-                   {user?.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
+                   {{ 'USER': 'Gratis', 'USER_GO': 'Go', 'USER_PLUS': 'Plus', 'USER_PRO': 'Pro', 'USER_IPEVAR': 'IPEVAR', 'USER_CUSTOM': 'A la Medida', 'ADMIN': 'Administrador' }[user?.role || ''] || 'Usuario'} 
                </span>
            </div>
            <div className="flex-shrink-0 text-text-tertiary group-hover:text-teal-500 transition-all group-hover:translate-x-1">
