@@ -8,7 +8,7 @@ import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'sgsst_testimonio_atel' | 'system_update';
+    type: 'ticket_created' | 'ticket_responded' | 'sgsst_reporte_acto' | 'sgsst_participacion_ipevar' | 'sgsst_alta_direccion' | 'sgsst_testimonio_atel' | 'system_update' | 'welcome_promo';
     title: string;
     body: string;
     read: boolean;
@@ -116,6 +116,12 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
             return;
         }
 
+        if (notification.type === 'welcome_promo') {
+            window.dispatchEvent(new CustomEvent('open-welcome-promo'));
+            onClose();
+            return;
+        }
+
         // Navigation logic for other types
         if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
             const event = new CustomEvent('switch-settings-tab', { detail: { mainTab: 'tickets' } });
@@ -130,6 +136,7 @@ export default function NotificationPanel({ isOpen, onClose, onCountChange }: No
         }
         onClose();
     };
+
 
     if (!isOpen) return null;
 

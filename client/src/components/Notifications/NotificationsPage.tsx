@@ -11,7 +11,7 @@ import { cn } from '~/utils';
 
 interface Notification {
     _id: string;
-    type: 'ticket_created' | 'ticket_responded' | 'contact_request';
+    type: 'ticket_created' | 'ticket_responded' | 'contact_request' | 'welcome_promo';
     title: string;
     body: string;
     read: boolean;
@@ -118,6 +118,14 @@ export default function NotificationsPage({ onUnreadCountChange }: Notifications
         if (!notification.read) {
             await markRead(notification._id);
         }
+        if (notification.type === 'welcome_promo') {
+            window.dispatchEvent(new CustomEvent('open-welcome-promo'));
+            // Close settings if it's open (since NotificationsPage is inside settings)
+            const closeSettingsEvent = new CustomEvent('open-settings', { detail: false });
+            window.dispatchEvent(closeSettingsEvent);
+            return;
+        }
+
         // Navigate based on role and type
         if (notification.type === 'ticket_created' && user?.role === 'ADMIN') {
             // Admin: open settings > tickets tab
