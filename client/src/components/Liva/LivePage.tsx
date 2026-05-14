@@ -266,262 +266,50 @@ const LivePage = () => {
             return;
         }
 
-        // HTML to Markdown conversion for chat compatibility
-        const convertHtmlToMarkdown = (html: string): string => {
-            let md = html;
+        const dateStr = new Date().toLocaleDateString('es-CO');
 
-            // Handle tables FIRST
-            const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi;
-            md = md.replace(tableRegex, (_match, tableContent) => {
-                const rows: string[] = [];
-                const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-                let rowMatch;
-                let isHeader = true;
-
-                while ((rowMatch = rowRegex.exec(tableContent)) !== null) {
-                    const cells: string[] = [];
-                    const cellRegex = /<(th|td)[^>]*>([\s\S]*?)<\/\1>/gi;
-                    let cellMatch;
-
-                    while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
-                        let cellText = cellMatch[2].replace(/<[^>]*>/g, '').replace(/\n/g, ' ').trim();
-                        cells.push(cellText || ' ');
-                    }
-
-                    if (cells.length > 0) {
-                        rows.push('| ' + cells.join(' | ') + ' |');
-                        if (isHeader) {
-                            rows.push('|' + cells.map(() => '---').join('|') + '|');
-                            isHeader = false;
-                        }
-                    }
-                }
-
-                return '\n' + rows.join('\n') + '\n';
-            });
-
-            // Handle headings
-            md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n# $1\n');
-            md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n## $1\n');
-            md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n### $1\n');
-            md = md.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '\n#### $1\n');
-
-            // Handle text formatting
-            md = md.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
-            md = md.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-            md = md.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
-            md = md.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-
-            // Handle lists
-            md = md.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
-            md = md.replace(/<ul[^>]*>/gi, '\n');
-            md = md.replace(/<\/ul>/gi, '\n');
-            md = md.replace(/<ol[^>]*>/gi, '\n');
-            md = md.replace(/<\/ol>/gi, '\n');
-
-            // Handle paragraphs and line breaks
-            md = md.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n$1\n');
-            md = md.replace(/<br\s*\/?>/gi, '\n');
-            md = md.replace(/<div[^>]*>/gi, '\n');
-            md = md.replace(/<\/div>/gi, '\n');
-
-            // Handle images - base64 images replaced with placeholder, URL images to markdown
-            // Base64 images cause display issues in chat (too long)
-            md = md.replace(/<img[^>]*src="data:[^"]*"[^>]*alt="([^"]*)"[^>]*>/gi, '\n\n📷 **[$1]** *(imagen disponible en el informe original)*\n\n');
-            md = md.replace(/<img[^>]*src="data:[^"]*"[^>]*>/gi, '\n\n📷 **[Imagen captada]** *(ver en informe original)*\n\n');
-            // Normal URL images convert to markdown
-            md = md.replace(/<img[^>]*src="(https?:\/\/[^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)');
-            md = md.replace(/<img[^>]*src="(https?:\/\/[^"]*)"[^>]*>/gi, '![image]($1)');
-
-            // Remove remaining HTML tags
-            md = md.replace(/<[^>]*>/g, '');
-
-            // Clean up entities
-            md = md.replace(/&nbsp;/g, ' ');
-            md = md.replace(/&amp;/g, '&');
-            md = md.replace(/&lt;/g, '<');
-            md = md.replace(/&gt;/g, '>');
-
-            // Fix excess newlines
-            md = md.replace(/\n\s*\n\s*\n/g, '\n\n');
-
-            return md.trim();
-        };
-
-        // NOTE: We save HTML directly for Live editor compatibility
-        // MongoDB doesn't persist custom fields like originalHtml
-
-        // TAGGING LOGIC - Helper function to avoid duplication
-        const tagConversation = async (id: string) => {
-            try {
-                const tagRes = await fetch(`/api/tags/convo/${id}`, {
+        try {
+            // SCENARIO A: Update existing report (PUT)
+            if (conversationId && conversationId !== 'new' && reportMessageId) {
+                const res = await fetch('/api/sgsst/diagnostico/save-report', {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        tags: ['report']
-                    })
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
                 });
-
-                if (tagRes.ok) {
-                    // Update Title to "Informe de Riesgos - [Date]"
-                    const dateStr = new Date().toLocaleString();
-                    await fetch('/api/convos/update', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            arg: {
-                                conversationId: id,
-                                title: `Informe de Riesgos - ${dateStr}`
-                            }
-                        })
-                    });
-
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Informe guardado y archivado', status: 'success' });
-                } else {
-                    console.error("Tagging failed:", tagRes.status, tagRes.statusText);
-                    showToast({ message: 'Error: Informe guardado pero NO etiquetado', status: 'warning' });
-                }
-            } catch (e) {
-                console.error("Error tagging conversation:", e);
-                showToast({ message: 'Excepción al etiquetar informe', status: 'error' });
-            }
-        };
-
-        // SCENARIO 1: Existing report - Update message directly
-        if (conversationId && conversationId !== 'new' && reportMessageId) {
-            try {
-                console.log('[Save] Updating existing report:', conversationId, reportMessageId);
-
-                // Use direct message update API (no AI trigger)
-                const res = await fetch(`/api/messages/${conversationId}/${reportMessageId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        text: contentToSave // Save HTML directly
-                    })
-                });
-
                 if (res.ok) {
-                    console.log('[Save] Message updated successfully');
-                    await tagConversation(conversationId);
+                    setRefreshTrigger(prev => prev + 1);
+                    showToast({ message: 'Informe actualizado exitosamente', status: 'success', severity: 'success' });
                 } else {
-                    console.error("[Save] Update failed:", res.status);
                     showToast({ message: `Error al actualizar: ${res.status}`, status: 'error' });
                 }
-            } catch (error) {
-                console.error('[Save] Error updating report message:', error);
-                showToast({ message: 'Error al actualizar el informe', status: 'error' });
-            }
-            return;
-        }
-
-        // SCENARIO 2: Existing conversation but no message ID - Create new message
-        if (conversationId && conversationId !== 'new') {
-            try {
-                console.log('[Save] Creating new message in existing conversation:', conversationId);
-
-                // Use direct message creation API - Save as Assistant message with HTML
-                const res = await fetch(`/api/messages/${conversationId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        text: contentToSave, // Save HTML directly
-                        conversationId: conversationId,
-                        sender: 'Assistant',
-                        isCreatedByUser: false,
-                        isHtmlReport: true,
-                        messageId: crypto.randomUUID()
-                    })
-                });
-
-                if (res.ok) {
-                    const savedMsg = await res.json();
-                    setReportMessageId(savedMsg.messageId);
-                    console.log('[Save] New message created:', savedMsg.messageId);
-                    await tagConversation(conversationId);
-                } else {
-                    console.error("[Save] Creation failed:", res.status);
-                    showToast({ message: `Error al crear mensaje: ${res.status}`, status: 'error' });
-                }
-            } catch (error) {
-                console.error('[Save] Error creating message:', error);
-                showToast({ message: 'Error al crear el mensaje', status: 'error' });
-            }
-            return;
-        }
-
-        // SCENARIO 3: No conversation exists - Need to create conversation first
-        // For simplicity, we still use /api/ask for this as it handles conversation creation
-        try {
-            console.log('[Save] Creating new conversation with report');
-
-            const res = await fetch('/api/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    text: contentToSave, // Save HTML directly
-                    conversationId: null,
-                    model: 'gemini-3-flash-preview',
-                    endpoint: 'google',
-                    parentMessageId: '00000000-0000-0000-0000-000000000000'
-                })
-            });
-
-            if (!res.ok) {
-                console.error("[Save] Creation failed:", res.status);
-                showToast({ message: `Error al crear reporte: ${res.status}`, status: 'error' });
                 return;
             }
 
-            // Parse conversation ID from stream response
-            let newConvoId = null;
-            if (res.body) {
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let done = false;
+            // SCENARIO B: Create new report (POST)
+            const res = await fetch('/api/sgsst/diagnostico/save-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    content: contentToSave,
+                    title: `Editor Live - ${dateStr}`,
+                    tags: ['report'],
+                }),
+            });
 
-                while (!done) {
-                    const { value, done: doneReading } = await reader.read();
-                    done = doneReading;
-                    if (value) {
-                        const chunk = decoder.decode(value);
-                        const match = chunk.match(/"conversationId":\s*"([^"]+)"/);
-                        if (match && match[1]) {
-                            newConvoId = match[1];
-                            break;
-                        }
-                    }
-                }
-                try { if (!done) reader.cancel(); } catch (e) { }
-            }
-
-            if (newConvoId) {
-                setConversationId(newConvoId);
-                console.log('[Save] New conversation created:', newConvoId);
-                await tagConversation(newConvoId);
+            if (res.ok) {
+                const data = await res.json();
+                setConversationId(data.conversationId);
+                setReportMessageId(data.messageId);
+                setRefreshTrigger(prev => prev + 1);
+                showToast({ message: 'Informe guardado en historial', status: 'success', severity: 'success' });
             } else {
-                showToast({ message: 'Error: No se obtuvo ID de conversación', status: 'error' });
+                showToast({ message: `Error al guardar: ${res.status}`, status: 'error' });
             }
         } catch (error) {
-            console.error('[Save] Error creating new report:', error);
+            console.error('[Save] Error:', error);
             showToast({ message: 'Error de red al guardar', status: 'error' });
         }
+
     };
 
 
@@ -533,6 +321,7 @@ const LivePage = () => {
                 toggleOpen={() => setIsHistoryOpen(false)}
                 onSelectReport={handleSelectReport}
                 refreshTrigger={refreshTrigger}
+                tags={['report']}
             />
 
             {/* Live Analysis Content (Accessible to all) */}
