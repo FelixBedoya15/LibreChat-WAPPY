@@ -60,6 +60,19 @@ const seedDatabase = async () => {
   } catch (err) {
     console.warn('Could not force update SGSST roles on boot:', err.message);
   }
+
+  // Force USER_IPEVAR to always have AGENTS.USE = true
+  // (The admin panel may have turned this off inadvertently)
+  try {
+    const { Role } = require('~/db/models');
+    await Role.updateOne(
+      { name: 'USER_IPEVAR' },
+      { $set: { 'permissions.AGENTS.USE': true, 'permissions.AGENTS.CREATE': false } }
+    );
+    console.log('Corrected USER_IPEVAR AGENTS permissions');
+  } catch (err) {
+    console.warn('Could not force update USER_IPEVAR AGENTS permission:', err.message);
+  }
 };
 
 module.exports = {
