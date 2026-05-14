@@ -112,7 +112,7 @@ interface ReportHistoryProps {
 const ReportHistory = ({
     onSelectReport, isOpen, toggleOpen, refreshTrigger, tags = ['report'],
 }: ReportHistoryProps) => {
-    const { isAuthenticated, user } = useAuthContext();
+    const { isAuthenticated, user, token: authToken } = useAuthContext();
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
     const localize = useLocalize();
 
@@ -128,14 +128,21 @@ const ReportHistory = ({
         setIsLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem('token');
+            // Use token from AuthContext first (always current), fallback to localStorage
+            const token = authToken || localStorage.getItem('token');
             const tagParams = tags.map(t => `tags=${encodeURIComponent(t)}`).join('&');
             const res = await fetch(`/api/sgsst/diagnostico/report-history?${tagParams}`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 cache: 'no-store', // Never use browser cache
             });
             if (!res.ok) {
-                setError('Error al cargar el historial');
+                let errMsg = 'Error al cargar el historial';
+                try {
+                    const errData = await res.json();
+                    if (errData?.details) errMsg = errData.details;
+                    else if (errData?.error) errMsg = errData.error;
+                } catch { /* ignore parse error */ }
+                setError(errMsg);
                 setConversations([]);
                 return;
             }
@@ -147,7 +154,7 @@ const ReportHistory = ({
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, tags]);
+    }, [isAuthenticated, authToken, tags]);
 
     // Fetch when modal opens
     useEffect(() => {

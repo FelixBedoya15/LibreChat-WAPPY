@@ -660,10 +660,11 @@ router.get('/checklist', (req, res) => {
  */
 router.get('/report-history', requireJwtAuth, async (req, res) => {
     try {
-        const mongoose = require('mongoose');
-        const ConversationModel = mongoose.models.Conversation;
+        const { Conversation } = require('~/db/models');
+        const ConversationModel = Conversation;
 
         if (!ConversationModel) {
+            logger.error('[report-history] Conversation model not available from db/models');
             return res.status(500).json({ error: 'Conversation model not available' });
         }
 
@@ -700,7 +701,7 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
                     ],
                 }).select('_id tags').lean();
 
-                if (legacyReports.length > 0) {
+                if (legacyReports && legacyReports.length > 0) {
                     const ids = legacyReports.map(r => r._id);
                     await ConversationModel.updateMany(
                         { _id: { $in: ids } },
@@ -734,13 +735,13 @@ router.get('/report-history', requireJwtAuth, async (req, res) => {
             .lean();
 
         return res.json({
-            conversations,
+            conversations: conversations || [],
             companyId,
-            count: conversations.length,
+            count: conversations?.length || 0,
         });
     } catch (error) {
-        logger.error('[report-history] Error:', error);
-        return res.status(500).json({ error: 'Error fetching report history' });
+        logger.error('[report-history] Error:', error.message, error.stack);
+        return res.status(500).json({ error: 'Error fetching report history', details: error.message });
     }
 });
 

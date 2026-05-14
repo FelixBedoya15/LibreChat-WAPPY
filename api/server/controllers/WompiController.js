@@ -1178,8 +1178,13 @@ const getWelcomePromo = async (req, res) => {
         if (!codeDoc) return res.json({ eligible: false });
 
         const User = mongoose.model('User');
-        const user = await User.findById(userId).select('createdAt').lean();
+        const user = await User.findById(userId).select('createdAt role').lean();
         if (!user || !user.createdAt) return res.json({ eligible: false });
+
+        // Only show to free users ('USER' role)
+        if (user.role !== 'USER') {
+            return res.json({ eligible: false });
+        }
 
         const hoursSinceRegistration = (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60);
         if (hoursSinceRegistration > 48) {
