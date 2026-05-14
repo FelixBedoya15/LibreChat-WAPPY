@@ -45,7 +45,7 @@ const PLAN_FEATURES: Record<string, { included: string[]; excluded: string[]; ba
         badge: 'Adquirir Plan Pro',
         included: [
             'Chat con IA',
-            'Máximo 10 conversaciones abiertas',
+            'Máximo 4 conversaciones abiertas',
             '+ de 15 Agentes Expertos en SST',
             'Aula de estudio',
             'Podrá ingresar 1 clave API de Gemini',

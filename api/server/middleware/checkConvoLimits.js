@@ -22,7 +22,7 @@ const checkConvoLimits = async (req, res, next) => {
         const count = await Conversation.countDocuments({ user: req.user.id });
 
         const isFreeUser = req.user.role === 'USER';
-        const limit = isFreeUser ? 10 : 30;
+        const limit = isFreeUser ? 4 : 30;
         const planName = isFreeUser ? 'Gratis' : 'Go';
 
         if (count >= limit) {
