@@ -61,17 +61,38 @@ const seedDatabase = async () => {
     console.warn('Could not force update SGSST roles on boot:', err.message);
   }
 
-  // Force USER_IPEVAR to always have AGENTS.USE = true (cache-safe)
+  // Fix USER_IPEVAR permissions if they got corrupted (surgical - only AGENTS.USE)
   try {
-    const { updateRoleByName } = require('~/models/Role');
-    await updateRoleByName('USER_IPEVAR', {
-      permissions: {
-        AGENTS: { USE: true, CREATE: false },
-      },
-    });
-    console.log('Corrected USER_IPEVAR AGENTS permissions (cache cleared)');
+    const { Role } = require('~/db/models');
+    const { roleDefaults, SystemRoles, CacheKeys } = require('librechat-data-provider');
+    const getLogStores = require('~/cache/getLogStores');
+    const cache = getLogStores(CacheKeys.ROLES);
+
+    const ipevar = await Role.findOne({ name: 'USER_IPEVAR' }).lean();
+    const permKeys = ipevar ? Object.keys(ipevar.permissions || {}) : [];
+
+    if (!ipevar || permKeys.length <= 2) {
+      // Permissions were wiped — restore from defaults, then force AGENTS.USE = true
+      const defaultPerms = roleDefaults[SystemRoles.USER_IPEVAR]?.permissions || {};
+      const restored = { ...defaultPerms, AGENTS: { ...(defaultPerms.AGENTS || {}), USE: true, CREATE: false } };
+      await Role.findOneAndUpdate(
+        { name: 'USER_IPEVAR' },
+        { $set: { permissions: restored } },
+        { upsert: true }
+      );
+      console.log('Restored USER_IPEVAR permissions from defaults');
+    } else {
+      // Permissions look OK — only fix AGENTS.USE surgically
+      await Role.findOneAndUpdate(
+        { name: 'USER_IPEVAR' },
+        { $set: { 'permissions.AGENTS.USE': true, 'permissions.AGENTS.CREATE': false } }
+      );
+      console.log('Patched USER_IPEVAR AGENTS.USE = true');
+    }
+    // Clear role cache so clients see updated value immediately
+    await cache.delete('USER_IPEVAR');
   } catch (err) {
-    console.warn('Could not force update USER_IPEVAR AGENTS permission:', err.message);
+    console.warn('Could not fix USER_IPEVAR AGENTS permission:', err.message);
   }
 };
 
