@@ -106,11 +106,14 @@ interface ReportHistoryProps {
     toggleOpen: () => void;
     refreshTrigger?: number;
     tags?: string[];
+    /** Optional override endpoint for fetching history (e.g. agent tool history without company filter) */
+    historyEndpoint?: string;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 const ReportHistory = ({
     onSelectReport, isOpen, toggleOpen, refreshTrigger, tags = ['report'],
+    historyEndpoint,
 }: ReportHistoryProps) => {
     const { isAuthenticated, user, token: authToken } = useAuthContext();
     const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
@@ -131,7 +134,10 @@ const ReportHistory = ({
             // Use token from AuthContext first (always current), fallback to localStorage
             const token = authToken || localStorage.getItem('token');
             const tagParams = tags.map(t => `tags=${encodeURIComponent(t)}`).join('&');
-            const res = await fetch(`/api/sgsst/diagnostico/report-history?${tagParams}`, {
+            const endpoint = historyEndpoint
+              ? `${historyEndpoint}?${tagParams}`
+              : `/api/sgsst/diagnostico/report-history?${tagParams}`;
+            const res = await fetch(endpoint, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                 cache: 'no-store', // Never use browser cache
             });

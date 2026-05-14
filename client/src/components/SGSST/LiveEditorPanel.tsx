@@ -403,6 +403,7 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
         isOpen={isHistoryOpen}
         toggleOpen={() => setIsHistoryOpen(h => !h)}
         refreshTrigger={refreshTrigger}
+        historyEndpoint="/api/live-editor/history"
         tags={conversationId && conversationId !== 'new'
           ? [liveEditorConvoTag(conversationId)]
           : [LIVE_EDITOR_TAG]}

@@ -7,11 +7,54 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const LiveEditorSession = require('~/models/LiveEditorSession');
 const CompanyInfo = require('~/models/CompanyInfo');
 
+
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
     if (!active) active = await CompanyInfo.findOne({ user: userId });
     return active ? active._id : null;
 }
+
+/**
+ * GET /api/live-editor/history
+ * Returns conversations tagged with the given tag(s) for agent tool history.
+ * Does NOT filter by company — agent tools are chat-scoped, not company-scoped.
+ * Query params:
+ *   tags (string | string[]) — e.g. live-doc-{conversationId}, sgsst-live-editor
+ */
+router.get('/history', requireJwtAuth, async (req, res) => {
+  try {
+    const { Conversation } = require('~/db/models');
+    if (!Conversation) {
+      return res.status(500).json({ error: 'Conversation model not available' });
+    }
+
+    const rawTags = req.query.tags;
+    const filterTags = rawTags
+      ? (Array.isArray(rawTags) ? rawTags : [rawTags]).filter(Boolean)
+      : [];
+
+    if (filterTags.length === 0) {
+      return res.status(400).json({ error: 'At least one tag is required' });
+    }
+
+    const conversations = await Conversation.find({
+      user: req.user.id,
+      tags: { $all: filterTags },
+      $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
+      $and: [{ $or: [{ expiredAt: null }, { expiredAt: { $exists: false } }] }],
+    })
+      .select('conversationId title updatedAt tags')
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .lean();
+
+    return res.json({ conversations: conversations || [], count: conversations?.length || 0 });
+  } catch (error) {
+    logger.error('[LiveEditor History] Error:', error);
+    return res.status(500).json({ error: 'Error fetching agent tool history' });
+  }
+});
+
 
 /**
  * GET /api/live-editor/:conversationId

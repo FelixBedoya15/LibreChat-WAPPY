@@ -260,46 +260,35 @@ const LivePage = () => {
             return;
         }
         const contentToSave = editorContent || initialReportContent;
-
-        if (!token) {
-            showToast({ message: 'Error: No autorizado (Token faltante)', status: 'error' });
+        if (!token || !conversationId || conversationId === 'new') {
+            showToast({ message: 'Inicia un chat primero para guardar el informe.', status: 'warning' });
             return;
         }
 
-        const dateStr = new Date().toLocaleDateString('es-CO');
-
         try {
-            // SCENARIO A: Update existing report (PUT)
-            if (conversationId && conversationId !== 'new' && reportMessageId) {
-                const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ conversationId, messageId: reportMessageId, content: contentToSave }),
-                });
-                if (res.ok) {
-                    setRefreshTrigger(prev => prev + 1);
-                    showToast({ message: 'Informe actualizado exitosamente', status: 'success', severity: 'success' });
-                } else {
-                    showToast({ message: `Error al actualizar: ${res.status}`, status: 'error' });
-                }
-                return;
-            }
-
-            // SCENARIO B: Create new report (POST)
-            const res = await fetch('/api/sgsst/diagnostico/save-report', {
-                method: 'POST',
+            // Save content to live-editor session
+            const res = await fetch(`/api/live-editor/${conversationId}`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    content: contentToSave,
-                    title: `Editor Live - ${dateStr}`,
-                    tags: ['report'],
-                }),
+                body: JSON.stringify({ content: contentToSave, fileName: `Análisis Riesgos - ${new Date().toLocaleDateString('es-CO')}` }),
             });
 
             if (res.ok) {
-                const data = await res.json();
-                setConversationId(data.conversationId);
-                setReportMessageId(data.messageId);
+                // Tag the conversation so ReportHistory can find it
+                const convoRes = await fetch(`/api/convos/${conversationId}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (convoRes.ok) {
+                    const convo = await convoRes.json();
+                    const currentTags: string[] = convo.tags ?? [];
+                    if (!currentTags.includes('report')) {
+                        await fetch('/api/convos/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ arg: { conversationId, tags: [...currentTags, 'report'] } }),
+                        });
+                    }
+                }
                 setRefreshTrigger(prev => prev + 1);
                 showToast({ message: 'Informe guardado en historial', status: 'success', severity: 'success' });
             } else {
@@ -322,6 +311,7 @@ const LivePage = () => {
                 onSelectReport={handleSelectReport}
                 refreshTrigger={refreshTrigger}
                 tags={['report']}
+                historyEndpoint="/api/live-editor/history"
             />
 
             {/* Live Analysis Content (Accessible to all) */}
