@@ -6,7 +6,7 @@ import {
     AlignLeft, AlignCenter, AlignRight, Save, Image as ImageIcon,
     PenTool, Trash2, Maximize, Minimize, Move, Layers, ArrowUp, ArrowDown, X,
     Plus, Minus, Table as TableIcon, Layout, ChevronRight, ChevronDown, Palette,
-    History
+    History, AArrowUp, AArrowDown
 } from 'lucide-react';
 import { useLocalize } from '~/hooks';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -63,6 +63,7 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
     const [aiEditSelectedText, setAiEditSelectedText] = useState('');
     const [isAiEditing, setIsAiEditing] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [fontSize, setFontSize] = useState(3); // 1-7, default 3 = normal
 
     const [localToast, setLocalToast] = useState<{message: string, status: string, severity: string} | null>(null);
 
@@ -863,6 +864,20 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         onUpdate(editorRef.current?.innerHTML || '');
     };
 
+    const changeFontSize = (direction: 'up' | 'down') => {
+        const next = direction === 'up'
+            ? Math.min(fontSize + 1, 7)
+            : Math.max(fontSize - 1, 1);
+        setFontSize(next);
+        editorRef.current?.focus();
+        // Apply to selection (if any) — browser will handle scope
+        document.execCommand('fontSize', false, String(next));
+        onUpdate(editorRef.current?.innerHTML || '');
+    };
+
+    const increaseFontSize = () => changeFontSize('up');
+    const decreaseFontSize = () => changeFontSize('down');
+
     const ToolbarButton = ({ icon: Icon, command, value, label, onClick }: { icon: any, command?: string, value?: string, label: string, onClick?: () => void }) => (
         <motion.button
             whileTap={{ scale: 0.95 }}
@@ -900,6 +915,10 @@ const LiveEditor = forwardRef<LiveEditorHandle, LiveEditorProps>(({ initialConte
         { id: 'media', buttons: [
             { icon: ImageIcon, label: "Imagen", onClick: () => fileInputRef.current?.click() },
             { icon: PenTool, label: "Firma", onClick: () => setIsSignatureModalOpen(true) }
+        ]},
+        { id: 'fontsize', buttons: [
+            { icon: AArrowUp, label: 'Aumentar texto', onClick: increaseFontSize },
+            { icon: AArrowDown, label: 'Reducir texto', onClick: decreaseFontSize },
         ]},
         { id: 'save', buttons: [
             ...(onHistory ? [{ icon: History, label: localize('com_ui_history') || "Historial", onClick: onHistory }] : []),

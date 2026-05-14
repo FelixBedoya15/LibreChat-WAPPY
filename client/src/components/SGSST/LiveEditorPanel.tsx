@@ -14,6 +14,9 @@ import {
   RefreshCw,
   FileText,
   History,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { useRecoilValue, useRecoilState } from 'recoil';
 import { useAuthContext } from '~/hooks/AuthContext';
@@ -83,6 +86,68 @@ async function tagConversation(conversationId: string, tag: string, token: strin
     console.error('[LiveEditorPanel] Tag error:', e);
   }
 }
+
+/** Prominent document title header — matches SomosSST hito editor style */
+const DocumentTitleHeader: React.FC<{ fileName: string; onRename: (name: string) => void }> = ({ fileName, onRename }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(fileName);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setDraft(fileName); }, [fileName]);
+  useEffect(() => { if (editing) setTimeout(() => inputRef.current?.select(), 50); }, [editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed) onRename(trimmed);
+    setEditing(false);
+  };
+
+  return (
+    <div className="w-full px-4 pt-4 pb-2">
+      <div className="flex items-center gap-3 group">
+        {/* Icon badge */}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-600 shadow-sm">
+          <FileEdit className="h-5 w-5" />
+        </div>
+
+        {/* Title — editable on click */}
+        {editing ? (
+          <div className="flex flex-1 items-center gap-2">
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+              className="flex-1 text-xl font-bold text-text-primary bg-transparent border-b-2 border-blue-500 outline-none py-0.5"
+              autoFocus
+            />
+            <button onClick={commit} className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors" title="Confirmar">
+              <Check className="h-4 w-4" />
+            </button>
+            <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-text-tertiary hover:bg-surface-hover transition-colors" title="Cancelar">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center gap-2 min-w-0">
+            <h2 className="text-xl font-bold text-text-primary truncate leading-tight">
+              {fileName}
+            </h2>
+            <button
+              onClick={() => setEditing(true)}
+              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-text-tertiary hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all shrink-0"
+              title="Renombrar documento"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Decorative separator line */}
+      <div className="mt-3 h-px bg-gradient-to-r from-blue-500/40 via-blue-300/20 to-transparent" />
+    </div>
+  );
+};
 
 const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
   conversationId,
@@ -443,6 +508,11 @@ const LiveEditorPanel: React.FC<LiveEditorPanelProps> = ({
           </div>
         ) : (
           <div style={{ minHeight: '400px', overflowX: 'auto', width: '100%' }}>
+            {/* ── Document Title Header (same style as SomosSST hito editors) ── */}
+            <DocumentTitleHeader
+              fileName={fileName}
+              onRename={setFileName}
+            />
             <div style={{ minWidth: '100%', padding: isMaximized ? '24px' : '12px' }}>
               <LiveEditor
                 ref={liveEditorRef}
