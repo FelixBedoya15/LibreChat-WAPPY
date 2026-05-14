@@ -385,9 +385,7 @@ const ObjetivosSST = () => {
             </div>
 
             {/* Generated Objectives - LiveEditor */}
-            {generatedObjectives && (
-                <div className="mt-4">
-                    <CollapsibleReportBox
+            <CollapsibleReportBox
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Objetivos SST"
@@ -440,8 +438,6 @@ const ObjetivosSST = () => {
                             `}</style>
                         </div>
                     </CollapsibleReportBox>
-                </div>
-            )}
         
             {/* Upgrade Modal (Freemium Teaser) */}
             {showUpgradeModal && (

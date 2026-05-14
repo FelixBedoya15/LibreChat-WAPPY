@@ -437,9 +437,7 @@ const ResponsableSGSST = () => {
                 )}
             </div>
 
-            {generatedDoc && (
-                <div className="mt-6">
-                    <CollapsibleReportBox
+            <CollapsibleReportBox
                         onHistory={() => setIsHistoryOpen(!isHistoryOpen)}
                         isHistoryOpen={isHistoryOpen}
                         title="Responsable SGSST"
@@ -462,8 +460,6 @@ const ResponsableSGSST = () => {
                             />
                         </div>
                     </CollapsibleReportBox>
-                </div>
-            )}
         
             {/* Upgrade Modal (Freemium Teaser) */}
             {showUpgradeModal && (
