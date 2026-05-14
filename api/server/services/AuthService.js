@@ -234,7 +234,7 @@ const registerUser = async (user, additionalData = {}) => {
           user: newUserId,
           type: 'welcome_promo',
           title: '¡Tienes un Regalo de Bienvenida!',
-          body: \`Utiliza el código \${welcomeCode.code} para obtener un \${welcomeCode.discountPercentage}% de descuento en cualquier plan. ¡Válido solo por tus primeras 48 horas!\`,
+          body: `Utiliza el código ${welcomeCode.code} para obtener un ${welcomeCode.discountPercentage}% de descuento en cualquier plan. ¡Válido solo por tus primeras 48 horas!`,
         });
       }
     } catch (promoErr) {
