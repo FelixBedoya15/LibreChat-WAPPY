@@ -7,7 +7,6 @@ const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const CompanyInfo = require('~/models/CompanyInfo');
 const SgsstWorker = require('~/models/SgsstWorker');
-const CompanyPerfilCargo = require('~/models/CompanyPerfilCargo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
 
@@ -97,17 +96,6 @@ Nombre: ${worker.nombre}
 Condiciones de Salud / Limitaciones Previas: ${worker.condicionesSalud || 'Ninguna registrada'}
 -> DEBES considerar clínicamente estas condiciones de salud para proponer EPP específicos, controles médicos en el medio y en el individuo, y para ajustar la aceptabilidad del riesgo de cara a este bio-individuo.
 `;
-            if (worker.perfilCargo) {
-                const perfil = await CompanyPerfilCargo.findById(worker.perfilCargo);
-                if (perfil) {
-                    workerContext += `
-Perfil de Cargo: ${perfil.nombreCargo}
-Contexto Operativo del Cargo: ${perfil.contextoAdicional || 'N/A'}
-Exigencia Física: ${perfil.exigenciaFisica || 'N/A'}
-Exigencia Mental: ${perfil.exigenciaMental || 'N/A'}
-`;
-                }
-            }
         }
     }
 
@@ -331,15 +319,6 @@ Estás evaluando específicamente al trabajador: ${worker.nombre}.
 Condiciones de salud y vulnerabilidades clínicas previas: ${worker.condicionesSalud || 'Ninguna registrada'}.
 Toda tu redacción DEBE enfocarse en cómo los riesgos evaluados impactan DIRECTAMENTE a este individuo en particular, considerando su estado clínico base. Adapta las recomendaciones (EPP, exámenes médicos ocupacionales, readaptación de tareas) explícitamente a sus condiciones.
 `;
-            if (worker.perfilCargo) {
-                const perfil = await CompanyPerfilCargo.findById(worker.perfilCargo);
-                if (perfil) {
-                    workerContext += `
-Cargo del trabajador: ${perfil.nombreCargo}.
-Contexto operativo y exigencia: ${perfil.contextoAdicional || 'N/A'}. (Exigencia física: ${perfil.exigenciaFisica}, Mental: ${perfil.exigenciaMental}).
-`;
-                }
-            }
         }
     }
 
