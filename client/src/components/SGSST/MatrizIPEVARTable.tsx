@@ -354,7 +354,7 @@ const AITextarea = ({ value, onChange, rows = 2, minW = '180px', placeholder = '
 );
 
 // ════════════════════════════════════════════════════════════════════════════
-export default function MatrizIPEVARTable({ conversationId }: { conversationId: string | null }) {
+export default function MatrizIPEVARTable({ conversationId, workerId }: { conversationId: string | null, workerId?: string }) {
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isMaximized, setIsMaximized] = useRecoilState(store.ipevarMaximized);
@@ -505,10 +505,21 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
   const isSubmitting = useRecoilValue(store.isSubmittingFamily(0));
 
   const fetchMatrix = useCallback(async (id?: string | null) => {
-    const targetId = id ?? actualConvoId;
-    if (!targetId || targetId === 'new') return;
     try {
       setIsLoading(true);
+      // Lógica Bio-individual
+      if (workerId) {
+        const res = await fetch(`/api/sgsst/workers/worker/${workerId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data?.worker?.riesgosIpevar) setMatrixRows(data.worker.riesgosIpevar);
+        return;
+      }
+      
+      // Lógica por defecto (conversación)
+      const targetId = id ?? actualConvoId;
+      if (!targetId || targetId === 'new') return;
       const res = await fetch(`/api/sgsst/gtc45-workspace/matrix/${targetId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -517,9 +528,13 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       if (data?.chartConclusions) setChartConclusions(data.chartConclusions);
     } catch (e) { console.error('[Matriz] Fetch error:', e); }
     finally { setIsLoading(false); }
-  }, [actualConvoId, token]);
+  }, [actualConvoId, token, workerId]);
 
   useEffect(() => {
+    if (workerId) {
+      fetchMatrix();
+      return;
+    }
     if (!actualConvoId || actualConvoId === 'new') return;
     if (isPendingImport.current && matrixRows.length > 0) {
       saveMatrixData(matrixRows);
@@ -527,21 +542,37 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     } else {
       fetchMatrix(actualConvoId);
     }
-  }, [actualConvoId]);
+  }, [actualConvoId, workerId]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isSubmitting && actualConvoId && actualConvoId !== 'new') {
-      interval = setInterval(() => fetchMatrix(actualConvoId), 3000);
+    if (isSubmitting) {
+      if (workerId) {
+          interval = setInterval(() => fetchMatrix(), 3000);
+      } else if (actualConvoId && actualConvoId !== 'new') {
+          interval = setInterval(() => fetchMatrix(actualConvoId), 3000);
+      }
     }
-    if (!isSubmitting && actualConvoId && actualConvoId !== 'new') fetchMatrix(actualConvoId);
+    if (!isSubmitting) {
+        if (workerId) fetchMatrix();
+        else if (actualConvoId && actualConvoId !== 'new') fetchMatrix(actualConvoId);
+    }
     return () => clearInterval(interval);
-  }, [isSubmitting, actualConvoId]);
+  }, [isSubmitting, actualConvoId, workerId]);
 
   const saveMatrixData = async (rows: MatrixRow[]) => {
-    if (!actualConvoId || actualConvoId === 'new') return;
     try {
       setIsSaving(true);
+      if (workerId) {
+        await fetch(`/api/sgsst/workers/${workerId}/ipevar`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ riesgosIpevar: rows }),
+        });
+        return;
+      }
+      
+      if (!actualConvoId || actualConvoId === 'new') return;
       await fetch(`/api/sgsst/gtc45-workspace/matrix/${actualConvoId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -593,7 +624,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-update-row', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ row: matrixRows[index], modelName: selectedModel }),
+        body: JSON.stringify({ row: matrixRows[index], modelName: selectedModel, workerId }),
       });
       const data = await res.json();
       if (data.updatedFields) {
@@ -628,7 +659,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
       const res = await fetch('/api/sgsst/gtc45-workspace/ai-analyze-matrix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ matrixRows, modelName: selectedModel }),
+        body: JSON.stringify({ matrixRows, modelName: selectedModel, workerId }),
       });
       const data = await res.json();
       if (data.analysis) {
@@ -745,7 +776,7 @@ export default function MatrizIPEVARTable({ conversationId }: { conversationId: 
     sortField === field ? <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span> : <span className="ml-1 opacity-30">↕</span>;
 
   // ── Guard: no convo ───────────────────────────────────────────────────────
-  if ((!actualConvoId || actualConvoId === 'new') && matrixRows.length === 0) {
+  if (!workerId && (!actualConvoId || actualConvoId === 'new') && matrixRows.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-surface-primary border-l border-border-light relative">
         {/* Botón para cerrar/minimizar en mobile si está expandido */}

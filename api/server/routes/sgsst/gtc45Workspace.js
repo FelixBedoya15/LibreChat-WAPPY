@@ -6,6 +6,8 @@ const { logger } = require('@librechat/data-schemas');
 const requireJwtAuth = require('~/server/middleware/requireJwtAuth');
 const GTC45WorkspaceSession = require('~/models/GTC45WorkspaceSession');
 const CompanyInfo = require('~/models/CompanyInfo');
+const SgsstWorker = require('~/models/SgsstWorker');
+const CompanyPerfilCargo = require('~/models/CompanyPerfilCargo');
 const { buildStandardHeader, buildSignatureSection } = require('./reportHeader');
 const { generateWithKeyRotation, SGSST_FALLBACK_MODELS } = require('./sgsstGemini');
 
@@ -80,13 +82,37 @@ router.put('/matrix/:conversationId', requireJwtAuth, async (req, res) => {
 // ─── IA: Actualizar una fila con IA (contexto = solo esa fila) ─────────────────
 router.post('/ai-update-row', requireJwtAuth, async (req, res) => {
   try {
-    const { row } = req.body;
+    const { row, workerId } = req.body;
     const userId = req.user?.id;
 
     if (!row) return res.status(400).json({ error: 'Se requiere el objeto row.' });
 
-    const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
+    let workerContext = '';
+    if (workerId) {
+        const worker = await SgsstWorker.findById(workerId);
+        if (worker) {
+            workerContext = `
+═══ CONTEXTO BIO-INDIVIDUAL (TRABAJADOR ESPECÍFICO) ═══
+Nombre: ${worker.nombre}
+Condiciones de Salud / Limitaciones Previas: ${worker.condicionesSalud || 'Ninguna registrada'}
+-> DEBES considerar clínicamente estas condiciones de salud para proponer EPP específicos, controles médicos en el medio y en el individuo, y para ajustar la aceptabilidad del riesgo de cara a este bio-individuo.
+`;
+            if (worker.perfilCargo) {
+                const perfil = await CompanyPerfilCargo.findById(worker.perfilCargo);
+                if (perfil) {
+                    workerContext += `
+Perfil de Cargo: ${perfil.nombreCargo}
+Contexto Operativo del Cargo: ${perfil.contextoAdicional || 'N/A'}
+Exigencia Física: ${perfil.exigenciaFisica || 'N/A'}
+Exigencia Mental: ${perfil.exigenciaMental || 'N/A'}
+`;
+                }
+            }
+        }
+    }
 
+    const prompt = `Eres un experto certificado en Seguridad y Salud en el Trabajo y en la metodología GTC-45:2012 colombiana.
+${workerContext}
 Tienes esta fila de Matriz IPEVAR con datos YA fijados por el usuario que JAMÁS debes modificar:
 
 ═══ DATOS FIJOS (NO MODIFICAR) ═══
@@ -288,10 +314,34 @@ function buildIpevarChartsHtml(matrixRows) {
 // ─── IA: Analizar toda la matriz (contexto completo) ──────────────────────────
 router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
   try {
-    const { matrixRows, instruction } = req.body;
+    const { matrixRows, instruction, workerId } = req.body;
     const userId = req.user?.id;
 
     if (!matrixRows || !matrixRows.length) return res.status(400).json({ error: 'La matriz está vacía.' });
+
+    let workerContext = '';
+    let reportTitle = 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45';
+    if (workerId) {
+        const worker = await SgsstWorker.findById(workerId);
+        if (worker) {
+            reportTitle = `INFORME IPEVAR BIO-INDIVIDUAL - ${worker.nombre.toUpperCase()}`;
+            workerContext = `
+**[ATENCIÓN: ESTE ES UN INFORME BIO-INDIVIDUAL (CENTRICIDAD EN EL TRABAJADOR)]**
+Estás evaluando específicamente al trabajador: ${worker.nombre}.
+Condiciones de salud y vulnerabilidades clínicas previas: ${worker.condicionesSalud || 'Ninguna registrada'}.
+Toda tu redacción DEBE enfocarse en cómo los riesgos evaluados impactan DIRECTAMENTE a este individuo en particular, considerando su estado clínico base. Adapta las recomendaciones (EPP, exámenes médicos ocupacionales, readaptación de tareas) explícitamente a sus condiciones.
+`;
+            if (worker.perfilCargo) {
+                const perfil = await CompanyPerfilCargo.findById(worker.perfilCargo);
+                if (perfil) {
+                    workerContext += `
+Cargo del trabajador: ${perfil.nombreCargo}.
+Contexto operativo y exigencia: ${perfil.contextoAdicional || 'N/A'}. (Exigencia física: ${perfil.exigenciaFisica}, Mental: ${perfil.exigenciaMental}).
+`;
+                }
+            }
+        }
+    }
 
     let loadedCompanyInfo = null;
     try {
@@ -302,10 +352,10 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
 
     const currentDate = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
     const headerHTML = buildStandardHeader({
-      title: 'INFORME EJECUTIVO DE RIESGOS IPEVAR - GTC-45',
+      title: reportTitle,
       companyInfo: loadedCompanyInfo,
       date: currentDate,
-      norm: 'GTC-45:2012 / Decreto 1072 de 2015',
+      norm: workerId ? 'Matriz 360° Bio-Individual / GTC-45' : 'GTC-45:2012 / Decreto 1072 de 2015',
       responsibleName: req.user?.name,
     });
 
@@ -315,6 +365,7 @@ router.post('/ai-analyze-matrix', requireJwtAuth, async (req, res) => {
 
     const prompt = `Eres un auditor experto en Seguridad y Salud en el Trabajo bajo la metodología GTC-45:2012 en Colombia.
 Analiza esta Matriz IPEVAR completa y emite un Informe Técnico y Ejecutivo integral MUY EXTENSO, sumamente detallado y analítico.
+${workerContext}
 
 **INSTRUCCIONES DE FORMATO HTML:**
 - Responde EXCLUSIVAMENTE en HTML limpio, listo para inyectarse en el DOM. NO uses \`\`\`html.

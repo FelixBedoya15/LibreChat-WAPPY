@@ -38,6 +38,8 @@ import { cn } from '~/utils';
 import SGSSTToolbar from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
 import CollapsibleReportBox from './CollapsibleReportBox';
+import WorkersProfileList from './WorkersProfileList';
+import BioIndividuoDashboard from './BioIndividuoDashboard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PerfilCargoData {
@@ -307,6 +309,7 @@ const PerfilesCargo = () => {
 
     const [perfiles, setPerfiles] = useState<PerfilCargoData[]>([]);
     const [activePerfilId, setActivePerfilId] = useState<string | null>(null);
+    const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
     const [formData, setFormData] = useState<PerfilCargoData>(createInitialPerfil());
     const [isFormExpanded, setIsFormExpanded] = useState(true);
     const [selectedModel, setSelectedModel] = useState(user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite');
@@ -466,6 +469,7 @@ const PerfilesCargo = () => {
             // Reset conversation tracking when switching profiles
             setConversationId(null);
             setReportMessageId(null);
+            setSelectedWorkerId(null);
             setRefreshTrigger(p => p + 1);
         }
     };
@@ -897,6 +901,15 @@ const PerfilesCargo = () => {
 
     const actionButtonClass = "group flex items-center px-4 py-2 bg-surface-primary border border-border-medium hover:bg-surface-hover text-text-primary rounded-full transition-all duration-300 shadow-sm font-semibold text-sm hover:scale-105 active:scale-95 transform cursor-pointer";
 
+    if (selectedWorkerId) {
+        return (
+            <BioIndividuoDashboard 
+                workerId={selectedWorkerId} 
+                onBack={() => setSelectedWorkerId(null)} 
+            />
+        );
+    }
+
     return (
         <div className="w-full overflow-x-hidden space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* ── Toolbar ── */}
@@ -1146,6 +1159,15 @@ const PerfilesCargo = () => {
                     </span>
                 </div>
             </div>
+
+            {/* Workers Profile List (Bio-Individuos) */}
+            {activePerfilId && (
+                <WorkersProfileList 
+                    perfilId={activePerfilId} 
+                    perfilNombre={formData.nombreCargo || 'Cargo seleccionado'} 
+                    onSelectWorker={(workerId) => setSelectedWorkerId(workerId)} 
+                />
+            )}
 
             {/* Generated Report View */}
                 <CollapsibleReportBox

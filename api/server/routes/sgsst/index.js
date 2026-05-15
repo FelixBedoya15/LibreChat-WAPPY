@@ -24,6 +24,7 @@ const gtc45Workspace = require('./gtc45Workspace');
 const liveEditor = require('./liveEditor');
 const patchAgentPrompt = require('./patchAgentPrompt');
 const programaCapacitaciones = require('./programaCapacitaciones');
+const workers = require('./workers');
 
 
 
@@ -56,5 +57,6 @@ module.exports = {
     liveEditor,
     patchAgentPrompt,
     programaCapacitaciones,
+    workers,
 };
 
