@@ -261,6 +261,7 @@ const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate:
 export default function BlogDashboard() {
     const [posts, setPosts] = useState([]);
     const [categorizedPosts, setCategorizedPosts] = useState<Record<string, any[]>>({});
+    const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
     const [featuredPost, setFeaturedPost] = useState<any>(null);
     const [selectedPost, setSelectedPost] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -276,36 +277,39 @@ export default function BlogDashboard() {
                 const response = await axios.get('/api/blog');
                 const publishedPosts = response.data.filter((p: any) => p.isPublished);
                 
-                // Sort by date descending
+                // Sort by date descending (newest first)
                 publishedPosts.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                 setPosts(publishedPosts);
 
-                // Group by tags
-                const categories: Record<string, any[]> = {
-                    'Recientes': publishedPosts.slice(0, 10), // The top 10 most recent
-                };
+                // --- Dynamic categorization by tags ---
+                const categories: Record<string, any[]> = {};
+                const order: string[] = [];
 
                 publishedPosts.forEach((post: any) => {
-                    if (post.tags && post.tags.length > 0) {
-                        post.tags.forEach((tag: string) => {
-                            const mappedTag = mapTag(tag);
-                            if (!categories[mappedTag]) {
-                                categories[mappedTag] = [];
-                            }
-                            categories[mappedTag].push(post);
-                        });
+                    const tags: string[] = post.tags || [];
+                    if (tags.length === 0) {
+                        const key = 'Otros';
+                        if (!categories[key]) { categories[key] = []; order.push(key); }
+                        categories[key].push(post);
                     } else {
-                        if (!categories['Otros']) categories['Otros'] = [];
-                        categories['Otros'].push(post);
+                        tags.forEach((tag: string) => {
+                            const key = mapTag(tag);
+                            if (!key) return;
+                            if (!categories[key]) { categories[key] = []; order.push(key); }
+                            categories[key].push(post);
+                        });
                     }
                 });
 
                 setCategorizedPosts(categories);
+                setCategoryOrder(order);
 
-                // Featured is the most recent one with a thumbnail, or just the most recent
+                // Featured: isFeatured flag first, then fallback to first with thumbnail, then first
                 if (publishedPosts.length > 0) {
-                    const withThumb = publishedPosts.find((p: any) => p.thumbnail);
-                    setFeaturedPost(withThumb || publishedPosts[0]);
+                    const featured = publishedPosts.find((p: any) => p.isFeatured)
+                        || publishedPosts.find((p: any) => p.thumbnail)
+                        || publishedPosts[0];
+                    setFeaturedPost(featured);
                 }
 
             } catch (error) {
@@ -363,10 +367,10 @@ export default function BlogDashboard() {
                     <div className="h-24 md:h-32 bg-surface-primary"></div>
                 )}
 
-                {/* Rows */}
+                {/* Dynamic Rows — ordered by first tag appearance */}
                 <div className={`relative ${featuredPost ? '-mt-8 sm:-mt-16 md:-mt-24' : 'mt-4'} pb-24 z-30`}>
-                    {Object.entries(categorizedPosts).map(([title, categoryPosts]) => (
-                        <PostRow key={title} title={title} posts={categoryPosts} navigate={navigate} onMoreInfo={setSelectedPost} />
+                    {categoryOrder.map(title => (
+                        <PostRow key={title} title={title} posts={categorizedPosts[title] || []} navigate={navigate} onMoreInfo={setSelectedPost} />
                     ))}
                     
                     {posts.length === 0 && (

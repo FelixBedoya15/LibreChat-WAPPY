@@ -5,6 +5,9 @@ const blogPostSchema = mongoose.Schema({
         type: String,
         required: true,
     },
+    description: {
+        type: String,
+    },
     content: {
         type: String,
         required: true,
@@ -16,6 +19,10 @@ const blogPostSchema = mongoose.Schema({
         type: String
     }],
     isPublished: {
+        type: Boolean,
+        default: false,
+    },
+    isFeatured: {
         type: Boolean,
         default: false,
     },

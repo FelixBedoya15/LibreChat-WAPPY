@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { Newspaper, Shield, Edit, Trash2, Plus, ArrowLeft } from 'lucide-react';
+import { Newspaper, Shield, Edit, Trash2, Plus, ArrowLeft, Star } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 
 export default function BlogAdminDashboard() {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [settingFeatured, setSettingFeatured] = useState<string | null>(null);
     const { showToast } = useToastContext();
     const navigate = useNavigate();
     const { user } = useAuthContext();
@@ -19,20 +20,25 @@ export default function BlogAdminDashboard() {
             return;
         }
 
-        const fetchPosts = async () => {
-            try {
-                const response = await axios.get('/api/blog');
-                setPosts(response.data);
-            } catch (error) {
-                console.error('Error fetching blog posts:', error);
-                showToast({ message: 'Error loading posts.', status: 'error' });
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchPosts();
-    }, [isAdmin, navigate, showToast]);
+    }, [isAdmin, navigate]);
+
+    const fetchPosts = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('/api/blog');
+            // Sort newest first for the admin view too
+            const sorted = [...response.data].sort((a: any, b: any) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            setPosts(sorted);
+        } catch (error) {
+            console.error('Error fetching blog posts:', error);
+            showToast({ message: 'Error loading posts.', status: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleDelete = async (postId: string) => {
         if (!window.confirm('¿Estás seguro de que deseas eliminar esta publicación?')) return;
@@ -44,6 +50,20 @@ export default function BlogAdminDashboard() {
         } catch (error) {
             console.error('Error deleting post:', error);
             showToast({ message: 'Error eliminando la publicación', status: 'error' });
+        }
+    };
+
+    const handleSetFeatured = async (postId: string, title: string) => {
+        try {
+            setSettingFeatured(postId);
+            await axios.put(`/api/blog/admin/${postId}/featured`);
+            showToast({ message: `"${title}" es ahora la portada del Blog.`, status: 'success' });
+            fetchPosts();
+        } catch (error) {
+            console.error('Error setting featured post:', error);
+            showToast({ message: 'Error al establecer la portada.', status: 'error' });
+        } finally {
+            setSettingFeatured(null);
         }
     };
 
@@ -96,14 +116,23 @@ export default function BlogAdminDashboard() {
                 </div>
             </div>
 
+            {/* Helper hint */}
+            <div className="px-6 md:px-8 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/40">
+                <p className="text-xs text-amber-700 dark:text-amber-400 max-w-6xl mx-auto">
+                    <Star className="w-3 h-3 inline mr-1 fill-amber-500 text-amber-500" />
+                    El post marcado como <strong>Portada</strong> aparece en el banner principal del Blog. Haz clic en la estrella para cambiarlo.
+                </p>
+            </div>
+
             <div className="flex-1 overflow-y-auto overflow-x-auto p-6 md:p-8">
-                <div className="max-w-6xl mx-auto min-w-[600px]">
+                <div className="max-w-6xl mx-auto min-w-[700px]">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700/50">
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Título</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                                    <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Portada</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Creado</th>
                                     <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                                 </tr>
@@ -111,14 +140,14 @@ export default function BlogAdminDashboard() {
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {posts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                                             No hay publicaciones creadas todavía.
                                         </td>
                                     </tr>
                                 ) : (
                                     posts.map((post: any) => (
                                         <tr key={post._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-6 py-4">
                                                 <div className="flex items-center">
                                                     <div className="flex-shrink-0 h-10 w-10 bg-gray-100 dark:bg-gray-700 rounded relative overflow-hidden flex items-center justify-center">
                                                         {post.thumbnail ? (
@@ -129,7 +158,13 @@ export default function BlogAdminDashboard() {
                                                     </div>
                                                     <div className="ml-4">
                                                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{post.title || '(Sin título)'}</div>
-                                                        <div className="text-xs text-gray-500 dark:text-gray-400">{post.author?.name || 'Admin'}</div>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400 flex flex-wrap gap-1 mt-0.5">
+                                                            {post.tags && post.tags.map((tag: string, i: number) => (
+                                                                <span key={i} className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/40 text-[10px]">
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -137,6 +172,20 @@ export default function BlogAdminDashboard() {
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${post.isPublished ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
                                                     {post.isPublished ? 'Publicado' : 'Borrador'}
                                                 </span>
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <button
+                                                    onClick={() => handleSetFeatured(post._id, post.title)}
+                                                    disabled={settingFeatured === post._id || post.isFeatured}
+                                                    title={post.isFeatured ? 'Esta es la portada actual' : 'Marcar como portada'}
+                                                    className={`mx-auto flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
+                                                        post.isFeatured
+                                                            ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/30 cursor-default'
+                                                            : 'text-gray-300 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                                                    } disabled:opacity-50`}
+                                                >
+                                                    <Star className={`w-5 h-5 ${post.isFeatured ? 'fill-amber-500' : ''}`} />
+                                                </button>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                                 {new Date(post.createdAt).toLocaleDateString()}

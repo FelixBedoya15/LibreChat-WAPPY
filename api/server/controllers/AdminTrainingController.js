@@ -278,6 +278,33 @@ const generateTrainingContent = async (req, res) => {
     }
 };
 
+const setFeaturedCourse = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+
+        const { id } = req.params;
+
+        // Unset all featured courses first
+        await Course.updateMany({}, { $set: { isFeatured: false } });
+
+        // Set the selected course as featured
+        const updated = await Course.findByIdAndUpdate(
+            id,
+            { $set: { isFeatured: true } },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        res.status(200).json({ message: 'Course set as featured', course: updated });
+    } catch (error) {
+        console.error('Error in setFeaturedCourse:', error);
+        res.status(500).json({ message: 'Error setting featured course' });
+    }
+};
+
 module.exports = {
     getAllCoursesAdmin,
     createCourse,
@@ -286,5 +313,6 @@ module.exports = {
     addLesson,
     updateLesson,
     deleteLesson,
-    generateTrainingContent
+    generateTrainingContent,
+    setFeaturedCourse
 };

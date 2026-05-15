@@ -10,7 +10,8 @@ const {
     addLesson,
     updateLesson,
     deleteLesson,
-    generateTrainingContent
+    generateTrainingContent,
+    setFeaturedCourse
 } = require('../controllers/AdminTrainingController');
 
 // All endpoints require authentication
@@ -29,5 +30,6 @@ router.put('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, updateL
 router.delete('/admin/courses/:courseId/lessons/:lessonId', requireJwtAuth, deleteLesson);
 
 router.post('/admin/generate', requireJwtAuth, generateTrainingContent);
+router.put('/admin/courses/:id/featured', requireJwtAuth, setFeaturedCourse);
 
 module.exports = router;

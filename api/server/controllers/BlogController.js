@@ -219,11 +219,39 @@ Empieza directamente con <div> o <h1> y termina con el cierre correspondiente.`;
     }
 };
 
+const setFeaturedPost = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden' });
+
+        const { id } = req.params;
+
+        // Unset all featured posts first
+        await BlogPost.updateMany({}, { $set: { isFeatured: false } });
+
+        // Set the selected post as featured
+        const updated = await BlogPost.findByIdAndUpdate(
+            id,
+            { $set: { isFeatured: true } },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ message: 'Blog post not found' });
+        }
+
+        res.status(200).json({ message: 'Post set as featured', post: updated });
+    } catch (error) {
+        console.error('Error in setFeaturedPost:', error);
+        res.status(500).json({ message: 'Error setting featured post' });
+    }
+};
+
 module.exports = {
     getBlogPosts,
     getBlogPostById,
     createBlogPost,
     updateBlogPost,
     deleteBlogPost,
-    generateBlogPost
+    generateBlogPost,
+    setFeaturedPost
 };

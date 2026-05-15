@@ -6,7 +6,8 @@ const {
     createBlogPost,
     updateBlogPost,
     deleteBlogPost,
-    generateBlogPost
+    generateBlogPost,
+    setFeaturedPost
 } = require('../controllers/BlogController');
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.post('/admin/generate', requireJwtAuth, generateBlogPost);
 router.post('/create', requireJwtAuth, createBlogPost);
 router.put('/:id', requireJwtAuth, updateBlogPost);
 router.delete('/:id', requireJwtAuth, deleteBlogPost);
+router.put('/admin/:id/featured', requireJwtAuth, setFeaturedPost);
 
 module.exports = router;

@@ -370,8 +370,14 @@ export default function CourseEditor() {
                                         value={tagsText}
                                         onChange={(e) => setTagsText(e.target.value)}
                                         className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="Seguridad, RRHH, General"
+                                        placeholder="Chat con IA, Seguridad y Salud en el Trabajo"
                                     />
+                                    <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                                        💡 Cada etiqueta define una <strong>sección</strong> en el Aula. Escríbelas exactamente como quieres que aparezcan:<br/>
+                                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Chat con IA</span>{' · '}
+                                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Seguridad y Salud en el Trabajo</span>{' · '}
+                                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Somos SST</span>
+                                    </p>
                                 </div>
                             </div>
 
@@ -515,8 +521,14 @@ export default function CourseEditor() {
                                         value={tagsText}
                                         onChange={(e) => setTagsText(e.target.value)}
                                         className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="Seguridad, RRHH, General"
+                                        placeholder="Chat con IA, Seguridad y Salud en el Trabajo"
                                     />
+                                    <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                                        💡 Cada etiqueta define una <strong>sección</strong> en el Aula. Escríbelas exactamente como quieres que aparezcan:<br/>
+                                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Chat con IA</span>{' · '}
+                                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Seguridad y Salud en el Trabajo</span>{' · '}
+                                        <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Somos SST</span>
+                                    </p>
                                 </div>
                             </div>
 

@@ -57,15 +57,22 @@ export default function useAgentSessionOverrides({
 
     const { hasWebSearch, hasFileSearch, hasCodeInterpreter, externalTools } = useMemo(() => {
         const tools = agent?.tools ?? [];
-        const toolSet = new Set(tools);
-        const external = tools.filter((t) => !BUILTIN_TOOLS.has(t as Tools));
+        
+        // Merge currently active session overrides. This ensures that if a chat already has 
+        // a tool active (like matriz_ipevar), the new agent inherits the ability to use it
+        // and the UI toggle remains visible.
+        const activeOverrides = (ephemeralAgent as TEphemeralAgentExtended | null)?.tools ?? [];
+        const combinedTools = Array.from(new Set([...tools, ...activeOverrides]));
+        
+        const toolSet = new Set(combinedTools);
+        const external = combinedTools.filter((t) => !BUILTIN_TOOLS.has(t as Tools));
         return {
             hasWebSearch: toolSet.has(Tools.web_search),
             hasFileSearch: toolSet.has(Tools.file_search),
             hasCodeInterpreter: toolSet.has(Tools.execute_code) || toolSet.has(Tools.code_interpreter),
             externalTools: external,
         };
-    }, [agent]);
+    }, [agent, ephemeralAgent]);
 
     // Track which agent we've already applied defaults for (avoids re-applying on every render)
     const defaultsAppliedRef = useRef<string>('');
@@ -105,13 +112,14 @@ export default function useAgentSessionOverrides({
             // NOTE: 'editor_live' and 'matriz_ipevar' are intentionally excluded
             // from auto-activation so their panels start closed and the user
             // controls them via the toggle in the chat input.
-            const PANEL_TOOLS = new Set(['editor_live', 'matriz_ipevar', 'somos_sst']);
+            const PANEL_TOOLS = new Set(['editor_live', 'matriz_ipevar', 'somos_sst', 'editor_rit']);
             const autoActivateExt = ext.filter((t) => !PANEL_TOOLS.has(t));
-            if (autoActivateExt.length > 0) {
-                const prevTools = prevExt?.tools ?? [];
-                const merged = Array.from(new Set([...prevTools, ...autoActivateExt]));
-                updates.tools = merged;
-            }
+            
+            // ALWAYS preserve previously active tools when switching agents!
+            // This guarantees the new agent inherits the session's active tools (like Matriz IPEVAR)
+            const prevTools = prevExt?.tools ?? [];
+            const merged = Array.from(new Set([...prevTools, ...autoActivateExt]));
+            updates.tools = merged;
 
             return { ...(prev ?? {}), ...updates } as TEphemeralAgent;
         });

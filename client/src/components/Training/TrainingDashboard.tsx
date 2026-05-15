@@ -3,13 +3,9 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Activity, MessageSquare, Zap, FileEdit, GraduationCap, X } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Shield, Play, Info, ChevronLeft, ChevronRight, Zap, GraduationCap, X } from 'lucide-react';
 import { useAuthContext } from '~/hooks/AuthContext';
 import { OpenSidebar } from '~/components/Chat/Menus';
-import type { ContextType } from '~/common';
-
-import type { ContextType } from '~/common';
-
 import type { ContextType } from '~/common';
 
 // --- Sub-components ---
@@ -237,7 +233,7 @@ const FeaturedHero = ({ course, navigate, onMoreInfo }: { course: any, navigate:
                 </h1>
                 
                 <p className="text-xs sm:text-base md:text-xl text-gray-200/90 mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow-md max-w-2xl">
-                    {course.description || 'Explora este curso avanzado diseñado para potenciar tus habilidades en Seguridad y Salud en el Trabajo con inteligencia artificial.'}
+                    {course.description || 'Explora este curso avanzado diseñado para potenciar tus habilidades con inteligencia artificial.'}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
@@ -264,6 +260,7 @@ const FeaturedHero = ({ course, navigate, onMoreInfo }: { course: any, navigate:
 export default function TrainingDashboard() {
     const [courses, setCourses] = useState([]);
     const [categorizedCourses, setCategorizedCourses] = useState<Record<string, any[]>>({});
+    const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
     const [featuredCourse, setFeaturedCourse] = useState<any>(null);
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -278,46 +275,42 @@ export default function TrainingDashboard() {
             try {
                 const response = await axios.get('/api/training/courses');
                 const data = response.data;
-                setCourses(data);
 
-                // Grouping logic
-                const categories = {
-                    'Somos SST': [],
-                    'Chat con IA': [],
-                    'Análisis en Vivo': [],
-                    'Centro de Inteligencia Predictiva': [],
-                    'Editor de Archivos con IA': [],
-                    'Seguridad y Salud en el Trabajo': [],
-                    'Otros': []
-                };
+                // Sort newest first
+                const sorted = [...data].sort((a: any, b: any) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                );
+                setCourses(sorted);
 
-                data.forEach((course: any) => {
-                    const title = course.title?.toLowerCase() || '';
-                    const tags = course.tags?.map((t: string) => t.toLowerCase()) || [];
+                // --- Dynamic categorization by tags ---
+                const categories: Record<string, any[]> = {};
+                const order: string[] = [];
 
-                    if (title.includes('somos sst') || tags.includes('somos_sst')) {
-                        categories['Somos SST'].push(course);
-                    } else if (title.includes('chat') || title.includes('ia') || tags.includes('chat') || tags.includes('ia')) {
-                        categories['Chat con IA'].push(course);
-                    } else if (title.includes('vivo') || title.includes('live') || tags.includes('vivo') || tags.includes('live')) {
-                        categories['Análisis en Vivo'].push(course);
-                    } else if (title.includes('predictiv') || tags.includes('predictiva')) {
-                        categories['Centro de Inteligencia Predictiva'].push(course);
-                    } else if (title.includes('editor') || tags.includes('editor')) {
-                        categories['Editor de Archivos con IA'].push(course);
-                    } else if (title.includes('sst') || tags.includes('sst')) {
-                        categories['Seguridad y Salud en el Trabajo'].push(course);
+                sorted.forEach((course: any) => {
+                    const tags: string[] = course.tags || [];
+                    if (tags.length === 0) {
+                        const key = 'Otros';
+                        if (!categories[key]) { categories[key] = []; order.push(key); }
+                        categories[key].push(course);
                     } else {
-                        categories['Otros'].push(course);
+                        tags.forEach((tag: string) => {
+                            const key = tag.trim();
+                            if (!key) return;
+                            if (!categories[key]) { categories[key] = []; order.push(key); }
+                            categories[key].push(course);
+                        });
                     }
                 });
 
                 setCategorizedCourses(categories);
-                
-                // Pick a featured course (latest SST or first available)
-                if (data.length > 0) {
-                    setFeaturedCourse(data.find((c: any) => c.title?.toLowerCase().includes('sst')) || data[0]);
-                }
+                setCategoryOrder(order);
+
+                // Featured: isFeatured flag first, then fallback to first with thumbnail, then first
+                const featured = sorted.find((c: any) => c.isFeatured)
+                    || sorted.find((c: any) => c.thumbnail)
+                    || sorted[0]
+                    || null;
+                setFeaturedCourse(featured);
 
             } catch (error) {
                 console.error('Error fetching courses:', error);
@@ -370,15 +363,17 @@ export default function TrainingDashboard() {
                 {/* Hero Section */}
                 <FeaturedHero course={featuredCourse} navigate={navigate} onMoreInfo={() => setSelectedCourse(featuredCourse)} />
 
-                {/* Rows */}
+                {/* Dynamic Rows — newest first, ordered by first appearance */}
                 <div className="relative -mt-8 sm:-mt-16 md:-mt-24 pb-24 z-30">
-                    <CourseRow title="Somos SST" courses={categorizedCourses['Somos SST']} navigate={navigate} onMoreInfo={setSelectedCourse} />
-                    <CourseRow title="Chat con IA" courses={categorizedCourses['Chat con IA']} navigate={navigate} onMoreInfo={setSelectedCourse} />
-                    <CourseRow title="Análisis en Vivo" courses={categorizedCourses['Análisis en Vivo']} navigate={navigate} onMoreInfo={setSelectedCourse} />
-                    <CourseRow title="Centro de Inteligencia Predictiva" courses={categorizedCourses['Centro de Inteligencia Predictiva']} navigate={navigate} onMoreInfo={setSelectedCourse} />
-                    <CourseRow title="Editor de Archivos con IA" courses={categorizedCourses['Editor de Archivos con IA']} navigate={navigate} onMoreInfo={setSelectedCourse} />
-                    <CourseRow title="Seguridad y Salud en el Trabajo" courses={categorizedCourses['Seguridad y Salud en el Trabajo']} navigate={navigate} onMoreInfo={setSelectedCourse} />
-                    <CourseRow title="Explora Más" courses={categorizedCourses['Otros']} navigate={navigate} onMoreInfo={setSelectedCourse} />
+                    {categoryOrder.map(title => (
+                        <CourseRow
+                            key={title}
+                            title={title}
+                            courses={categorizedCourses[title] || []}
+                            navigate={navigate}
+                            onMoreInfo={setSelectedCourse}
+                        />
+                    ))}
                 </div>
             </div>
 
@@ -405,4 +400,3 @@ export default function TrainingDashboard() {
         </div>
     );
 }
-

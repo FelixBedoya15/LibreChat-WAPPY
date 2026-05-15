@@ -298,6 +298,12 @@ export default function BlogPostEditor() {
                                     className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                                     placeholder="Novedades, SST, Actualización"
                                 />
+                                <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                                    💡 Cada etiqueta define una <strong>sección</strong> en el Blog. Escríbelas exactamente como quieres que aparezcan:<br/>
+                                    <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Seguridad y Salud en el Trabajo</span>{' · '}
+                                    <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Novedades</span>{' · '}
+                                    <span className="font-mono text-[10px] bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Seguridad Vial</span>
+                                </p>
                             </div>
                         </div>
                     </div>

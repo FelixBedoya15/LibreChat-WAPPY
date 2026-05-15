@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
-import { BookOpen, Plus, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, Eye } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, CheckCircle, XCircle, ArrowLeft, Eye, Star } from 'lucide-react';
 
 export default function TrainingAdminDashboard() {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [settingFeatured, setSettingFeatured] = useState<string | null>(null);
     const { showToast } = useToastContext();
     const navigate = useNavigate();
 
@@ -43,6 +44,20 @@ export default function TrainingAdminDashboard() {
         } catch (error) {
             console.error('Error deleting course:', error);
             showToast({ message: 'Error al eliminar el curso.', status: 'error' });
+        }
+    };
+
+    const handleSetFeatured = async (id: string, title: string) => {
+        try {
+            setSettingFeatured(id);
+            await axios.put(`/api/training/admin/courses/${id}/featured`);
+            showToast({ message: `"${title}" es ahora la portada del Aula.`, status: 'success' });
+            fetchCourses();
+        } catch (error) {
+            console.error('Error setting featured course:', error);
+            showToast({ message: 'Error al establecer la portada.', status: 'error' });
+        } finally {
+            setSettingFeatured(null);
         }
     };
 
@@ -90,6 +105,14 @@ export default function TrainingAdminDashboard() {
                 </div>
             </div>
 
+            {/* Helper hint */}
+            <div className="px-6 md:px-8 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/40">
+                <p className="text-xs text-amber-700 dark:text-amber-400 max-w-6xl mx-auto">
+                    <Star className="w-3 h-3 inline mr-1 fill-amber-500 text-amber-500" />
+                    El curso marcado como <strong>Portada</strong> aparece en el banner principal del Aula de Estudio. Haz clic en la estrella para cambiarlo.
+                </p>
+            </div>
+
             {/* Main Content List */}
             <div className="flex-1 overflow-y-auto p-6 md:p-8">
                 <div className="max-w-6xl mx-auto">
@@ -101,6 +124,7 @@ export default function TrainingAdminDashboard() {
                                         <th scope="col" className="px-6 py-4">Curso</th>
                                         <th scope="col" className="px-6 py-4">Lecciones</th>
                                         <th scope="col" className="px-6 py-4">Estado</th>
+                                        <th scope="col" className="px-4 py-4 text-center">Portada</th>
                                         <th scope="col" className="px-6 py-4">Última Edición</th>
                                         <th scope="col" className="px-6 py-4 text-right">Acciones</th>
                                     </tr>
@@ -108,7 +132,7 @@ export default function TrainingAdminDashboard() {
                                 <tbody>
                                     {courses.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                                 <div className="flex flex-col items-center">
                                                     <BookOpen className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
                                                     <p>No hay cursos creados. Haz clic en "Crear Curso" para empezar.</p>
@@ -127,7 +151,18 @@ export default function TrainingAdminDashboard() {
                                                                 <BookOpen className="w-5 h-5" />
                                                             </div>
                                                         )}
-                                                        <span className="line-clamp-2 max-w-[300px]">{course.title}</span>
+                                                        <div>
+                                                            <span className="line-clamp-2 max-w-[260px] block">{course.title}</span>
+                                                            {course.tags && course.tags.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                                    {course.tags.map((tag: string, i: number) => (
+                                                                        <span key={i} className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/40">
+                                                                            {tag}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </th>
                                                 <td className="px-6 py-4">
@@ -145,6 +180,20 @@ export default function TrainingAdminDashboard() {
                                                             <XCircle className="w-4 h-4" /> Borrador
                                                         </span>
                                                     )}
+                                                </td>
+                                                <td className="px-4 py-4 text-center">
+                                                    <button
+                                                        onClick={() => handleSetFeatured(course._id, course.title)}
+                                                        disabled={settingFeatured === course._id || course.isFeatured}
+                                                        title={course.isFeatured ? 'Esta es la portada actual' : 'Marcar como portada'}
+                                                        className={`mx-auto flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
+                                                            course.isFeatured
+                                                                ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/30 cursor-default'
+                                                                : 'text-gray-300 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                                                        } disabled:opacity-50`}
+                                                    >
+                                                        <Star className={`w-5 h-5 ${course.isFeatured ? 'fill-amber-500' : ''}`} />
+                                                    </button>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     {new Date(course.updatedAt).toLocaleDateString()}
