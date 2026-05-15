@@ -97,7 +97,7 @@ export default function BlogPostEditor() {
             };
             fetchPost();
         }
-    }, [id, isNew, navigate, showToast]);
+    }, [id, isNew]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSave = async (publish: boolean) => {
         if (!title.trim()) {
