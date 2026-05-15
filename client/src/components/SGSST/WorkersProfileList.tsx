@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToastContext } from '@librechat/client';
 import { useAuthContext } from '~/hooks';
-import { Users, Plus, Trash2, Edit, Activity, ChevronRight, UserCircle } from 'lucide-react';
+import { Users, Plus, Trash2, Edit, Activity, ChevronRight, UserCircle, X } from 'lucide-react';
 import { cn } from '~/utils';
 
 interface Worker {
