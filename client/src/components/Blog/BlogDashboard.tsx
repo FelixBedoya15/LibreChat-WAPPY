@@ -229,7 +229,7 @@ const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate:
                     )}
                 </div>
                 
-                <h1 className="text-2xl sm:text-4xl md:text-7xl font-black text-white mb-3 sm:mb-6 leading-none drop-shadow-2xl">
+                <h1 className="text-xl sm:text-2xl md:text-4xl font-black text-white mb-3 sm:mb-5 leading-tight drop-shadow-2xl line-clamp-3">
                     {post.title}
                 </h1>
                 
