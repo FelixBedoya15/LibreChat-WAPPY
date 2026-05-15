@@ -41,7 +41,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
     const fetchWorkers = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/sgsst/workers/${perfilId}`, {
+            const res = await fetch(`/api/sgsst/workers/${perfilId}?perfilNombre=${encodeURIComponent(perfilNombre)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
