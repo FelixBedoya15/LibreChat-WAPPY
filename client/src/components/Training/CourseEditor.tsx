@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useToastContext } from '@librechat/client';
 import { useUploadFileMutation } from '~/data-provider';
-import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2, ClipboardCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, GripVertical, CheckCircle, XCircle, Edit, Image as ImageIcon, Loader2, ClipboardCheck, Sparkles, Link as LinkIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useRef } from 'react';
 import remarkGfm from 'remark-gfm';
@@ -319,12 +319,37 @@ export default function CourseEditor() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Miniatura del Curso (Imagen)
+                                        Miniatura del Curso
                                     </label>
-                                    <div className="flex gap-2 items-start mt-1">
-                                        <div className="flex-1 min-w-0">
+                                    {/* URL externa (persistente entre deploys) */}
+                                    <div className="flex gap-2 items-center mb-2">
+                                        <div className="relative flex-1">
+                                            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                            <input
+                                                type="url"
+                                                value={thumbnail.startsWith('http') ? thumbnail : ''}
+                                                onChange={(e) => setThumbnail(e.target.value)}
+                                                className="w-full pl-9 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                placeholder="https://i.ytimg.com/vi/VIDEO_ID/maxresdefault.jpg"
+                                            />
+                                        </div>
+                                        {thumbnail && (
+                                            <button onClick={() => setThumbnail('')} className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500" title="Eliminar">
+                                                <XCircle className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
+                                        <span className="font-bold">✅ Recomendado:</span> Usa una URL externa (no se pierde en deploys)
+                                    </p>
+                                    {/* Subida local (solo para respaldo temporal) */}
+                                    <details className="text-xs">
+                                        <summary className="cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none mb-1">
+                                            O subir archivo local (se pierde en cada deploy)
+                                        </summary>
+                                        <div className="flex gap-2 items-center mt-1">
                                             <div
-                                                className="w-full flex items-center gap-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                                className="flex-1 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                                                 onClick={() => fileInputRef.current?.click()}
                                             >
                                                 {uploadingImage ? (
@@ -332,36 +357,19 @@ export default function CourseEditor() {
                                                 ) : (
                                                     <ImageIcon className="w-5 h-5 text-gray-400" />
                                                 )}
-                                                <span className="text-gray-500 dark:text-gray-400 flex-1 truncate text-sm select-none">
-                                                    {thumbnail ? thumbnail.split('/').pop() : 'Haz clic para subir una imagen...'}
+                                                <span className="text-gray-400 flex-1 truncate text-sm select-none">
+                                                    {thumbnail && !thumbnail.startsWith('http') ? thumbnail.split('/').pop() : 'Haz clic para subir...'}
                                                 </span>
-                                                {thumbnail && !uploadingImage && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setThumbnail('');
-                                                        }}
-                                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-full text-red-500"
-                                                        title="Eliminar imagen"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                )}
                                             </div>
-                                            <input
-                                                type="file"
-                                                ref={fileInputRef}
-                                                onChange={handleFileSelect}
-                                                className="hidden"
-                                                accept="image/*"
-                                            />
+                                            <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept="image/*" />
                                         </div>
-                                        {thumbnail && (
-                                            <div className="h-10 w-16 bg-gray-200 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600 overflow-hidden shrink-0">
-                                                <img src={thumbnail.startsWith('http') || thumbnail.startsWith('/') ? thumbnail : `/images/${thumbnail.split('/').pop()}`} alt="Miniatura" className="w-full h-full object-cover" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    </details>
+                                    {/* Preview */}
+                                    {thumbnail && (
+                                        <div className="mt-2 h-16 w-28 rounded border border-gray-300 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                            <img src={thumbnail.startsWith('http') || thumbnail.startsWith('/') ? thumbnail : `/images/${thumbnail.split('/').pop()}`} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiquetas (separadas por coma)</label>
