@@ -199,7 +199,7 @@ const FeaturedPostHero = ({ post, navigate, onMoreInfo }: { post: any, navigate:
     if (!post) return null;
 
     return (
-        <div className="relative w-full min-h-[60vh] sm:min-h-[70vh] md:min-h-[85vh] overflow-hidden flex flex-col justify-end pb-16 sm:pb-24 md:pb-36">
+        <div className="relative w-full h-screen overflow-hidden flex flex-col justify-end pb-16 sm:pb-20 md:pb-28">
             {/* Background Image */}
             <div className="absolute inset-0">
                 {post.thumbnail ? (
