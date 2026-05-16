@@ -40,23 +40,28 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
     const [isSyncing, setIsSyncing] = useState(false);
 
     // Step 1: Fetch already-registered SgsstWorkers from DB for this perfil
+    // Also passes perfilNombre to trigger server-side auto-sync from Perfil Sociodemografico
     const fetchWorkers = useCallback(async () => {
         if (!token || !perfilId) return;
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/sgsst/workers/${perfilId}`, {
+            const url = `/api/sgsst/workers/${perfilId}?perfilNombre=${encodeURIComponent(perfilNombre)}`;
+            const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) {
                 const data = await res.json();
+                console.log('[BioIndividual] Workers fetched:', data.workers);
                 setWorkers(data.workers || []);
+            } else {
+                console.error('[BioIndividual] GET workers failed:', res.status, await res.text());
             }
         } catch (error) {
             console.error('Error fetching workers', error);
         } finally {
             setIsLoading(false);
         }
-    }, [token, perfilId]);
+    }, [token, perfilId, perfilNombre]);
 
     // Step 2: Sync workers from Perfil Sociodemografico that match this cargo
     const syncFromSociodemografico = useCallback(async () => {
