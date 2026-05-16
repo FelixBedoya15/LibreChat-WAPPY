@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus, Trash2, Sparkles, Loader2, Save, ShieldAlert,
   ChevronDown, RefreshCw, AlertTriangle, Dna, TrendingUp,
-  Heart, Brain, Activity, Info,
+  Heart, Brain, Activity, Info, X
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -143,10 +143,13 @@ const createEmptyRow = (): BioRiskRow => ({
 const SelectCell = ({ value, onChange, options, className = '' }: {
   value: string; onChange: (v: string) => void; options: string[]; className?: string;
 }) => (
-  <select value={value} onChange={e => onChange(e.target.value)}
-    className={`w-full text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded px-1 py-0.5 cursor-pointer transition-colors ${className}`}>
-    {options.map(o => <option key={o} value={o}>{o}</option>)}
-  </select>
+  <SingleSelect
+    value={value}
+    onChange={onChange}
+    options={options}
+    compact={true}
+    className={className}
+  />
 );
 
 const TextCell = ({ value, onChange, className = '' }: {
@@ -173,6 +176,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [hasUnsaved, setHasUnsaved] = useState(false);
   const [aiInstruction, setAiInstruction] = useState('');
+  const [showMethodology, setShowMethodology] = useState(false);
 
   // ─── Cargar datos ─────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -223,7 +227,6 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         return calcularRiesgo(updated, percepcionPts);
       }
       if (field === 'dominio_bio') {
-        // Reset dimension when domain changes
         const dims = DIMENSIONES_POR_DOMINIO[value as string] || ['Otro'];
         updated.dimension_bio = dims[0];
       }
@@ -269,6 +272,62 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
     }
   };
 
+  // ─── HTML Export ─────────────────────────────────────────────────────────
+  const exportHtml = useMemo(() => {
+    if (rows.length === 0) return '';
+    let html = `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <h1 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px;">Matriz IPEVAR Bio-Individual</h1>
+        <p><strong>Trabajador:</strong> ${workerId}</p>
+        <table border="1" style="width:100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; text-align: left;">
+          <thead style="background-color: #f1f5f9; color: #475569;">
+            <tr>
+              <th style="padding: 8px;">Dominio</th>
+              <th style="padding: 8px;">Dimensión</th>
+              <th style="padding: 8px;">Origen</th>
+              <th style="padding: 8px;">Peligro</th>
+              <th style="padding: 8px;">Actividad</th>
+              <th style="padding: 8px;">Factor Individual</th>
+              <th style="padding: 8px;">NS</th>
+              <th style="padding: 8px;">NE</th>
+              <th style="padding: 8px;">Bruto</th>
+              <th style="padding: 8px;">Efectivo</th>
+              <th style="padding: 8px;">Clasificación</th>
+              <th style="padding: 8px;">Seguimiento</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    rows.forEach(r => {
+      let color = r.clasificacion_bio === 'Crítico' ? '#dc2626' : r.clasificacion_bio === 'Alto' ? '#ea580c' : r.clasificacion_bio === 'Moderado' ? '#eab308' : '#16a34a';
+      html += `
+        <tr>
+          <td style="padding: 8px;">${r.dominio_bio}</td>
+          <td style="padding: 8px;">${r.dimension_bio}</td>
+          <td style="padding: 8px;">${r.origen_riesgo}</td>
+          <td style="padding: 8px;">${r.peligro_cargo}</td>
+          <td style="padding: 8px;">${r.actividad_expuesta}</td>
+          <td style="padding: 8px;">${r.factor_individual}</td>
+          <td style="padding: 8px;">${r.nivel_susceptibilidad}</td>
+          <td style="padding: 8px;">${r.nivel_exposicion}</td>
+          <td style="padding: 8px;">${r.indice_bio_riesgo_bruto}</td>
+          <td style="padding: 8px; font-weight: bold;">${r.indice_bio_riesgo_efectivo.toFixed(1)}</td>
+          <td style="padding: 8px; font-weight: bold; color: ${color};">${r.clasificacion_bio}</td>
+          <td style="padding: 8px;">${r.seguimiento_medico}</td>
+        </tr>
+      `;
+    });
+    html += `
+          </tbody>
+        </table>
+        <div style="margin-top: 20px; font-size: 11px; color: #64748b;">
+          Generado desde Plataforma WAPPY IA - Metodología Bio-Individual
+        </div>
+      </div>
+    `;
+    return html;
+  }, [rows, workerId]);
+
   // ─── Render ───────────────────────────────────────────────────────────────
   const factorReduccion = Math.min(percepcionPts / 500, 0.40);
 
@@ -294,7 +353,6 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             </h4>
             {hasUnsaved && <span className="text-xs text-amber-500 font-semibold">● Sin guardar</span>}
           </div>
-          {/* Indicadores de modulación */}
           <div className="flex flex-wrap gap-2 mt-2">
             <span className="text-xs px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-full border border-teal-200 dark:border-teal-800">
               FIT {fitScore}%
@@ -309,19 +367,20 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
       </div>
 
-      {/* Toolbar */}
       <SGSSTToolbar 
         onSaveLocal={() => saveRisks(rows)}
         isSavingLocal={isSaving}
         saveDisabled={!hasUnsaved || isSaving}
+        exportContent={exportHtml}
+        exportFileName="IPEVAR_Bio_Individual"
         customSections={[
           <ToolbarButton 
             key="methodology" 
             id="methodology" 
-            onClick={() => showToast({ message: 'Metodología: Susceptibilidad (1-5) x Exposición (1-5) = Bruto. El Índice Efectivo aplica el factor de reducción (Anexo E) según tu cultura preventiva. Dominios expandidos incluyen normatividad GTC-45.', status: 'info', severity: 'info' })} 
+            onClick={() => setShowMethodology(true)} 
             title="Ver metodología detallada" 
             label="Metodología" 
-            icon="info" 
+            icon="book-open" 
             variant="default" 
           />,
           <div key="ai-input" className="flex items-center h-10 bg-surface-primary border border-border-medium rounded-xl pr-1 pl-3 transition-colors shadow-sm focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
@@ -359,7 +418,6 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         ]}
       />
 
-      {/* ── Leyenda metodología ── */}
       <div className="flex flex-wrap gap-2 text-[10px]">
         {(['Crítico', 'Alto', 'Moderado', 'Bajo'] as const).map(c => (
           <span key={c} className={`px-2 py-0.5 rounded-full font-bold ${CLASIFICACION_STYLE[c]}`}>{c}</span>
@@ -367,7 +425,6 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         <span className="text-text-tertiary ml-1">· Fórmula: Susceptibilidad × Exposición × (1 - Reducción percepción)</span>
       </div>
 
-      {/* ── Empty State ── */}
       {rows.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-12 border-2 border-dashed border-border-medium rounded-2xl text-text-secondary">
           <ShieldAlert className="h-12 w-12 opacity-20" />
@@ -376,29 +433,6 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             <p className="text-xs opacity-70 max-w-xs">
               Genera los riesgos con IA usando la metodología Bio-Individual WAPPY, o agrégalos manualmente.
             </p>
-          </div>
-          <div className="flex flex-col md:flex-row gap-3 w-full max-w-lg">
-            <div className="flex-1 flex items-center bg-surface-secondary rounded-xl px-3 py-1 shadow-inner border border-border-medium">
-              <input
-                type="text"
-                value={aiInstruction}
-                onChange={e => setAiInstruction(e.target.value)}
-                placeholder="Dale instrucciones a la IA..."
-                className="w-full bg-transparent border-0 outline-none text-xs text-text-primary placeholder-text-tertiary py-2"
-                disabled={isGenerating}
-              />
-            </div>
-            <button onClick={generateWithAI} disabled={isGenerating}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 whitespace-nowrap">
-              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isGenerating ? 'Generando...' : 'Generar con IA'}
-            </button>
-          </div>
-          <div className="flex gap-3 justify-center mt-2">
-            <button onClick={addRow}
-              className="flex items-center gap-2 px-5 py-2.5 bg-surface-secondary border border-border-medium text-text-primary font-semibold rounded-xl hover:bg-surface-hover transition-colors">
-              <Plus className="h-4 w-4" /> Añadir manualmente
-            </button>
           </div>
         </div>
       )}
@@ -484,58 +518,53 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                       </td>
                     </tr>
 
-                    {/* Fila expandida: plan de acción y restricciones */}
                     {isExpanded && (
                       <tr className="bg-teal-50/50 dark:bg-teal-900/10">
-                        <td colSpan={12} className="px-4 py-3">
+                        <td colSpan={14} className="px-4 py-3">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-4">
                             <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="Eliminación o Sustitución (Dec 1072)">
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
                                 <ShieldAlert className="h-3 w-3" /> Control en la Fuente
                               </p>
                               <textarea
                                 value={row.controles_fuente || ''}
                                 onChange={e => handleChange(row.id, 'controles_fuente', e.target.value)}
                                 rows={2}
-                                placeholder="Eliminación o Sustitución..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
                             <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="Controles de Ingeniería o Administrativos (Dec 1072)">
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
                                 <ShieldAlert className="h-3 w-3" /> Control en el Medio
                               </p>
                               <textarea
                                 value={row.controles_medio || ''}
                                 onChange={e => handleChange(row.id, 'controles_medio', e.target.value)}
                                 rows={2}
-                                placeholder="Ingeniería o Administrativos..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
                             <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="EPP o Clínico (Dec 1072)">
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
                                 <ShieldAlert className="h-3 w-3" /> Control en el Individuo
                               </p>
                               <textarea
                                 value={row.controles_individuo || ''}
                                 onChange={e => handleChange(row.id, 'controles_individuo', e.target.value)}
                                 rows={2}
-                                placeholder="EPP, Clínico..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                             <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="Análisis Costo/Beneficio (Anexo E)">
-                                <TrendingUp className="h-3 w-3" /> Plan de Acción Bio-Individual
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" /> Plan de Acción
                               </p>
                               <textarea
                                 value={row.plan_accion_bio || ''}
                                 onChange={e => handleChange(row.id, 'plan_accion_bio', e.target.value)}
                                 rows={2}
-                                placeholder="Resumen y Análisis Costo-Beneficio (Anexo E)..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
@@ -547,16 +576,9 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                                 value={row.restricciones_laborales || ''}
                                 onChange={e => handleChange(row.id, 'restricciones_laborales', e.target.value)}
                                 rows={2}
-                                placeholder="Restricciones según criterio médico-laboral..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-text-tertiary">
-                            <span>FIT al registrar: <strong>{row.fit_score}%</strong></span>
-                            <span>Pts. percepción: <strong>{row.percepcion_riesgo_pts}</strong></span>
-                            <span>Factor reducción: <strong>{((row.factor_reduccion_percepcion || 0) * 100).toFixed(0)}%</strong></span>
-                            {row.fecha_registro && <span>Fecha: <strong>{new Date(row.fecha_registro).toLocaleDateString('es-CO')}</strong></span>}
                           </div>
                         </td>
                       </tr>
@@ -569,7 +591,36 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
       )}
 
-      {/* ── Guardar flotante ── */}
+      {showMethodology && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-primary rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-5 border-b border-border-medium bg-surface-secondary/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl">
+                  <Activity className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-text-primary">Metodología Bio-Individual</h3>
+                  <p className="text-xs text-text-secondary">Alineada con GTC-45 y el Decreto 1072</p>
+                </div>
+              </div>
+              <button onClick={() => setShowMethodology(false)} className="text-text-tertiary hover:text-text-primary p-2">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-6 text-sm text-text-secondary">
+              <div className="p-4 bg-teal-50 dark:bg-teal-900/10 rounded-xl border border-teal-100">
+                <h4 className="font-bold flex items-center gap-2 mb-2"><Dna className="w-4 h-4" /> La Fórmula WAPPY</h4>
+                <div className="font-mono bg-white p-3 rounded-lg text-center font-bold text-base border">Índice Efectivo = (NS × NE) × (1 - Factor Percepción)</div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-border-medium text-right">
+              <button onClick={() => setShowMethodology(false)} className="px-6 py-2 bg-text-primary text-surface-primary font-bold rounded-xl">Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {rows.length > 0 && hasUnsaved && (
         <div className="flex justify-end">
           <button onClick={() => saveRisks(rows)} disabled={isSaving}

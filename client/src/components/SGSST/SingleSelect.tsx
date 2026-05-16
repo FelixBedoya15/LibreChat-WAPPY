@@ -22,6 +22,8 @@ const SingleSelect = ({
     placeholder?: string;
     disabled?: boolean;
     allowCustomInput?: boolean;
+    compact?: boolean;
+    className?: string;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -95,7 +97,8 @@ const SingleSelect = ({
                             key={idx}
                             type="button"
                             className={cn(
-                                "w-full text-left px-3 py-2 text-[11px] outline-none flex items-center justify-between",
+                                "w-full text-left outline-none flex items-center justify-between",
+                                compact ? "px-2 py-1 text-[10px]" : "px-3 py-2 text-[11px]",
                                 "hover:bg-surface-secondary focus:bg-surface-secondary",
                                 "border-t border-border-light first:border-t-0 uppercase",
                                 value === optVal && "bg-surface-secondary/50 font-bold"
@@ -122,8 +125,11 @@ const SingleSelect = ({
                 ref={triggerRef}
                 onClick={disabled ? undefined : (allowCustomInput ? () => setIsOpen(true) : handleToggle)}
                 className={cn(
-                    "w-full rounded-xl border border-border-medium px-3 py-2 text-sm bg-surface-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all shadow-sm flex items-center justify-between",
-                    disabled ? "opacity-50 cursor-not-allowed bg-surface-secondary text-text-tertiary" : "text-text-primary cursor-pointer hover:border-teal-400"
+                    "w-full bg-surface-primary focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition-all flex items-center justify-between",
+                    compact ? "px-1.5 py-0.5 text-xs rounded border-0 hover:bg-surface-hover/50" : "rounded-xl border border-border-medium px-3 py-2 text-sm shadow-sm",
+                    disabled ? "opacity-50 cursor-not-allowed bg-surface-secondary text-text-tertiary" : "text-text-primary cursor-pointer",
+                    !compact && !disabled && "hover:border-teal-400",
+                    className
                 )}
             >
                 {allowCustomInput ? (
@@ -147,8 +153,12 @@ const SingleSelect = ({
                         readOnly={!!disabled}
                     />
                 ) : (
-                    <span className={!displayValue ? 'text-text-tertiary truncate' : 'truncate'}>
-                        {displayValue || placeholder || 'Seleccionar...'}
+                    <span className={cn(
+                        !displayValue && 'text-text-tertiary',
+                        'truncate text-left',
+                        compact && 'max-w-[100px] md:max-w-none'
+                    )}>
+                        {displayValue || placeholder || (compact ? '' : 'Seleccionar...')}
                     </span>
                 )}
                 <div onClick={(e) => { if (allowCustomInput) { e.stopPropagation(); handleToggle(); } }} className="shrink-0 pl-2 flex items-center justify-center cursor-pointer">
