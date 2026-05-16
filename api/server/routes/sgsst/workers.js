@@ -304,16 +304,20 @@ DATOS DEL TRABAJADOR:
 - Factor de Reducción por Buena Percepción: ${(factorReduccion * 100).toFixed(0)}%
 ${cargoContext}
 
-METODOLOGÍA:
-- Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25)
-- Factor Reducción = min(percepcion_pts / 500, 0.40) — máx 40% de reducción
-- Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción)
-- Clasificación: ≥20=Crítico, ≥12=Alto, ≥6=Moderado, <6=Bajo
+METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
+1. Analiza las Condiciones de Salud y el Cargo.
+2. Identifica el peligro original y asígnalo a uno de los DOMINIOS BIO expandidos (ver abajo).
+3. Determina el Origen ('Condición Insegura', 'Acto Inseguro', o 'Inherente a la Tarea').
+4. Calcula el Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25).
+5. Factor Reducción = min(percepcion_pts / 500, 0.40).
+6. Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción). Clasificación: ≥20=Crítico, ≥12=Alto, ≥6=Moderado, <6=Bajo.
+7. Diseña la Jerarquía de Controles (Dec. 1072): Fuente, Medio e Individuo. Incluye análisis de costo-beneficio (Anexo E de GTC-45) para el control más recomendado.
 
-Genera EXACTAMENTE 5 riesgos bio-individuales en formato JSON array. Cada objeto DEBE tener estos campos:
+Genera EXACTAMENTE 5 riesgos bio-individuales en formato JSON array. Cada objeto DEBE tener estos campos exactos:
 {
   "id": "uuid-único",
-  "dominio_bio": string, // Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial
+  "origen_riesgo": "Condición Insegura"|"Acto Inseguro"|"Inherente a la Tarea",
+  "dominio_bio": string, // Usa SOLO uno de estos: Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial|Inmunológico / Biológico|Físico / Ambiental|Seguridad / Mecánico|Químico / Toxicológico
   "peligro_cargo": string,
   "actividad_expuesta": string,
   "factor_individual": string, // condición del trabajador que amplifica el riesgo
@@ -326,13 +330,16 @@ Genera EXACTAMENTE 5 riesgos bio-individuales en formato JSON array. Cada objeto
   "indice_bio_riesgo_efectivo": number,
   "clasificacion_bio": "Crítico"|"Alto"|"Moderado"|"Bajo",
   "intervencion_prioritaria": boolean,
-  "plan_accion_bio": string,
+  "controles_fuente": string, // Eliminación o sustitución
+  "controles_medio": string, // Controles de ingeniería o administrativos
+  "controles_individuo": string, // EPP, pausas, seguimiento médico
+  "plan_accion_bio": string, // Resumen general
   "restricciones_laborales": string,
   "seguimiento_medico": "Mensual"|"Trimestral"|"Semestral"|"Anual"
 }
 
-PRIORIZA los dominios que correlacionen con las condiciones de salud del trabajador.
-Devuelve SOLO el array JSON, sin texto adicional.`;
+PRIORIZA los dominios y clasificaciones GTC-45 que correlacionen lógicamente con las condiciones de salud del trabajador y las actividades de su cargo.
+Devuelve SOLO el array JSON, sin formato markdown adicional.`;
 
         const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
         const result = await generateWithKeyRotation('gemini-2.5-flash', req.user.id || req.user, prompt);

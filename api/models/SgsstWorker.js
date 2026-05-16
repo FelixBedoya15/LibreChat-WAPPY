@@ -6,8 +6,11 @@ const BioRiskSchema = new mongoose.Schema({
   id: String,
   fecha_registro: { type: Date, default: Date.now },
 
-  // Contexto
-  dominio_bio: String,         // Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial
+  // Origen del Riesgo (Opcional, complementario)
+  origen_riesgo: { type: String, enum: ['Condición Insegura', 'Acto Inseguro', 'Inherente a la Tarea'], default: 'Inherente a la Tarea' },
+
+  // Contexto Bio-Individual (Expandido para cubrir GTC-45)
+  dominio_bio: String,         // Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial|Inmunológico / Biológico|Físico / Ambiental|Seguridad / Mecánico|Químico / Toxicológico
   peligro_cargo: String,
   actividad_expuesta: String,
 
@@ -27,8 +30,11 @@ const BioRiskSchema = new mongoose.Schema({
   clasificacion_bio: { type: String, enum: ['Crítico', 'Alto', 'Moderado', 'Bajo'], default: 'Moderado' },
   intervencion_prioritaria: { type: Boolean, default: false },
 
-  // Plan individualizado
-  plan_accion_bio: String,
+  // Plan individualizado (Jerarquía de Controles 1072)
+  controles_fuente: String,
+  controles_medio: String,
+  controles_individuo: String,
+  plan_accion_bio: String, // Legado o general
   restricciones_laborales: String,
   seguimiento_medico: { type: String, enum: ['Mensual', 'Trimestral', 'Semestral', 'Anual'], default: 'Anual' },
 }, { _id: false });

@@ -43,7 +43,10 @@ export interface BioRiskRow {
 const DOMINIOS_BIO = [
   'Osteomuscular', 'Cardiovascular', 'Neurológico',
   'Psicoemocional', 'Metabólico', 'Respiratorio', 'Sensorial',
+  'Inmunológico / Biológico', 'Físico / Ambiental', 'Seguridad / Mecánico', 'Químico / Toxicológico'
 ];
+
+const ORIGENES_RIESGO = ['Inherente a la Tarea', 'Condición Insegura', 'Acto Inseguro'];
 
 const SEGUIMIENTO_OPTIONS = ['Mensual', 'Trimestral', 'Semestral', 'Anual'];
 
@@ -53,8 +56,12 @@ const DOMINIO_ICON: Record<string, React.ElementType> = {
   Neurológico: Brain,
   Psicoemocional: Brain,
   Metabólico: Activity,
-  Respiratorio: Activity,
+  Respiratorio: Lungs,
   Sensorial: Activity,
+  'Inmunológico / Biológico': ShieldAlert,
+  'Físico / Ambiental': AlertTriangle,
+  'Seguridad / Mecánico': AlertTriangle,
+  'Químico / Toxicológico': AlertTriangle,
 };
 
 const DOMINIO_COLOR: Record<string, string> = {
@@ -65,6 +72,10 @@ const DOMINIO_COLOR: Record<string, string> = {
   Metabólico: 'text-amber-500',
   Respiratorio: 'text-cyan-500',
   Sensorial: 'text-teal-500',
+  'Inmunológico / Biológico': 'text-lime-500',
+  'Físico / Ambiental': 'text-yellow-500',
+  'Seguridad / Mecánico': 'text-gray-500',
+  'Químico / Toxicológico': 'text-fuchsia-500',
 };
 
 const clasificarBioRiesgo = (efectivo: number): BioRiskRow['clasificacion_bio'] => {
@@ -278,6 +289,10 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => showToast({ message: 'Metodología: Susceptibilidad (1-5) x Exposición (1-5) = Bruto. El Índice Efectivo aplica el factor de reducción (Anexo E) según tu cultura preventiva. Dominios expandidos incluyen normatividad GTC-45.', status: 'info', severity: 'info' })}
+            className="flex items-center gap-1.5 px-3 py-2 bg-surface-secondary text-text-secondary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors" title="Ver metodología detallada">
+            <Sparkles className="h-3.5 w-3.5" /> Metodología
+          </button>
           <button onClick={generateWithAI} disabled={isGenerating}
             className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -287,11 +302,15 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border-medium text-text-primary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors">
             <Plus className="h-3.5 w-3.5" /> Añadir riesgo
           </button>
-          {hasUnsaved && (
+          {hasUnsaved ? (
             <button onClick={() => saveRisks(rows)} disabled={isSaving}
               className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-60">
               {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               Guardar
+            </button>
+          ) : (
+            <button disabled className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary text-text-tertiary text-xs font-bold rounded-xl opacity-60">
+              <Save className="h-3.5 w-3.5" /> Matriz Guardada ✓
             </button>
           )}
           <button onClick={fetchData} className="p-2 text-text-secondary hover:text-text-primary transition-colors">
@@ -409,16 +428,54 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                     {isExpanded && (
                       <tr className="bg-teal-50/50 dark:bg-teal-900/10">
                         <td colSpan={12} className="px-4 py-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-4">
+                            <div>
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="Eliminación o Sustitución (Dec 1072)">
+                                <ShieldAlert className="h-3 w-3" /> Control en la Fuente
+                              </p>
+                              <textarea
+                                value={row.controles_fuente || ''}
+                                onChange={e => handleChange(row.id, 'controles_fuente', e.target.value)}
+                                rows={2}
+                                placeholder="Eliminación o Sustitución..."
+                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="Controles de Ingeniería o Administrativos (Dec 1072)">
+                                <ShieldAlert className="h-3 w-3" /> Control en el Medio
+                              </p>
+                              <textarea
+                                value={row.controles_medio || ''}
+                                onChange={e => handleChange(row.id, 'controles_medio', e.target.value)}
+                                rows={2}
+                                placeholder="Ingeniería o Administrativos..."
+                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="EPP o Clínico (Dec 1072)">
+                                <ShieldAlert className="h-3 w-3" /> Control en el Individuo
+                              </p>
+                              <textarea
+                                value={row.controles_individuo || ''}
+                                onChange={e => handleChange(row.id, 'controles_individuo', e.target.value)}
+                                rows={2}
+                                placeholder="EPP, Clínico..."
+                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
+                              />
+                            </div>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                             <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1" title="Análisis Costo/Beneficio (Anexo E)">
                                 <TrendingUp className="h-3 w-3" /> Plan de Acción Bio-Individual
                               </p>
                               <textarea
-                                value={row.plan_accion_bio}
+                                value={row.plan_accion_bio || ''}
                                 onChange={e => handleChange(row.id, 'plan_accion_bio', e.target.value)}
-                                rows={3}
-                                placeholder="Medidas adaptadas específicamente a este trabajador..."
+                                rows={2}
+                                placeholder="Resumen y Análisis Costo-Beneficio (Anexo E)..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
@@ -427,18 +484,19 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                                 <AlertTriangle className="h-3 w-3" /> Restricciones Laborales
                               </p>
                               <textarea
-                                value={row.restricciones_laborales}
+                                value={row.restricciones_laborales || ''}
                                 onChange={e => handleChange(row.id, 'restricciones_laborales', e.target.value)}
-                                rows={3}
+                                rows={2}
                                 placeholder="Restricciones según criterio médico-laboral..."
                                 className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
                               />
                             </div>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-text-tertiary">
+                            <span>Origen GTC-45: <strong><SelectCell value={row.origen_riesgo || 'Inherente a la Tarea'} onChange={v => handleChange(row.id, 'origen_riesgo', v)} options={ORIGENES_RIESGO} className="!w-auto !inline-block !p-0 !text-[10px] !font-bold" /></strong></span>
                             <span>FIT al registrar: <strong>{row.fit_score}%</strong></span>
                             <span>Pts. percepción: <strong>{row.percepcion_riesgo_pts}</strong></span>
-                            <span>Factor reducción aplicado: <strong>{((row.factor_reduccion_percepcion || 0) * 100).toFixed(0)}%</strong></span>
+                            <span>Factor reducción: <strong>{((row.factor_reduccion_percepcion || 0) * 100).toFixed(0)}%</strong></span>
                             {row.fecha_registro && <span>Fecha: <strong>{new Date(row.fecha_registro).toLocaleDateString('es-CO')}</strong></span>}
                           </div>
                         </td>

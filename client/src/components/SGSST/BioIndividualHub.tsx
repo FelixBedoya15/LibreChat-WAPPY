@@ -186,6 +186,7 @@ export default function BioIndividualHub() {
       const perfilesRes = await fetch('/api/sgsst/perfiles-cargo/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!perfilesRes.ok) throw new Error('Error al cargar perfiles de cargo');
       const perfilesData = await perfilesRes.json();
       const perfilesList: Perfil[] = perfilesData.perfilesList || [];
 
@@ -193,6 +194,7 @@ export default function BioIndividualHub() {
       const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!socioRes.ok) throw new Error('Error al cargar perfil sociodemográfico');
       const socioData = await socioRes.json();
       const trabajadores = socioData.perfiles || socioData.trabajadores || [];
 
