@@ -8,7 +8,10 @@ const mongoose = require('mongoose');
 // We need to access PerfilSociodemograficoData. It's currently defined dynamically in its own route file,
 // so we'll access it through mongoose.models to avoid duplicating the schema if it's already registered.
 const getPerfilSociodemograficoDataModel = () => {
-  return mongoose.models.PerfilSociodemograficoData;
+    if (!mongoose.models.PerfilSociodemograficoData) {
+        require('./perfilSociodemografico'); // Force register
+    }
+    return mongoose.models.PerfilSociodemograficoData;
 };
 
 const router = express.Router();
