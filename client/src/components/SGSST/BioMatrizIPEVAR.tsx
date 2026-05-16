@@ -14,6 +14,8 @@ export interface BioRiskRow {
 
   // Contexto
   dominio_bio: string;
+  dimension_bio: string;
+  origen_riesgo: string;
   peligro_cargo: string;
   actividad_expuesta: string;
 
@@ -43,8 +45,22 @@ export interface BioRiskRow {
 const DOMINIOS_BIO = [
   'Osteomuscular', 'Cardiovascular', 'Neurológico',
   'Psicoemocional', 'Metabólico', 'Respiratorio', 'Sensorial',
-  'Inmunológico / Biológico', 'Físico / Ambiental', 'Seguridad / Mecánico', 'Químico / Toxicológico'
+  'Inmunológico', 'Ambiental', 'Mecánico', 'Toxicológico'
 ];
+
+const DIMENSIONES_POR_DOMINIO: Record<string, string[]> = {
+  Osteomuscular: ['Postura (mantenida, forzada)', 'Esfuerzo', 'Movimiento repetitivo', 'Manipulación manual de cargas'],
+  Psicoemocional: ['Gestión organizacional', 'Condiciones de la tarea', 'Características del grupo', 'Interfase persona-tarea', 'Jornada de trabajo'],
+  Inmunológico: ['Virus', 'Bacterias', 'Hongos', 'Ricketsias', 'Parásitos', 'Picaduras/Mordeduras', 'Fluidos/Excrementos'],
+  Ambiental: ['Ruido', 'Iluminación', 'Vibración', 'Temperaturas extremas', 'Presión atmosférica', 'Radiaciones', 'Fenómenos naturales'],
+  Toxicológico: ['Polvos orgánicos/inorgánicos', 'Fibras', 'Líquidos (nieblas y rocíos)', 'Gases y vapores', 'Humos metálicos/no metálicos', 'Material particulado'],
+  Seguridad: ['Mecánico', 'Eléctrico', 'Locativo (caídas)', 'Tecnológico (incendios)', 'Accidentes de tránsito', 'Públicos (robos)', 'Trabajo en alturas', 'Espacios confinados'],
+  Cardiovascular: ['Exigencia cardiovascular', 'Trabajo sedentario', 'Exposición a altitud/presión', 'Otro'],
+  Neurológico: ['Fatiga del sistema nervioso', 'Alteración del ciclo circadiano', 'Sobrecarga sensorial', 'Otro'],
+  Metabólico: ['Alteración nutricional/digestiva', 'Desbalance térmico extremo', 'Sedentarismo metabólico', 'Otro'],
+  Respiratorio: ['Exposición a atmósferas deficientes', 'Exigencia ventilatoria alta', 'Irritación de vías aéreas', 'Otro'],
+  Sensorial: ['Sobreesfuerzo visual', 'Impacto acústico crónico', 'Afectación táctil/olfativa', 'Otro'],
+};
 
 const ORIGENES_RIESGO = ['Inherente a la Tarea', 'Condición Insegura', 'Acto Inseguro'];
 
@@ -58,10 +74,10 @@ const DOMINIO_ICON: Record<string, React.ElementType> = {
   Metabólico: Activity,
   Respiratorio: Activity,
   Sensorial: Activity,
-  'Inmunológico / Biológico': ShieldAlert,
-  'Físico / Ambiental': AlertTriangle,
-  'Seguridad / Mecánico': AlertTriangle,
-  'Químico / Toxicológico': AlertTriangle,
+  Inmunológico: ShieldAlert,
+  Ambiental: AlertTriangle,
+  Mecánico: AlertTriangle,
+  Toxicológico: AlertTriangle,
 };
 
 const DOMINIO_COLOR: Record<string, string> = {
@@ -72,10 +88,10 @@ const DOMINIO_COLOR: Record<string, string> = {
   Metabólico: 'text-amber-500',
   Respiratorio: 'text-cyan-500',
   Sensorial: 'text-teal-500',
-  'Inmunológico / Biológico': 'text-lime-500',
-  'Físico / Ambiental': 'text-yellow-500',
-  'Seguridad / Mecánico': 'text-gray-500',
-  'Químico / Toxicológico': 'text-fuchsia-500',
+  Inmunológico: 'text-lime-500',
+  Ambiental: 'text-yellow-500',
+  Mecánico: 'text-gray-500',
+  Toxicológico: 'text-fuchsia-500',
 };
 
 const clasificarBioRiesgo = (efectivo: number): BioRiskRow['clasificacion_bio'] => {
@@ -109,6 +125,8 @@ const calcularRiesgo = (row: BioRiskRow, percepcionPts: number): BioRiskRow => {
 const createEmptyRow = (): BioRiskRow => ({
   id: `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   dominio_bio: 'Osteomuscular',
+  dimension_bio: 'Postura (mantenida, forzada)',
+  origen_riesgo: 'Inherente a la Tarea',
   peligro_cargo: '',
   actividad_expuesta: '',
   factor_individual: '',
@@ -159,6 +177,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [hasUnsaved, setHasUnsaved] = useState(false);
+  const [aiInstruction, setAiInstruction] = useState('');
 
   // ─── Cargar datos ─────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -208,6 +227,11 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       if (field === 'nivel_susceptibilidad' || field === 'nivel_exposicion') {
         return calcularRiesgo(updated, percepcionPts);
       }
+      if (field === 'dominio_bio') {
+        // Reset dimension when domain changes
+        const dims = DIMENSIONES_POR_DOMINIO[value as string] || ['Otro'];
+        updated.dimension_bio = dims[0];
+      }
       return updated;
     }));
     setHasUnsaved(true);
@@ -232,6 +256,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       const res = await fetch(`/api/sgsst/workers/worker/${workerId}/generate-bio-risks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ instruccionesExtra: aiInstruction }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
@@ -293,11 +318,21 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             className="flex items-center gap-1.5 px-3 py-2 bg-surface-secondary text-text-secondary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors" title="Ver metodología detallada">
             <Sparkles className="h-3.5 w-3.5" /> Metodología
           </button>
-          <button onClick={generateWithAI} disabled={isGenerating}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
-            {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            {isGenerating ? 'Generando...' : 'Generar con IA'}
-          </button>
+          <div className="flex items-center gap-2 bg-surface-secondary rounded-xl pr-1 pl-3 py-1 shadow-sm border border-border-medium">
+            <input
+              type="text"
+              value={aiInstruction}
+              onChange={e => setAiInstruction(e.target.value)}
+              placeholder="Instrucciones para la IA (ej. Enfócate en riesgos biomecánicos, agrega 10 riesgos...)"
+              className="bg-transparent border-0 outline-none text-xs text-text-primary w-64 placeholder-text-tertiary"
+              disabled={isGenerating}
+            />
+            <button onClick={generateWithAI} disabled={isGenerating}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
+              {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {isGenerating ? 'Generando...' : 'Generar'}
+            </button>
+          </div>
           <button onClick={addRow}
             className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border-medium text-text-primary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors">
             <Plus className="h-3.5 w-3.5" /> Añadir riesgo
@@ -337,12 +372,24 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
               Genera los riesgos con IA usando la metodología Bio-Individual WAPPY, o agrégalos manualmente.
             </p>
           </div>
-          <div className="flex gap-3 flex-wrap justify-center">
+          <div className="flex flex-col md:flex-row gap-3 w-full max-w-lg">
+            <div className="flex-1 flex items-center bg-surface-secondary rounded-xl px-3 py-1 shadow-inner border border-border-medium">
+              <input
+                type="text"
+                value={aiInstruction}
+                onChange={e => setAiInstruction(e.target.value)}
+                placeholder="Dale instrucciones a la IA..."
+                className="w-full bg-transparent border-0 outline-none text-xs text-text-primary placeholder-text-tertiary py-2"
+                disabled={isGenerating}
+              />
+            </div>
             <button onClick={generateWithAI} disabled={isGenerating}
-              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 whitespace-nowrap">
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {isGenerating ? 'Generando...' : 'Generar con IA'}
             </button>
+          </div>
+          <div className="flex gap-3 justify-center mt-2">
             <button onClick={addRow}
               className="flex items-center gap-2 px-5 py-2.5 bg-surface-secondary border border-border-medium text-text-primary font-semibold rounded-xl hover:bg-surface-hover transition-colors">
               <Plus className="h-4 w-4" /> Añadir manualmente
@@ -358,6 +405,8 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             <thead className="bg-surface-secondary text-text-secondary uppercase tracking-wide text-[10px] font-bold sticky top-0">
               <tr>
                 <th className="px-3 py-2.5 text-left min-w-[110px]">Dominio Bio</th>
+                <th className="px-3 py-2.5 text-left min-w-[130px]">Dimensión</th>
+                <th className="px-3 py-2.5 text-left min-w-[120px]">Origen</th>
                 <th className="px-3 py-2.5 text-left min-w-[150px]">Peligro del Cargo</th>
                 <th className="px-3 py-2.5 text-left min-w-[130px]">Actividad</th>
                 <th className="px-3 py-2.5 text-left min-w-[150px] border-l border-teal-500/30">Factor Individual</th>
@@ -384,6 +433,12 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                           <Icon className={`h-3 w-3 shrink-0 ${iconColor}`} />
                           <SelectCell value={row.dominio_bio} onChange={v => handleChange(row.id, 'dominio_bio', v)} options={DOMINIOS_BIO} />
                         </div>
+                      </td>
+                      <td className="px-2 py-1">
+                        <SelectCell value={row.dimension_bio || ''} onChange={v => handleChange(row.id, 'dimension_bio', v)} options={DIMENSIONES_POR_DOMINIO[row.dominio_bio] || ['Otro']} />
+                      </td>
+                      <td className="px-2 py-1">
+                        <SelectCell value={row.origen_riesgo || 'Inherente a la Tarea'} onChange={v => handleChange(row.id, 'origen_riesgo', v)} options={ORIGENES_RIESGO} />
                       </td>
                       <td className="px-2 py-1"><TextCell value={row.peligro_cargo} onChange={v => handleChange(row.id, 'peligro_cargo', v)} /></td>
                       <td className="px-2 py-1"><TextCell value={row.actividad_expuesta} onChange={v => handleChange(row.id, 'actividad_expuesta', v)} /></td>
@@ -493,7 +548,6 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                             </div>
                           </div>
                           <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-text-tertiary">
-                            <span>Origen GTC-45: <strong><SelectCell value={row.origen_riesgo || 'Inherente a la Tarea'} onChange={v => handleChange(row.id, 'origen_riesgo', v)} options={ORIGENES_RIESGO} className="!w-auto !inline-block !p-0 !text-[10px] !font-bold" /></strong></span>
                             <span>FIT al registrar: <strong>{row.fit_score}%</strong></span>
                             <span>Pts. percepción: <strong>{row.percepcion_riesgo_pts}</strong></span>
                             <span>Factor reducción: <strong>{((row.factor_reduccion_percepcion || 0) * 100).toFixed(0)}%</strong></span>

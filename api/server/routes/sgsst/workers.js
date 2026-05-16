@@ -259,6 +259,7 @@ router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
 // POST: Generar riesgos Bio-Individuales con IA
 router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) => {
     try {
+        const { instruccionesExtra } = req.body || {};
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
@@ -295,6 +296,8 @@ router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) =
         const prompt = `Eres un experto en Salud y Seguridad en el Trabajo con enfoque BIO-INDIVIDUAL.
 Tu tarea es generar una evaluación de riesgos personalizada bajo la METODOLOGÍA BIO-INDIVIDUAL WAPPY, que evalúa la interacción entre el peligro del cargo y el organismo específico del trabajador.
 
+${instruccionesExtra ? `\nINSTRUCCIONES DEL USUARIO:\n"${instruccionesExtra}"\nAsegúrate de cumplir estrictamente con estas instrucciones al generar o modificar los riesgos.\n` : ''}
+
 DATOS DEL TRABAJADOR:
 - Nombre: ${worker.nombre}
 - Género: ${worker.genero || 'No especificado'}
@@ -306,18 +309,21 @@ ${cargoContext}
 
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
-2. Identifica el peligro original y asígnalo a uno de los DOMINIOS BIO expandidos (ver abajo).
-3. Determina el Origen ('Condición Insegura', 'Acto Inseguro', o 'Inherente a la Tarea').
+2. Identifica el peligro original y asígnalo a uno de los DOMINIOS BIO expandidos (Osteomuscular, Psicoemocional, Inmunológico, Ambiental, Toxicológico, Seguridad, etc.).
+3. Asígnalo a una DIMENSIÓN específica de la GTC-45 según el Dominio (ej. "Ruido", "Virus", "Manipulación manual de cargas", "Iluminación").
+4. Determina el Origen ('Condición Insegura', 'Acto Inseguro', o 'Inherente a la Tarea').
 4. Calcula el Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25).
 5. Factor Reducción = min(percepcion_pts / 500, 0.40).
 6. Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción). Clasificación: ≥20=Crítico, ≥12=Alto, ≥6=Moderado, <6=Bajo.
 7. Diseña la Jerarquía de Controles (Dec. 1072): Fuente, Medio e Individuo. Incluye análisis de costo-beneficio (Anexo E de GTC-45) para el control más recomendado.
 
-Genera EXACTAMENTE 5 riesgos bio-individuales en formato JSON array. Cada objeto DEBE tener estos campos exactos:
+Genera los riesgos bio-individuales relevantes y necesarios en formato JSON array. No te limites a una cantidad, genera los que sean pertinentes basados en el perfil y las instrucciones.
+Cada objeto DEBE tener estos campos exactos:
 {
   "id": "uuid-único",
   "origen_riesgo": "Condición Insegura"|"Acto Inseguro"|"Inherente a la Tarea",
-  "dominio_bio": string, // Usa SOLO uno de estos: Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial|Inmunológico / Biológico|Físico / Ambiental|Seguridad / Mecánico|Químico / Toxicológico
+  "dominio_bio": string, // Usa SOLO uno de estos: Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial|Inmunológico|Ambiental|Seguridad|Toxicológico
+  "dimension_bio": string, // Subcategoría exacta basada en GTC-45 (ej. Ruido, Virus, Locativo (caídas), Esfuerzo, etc.)
   "peligro_cargo": string,
   "actividad_expuesta": string,
   "factor_individual": string, // condición del trabajador que amplifica el riesgo
