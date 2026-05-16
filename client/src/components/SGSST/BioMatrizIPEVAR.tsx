@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, Sparkles, Loader2, Save, ShieldAlert,
   ChevronDown, RefreshCw, AlertTriangle, Dna, TrendingUp,
-  Heart, Brain, Lungs, Activity,
+  Heart, Brain, Activity,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
@@ -56,7 +56,7 @@ const DOMINIO_ICON: Record<string, React.ElementType> = {
   Neurológico: Brain,
   Psicoemocional: Brain,
   Metabólico: Activity,
-  Respiratorio: Lungs,
+  Respiratorio: Activity,
   Sensorial: Activity,
   'Inmunológico / Biológico': ShieldAlert,
   'Físico / Ambiental': AlertTriangle,
