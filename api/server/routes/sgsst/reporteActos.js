@@ -9,6 +9,7 @@ const { logger } = require('~/config');
 
 const router = express.Router();
 const mongoose = require('mongoose');
+const feedWorkerEvent = require('./feedWorkerHelper');
 
 
 // ─── Helper: Obtener Empresa Activa ──────────────────────────────────────────
@@ -343,6 +344,16 @@ Cajón visual usando un \`<div style="border: 2px solid #ea580c; border-radius: 
 
         if (loadedCompanyInfo) {
             fullReport += buildSignatureSection(loadedCompanyInfo);
+        }
+
+        // ── Auto-Feed Bio-Individual (Hoja de Vida) ──
+        if (trabajadoresList && trabajadoresList.length > 0) {
+            const shortDesc = formData.actividadGlobal ? formData.actividadGlobal.substring(0, 80) + '...' : 'Reporte de Acto/Condición';
+            for (const t of trabajadoresList) {
+                if (t.cedula) {
+                    await feedWorkerEvent(req.user.id || req.user, t.cedula, 'actos', shortDesc, 50, result.conversationId || 'generate');
+                }
+            }
         }
 
         res.json({ report: fullReport });

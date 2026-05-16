@@ -235,7 +235,194 @@ router.put('/:id/ipevar', requireJwtAuth, async (req, res) => {
     }
 });
 
-// POST: Generar riesgos IPEVAR con IA para un trabajador bio-individual
+// ─────────────────────────────────────────────────────────────────────────────
+// RUTAS BIO-INDIVIDUALES (Nueva metodología independiente)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// PUT: Guardar riesgos Bio-Individuales (nueva metodología)
+router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
+    try {
+        const { riesgosBioIndividual } = req.body;
+        const worker = await SgsstWorker.findOneAndUpdate(
+            { _id: req.params.id, user: req.user.id },
+            { $set: { riesgosBioIndividual, updatedAt: Date.now() } },
+            { new: true }
+        );
+        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+        res.json({ success: true, worker });
+    } catch (error) {
+        logger.error('[SGSST Workers] Bio-IPEVAR update error:', error);
+        res.status(500).json({ error: 'Error al guardar riesgos bio-individuales' });
+    }
+});
+
+// POST: Generar riesgos Bio-Individuales con IA
+router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) => {
+    try {
+        const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
+        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+        // Fetch cargo profile for context
+        let cargoContext = '';
+        let cargoNombre = '';
+        try {
+            const getPerfilCargoDataModel = () => {
+                if (!mongoose.models.PerfilCargoData) require('./perfilesCargo');
+                return mongoose.models.PerfilCargoData;
+            };
+            const PerfilCargoData = getPerfilCargoDataModel();
+            const cargoDoc = await PerfilCargoData.findOne({ user: req.user.id });
+            if (cargoDoc && cargoDoc.perfilesList) {
+                const perfil = cargoDoc.perfilesList.find(p => p.id === worker.perfilId);
+                if (perfil) {
+                    cargoNombre = perfil.nombreCargo || 'No especificado';
+                    cargoContext = `
+- Cargo: ${perfil.nombreCargo || 'No especificado'}
+- Área: ${perfil.area || ''}
+- Exigencia Física: ${perfil.exigenciaFisica || ''}
+- Exigencia Mental: ${perfil.exigenciaMental || ''}
+- Opera Maquinaria: ${perfil.operaMaquinaria || ''}
+- EPP Requerido: ${(perfil.eppSeleccionados || []).join(', ')}
+- Contexto adicional del cargo: ${perfil.contextoAdicional || ''}`;
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        const fitScore = worker.fitScore || 0;
+        const percepcionPts = worker.percepcionRiesgoScore || 0;
+        const factorReduccion = Math.min(percepcionPts / 500, 0.40);
+
+        const prompt = `Eres un experto en Salud y Seguridad en el Trabajo con enfoque BIO-INDIVIDUAL.
+Tu tarea es generar una evaluación de riesgos personalizada bajo la METODOLOGÍA BIO-INDIVIDUAL WAPPY, que evalúa la interacción entre el peligro del cargo y el organismo específico del trabajador.
+
+DATOS DEL TRABAJADOR:
+- Nombre: ${worker.nombre}
+- Género: ${worker.genero || 'No especificado'}
+- Condiciones de Salud / Antecedentes: ${worker.condicionesSalud || 'Ninguno registrado'}
+- FIT - Índice Biocéntrico Integral: ${fitScore}%
+- Puntos Percepción del Riesgo: ${percepcionPts} pts
+- Factor de Reducción por Buena Percepción: ${(factorReduccion * 100).toFixed(0)}%
+${cargoContext}
+
+METODOLOGÍA:
+- Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25)
+- Factor Reducción = min(percepcion_pts / 500, 0.40) — máx 40% de reducción
+- Índice Bio-Riesgo Efectivo = Bruto × (1 - Factor Reducción)
+- Clasificación: ≥20=Crítico, ≥12=Alto, ≥6=Moderado, <6=Bajo
+
+Genera EXACTAMENTE 5 riesgos bio-individuales en formato JSON array. Cada objeto DEBE tener estos campos:
+{
+  "id": "uuid-único",
+  "dominio_bio": string, // Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial
+  "peligro_cargo": string,
+  "actividad_expuesta": string,
+  "factor_individual": string, // condición del trabajador que amplifica el riesgo
+  "fit_score": ${fitScore},
+  "percepcion_riesgo_pts": ${percepcionPts},
+  "nivel_susceptibilidad": number (1-5),
+  "nivel_exposicion": number (1-5),
+  "indice_bio_riesgo_bruto": number,
+  "factor_reduccion_percepcion": ${factorReduccion.toFixed(3)},
+  "indice_bio_riesgo_efectivo": number,
+  "clasificacion_bio": "Crítico"|"Alto"|"Moderado"|"Bajo",
+  "intervencion_prioritaria": boolean,
+  "plan_accion_bio": string,
+  "restricciones_laborales": string,
+  "seguimiento_medico": "Mensual"|"Trimestral"|"Semestral"|"Anual"
+}
+
+PRIORIZA los dominios que correlacionen con las condiciones de salud del trabajador.
+Devuelve SOLO el array JSON, sin texto adicional.`;
+
+        const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
+        const rawJson = await generateWithKeyRotation(prompt, null, 'application/json', null, apiKeys);
+
+        let riesgosBioIndividual = [];
+        const match = rawJson.match(/\[\s*\{[\s\S]*?\}\s*\]/m);
+        if (match) riesgosBioIndividual = JSON.parse(match[0]);
+        else riesgosBioIndividual = JSON.parse(rawJson);
+
+        riesgosBioIndividual = riesgosBioIndividual.map((r, i) => ({
+            ...r,
+            id: r.id || `bio-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+            fecha_registro: new Date(),
+        }));
+
+        worker.riesgosBioIndividual = riesgosBioIndividual;
+        worker.updatedAt = Date.now();
+        await worker.save();
+
+        res.json({ success: true, riesgosBioIndividual, worker });
+    } catch (error) {
+        logger.error('[SGSST Workers] Generate bio-risks error:', error);
+        res.status(500).json({ error: 'Error al generar riesgos bio-individuales con IA' });
+    }
+});
+
+// POST: Agregar puntos de percepción del riesgo (llamado desde otros módulos)
+router.post('/worker/:id/add-percepcion-pts', requireJwtAuth, async (req, res) => {
+    try {
+        const { puntos, accion, modulo, referencia } = req.body;
+        const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
+        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+        const nuevoPts = Math.max(0, (worker.percepcionRiesgoScore || 0) + (Number(puntos) || 0));
+        worker.percepcionRiesgoScore = nuevoPts;
+        worker.percepcionRiesgoHistorial.push({ fecha: new Date(), accion, puntos: Number(puntos), modulo, referencia });
+        worker.updatedAt = Date.now();
+        await worker.save();
+
+        res.json({ success: true, percepcionRiesgoScore: nuevoPts, worker });
+    } catch (error) {
+        logger.error('[SGSST Workers] Add percepcion pts error:', error);
+        res.status(500).json({ error: 'Error al actualizar puntos de percepción' });
+    }
+});
+
+// POST: Feed desde módulo externo — agrega evento a hoja de vida del trabajador
+// body: { documento, tipo_modulo, descripcion, puntos, referencia }
+router.post('/feed-hoja-vida', requireJwtAuth, async (req, res) => {
+    try {
+        const { documento, tipo_modulo, descripcion, puntos, referencia } = req.body;
+        if (!documento || !tipo_modulo) return res.status(400).json({ error: 'documento y tipo_modulo requeridos' });
+
+        const worker = await SgsstWorker.findOne({ user: req.user.id, documento: String(documento).trim() });
+        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado con ese documento' });
+
+        const pts = Number(puntos) || 0;
+
+        const update = { $set: { updatedAt: Date.now() } };
+
+        if (tipo_modulo === 'atel') {
+            update.$push = { atel: { fecha: new Date(), tipo: descripcion, descripcion, referenciaId: referencia } };
+        } else if (tipo_modulo === 'actos') {
+            update.$push = { actos_inseguros: { fecha: new Date(), tipo: descripcion, descripcion } };
+        } else if (tipo_modulo === 'participacion_ipevar') {
+            update.$push = { participaciones_ipevar: { fecha: new Date(), descripcion } };
+        } else if (tipo_modulo === 'capacitacion') {
+            update.$push = { capacitaciones: { nombre: descripcion, fecha: new Date() } };
+        } else if (tipo_modulo === 'ats') {
+            update.$push = { ats: { fecha: new Date(), descripcion } };
+        }
+
+        if (pts !== 0) {
+            update.$inc = { percepcionRiesgoScore: pts };
+            if (!update.$push) update.$push = {};
+            update.$push.percepcionRiesgoHistorial = {
+                fecha: new Date(), accion: descripcion, puntos: pts, modulo: tipo_modulo, referencia,
+            };
+        }
+
+        await SgsstWorker.updateOne({ _id: worker._id }, update);
+        res.json({ success: true, percepcionRiesgoScore: (worker.percepcionRiesgoScore || 0) + pts });
+    } catch (error) {
+        logger.error('[SGSST Workers] Feed hoja vida error:', error);
+        res.status(500).json({ error: 'Error al actualizar hoja de vida del trabajador' });
+    }
+});
+
+// POST: Generar riesgos IPEVAR con IA para un trabajador bio-individual (legado GTC 45)
+
 router.post('/worker/:id/generate-risks', requireJwtAuth, async (req, res) => {
     try {
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });

@@ -1,95 +1,138 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, Sparkles, Loader2, Save, ShieldAlert,
-  ChevronDown, RefreshCw, AlertTriangle,
+  ChevronDown, RefreshCw, AlertTriangle, Dna, TrendingUp,
+  Heart, Brain, Lungs, Activity,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 
-// ─── Tipos propios (independientes de MatrizIPEVARTable) ────────────────────
+// ─── Tipos propios — Metodología Bio-Individual WAPPY ────────────────────────
 export interface BioRiskRow {
   id: string;
-  proceso: string;
-  zona: string;
-  actividad: string;
-  tareas: string;
-  rutinaria: 'Sí' | 'No';
-  peligro_descripcion: string;
-  peligro_clasificacion: string;
-  efectos_posibles: string;
-  controles_fuente: string;
-  controles_medio: string;
-  controles_individuo: string;
-  nd: number;
-  ne: number;
-  np: number;
-  nc: number;
-  nr: number;
-  interpretacion_nr: 'I' | 'II' | 'III' | 'IV' | '';
-  aceptabilidad: string;
-  medida_eliminacion: string;
-  medida_sustitucion: string;
-  medida_ingenieria: string;
-  medida_administrativa: string;
-  medida_eppu: string;
-  factores_reduccion: string;
+  fecha_registro?: string;
+
+  // Contexto
+  dominio_bio: string;
+  peligro_cargo: string;
+  actividad_expuesta: string;
+
+  // Moduladores individuales
+  factor_individual: string;
+  fit_score: number;
+  percepcion_riesgo_pts: number;
+
+  // Cálculo
+  nivel_susceptibilidad: number;  // 1-5
+  nivel_exposicion: number;       // 1-5
+  indice_bio_riesgo_bruto: number;      // susceptibilidad × exposicion
+  factor_reduccion_percepcion: number;  // pts/500, máx 0.40
+  indice_bio_riesgo_efectivo: number;   // bruto × (1 - factor_reduccion)
+
+  // Clasificación
+  clasificacion_bio: 'Crítico' | 'Alto' | 'Moderado' | 'Bajo' | '';
+  intervencion_prioritaria: boolean;
+
+  // Plan individualizado
+  plan_accion_bio: string;
+  restricciones_laborales: string;
+  seguimiento_medico: 'Mensual' | 'Trimestral' | 'Semestral' | 'Anual' | '';
 }
 
-// ─── Constantes propias ──────────────────────────────────────────────────────
-const CLASIFICACIONES = [
-  'Biológico', 'Biomecánico', 'Condiciones de seguridad', 'Eléctrico',
-  'Físico', 'Locativo', 'Mecánico', 'Natural', 'Psicosocial',
-  'Químico', 'Tecnológico', 'Trabajo en alturas',
+// ─── Constantes propias ───────────────────────────────────────────────────────
+const DOMINIOS_BIO = [
+  'Osteomuscular', 'Cardiovascular', 'Neurológico',
+  'Psicoemocional', 'Metabólico', 'Respiratorio', 'Sensorial',
 ];
 
-const NIVEL_NR = (nr: number): { nivel: string; color: string; aceptabilidad: string } => {
-  if (nr >= 500) return { nivel: 'I', color: 'bg-red-600 text-white', aceptabilidad: 'No Aceptable' };
-  if (nr >= 150) return { nivel: 'II', color: 'bg-orange-500 text-white', aceptabilidad: 'No Aceptable o Aceptable con Control Específico' };
-  if (nr >= 40)  return { nivel: 'III', color: 'bg-yellow-400 text-gray-900', aceptabilidad: 'Mejorable' };
-  return { nivel: 'IV', color: 'bg-green-500 text-white', aceptabilidad: 'Aceptable' };
+const SEGUIMIENTO_OPTIONS = ['Mensual', 'Trimestral', 'Semestral', 'Anual'];
+
+const DOMINIO_ICON: Record<string, React.ElementType> = {
+  Osteomuscular: Activity,
+  Cardiovascular: Heart,
+  Neurológico: Brain,
+  Psicoemocional: Brain,
+  Metabólico: Activity,
+  Respiratorio: Activity,
+  Sensorial: Activity,
+};
+
+const DOMINIO_COLOR: Record<string, string> = {
+  Osteomuscular: 'text-orange-500',
+  Cardiovascular: 'text-red-500',
+  Neurológico: 'text-purple-500',
+  Psicoemocional: 'text-blue-500',
+  Metabólico: 'text-amber-500',
+  Respiratorio: 'text-cyan-500',
+  Sensorial: 'text-teal-500',
+};
+
+const clasificarBioRiesgo = (efectivo: number): BioRiskRow['clasificacion_bio'] => {
+  if (efectivo >= 20) return 'Crítico';
+  if (efectivo >= 12) return 'Alto';
+  if (efectivo >= 6) return 'Moderado';
+  return 'Bajo';
+};
+
+const CLASIFICACION_STYLE: Record<string, string> = {
+  Crítico: 'bg-red-600 text-white',
+  Alto: 'bg-orange-500 text-white',
+  Moderado: 'bg-yellow-400 text-gray-900',
+  Bajo: 'bg-green-500 text-white',
+};
+
+const calcularRiesgo = (row: BioRiskRow, percepcionPts: number): BioRiskRow => {
+  const bruto = (row.nivel_susceptibilidad || 1) * (row.nivel_exposicion || 1);
+  const factor = Math.min(percepcionPts / 500, 0.40);
+  const efectivo = parseFloat((bruto * (1 - factor)).toFixed(2));
+  return {
+    ...row,
+    indice_bio_riesgo_bruto: bruto,
+    factor_reduccion_percepcion: parseFloat(factor.toFixed(3)),
+    indice_bio_riesgo_efectivo: efectivo,
+    clasificacion_bio: clasificarBioRiesgo(efectivo),
+    intervencion_prioritaria: efectivo >= 12,
+  };
 };
 
 const createEmptyRow = (): BioRiskRow => ({
-  id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-  proceso: '', zona: '', actividad: '', tareas: '', rutinaria: 'Sí',
-  peligro_descripcion: '', peligro_clasificacion: '', efectos_posibles: '',
-  controles_fuente: 'Ninguno', controles_medio: 'Ninguno', controles_individuo: 'Ninguno',
-  nd: 0, ne: 0, np: 0, nc: 0, nr: 0, interpretacion_nr: '', aceptabilidad: '',
-  medida_eliminacion: 'Ninguno', medida_sustitucion: 'Ninguno', medida_ingenieria: 'Ninguno',
-  medida_administrativa: 'Ninguno', medida_eppu: 'Ninguno', factores_reduccion: 'No aplica',
+  id: `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  dominio_bio: 'Osteomuscular',
+  peligro_cargo: '',
+  actividad_expuesta: '',
+  factor_individual: '',
+  fit_score: 0,
+  percepcion_riesgo_pts: 0,
+  nivel_susceptibilidad: 1,
+  nivel_exposicion: 1,
+  indice_bio_riesgo_bruto: 1,
+  factor_reduccion_percepcion: 0,
+  indice_bio_riesgo_efectivo: 1,
+  clasificacion_bio: 'Bajo',
+  intervencion_prioritaria: false,
+  plan_accion_bio: '',
+  restricciones_laborales: '',
+  seguimiento_medico: 'Anual',
 });
 
-// ─── Sub-componente: celda editable ─────────────────────────────────────────
-const EditableCell = ({ value, onChange, type = 'text', options, className = '' }: {
-  value: string | number;
-  onChange: (v: string) => void;
-  type?: 'text' | 'number' | 'select';
-  options?: string[];
-  className?: string;
-}) => {
-  const base = 'w-full text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded px-1 py-0.5 transition-colors resize-none min-h-[28px]';
-  if (type === 'select' && options) {
-    return (
-      <select value={String(value)} onChange={e => onChange(e.target.value)}
-        className={`${base} cursor-pointer ${className}`}>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    );
-  }
-  if (type === 'number') {
-    return (
-      <input type="number" value={value} min={0}
-        onChange={e => onChange(e.target.value)}
-        className={`${base} text-center w-12 ${className}`} />
-    );
-  }
-  return (
-    <textarea value={String(value)} onChange={e => onChange(e.target.value)}
-      rows={2} className={`${base} ${className}`} />
-  );
-};
+// ─── Sub-componente: celda select ─────────────────────────────────────────────
+const SelectCell = ({ value, onChange, options, className = '' }: {
+  value: string; onChange: (v: string) => void; options: string[]; className?: string;
+}) => (
+  <select value={value} onChange={e => onChange(e.target.value)}
+    className={`w-full text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded px-1 py-0.5 cursor-pointer transition-colors ${className}`}>
+    {options.map(o => <option key={o} value={o}>{o}</option>)}
+  </select>
+);
 
-// ─── Componente principal ────────────────────────────────────────────────────
+const TextCell = ({ value, onChange, className = '' }: {
+  value: string; onChange: (v: string) => void; className?: string;
+}) => (
+  <textarea value={value} onChange={e => onChange(e.target.value)} rows={2}
+    className={`w-full text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded px-1 py-0.5 transition-colors resize-none min-h-[28px] ${className}`} />
+);
+
+// ─── Componente Principal ──────────────────────────────────────────────────────
 interface BioMatrizIPEVARProps {
   workerId: string;
 }
@@ -98,14 +141,16 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   const { token } = useAuthContext();
   const { showToast } = useToastContext();
   const [rows, setRows] = useState<BioRiskRow[]>([]);
+  const [percepcionPts, setPercepcionPts] = useState(0);
+  const [fitScore, setFitScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [hasUnsaved, setHasUnsaved] = useState(false);
 
-  // ─── Cargar riesgos ────────────────────────────────────────────────────────
-  const fetchRisks = useCallback(async () => {
+  // ─── Cargar datos ─────────────────────────────────────────────────────────
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await fetch(`/api/sgsst/workers/worker/${workerId}`, {
@@ -113,27 +158,30 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       });
       if (!res.ok) throw new Error('Error al cargar');
       const data = await res.json();
-      setRows(data.worker?.riesgosIpevar || []);
+      const worker = data.worker;
+      setRows(worker?.riesgosBioIndividual || []);
+      setPercepcionPts(worker?.percepcionRiesgoScore || 0);
+      setFitScore(worker?.fitScore || 0);
     } catch (e) {
-      showToast({ message: 'Error cargando la matriz', status: 'error' });
+      showToast({ message: 'Error cargando la matriz bio-individual', status: 'error' });
     } finally {
       setIsLoading(false);
     }
   }, [workerId, token]);
 
-  useEffect(() => { fetchRisks(); }, [fetchRisks]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ─── Guardar riesgos ───────────────────────────────────────────────────────
+  // ─── Guardar ──────────────────────────────────────────────────────────────
   const saveRisks = async (updatedRows: BioRiskRow[]) => {
     try {
       setIsSaving(true);
-      await fetch(`/api/sgsst/workers/${workerId}/ipevar`, {
+      await fetch(`/api/sgsst/workers/${workerId}/bio-ipevar`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ riesgosIpevar: updatedRows }),
+        body: JSON.stringify({ riesgosBioIndividual: updatedRows }),
       });
       setHasUnsaved(false);
-      showToast({ message: 'Matriz guardada ✅', status: 'success', severity: 'success' });
+      showToast({ message: 'Matriz bio-individual guardada ✅', status: 'success', severity: 'success' });
     } catch {
       showToast({ message: 'Error al guardar', status: 'error' });
     } finally {
@@ -141,31 +189,25 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
     }
   };
 
-  // ─── Calcular NP / NR ─────────────────────────────────────────────────────
-  const recalculate = (row: BioRiskRow): BioRiskRow => {
-    const np = (row.nd || 0) * (row.ne || 0);
-    const nr = np * (row.nc || 0);
-    const { nivel, aceptabilidad } = NIVEL_NR(nr);
-    return { ...row, np, nr, interpretacion_nr: nivel as BioRiskRow['interpretacion_nr'], aceptabilidad };
-  };
-
-  // ─── Editar celda ─────────────────────────────────────────────────────────
-  const handleChange = (id: string, field: keyof BioRiskRow, value: string) => {
+  // ─── Editar ───────────────────────────────────────────────────────────────
+  const handleChange = (id: string, field: keyof BioRiskRow, value: string | number | boolean) => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
-      const updated = { ...r, [field]: ['nd', 'ne', 'nc'].includes(field) ? Number(value) : value };
-      return recalculate(updated);
+      const updated = { ...r, [field]: value };
+      if (field === 'nivel_susceptibilidad' || field === 'nivel_exposicion') {
+        return calcularRiesgo(updated, percepcionPts);
+      }
+      return updated;
     }));
     setHasUnsaved(true);
   };
 
-  // ─── Agregar fila ─────────────────────────────────────────────────────────
   const addRow = () => {
-    setRows(prev => [...prev, createEmptyRow()]);
+    const row = calcularRiesgo(createEmptyRow(), percepcionPts);
+    setRows(prev => [...prev, row]);
     setHasUnsaved(true);
   };
 
-  // ─── Eliminar fila ────────────────────────────────────────────────────────
   const removeRow = (id: string) => {
     setRows(prev => prev.filter(r => r.id !== id));
     setHasUnsaved(true);
@@ -176,83 +218,94 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      const res = await fetch(`/api/sgsst/workers/worker/${workerId}/generate-risks`, {
+      const res = await fetch(`/api/sgsst/workers/worker/${workerId}/generate-bio-risks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
-      const generated = (data.riesgosIpevar || []).map((r: any) => ({
+      const generated: BioRiskRow[] = (data.riesgosBioIndividual || []).map((r: any) => ({
         ...createEmptyRow(), ...r,
-        id: r.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        id: r.id || `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       }));
       setRows(generated);
-      setHasUnsaved(false); // ya guardado en el backend por el endpoint
-      showToast({ message: `✅ ${generated.length} riesgos generados con IA`, status: 'success', severity: 'success' });
+      setHasUnsaved(false);
+      showToast({ message: `✅ ${generated.length} riesgos bio-individuales generados`, status: 'success', severity: 'success' });
     } catch (e: any) {
-      showToast({ message: e.message || 'Error al generar con IA', status: 'error' });
+      showToast({ message: e.message || 'Error al generar', status: 'error' });
     } finally {
       setIsGenerating(false);
     }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
+  const factorReduccion = Math.min(percepcionPts / 500, 0.40);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-40 gap-3 text-text-secondary">
         <Loader2 className="h-6 w-6 animate-spin text-teal-500" />
-        <span className="text-sm">Cargando matriz bio-individual...</span>
+        <span className="text-sm">Cargando Metodología Bio-Individual...</span>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Header / Actions ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-teal-600" />
-          <h4 className="font-bold text-text-primary text-sm">
-            Matriz IPEVAR Bio-Individual
-            {rows.length > 0 && (
-              <span className="ml-2 text-xs font-normal text-text-secondary">({rows.length} riesgo{rows.length !== 1 ? 's' : ''})</span>
-            )}
-          </h4>
-          {hasUnsaved && <span className="text-xs text-amber-500 font-semibold">● Sin guardar</span>}
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Dna className="h-5 w-5 text-teal-500" />
+            <h4 className="font-bold text-text-primary text-sm">
+              Índice Bio-Riesgo Individual
+              {rows.length > 0 && <span className="ml-2 text-xs font-normal text-text-secondary">({rows.length} riesgo{rows.length !== 1 ? 's' : ''})</span>}
+            </h4>
+            {hasUnsaved && <span className="text-xs text-amber-500 font-semibold">● Sin guardar</span>}
+          </div>
+          {/* Indicadores de modulación */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            <span className="text-xs px-2 py-0.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 rounded-full border border-teal-200 dark:border-teal-800">
+              FIT {fitScore}%
+            </span>
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${factorReduccion > 0.1 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-surface-secondary text-text-secondary border-border-light'}`}>
+              Reducción percepción: {(factorReduccion * 100).toFixed(0)}%
+            </span>
+            <span className="text-xs px-2 py-0.5 bg-surface-secondary text-text-secondary rounded-full border border-border-light">
+              {percepcionPts} pts percepción
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={generateWithAI}
-            disabled={isGenerating}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60"
-          >
+          <button onClick={generateWithAI} disabled={isGenerating}
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
             {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             {isGenerating ? 'Generando...' : 'Generar con IA'}
           </button>
-
-          <button
-            onClick={addRow}
-            className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border-medium text-text-primary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors"
-          >
+          <button onClick={addRow}
+            className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border-medium text-text-primary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors">
             <Plus className="h-3.5 w-3.5" /> Añadir riesgo
           </button>
-
           {hasUnsaved && (
-            <button
-              onClick={() => saveRisks(rows)}
-              disabled={isSaving}
-              className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-60"
-            >
+            <button onClick={() => saveRisks(rows)} disabled={isSaving}
+              className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-60">
               {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               Guardar
             </button>
           )}
-
-          <button onClick={fetchRisks} className="p-2 text-text-secondary hover:text-text-primary transition-colors">
+          <button onClick={fetchData} className="p-2 text-text-secondary hover:text-text-primary transition-colors">
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* ── Leyenda metodología ── */}
+      <div className="flex flex-wrap gap-2 text-[10px]">
+        {(['Crítico', 'Alto', 'Moderado', 'Bajo'] as const).map(c => (
+          <span key={c} className={`px-2 py-0.5 rounded-full font-bold ${CLASIFICACION_STYLE[c]}`}>{c}</span>
+        ))}
+        <span className="text-text-tertiary ml-1">· Fórmula: Susceptibilidad × Exposición × (1 - Reducción percepción)</span>
       </div>
 
       {/* ── Empty State ── */}
@@ -260,156 +313,133 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         <div className="flex flex-col items-center justify-center gap-4 py-12 border-2 border-dashed border-border-medium rounded-2xl text-text-secondary">
           <ShieldAlert className="h-12 w-12 opacity-20" />
           <div className="text-center">
-            <p className="text-sm font-medium mb-1">Sin riesgos registrados</p>
+            <p className="text-sm font-medium mb-1">Sin evaluación bio-individual</p>
             <p className="text-xs opacity-70 max-w-xs">
-              Genera los riesgos automáticamente con IA basándote en el perfil del trabajador, o agrégalos manualmente.
+              Genera los riesgos con IA usando la metodología Bio-Individual WAPPY, o agrégalos manualmente.
             </p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={generateWithAI}
-              disabled={isGenerating}
-              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60"
-            >
+          <div className="flex gap-3 flex-wrap justify-center">
+            <button onClick={generateWithAI} disabled={isGenerating}
+              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold rounded-xl hover:from-teal-600 hover:to-cyan-700 shadow-lg transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {isGenerating ? 'Generando...' : 'Generar con IA'}
             </button>
-            <button
-              onClick={addRow}
-              className="flex items-center gap-2 px-5 py-2.5 bg-surface-secondary border border-border-medium text-text-primary font-semibold rounded-xl hover:bg-surface-hover transition-colors"
-            >
+            <button onClick={addRow}
+              className="flex items-center gap-2 px-5 py-2.5 bg-surface-secondary border border-border-medium text-text-primary font-semibold rounded-xl hover:bg-surface-hover transition-colors">
               <Plus className="h-4 w-4" /> Añadir manualmente
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Tabla de Riesgos ── */}
+      {/* ── Tabla ── */}
       {rows.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-border-medium shadow-sm">
           <table className="w-full text-xs border-collapse min-w-max">
             <thead className="bg-surface-secondary text-text-secondary uppercase tracking-wide text-[10px] font-bold sticky top-0">
               <tr>
-                <th className="px-3 py-2.5 text-left min-w-[120px]">Proceso</th>
-                <th className="px-3 py-2.5 text-left min-w-[90px]">Zona</th>
-                <th className="px-3 py-2.5 text-left min-w-[120px]">Actividad</th>
-                <th className="px-3 py-2.5 text-left min-w-[90px]">Rutinaria</th>
-                <th className="px-3 py-2.5 text-left border-l border-teal-500/30 min-w-[160px]">Peligro</th>
-                <th className="px-3 py-2.5 text-left min-w-[110px]">Clasificación</th>
-                <th className="px-3 py-2.5 text-left min-w-[140px]">Efectos</th>
-                <th className="px-3 py-2.5 text-center border-l border-teal-500/30 min-w-[40px]">ND</th>
-                <th className="px-3 py-2.5 text-center min-w-[40px]">NE</th>
-                <th className="px-3 py-2.5 text-center min-w-[40px]">NP</th>
-                <th className="px-3 py-2.5 text-center min-w-[40px]">NC</th>
-                <th className="px-3 py-2.5 text-center min-w-[50px]">NR</th>
-                <th className="px-3 py-2.5 text-center min-w-[40px]">Nivel</th>
-                <th className="px-3 py-2.5 text-left min-w-[140px] border-l border-teal-500/30">Aceptabilidad</th>
-                <th className="px-3 py-2.5 text-center min-w-[70px]">Detalles</th>
-                <th className="px-3 py-2.5 text-center min-w-[50px]">Acc.</th>
+                <th className="px-3 py-2.5 text-left min-w-[110px]">Dominio Bio</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">Peligro del Cargo</th>
+                <th className="px-3 py-2.5 text-left min-w-[130px]">Actividad</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px] border-l border-teal-500/30">Factor Individual</th>
+                <th className="px-3 py-2.5 text-center min-w-[45px] border-l border-teal-500/30" title="Nivel Susceptibilidad 1-5">NS</th>
+                <th className="px-3 py-2.5 text-center min-w-[45px]" title="Nivel Exposición 1-5">NE</th>
+                <th className="px-3 py-2.5 text-center min-w-[55px]" title="Índice Bruto">Bruto</th>
+                <th className="px-3 py-2.5 text-center min-w-[55px]" title="Índice Efectivo (con reducción)">Efectivo</th>
+                <th className="px-3 py-2.5 text-center min-w-[80px]">Clasificación</th>
+                <th className="px-3 py-2.5 text-center min-w-[70px]">Seguimiento</th>
+                <th className="px-3 py-2.5 text-center min-w-[50px]">Plan</th>
+                <th className="px-3 py-2.5 text-center min-w-[40px]">Acc.</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-light">
               {rows.map((row, idx) => {
-                const { color } = NIVEL_NR(row.nr);
                 const isExpanded = expandedRow === row.id;
+                const Icon = DOMINIO_ICON[row.dominio_bio] || Activity;
+                const iconColor = DOMINIO_COLOR[row.dominio_bio] || 'text-teal-500';
                 return (
                   <React.Fragment key={row.id}>
-                    <tr className={`hover:bg-surface-hover/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-surface-primary/30'}`}>
-                      <td className="px-2 py-1"><EditableCell value={row.proceso} onChange={v => handleChange(row.id, 'proceso', v)} /></td>
-                      <td className="px-2 py-1"><EditableCell value={row.zona} onChange={v => handleChange(row.id, 'zona', v)} /></td>
-                      <td className="px-2 py-1"><EditableCell value={row.actividad} onChange={v => handleChange(row.id, 'actividad', v)} /></td>
+                    <tr className={`hover:bg-surface-hover/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-surface-primary/30'} ${row.intervencion_prioritaria ? 'border-l-2 border-l-red-500' : ''}`}>
                       <td className="px-2 py-1">
-                        <EditableCell value={row.rutinaria} onChange={v => handleChange(row.id, 'rutinaria', v)} type="select" options={['Sí', 'No']} />
+                        <div className="flex items-center gap-1">
+                          <Icon className={`h-3 w-3 shrink-0 ${iconColor}`} />
+                          <SelectCell value={row.dominio_bio} onChange={v => handleChange(row.id, 'dominio_bio', v)} options={DOMINIOS_BIO} />
+                        </div>
                       </td>
-                      <td className="px-2 py-1 border-l border-teal-500/20"><EditableCell value={row.peligro_descripcion} onChange={v => handleChange(row.id, 'peligro_descripcion', v)} /></td>
-                      <td className="px-2 py-1">
-                        <EditableCell value={row.peligro_clasificacion} onChange={v => handleChange(row.id, 'peligro_clasificacion', v)} type="select" options={CLASIFICACIONES} />
-                      </td>
-                      <td className="px-2 py-1"><EditableCell value={row.efectos_posibles} onChange={v => handleChange(row.id, 'efectos_posibles', v)} /></td>
+                      <td className="px-2 py-1"><TextCell value={row.peligro_cargo} onChange={v => handleChange(row.id, 'peligro_cargo', v)} /></td>
+                      <td className="px-2 py-1"><TextCell value={row.actividad_expuesta} onChange={v => handleChange(row.id, 'actividad_expuesta', v)} /></td>
+                      <td className="px-2 py-1 border-l border-teal-500/20"><TextCell value={row.factor_individual} onChange={v => handleChange(row.id, 'factor_individual', v)} /></td>
                       <td className="px-2 py-1 border-l border-teal-500/20 text-center">
-                        <EditableCell value={row.nd} onChange={v => handleChange(row.id, 'nd', v)} type="number" />
+                        <input type="number" min={1} max={5} value={row.nivel_susceptibilidad}
+                          onChange={e => handleChange(row.id, 'nivel_susceptibilidad', Number(e.target.value))}
+                          className="w-10 text-center text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded" />
                       </td>
                       <td className="px-2 py-1 text-center">
-                        <EditableCell value={row.ne} onChange={v => handleChange(row.id, 'ne', v)} type="number" />
+                        <input type="number" min={1} max={5} value={row.nivel_exposicion}
+                          onChange={e => handleChange(row.id, 'nivel_exposicion', Number(e.target.value))}
+                          className="w-10 text-center text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded" />
                       </td>
-                      <td className="px-2 py-1 text-center font-mono text-text-secondary">{row.np}</td>
+                      <td className="px-2 py-1 text-center font-mono font-bold text-text-secondary">{row.indice_bio_riesgo_bruto}</td>
+                      <td className="px-2 py-1 text-center font-mono font-black text-text-primary">{row.indice_bio_riesgo_efectivo?.toFixed(1)}</td>
                       <td className="px-2 py-1 text-center">
-                        <EditableCell value={row.nc} onChange={v => handleChange(row.id, 'nc', v)} type="number" />
-                      </td>
-                      <td className="px-2 py-1 text-center font-bold font-mono">{row.nr}</td>
-                      <td className="px-2 py-1 text-center">
-                        {row.nr > 0 && (
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black ${color}`}>
-                            {row.interpretacion_nr}
+                        {row.clasificacion_bio && (
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black ${CLASIFICACION_STYLE[row.clasificacion_bio] || ''}`}>
+                            {row.clasificacion_bio}
                           </span>
                         )}
                       </td>
-                      <td className="px-2 py-1 border-l border-teal-500/20 text-[10px] text-text-secondary">{row.aceptabilidad}</td>
+                      <td className="px-2 py-1">
+                        <SelectCell value={row.seguimiento_medico || 'Anual'} onChange={v => handleChange(row.id, 'seguimiento_medico', v)} options={SEGUIMIENTO_OPTIONS} />
+                      </td>
                       <td className="px-2 py-1 text-center">
-                        <button
-                          onClick={() => setExpandedRow(isExpanded ? null : row.id)}
-                          className="p-1 hover:bg-surface-hover rounded-lg transition-colors text-text-secondary hover:text-teal-600"
-                          title="Ver controles y medidas"
-                        >
+                        <button onClick={() => setExpandedRow(isExpanded ? null : row.id)}
+                          className="p-1 hover:bg-surface-hover rounded-lg transition-colors text-text-secondary hover:text-teal-600">
                           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                       </td>
                       <td className="px-2 py-1 text-center">
-                        <button onClick={() => removeRow(row.id)} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors text-red-400 hover:text-red-600">
+                        <button onClick={() => removeRow(row.id)}
+                          className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors text-red-400 hover:text-red-600">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </td>
                     </tr>
-                    {/* Fila expandida: controles y medidas preventivas */}
+
+                    {/* Fila expandida: plan de acción y restricciones */}
                     {isExpanded && (
                       <tr className="bg-teal-50/50 dark:bg-teal-900/10">
-                        <td colSpan={16} className="px-4 py-3">
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                        <td colSpan={12} className="px-4 py-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                             <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2">Controles Existentes</p>
-                              <div className="space-y-1.5">
-                                {[
-                                  { label: 'Fuente', field: 'controles_fuente' },
-                                  { label: 'Medio', field: 'controles_medio' },
-                                  { label: 'Individuo', field: 'controles_individuo' },
-                                ].map(({ label, field }) => (
-                                  <div key={field}>
-                                    <p className="text-[10px] text-text-tertiary font-semibold">{label}</p>
-                                    <EditableCell value={(row as any)[field]} onChange={v => handleChange(row.id, field as keyof BioRiskRow, v)} />
-                                  </div>
-                                ))}
-                              </div>
+                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" /> Plan de Acción Bio-Individual
+                              </p>
+                              <textarea
+                                value={row.plan_accion_bio}
+                                onChange={e => handleChange(row.id, 'plan_accion_bio', e.target.value)}
+                                rows={3}
+                                placeholder="Medidas adaptadas específicamente a este trabajador..."
+                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
+                              />
                             </div>
                             <div>
-                              <p className="font-bold text-orange-600 dark:text-orange-400 uppercase text-[10px] mb-2">Medidas Preventivas (Jerarquía GTC 45)</p>
-                              <div className="space-y-1.5">
-                                {[
-                                  { label: 'Eliminación', field: 'medida_eliminacion' },
-                                  { label: 'Sustitución', field: 'medida_sustitucion' },
-                                  { label: 'Ingeniería', field: 'medida_ingenieria' },
-                                ].map(({ label, field }) => (
-                                  <div key={field}>
-                                    <p className="text-[10px] text-text-tertiary font-semibold">{label}</p>
-                                    <EditableCell value={(row as any)[field]} onChange={v => handleChange(row.id, field as keyof BioRiskRow, v)} />
-                                  </div>
-                                ))}
-                              </div>
+                              <p className="font-bold text-orange-600 dark:text-orange-400 uppercase text-[10px] mb-2 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> Restricciones Laborales
+                              </p>
+                              <textarea
+                                value={row.restricciones_laborales}
+                                onChange={e => handleChange(row.id, 'restricciones_laborales', e.target.value)}
+                                rows={3}
+                                placeholder="Restricciones según criterio médico-laboral..."
+                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
+                              />
                             </div>
-                            <div>
-                              <p className="font-bold text-purple-600 dark:text-purple-400 uppercase text-[10px] mb-2 mt-4 md:mt-0">EPP y Factores de Reducción</p>
-                              <div className="space-y-1.5">
-                                {[
-                                  { label: 'Administrativo', field: 'medida_administrativa' },
-                                  { label: 'EPP / EPU', field: 'medida_eppu' },
-                                  { label: 'Factores de Reducción (Anexo E)', field: 'factores_reduccion' },
-                                ].map(({ label, field }) => (
-                                  <div key={field}>
-                                    <p className="text-[10px] text-text-tertiary font-semibold">{label}</p>
-                                    <EditableCell value={(row as any)[field]} onChange={v => handleChange(row.id, field as keyof BioRiskRow, v)} />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-3 text-[10px] text-text-tertiary">
+                            <span>FIT al registrar: <strong>{row.fit_score}%</strong></span>
+                            <span>Pts. percepción: <strong>{row.percepcion_riesgo_pts}</strong></span>
+                            <span>Factor reducción aplicado: <strong>{((row.factor_reduccion_percepcion || 0) * 100).toFixed(0)}%</strong></span>
+                            {row.fecha_registro && <span>Fecha: <strong>{new Date(row.fecha_registro).toLocaleDateString('es-CO')}</strong></span>}
                           </div>
                         </td>
                       </tr>
@@ -422,14 +452,11 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
       )}
 
-      {/* ── Footer: Botón guardar flotante ── */}
+      {/* ── Guardar flotante ── */}
       {rows.length > 0 && hasUnsaved && (
         <div className="flex justify-end">
-          <button
-            onClick={() => saveRisks(rows)}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60"
-          >
+          <button onClick={() => saveRisks(rows)} disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 transition-all shadow-md hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Guardar Cambios
           </button>

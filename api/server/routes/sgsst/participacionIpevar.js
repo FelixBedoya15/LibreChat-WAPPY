@@ -7,6 +7,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const { buildStandardHeader, buildSignatureSection, buildCompanyContextString } = require('./reportHeader');
 const { logger } = require('~/config');
+const feedWorkerEvent = require('./feedWorkerHelper');
 
 const router = express.Router();
 
@@ -252,6 +253,16 @@ Fila 1: Ingeniería, Fila 2: Administrativo, Fila 3: EPP. Agrega una fila 4 si c
             { $set: { consolidadoReport: fullReport, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
+
+        // ── Auto-Feed Bio-Individual (Hoja de Vida) ──
+        if (trabajadoresList && trabajadoresList.length > 0) {
+            const shortDesc = formData?.tarea ? formData.tarea.substring(0, 80) + '...' : 'Participación IPEVAR';
+            for (const t of trabajadoresList) {
+                if (t.cedula) {
+                    await feedWorkerEvent(req.user.id || req.user, t.cedula, 'participacion_ipevar', shortDesc, 100, 'generate');
+                }
+            }
+        }
 
         res.json({ report: fullReport });
     } catch (error) {

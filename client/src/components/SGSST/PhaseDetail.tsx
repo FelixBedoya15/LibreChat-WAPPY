@@ -27,7 +27,7 @@ import ReporteActosCondiciones from './ReporteActosCondiciones';
 import AnalisisTrabajoSeguro from './AnalisisTrabajoSeguro';
 import MetodoOwas from './MetodoOwas';
 import AnalisisVulnerabilidad from './AnalisisVulnerabilidad';
-import MatrizPeligrosGTC45 from './MatrizPeligrosGTC45';
+import BioIndividualHub from './BioIndividualHub';
 import ParticipacionIPEVAR from './ParticipacionIPEVAR';
 import PerfilesCargo from './PerfilesCargo';
 import DashboardPredictivo from './DashboardPredictivo';
@@ -473,10 +473,10 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                     </div>
                                                 )}
 
-                                                {/* Show MatrizPeligrosGTC45 for peligros category */}
+                                                {/* IPEVAR Bio-Individuales: Hub centralizado */}
                                                 {category.id === 'peligros' && (
                                                     <div className="mb-6">
-                                                        <MatrizPeligrosGTC45 />
+                                                        <BioIndividualHub />
                                                     </div>
                                                 )}
 

@@ -23,14 +23,14 @@ export const PHASE_CATEGORIES = {
     ],
     do: [
         { 
-            id: 'participacion_ipevar', title: 'Participación IPEVAR Trabajadores', icon: 'Users',
-            bioRationale: 'Empodera la voz del empleado sobre los miedos y riesgos que percibe en su cotidianidad vital.', 
+            id: 'participacion_ipevar', title: 'Participación IPEVAR Bio-Individual', icon: 'Users',
+            bioRationale: 'Empodera la voz del empleado sobre los miedos y riesgos que percibe en su cotidianidad vital. Cada participación genera puntos que reducen el índice bio-riesgo efectivo.', 
             normativity: 'Decreto 1072 de 2015 (Art. 2.2.4.6.15)' 
         },
         { 
-            id: 'peligros', title: 'Control de Peligros IPEVAR', icon: 'AlertTriangle',
-            bioRationale: 'Mitiga y diseña los espacios de trabajo para que el bioindividuo conviva de forma armónica sin recibir daño celular o psicológico.', 
-            normativity: 'GTC 45 / Decreto 1072 de 2015' 
+            id: 'peligros', title: 'IPEVAR Bio-Individuales', icon: 'AlertTriangle',
+            bioRationale: 'Hub centralizado de consciencia bio-individual. Evalúa la interacción entre los peligros del cargo y el organismo único del trabajador bajo la metodología Bio-Individual WAPPY.', 
+            normativity: 'Metodología Bio-Individual WAPPY / Decreto 1072 de 2015' 
         },
         { 
             id: 'metodo_owas', title: 'Método OWAS (Evaluación Física)', icon: 'Activity',

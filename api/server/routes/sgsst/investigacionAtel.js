@@ -15,6 +15,7 @@ const { buildStandardHeader, buildCompanyContextString, buildSignatureSection } 
 
 // ─── DB Model Import ─────────────────────────────────────────────────────────
 const InvestigacionAtelData = require('~/models/InvestigacionAtelData');
+const feedWorkerEvent = require('./feedWorkerHelper');
 
 async function getActiveCompanyId(userId) {
     let active = await CompanyInfo.findOne({ user: userId, isActive: true });
@@ -570,6 +571,13 @@ REGLAS DE DISEÑO OBLIGATORIAS:
             buildHtmlSigs(afectadoSigs) +
             '<div style="text-align:center;font-size:10px;color:#cbd5e1;margin-top:20px;font-style:italic;">Documento generado electr&oacute;nicamente por el Gestor Inteligente SGSST &mdash; WAPPY IA By WAPPY LTDA &copy; 2025</div>' +
             '</div>';
+        }
+
+        // ── Auto-Feed Bio-Individual (Hoja de Vida) ──
+        if (formData?.afectadoCedula) {
+            const shortDesc = `${tipoEvento || 'ATEL'} - ${naturalezaLesion || ''}`;
+            // 0 points for getting hurt, but it registers the event
+            await feedWorkerEvent(req.user.id || req.user, formData.afectadoCedula, 'atel', shortDesc, 0, 'generate');
         }
 
         res.json({
