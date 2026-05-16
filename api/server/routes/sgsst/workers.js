@@ -84,16 +84,12 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
             }
         }
 
-        // Fetch all workers for this profile.
-        // Use companyId in filter ONLY if one exists (security: prevent cross-company leaks).
-        const workerFilter = {
+        const workers = await SgsstWorker.find({
             user: req.user.id,
+            companyId: companyId,
             perfilId: req.params.perfilId
-        };
-        if (companyId) workerFilter.companyId = companyId;
+        }).sort({ fechaIngreso: -1 });
 
-        const workers = await SgsstWorker.find(workerFilter).sort({ fechaIngreso: -1 });
-        
         res.json({ workers });
     } catch (error) {
         logger.error('[SGSST Workers] Load error:', error);
