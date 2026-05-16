@@ -315,8 +315,17 @@ ${cargoContext}
 
 METODOLOGÍA BIO-INDIVIDUAL + JERARQUÍA DE CONTROLES:
 1. Analiza las Condiciones de Salud y el Cargo.
-2. Identifica el peligro original y asígnalo a uno de los DOMINIOS FISIOLÓGICOS (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico) o al dominio de "Seguridad" para peligros de trauma agudo.
-3. Asígnalo a una DIMENSIÓN específica de la GTC-45 según el Dominio. Por ejemplo, "Ruido" va en "Sensorial", "Polvos" va en "Respiratorio", "Caídas" va en "Seguridad", "Virus" va en "Inmunológico".
+2. Identifica el peligro original y asígnalo a uno de los DOMINIOS FISIOLÓGICOS (Sensorial, Respiratorio, Osteomuscular, Psicoemocional, Inmunológico, Cardiovascular, Metabólico, Neurológico, Seguridad).
+3. Asígnalo a una DIMENSIÓN exacta de la GTC-45. DEBES utilizar EXACTAMENTE una de las opciones válidas para el dominio seleccionado, de la siguiente lista:
+   - Sensorial: 'Ruido (impacto, intermitente, continuo)', 'Iluminación (exceso o deficiencia)', 'Radiaciones no ionizantes', 'Radiaciones ionizantes', 'Afectación táctil/olfativa'
+   - Respiratorio: 'Polvos orgánicos/inorgánicos', 'Fibras', 'Gases y vapores', 'Humos metálicos/no metálicos', 'Material particulado'
+   - Osteomuscular: 'Postura (mantenida, forzada, antigravitacional)', 'Esfuerzo', 'Movimiento repetitivo', 'Manipulación manual de cargas'
+   - Psicoemocional: 'Gestión organizacional', 'Características de la organización', 'Características del grupo social', 'Condiciones de la tarea', 'Interfase persona-tarea', 'Jornada de trabajo'
+   - Inmunológico: 'Virus', 'Bacterias', 'Hongos', 'Ricketsias', 'Parásitos', 'Picaduras/Mordeduras', 'Fluidos o excrementos'
+   - Cardiovascular: 'Temperaturas extremas (calor/frío)', 'Presión atmosférica', 'Exigencia cardiovascular alta', 'Trabajo sedentario prolongado'
+   - Metabólico: 'Líquidos (nieblas y rocíos)', 'Alteración nutricional/digestiva', 'Desbalance térmico extremo', 'Sedentarismo metabólico'
+   - Neurológico: 'Vibración (cuerpo entero, segmentaria)', 'Fatiga del sistema nervioso', 'Alteración del ciclo circadiano', 'Sobrecarga sensorial'
+   - Seguridad: 'Mecánico (máquinas, herramientas)', 'Eléctrico (alta/baja tensión)', 'Locativo (superficies, caídas)', 'Tecnológico (explosión, incendio)', 'Accidentes de tránsito', 'Públicos (robos, asaltos)', 'Trabajo en alturas', 'Espacios confinados', 'Fenómenos naturales (Sismo, etc.)'
 4. Determina el Origen ('Condición Insegura', 'Acto Inseguro', o 'Inherente a la Tarea').
 4. Calcula el Índice Bio-Riesgo Bruto = nivel_susceptibilidad × nivel_exposicion (escala 1-5 c/u, máx 25).
 5. Factor Reducción = min(percepcion_pts / 500, 0.40).
@@ -329,7 +338,7 @@ Cada objeto DEBE tener estos campos exactos:
   "id": "uuid-único", // Conserva el ID original si estás devolviendo un riesgo existente. Genera uno nuevo si es un riesgo nuevo.
   "origen_riesgo": "Condición Insegura"|"Acto Inseguro"|"Inherente a la Tarea",
   "dominio_bio": string, // Usa SOLO uno de estos: Sensorial|Respiratorio|Osteomuscular|Psicoemocional|Inmunológico|Cardiovascular|Metabólico|Neurológico|Seguridad
-  "dimension_bio": string, // Subcategoría exacta basada en GTC-45 (ej. Ruido (impacto, intermitente, continuo), Gases y vapores, Locativo (superficies, caídas), Postura (mantenida, forzada, antigravitacional), etc.)
+  "dimension_bio": string, // OBLIGATORIO: Debe ser EXACTAMENTE una de las opciones válidas listadas arriba para el dominio_bio seleccionado. Copia el texto idéntico.
   "peligro_cargo": string,
   "actividad_expuesta": string,
   "factor_individual": string, // condición del trabajador que amplifica el riesgo
