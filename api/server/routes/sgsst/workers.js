@@ -33,7 +33,7 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
         if (perfilNombre) {
             const PerfilSocioModel = getPerfilSociodemograficoDataModel();
             if (PerfilSocioModel) {
-                const socioData = await PerfilSocioModel.findOne({ user: req.user.id, companyId: companyId });
+                const socioData = await PerfilSocioModel.findOne({ user: req.user.id });
                 if (socioData && socioData.trabajadores && socioData.trabajadores.length > 0) {
                     const matchingWorkers = socioData.trabajadores.filter(w => w.cargo === perfilNombre);
                     
