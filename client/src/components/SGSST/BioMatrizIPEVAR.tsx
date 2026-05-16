@@ -7,6 +7,7 @@ import {
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
+import SingleSelect from './SingleSelect';
 
 // ─── Tipos propios — Metodología Bio-Individual WAPPY ────────────────────────
 export interface BioRiskRow {
