@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthContext } from '~/hooks';
 import { ArrowLeft, User, Activity, AlertTriangle, Shield, Calendar, FileText } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
-import MatrizIPEVARTable from './MatrizIPEVARTable';
+import BioMatrizIPEVAR from './BioMatrizIPEVAR';
 
 interface BioIndividuoDashboardProps {
     workerId: string;
@@ -111,7 +111,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
                 </div>
                 
                 <div className="h-[600px] mt-4 relative rounded-xl overflow-hidden border border-border-medium shadow-inner">
-                    <MatrizIPEVARTable conversationId={null} workerId={workerId} />
+                    <BioMatrizIPEVAR workerId={workerId} />
                 </div>
             </div>
         </div>

@@ -1,6 +1,9 @@
 const express = require('express');
 const requireJwtAuth = require('../../middleware/requireJwtAuth');
 const { logger } = require('~/config');
+const { generateWithKeyRotation, resolveApiKeys } = require('./sgsstGemini');
+const { getUserKey } = require('~/server/services/UserService');
+const { AuthKeys } = require('librechat-data-provider');
 const CompanyInfo = require('../../../models/CompanyInfo');
 const SgsstWorker = require('../../../models/SgsstWorker');
 const mongoose = require('mongoose');
@@ -229,6 +232,109 @@ router.put('/:id/ipevar', requireJwtAuth, async (req, res) => {
     } catch (error) {
         logger.error('[SGSST Workers] Update IPEVAR error:', error);
         res.status(500).json({ error: 'Error al actualizar matriz IPEVAR' });
+    }
+});
+
+// POST: Generar riesgos IPEVAR con IA para un trabajador bio-individual
+router.post('/worker/:id/generate-risks', requireJwtAuth, async (req, res) => {
+    try {
+        const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
+        if (!worker) {
+            return res.status(404).json({ error: 'Trabajador no encontrado' });
+        }
+
+        // Fetch cargo profile for context
+        let cargoContext = '';
+        try {
+            const getPerfilCargoDataModel = () => {
+                if (!mongoose.models.PerfilCargoData) require('./perfilesCargo');
+                return mongoose.models.PerfilCargoData;
+            };
+            const PerfilCargoData = getPerfilCargoDataModel();
+            const cargoDoc = await PerfilCargoData.findOne({ user: req.user.id });
+            if (cargoDoc && cargoDoc.perfilesList) {
+                const perfil = cargoDoc.perfilesList.find(p => p.id === worker.perfilId);
+                if (perfil) {
+                    cargoContext = `
+- Cargo: ${perfil.nombreCargo || 'No especificado'}
+- Área: ${perfil.area || ''}
+- Exigencia Física: ${perfil.exigenciaFisica || ''}
+- Exigencia Mental: ${perfil.exigenciaMental || ''}
+- Opera Maquinaria: ${perfil.operaMaquinaria || ''}
+- EPP Requerido: ${(perfil.eppSeleccionados || []).join(', ')}
+- Contexto adicional: ${perfil.contextoAdicional || ''}`;
+                }
+            }
+        } catch (e) { /* ignore if cargo not found */ }
+
+        const prompt = `Eres un experto en Seguridad y Salud en el Trabajo, especializado en la metodología GTC 45 de Colombia.
+Genera una matriz IPEVAR bio-individual personalizada para el siguiente trabajador.
+
+DATOS DEL TRABAJADOR:
+- Nombre: ${worker.nombre}
+- Documento: ${worker.documento}
+- Género: ${worker.genero || 'No especificado'}
+- Condiciones de Salud Previas: ${worker.condicionesSalud || 'Ninguna registrada'}
+${cargoContext}
+
+Genera EXACTAMENTE 5 riesgos IPEVAR personalizados en formato JSON. Cada riesgo debe ser un objeto con estos campos EXACTOS:
+{
+  "proceso": string,
+  "zona": string,
+  "actividad": string,
+  "tareas": string,
+  "rutinaria": "Sí" | "No",
+  "peligro_descripcion": string,
+  "peligro_clasificacion": string (ej: "Biomecánico", "Físico", "Químico", "Psicosocial", "Locativo", "Mecánico"),
+  "efectos_posibles": string,
+  "controles_fuente": string,
+  "controles_medio": string,
+  "controles_individuo": string,
+  "nd": number (1-4),
+  "ne": number (1-4),
+  "np": number (calculado: nd * ne),
+  "nc": number (10=Catastrófico, 6=Muy grave, 2=Grave, 1=Leve),
+  "nr": number (calculado: np * nc),
+  "interpretacion_nr": "I" | "II" | "III" | "IV",
+  "aceptabilidad": string,
+  "medida_eliminacion": string,
+  "medida_sustitucion": string,
+  "medida_ingenieria": string,
+  "medida_administrativa": string,
+  "medida_eppu": string,
+  "factores_reduccion": string,
+  "nd_cualitativo": null,
+  "id": string (UUID único)
+}
+
+PRIORIZA riesgos relacionados con las condiciones de salud del trabajador. Devuelve SOLO el array JSON, sin texto adicional.`;
+
+        const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
+        const rawJson = await generateWithKeyRotation(prompt, null, 'application/json', null, apiKeys);
+
+        let riesgosIpevar = [];
+        const match = rawJson.match(/\[\s*\{[\s\S]*?\}\s*\]/m);
+        if (match) {
+            riesgosIpevar = JSON.parse(match[0]);
+        } else {
+            riesgosIpevar = JSON.parse(rawJson);
+        }
+
+        // Add IDs if missing
+        riesgosIpevar = riesgosIpevar.map((r, i) => ({
+            ...r,
+            id: r.id || `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`
+        }));
+
+        // Save to worker
+        worker.riesgosIpevar = riesgosIpevar;
+        worker.updatedAt = Date.now();
+        await worker.save();
+
+        res.json({ success: true, riesgosIpevar, worker });
+    } catch (error) {
+        logger.error('[SGSST Workers] Generate risks error:', error);
+        res.status(500).json({ error: 'Error al generar los riesgos con IA' });
     }
 });
 

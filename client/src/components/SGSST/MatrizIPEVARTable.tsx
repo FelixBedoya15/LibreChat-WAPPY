@@ -967,9 +967,7 @@ export default function MatrizIPEVARTable({ conversationId, workerId }: { conver
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <ShieldAlert className="h-10 w-10 opacity-20" />
             <p className="text-sm text-center px-4">
-              {workerId 
-                ? 'Aún no hay riesgos específicos registrados para el perfil bio-individual de este trabajador.' 
-                : 'Aún no hay riesgos en la matriz. Pídele al Experto IPEVAR en el chat que los registre, o añádelos manualmente.'}
+              Aún no hay riesgos en la matriz. Pídele al Experto IPEVAR en el chat que los registre, o añádelos manualmente.
             </p>
             <button 
               onClick={addRow}
