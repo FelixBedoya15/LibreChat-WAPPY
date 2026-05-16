@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Trash2, Sparkles, Loader2, Save, ShieldAlert,
   ChevronDown, RefreshCw, AlertTriangle, Dna, TrendingUp,
-  Heart, Brain, Activity,
+  Heart, Brain, Activity, Info,
 } from 'lucide-react';
 import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
+import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 
 // ─── Tipos propios — Metodología Bio-Individual WAPPY ────────────────────────
 export interface BioRiskRow {
@@ -306,47 +307,57 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             </span>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => showToast({ message: 'Metodología: Susceptibilidad (1-5) x Exposición (1-5) = Bruto. El Índice Efectivo aplica el factor de reducción (Anexo E) según tu cultura preventiva. Dominios expandidos incluyen normatividad GTC-45.', status: 'info', severity: 'info' })}
-            className="flex items-center gap-1.5 px-3 py-2 bg-surface-secondary text-text-secondary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors" title="Ver metodología detallada">
-            <Sparkles className="h-3.5 w-3.5" /> Metodología
-          </button>
-          <div className="flex items-center gap-2 bg-surface-secondary rounded-xl pr-1 pl-3 py-1 shadow-sm border border-border-medium">
+      {/* Toolbar */}
+      <SGSSTToolbar 
+        onSaveLocal={() => saveRisks(rows)}
+        isSavingLocal={isSaving}
+        saveDisabled={!hasUnsaved || isSaving}
+        customSections={[
+          <ToolbarButton 
+            key="methodology" 
+            id="methodology" 
+            onClick={() => showToast({ message: 'Metodología: Susceptibilidad (1-5) x Exposición (1-5) = Bruto. El Índice Efectivo aplica el factor de reducción (Anexo E) según tu cultura preventiva. Dominios expandidos incluyen normatividad GTC-45.', status: 'info', severity: 'info' })} 
+            title="Ver metodología detallada" 
+            label="Metodología" 
+            icon="info" 
+            variant="default" 
+          />,
+          <div key="ai-input" className="flex items-center h-10 bg-surface-primary border border-border-medium rounded-xl pr-1 pl-3 transition-colors shadow-sm focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
             <input
               type="text"
               value={aiInstruction}
               onChange={e => setAiInstruction(e.target.value)}
-              placeholder="Instrucciones para la IA (ej. Enfócate en riesgos biomecánicos, agrega 10 riesgos...)"
-              className="bg-transparent border-0 outline-none text-xs text-text-primary w-64 placeholder-text-tertiary"
+              placeholder="Instrucciones para la IA (ej. Enfócate en riesgos...)"
+              className="bg-transparent border-0 outline-none text-xs text-text-primary w-56 placeholder-text-tertiary"
               disabled={isGenerating}
             />
             <button onClick={generateWithAI} disabled={isGenerating}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 text-white text-xs font-bold rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-60 ml-1 h-8">
               {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              {isGenerating ? 'Generando...' : 'Generar'}
+              <span className="hidden sm:inline">{isGenerating ? 'Generando...' : 'Generar'}</span>
             </button>
-          </div>
-          <button onClick={addRow}
-            className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary border border-border-medium text-text-primary text-xs font-semibold rounded-xl hover:bg-surface-hover transition-colors">
-            <Plus className="h-3.5 w-3.5" /> Añadir riesgo
-          </button>
-          {hasUnsaved ? (
-            <button onClick={() => saveRisks(rows)} disabled={isSaving}
-              className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-60">
-              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Guardar
-            </button>
-          ) : (
-            <button disabled className="flex items-center gap-1.5 px-4 py-2 bg-surface-secondary text-text-tertiary text-xs font-bold rounded-xl opacity-60">
-              <Save className="h-3.5 w-3.5" /> Matriz Guardada ✓
-            </button>
-          )}
-          <button onClick={fetchData} className="p-2 text-text-secondary hover:text-text-primary transition-colors">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
+          </div>,
+          <ToolbarButton 
+            key="add" 
+            id="add" 
+            onClick={addRow} 
+            label="Añadir riesgo" 
+            icon="plus" 
+            variant="default" 
+          />,
+          <ToolbarButton 
+            key="refresh" 
+            id="refresh" 
+            onClick={fetchData} 
+            title="Refrescar" 
+            label="" 
+            icon="refresh-cw" 
+            variant="default" 
+          />
+        ]}
+      />
 
       {/* ── Leyenda metodología ── */}
       <div className="flex flex-wrap gap-2 text-[10px]">
