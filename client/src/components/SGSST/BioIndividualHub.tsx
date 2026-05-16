@@ -183,14 +183,14 @@ export default function BioIndividualHub() {
     setIsLoading(true);
     try {
       // 1. Fetch perfiles de cargo
-      const perfilesRes = await fetch('/api/sgsst/perfiles-cargo/list', {
+      const perfilesRes = await fetch('/api/sgsst/perfiles-cargo/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const perfilesData = await perfilesRes.json();
       const perfilesList: Perfil[] = perfilesData.perfilesList || [];
 
       // 2. Fetch perfil sociodemografico para saber qué cargo tiene cada trabajador
-      const socioRes = await fetch('/api/sgsst/perfil-sociodemografico', {
+      const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const socioData = await socioRes.json();
