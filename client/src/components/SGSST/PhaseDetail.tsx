@@ -578,53 +578,7 @@ const PhaseDetail = ({ phase, onBack, navVisible, setNavVisible, autoOpenModule 
                                                      </div>
                                                  )}
 
-                                                {/* File Area Top Divider */}
-                                                <div className="flex items-center justify-between mt-8 mb-6 pb-4 border-b border-border-light dark:border-white/5">
-                                                    <h4 className="text-sm font-black text-text-primary/70 tracking-widest uppercase">Archivos Adjuntos (RAG)</h4>
-                                                    <Button
-                                                        onClick={(e) => { e.stopPropagation(); handleUploadClick(category.id); }}
-                                                        disabled={!!isUploading}
-                                                        size="sm"
-                                                        className="gap-2 rounded-2xl border border-border-light dark:border-white/10 shadow-sm"
-                                                    >
-                                                        {isThisUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                                                        <span className="font-bold">Subir Documento</span>
-                                                    </Button>
-                                                </div>
 
-                                                {categoryFiles.length === 0 ? (
-                                                    <div className="flex flex-col items-center justify-center py-10 text-text-secondary/50 border-2 border-dashed border-border-medium/30 rounded-3xl bg-surface-primary/20">
-                                                        <FolderOpen className="h-10 w-10 mb-3 opacity-30" />
-                                                        <span className="text-sm font-medium tracking-wide">No se han anexado documentos a este módulo.</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                                        {categoryFiles.map((file) => (
-                                                            <div
-                                                                key={file.file_id}
-                                                                className="group relative flex items-center gap-4 p-4 rounded-2xl border border-border-light dark:border-white/10 bg-surface-primary/50 hover:bg-surface-primary shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
-                                                            >
-                                                                <div className="flex-shrink-0 p-3 rounded-xl bg-surface-secondary text-text-secondary group-hover:text-teal-500 transition-colors">
-                                                                    <File className="h-5 w-5" />
-                                                                </div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <p className="truncate text-[13px] font-bold text-text-primary" title={file.name}>
-                                                                        {file.name}
-                                                                    </p>
-                                                                    <p className="text-[11px] font-mono tracking-widest text-text-secondary/70 mt-0.5">
-                                                                        {file.size ? (file.size / 1024).toFixed(1) + ' KB' : 'Size unknown'}
-                                                                    </p>
-                                                                </div>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleDelete(file.file_id); }}
-                                                                    className="p-2 rounded-full text-red-500/70 hover:text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 transition-all duration-300"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
                                             </>
                                         )}
                                     </div>

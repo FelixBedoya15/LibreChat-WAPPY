@@ -169,9 +169,32 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
       const res = await fetch(`/api/sgsst/workers/worker/${workerId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const socioRes = await fetch('/api/sgsst/perfil-sociodemografico/data', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       if (res.ok) {
         const data = await res.json();
-        setWorker(data.worker);
+        let w = data.worker;
+
+        // Sync with live Sociodemographic data to prevent 0% rendering desync
+        if (socioRes.ok) {
+          const socioData = await socioRes.json();
+          const trabajadores = socioData.perfiles || socioData.trabajadores || [];
+          const socio = trabajadores.find((t: any) =>
+            String(t.identificacion || t.documento || '').trim() === String(w.documento || '').trim()
+          );
+          if (socio) {
+            w = {
+              ...w,
+              fitScore: socio.biocentricScore ?? w.fitScore ?? 0,
+              fitAlerts: socio.biocentricAlerts ?? w.fitAlerts ?? [],
+              condicionesSalud: w.condicionesSalud || socio.condicionesSalud || socio.diagnosticoMedico || '',
+            };
+          }
+        }
+
+        setWorker(w);
       }
     } catch {
       showToast({ message: 'Error cargando datos del trabajador', status: 'error' });

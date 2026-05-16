@@ -409,6 +409,27 @@ router.post('/save', requireJwtAuth, async (req, res) => {
       { upsert: true, new: true }
     );
 
+    // Sync FIT Score and health data to the Master Profile (SgsstWorker)
+    const SgsstWorker = require('../../../models/SgsstWorker');
+    for (const w of trabajadores) {
+      if (!w.identificacion) continue;
+      const cleanDoc = String(w.identificacion).trim();
+      if (!cleanDoc) continue;
+      
+      await SgsstWorker.updateOne(
+        { user: req.user.id, documento: cleanDoc },
+        {
+          $set: {
+            fitScore: w.biocentricScore || 0,
+            fitAlerts: w.biocentricAlerts || [],
+            condicionesSalud: [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas].filter(Boolean).join('; ') || '',
+            fechaNacimiento: w.fechaNacimiento || null,
+            genero: w.genero || 'No especificado'
+          }
+        }
+      );
+    }
+
     res.json({ success: true });
   } catch (error) {
     logger.error('[SGSST PerfilSociodemografico] Save error:', error);
