@@ -451,10 +451,21 @@ const CondicionesSalud = () => {
         try {
             syncWorkersSignaturesToStorage(trabajadores);
 
+            // Auto-calculate and inject Biocentric Score (Índice Biocéntrico Integral)
+            const trabajadoresConBio = trabajadores.map(w => {
+                const bio = calculateBiocentricFit(w);
+                return {
+                    ...w,
+                    biocentricScore: bio.score,
+                    biocentricAlerts: bio.alerts,
+                    biocentricIsLethal: bio.isLethal
+                };
+            });
+
             const res = await fetch('/api/sgsst/perfil-sociodemografico/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ trabajadores }),
+                body: JSON.stringify({ trabajadores: trabajadoresConBio }),
             });
             if (res.ok) showToast({ message: 'Perfil sociodemográfico guardado', status: 'success', severity: 'success' });
             else throw new Error('Error al guardar');
