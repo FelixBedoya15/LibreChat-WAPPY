@@ -117,8 +117,17 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
                 })
             });
 
-            const createData = await createRes.json();
-            
+            // Safe JSON parse — if server returns HTML (error page), log it
+            let createData: any = {};
+            const rawText = await createRes.text();
+            try {
+                createData = JSON.parse(rawText);
+            } catch {
+                console.error('[WorkersProfileList] Server returned non-JSON:', rawText.substring(0, 500));
+                showToast({ message: `Error del servidor al abrir perfil (HTTP ${createRes.status})`, status: 'error' });
+                return;
+            }
+
             if (!createRes.ok) {
                 console.error('[WorkersProfileList] Failed to open worker:', createData);
                 showToast({ message: `Error al abrir: ${createData.error || 'Error desconocido'}`, status: 'error' });
@@ -129,6 +138,7 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
             if (workerId) {
                 onSelectWorker(workerId);
             } else {
+                console.error('[WorkersProfileList] No workerId in response:', createData);
                 showToast({ message: 'No se pudo obtener el ID del trabajador', status: 'error' });
             }
         } catch (error) {

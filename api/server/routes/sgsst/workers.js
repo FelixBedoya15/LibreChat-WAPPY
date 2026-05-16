@@ -23,7 +23,76 @@ async function getActiveCompanyId(userId) {
     return active ? active._id : null;
 }
 
-// GET: Obtener trabajadores por perfil
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORTANT: Specific routes MUST come before wildcard /:perfilId to avoid
+// Express matching them incorrectly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET: Obtener un trabajador por ID (Bio-Individuo 360)
+router.get('/worker/:id', requireJwtAuth, async (req, res) => {
+    try {
+        const worker = await SgsstWorker.findOne({
+            _id: req.params.id,
+            user: req.user.id
+        });
+
+        if (!worker) {
+            return res.status(404).json({ error: 'Trabajador no encontrado' });
+        }
+
+        res.json({ worker });
+    } catch (error) {
+        logger.error('[SGSST Workers] Load one error:', error);
+        res.status(500).json({ error: 'Error al cargar el trabajador' });
+    }
+});
+
+// POST: Crear o reutilizar trabajador existente (idempotente)
+router.post('/', requireJwtAuth, async (req, res) => {
+    try {
+        const companyId = await getActiveCompanyId(req.user.id);
+        const { perfilId, nombre, documento, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones } = req.body;
+
+        const cleanDoc = String(documento || '').trim();
+        if (!cleanDoc || !nombre || !perfilId) {
+            return res.status(400).json({ error: 'Faltan campos requeridos: nombre, documento, perfilId' });
+        }
+
+        // Find-or-create: buscar por documento del usuario para evitar duplicados
+        let worker = await SgsstWorker.findOne({ user: req.user.id, documento: cleanDoc });
+
+        if (!worker) {
+            worker = new SgsstWorker({
+                user: req.user.id,
+                companyId,
+                perfilId,
+                nombre,
+                documento: cleanDoc,
+                fechaNacimiento,
+                genero,
+                fechaIngreso,
+                condicionesSalud,
+                observaciones,
+                riesgosIpevar: []
+            });
+            await worker.save();
+        } else {
+            // Si ya existe pero sin perfilId o con uno diferente, actualizarlo
+            if (!worker.perfilId || worker.perfilId !== perfilId) {
+                worker.perfilId = perfilId;
+                if (companyId) worker.companyId = companyId;
+                await worker.save();
+            }
+        }
+
+        res.json({ success: true, worker });
+    } catch (error) {
+        logger.error('[SGSST Workers] Create error:', error);
+        res.status(500).json({ error: 'Error al crear trabajador' });
+    }
+});
+
+// GET: Listar trabajadores por perfil (wildcard — must be AFTER specific routes)
 router.get('/:perfilId', requireJwtAuth, async (req, res) => {
     try {
         const companyId = await getActiveCompanyId(req.user.id);
@@ -97,69 +166,8 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
     }
 });
 
-// GET: Obtener un trabajador por ID (Bio-Individuo 360)
-router.get('/worker/:id', requireJwtAuth, async (req, res) => {
-    try {
-        const worker = await SgsstWorker.findOne({
-            _id: req.params.id,
-            user: req.user.id
-        });
-        
-        if (!worker) {
-            return res.status(404).json({ error: 'Trabajador no encontrado' });
-        }
-        
-        res.json({ worker });
-    } catch (error) {
-        logger.error('[SGSST Workers] Load one error:', error);
-        res.status(500).json({ error: 'Error al cargar el trabajador' });
-    }
-});
 
-// POST: Crear o reutilizar trabajador existente (idempotente)
-router.post('/', requireJwtAuth, async (req, res) => {
-    try {
-        const companyId = await getActiveCompanyId(req.user.id);
-        const { perfilId, nombre, documento, fechaNacimiento, genero, fechaIngreso, condicionesSalud, observaciones } = req.body;
 
-        const cleanDoc = String(documento || '').trim();
-        if (!cleanDoc || !nombre || !perfilId) {
-            return res.status(400).json({ error: 'Faltan campos requeridos: nombre, documento, perfilId' });
-        }
-
-        // Find-or-create: buscar por documento del usuario para evitar duplicados
-        let worker = await SgsstWorker.findOne({ user: req.user.id, documento: cleanDoc });
-        
-        if (!worker) {
-            worker = new SgsstWorker({
-                user: req.user.id,
-                companyId,
-                perfilId,
-                nombre,
-                documento: cleanDoc,
-                fechaNacimiento,
-                genero,
-                fechaIngreso,
-                condicionesSalud,
-                observaciones,
-                riesgosIpevar: []
-            });
-            await worker.save();
-        } else {
-            // Si ya existe pero sin perfilId o con uno diferente, actualizarlo
-            if (!worker.perfilId || worker.perfilId !== perfilId) {
-                worker.perfilId = perfilId;
-                if (companyId) worker.companyId = companyId;
-                await worker.save();
-            }
-        }
-        
-        res.json({ success: true, worker });
-    } catch (error) {
-        logger.error('[SGSST Workers] Create error:', error);
-        res.status(500).json({ error: 'Error al crear trabajador' });
-    }
-});
 
 // PUT: Actualizar trabajador
 router.put('/:id', requireJwtAuth, async (req, res) => {
