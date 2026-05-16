@@ -28,7 +28,7 @@ export const PHASE_CATEGORIES = {
             normativity: 'Decreto 1072 de 2015 (Art. 2.2.4.6.15)' 
         },
         { 
-            id: 'peligros', title: 'IPEVAR Bio-Individuales', icon: 'AlertTriangle',
+            id: 'peligros', title: 'IPEVAR Bio-Individual', icon: 'AlertTriangle',
             bioRationale: 'Hub centralizado de consciencia bio-individual. Evalúa la interacción entre los peligros del cargo y el organismo único del trabajador bajo la metodología Bio-Individual WAPPY.', 
             normativity: 'Metodología Bio-Individual WAPPY / Decreto 1072 de 2015' 
         },

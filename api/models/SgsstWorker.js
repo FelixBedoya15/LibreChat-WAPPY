@@ -10,7 +10,7 @@ const BioRiskSchema = new mongoose.Schema({
   origen_riesgo: { type: String, enum: ['Condición Insegura', 'Acto Inseguro', 'Inherente a la Tarea'], default: 'Inherente a la Tarea' },
 
   // Contexto Bio-Individual (Expandido para cubrir GTC-45)
-  dominio_bio: String,         // Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial|Inmunológico|Ambiental|Mecánico|Toxicológico
+  dominio_bio: String,         // Osteomuscular|Cardiovascular|Neurológico|Psicoemocional|Metabólico|Respiratorio|Sensorial|Inmunológico|Seguridad
   dimension_bio: String,       // Mapeo directo a Descripción GTC-45 (ej. Ruido, Virus, Movimiento repetitivo)
   peligro_cargo: String,
   actividad_expuesta: String,

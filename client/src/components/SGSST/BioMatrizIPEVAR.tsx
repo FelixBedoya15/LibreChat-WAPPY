@@ -45,21 +45,19 @@ export interface BioRiskRow {
 const DOMINIOS_BIO = [
   'Osteomuscular', 'Cardiovascular', 'Neurológico',
   'Psicoemocional', 'Metabólico', 'Respiratorio', 'Sensorial',
-  'Inmunológico', 'Ambiental', 'Mecánico', 'Toxicológico'
+  'Inmunológico', 'Seguridad'
 ];
 
 const DIMENSIONES_POR_DOMINIO: Record<string, string[]> = {
-  Osteomuscular: ['Postura (mantenida, forzada)', 'Esfuerzo', 'Movimiento repetitivo', 'Manipulación manual de cargas'],
-  Psicoemocional: ['Gestión organizacional', 'Condiciones de la tarea', 'Características del grupo', 'Interfase persona-tarea', 'Jornada de trabajo'],
-  Inmunológico: ['Virus', 'Bacterias', 'Hongos', 'Ricketsias', 'Parásitos', 'Picaduras/Mordeduras', 'Fluidos/Excrementos'],
-  Ambiental: ['Ruido', 'Iluminación', 'Vibración', 'Temperaturas extremas', 'Presión atmosférica', 'Radiaciones', 'Fenómenos naturales'],
-  Toxicológico: ['Polvos orgánicos/inorgánicos', 'Fibras', 'Líquidos (nieblas y rocíos)', 'Gases y vapores', 'Humos metálicos/no metálicos', 'Material particulado'],
-  Seguridad: ['Mecánico', 'Eléctrico', 'Locativo (caídas)', 'Tecnológico (incendios)', 'Accidentes de tránsito', 'Públicos (robos)', 'Trabajo en alturas', 'Espacios confinados'],
-  Cardiovascular: ['Exigencia cardiovascular', 'Trabajo sedentario', 'Exposición a altitud/presión', 'Otro'],
-  Neurológico: ['Fatiga del sistema nervioso', 'Alteración del ciclo circadiano', 'Sobrecarga sensorial', 'Otro'],
-  Metabólico: ['Alteración nutricional/digestiva', 'Desbalance térmico extremo', 'Sedentarismo metabólico', 'Otro'],
-  Respiratorio: ['Exposición a atmósferas deficientes', 'Exigencia ventilatoria alta', 'Irritación de vías aéreas', 'Otro'],
-  Sensorial: ['Sobreesfuerzo visual', 'Impacto acústico crónico', 'Afectación táctil/olfativa', 'Otro'],
+  Sensorial: ['Ruido (impacto, intermitente, continuo)', 'Iluminación (exceso o deficiencia)', 'Radiaciones no ionizantes', 'Radiaciones ionizantes', 'Afectación táctil/olfativa'],
+  Respiratorio: ['Polvos orgánicos/inorgánicos', 'Fibras', 'Gases y vapores', 'Humos metálicos/no metálicos', 'Material particulado'],
+  Osteomuscular: ['Postura (mantenida, forzada, antigravitacional)', 'Esfuerzo', 'Movimiento repetitivo', 'Manipulación manual de cargas'],
+  Psicoemocional: ['Gestión organizacional', 'Características de la organización', 'Características del grupo social', 'Condiciones de la tarea', 'Interfase persona-tarea', 'Jornada de trabajo'],
+  Inmunológico: ['Virus', 'Bacterias', 'Hongos', 'Ricketsias', 'Parásitos', 'Picaduras/Mordeduras', 'Fluidos o excrementos'],
+  Cardiovascular: ['Temperaturas extremas (calor/frío)', 'Presión atmosférica', 'Exigencia cardiovascular alta', 'Trabajo sedentario prolongado'],
+  Metabólico: ['Líquidos (nieblas y rocíos)', 'Alteración nutricional/digestiva', 'Desbalance térmico extremo', 'Sedentarismo metabólico'],
+  Neurológico: ['Vibración (cuerpo entero, segmentaria)', 'Fatiga del sistema nervioso', 'Alteración del ciclo circadiano', 'Sobrecarga sensorial'],
+  Seguridad: ['Mecánico (máquinas, herramientas)', 'Eléctrico (alta/baja tensión)', 'Locativo (superficies, caídas)', 'Tecnológico (explosión, incendio)', 'Accidentes de tránsito', 'Públicos (robos, asaltos)', 'Trabajo en alturas', 'Espacios confinados', 'Fenómenos naturales (Sismo, etc.)'],
 };
 
 const ORIGENES_RIESGO = ['Inherente a la Tarea', 'Condición Insegura', 'Acto Inseguro'];
@@ -75,9 +73,7 @@ const DOMINIO_ICON: Record<string, React.ElementType> = {
   Respiratorio: Activity,
   Sensorial: Activity,
   Inmunológico: ShieldAlert,
-  Ambiental: AlertTriangle,
-  Mecánico: AlertTriangle,
-  Toxicológico: AlertTriangle,
+  Seguridad: AlertTriangle,
 };
 
 const DOMINIO_COLOR: Record<string, string> = {
@@ -89,9 +85,7 @@ const DOMINIO_COLOR: Record<string, string> = {
   Respiratorio: 'text-cyan-500',
   Sensorial: 'text-teal-500',
   Inmunológico: 'text-lime-500',
-  Ambiental: 'text-yellow-500',
-  Mecánico: 'text-gray-500',
-  Toxicológico: 'text-fuchsia-500',
+  Seguridad: 'text-gray-500',
 };
 
 const clasificarBioRiesgo = (efectivo: number): BioRiskRow['clasificacion_bio'] => {
@@ -125,7 +119,7 @@ const calcularRiesgo = (row: BioRiskRow, percepcionPts: number): BioRiskRow => {
 const createEmptyRow = (): BioRiskRow => ({
   id: `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
   dominio_bio: 'Osteomuscular',
-  dimension_bio: 'Postura (mantenida, forzada)',
+  dimension_bio: 'Postura (mantenida, forzada, antigravitacional)',
   origen_riesgo: 'Inherente a la Tarea',
   peligro_cargo: '',
   actividad_expuesta: '',
@@ -256,7 +250,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       const res = await fetch(`/api/sgsst/workers/worker/${workerId}/generate-bio-risks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ instruccionesExtra: aiInstruction }),
+        body: JSON.stringify({ instruccionesExtra: aiInstruction, riesgosActuales: rows }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
