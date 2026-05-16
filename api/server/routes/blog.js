@@ -14,7 +14,7 @@ const router = express.Router();
 
 // Public routes (or authenticated only, up to user)
 router.get('/', requireJwtAuth, getBlogPosts);
-router.get('/:id', requireJwtAuth, getBlogPostById);
+router.get('/:id', getBlogPostById);
 
 // Admin / Write routes
 router.post('/admin/generate', requireJwtAuth, generateBlogPost);

@@ -43,30 +43,6 @@ export default function BlogPostViewer() {
         );
     }
 
-    if (isFreePlan) {
-        return (
-            <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-y-auto w-full p-4 relative">
-                {/* Back Button Wrapper */}
-                <div className="mb-4">
-                    <button
-                        onClick={() => navigate('/blog')}
-                        className="group flex items-center gap-2 p-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200"
-                    >
-                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                        <span className="text-sm font-medium">Volver al Blog</span>
-                    </button>
-                </div>
-
-                <div className="flex-1 flex flex-col justify-center">
-                    <UpgradeWall
-                        title="Blog Exclusivo"
-                        description="Para acceder a nuestros valiosos artículos, actualizaciones operativas y reportes mensuales debes contar con un plan Go, Plus o Admin. ¡Sube de nivel y mantente informado!"
-                    />
-                </div>
-            </div>
-        );
-    }
-
     if (!post) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-center h-full">
@@ -93,16 +69,6 @@ export default function BlogPostViewer() {
                     <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                     <span className="text-sm font-medium hidden sm:inline">Volver al Blog</span>
                 </button>
-                <button
-                    onClick={() => {
-                        navigator.clipboard.writeText(window.location.href);
-                        showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
-                >
-                    <Share2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">Compartir</span>
-                </button>
             </div>
 
             {/* Content Container */}
@@ -125,21 +91,34 @@ export default function BlogPostViewer() {
                 </h1>
 
                 {/* Meta */}
-                <div className="flex items-center gap-5 text-sm text-gray-500 dark:text-gray-400 flex-wrap mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
-                    {post.author?.name && (
+                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
+                    <div className="flex items-center gap-5 flex-wrap">
+                        {post.author?.name && (
+                            <div className="flex items-center gap-1.5">
+                                <User className="w-4 h-4" />
+                                {post.author.name}
+                            </div>
+                        )}
                         <div className="flex items-center gap-1.5">
-                            <User className="w-4 h-4" />
-                            {post.author.name}
+                            <Clock className="w-4 h-4" />
+                            {new Date(post.createdAt).toLocaleDateString('es-CO', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            })}
                         </div>
-                    )}
-                    <div className="flex items-center gap-1.5">
-                        <Clock className="w-4 h-4" />
-                        {new Date(post.createdAt).toLocaleDateString('es-CO', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        })}
                     </div>
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            showToast({ message: 'Enlace copiado al portapapeles', status: 'success' });
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full transition-colors group"
+                        title="Compartir Artículo"
+                    >
+                        <Share2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="hidden sm:inline">Compartir</span>
+                    </button>
                 </div>
 
                 {/* Thumbnail — only if provided */}

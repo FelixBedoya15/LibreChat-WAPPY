@@ -183,6 +183,16 @@ export const router = createBrowserRouter(
       errorElement: <RouteErrorBoundary />,
     },
     {
+      path: 'blog/:postId',
+      element: (
+        <AuthContextProvider>
+          <BlogPostViewer />
+          <ApiErrorWatcher />
+        </AuthContextProvider>
+      ),
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: 'verify',
       element: <VerifyEmail />,
       errorElement: <RouteErrorBoundary />,
@@ -275,10 +285,6 @@ export const router = createBrowserRouter(
             {
               path: 'blog/admin/posts/:id',
               element: <BlogPostEditor />,
-            },
-            {
-              path: 'blog/:postId',
-              element: <BlogPostViewer />,
             },
             {
               path: 'editor-archivos',

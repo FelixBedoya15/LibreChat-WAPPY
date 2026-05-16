@@ -840,6 +840,15 @@ export default function MatrizIPEVARTable({ conversationId, workerId }: { conver
 
           <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} hideTooltip={true} />
 
+          {/* Añadir Fila */}
+          <button onClick={addRow}
+            className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer border outline-none rounded-xl bg-surface-primary border-teal-500/40 hover:bg-teal-50 dark:hover:bg-teal-900/20 text-teal-600 dark:text-teal-400 hover:-rotate-3 hover:scale-105">
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="flex items-center max-w-0 overflow-hidden opacity-0 group-hover:max-w-[200px] group-hover:opacity-100 transition-all duration-300 ease-in-out whitespace-nowrap text-sm font-bold tracking-wide group-hover:ml-2">
+              Añadir Riesgo
+            </span>
+          </button>
+
           {/* Analizar Matriz Completa */}
           <button onClick={handleAnalyzeMatrix} disabled={isAnalyzing || matrixRows.length === 0}
             className="group flex flex-shrink-0 items-center justify-center h-10 px-2.5 min-w-[40px] transition-all duration-300 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border outline-none rounded-xl bg-surface-primary border-purple-500/40 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:-rotate-3 hover:scale-105">
@@ -957,7 +966,17 @@ export default function MatrizIPEVARTable({ conversationId, workerId }: { conver
         {matrixRows.length === 0 && !isLoading ? (
           <div className="flex h-48 flex-col items-center justify-center gap-3 text-text-secondary">
             <ShieldAlert className="h-10 w-10 opacity-20" />
-            <p className="text-sm">Aún no hay riesgos en la matriz. Pídele al Experto IPEVAR que los registre.</p>
+            <p className="text-sm text-center px-4">
+              {workerId 
+                ? 'Aún no hay riesgos específicos registrados para el perfil bio-individual de este trabajador.' 
+                : 'Aún no hay riesgos en la matriz. Pídele al Experto IPEVAR en el chat que los registre, o añádelos manualmente.'}
+            </p>
+            <button 
+              onClick={addRow}
+              className="mt-2 flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-bold shadow-md hover:-translate-y-0.5"
+            >
+              <Plus className="h-5 w-5" /> Añadir Primer Riesgo
+            </button>
           </div>
         ) : (
           <div className="min-w-max">
