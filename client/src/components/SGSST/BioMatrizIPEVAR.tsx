@@ -631,131 +631,128 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
       )}
 
-      {/* Drawer Metodología (Slide-over) */}
+      {/* Modal Metodología (Centrado) */}
       {showMethodology && (
-        <div className="fixed inset-0 z-[1200] flex justify-end">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 sm:p-6">
           {/* Backdrop con blur */}
           <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
             onClick={() => setShowMethodology(false)} 
           />
           
-          {/* Panel Lateral Derecho */}
-          <div className="relative w-full max-w-lg h-full bg-surface-primary shadow-[0_0_40px_rgba(0,0,0,0.2)] flex flex-col animate-in slide-in-from-right-1/2 duration-300">
-            {/* Cabecera del Drawer */}
-            <div className="flex items-center justify-between p-6 border-b border-border-medium bg-surface-secondary/30">
+          {/* Contenedor del Modal */}
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-surface-primary shadow-[0_0_50px_rgba(0,0,0,0.3)] rounded-2xl flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Cabecera del Modal */}
+            <div className="flex items-center justify-between p-6 border-b border-border-medium bg-surface-secondary/50 rounded-t-2xl">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-2xl shadow-sm">
+                <div className="p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl shadow-sm">
                   <Activity className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-text-primary">Guía IPEVAR Bio-Individual</h3>
-                  <p className="text-xs text-text-secondary mt-1">Manual de Procedimiento • GTC-45 • Decreto 1072</p>
+                  <h3 className="text-xl font-bold text-text-primary">Metodología Bio-Individual IPEVAR</h3>
+                  <p className="text-sm text-text-secondary mt-1">Manual de Procedimiento • GTC-45 • Decreto 1072</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowMethodology(false)} 
                 className="text-text-tertiary hover:text-text-primary p-2 bg-surface-hover rounded-full transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             
             {/* Contenido con Scroll */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8 text-sm text-text-secondary bg-surface-primary">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-8 text-sm text-text-secondary bg-surface-primary">
               
               {/* Sección 1: Fórmula */}
               <section className="space-y-4">
-                <h4 className="text-base font-bold text-text-primary border-b border-border-light pb-2">1. La Fórmula Biocéntrica</h4>
-                <p className="leading-relaxed">
+                <h4 className="text-lg font-bold text-text-primary border-b border-border-light pb-2">1. La Fórmula Biocéntrica</h4>
+                <p className="leading-relaxed text-base">
                   A diferencia de la evaluación tradicional, la metodología <strong>IPEVAR WAPPY</strong> humaniza la matriz de riesgos cruzando la susceptibilidad clínica y la exposición real con el comportamiento y participación del trabajador (Factor de Percepción).
                 </p>
-                <div className="bg-teal-50 dark:bg-teal-900/10 p-5 rounded-2xl border border-teal-100 dark:border-teal-800/30 text-center shadow-inner">
-                  <div className="font-mono font-bold text-lg text-teal-700 dark:text-teal-300">
+                <div className="bg-teal-50 dark:bg-teal-900/10 p-6 rounded-2xl border border-teal-100 dark:border-teal-800/30 text-center shadow-inner mx-auto max-w-2xl">
+                  <div className="font-mono font-bold text-2xl text-teal-700 dark:text-teal-300">
                     Efectivo = (NS × NE) × (1 - F. Percepción)
                   </div>
-                  <p className="text-[11px] text-teal-600/70 dark:text-teal-400/70 mt-2">
-                    *F. Percepción max = 40% (0.40) derivado de puntos de gamificación y reportes en la app.
+                  <p className="text-xs text-teal-600/80 dark:text-teal-400/80 mt-3">
+                    *El Factor de Percepción máximo es del 40% (0.40) y se deriva automáticamente de los puntos de gamificación y reportes del trabajador en la plataforma.
                   </p>
                 </div>
               </section>
 
-              {/* Sección 2: Criterios */}
-              <section className="space-y-6">
-                <h4 className="text-base font-bold text-text-primary border-b border-border-light pb-2">2. Criterios de Evaluación</h4>
-                
-                <div className="bg-surface-secondary/50 p-4 rounded-xl border border-border-light">
-                  <h5 className="font-bold text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-[10px]">NS</span>
-                    Nivel de Susceptibilidad (1-5)
+              {/* Grid para Criterios */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Sección 2: Criterios NS */}
+                <section className="bg-surface-secondary/50 p-5 rounded-2xl border border-border-light">
+                  <h5 className="font-bold text-blue-600 dark:text-blue-400 mb-4 flex items-center gap-2 text-base">
+                    <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-xs">NS</span>
+                    Nivel de Susceptibilidad
                   </h5>
-                  <ul className="space-y-3 text-xs leading-relaxed">
-                    <li className="flex gap-2"><strong>1:</strong> <span>Fisiología óptima, sin patologías preexistentes para el cargo.</span></li>
-                    <li className="flex gap-2"><strong>2:</strong> <span>Condición leve, controlada con estilo de vida saludable.</span></li>
-                    <li className="flex gap-2"><strong>3:</strong> <span>Sensibilidad moderada, requiere vigilancia médica preventiva.</span></li>
-                    <li className="flex gap-2"><strong>4:</strong> <span>Vulnerabilidad alta, historia clínica con eventos recientes o crónicos.</span></li>
-                    <li className="flex gap-2"><strong>5:</strong> <span>Condición crítica o embarazo, riesgo inminente ante la mínima exposición.</span></li>
+                  <ul className="space-y-3 text-sm leading-relaxed">
+                    <li className="flex gap-3"><strong>1:</strong> <span>Fisiología óptima, sin patologías preexistentes para el cargo.</span></li>
+                    <li className="flex gap-3"><strong>2:</strong> <span>Condición leve, controlada con estilo de vida saludable.</span></li>
+                    <li className="flex gap-3"><strong>3:</strong> <span>Sensibilidad moderada, requiere vigilancia médica preventiva.</span></li>
+                    <li className="flex gap-3"><strong>4:</strong> <span>Vulnerabilidad alta, historia clínica con eventos recientes o crónicos.</span></li>
+                    <li className="flex gap-3 text-red-600 dark:text-red-400"><strong>5:</strong> <span>Condición crítica o embarazo, riesgo inminente ante exposición.</span></li>
                   </ul>
-                </div>
+                </section>
 
-                <div className="bg-surface-secondary/50 p-4 rounded-xl border border-border-light">
-                  <h5 className="font-bold text-orange-600 dark:text-orange-400 mb-3 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-[10px]">NE</span>
-                    Nivel de Exposición (1-5)
+                {/* Sección 2: Criterios NE */}
+                <section className="bg-surface-secondary/50 p-5 rounded-2xl border border-border-light">
+                  <h5 className="font-bold text-orange-600 dark:text-orange-400 mb-4 flex items-center gap-2 text-base">
+                    <span className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-xs">NE</span>
+                    Nivel de Exposición
                   </h5>
-                  <ul className="space-y-3 text-xs leading-relaxed">
-                    <li className="flex gap-2"><strong>1:</strong> <span>Exposición esporádica (menos de 1 hora al mes).</span></li>
-                    <li className="flex gap-2"><strong>2:</strong> <span>Exposición ocasional (algunas horas a la semana).</span></li>
-                    <li className="flex gap-2"><strong>3:</strong> <span>Exposición frecuente (varias horas todos los días).</span></li>
-                    <li className="flex gap-2"><strong>4:</strong> <span>Exposición continua (toda la jornada laboral, intensidad media).</span></li>
-                    <li className="flex gap-2"><strong>5:</strong> <span>Exposición permanente y crítica (toda la jornada a intensidad máxima/peligrosa).</span></li>
+                  <ul className="space-y-3 text-sm leading-relaxed">
+                    <li className="flex gap-3"><strong>1:</strong> <span>Exposición esporádica (menos de 1 hora al mes).</span></li>
+                    <li className="flex gap-3"><strong>2:</strong> <span>Exposición ocasional (algunas horas a la semana).</span></li>
+                    <li className="flex gap-3"><strong>3:</strong> <span>Exposición frecuente (varias horas todos los días).</span></li>
+                    <li className="flex gap-3"><strong>4:</strong> <span>Exposición continua (toda la jornada laboral, intensidad media).</span></li>
+                    <li className="flex gap-3 text-red-600 dark:text-red-400"><strong>5:</strong> <span>Exposición permanente y crítica (toda la jornada a intensidad máxima).</span></li>
                   </ul>
-                </div>
-              </section>
+                </section>
+              </div>
 
               {/* Sección 3: Taxonomía */}
-              <section className="space-y-4">
-                <h4 className="text-base font-bold text-text-primary border-b border-border-light pb-2">3. Taxonomía de Dominios</h4>
-                <p className="text-xs leading-relaxed">
-                  Para el análisis Bio-Individual, agrupamos los peligros de la <strong>GTC-45</strong> en sistemas fisiológicos humanos, permitiendo una trazabilidad clínica directa.
-                </p>
-                <div className="space-y-3 text-xs">
-                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
-                    <strong className="text-teal-600">Sensorial</strong>
-                    <span className="text-text-tertiary">Físicos: Ruido, Iluminación, Radiaciones (I/NI).</span>
+              <section className="space-y-4 pt-4 border-t border-border-light">
+                <h4 className="text-lg font-bold text-text-primary mb-2">3. Taxonomía de Dominios Fisiológicos (GTC-45)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-teal-500/50 transition-colors">
+                    <strong className="text-teal-600 block mb-1">Sensorial</strong>
+                    <span className="text-text-tertiary">Ruido, Iluminación, Radiaciones.</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
-                    <strong className="text-cyan-600">Respiratorio</strong>
-                    <span className="text-text-tertiary">Químicos: Polvos, Humos, Gases, Vapores, Material Particulado.</span>
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-cyan-500/50 transition-colors">
+                    <strong className="text-cyan-600 block mb-1">Respiratorio</strong>
+                    <span className="text-text-tertiary">Polvos, Humos, Gases, Vapores.</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
-                    <strong className="text-orange-600">Osteomuscular</strong>
-                    <span className="text-text-tertiary">Biomecánicos: Postura, Esfuerzo, Movimiento repetitivo, Manipulación de cargas.</span>
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-orange-500/50 transition-colors">
+                    <strong className="text-orange-600 block mb-1">Osteomuscular</strong>
+                    <span className="text-text-tertiary">Postura, Esfuerzo, Movimiento, Cargas.</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
-                    <strong className="text-blue-600">Psicoemocional</strong>
-                    <span className="text-text-tertiary">Psicosocial: Gestión organizacional, Jornada, Tarea, Interfase persona-tarea.</span>
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-blue-500/50 transition-colors">
+                    <strong className="text-blue-600 block mb-1">Psicoemocional</strong>
+                    <span className="text-text-tertiary">Gestión organizacional, Tarea, Jornada.</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
-                    <strong className="text-lime-600">Inmunológico</strong>
-                    <span className="text-text-tertiary">Biológicos: Virus, Bacterias, Hongos, Mordeduras, Fluidos.</span>
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-lime-500/50 transition-colors">
+                    <strong className="text-lime-600 block mb-1">Inmunológico</strong>
+                    <span className="text-text-tertiary">Virus, Bacterias, Hongos, Fluidos.</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
-                    <strong className="text-gray-600">Seguridad Integral</strong>
-                    <span className="text-text-tertiary">Mecánico, Eléctrico, Locativo, Tecnológico, Público, Trabajo en Alturas, Espacios Confinados.</span>
+                  <div className="p-4 bg-surface-secondary rounded-xl border border-border-light hover:border-gray-500/50 transition-colors">
+                    <strong className="text-gray-600 block mb-1">Seguridad Integral</strong>
+                    <span className="text-text-tertiary">Mecánico, Eléctrico, Locativo, Alturas.</span>
                   </div>
                 </div>
               </section>
 
             </div>
             
-            {/* Pie del Drawer */}
-            <div className="p-6 border-t border-border-medium bg-surface-secondary/30 flex justify-end gap-3">
+            {/* Pie del Modal */}
+            <div className="p-6 border-t border-border-medium bg-surface-secondary/50 rounded-b-2xl flex justify-end">
               <button 
                 onClick={() => setShowMethodology(false)}
-                className="px-6 py-2.5 bg-text-primary text-surface-primary font-bold rounded-xl hover:scale-95 transition-all shadow-md"
+                className="px-8 py-3 bg-text-primary text-surface-primary font-bold rounded-xl hover:scale-[0.98] transition-all shadow-md"
               >
-                Cerrar Guía
+                Entendido, cerrar guía
               </button>
             </div>
           </div>
