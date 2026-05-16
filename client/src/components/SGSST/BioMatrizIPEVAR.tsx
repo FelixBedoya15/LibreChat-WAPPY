@@ -276,58 +276,97 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   // ─── HTML Export ─────────────────────────────────────────────────────────
   const exportHtml = useMemo(() => {
     if (rows.length === 0) return '';
+    
+    const criticos = rows.filter(r => r.clasificacion_bio === 'Crítico').length;
+    const altos = rows.filter(r => r.clasificacion_bio === 'Alto').length;
+    const moderados = rows.filter(r => r.clasificacion_bio === 'Moderado').length;
+    const bajos = rows.filter(r => r.clasificacion_bio === 'Bajo').length;
+
     let html = `
-      <div style="font-family: Arial, sans-serif; color: #333;">
-        <h1 style="color: #0f766e; border-bottom: 2px solid #0f766e; padding-bottom: 10px;">Matriz IPEVAR Bio-Individual</h1>
-        <p><strong>Trabajador:</strong> ${workerId}</p>
-        <table border="1" style="width:100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; text-align: left;">
-          <thead style="background-color: #f1f5f9; color: #475569;">
-            <tr>
-              <th style="padding: 8px;">Dominio</th>
-              <th style="padding: 8px;">Dimensión</th>
-              <th style="padding: 8px;">Origen</th>
-              <th style="padding: 8px;">Peligro</th>
-              <th style="padding: 8px;">Actividad</th>
-              <th style="padding: 8px;">Factor Individual</th>
-              <th style="padding: 8px;">NS</th>
-              <th style="padding: 8px;">NE</th>
-              <th style="padding: 8px;">Bruto</th>
-              <th style="padding: 8px;">Efectivo</th>
-              <th style="padding: 8px;">Clasificación</th>
-              <th style="padding: 8px;">Seguimiento</th>
+      <div style="font-family: 'Inter', Arial, sans-serif; color: #334155; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0f766e; padding-bottom: 15px; margin-bottom: 25px;">
+          <div>
+            <h1 style="color: #0f766e; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: -0.5px;">Reporte Técnico IPEVAR</h1>
+            <h2 style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; font-weight: normal;">Matriz de Riesgos Bio-Individual (GTC-45)</h2>
+          </div>
+          <div style="text-align: right; color: #64748b; font-size: 12px;">
+            <p style="margin: 0;"><strong>ID Trabajador:</strong> ${workerId}</p>
+            <p style="margin: 5px 0 0 0;">Fecha: ${new Date().toLocaleDateString('es-CO')}</p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+          <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+            <h3 style="color: #0f766e; font-size: 13px; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">📊 MÉTRICAS CLÍNICAS (FIT)</h3>
+            <p style="margin: 5px 0; font-size: 13px;"><strong>Índice FIT Integral:</strong> <span style="color: #0f766e; font-weight: bold;">${fitScore}%</span></p>
+            <p style="margin: 5px 0; font-size: 13px;"><strong>Puntos Percepción:</strong> ${percepcionPts} pts</p>
+            <p style="margin: 5px 0; font-size: 13px;"><strong>Factor Reducción:</strong> -${(Math.min(percepcionPts / 500, 0.40) * 100).toFixed(0)}% (aplicado al índice bruto)</p>
+          </div>
+          
+          <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;">
+            <h3 style="color: #0f766e; font-size: 13px; margin: 0 0 10px 0; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px;">⚠️ RESUMEN BIO-RIESGOS</h3>
+            <div style="display: flex; gap: 15px; font-size: 12px; font-weight: bold; text-align: center;">
+              <div style="flex: 1; color: #dc2626;"><span style="font-size: 20px; display: block;">${criticos}</span> Críticos</div>
+              <div style="flex: 1; color: #ea580c;"><span style="font-size: 20px; display: block;">${altos}</span> Altos</div>
+              <div style="flex: 1; color: #eab308;"><span style="font-size: 20px; display: block;">${moderados}</span> Moderados</div>
+              <div style="flex: 1; color: #16a34a;"><span style="font-size: 20px; display: block;">${bajos}</span> Bajos</div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="color: #334155; font-size: 16px; margin-bottom: 15px;">Matriz Detallada</h3>
+        <table style="width:100%; border-collapse: collapse; font-size: 11px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <thead>
+            <tr style="background-color: #0f766e; color: white;">
+              <th style="padding: 10px; border: 1px solid #115e59;">Dominio</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Dimensión</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Peligro</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Actividad</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Factor Indiv.</th>
+              <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">NS</th>
+              <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">NE</th>
+              <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">Bruto</th>
+              <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">Efectivo</th>
+              <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">Clasificación</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Plan de Acción</th>
             </tr>
           </thead>
           <tbody>
     `;
-    rows.forEach(r => {
-      let color = r.clasificacion_bio === 'Crítico' ? '#dc2626' : r.clasificacion_bio === 'Alto' ? '#ea580c' : r.clasificacion_bio === 'Moderado' ? '#eab308' : '#16a34a';
+    
+    rows.forEach((r, idx) => {
+      let bgRow = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+      let colorClase = r.clasificacion_bio === 'Crítico' ? '#dc2626' : r.clasificacion_bio === 'Alto' ? '#ea580c' : r.clasificacion_bio === 'Moderado' ? '#eab308' : '#16a34a';
+      let bgClase = r.clasificacion_bio === 'Crítico' ? '#fef2f2' : r.clasificacion_bio === 'Alto' ? '#fff7ed' : r.clasificacion_bio === 'Moderado' ? '#fefce8' : '#f0fdf4';
+      
       html += `
-        <tr>
-          <td style="padding: 8px;">${r.dominio_bio}</td>
-          <td style="padding: 8px;">${r.dimension_bio}</td>
-          <td style="padding: 8px;">${r.origen_riesgo}</td>
-          <td style="padding: 8px;">${r.peligro_cargo}</td>
-          <td style="padding: 8px;">${r.actividad_expuesta}</td>
-          <td style="padding: 8px;">${r.factor_individual}</td>
-          <td style="padding: 8px;">${r.nivel_susceptibilidad}</td>
-          <td style="padding: 8px;">${r.nivel_exposicion}</td>
-          <td style="padding: 8px;">${r.indice_bio_riesgo_bruto}</td>
-          <td style="padding: 8px; font-weight: bold;">${r.indice_bio_riesgo_efectivo.toFixed(1)}</td>
-          <td style="padding: 8px; font-weight: bold; color: ${color};">${r.clasificacion_bio}</td>
-          <td style="padding: 8px;">${r.seguimiento_medico}</td>
+        <tr style="background-color: ${bgRow};">
+          <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f766e;">${r.dominio_bio}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.dimension_bio}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.peligro_cargo}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.actividad_expuesta}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.factor_individual}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${r.nivel_susceptibilidad}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${r.nivel_exposicion}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${r.indice_bio_riesgo_bruto}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; font-size: 12px;">${r.indice_bio_riesgo_efectivo.toFixed(1)}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${colorClase}; background-color: ${bgClase};">${r.clasificacion_bio}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 10px;">${r.plan_accion_bio || 'Pendiente'}</td>
         </tr>
       `;
     });
+    
     html += `
           </tbody>
         </table>
-        <div style="margin-top: 20px; font-size: 11px; color: #64748b;">
-          Generado desde Plataforma WAPPY IA - Metodología Bio-Individual
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #94a3b8;">
+          <p style="margin: 0;"><strong>Plataforma WAPPY IA</strong> - Módulo Seguridad y Salud en el Trabajo</p>
+          <p style="margin: 5px 0 0 0;">Metodología Bio-Individual alineada con la GTC-45 y el Decreto 1072</p>
         </div>
       </div>
     `;
     return html;
-  }, [rows, workerId]);
+  }, [rows, workerId, fitScore, percepcionPts]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   const factorReduccion = Math.min(percepcionPts / 500, 0.40);
@@ -379,9 +418,9 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             key="methodology" 
             id="methodology" 
             onClick={() => setShowMethodology(true)} 
-            title="Ver metodología detallada" 
+            title="Ver Manual de Procedimiento IPEVAR" 
             label="Metodología" 
-            icon="book-open" 
+            icon="file-text" 
             variant="default" 
           />,
           <div key="ai-input" className="flex items-center h-10 bg-surface-primary border border-border-medium rounded-xl pr-1 pl-3 transition-colors shadow-sm focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
@@ -592,31 +631,132 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         </div>
       )}
 
+      {/* Drawer Metodología (Slide-over) */}
       {showMethodology && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-primary rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-5 border-b border-border-medium bg-surface-secondary/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-xl">
-                  <Activity className="h-6 w-6" />
+        <div className="fixed inset-0 z-[1200] flex justify-end">
+          {/* Backdrop con blur */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+            onClick={() => setShowMethodology(false)} 
+          />
+          
+          {/* Panel Lateral Derecho */}
+          <div className="relative w-full max-w-lg h-full bg-surface-primary shadow-[0_0_40px_rgba(0,0,0,0.2)] flex flex-col animate-in slide-in-from-right-1/2 duration-300">
+            {/* Cabecera del Drawer */}
+            <div className="flex items-center justify-between p-6 border-b border-border-medium bg-surface-secondary/30">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-2xl shadow-sm">
+                  <Activity className="h-7 w-7" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-text-primary">Metodología Bio-Individual</h3>
-                  <p className="text-xs text-text-secondary">Alineada con GTC-45 y el Decreto 1072</p>
+                  <h3 className="text-xl font-bold text-text-primary">Guía IPEVAR Bio-Individual</h3>
+                  <p className="text-xs text-text-secondary mt-1">Manual de Procedimiento • GTC-45 • Decreto 1072</p>
                 </div>
               </div>
-              <button onClick={() => setShowMethodology(false)} className="text-text-tertiary hover:text-text-primary p-2">
+              <button 
+                onClick={() => setShowMethodology(false)} 
+                className="text-text-tertiary hover:text-text-primary p-2 bg-surface-hover rounded-full transition-colors"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto space-y-6 text-sm text-text-secondary">
-              <div className="p-4 bg-teal-50 dark:bg-teal-900/10 rounded-xl border border-teal-100">
-                <h4 className="font-bold flex items-center gap-2 mb-2"><Dna className="w-4 h-4" /> La Fórmula WAPPY</h4>
-                <div className="font-mono bg-white p-3 rounded-lg text-center font-bold text-base border">Índice Efectivo = (NS × NE) × (1 - Factor Percepción)</div>
-              </div>
+            
+            {/* Contenido con Scroll */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-8 text-sm text-text-secondary bg-surface-primary">
+              
+              {/* Sección 1: Fórmula */}
+              <section className="space-y-4">
+                <h4 className="text-base font-bold text-text-primary border-b border-border-light pb-2">1. La Fórmula Biocéntrica</h4>
+                <p className="leading-relaxed">
+                  A diferencia de la evaluación tradicional, la metodología <strong>IPEVAR WAPPY</strong> humaniza la matriz de riesgos cruzando la susceptibilidad clínica y la exposición real con el comportamiento y participación del trabajador (Factor de Percepción).
+                </p>
+                <div className="bg-teal-50 dark:bg-teal-900/10 p-5 rounded-2xl border border-teal-100 dark:border-teal-800/30 text-center shadow-inner">
+                  <div className="font-mono font-bold text-lg text-teal-700 dark:text-teal-300">
+                    Efectivo = (NS × NE) × (1 - F. Percepción)
+                  </div>
+                  <p className="text-[11px] text-teal-600/70 dark:text-teal-400/70 mt-2">
+                    *F. Percepción max = 40% (0.40) derivado de puntos de gamificación y reportes en la app.
+                  </p>
+                </div>
+              </section>
+
+              {/* Sección 2: Criterios */}
+              <section className="space-y-6">
+                <h4 className="text-base font-bold text-text-primary border-b border-border-light pb-2">2. Criterios de Evaluación</h4>
+                
+                <div className="bg-surface-secondary/50 p-4 rounded-xl border border-border-light">
+                  <h5 className="font-bold text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-[10px]">NS</span>
+                    Nivel de Susceptibilidad (1-5)
+                  </h5>
+                  <ul className="space-y-3 text-xs leading-relaxed">
+                    <li className="flex gap-2"><strong>1:</strong> <span>Fisiología óptima, sin patologías preexistentes para el cargo.</span></li>
+                    <li className="flex gap-2"><strong>2:</strong> <span>Condición leve, controlada con estilo de vida saludable.</span></li>
+                    <li className="flex gap-2"><strong>3:</strong> <span>Sensibilidad moderada, requiere vigilancia médica preventiva.</span></li>
+                    <li className="flex gap-2"><strong>4:</strong> <span>Vulnerabilidad alta, historia clínica con eventos recientes o crónicos.</span></li>
+                    <li className="flex gap-2"><strong>5:</strong> <span>Condición crítica o embarazo, riesgo inminente ante la mínima exposición.</span></li>
+                  </ul>
+                </div>
+
+                <div className="bg-surface-secondary/50 p-4 rounded-xl border border-border-light">
+                  <h5 className="font-bold text-orange-600 dark:text-orange-400 mb-3 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-[10px]">NE</span>
+                    Nivel de Exposición (1-5)
+                  </h5>
+                  <ul className="space-y-3 text-xs leading-relaxed">
+                    <li className="flex gap-2"><strong>1:</strong> <span>Exposición esporádica (menos de 1 hora al mes).</span></li>
+                    <li className="flex gap-2"><strong>2:</strong> <span>Exposición ocasional (algunas horas a la semana).</span></li>
+                    <li className="flex gap-2"><strong>3:</strong> <span>Exposición frecuente (varias horas todos los días).</span></li>
+                    <li className="flex gap-2"><strong>4:</strong> <span>Exposición continua (toda la jornada laboral, intensidad media).</span></li>
+                    <li className="flex gap-2"><strong>5:</strong> <span>Exposición permanente y crítica (toda la jornada a intensidad máxima/peligrosa).</span></li>
+                  </ul>
+                </div>
+              </section>
+
+              {/* Sección 3: Taxonomía */}
+              <section className="space-y-4">
+                <h4 className="text-base font-bold text-text-primary border-b border-border-light pb-2">3. Taxonomía de Dominios</h4>
+                <p className="text-xs leading-relaxed">
+                  Para el análisis Bio-Individual, agrupamos los peligros de la <strong>GTC-45</strong> en sistemas fisiológicos humanos, permitiendo una trazabilidad clínica directa.
+                </p>
+                <div className="space-y-3 text-xs">
+                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <strong className="text-teal-600">Sensorial</strong>
+                    <span className="text-text-tertiary">Físicos: Ruido, Iluminación, Radiaciones (I/NI).</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <strong className="text-cyan-600">Respiratorio</strong>
+                    <span className="text-text-tertiary">Químicos: Polvos, Humos, Gases, Vapores, Material Particulado.</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <strong className="text-orange-600">Osteomuscular</strong>
+                    <span className="text-text-tertiary">Biomecánicos: Postura, Esfuerzo, Movimiento repetitivo, Manipulación de cargas.</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <strong className="text-blue-600">Psicoemocional</strong>
+                    <span className="text-text-tertiary">Psicosocial: Gestión organizacional, Jornada, Tarea, Interfase persona-tarea.</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <strong className="text-lime-600">Inmunológico</strong>
+                    <span className="text-text-tertiary">Biológicos: Virus, Bacterias, Hongos, Mordeduras, Fluidos.</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <strong className="text-gray-600">Seguridad Integral</strong>
+                    <span className="text-text-tertiary">Mecánico, Eléctrico, Locativo, Tecnológico, Público, Trabajo en Alturas, Espacios Confinados.</span>
+                  </div>
+                </div>
+              </section>
+
             </div>
-            <div className="p-4 border-t border-border-medium text-right">
-              <button onClick={() => setShowMethodology(false)} className="px-6 py-2 bg-text-primary text-surface-primary font-bold rounded-xl">Entendido</button>
+            
+            {/* Pie del Drawer */}
+            <div className="p-6 border-t border-border-medium bg-surface-secondary/30 flex justify-end gap-3">
+              <button 
+                onClick={() => setShowMethodology(false)}
+                className="px-6 py-2.5 bg-text-primary text-surface-primary font-bold rounded-xl hover:scale-95 transition-all shadow-md"
+              >
+                Cerrar Guía
+              </button>
             </div>
           </div>
         </div>
