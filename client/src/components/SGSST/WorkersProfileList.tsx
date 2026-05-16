@@ -68,6 +68,25 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
         fetchWorkers();
     }, [fetchWorkers]);
 
+    // Values considered as "no data" — should not be displayed as health alerts
+    const NULLISH_PATTERNS = [
+        /^ninguna?$/i,
+        /^ninguna? conocida?$/i,
+        /^ninguna? reportada?$/i,
+        /^ninguna? registrada?$/i,
+        /^no$/i,
+        /^n\/a$/i,
+        /^sin datos?$/i,
+        /^sin informaci[oó]n$/i,
+        /^apto( sin hallazgos)?$/i,
+        /^-+$/,
+    ];
+
+    const isNullLike = (value: string) => {
+        if (!value || !value.trim()) return true;
+        return NULLISH_PATTERNS.some(p => p.test(value.trim()));
+    };
+
     // When user clicks a worker: find or create their SgsstWorker record, then open dashboard
     const handleOpenWorker = async (socioWorker: SocioDemoWorker) => {
         if (!token || openingWorker) return;
@@ -118,25 +137,6 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
         } finally {
             setOpeningWorker(null);
         }
-    };
-
-    // Values considered as "no data" — should not be displayed as health alerts
-    const NULLISH_PATTERNS = [
-        /^ninguna?$/i,
-        /^ninguna? conocida?$/i,
-        /^ninguna? reportada?$/i,
-        /^ninguna? registrada?$/i,
-        /^no$/i,
-        /^n\/a$/i,
-        /^sin datos?$/i,
-        /^sin informaci[oó]n$/i,
-        /^apto( sin hallazgos)?$/i,
-        /^-+$/,
-    ];
-
-    const isNullLike = (value: string) => {
-        if (!value || !value.trim()) return true;
-        return NULLISH_PATTERNS.some(p => p.test(value.trim()));
     };
 
     const getHealthAlerts = (w: SocioDemoWorker) => {
