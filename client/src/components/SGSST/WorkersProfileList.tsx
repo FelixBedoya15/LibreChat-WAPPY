@@ -73,75 +73,79 @@ export default function WorkersProfileList({ perfilId, perfilNombre, onSelectWor
         if (!token || openingWorker) return;
         setOpeningWorker(socioWorker.id);
         try {
-            // 1. Try to find existing SgsstWorker by documento
-            const findRes = await fetch(`/api/sgsst/workers/${perfilId}`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const condicionesSalud = [
+                socioWorker.enfermedades,
+                socioWorker.diagnosticoMedico,
+                socioWorker.limitacionesBiomecanicas,
+                socioWorker.alergiasQuimicas,
+            ].filter(v => v && !isNullLike(v)).join('; ');
+
+            // POST is now idempotent (find-or-create) — safe to call always
+            const createRes = await fetch('/api/sgsst/workers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    perfilId,
+                    nombre: socioWorker.nombre,
+                    documento: String(socioWorker.identificacion).trim(),
+                    genero: socioWorker.genero || '',
+                    fechaIngreso: new Date().toISOString().split('T')[0],
+                    condicionesSalud,
+                    observaciones: 'Importado desde Perfil Sociodemográfico'
+                })
             });
 
-            let workerId: string | null = null;
-
-            if (findRes.ok) {
-                const findData = await findRes.json();
-                const existing = (findData.workers || []).find(
-                    (w: any) => String(w.documento).trim() === String(socioWorker.identificacion).trim()
-                );
-                if (existing) {
-                    workerId = existing._id;
-                }
+            const createData = await createRes.json();
+            
+            if (!createRes.ok) {
+                console.error('[WorkersProfileList] Failed to open worker:', createData);
+                showToast({ message: `Error al abrir: ${createData.error || 'Error desconocido'}`, status: 'error' });
+                return;
             }
 
-            // 2. If not found, create it
-            if (!workerId) {
-                const condicionesSalud = [
-                    socioWorker.enfermedades,
-                    socioWorker.diagnosticoMedico,
-                    socioWorker.limitacionesBiomecanicas,
-                    socioWorker.alergiasQuimicas,
-                ].filter(Boolean).join('; ');
-
-                const createRes = await fetch('/api/sgsst/workers', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        perfilId,
-                        nombre: socioWorker.nombre,
-                        documento: String(socioWorker.identificacion).trim(),
-                        genero: socioWorker.genero || '',
-                        fechaIngreso: new Date().toISOString().split('T')[0],
-                        condicionesSalud,
-                        observaciones: 'Importado desde Perfil Sociodemográfico'
-                    })
-                });
-
-                if (createRes.ok) {
-                    const createData = await createRes.json();
-                    workerId = createData.worker?._id;
-                } else {
-                    const err = await createRes.json();
-                    console.error('[WorkersProfileList] Failed to create worker:', err);
-                    showToast({ message: 'Error al abrir el perfil del trabajador', status: 'error' });
-                    return;
-                }
-            }
-
+            const workerId = createData.worker?._id;
             if (workerId) {
                 onSelectWorker(workerId);
+            } else {
+                showToast({ message: 'No se pudo obtener el ID del trabajador', status: 'error' });
             }
         } catch (error) {
             console.error('[WorkersProfileList] Error opening worker:', error);
-            showToast({ message: 'Error al abrir el perfil del trabajador', status: 'error' });
+            showToast({ message: 'Error de conexión al abrir el perfil', status: 'error' });
         } finally {
             setOpeningWorker(null);
         }
     };
 
+    // Values considered as "no data" — should not be displayed as health alerts
+    const NULLISH_PATTERNS = [
+        /^ninguna?$/i,
+        /^ninguna? conocida?$/i,
+        /^ninguna? reportada?$/i,
+        /^ninguna? registrada?$/i,
+        /^no$/i,
+        /^n\/a$/i,
+        /^sin datos?$/i,
+        /^sin informaci[oó]n$/i,
+        /^apto( sin hallazgos)?$/i,
+        /^-+$/,
+    ];
+
+    const isNullLike = (value: string) => {
+        if (!value || !value.trim()) return true;
+        return NULLISH_PATTERNS.some(p => p.test(value.trim()));
+    };
+
     const getHealthAlerts = (w: SocioDemoWorker) => {
-        return [w.enfermedades, w.diagnosticoMedico, w.limitacionesBiomecanicas, w.alergiasQuimicas]
-            .filter(Boolean)
-            .join('; ');
+        return [
+            w.enfermedades,
+            w.diagnosticoMedico,
+            w.limitacionesBiomecanicas,
+            w.alergiasQuimicas
+        ].filter(v => v && !isNullLike(v)).join('; ');
     };
 
     return (
