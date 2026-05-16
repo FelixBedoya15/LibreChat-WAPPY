@@ -86,7 +86,7 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
 
         // Fetch all workers for this profile.
         // Use companyId in filter ONLY if one exists (security: prevent cross-company leaks).
-        const workerFilter: any = {
+        const workerFilter = {
             user: req.user.id,
             perfilId: req.params.perfilId
         };
