@@ -200,7 +200,7 @@ export default function BioIndividualHub() {
       const workersAll: Worker[] = [];
       for (const perfil of perfilesList) {
         try {
-          const wRes = await fetch(`/api/sgsst/workers/${perfil.id}`, {
+          const wRes = await fetch(`/api/sgsst/workers/${perfil.id}?perfilNombre=${encodeURIComponent(perfil.nombreCargo)}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (wRes.ok) {
