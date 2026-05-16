@@ -31,30 +31,36 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
 
         // Auto-sync from Perfil Sociodemografico if a name is provided
         if (perfilNombre) {
+            const cleanPerfilNombre = perfilNombre.trim().toLowerCase();
+            logger.debug(`[SGSST Workers] Attempting sync for perfilNombre: "${cleanPerfilNombre}"`);
+            
             const PerfilSocioModel = getPerfilSociodemograficoDataModel();
             if (PerfilSocioModel) {
                 const socioData = await PerfilSocioModel.findOne({ user: req.user.id });
                 if (socioData && socioData.trabajadores && socioData.trabajadores.length > 0) {
-                    const matchingWorkers = socioData.trabajadores.filter(w => w.cargo === perfilNombre);
+                    const matchingWorkers = socioData.trabajadores.filter(w => w.cargo && w.cargo.trim().toLowerCase() === cleanPerfilNombre);
+                    logger.debug(`[SGSST Workers] Found ${matchingWorkers.length} matching workers in Sociodemografico.`);
                     
                     for (const w of matchingWorkers) {
                         if (!w.identificacion || !w.nombre) continue;
-                        // Check if it already exists in SgsstWorker by identification and company
+                        
+                        const cleanDoc = String(w.identificacion).trim();
+                        // Check if it already exists in SgsstWorker by identification and user
                         const existing = await SgsstWorker.findOne({ 
                             user: req.user.id, 
-                            companyId: companyId, 
-                            documento: w.identificacion 
+                            documento: cleanDoc
                         });
                         
                         if (!existing) {
                             // Create new SgsstWorker for this bio-individual
+                            logger.debug(`[SGSST Workers] Creating new bio-individual for: ${w.nombre}`);
                             const newWorker = new SgsstWorker({
                                 user: req.user.id,
-                                companyId,
+                                companyId: companyId || null,
                                 perfilId: req.params.perfilId,
                                 nombre: w.nombre,
-                                documento: w.identificacion,
-                                fechaNacimiento: null, // calculated from edad if needed, but not trivial
+                                documento: cleanDoc,
+                                fechaNacimiento: null,
                                 genero: w.genero,
                                 fechaIngreso: new Date(),
                                 condicionesSalud: (w.enfermedades || w.diagnosticoMedico || w.limitacionesBiomecanicas) ? 
@@ -65,11 +71,16 @@ router.get('/:perfilId', requireJwtAuth, async (req, res) => {
                             await newWorker.save();
                         } else if (!existing.perfilId) {
                             // If they exist but have no profile assigned, update them
+                            logger.debug(`[SGSST Workers] Updating existing bio-individual profile for: ${w.nombre}`);
                             existing.perfilId = req.params.perfilId;
                             await existing.save();
                         }
                     }
+                } else {
+                    logger.debug(`[SGSST Workers] No sociodemographic data or workers found for user.`);
                 }
+            } else {
+                logger.debug(`[SGSST Workers] PerfilSocioModel could not be loaded.`);
             }
         }
 
