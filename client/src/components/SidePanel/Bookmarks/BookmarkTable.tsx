@@ -61,7 +61,7 @@ const BookmarkTable = () => {
     if (!row.tag) return false;
 
     // Filter out system/SGSST bookmarks
-    if (row.tag.startsWith('sgsst-') || row.tag === 'report') {
+    if (row.tag.startsWith('sgsst-') || row.tag.startsWith('company-') || row.tag === 'report') {
       return false;
     }
 
