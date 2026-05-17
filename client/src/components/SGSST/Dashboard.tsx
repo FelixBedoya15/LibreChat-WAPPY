@@ -13,7 +13,9 @@ import {
     Activity,
     Box,
     UserCircle,
-    ArrowLeft
+    ArrowLeft,
+    Target,
+    GitMerge
 } from 'lucide-react';
 import { cn } from '~/utils';
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -305,7 +307,7 @@ export default function SGSSTDashboard() {
                                     <ShieldAlert className="h-8 w-8 text-blue-500" strokeWidth={2.5} />
                                 </div>
                                 <div>
-                                    <h1 className="text-3xl font-bold text-text-primary tracking-tight">Gestión Integral SGSST</h1>
+                                    <h1 className="text-3xl font-bold text-text-primary tracking-tight">SOMOS SST</h1>
                                     <p className="text-text-secondary mt-1 text-sm font-medium">Seleccione el ecosistema para gestionar la prevención o la legalidad.</p>
                                 </div>
                             </>
