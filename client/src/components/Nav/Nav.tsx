@@ -178,11 +178,7 @@ const Nav = memo(
           <Suspense fallback={null}>
             <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
           </Suspense>
-          {hasAccessToBookmarks && (
-            <Suspense fallback={null}>
-              <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={isCollapsedState} />
-            </Suspense>
-          )}
+
           {hasAccessToLiveAnalysis && (
             <Suspense fallback={null}>
               <LiveAnalysisButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
