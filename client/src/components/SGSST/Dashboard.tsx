@@ -64,14 +64,14 @@ const getSubPhases = (superId: string) => {
     if (superId === 'bio_motor') {
         return [
             {
-                id: 'hito1', title: 'Huella Biocéntrica', subtitle: 'Origen', description: 'Perfil Sociodemográfico, Condiciones de Salud y Perfiles de Cargo.',
+                id: 'hito1', title: 'Huella Biocéntrica', subtitle: 'Origen', description: 'Perfiles de Cargo, Perfil Sociodemográfico y Condiciones de Salud.',
                 extendedPhilosophy: 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones únicas de edad, metabolismo y co-exposiciones.',
                 accent: 'text-[#10b981]', bgGlow: 'bg-[#10b981]/5', borderHover: 'hover:border-[#10b981]',
                 icon: <UserCircle className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
                 label: 'HITO 01'
             },
             {
-                id: 'hito2', title: 'Dinámica de Exposición', subtitle: 'Acción y Percepción', description: 'Reporte de Actos Inseguros, Capacitaciones, ATS, Permisos y Método OWAS.',
+                id: 'hito2', title: 'Dinámica de Exposición', subtitle: 'Acción y Percepción', description: 'Participación IPEVAR, Reportes, Capacitaciones, ATS, Permisos y OWAS.',
                 extendedPhilosophy: 'El riesgo se materializa en la fisiología de cada persona. Buscamos medir el contacto real con los peligros.',
                 accent: 'text-[#0d9488]', bgGlow: 'bg-[#0d9488]/5', borderHover: 'hover:border-[#0d9488]',
                 icon: <Activity className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,

@@ -113,14 +113,32 @@ const WorkerAutocomplete = ({
     );
 };
 
-const ParticipacionIPEVAR = () => {
-    const { t } = useTranslation();
-    const { showToast } = useToastContext();
-    const { user, token } = useAuthContext();
-    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
-    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-    const [formData, setFormData] = useState({
+interface ParticipacionData {
+    id: string;
+    title: string;
+    formData: {
+        fecha: string;
+        tarea: string;
+        peligros: string;
+        controlesExistentes: string;
+        suficientes: boolean;
+        sugeridoIngenieria: string;
+        sugeridoAdministrativo: string;
+        sugeridoEPP: string;
+        actividadGlobal: string;
+    };
+    images: { foto1: string | null; foto2: string | null; foto3: string | null; };
+    video: string | null;
+    trabajadoresList: { nombre: string; cedula: string; cargo?: string; }[];
+    responsablesList: { nombre: string; cedula: string; rol: string; }[];
+    report?: string;
+}
+
+const createInitialParticipacion = (): ParticipacionData => ({
+    id: crypto.randomUUID(),
+    title: `Nueva Participación`,
+    formData: {
         fecha: new Date().toISOString().split('T')[0],
         tarea: '',
         peligros: '',
@@ -130,18 +148,55 @@ const ParticipacionIPEVAR = () => {
         sugeridoAdministrativo: '',
         sugeridoEPP: '',
         actividadGlobal: ''
-    });
+    },
+    images: { foto1: null, foto2: null, foto3: null },
+    video: null,
+    trabajadoresList: [{ nombre: '', cedula: '' }],
+    responsablesList: [{ nombre: '', cedula: '', rol: '' }],
+});
 
-    const [images, setImages] = useState<{ [key: string]: string | null }>({
-        foto1: null,
-        foto2: null,
-        foto3: null
-    });
-    const [video, setVideo] = useState<string | null>(null);
+const ParticipacionIPEVAR = () => {
+
+    const { t } = useTranslation();
+    const { showToast } = useToastContext();
+    const { user, token } = useAuthContext();
+    const isPro = user?.role === 'ADMIN' || user?.role === 'USER_PRO';
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+    const [participacionesList, setParticipacionesList] = useState<ParticipacionData[]>([]);
+    const [activeId, setActiveId] = useState<string | null>(null);
+
+    const [activeParticipacion, setActiveParticipacion] = useState<ParticipacionData>(createInitialParticipacion());
+
+    const formData = activeParticipacion.formData;
+    const images = activeParticipacion.images;
+    const video = activeParticipacion.video;
+    const trabajadoresList = activeParticipacion.trabajadoresList;
+    const responsablesList = activeParticipacion.responsablesList;
+
+    const setFormData = (updater: any) => {
+        setActiveParticipacion(prev => ({
+            ...prev,
+            formData: typeof updater === 'function' ? updater(prev.formData) : { ...prev.formData, ...updater }
+        }));
+    };
+    const setImages = (updater: any) => {
+        setActiveParticipacion(prev => ({
+            ...prev,
+            images: typeof updater === 'function' ? updater(prev.images) : { ...prev.images, ...updater }
+        }));
+    };
+    const setVideo = (val: string | null) => {
+        setActiveParticipacion(prev => ({ ...prev, video: val }));
+    };
+    const setTrabajadoresList = (val: any) => {
+        setActiveParticipacion(prev => ({ ...prev, trabajadoresList: typeof val === 'function' ? val(prev.trabajadoresList) : val }));
+    };
+    const setResponsablesList = (val: any) => {
+        setActiveParticipacion(prev => ({ ...prev, responsablesList: typeof val === 'function' ? val(prev.responsablesList) : val }));
+    };
+
     const [isVideoUploading, setIsVideoUploading] = useState(false);
-
-    const [trabajadoresList, setTrabajadoresList] = useState([{ nombre: '', cedula: '' }]);
-    const [responsablesList, setResponsablesList] = useState([{ nombre: '', cedula: '', rol: '' }]);
     const [availableWorkers, setAvailableWorkers] = useState<any[]>([]);
 
     const [selectedModel, setSelectedModel] = useState(() => user?.personalization?.geminiModels?.sstManagement || 'gemini-3.1-flash-lite');
@@ -200,16 +255,73 @@ const ParticipacionIPEVAR = () => {
         })
             .then(res => res.json())
             .then(data => {
-                if (Object.keys(data.formData || {}).length > 0) {
-                    setFormData(prev => ({ ...prev, ...data.formData }));
-                }
-                if (data.trabajadoresList?.length) setTrabajadoresList(data.trabajadoresList);
-                if (data.responsablesList?.length) setResponsablesList(data.responsablesList);
-                if (data.images) setImages(data.images);
                 if (data.inboxPublico) setInboxPublico(data.inboxPublico);
+                if (data.participacionesList?.length > 0) {
+                    setParticipacionesList(data.participacionesList);
+                    setActiveId(data.participacionesList[0].id);
+                    setActiveParticipacion(data.participacionesList[0]);
+                    setGeneratedReport(data.participacionesList[0].report || null);
+                    editorContentRef.current = data.participacionesList[0].report || '';
+                    if (liveEditorRef.current) liveEditorRef.current.setHTML(data.participacionesList[0].report || '');
+                } else {
+                    const initial = createInitialParticipacion();
+                    setParticipacionesList([initial]);
+                    setActiveId(initial.id);
+                    setActiveParticipacion(initial);
+                }
             })
-            .catch(err => console.error('Error fetching reporte actos data', err));
+            .catch(err => console.error('Error fetching participacion ipevar data', err));
     }, [token]);
+
+    const handleAddParticipacion = () => {
+        const initial = createInitialParticipacion();
+        setParticipacionesList(prev => [...prev, initial]);
+        setActiveId(initial.id);
+        setActiveParticipacion(initial);
+        setGeneratedReport(null);
+        editorContentRef.current = '';
+        if (liveEditorRef.current) liveEditorRef.current.setHTML('');
+        setIsFormExpanded(true);
+        showToast({ message: 'Nueva participación creada', status: 'info' });
+    };
+
+    const handleDeleteParticipacion = (id: string) => {
+        const updated = participacionesList.filter(p => p.id !== id);
+        if (updated.length === 0) {
+            const initial = createInitialParticipacion();
+            setParticipacionesList([initial]);
+            setActiveId(initial.id);
+            setActiveParticipacion(initial);
+            setGeneratedReport(null);
+            editorContentRef.current = '';
+            if (liveEditorRef.current) liveEditorRef.current.setHTML('');
+        } else {
+            setParticipacionesList(updated);
+            if (activeId === id) {
+                setActiveId(updated[0].id);
+                setActiveParticipacion(updated[0]);
+                setGeneratedReport(updated[0].report || null);
+                editorContentRef.current = updated[0].report || '';
+                if (liveEditorRef.current) liveEditorRef.current.setHTML(updated[0].report || '');
+            }
+        }
+    };
+
+    const handleSelectParticipacion = (id: string) => {
+        const part = participacionesList.find(p => p.id === id);
+        if (part) {
+            setActiveId(id);
+            setActiveParticipacion(part);
+            setGeneratedReport(part.report || null);
+            editorContentRef.current = part.report || '';
+            if (liveEditorRef.current) liveEditorRef.current.setHTML(part.report || '');
+            setIsFormExpanded(true);
+            setConversationId(null);
+            setReportMessageId(null);
+            setRefreshTrigger(p => p + 1);
+        }
+    };
+
 
     const handleDismissInbox = async (id: string) => {
         if (!token) return;
@@ -247,8 +359,11 @@ const ParticipacionIPEVAR = () => {
     };
 
     const handleLoadInboxItem = (item: any) => {
-        setFormData(prev => ({
-            ...prev,
+        const newPart = createInitialParticipacion();
+        newPart.id = crypto.randomUUID();
+        newPart.title = `Reporte: ${item.trabajador.nombre}`;
+        newPart.formData = {
+            ...newPart.formData,
             tarea: item.data?.tarea || '',
             peligros: item.data?.peligros || '',
             controlesExistentes: item.data?.controlesExistentes || '',
@@ -256,26 +371,33 @@ const ParticipacionIPEVAR = () => {
             sugeridoIngenieria: item.data?.sugeridoIngenieria || '',
             sugeridoAdministrativo: item.data?.sugeridoAdministrativo || '',
             sugeridoEPP: item.data?.sugeridoEPP || '',
-        }));
-        setTrabajadoresList([{ 
-            nombre: item.trabajador.nombre, 
-            cedula: item.trabajador.cedula 
-        }]);
-        setImages(prev => ({
-            ...prev,
+        };
+        newPart.trabajadoresList = [{ nombre: item.trabajador.nombre, cedula: item.trabajador.cedula, cargo: item.trabajador.cargo }];
+        newPart.images = {
             foto1: item.data?.foto1 || null,
             foto2: item.data?.foto2 || null,
             foto3: item.data?.foto3 || null
-        }));
-        setVideo(item.data?.video || null);
+        };
+        newPart.video = item.data?.video || null;
+        
+        setParticipacionesList(prev => [...prev, newPart]);
+        setActiveId(newPart.id);
+        setActiveParticipacion(newPart);
+        setGeneratedReport(null);
+        editorContentRef.current = '';
+        if (liveEditorRef.current) liveEditorRef.current.setHTML('');
+        
         setIsInboxOpen(false);
-        showToast({ message: 'Reporte cargado. Revise y complete la información.', status: 'info' });
+        setIsFormExpanded(true);
+        showToast({ message: 'Reporte cargado como nueva participación. Revise y complete la información.', status: 'info' });
         handleMarkProcessed(item.id);
     };
 
     const handleDummyData = () => {
-        setFormData(prev => ({
-            ...prev,
+        const newPart = createInitialParticipacion();
+        newPart.title = 'Participación Simulada';
+        newPart.formData = {
+            ...newPart.formData,
             tarea: 'Mantenimiento de luminarias en bodega principal',
             peligros: 'Trabajo en alturas, riesgo eléctrico, caída de objetos',
             controlesExistentes: 'Uso de arnés, línea de vida, desenergización de línea',
@@ -283,30 +405,40 @@ const ParticipacionIPEVAR = () => {
             sugeridoIngenieria: 'Instalar sistema de poleas para ascender equipos',
             sugeridoAdministrativo: 'Permiso de trabajo en alturas, señalización del área',
             sugeridoEPP: 'Casco con barbuquejo, guantes dieléctricos, botas de seguridad',
-        }));
-        setTrabajadoresList([{ nombre: 'Juan Pérez', cedula: '12345678' }]);
-        setResponsablesList([{ nombre: 'Ana Gómez', cedula: '98765432', rol: 'Supervisor SST' }]);
-        setImages({
+        };
+        newPart.trabajadoresList = [{ nombre: 'Juan Pérez', cedula: '12345678' }];
+        newPart.responsablesList = [{ nombre: 'Ana Gómez', cedula: '98765432', rol: 'Supervisor SST' }];
+        newPart.images = {
             foto1: 'https://images.unsplash.com/photo-1541888946425-d81bb19480c5?auto=format&fit=crop&q=80&w=500',
             foto2: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=500',
             foto3: 'https://images.unsplash.com/photo-1621905235210-90805c862d22?auto=format&fit=crop&q=80&w=500'
-        });
+        };
+        setParticipacionesList(prev => [...prev, newPart]);
+        setActiveId(newPart.id);
+        setActiveParticipacion(newPart);
+        setGeneratedReport(null);
+        editorContentRef.current = '';
+        if (liveEditorRef.current) liveEditorRef.current.setHTML('');
         showToast({ message: 'Datos de participación simulados generados exitosamente.', status: 'success', severity: 'success' });
     };
 
     const handleSaveData = async (silent = false) => {
         if (!token) return;
+        
+        const editedReport = editorContentRef.current || generatedReport || undefined;
+        let pList = participacionesList;
+        if (activeId) {
+            pList = participacionesList.map(p => 
+                p.id === activeId ? { ...activeParticipacion, report: editedReport } : p
+            );
+            setParticipacionesList(pList);
+        }
+
         try {
             const res = await fetch('/api/sgsst/participacion-ipevar/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    formData,
-                    trabajadoresList,
-                    responsablesList,
-                    images,
-                    video
-                })
+                body: JSON.stringify({ participacionesList: pList })
             });
             if (res.ok && !silent) {
                 showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
@@ -503,10 +635,11 @@ const ParticipacionIPEVAR = () => {
             const data = await response.json();
             setGeneratedReport(data.report);
             editorContentRef.current = data.report;
-            liveEditorRef.current?.setHTML(data.report);
+            if (liveEditorRef.current) liveEditorRef.current.setHTML(data.report);
             setConversationId(null);
             setReportMessageId(null);
             setIsFormExpanded(false);
+            setParticipacionesList(prev => prev.map(p => p.id === activeId ? { ...p, report: data.report } : p));
             showToast({ message: 'Reporte generado exitosamente', status: 'success', severity: 'success' });
         } catch (error: any) {
             console.error('Generation error:', error);
@@ -555,8 +688,8 @@ const ParticipacionIPEVAR = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     content: contentToSave,
-                    title: `Participación IPEVAR - ${new Date().toLocaleDateString('es-CO')}`,
-                    tags: ['sgsst-participacion-ipevar'],
+                    title: `${activeParticipacion.title} - ${new Date().toLocaleDateString('es-CO')}`,
+                    tags: ['sgsst-participacion-ipevar', `sgsst-participacion-ipevar-${activeId}`],
                 }),
             });
 
@@ -565,6 +698,15 @@ const ParticipacionIPEVAR = () => {
                 setConversationId(data.conversationId);
                 setReportMessageId(data.messageId);
                 setRefreshTrigger(prev => prev + 1);
+                
+                const updatedList = participacionesList.map(p => p.id === activeId ? { ...p, report: contentToSave } : p);
+                setParticipacionesList(updatedList);
+                await fetch('/api/sgsst/participacion-ipevar/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ participacionesList: updatedList })
+                });
+                
                 showToast({ message: 'Guardado exitosamente', status: 'success', severity: 'success' });
             }
         } catch (error: any) {
@@ -599,7 +741,7 @@ const ParticipacionIPEVAR = () => {
 
     useAutoLoadReport({
         token,
-        tags: ['sgsst-participacion-ipevar'],
+        tags: ['sgsst-participacion-ipevar', `sgsst-participacion-ipevar-${activeId}`],
         generatedReport: generatedReport,
         handleSelectReport
     });
@@ -639,10 +781,48 @@ const ParticipacionIPEVAR = () => {
                 ]}
             />
 
+            {/* ── Participaciones Quick Access ── */}
+            <div className="rounded-2xl border border-border-medium bg-surface-tertiary p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-teal-600" />
+                        <span className="text-xs font-black text-text-secondary uppercase tracking-widest">Listado de Participaciones</span>
+                    </div>
+                    <button
+                        onClick={handleAddParticipacion}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 hover:bg-teal-100 transition-colors shadow-sm"
+                    >
+                        <Plus className="h-3.5 w-3.5" /> Nueva Participación
+                    </button>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                    {participacionesList.map(p => (
+                        <div key={p.id} className="group flex items-center gap-1">
+                            <button
+                                onClick={() => handleSelectParticipacion(p.id)}
+                                className={`px-4 py-2 rounded-xl text-xs font-black transition-all border shadow-sm truncate max-w-[200px] ${
+                                    activeId === p.id 
+                                        ? "bg-teal-600 text-white border-teal-600 ring-2 ring-teal-100 dark:ring-teal-900/40" 
+                                        : "bg-surface-primary text-text-primary border-border-medium hover:border-teal-400"
+                                }`}
+                            >
+                                {p.title || 'Participación'}
+                            </button>
+                            <button
+                                onClick={() => handleDeleteParticipacion(p.id)}
+                                className="p-1.5 text-text-tertiary hover:text-red-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                            >
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* History Panel */}
             {isHistoryOpen && (
                 <div className="rounded-2xl border border-border-medium bg-surface-secondary shadow-sm overflow-hidden">
-                    <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen} toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger} tags={['sgsst-reporte-actos']} />
+                    <ReportHistory onSelectReport={handleSelectReport} isOpen={isHistoryOpen} toggleOpen={() => setIsHistoryOpen(!isHistoryOpen)} refreshTrigger={refreshTrigger} tags={['sgsst-participacion-ipevar', `sgsst-participacion-ipevar-${activeId}`]} />
                 </div>
             )}
 
@@ -977,7 +1157,7 @@ const ParticipacionIPEVAR = () => {
                             <button
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
-                                className="group flex items-center px-5 py-3 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-base disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                                className="group flex items-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 border border-teal-600 text-white rounded-full transition-all duration-300 shadow-lg hover:shadow-xl font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
                             >
                                 {isGenerating ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />

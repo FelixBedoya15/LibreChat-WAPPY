@@ -22,16 +22,10 @@ async function getActiveCompanyId(userId) {
 const ParticipacionIpevarDataSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'CompanyInfo', required: false },
-    area: { type: String, default: '' },
-    proceso: { type: String, default: '' },
-    fecha: { type: String, default: '' },
-    responsableSST: { type: String, default: '' },
-    riesgosIdentificados: { type: Array, default: [] },
-    asistentes: { type: Array, default: [] },
+    participacionesList: { type: Array, default: [] },
+    inboxPublico: { type: Array, default: [] },
     updatedAt: { type: Date, default: Date.now },
-});
-
-ParticipacionIpevarDataSchema.index({ user: 1, companyId: 1 }, { unique: true });
+}, { strict: false });
 
 const ParticipacionIpevarData = mongoose.models.ParticipacionIpevarData || mongoose.model('ParticipacionIpevarData', ParticipacionIpevarDataSchema);
 
@@ -42,16 +36,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
         const data = await ParticipacionIpevarData.findOne({ user: req.user.id, companyId: companyId });
         if (data) {
             return res.json({
-                area: data.area || '',
-                proceso: data.proceso || '',
-                fecha: data.fecha || '',
-                responsableSST: data.responsableSST || '',
-                riesgosIdentificados: data.riesgosIdentificados || [],
-                asistentes: data.asistentes || [],
+                participacionesList: data.participacionesList || [],
+                inboxPublico: data.inboxPublico || [],
                 updatedAt: data.updatedAt,
             });
         }
-        res.json({ area: '', proceso: '', fecha: '', responsableSST: '', riesgosIdentificados: [], asistentes: [] });
+        res.json({ participacionesList: [], inboxPublico: [] });
     } catch (error) {
         logger.error('[SGSST ParticipacionIPEVAR] Load error:', error);
         res.status(500).json({ error: 'Error al cargar datos' });
@@ -61,12 +51,12 @@ router.get('/data', requireJwtAuth, async (req, res) => {
 // ─── POST /save — Save current form ─────────────────────────────
 router.post('/save', requireJwtAuth, async (req, res) => {
     try {
-        const { area, proceso, fecha, responsableSST, riesgosIdentificados, asistentes } = req.body;
+        const { participacionesList } = req.body;
         const companyId = await getActiveCompanyId(req.user.id);
 
         await ParticipacionIpevarData.findOneAndUpdate(
             { user: req.user.id, companyId: companyId },
-            { $set: { area, proceso, fecha, responsableSST, riesgosIdentificados, asistentes, companyId, updatedAt: Date.now() } },
+            { $set: { participacionesList, companyId, updatedAt: Date.now() } },
             { upsert: true, new: true }
         );
         res.json({ success: true });
