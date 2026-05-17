@@ -23,13 +23,10 @@ import store from '~/store';
 import { Search } from 'lucide-react';
 
 const PlansButton = lazy(() => import('./PlansButton'));
-const BookmarkNav = lazy(() => import('./Bookmarks/BookmarkNav'));
 const AccountSettings = lazy(() => import('./AccountSettings'));
-const AgentMarketplaceButton = lazy(() => import('./AgentMarketplaceButton'));
 const LiveAnalysisButton = lazy(() => import('./LiveAnalysisButton'));
 const EditorArchivosButton = lazy(() => import('./EditorArchivosButton'));
 const SGSSTButton = lazy(() => import('./SGSSTButton'));
-const SGSST2Button = lazy(() => import('./SGSST2Button'));
 const AulaEstudioButton = lazy(() => import('./AulaEstudioButton'));
 const BlogButton = lazy(() => import('./BlogButton'));
 const WelcomePromoPopup = lazy(() => import('../Popups/WelcomePromoPopup'));
@@ -178,11 +175,6 @@ const Nav = memo(
     const headerButtons = useMemo(
       () => (
         <>
-          {hasAccessToAgents && (
-            <Suspense fallback={null}>
-              <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
-            </Suspense>
-          )}
           <Suspense fallback={null}>
             <PlansButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
           </Suspense>
@@ -202,11 +194,6 @@ const Nav = memo(
           {hasAccessToSGSST && (
             <Suspense fallback={null}>
               <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
-            </Suspense>
-          )}
-          {hasAccessToSGSST2 && (
-            <Suspense fallback={null}>
-              <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={isCollapsedState} />
             </Suspense>
           )}
         </>
@@ -289,12 +276,6 @@ const Nav = memo(
                             </button>
                           }
                         />
-                        {/* Bookmarks icon */}
-                        {hasAccessToBookmarks && (
-                          <Suspense fallback={null}>
-                            <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={true} />
-                          </Suspense>
-                        )}
                         {/* SG-SST icon (Somos SST) */}
                         {hasAccessToSGSST && (
                           <Suspense fallback={null}>
@@ -319,12 +300,6 @@ const Nav = memo(
                         <Suspense fallback={null}>
                           <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
                         </Suspense>
-                        {/* Game SST */}
-                        {hasAccessToSGSST2 && (
-                          <Suspense fallback={null}>
-                            <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={true} />
-                          </Suspense>
-                        )}
                         <div className="mt-auto">
                           <Suspense fallback={null}>
                             <AccountSettings isCollapsed={true} />
@@ -352,16 +327,6 @@ const Nav = memo(
                               />
                               <div className="flex flex-col gap-1.5 mt-1 mb-3">
                                 {search.enabled && <SearchBar isSmallScreen={isSmallScreen} isCollapsed={false} />}
-                                {hasAccessToAgents && (
-                                  <Suspense fallback={null}>
-                                    <AgentMarketplaceButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
-                                {hasAccessToBookmarks && (
-                                  <Suspense fallback={null}>
-                                    <BookmarkNav tags={tags} setTags={setTags} isSmallScreen={isSmallScreen} isCollapsed={false} />
-                                  </Suspense>
-                                )}
                                 {hasAccessToSGSST && (
                                   <Suspense fallback={null}>
                                     <SGSSTButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
@@ -381,11 +346,6 @@ const Nav = memo(
                                 <Suspense fallback={null}>
                                   <BlogButton isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
                                 </Suspense>
-                                {hasAccessToSGSST2 && (
-                                  <Suspense fallback={null}>
-                                    <SGSST2Button isSmallScreen={isSmallScreen} toggleNav={toggleNavVisible} isCollapsed={false} />
-                                  </Suspense>
-                                )}
                               </div>
                             </>
                           }
