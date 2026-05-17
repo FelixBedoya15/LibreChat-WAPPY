@@ -8,6 +8,7 @@ import { useAuthContext } from '~/hooks';
 import { useToastContext } from '@librechat/client';
 import { SGSSTToolbar, ToolbarButton } from './SGSSTToolbar';
 import SingleSelect from './SingleSelect';
+import ModelSelector, { AI_MODELS } from './ModelSelector';
 
 // ─── Tipos propios — Metodología Bio-Individual WAPPY ────────────────────────
 export interface BioRiskRow {
@@ -20,9 +21,16 @@ export interface BioRiskRow {
   origen_riesgo: string;
   peligro_cargo: string;
   actividad_expuesta: string;
+  efectos_posibles: string;
 
   // Moduladores individuales
   factor_individual: string;
+  
+  // Controles Existentes (Justifican NS/NE)
+  controles_fuente: string;
+  controles_medio: string;
+  controles_individuo: string;
+
   fit_score: number;
   percepcion_riesgo_pts: number;
 
@@ -37,10 +45,20 @@ export interface BioRiskRow {
   clasificacion_bio: 'Crítico' | 'Alto' | 'Moderado' | 'Bajo' | '';
   intervencion_prioritaria: boolean;
 
+  // Controles Propuestos
+  medida_eliminacion: string;
+  medida_sustitucion: string;
+  medida_ingenieria: string;
+  medida_administrativa: string;
+  medida_eppu: string;
+  factores_reduccion_texto: string;
+
   // Plan individualizado
   plan_accion_bio: string;
   restricciones_laborales: string;
   seguimiento_medico: 'Mensual' | 'Trimestral' | 'Semestral' | 'Anual' | '';
+  // transient UI state
+  _isUpdating?: boolean;
 }
 
 // ─── Constantes propias ───────────────────────────────────────────────────────
@@ -125,7 +143,11 @@ const createEmptyRow = (): BioRiskRow => ({
   origen_riesgo: 'Inherente a la Tarea',
   peligro_cargo: '',
   actividad_expuesta: '',
+  efectos_posibles: '',
   factor_individual: '',
+  controles_fuente: 'Ninguno',
+  controles_medio: 'Ninguno',
+  controles_individuo: 'Ninguno',
   fit_score: 0,
   percepcion_riesgo_pts: 0,
   nivel_susceptibilidad: 1,
@@ -135,10 +157,102 @@ const createEmptyRow = (): BioRiskRow => ({
   indice_bio_riesgo_efectivo: 1,
   clasificacion_bio: 'Bajo',
   intervencion_prioritaria: false,
+  medida_eliminacion: 'Ninguno',
+  medida_sustitucion: 'Ninguno',
+  medida_ingenieria: 'Ninguno',
+  medida_administrativa: 'Ninguno',
+  medida_eppu: 'Ninguno',
+  factores_reduccion_texto: 'No aplica',
   plan_accion_bio: '',
   restricciones_laborales: '',
   seguimiento_medico: 'Anual',
 });
+
+// ─── Componentes Auxiliares ───────────────────────────────────────────────────
+
+const CellAIBubble = ({ fieldLabel, currentValue, row, token, selectedModel, onResult }: {
+  fieldLabel: string; currentValue: string; row: BioRiskRow; token?: string; selectedModel?: string; onResult: (v: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState('');
+  const [loading, setLoading] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [open]);
+
+  const apply = async () => {
+    if (!instruction.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/live/ai-edit-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          selectedText: currentValue || `[Campo vacío: ${fieldLabel}]`,
+          instruction,
+          reportSourceData: { currentRow: row, field: fieldLabel },
+          modelName: selectedModel,
+        }),
+      });
+      const data = await res.json();
+      if (data.editedText) { onResult(data.editedText); setOpen(false); setInstruction(''); }
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="absolute -bottom-1 right-0 flex items-center gap-1 text-[9px] text-teal-500 hover:text-teal-700 font-bold opacity-0 group-hover/cell:opacity-100 transition-opacity"
+        type="button"
+      >
+        <Sparkles className="h-3 w-3" /> IA
+      </button>
+      {open && (
+        <div className="absolute top-full right-0 mt-1 z-[150] w-64 bg-surface-primary border border-border-medium rounded-xl shadow-2xl p-3 space-y-2">
+          <p className="text-[10px] font-bold text-text-secondary uppercase">{fieldLabel}</p>
+          <input
+            autoFocus
+            className="w-full text-xs border border-border-medium rounded-lg px-2 py-1.5 bg-surface-primary outline-none focus:border-teal-400"
+            placeholder="Instrucción (ej: hazlo más técnico)"
+            value={instruction}
+            onChange={e => setInstruction(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && apply()}
+          />
+          <div className="flex gap-2">
+            <button onClick={apply} disabled={loading}
+              className="flex-1 text-[10px] font-bold bg-teal-500 text-white rounded-lg py-1.5 hover:bg-teal-600 disabled:opacity-50">
+              {loading ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : 'Aplicar'}
+            </button>
+            <button onClick={() => setOpen(false)} className="text-[10px] text-text-secondary px-2">✕</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AITextarea = ({ value, onChange, minW = '180px', fieldLabel, row, token, selectedModel, className = '' }: {
+  value: string; onChange: (v: string) => void; minW?: string;
+  fieldLabel: string; row: BioRiskRow; token?: string; selectedModel?: string; className?: string;
+}) => (
+  <div className={`relative group/cell w-full focus-within:z-[100] hover:z-[90] transition-all min-w-[${minW}]`}>
+    <textarea
+      rows={2}
+      className={`w-full text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded px-1 py-0.5 transition-colors resize-none min-h-[28px] ${className}`}
+      value={value || ''}
+      onChange={e => onChange(e.target.value)}
+    />
+    <CellAIBubble fieldLabel={fieldLabel} currentValue={value} row={row} token={token} selectedModel={selectedModel} onResult={onChange} />
+  </div>
+);
 
 // ─── Sub-componente: celda select ─────────────────────────────────────────────
 const SelectCell = ({ value, onChange, options, className = '' }: {
@@ -178,6 +292,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
   const [hasUnsaved, setHasUnsaved] = useState(false);
   const [aiInstruction, setAiInstruction] = useState('');
   const [showMethodology, setShowMethodology] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
 
   // ─── Cargar datos ─────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -255,7 +370,7 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       const res = await fetch(`/api/sgsst/workers/worker/${workerId}/generate-bio-risks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ instruccionesExtra: aiInstruction, riesgosActuales: rows }),
+        body: JSON.stringify({ instruccionesExtra: aiInstruction, riesgosActuales: rows, modelName: selectedModel }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al generar');
@@ -264,12 +379,46 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
         id: r.id || `bio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       }));
       setRows(generated);
-      setHasUnsaved(false);
-      showToast({ message: `✅ ${generated.length} riesgos bio-individuales generados`, status: 'success', severity: 'success' });
+      setHasUnsaved(true);
+      showToast({ message: `✅ ${generated.length} riesgos bio-individuales generados`, status: 'success' });
     } catch (e: any) {
       showToast({ message: e.message || 'Error al generar', status: 'error' });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleAiUpdateRow = async (rowId: string) => {
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
+    
+    setRows(prev => prev.map(r => r.id === rowId ? { ...r, _isUpdating: true } : r));
+    
+    try {
+      const res = await fetch(`/api/sgsst/workers/worker/${workerId}/ai-update-bio-row`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ row, instruction: aiInstruction, modelName: selectedModel }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar fila');
+      
+      setRows(prev => prev.map(r => {
+        if (r.id !== rowId) return r;
+        const updated = { ...r, ...data.updatedFields };
+        delete updated._isUpdating;
+        return calcularRiesgo(updated, percepcionPts);
+      }));
+      setHasUnsaved(true);
+      showToast({ message: '✅ Fila optimizada con IA', status: 'success' });
+    } catch (e: any) {
+      showToast({ message: e.message || 'Error', status: 'error' });
+      setRows(prev => prev.map(r => {
+        if (r.id !== rowId) return r;
+        const restored = { ...r };
+        delete restored._isUpdating;
+        return restored;
+      }));
     }
   };
 
@@ -321,14 +470,13 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
               <th style="padding: 10px; border: 1px solid #115e59;">Dominio</th>
               <th style="padding: 10px; border: 1px solid #115e59;">Dimensión</th>
               <th style="padding: 10px; border: 1px solid #115e59;">Peligro</th>
-              <th style="padding: 10px; border: 1px solid #115e59;">Actividad</th>
-              <th style="padding: 10px; border: 1px solid #115e59;">Factor Indiv.</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Efectos Posibles</th>
               <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">NS</th>
               <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">NE</th>
-              <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">Bruto</th>
               <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">Efectivo</th>
               <th style="padding: 10px; border: 1px solid #115e59; text-align: center;">Clasificación</th>
-              <th style="padding: 10px; border: 1px solid #115e59;">Plan de Acción</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Controles Existentes</th>
+              <th style="padding: 10px; border: 1px solid #115e59;">Controles Propuestos</th>
             </tr>
           </thead>
           <tbody>
@@ -344,14 +492,23 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
           <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold; color: #0f766e;">${r.dominio_bio}</td>
           <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.dimension_bio}</td>
           <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.peligro_cargo}</td>
-          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.actividad_expuesta}</td>
-          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.factor_individual}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1;">${r.efectos_posibles || 'N/A'}</td>
           <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${r.nivel_susceptibilidad}</td>
           <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${r.nivel_exposicion}</td>
-          <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${r.indice_bio_riesgo_bruto}</td>
           <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; font-size: 12px;">${r.indice_bio_riesgo_efectivo.toFixed(1)}</td>
           <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: ${colorClase}; background-color: ${bgClase};">${r.clasificacion_bio}</td>
-          <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 10px;">${r.plan_accion_bio || 'Pendiente'}</td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 10px;">
+            <b>F:</b> ${r.controles_fuente || 'Ninguno'}<br/>
+            <b>M:</b> ${r.controles_medio || 'Ninguno'}<br/>
+            <b>I:</b> ${r.controles_individuo || 'Ninguno'}
+          </td>
+          <td style="padding: 8px; border: 1px solid #cbd5e1; font-size: 10px;">
+            <b>Elim:</b> ${r.medida_eliminacion || 'N/A'}<br/>
+            <b>Sust:</b> ${r.medida_sustitucion || 'N/A'}<br/>
+            <b>Ing:</b> ${r.medida_ingenieria || 'N/A'}<br/>
+            <b>Adm:</b> ${r.medida_administrativa || 'N/A'}<br/>
+            <b>EPP:</b> ${r.medida_eppu || 'N/A'}
+          </td>
         </tr>
       `;
     });
@@ -423,6 +580,9 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
             icon="file-text" 
             variant="default" 
           />,
+          <div key="model-selector" className="flex items-center">
+            <ModelSelector selectedModel={selectedModel} onSelectModel={setSelectedModel} />
+          </div>,
           <div key="ai-input" className="flex items-center h-10 bg-surface-primary border border-border-medium rounded-xl pr-1 pl-3 transition-colors shadow-sm focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500">
             <input
               type="text"
@@ -481,22 +641,24 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
       {rows.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-border-medium shadow-sm">
           <table className="w-full text-xs border-collapse min-w-max">
-            <thead className="bg-surface-secondary text-text-secondary uppercase tracking-wide text-[10px] font-bold sticky top-0">
+            <thead className="bg-surface-secondary text-text-secondary uppercase tracking-wide text-[10px] font-bold sticky top-0 z-10">
               <tr>
                 <th className="px-3 py-2.5 text-left min-w-[110px]">Dominio Bio</th>
                 <th className="px-3 py-2.5 text-left min-w-[130px]">Dimensión</th>
                 <th className="px-3 py-2.5 text-left min-w-[120px]">Origen</th>
                 <th className="px-3 py-2.5 text-left min-w-[150px]">Peligro del Cargo</th>
-                <th className="px-3 py-2.5 text-left min-w-[130px]">Actividad</th>
-                <th className="px-3 py-2.5 text-left min-w-[150px] border-l border-teal-500/30">Factor Individual</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">Efectos Posibles</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">Factor Individual</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px] border-l border-teal-500/30">C. Fte</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">C. Med</th>
+                <th className="px-3 py-2.5 text-left min-w-[150px]">C. Ind</th>
                 <th className="px-3 py-2.5 text-center min-w-[45px] border-l border-teal-500/30" title="Nivel Susceptibilidad 1-5">NS</th>
                 <th className="px-3 py-2.5 text-center min-w-[45px]" title="Nivel Exposición 1-5">NE</th>
                 <th className="px-3 py-2.5 text-center min-w-[55px]" title="Índice Bruto">Bruto</th>
                 <th className="px-3 py-2.5 text-center min-w-[55px]" title="Índice Efectivo (con reducción)">Efectivo</th>
                 <th className="px-3 py-2.5 text-center min-w-[80px]">Clasificación</th>
-                <th className="px-3 py-2.5 text-center min-w-[70px]">Seguimiento</th>
-                <th className="px-3 py-2.5 text-center min-w-[50px]">Plan</th>
-                <th className="px-3 py-2.5 text-center min-w-[40px]">Acc.</th>
+                <th className="px-3 py-2.5 text-center min-w-[50px]">Detalle</th>
+                <th className="px-3 py-2.5 text-center min-w-[70px]">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-light">
@@ -504,9 +666,12 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                 const isExpanded = expandedRow === row.id;
                 const Icon = DOMINIO_ICON[row.dominio_bio] || Activity;
                 const iconColor = DOMINIO_COLOR[row.dominio_bio] || 'text-teal-500';
+                // @ts-ignore
+                const isUpdating = row._isUpdating;
+                
                 return (
                   <React.Fragment key={row.id}>
-                    <tr className={`hover:bg-surface-hover/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-surface-primary/30'} ${row.intervencion_prioritaria ? 'border-l-2 border-l-red-500' : ''}`}>
+                    <tr className={`hover:bg-surface-hover/40 transition-colors ${idx % 2 === 0 ? '' : 'bg-surface-primary/30'} ${row.intervencion_prioritaria ? 'border-l-2 border-l-red-500' : ''} ${isUpdating ? 'opacity-50 pointer-events-none' : ''}`}>
                       <td className="px-2 py-1">
                         <div className="flex items-center gap-1">
                           <Icon className={`h-3 w-3 shrink-0 ${iconColor}`} />
@@ -519,18 +684,23 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                       <td className="px-2 py-1">
                         <SelectCell value={row.origen_riesgo || 'Inherente a la Tarea'} onChange={v => handleChange(row.id, 'origen_riesgo', v)} options={ORIGENES_RIESGO} />
                       </td>
-                      <td className="px-2 py-1"><TextCell value={row.peligro_cargo} onChange={v => handleChange(row.id, 'peligro_cargo', v)} /></td>
-                      <td className="px-2 py-1"><TextCell value={row.actividad_expuesta} onChange={v => handleChange(row.id, 'actividad_expuesta', v)} /></td>
-                      <td className="px-2 py-1 border-l border-teal-500/20"><TextCell value={row.factor_individual} onChange={v => handleChange(row.id, 'factor_individual', v)} /></td>
+                      <td className="px-2 py-1"><AITextarea value={row.peligro_cargo} onChange={v => handleChange(row.id, 'peligro_cargo', v)} fieldLabel="Peligro" row={row} token={token} selectedModel={selectedModel} /></td>
+                      <td className="px-2 py-1"><AITextarea value={row.efectos_posibles || ''} onChange={v => handleChange(row.id, 'efectos_posibles', v)} fieldLabel="Efectos Posibles" row={row} token={token} selectedModel={selectedModel} /></td>
+                      <td className="px-2 py-1"><AITextarea value={row.factor_individual} onChange={v => handleChange(row.id, 'factor_individual', v)} fieldLabel="Factor Individual" row={row} token={token} selectedModel={selectedModel} /></td>
+                      
+                      <td className="px-2 py-1 border-l border-teal-500/20"><AITextarea value={row.controles_fuente || ''} onChange={v => handleChange(row.id, 'controles_fuente', v)} fieldLabel="C. Fuente" row={row} token={token} selectedModel={selectedModel} minW="100px" /></td>
+                      <td className="px-2 py-1"><AITextarea value={row.controles_medio || ''} onChange={v => handleChange(row.id, 'controles_medio', v)} fieldLabel="C. Medio" row={row} token={token} selectedModel={selectedModel} minW="100px" /></td>
+                      <td className="px-2 py-1"><AITextarea value={row.controles_individuo || ''} onChange={v => handleChange(row.id, 'controles_individuo', v)} fieldLabel="C. Individuo" row={row} token={token} selectedModel={selectedModel} minW="100px" /></td>
+                      
                       <td className="px-2 py-1 border-l border-teal-500/20 text-center">
                         <input type="number" min={1} max={5} value={row.nivel_susceptibilidad}
                           onChange={e => handleChange(row.id, 'nivel_susceptibilidad', Number(e.target.value))}
-                          className="w-10 text-center text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded" />
+                          className="w-10 text-center text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded font-bold text-blue-600" />
                       </td>
                       <td className="px-2 py-1 text-center">
                         <input type="number" min={1} max={5} value={row.nivel_exposicion}
                           onChange={e => handleChange(row.id, 'nivel_exposicion', Number(e.target.value))}
-                          className="w-10 text-center text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded" />
+                          className="w-10 text-center text-xs bg-transparent border-0 outline-none focus:bg-surface-hover/50 rounded font-bold text-orange-600" />
                       </td>
                       <td className="px-2 py-1 text-center font-mono font-bold text-text-secondary">{row.indice_bio_riesgo_bruto}</td>
                       <td className="px-2 py-1 text-center font-mono font-black text-text-primary">{row.indice_bio_riesgo_efectivo?.toFixed(1)}</td>
@@ -541,83 +711,71 @@ export default function BioMatrizIPEVAR({ workerId }: BioMatrizIPEVARProps) {
                           </span>
                         )}
                       </td>
-                      <td className="px-2 py-1">
-                        <SelectCell value={row.seguimiento_medico || 'Anual'} onChange={v => handleChange(row.id, 'seguimiento_medico', v)} options={SEGUIMIENTO_OPTIONS} />
-                      </td>
                       <td className="px-2 py-1 text-center">
                         <button onClick={() => setExpandedRow(isExpanded ? null : row.id)}
-                          className="p-1 hover:bg-surface-hover rounded-lg transition-colors text-text-secondary hover:text-teal-600">
-                          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          className="px-2 py-1 bg-surface-secondary border border-border-medium hover:bg-surface-hover rounded-lg transition-colors text-text-secondary hover:text-teal-600 text-[10px] font-bold flex items-center gap-1 mx-auto">
+                          Controles
+                          <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
                       </td>
                       <td className="px-2 py-1 text-center">
-                        <button onClick={() => removeRow(row.id)}
-                          className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors text-red-400 hover:text-red-600">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => handleAiUpdateRow(row.id)} title="Mejorar fila con IA"
+                            className="p-1.5 bg-gradient-to-tr from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 rounded-lg text-white transition-transform active:scale-95 shadow-sm">
+                            {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          </button>
+                          <button onClick={() => removeRow(row.id)} title="Eliminar fila"
+                            className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors text-red-400 hover:text-red-600">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
 
                     {isExpanded && (
-                      <tr className="bg-teal-50/50 dark:bg-teal-900/10">
-                        <td colSpan={14} className="px-4 py-3">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-4">
-                            <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
-                                <ShieldAlert className="h-3 w-3" /> Control en la Fuente
-                              </p>
-                              <textarea
-                                value={row.controles_fuente || ''}
-                                onChange={e => handleChange(row.id, 'controles_fuente', e.target.value)}
-                                rows={2}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
-                              />
+                      <tr className="bg-teal-50/30 dark:bg-teal-900/10 border-b border-teal-100 dark:border-teal-900/50">
+                        <td colSpan={16} className="px-4 py-4">
+                          <h5 className="text-[11px] font-black text-teal-800 dark:text-teal-400 uppercase tracking-widest mb-3 flex items-center gap-2 border-b border-teal-200/50 dark:border-teal-800/50 pb-2">
+                            <ShieldAlert className="h-4 w-4" /> Jerarquía de Controles Propuestos (Dec. 1072)
+                          </h5>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs mb-5">
+                            <div className="bg-surface-primary p-2 rounded-xl border border-border-light shadow-sm">
+                              <p className="font-bold text-red-600 dark:text-red-400 uppercase text-[10px] mb-1 flex items-center gap-1">1. Eliminación</p>
+                              <AITextarea value={row.medida_eliminacion || ''} onChange={v => handleChange(row.id, 'medida_eliminacion', v)} fieldLabel="Eliminación" row={row} token={token} selectedModel={selectedModel} />
                             </div>
-                            <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
-                                <ShieldAlert className="h-3 w-3" /> Control en el Medio
-                              </p>
-                              <textarea
-                                value={row.controles_medio || ''}
-                                onChange={e => handleChange(row.id, 'controles_medio', e.target.value)}
-                                rows={2}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
-                              />
+                            <div className="bg-surface-primary p-2 rounded-xl border border-border-light shadow-sm">
+                              <p className="font-bold text-orange-600 dark:text-orange-400 uppercase text-[10px] mb-1 flex items-center gap-1">2. Sustitución</p>
+                              <AITextarea value={row.medida_sustitucion || ''} onChange={v => handleChange(row.id, 'medida_sustitucion', v)} fieldLabel="Sustitución" row={row} token={token} selectedModel={selectedModel} />
                             </div>
-                            <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
-                                <ShieldAlert className="h-3 w-3" /> Control en el Individuo
-                              </p>
-                              <textarea
-                                value={row.controles_individuo || ''}
-                                onChange={e => handleChange(row.id, 'controles_individuo', e.target.value)}
-                                rows={2}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
-                              />
+                            <div className="bg-surface-primary p-2 rounded-xl border border-border-light shadow-sm">
+                              <p className="font-bold text-amber-600 dark:text-amber-400 uppercase text-[10px] mb-1 flex items-center gap-1">3. Ingeniería</p>
+                              <AITextarea value={row.medida_ingenieria || ''} onChange={v => handleChange(row.id, 'medida_ingenieria', v)} fieldLabel="Ingeniería" row={row} token={token} selectedModel={selectedModel} />
+                            </div>
+                            <div className="bg-surface-primary p-2 rounded-xl border border-border-light shadow-sm">
+                              <p className="font-bold text-blue-600 dark:text-blue-400 uppercase text-[10px] mb-1 flex items-center gap-1">4. Administrativo</p>
+                              <AITextarea value={row.medida_administrativa || ''} onChange={v => handleChange(row.id, 'medida_administrativa', v)} fieldLabel="Administrativo" row={row} token={token} selectedModel={selectedModel} />
+                            </div>
+                            <div className="bg-surface-primary p-2 rounded-xl border border-border-light shadow-sm">
+                              <p className="font-bold text-purple-600 dark:text-purple-400 uppercase text-[10px] mb-1 flex items-center gap-1">5. EPP/C</p>
+                              <AITextarea value={row.medida_eppu || ''} onChange={v => handleChange(row.id, 'medida_eppu', v)} fieldLabel="EPP" row={row} token={token} selectedModel={selectedModel} />
                             </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                            <div>
-                              <p className="font-bold text-teal-700 dark:text-teal-400 uppercase text-[10px] mb-2 flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" /> Plan de Acción
+
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                            <div className="col-span-2">
+                              <p className="font-bold text-text-primary uppercase text-[10px] mb-1 flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" /> Justificación Reducción (Anexo E)
                               </p>
-                              <textarea
-                                value={row.plan_accion_bio || ''}
-                                onChange={e => handleChange(row.id, 'plan_accion_bio', e.target.value)}
-                                rows={2}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
-                              />
+                              <AITextarea value={row.factores_reduccion_texto || ''} onChange={v => handleChange(row.id, 'factores_reduccion_texto', v)} fieldLabel="Justificación Anexo E" row={row} token={token} selectedModel={selectedModel} className="bg-surface-primary" />
                             </div>
                             <div>
-                              <p className="font-bold text-orange-600 dark:text-orange-400 uppercase text-[10px] mb-2 flex items-center gap-1">
-                                <AlertTriangle className="h-3 w-3" /> Restricciones Laborales
-                              </p>
-                              <textarea
-                                value={row.restricciones_laborales || ''}
-                                onChange={e => handleChange(row.id, 'restricciones_laborales', e.target.value)}
-                                rows={2}
-                                className="w-full text-xs bg-surface-primary border border-border-medium rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-teal-400 resize-none"
-                              />
+                              <p className="font-bold text-text-primary uppercase text-[10px] mb-1 flex items-center gap-1">Plan de Acción (Resumen)</p>
+                              <AITextarea value={row.plan_accion_bio || ''} onChange={v => handleChange(row.id, 'plan_accion_bio', v)} fieldLabel="Plan Acción" row={row} token={token} selectedModel={selectedModel} className="bg-surface-primary" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-text-primary uppercase text-[10px] mb-1 flex items-center gap-1">Seguimiento</p>
+                              <SelectCell value={row.seguimiento_medico || 'Anual'} onChange={v => handleChange(row.id, 'seguimiento_medico', v)} options={SEGUIMIENTO_OPTIONS} className="w-full" />
                             </div>
                           </div>
                         </td>

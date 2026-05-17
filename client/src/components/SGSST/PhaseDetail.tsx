@@ -5,7 +5,7 @@ import { PermissionTypes, Permissions } from 'librechat-data-provider';
 import {
     ArrowLeft, Upload, MessageSquare, File, Trash2, Loader2, ChevronDown, ChevronRight, FolderOpen,
     FileText, Target, Stethoscope, Scale, Users, UserCircle, BarChart, Activity, AlertTriangle, ShieldAlert,
-    ClipboardCheck, Briefcase, GitMerge, UserCheck
+    ClipboardCheck, Briefcase, GitMerge, UserCheck, BrainCircuit
 } from 'lucide-react';
 
 import { OpenSidebar } from '~/components/Chat/Menus';
@@ -45,7 +45,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
     FileText, Target, Stethoscope, Scale,
     Users, UserCircle, BarChart, Activity,
     AlertTriangle, ShieldAlert, ClipboardCheck,
-    Briefcase, GitMerge, FolderOpen, UserCheck
+    Briefcase, GitMerge, FolderOpen, UserCheck,
+    BrainCircuit
 };
 
 

@@ -259,7 +259,7 @@ router.put('/:id/bio-ipevar', requireJwtAuth, async (req, res) => {
 // POST: Generar riesgos Bio-Individuales con IA
 router.post('/worker/:id/generate-bio-risks', requireJwtAuth, async (req, res) => {
     try {
-        const { instruccionesExtra, riesgosActuales } = req.body || {};
+        const { instruccionesExtra, riesgosActuales, modelName } = req.body || {};
         const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
         if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
 
@@ -341,7 +341,11 @@ Cada objeto DEBE tener estos campos exactos:
   "dimension_bio": string, // OBLIGATORIO: Debe ser EXACTAMENTE una de las opciones válidas listadas arriba para el dominio_bio seleccionado. Copia el texto idéntico.
   "peligro_cargo": string,
   "actividad_expuesta": string,
+  "efectos_posibles": string, // Posibles enfermedades o lesiones (ej. Hipoacusia, Lumbalgia)
   "factor_individual": string, // condición del trabajador que amplifica el riesgo
+  "controles_fuente": string, // Controles existentes en la fuente
+  "controles_medio": string, // Controles existentes en el medio
+  "controles_individuo": string, // Controles existentes en el individuo
   "fit_score": ${fitScore},
   "percepcion_riesgo_pts": ${percepcionPts},
   "nivel_susceptibilidad": number (1-5),
@@ -351,26 +355,40 @@ Cada objeto DEBE tener estos campos exactos:
   "indice_bio_riesgo_efectivo": number,
   "clasificacion_bio": "Crítico"|"Alto"|"Moderado"|"Bajo",
   "intervencion_prioritaria": boolean,
-  "controles_fuente": string, // Eliminación o sustitución
-  "controles_medio": string, // Controles de ingeniería o administrativos
-  "controles_individuo": string, // EPP, pausas, seguimiento médico
+  "medida_eliminacion": string, // Control propuesto de Eliminación o "No aplica"
+  "medida_sustitucion": string, // Control propuesto de Sustitución o "No aplica"
+  "medida_ingenieria": string, // Control propuesto de Ingeniería o "No aplica"
+  "medida_administrativa": string, // Control propuesto Administrativo o "No aplica"
+  "medida_eppu": string, // Control propuesto EPP o "No aplica"
+  "factores_reduccion_texto": string, // Justificación de Anexo E o "No aplica"
   "plan_accion_bio": string, // Resumen general
   "restricciones_laborales": string,
   "seguimiento_medico": "Mensual"|"Trimestral"|"Semestral"|"Anual"
 }
 
 PRIORIZA los dominios y clasificaciones GTC-45 que correlacionen lógicamente con las condiciones de salud del trabajador y las actividades de su cargo.
-Devuelve SOLO el array JSON, sin formato markdown adicional.`;
+Devuelve SOLO el array JSON, sin formato markdown adicional ni bloques delimitadores.`;
 
         const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
-        const result = await generateWithKeyRotation('gemini-2.5-flash', req.user.id || req.user, prompt);
+        const selectedModel = modelName || 'gemini-2.5-flash';
+        const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
         const response = await result.response;
-        const rawJson = response.text();
+        let rawJson = response.text();
+
+        // Sanitizar salida Markdown
+        rawJson = rawJson.replace(/^```(json)?/im, '').replace(/```$/m, '').trim();
 
         let riesgosBioIndividual = [];
-        const match = rawJson.match(/\[\s*\{[\s\S]*?\}\s*\]/m);
-        if (match) riesgosBioIndividual = JSON.parse(match[0]);
-        else riesgosBioIndividual = JSON.parse(rawJson);
+        try {
+            riesgosBioIndividual = JSON.parse(rawJson);
+        } catch (parseError) {
+            const match = rawJson.match(/\[\s*\{[\s\S]*?\}\s*\]/m);
+            if (match) {
+                riesgosBioIndividual = JSON.parse(match[0]);
+            } else {
+                throw new Error("Formato JSON inválido devuelto por la IA");
+            }
+        }
 
         riesgosBioIndividual = riesgosBioIndividual.map((r, i) => ({
             ...r,
@@ -386,6 +404,97 @@ Devuelve SOLO el array JSON, sin formato markdown adicional.`;
     } catch (error) {
         logger.error('[SGSST Workers] Generate bio-risks error:', error);
         res.status(500).json({ error: 'Error al generar riesgos bio-individuales con IA' });
+    }
+});
+
+// POST: Actualizar una fila individual con IA (Bio-IPEVAR)
+router.post('/worker/:id/ai-update-bio-row', requireJwtAuth, async (req, res) => {
+    try {
+        const { row, instruction, modelName } = req.body;
+        if (!row) return res.status(400).json({ error: 'Se requiere la fila a actualizar' });
+        
+        const worker = await SgsstWorker.findOne({ _id: req.params.id, user: req.user.id });
+        if (!worker) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+        const prompt = `Eres un experto en SST y jerarquía de controles biocéntricos.
+Se te proporciona una fila de una Matriz IPEVAR Bio-Individual.
+Tu tarea es analizar el peligro y generar una recomendación MEJORADA para todos los campos de controles propuestos, controles existentes, efectos y clasificación. NO modifiques el Dominio, Dimensión, u Origen.
+${instruction ? `\nINSTRUCCIONES ESPECÍFICAS DEL USUARIO:\n"${instruction}"\n` : ''}
+
+FILA ACTUAL:
+${JSON.stringify(row, null, 2)}
+
+Devuelve ÚNICAMENTE un objeto JSON con los campos actualizados. Ejemplo:
+{
+  "efectos_posibles": "...",
+  "controles_fuente": "...",
+  "controles_medio": "...",
+  "controles_individuo": "...",
+  "medida_eliminacion": "...",
+  "medida_sustitucion": "...",
+  "medida_ingenieria": "...",
+  "medida_administrativa": "...",
+  "medida_eppu": "...",
+  "factores_reduccion_texto": "...",
+  "plan_accion_bio": "...",
+  "restricciones_laborales": "..."
+}
+No incluyas markdown.`;
+
+        const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
+        const selectedModel = modelName || 'gemini-2.5-flash';
+        const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
+        const response = await result.response;
+        let rawJson = response.text();
+        rawJson = rawJson.replace(/^```(json)?/im, '').replace(/```$/m, '').trim();
+
+        let updatedFields = {};
+        try {
+            updatedFields = JSON.parse(rawJson);
+        } catch (e) {
+            const match = rawJson.match(/\{[\s\S]*?\}/m);
+            if (match) updatedFields = JSON.parse(match[0]);
+            else throw new Error("JSON parse error");
+        }
+
+        res.json({ success: true, updatedFields });
+    } catch (error) {
+        logger.error('[SGSST Workers] AI Update Bio Row Error:', error);
+        res.status(500).json({ error: 'Error al actualizar fila con IA' });
+    }
+});
+
+// POST: Generar conclusión IA para Dashboard Bio-IPEVAR
+router.post('/worker/:id/ai-chart-conclusion-bio', requireJwtAuth, async (req, res) => {
+    try {
+        const { chartType, matrixRows, chartStats, manualText, modelName } = req.body;
+        
+        if (manualText !== undefined) {
+            // Guardar texto manual si se provee la funcionalidad en base de datos.
+            // Para simplificar, devolvemos success.
+            return res.json({ success: true, conclusion: manualText });
+        }
+
+        const prompt = `Eres un auditor SST analizando métricas de la Matriz Bio-Individual IPEVAR.
+Gráfico analizado: ${chartType}
+Estadísticas del gráfico: ${JSON.stringify(chartStats)}
+Total de riesgos evaluados: ${matrixRows.length}
+
+Genera una conclusión gerencial corta (2-3 oraciones) sobre estos datos. 
+- Identifica el punto más crítico o la tendencia principal.
+- Proporciona una recomendación de alto nivel.
+Devuelve ÚNICAMENTE el texto de la conclusión.`;
+
+        const apiKeys = await resolveApiKeys(req.user.id, getUserKey, AuthKeys);
+        const selectedModel = modelName || 'gemini-2.5-flash';
+        const result = await generateWithKeyRotation(selectedModel, req.user.id || req.user, prompt);
+        const response = await result.response;
+        const conclusion = response.text().trim();
+
+        res.json({ success: true, conclusion });
+    } catch (error) {
+        logger.error('[SGSST Workers] AI Chart Conclusion Error:', error);
+        res.status(500).json({ error: 'Error al generar conclusión' });
     }
 });
 

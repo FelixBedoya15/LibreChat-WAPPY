@@ -3,10 +3,11 @@ import { useAuthContext } from '~/hooks';
 import {
   ArrowLeft, User, Activity, AlertTriangle, Shield,
   Calendar, FileText, Dna, TrendingUp, TrendingDown,
-  Clock, Award, Zap, ChevronDown, ChevronRight,
+  Clock, Award, Zap, ChevronDown, ChevronRight, BarChart2,
 } from 'lucide-react';
 import { useToastContext } from '@librechat/client';
 import BioMatrizIPEVAR from './BioMatrizIPEVAR';
+import BioMatrizIPEVARDashboard from './BioMatrizIPEVARDashboard';
 
 // ─── FIT Gauge ────────────────────────────────────────────────────────────────
 const FitGauge = ({ score, alerts = [] }: { score: number; alerts?: string[] }) => {
@@ -162,6 +163,7 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
   const { showToast } = useToastContext();
   const [worker, setWorker] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'matriz' | 'analytics'>('matriz');
 
   const fetchWorker = useCallback(async () => {
     try {
@@ -340,20 +342,77 @@ export default function BioIndividuoDashboard({ workerId, onBack }: BioIndividuo
         <PercepcionHistorial historial={percepcionHistorial} />
       )}
 
-      {/* ── Matriz IPEVAR Bio-Individual ── */}
-      <div className="bg-surface-secondary border border-teal-200 dark:border-teal-800/50 rounded-2xl p-5 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-teal-600" />
-              Evaluación Bio-Individual de Riesgos
-            </h3>
-            <p className="text-xs text-text-secondary mt-1">
-              Metodología Bio-Individual WAPPY · Fórmula: NS × NE × (1 - Factor percepción)
-            </p>
-          </div>
+      {/* ── Tabs: Matriz | Analytics ── */}
+      <div className="bg-surface-secondary border border-teal-200 dark:border-teal-800/50 rounded-2xl shadow-xl overflow-hidden">
+        {/* Tab nav */}
+        <div className="flex border-b border-border-medium bg-surface-primary/50">
+          <button
+            onClick={() => setActiveTab('matriz')}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-colors ${
+              activeTab === 'matriz'
+                ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 bg-surface-secondary'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Evaluación Bio-Individual
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold transition-colors ${
+              activeTab === 'analytics'
+                ? 'text-teal-600 dark:text-teal-400 border-b-2 border-teal-500 bg-surface-secondary'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <BarChart2 className="h-3.5 w-3.5" />
+            Análisis & Conculsiones
+          </button>
         </div>
-        <BioMatrizIPEVAR workerId={workerId} />
+
+        {/* Tab content */}
+        <div className="p-5">
+          {activeTab === 'matriz' && (
+            <>
+              <div className="mb-4">
+                <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-teal-600" />
+                  Evaluación Bio-Individual de Riesgos
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Metodología Bio-Individual WAPPY · Fórmula: NS × NE × (1 - Factor percepción)
+                </p>
+              </div>
+              <BioMatrizIPEVAR workerId={workerId} />
+            </>
+          )}
+
+          {activeTab === 'analytics' && (
+            <>
+              <div className="mb-4">
+                <h3 className="text-lg font-black text-text-primary flex items-center gap-2">
+                  <BarChart2 className="h-5 w-5 text-teal-500" />
+                  Analítica Bio-IPEVAR
+                </h3>
+                <p className="text-xs text-text-secondary mt-1">
+                  Visualización de cobertura de controles, distribución de riesgos y jerarquía GTC-45.
+                </p>
+              </div>
+              <BioMatrizIPEVARDashboard
+                rows={worker?.riesgosBioIndividual || []}
+                workerId={workerId}
+                token={token || ''}
+              />
+              {(!worker?.riesgosBioIndividual || worker.riesgosBioIndividual.length === 0) && (
+                <div className="text-center py-16 text-text-tertiary text-sm">
+                  <BarChart2 className="h-12 w-12 mx-auto opacity-20 mb-3" />
+                  <p>Sin datos para visualizar.</p>
+                  <p className="text-xs mt-1">Genera la evaluación Bio-Individual primero.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

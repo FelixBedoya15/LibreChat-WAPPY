@@ -33,60 +33,27 @@ const REQUIRED_FIELDS = [
 // ─── Phase Definitions ────────────────────────────────────────────────────────
 const getPhases = () => [
     {
-        id: 'plan',
-        title: 'Consciencia Bio-Individual',
-        subtitle: 'El trabajador no es un promedio',
-        description: 'Perfil Sociodemográfico, Condiciones de Salud, Perfiles de Cargo y Diagnóstico Inicial.',
-        extendedPhilosophy: 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones únicas de edad, metabolismo y co-exposiciones. Dejamos de proteger a un "trabajador hipotético" para diagnosticar el estado real de cada bio-individuo, creando una línea base hiper-personalizada.',
+        id: 'bio_motor',
+        title: 'MOTOR BIO-INDIVIDUAL',
+        subtitle: 'El Ecosistema Vivo',
+        description: 'Huella Biocéntrica, Dinámica de Exposición, Bio-Evaluación (Matriz), Traumatismo y Predicción IA.',
+        extendedPhilosophy: 'El viaje preventivo comienza reconociendo que cada individuo posee variaciones únicas. El entorno y los peligros no son estáticos; interactúan orgánicamente con la biología y la psicología del trabajador en tiempo real para predecir y evitar el daño sistémico.',
         accent: 'text-[#10b981]',
         bgGlow: 'bg-[#10b981]/5',
         borderHover: 'hover:border-[#10b981]',
-        icon: <UserCircle className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+        icon: <Activity className="w-8 h-8 text-[#10b981] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
     },
     {
-        id: 'do',
-        title: 'Interacción Fisiológica y Entorno',
-        subtitle: 'El riesgo vive dentro del cuerpo',
-        description: 'Participación y Peligros IPEVAR, Método OWAS, Permiso en Alturas, ATS y Vulnerabilidad.',
-        extendedPhilosophy: 'El entorno es solo el catalizador; el riesgo real se materializa en la fisiología de cada persona. Más allá del monitoreo ambiental tradicional, buscamos medir el contacto real con los peligros, garantizando que cada interacción biomecánica y química esté controlada desde el metabolismo hasta el exterior.',
+        id: 'boveda_legal',
+        title: 'BÓVEDA DE CUMPLIMIENTO LEGAL',
+        subtitle: 'El Estándar Normativo (PHVA)',
+        description: 'Planear, Hacer, Verificar y Actuar (Resolución 0312 y Decreto 1072).',
+        extendedPhilosophy: 'Un espacio estructurado y aislado diseñado específicamente para consolidar, gestionar y exportar toda la documentación técnica exigida por la ley y el Ministerio de Trabajo, manteniendo el orden burocrático sin interferir con el motor biológico.',
         accent: 'text-[#0d9488]',
         bgGlow: 'bg-[#0d9488]/5',
         borderHover: 'hover:border-[#0d9488]',
-        icon: <Activity className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-    },
-    {
-        id: 'check',
-        title: 'Marco de Cuidado Personalizado',
-        subtitle: 'Reglas que contemplan al bio-individuo',
-        description: 'Políticas y Objetivos SST, Reglamento Interno y de Higiene, Matriz Legal y Responsable SG-SST.',
-        extendedPhilosophy: 'Reemplazamos las políticas genéricas por un sistema de pactos que protegen la diversidad bio-individual de nuestra comunidad. Es el baluarte institucional donde la normatividad se adapta a la realidad fisiológica de cada colaborador.',
-        accent: 'text-[#059669]',
-        bgGlow: 'bg-[#059669]/5',
-        borderHover: 'hover:border-[#059669]',
-        icon: <ShieldAlert className="w-8 h-8 text-[#059669] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-    },
-    {
-        id: 'act',
-        title: 'Alerta Temprana y Resiliencia',
-        subtitle: 'Prevención antes del daño',
-        description: 'Reporte de Actos, Investigación y Estadísticas ATEL, Auditoría, Alta Dirección y Matriz ACPM.',
-        extendedPhilosophy: 'Diseñado para proveer advertencias tempranas. Si el biomonitoreo revela contacto irregular, la organización aprende de esas señales mucho antes de que la enfermedad se manifieste, permitiéndole sanar, adaptar controles e iterar sus medidas de bioseguridad.',
-        accent: 'text-[#14b8a6]',
-        bgGlow: 'bg-[#14b8a6]/5',
-        borderHover: 'hover:border-[#14b8a6]',
-        icon: <BrainCircuit className="w-8 h-8 text-[#14b8a6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-    },
-    {
-        id: 'predict',
-        title: 'Inteligencia Predictiva Bio-Métrica',
-        subtitle: 'Visión extendida con IA',
-        description: 'Monitoreo dinámico del ecosistema mediante datos cruzados y análisis probabilístico avanzado.',
-        extendedPhilosophy: 'Al cruzar la data fisiológica, las costumbres de vida y el riesgo del entorno de cada colaborador, nuestros algoritmos probabilísticos detectan tendencias perjudiciales antes de que sucedan, brindando el poder de salvaguardar el bienestar celular y mental.',
-        accent: 'text-[#8b5cf6]',
-        bgGlow: 'bg-[#8b5cf6]/5',
-        borderHover: 'hover:border-[#8b5cf6]',
-        icon: <BrainCircuit className="w-8 h-8 text-[#8b5cf6] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
-    },
+        icon: <ShieldAlert className="w-8 h-8 text-[#0d9488] relative z-10 group-hover:scale-110 transition-transform duration-500" strokeWidth={1.5} />,
+    }
 ];
 
 const OrganicBlob = () => (
@@ -150,14 +117,14 @@ export default function SGSSTDashboard() {
     // ─── handle navigate-sgsst event (from notification panel) ───
     useEffect(() => {
         const SGSST_MODULE_PHASE_MAP: Record<string, string> = {
-            reporte_actos: 'do',
-            participacion_ipevar: 'do',
-            alta_direccion: 'check',
+            reporte_actos: 'bio_motor',
+            participacion_ipevar: 'bio_motor',
+            alta_direccion: 'boveda_legal',
         };
         const handler = (e: Event) => {
             const { module } = (e as CustomEvent).detail || {};
             if (!module) return;
-            const phaseId = SGSST_MODULE_PHASE_MAP[module] || 'do';
+            const phaseId = SGSST_MODULE_PHASE_MAP[module] || 'bio_motor';
             setSearchParams({ phase: phaseId, module });
         };
         window.addEventListener('navigate-sgsst', handler);
